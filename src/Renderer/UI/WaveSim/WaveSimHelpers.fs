@@ -225,36 +225,6 @@ let getInputPortNumber (ipn: InputPortNumber) : int =
 let getOutputPortNumber (opn: OutputPortNumber) : int =
     match opn with
     | OutputPortNumber pn -> pn
-
-
-
-let getCompGroup fs wave =
-    match fs.WaveComps[wave.WaveId.Id].FType with
-    | Input1 _ | Output _ | Constant1 _ ->
-        InputOutput
-    | IOLabel ->
-        WireLabel
-    | Viewer _ ->
-        Viewers
-    | Not | And | Or | Xor | Nand | Nor | Xnor ->
-        Gates
-    | BusCompare _ ->
-        Buses
-    | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
-        MuxDemux
-    | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _->
-        Arithmetic
-    | Custom _ ->
-        Component wave.CompLabel
-    | DFF | DFFE | Register _ | RegisterE _ ->
-        FFRegister
-    | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
-        Memories                
-    | BusSelection _ | MergeWires | SplitWire _ ->
-        failwithf "Bus select, MergeWires, SplitWire should not appear"
-    | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
-        failwithf "Legacy component types should not appear"
-
 /// convert a string to CamelCase: 
 let camelCaseDottedWords (text:string) =
     let camelWord (s:string)=
@@ -266,24 +236,104 @@ let camelCaseDottedWords (text:string) =
     text.Split([|'.'|])
     |> Array.map camelWord
     |> String.concat "."
+    /// get string in the [x:x] format given the bit limits
+
+/// output representation of bus width
+let bitLimsString (a, b) =
+    match (a, b) with
+    | (0, 0) -> ""
+    | (msb, lsb) when msb = lsb -> sprintf "(%d)" msb
+    | (msb, lsb) -> sprintf "(%d:%d)" msb lsb
+
+let portBits n = if n < 2 then "" else $"({n-1}:0)"
+
+
+/// determines how components are dispalyed in waveform selector
+let getCompDetails fs wave =
+    let fc = fs.WaveComps[wave.WaveId.Id]
+    let label = fc.FLabel
+    let descr, oneLine =
+        match fc.FType with
+        | Input1 _ -> "Input",true
+        | Output _ -> "Output", true
+        | Constant1 _ -> "What? can't happen", true
+        | Viewer _ -> "Viewer", true
+        | IOLabel _-> "Wire Label", true
+        | Not | And | Or | Xor | Nand | Nor | Xnor -> 
+            let gateType = $"{fc.FType}".ToUpper()
+            $"{gateType} gate", false
+        | BusCompare (width,v) -> $"Bus Compare ='{v}'", false
+
+        | Mux2 -> "2 input multiplexer", false
+        | Mux4 -> "4 input multiplexer", false
+        | Mux8 -> "8 input multiplexer", false
+        | Demux2 -> "2 input demultiplexer", false
+        | Demux4 -> "4 input demultiplexer", false
+        | Demux8 -> "8 input demultiplexer", false
+        | Decode4 -> "2 line decoder", false
+        | NbitsAdder n -> $"{n} bit adder",false
+        | NbitsXor n -> $"{n} XOR gates",false
+        | NbitsAnd n -> $"{n} AND gates",false
+        | NbitsNot n -> $"{n} Not gates",false
+        | NbitSpreader n -> $"1 -> {n} bits spreader",false
+        | NbitsOr n -> $"{n} OR gates",false
+        | Custom x -> $"({x.Name} instance)",false
+        | DFF -> "D flipflip", false
+        | DFFE -> "D flipflop with enaable", false
+        | Register n -> $"{n} bit D register", false
+        | RegisterE n -> $"{n} bit D register with enable", false
+        | AsyncROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false
+        | ROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
+        | RAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
+        | AsyncRAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false             
+        | BusSelection _ | MergeWires | SplitWire _ ->
+            failwithf "Bus select, MergeWires, SplitWire should not appear"
+        | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
+            failwithf "Legacy component types should not appear"
+    match oneLine with
+    | true -> $"{label}{portBits wave.Width} {descr}"
+    | false -> $"{label} {descr}"
+
+let getCompGroup fs wave =
+    match fs.WaveComps[wave.WaveId.Id].FType with
+    | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel _->
+        InputOutput
+    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+        Gates
+    | BusCompare _ ->
+        Buses
+    | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
+        MuxDemux
+    | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _->
+        Arithmetic
+    | Custom _ -> CustomComp
+    | DFF | DFFE | Register _ | RegisterE _ ->
+        FFRegister
+    | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
+        Memories                
+    | BusSelection _ | MergeWires | SplitWire _ ->
+        failwithf "Bus select, MergeWires, SplitWire should not appear"
+    | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
+        failwithf "Legacy component types should not appear"
+
 
 /// Name for summary field in details element.
 /// NB: There are fields which are commented out: these can be added back in
 /// later on if we want to group those components together by type rather than
 /// separately by name.
 let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list) (waves: Wave list): ReactElement =
-    let ss = String.concat "." subSheet
     match cBox with
     | PortItem (_,name) ->
         str <| camelCaseDottedWords name
     | ComponentItem fc->
-        str <| ss + (if subSheet = [] then "" else ".") + fc.FLabel.ToUpper()
+        let descr = getCompDetails ws.FastSim (waves[0])
+        str <| descr
         
     | GroupItem (compGroup,_) ->
         match compGroup with
-        | WireLabel -> "Wire Labels"
-        | InputOutput -> "Inputs / Outputs"
-        | Viewers -> "Viewers"
+        | InputOutput -> "Inputs / Outputs / Labels / Viewers"
+        //| Viewers -> "Viewers"
+        //| WireLabel -> "Wire Labels"
         | Buses -> "Buses"
         | Gates -> "Logic Gates"
         | MuxDemux -> "Multiplexers"
@@ -291,10 +341,12 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
         | FFRegister -> "Flip Flops and Registers"
         | Memories -> "RAMs and ROMs"
         | Component compLabel -> compLabel
-        |> (fun name -> str $"""{camelCaseDottedWords ss}{if ss = "" then "" else "."}{name.ToUpper()}""")
+        | CustomComp -> "Custom Components"
+        | _ -> "What? Not used!"
+        |> (fun name -> str $"""{name.ToUpper()}""")
 
     | SheetItem subSheet ->
-        str <| $"Subsheet {camelCaseDottedWords ss}"
+        str <| $"Subsheet {camelCaseDottedWords subSheet[subSheet.Length-1]}"
 
 
 

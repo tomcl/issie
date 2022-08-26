@@ -18,12 +18,7 @@ let cap (sheet:string) = sheet.ToUpper()
     
 
 
-/// get string in the [x:x] format given the bit limits
-let private bitLimsString (a, b) =
-    match (a, b) with
-    | (0, 0) -> ""
-    | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb
-    | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
+
 
 /// Get port names for waves that are from Input ports.
 /// Appended to comp.Label
@@ -221,19 +216,23 @@ let getName (index: WaveIndexT) (fastSim: FastSimulation) : string =
 let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIndexT) =
     let fc = fastSim.WaveComps[waveIndex.Id]
     match fc.SubSheet with
-    | [] | [_] -> dispName      
-    | path ->     camelCaseDottedWords(path[path.Length - 2]) + "." + dispName
+    | [] -> fastSim.SimulatedTopSheet + "." + dispName
+    | [sheet] -> sheet + "." + dispName      
+    | path ->  camelCaseDottedWords(path[path.Length - 2]) + "." + dispName
 
 /// Make Wave for each component and port on sheet
 let makeWave (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
     let fc = fastSim.WaveComps[wi.Id]
     //printfn $"Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}, SubSheet={fc.SubSheet}, SheetName={fc.SheetName}"
     let driver = 
+        
         match fastSim.Drivers[wi.SimArrayIndex] with
         | Some d -> d
         | None ->
             printfn "What? No driver!"
-            failwithf $"Can't find simulation waveform driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}]"
+            printfn $"ERROR Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}, SubSheet={fc.SubSheet}, SheetName={fc.SheetName}"
+            printfn $"Can't find simulation waveform driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}]"
+            failwithf "Aborting..."
     if driver.DriverWidth = 0 then 
         printfn $"Warning! 0 width driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}]"
     let dispName = getName wi fastSim
@@ -318,9 +317,19 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
 
 /// Toggle selection of a list of waves.
 let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: WaveIndexT list) =
+    let comps = wsModel.FastSim.WaveComps
     let selectedWaves =
         if selected then
-            List.append wsModel.SelectedWaves waves
+            let wavesWithMinDepth =
+                if waves = [] then [] else
+                    waves
+                    |> List.groupBy (fun waves -> comps[waves.Id].AccessPath.Length)
+                    |> List.sort
+                    |> List.head
+                    |> snd
+
+            List.append wsModel.SelectedWaves wavesWithMinDepth
+
         else
             List.except waves wsModel.SelectedWaves
     dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
@@ -349,16 +358,20 @@ let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
 
 /// Search bar to allow users to filter out waves by DisplayName
 let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    Input.text [
-        Input.Option.Props [
-            Style [
-                MarginBottom "1rem"
+    div [] [
+        Input.text [
+            Input.Option.Props [
+                Style [
+                    MarginBottom "1rem"
+                    Width "50%"
+                ]
             ]
+            Input.Option.Placeholder "Filter by viewer name: . for all"
+            Input.Option.OnChange (fun c ->
+                dispatch <| UpdateWSModel (fun ws -> {wsModel with SearchString = c.Value.ToUpper()})
+            )
         ]
-        Input.Option.Placeholder "Search"
-        Input.Option.OnChange (fun c ->
-            dispatch <| UpdateWSModel (fun ws -> {wsModel with SearchString = c.Value.ToUpper()})
-        )
+        label [Style [Float FloatOptions.Right; FontSize "24px"]]  [str $"{wsModel.SelectedWaves.Length} waves selected."]
     ]
 
 /// Implemements a checkbox, with toggle state stored in WaveSimModel under ShowDetailMap
@@ -378,9 +391,17 @@ let checkBoxItem  wsModel isChecked waveIds  dispatch =
     ]
 
 /// Implemements a checkbox, with toggle state determined by SelectedWaves.
-let waveCheckBoxItem  wsModel waveIds  dispatch =
+let waveCheckBoxItem  (wsModel:WaveSimModel) (waveIds:WaveIndexT list)  dispatch =
+    let comps = wsModel.FastSim.WaveComps
+    let minDepthSelectedWaves =
+        if waveIds = [] then [] else
+            waveIds
+            |> List.groupBy (fun waveId -> comps[waveId.Id].AccessPath.Length)
+            |> List.sort
+            |> List.head
+            |> snd
     let checkBoxState =
-        List.forall (fun w -> List.contains w wsModel.SelectedWaves) waveIds
+        List.forall (fun w -> List.contains w wsModel.SelectedWaves) minDepthSelectedWaves
     Checkbox.checkbox [] [
         Checkbox.input [
             Props [
@@ -408,10 +429,13 @@ let makePortRow (ws: WaveSimModel) (dispatch: Msg -> Unit) (waves: Wave list)  =
     tr [] [
         td [] [waveCheckBoxItem ws  [wave.WaveId] dispatch]
         td [] [str wave.PortLabel]
+        //td [] [str <| match (fst wave.WaveId.Id) with ComponentId s -> s[0..5] ]
+        td [] [str <| match wave.WaveId.PortType with | PortType.Output -> "Output" | PortType.Input -> "Input"]
         ]
 
 /// returns a tr react element representing a thing with a checkbox with summary name and details beneath
 let makeSelectionGroup 
+        (showDetails:bool)
         (ws: WaveSimModel) 
         (dispatch: Msg -> Unit)
         (summaryItem: ReactElement) 
@@ -426,7 +450,7 @@ let makeSelectionGroup
             ]
             th [] [
                 details
-                    (detailsProps cBox ws dispatch)
+                    (detailsProps showDetails cBox ws dispatch)
                     [   
                         summary
                             (summaryProps true cBox ws dispatch)
@@ -441,32 +465,32 @@ let makeSelectionGroup
 
 
 /// Returns a tr react element representing a component with ports detailed beneath
-let rec makeComponentRow (ws: WaveSimModel) (dispatch: Msg->Unit) (fc: FastComponent) (waves: Wave list)  =
+let rec makeComponentRow showDetails (ws: WaveSimModel) (dispatch: Msg->Unit) (fc: FastComponent) (waves: Wave list)  =
     let cBox = ComponentItem fc
     let summaryReact = summaryName ws cBox fc.SubSheet waves
     let rows = 
         waves
         |> List.map (fun wave -> makePortRow ws dispatch [wave])
-    makeSelectionGroup ws dispatch summaryReact rows cBox waves    
+    makeSelectionGroup showDetails ws dispatch summaryReact rows cBox waves    
    
 /// Returns a tr react element representing a component with ports detailed beneath
-let rec makeComponentGroup (ws: WaveSimModel) (dispatch: Msg->Unit) (subSheet: string list) (cGroup: ComponentGroup) (waves: Wave list)  =
+let rec makeComponentGroup showDetails (ws: WaveSimModel) (dispatch: Msg->Unit) (subSheet: string list) (cGroup: ComponentGroup) (waves: Wave list)  =
     let compWaves = 
         waves
         |> List.groupBy (fun wave -> wave.WaveId.Id)
     if compWaves.Length = 1 then
         let fc = ws.FastSim.WaveComps[(List.head waves).WaveId.Id]
-        makeComponentRow ws dispatch fc waves
+        makeComponentRow showDetails ws dispatch fc waves
     else
         let cBox = GroupItem (cGroup,subSheet)
         let summaryReact = summaryName ws cBox subSheet waves
         let compRows =
             compWaves
-            |> List.map (fun (fId,compWaves) -> makeComponentRow ws dispatch ws.FastSim.WaveComps[fId] compWaves)
+            |> List.map (fun (fId,compWaves) -> makeComponentRow showDetails ws dispatch ws.FastSim.WaveComps[fId] compWaves)
 
-        makeSelectionGroup ws dispatch summaryReact compRows cBox waves  
+        makeSelectionGroup showDetails ws dispatch summaryReact compRows cBox waves  
 
-let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: string list) (waves: Wave list) =  
+let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: string list) (waves: Wave list) =  
     let cBox = SheetItem subSheet
     let fs = ws.FastSim
     let wavesBySheet = 
@@ -478,12 +502,12 @@ let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: stri
         |> List.filter (fun (g,wLst) -> g = subSheet)
         |> List.collect snd
         |> List.groupBy (fun wave -> getCompGroup fs wave) 
-        |> List.map (fun (grp,groupWaves) -> makeComponentGroup ws dispatch subSheet grp groupWaves)
+        |> List.map (fun (grp,groupWaves) -> makeComponentGroup showDetails ws dispatch subSheet grp groupWaves)
 
     let subSheetRows =
         wavesBySheet
         |> List.filter (fun (g,_) -> g <> subSheet)
-        |> List.map (fun (subSheet',waves') ->  makeSheetRow ws dispatch subSheet' waves')
+        |> List.map (fun (subSheet',waves') ->  makeSheetRow showDetails ws dispatch subSheet' waves')
     
     let rows = List.append subSheetRows componentRows
     if subSheet = [] then
@@ -494,7 +518,7 @@ let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: stri
                 Style [BorderWidth 0]
             ]] [tbody [] rows]
     else
-        makeSelectionGroup ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
+        makeSelectionGroup showDetails ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
 
 
 
@@ -504,10 +528,13 @@ let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: stri
 
 
 let  selectWaves (wsModel: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
-    let fs = wsModel.FastSim   
-    Map.values wsModel.AllWaves |> Seq.toList
-    |> List.filter (fun x -> x.DisplayName.ToUpper().Contains(wsModel.SearchString))
-    |> makeSheetRow wsModel dispatch []
+    let fs = wsModel.FastSim
+    let wavesToDisplay =
+        Map.values wsModel.AllWaves |> Seq.toList
+        |> List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(wsModel.SearchString))
+    let showDetails = wavesToDisplay.Length < 10 || wsModel.SearchString.Length > 0
+    wavesToDisplay
+    |> makeSheetRow showDetails wsModel dispatch []
 
 
 

@@ -242,6 +242,7 @@ module CommonTypes
         LabelBoundingBox: BoundingBox option
         LabelRotation: Rotation option
         STransform: STransform
+        ReversedInputPorts: bool option
         PortOrientation: Map<string, Edge>
         PortOrder: Map<Edge, string list>
     }

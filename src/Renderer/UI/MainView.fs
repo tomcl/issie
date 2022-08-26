@@ -274,7 +274,7 @@ let displayView model dispatch =
         let namesColWidth = WaveSimStyle.calcNamesColWidth wsModel
 
         /// The +4 is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
-        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + Constants.dividerBarWidth + Constants.scrollBarWidth + 2
+        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + Constants.dividerBarWidth + Constants.scrollBarWidth + 4
 
         /// This is what the overall waveform width must be
         let waveColWidth = w - otherDivWidths - namesColWidth - Constants.valuesColWidth

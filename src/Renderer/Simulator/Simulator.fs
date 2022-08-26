@@ -110,7 +110,7 @@ let rec prepareSimulation
             | Some err -> Error err
             | None -> 
                 try
-                    match FastRun.buildFastSimulation initMaxSteps graph with
+                    match FastRun.buildFastSimulation diagramName initMaxSteps graph with
                     | Ok fs -> 
                         Ok {
                             FastSim = fs                           

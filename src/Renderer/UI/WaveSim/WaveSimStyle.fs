@@ -125,6 +125,7 @@ let selectWavesButtonPropsLight =
 
 let centerAlignStyle = Style [
     TextAlign TextAlignOptions.Center
+    FontSize "15px"
 ]
 
 /// Style for row in ramTable
@@ -583,7 +584,7 @@ let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit
 ]
 
 /// Props for HTML Details element
-let detailsProps cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
+let detailsProps showDetails cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
     let show =
         match cBox with
         | PortItem _ -> false
@@ -591,7 +592,7 @@ let detailsProps cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list
         | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
         | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
     [
-        Open show
+        Open (show || showDetails)
     ]
 
 /// Style for top half of waveform simulator (instructions and buttons)

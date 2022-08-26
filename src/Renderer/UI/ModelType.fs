@@ -36,7 +36,7 @@ type ComponentGroup =
     | Gates
     | MuxDemux
     | Arithmetic
-    // | CustomComp
+    | CustomComp
     | FFRegister
     | Memories
     | Component of string
@@ -231,7 +231,7 @@ let initWSModel  : WaveSimModel = {
     RamModalActive = false
     RamComps = []
     SelectedRams = Map.empty
-    FastSim = FastCreate.emptyFastSimulation () // placeholder
+    FastSim = FastCreate.emptyFastSimulation "" // placeholder
     SearchString = ""
     ShowComponentDetail = Set.empty
     ShowSheetDetail = Set.empty

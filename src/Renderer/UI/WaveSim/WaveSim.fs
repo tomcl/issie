@@ -289,16 +289,19 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                     if wsModel.DraggedIndex = None then
                         dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
                         // Check if symbol exists on Canvas
-                        if Map.containsKey (fst wave.WaveId.Id) model.Sheet.Wire.Symbol.Symbols then
+                        match Map.tryFind (fst wave.WaveId.Id) model.Sheet.Wire.Symbol.Symbols with
+                        | Some sym ->
                             dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [fst wave.WaveId.Id])))
-                        // Filter out any non-existent wires
-                        let conns = List.filter (fun conn -> Map.containsKey conn model.Sheet.Wire.Wires) wave.Conns 
-                        dispatch <| Sheet (SheetT.Msg.SelectWires conns)
+                            // Filter out any non-existent wires
+                            let conns = getConnsOfWave model wave 
+                            dispatch <| Sheet (SheetT.Msg.SelectWires conns)
+                        | None -> ()
+                        
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None}
                     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
-                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (wave.Conns, false))
+                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (getConnsOfWave model wave, false))
                 )
 
                 Draggable true

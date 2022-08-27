@@ -34,6 +34,11 @@ let getSheet (ldcs: LoadedComponent list) (openSheet: string)  =
     | None -> failwithf $"getSheet failed to look up '{openSheet}' in {ldcs |> List.map (fun ldc -> ldc.Name)}"
     | Some name -> name
 
+/// look up a sheet in a set of loaded components, return [] or a list of the matching LoadedComponent
+let getLdcList (ldcs: LoadedComponent list) (openSheet: string)  =
+    match List.tryFind (fun ldc -> cap ldc.Name = cap openSheet) ldcs with
+    | None -> failwithf $"getSheet failed to look up '{openSheet}' in {ldcs |> List.map (fun ldc -> ldc.Name)}"
+    | Some name -> name
 
 let getDirectDependencies (cs:CanvasState) =
     fst cs
@@ -44,7 +49,9 @@ let childrenOf (ldcs: LoadedComponent list) (sheet:string) =
     |> (fun ldc -> getDirectDependencies ldc.CanvasState)
 
 
-/// sheets needed to simulate sheet with name sheet
+/// Sheets needed to simulate sheet with name sheet.
+/// Sheets form a dependency tree. 
+/// ldcs is a list of loaded components which must include sheet
 let rec sheetsNeeded (ldcs: LoadedComponent list) (sheet:string): string list =
     let children = childrenOf ldcs sheet |> List.map snd
     children
@@ -73,18 +80,20 @@ let simulationIsValid (canvasState: CanvasState) (project: Project option) (fs:F
 
 
     
-let saveStateInSimulation (canvasState:CanvasState) (project: Project option) (fs:FastSimulation) =
-    match project with
-    | None -> 
-        failwithf "What? Can't save state with project = None"
-    | Some p -> 
+let saveStateInSimulation (canvasState:CanvasState) (diagramName: string) (ldcs: LoadedComponent list) (fs:FastSimulation) =
+
+    let ldcs = 
+        let openLDC = diagramName
+        let ldc' = Extractor.extractLoadedSimulatorComponent canvasState openLDC
         let ldcs = 
-            let openLDC = p.OpenFileName
-            let ldc' = Extractor.extractLoadedSimulatorComponent canvasState openLDC
-            let ldcs = p.LoadedComponents |> List.map (fun ldc -> if ldc.Name = openLDC then ldc' else ldc)
-            sheetsNeeded ldcs openLDC
-            |> List.map (getSheet ldcs)
-        {fs with SimulatedCanvasState= ldcs; SimulatedTopSheet = p.OpenFileName}
+            let ldcIsOpen ldc = ldc.Name = openLDC
+            ldcs 
+            |> List.map (fun ldc -> if ldcIsOpen ldc then ldc' else ldc)
+            |> (fun ldcs -> if not <| List.exists ldcIsOpen ldcs then ldc' :: ldcs else ldcs)
+        printfn $"diagramName={openLDC}, sheetNames = {ldcs |> List.map (fun ldc -> ldc.Name)}"
+        sheetsNeeded ldcs openLDC
+        |> List.map (getSheet ldcs)
+    {fs with SimulatedCanvasState = ldcs; SimulatedTopSheet = diagramName}
 
 let rec prepareSimulation
         (diagramName : string)
@@ -103,7 +112,7 @@ let rec prepareSimulation
         | Error err -> Error err
         | Ok graph ->
             // Simulation graph is fully merged with dependencies.
-            // Perform checks on it.
+            // Perform checks on it
             let components, connections = canvasState
             let inputs, outputs = getSimulationIOs components
             match analyseSimulationGraph diagramName graph connections with
@@ -112,6 +121,7 @@ let rec prepareSimulation
                 try
                     match FastRun.buildFastSimulation diagramName initMaxSteps graph with
                     | Ok fs -> 
+                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
                         Ok {
                             FastSim = fs                           
                             Graph = graph // NB graph is now not initialised with data

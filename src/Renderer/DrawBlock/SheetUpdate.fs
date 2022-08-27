@@ -1005,7 +1005,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 List.append cIds model.PrevWireSelection
         {model with SelectedWires = newWires}, 
         Cmd.batch [
-            Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.Blue)); 
+            Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.SkyBlue)); 
             wireCmd (BusWireT.SelectWires newWires)]
     | SetSpinner isOn ->
         if isOn then {model with CursorType = Spinner}, Cmd.none

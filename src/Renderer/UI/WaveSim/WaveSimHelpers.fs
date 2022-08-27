@@ -428,6 +428,33 @@ let setSelectionOpen (wsModel: WaveSimModel) (cBox: CheckBoxStyle) (show:bool) =
     | SheetItem subSheet -> setWaveSheetSelectionOpen wsModel [subSheet] show
 
     
+let getConnsOfWave (model: Model) (wave: Wave) =
+    let symbols = model.Sheet.Wire.Symbol.Symbols
+    let wires = model.Sheet.Wire.Wires
+    let wi = wave.WaveId
+    let portIsTarget (port:Port) (wire:DrawModelType.BusWireT.Wire) = (wire.OutputPort = OutputPortId port.Id)
+    let portIsSource (port:Port) (wire:DrawModelType.BusWireT.Wire) = (wire.InputPort = InputPortId port.Id)
+    Map.tryFind (fst wave.WaveId.Id) symbols
+    |> Option.map (fun sym ->
+                    match wi.PortType with
+                    | PortType.Input -> 
+                        List.tryItem wi.PortNumber sym.Component.InputPorts
+                        |> Option.map portIsSource
+                    | PortType.Output -> 
+                        List.tryItem wi.PortNumber sym.Component.OutputPorts
+                        |> Option.map portIsTarget)
+    |> Option.defaultValue None
+    |> Option.map (fun isConnected  ->   
+        wires
+        |> Map.filter (fun cid wire -> isConnected wire)
+        |> Map.values
+        |> Seq.toList)
+    |> Option.defaultValue []
+    |> List.map (fun wire -> wire.WId)
+
+   
+  
+                            
 
 
 

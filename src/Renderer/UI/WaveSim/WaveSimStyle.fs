@@ -370,7 +370,7 @@ let namesColumnStyle (ws:WaveSimModel) = Style (
         Float FloatOptions.Left
         BorderRight Constants.borderProperties
         GridColumnStart 1
-        OverflowX OverflowOptions.Auto
+        OverflowX OverflowOptions.Clip
         TextAlign TextAlignOptions.Right
     ])
 
@@ -385,7 +385,7 @@ let namesColumnProps (ws:WaveSimModel): IHTMLProp list = [
 let valuesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.valuesColWidth
-        Float FloatOptions.Right
+        Float FloatOptions.Left
         BorderLeft Constants.borderProperties
         OverflowX OverflowOptions.Auto
         GridColumnStart 3
@@ -431,7 +431,7 @@ let showWaveformsStyle = Style [
     Display DisplayOptions.Grid
     ColumnCount 3
     GridAutoFlow "column"
-    GridAutoColumns "auto"
+    GridAutoColumns "min-content"
 ]
 
 

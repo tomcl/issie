@@ -442,6 +442,12 @@ let update (msg : Msg) oldModel =
             model
             |> updateWSModel (fun ws -> WaveSimHelpers.setWaveComponentSelectionOpen ws fIdL show)
         model, cmd
+    | SetWaveGroupSelectionOpen (fIdL, show) -> 
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveGroupSelectionOpen ws fIdL show)
+        model, cmd
+
         
     | SetWaveSheetSelectionOpen (fIdL, show) ->       
         let model = 

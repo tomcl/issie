@@ -1,6 +1,7 @@
 ﻿module WaveSimSelect
 
 open Fulma
+open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
 
@@ -13,11 +14,6 @@ open SimulatorTypes
 
 
 let cap (sheet:string) = sheet.ToUpper()
-
-
-    
-
-
 
 
 /// Get port names for waves that are from Input ports.
@@ -354,7 +350,13 @@ let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
                 [ str wave.DisplayName ]
         ]
 
-
+let infoButton  : ReactElement =
+    div 
+        [
+            HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsInfo} {Tooltip.IsTooltipRight}"
+            Tooltip.dataTooltip Constants.infoMessage
+            Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]] 
+        [str Constants.infoSignUnicode]
 
 /// Search bar to allow users to filter out waves by DisplayName
 let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
@@ -363,16 +365,30 @@ let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
             Input.Option.Props [
                 Style [
                     MarginBottom "1rem"
-                    Width "50%"
+                    Width "30%"
+                    Float FloatOptions.Left
                 ]
             ]
-            Input.Option.Placeholder "Filter by viewer name: . for all"
+            Input.Option.Placeholder "Viewer Name"
             Input.Option.OnChange (fun c ->
                 dispatch <| UpdateWSModel (fun ws -> {wsModel with SearchString = c.Value.ToUpper()})
             )
         ]
+        infoButton
         label [Style [Float FloatOptions.Right; FontSize "24px"]]  [str $"{wsModel.SelectedWaves.Length} waves selected."]
     ]
+
+
+
+        (*
+    Button.button 
+        [ Button.OnClick(fun _ -> ()) 
+          Button.Color IsInfo
+          Button.Option.Size IsSmall
+          Button.IsRounded
+          Button.Props [Style [Float FloatOptions.Left; MarginTop "3px";MarginRight "10px"] ]
+        ] 
+        [ span [Style [FontSize "25px"; Margin "0px"]] [str "\U0001F6C8"] ]*)
 
 /// Implemements a checkbox, with toggle state stored in WaveSimModel under ShowDetailMap
 /// using  waveIds as key.
@@ -527,14 +543,28 @@ let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> U
 
 
 
-let  selectWaves (wsModel: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
-    let fs = wsModel.FastSim
+let  selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
+
+    let fs = ws.FastSim
+    let searchText = ws.SearchString
+    let waves = Map.values ws.AllWaves |> Seq.toList
     let wavesToDisplay =
-        Map.values wsModel.AllWaves |> Seq.toList
-        |> List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(wsModel.SearchString))
-    let showDetails = wavesToDisplay.Length < 10 || wsModel.SearchString.Length > 0
+        match searchText with
+        | "-" when ws.ShowSheetDetail.Count <> 0 || ws.ShowComponentDetail.Count <> 0  || ws.ShowGroupDetail.Count <> 0 ->
+            dispatch <|SetWaveSheetSelectionOpen (ws.ShowSheetDetail |> Set.toList,false)            
+            dispatch <| SetWaveGroupSelectionOpen (ws.ShowGroupDetail |> Set.toList,false)
+            dispatch <| SetWaveComponentSelectionOpen (ws.ShowComponentDetail |> Set.toList,false)
+            waves
+        | "" | "-" ->
+            waves
+        | "*" ->
+            ws.SelectedWaves
+            |> List.map (fun wi -> ws.AllWaves[wi])                       
+        | _ ->
+            List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) waves
+    let showDetails = wavesToDisplay.Length < 10 || searchText.Length > 0
     wavesToDisplay
-    |> makeSheetRow showDetails wsModel dispatch []
+    |> makeSheetRow showDetails ws dispatch []
 
 
 
@@ -561,7 +591,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                 OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = false}))
             ]
         ] []
-        Modal.Card.card [] [
+        Modal.Card.card [Props [Style [MinWidth "900px"]]] [
             Modal.Card.head [] [
                 Modal.Card.title [] [
                     Level.level [] [
@@ -581,7 +611,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                     ]
                 ]
             ]
-            Modal.Card.body [] [
+            Modal.Card.body [Props [Style [OverflowY OverflowOptions.Visible]]] [   
                 searchBar wsModel dispatch
                 selectWaves wsModel [] dispatch
             ]

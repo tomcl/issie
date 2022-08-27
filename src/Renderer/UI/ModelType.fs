@@ -298,6 +298,8 @@ type Msg =
     | SetWaveSheetSelectionOpen of (string list list * bool)
     /// Sets or clears ShowComponentDetail
     | SetWaveComponentSelectionOpen of (FComponentId list * bool)
+    /// Sets or clears GroupDetail
+    | SetWaveGroupSelectionOpen of ((ComponentGroup * string list) list * bool)
     | LockTabsToWaveSim
     | UnlockTabsFromWaveSim
     | SetSimulationGraph of SimulationGraph  * FastSimulation

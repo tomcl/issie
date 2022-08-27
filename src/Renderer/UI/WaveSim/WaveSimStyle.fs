@@ -42,6 +42,10 @@ module Constants =
 
     /// Padding between name label/value label and waveform column.
     let labelPadding = 3
+    let infoMessage = 
+        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
+    let infoSignUnicode = "\U0001F6C8"
+
 
 /// Style for top row in wave viewer.
 let topRowStyle = Style [

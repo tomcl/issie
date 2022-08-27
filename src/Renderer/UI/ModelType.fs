@@ -53,6 +53,7 @@ type RightTab =
     | Properties
     | Catalogue
     | Simulation
+    | Transition // hack to make a transition from Simulation to Catalog without a scrollbar artifact
 
 type SimSubTab =
     | StepSim

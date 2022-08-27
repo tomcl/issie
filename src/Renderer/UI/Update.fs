@@ -725,6 +725,7 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
+        | Transition -> Cmd.none
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

@@ -98,7 +98,7 @@ let singleWaveWidth m = float m.WaveformColumnWidth / float m.ShownCycles
 let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
 
 /// Total width of the SVG viewbox.
-let viewBoxWidth m = string m.WaveformColumnWidth
+let viewBoxWidth m = string (m.WaveformColumnWidth)
 
 /// Right-most visible clock cycle.
 let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1

@@ -2,6 +2,7 @@ module DiagramStyle
 
 open ModelType
 open Fable.React.Props
+open Browser.Dom
 
 let headerHeight = "72px"
 let private headerHeightWithBorderOffset = "74px"
@@ -10,7 +11,7 @@ let private rightSectionWidthS = "400px"
 /// Large right section.
 let private rightSectionWidthL = "650px"
 let minViewerWidth = 400
-let minEditorWidth = 400
+let minEditorWidth() = int ((document.getElementById "WholeApp").offsetWidth * 0.25)
 
 let rightSectionWidthViewerDefault = 650
 
@@ -21,7 +22,7 @@ let getHeaderHeight =
     
 let rightSectionWidth (model:Model) =
     match model.RightPaneTabVisible with
-    | RightTab.Properties | RightTab.Catalogue -> rightSectionWidthS
+    | RightTab.Properties | RightTab.Catalogue | RightTab.Transition -> rightSectionWidthS
     | RightTab.Simulation -> 
         match model.SimSubTabVisible with
         | SimSubTab.StepSim -> rightSectionWidthL

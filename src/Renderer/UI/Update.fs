@@ -351,6 +351,7 @@ let sheetMsg sMsg model =
 let update (msg : Msg) oldModel =
     let startUpdate = TimeHelpers.getTimeMs()
 
+
     //Add the message to the pending queue if it is a mouse drag message
     let model =
         if matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag) msg then
@@ -367,7 +368,6 @@ let update (msg : Msg) oldModel =
             DoNothing, Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
         | None ->
             msg, Cmd.none
-
     // main message dispatch match expression
     match testMsg with
     | StartUICmd uiCmd ->
@@ -413,6 +413,8 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel ->
         setWSModel wsModel model, Cmd.none
+    | UpdateWSModel updateFn ->
+        updateWSModel updateFn model, Cmd.none
     | SetWSModelAndSheet (wsModel, wsSheet) ->
         let newModel =
             {model with WaveSimSheet = wsSheet}
@@ -435,6 +437,24 @@ let update (msg : Msg) oldModel =
 
         setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
 
+    | SetWaveComponentSelectionOpen (fIdL, show) ->       
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveComponentSelectionOpen ws fIdL show)
+        model, cmd
+    | SetWaveGroupSelectionOpen (fIdL, show) -> 
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveGroupSelectionOpen ws fIdL show)
+        model, cmd
+
+        
+    | SetWaveSheetSelectionOpen (fIdL, show) ->       
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveSheetSelectionOpen ws fIdL show)
+        model, cmd
+        
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none
@@ -711,6 +731,7 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
+        | Transition -> Cmd.none
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -920,9 +941,15 @@ let update (msg : Msg) oldModel =
         //ignore the exectue message
         else 
             model, Cmd.none
+    // Various messages here that are not implemented as yet, or are no longer used
+    // should be sorted out
+    | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 
+    | SetPopupInputConstraints _ | SetPopupOutputConstraints _ 
+    | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
+    | ShowExitDialog _ -> model, Cmd.none
     | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
         model, cmd
-    | msg ->
+    | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
     |> (fun (model,cmdL) -> 

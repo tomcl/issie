@@ -269,16 +269,21 @@ let createFastArrays fs gather =
 /// This function also creates the reducer functions for each component
 /// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
 /// mutable arrays
-let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
+let buildFastSimulation 
+        (diagramName: string) 
+        (numberOfSteps: int) 
+        (graph: SimulationGraph) 
+            : Result<FastSimulation,SimulationError> =
     let gather = gatherSimulation graph
     let fs =  
-        createInitFastCompPhase numberOfSteps gather (emptyFastSimulation ())
+        emptyFastSimulation diagramName
+        |> createInitFastCompPhase numberOfSteps gather
         |> linkFastComponents gather
     gather
     |> createFastArrays fs
     |> orderCombinationalComponents numberOfSteps
     |> checkAndValidate
-    |> Result.map addDriversToFastSimulation
+    |> Result.map addWavesToFastSimulation
 
 
 //---------------------------------------------------------------------------------------------------//
@@ -399,8 +404,8 @@ let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
             printfn $"Simulation speed: {numComponents*stepsToDo/sTime} Component-Steps/ms ({int stepsToDo} steps, {int numComponents} components)"
 
 /// Run a fast simulation for a given number of steps building it from the graph
-let runSimulationZeroInputs (steps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
-    let fsResult = buildFastSimulation steps graph
+let runSimulationZeroInputs (diagramName: string) (steps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
+    let fsResult = buildFastSimulation diagramName steps graph
     fsResult
     |> Result.map (runFastSimulation steps)
     |> ignore

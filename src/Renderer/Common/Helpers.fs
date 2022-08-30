@@ -7,6 +7,7 @@
 module Helpers
 open CommonTypes
 
+
     [<AutoOpen>]
     module JsonHelpers =
         open Fable.SimpleJson
@@ -103,6 +104,12 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
 /// replace new lines in a string by ';' for easier debug printing of records using %A
 let nocr (s:string) = 
     s.Replace("\n",";")
+
+
+
+/// access to JS reference equality operation (===)
+
+
 
 // NB mapKeys and mapValues should probably be changed to use F# 6 Map.kets, Map.values
 

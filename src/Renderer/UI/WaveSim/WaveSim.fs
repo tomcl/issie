@@ -289,16 +289,19 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                     if wsModel.DraggedIndex = None then
                         dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
                         // Check if symbol exists on Canvas
-                        if Map.containsKey (fst wave.WaveId.Id) model.Sheet.Wire.Symbol.Symbols then
+                        match Map.tryFind (fst wave.WaveId.Id) model.Sheet.Wire.Symbol.Symbols with
+                        | Some sym ->
                             dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [fst wave.WaveId.Id])))
-                        // Filter out any non-existent wires
-                        let conns = List.filter (fun conn -> Map.containsKey conn model.Sheet.Wire.Wires) wave.Conns 
-                        dispatch <| Sheet (SheetT.Msg.SelectWires conns)
+                            // Filter out any non-existent wires
+                            let conns = getConnsOfWave model wave 
+                            dispatch <| Sheet (SheetT.Msg.SelectWires conns)
+                        | None -> ()
+                        
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None}
                     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
-                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (wave.Conns, false))
+                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (getConnsOfWave model wave, false))
                 )
 
                 Draggable true
@@ -373,7 +376,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                 ]
             Level.right
                 [ Props [ Style [ PaddingRight Constants.labelPadding ] ] ]
-                [ label [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId) ] [ wave.DisplayName |> WaveSimHelpers.camelCaseDottedWords |> str ] ]
+                [ label [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId) ] [ wave.ViewerDisplayName|> str ] ]
         ]
     )
 
@@ -617,7 +620,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         ] [ thead [] [
                 tr [] [
                     th [ centerAlignStyle ] [ str "Address"]
-                    th [ centerAlignStyle ] [ str "Data"]
+                    th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string wsModel.CurrClkCycle)]]
                 ]
             ]
             tbody []
@@ -633,9 +636,9 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
     let selectedRams = Map.toList wsModel.SelectedRams
     if List.length selectedRams > 0 then
         let headerRow =
-            ["read", RAMRead; "written",RAMWritten]
-            |> List.map (fun (op, opStyle) -> inlineStyle [] [str "Memory location "; inlineStyle (ramTableRowStyle  opStyle) [str op]])
-            |> function | [a;b] -> [str "Key: " ; a; str ", " ;b; str " In current cycle."] | _ -> failwithf "What? Can't happen!"
+            ["read", RAMRead; "overwritten",RAMWritten]
+            |> List.map (fun (op, opStyle) -> inlineStyle [] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
+            |> function | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use control to change cycle."] | _ -> failwithf "What? Can't happen!"
         List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
         |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
         |> Fulma.Table.table [Table.TableOption.Props ramTablesLevelProps; Table.IsFullWidth; Table.IsBordered; Table.Props [Style [Height "100%"]]]

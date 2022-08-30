@@ -42,6 +42,10 @@ module Constants =
 
     /// Padding between name label/value label and waveform column.
     let labelPadding = 3
+    let infoMessage = 
+        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
+    let infoSignUnicode = "\U0001F6C8"
+
 
 /// Style for top row in wave viewer.
 let topRowStyle = Style [
@@ -125,6 +129,7 @@ let selectWavesButtonPropsLight =
 
 let centerAlignStyle = Style [
     TextAlign TextAlignOptions.Center
+    FontSize "15px"
 ]
 
 /// Style for row in ramTable
@@ -335,7 +340,7 @@ let calcNamesColWidth (ws:WaveSimModel) : int =
             let sizeInPx = float ((Constants.columnFontSize.ToLower()).Replace("px",""))   
             sizeInPx * DrawHelpers.canvasWidthContext.measureText(txt).width / 10.0
         ws.SelectedWaves
-        |> List.map (fun wi -> camelCaseDottedWords ws.AllWaves[wi].DisplayName)
+        |> List.map (fun wi -> ws.AllWaves[wi].ViewerDisplayName)
         |> (fun lst -> "Dummy" :: lst)
         |> List.map getWidth
         |> List.max
@@ -514,7 +519,7 @@ let clkCycleHighlightSVG m dispatch =
             /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
             /// add m.StartCycle to account for when viewBoxMinX is not 0
             let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
-            dispatch <| SetWSModel {m with CurrClkCycle = cycle}
+            dispatch <| UpdateWSModel (fun m -> {m with CurrClkCycle = cycle})
         )
         ]
         (List.append 
@@ -558,17 +563,41 @@ let wavePolylineStyle points : IProp list = [
 ]
 
 /// Props for HTML Summary element
-let summaryProps : IHTMLProp list = [
+let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = [
+
+    let clickHandler (e:Browser.Types.Event) = 
+        if isSummary then
+            let show =
+                match cBox with
+                | PortItem _ -> false
+                | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
+                | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
+                | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
+            dispatch <| UpdateWSModel (fun ws -> setSelectionOpen ws cBox (not show))
+    let size,weight =
+        match cBox with 
+        | SheetItem _ -> "20px", "bold"
+        | ComponentItem _ -> "16px", "bold"
+        | GroupItem _ -> "18px", "bold"
+        | PortItem _ -> "12px", "normal"
     Style [
-        FontSize "20px"
-        FontWeight "bold"
+        FontSize size
+        FontWeight weight
     ]
+    OnClick clickHandler
 ]
 
 /// Props for HTML Details element
-let detailsProps : IHTMLProp list = [
-    Open false
-]
+let detailsProps showDetails cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
+    let show =
+        match cBox with
+        | PortItem _ -> false
+        | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
+        | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
+        | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
+    [
+        Open (show || showDetails)
+    ]
 
 /// Style for top half of waveform simulator (instructions and buttons)
 let topHalfStyle = Style [

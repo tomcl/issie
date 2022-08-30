@@ -601,13 +601,51 @@ let renameFileInProject name project model dispatch =
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
+
+let removeAllCustomComps (name:string) project =
+    let ldcs = project.LoadedComponents
+    ldcs
+    |> List.map (fun lc -> 
+        let comps,conns = lc.CanvasState
+        let idsToBeDeleted = 
+            comps |> List.filter (fun comp -> 
+                match comp.Type with
+                |Custom c when c.Name = name -> true
+                |_ -> false
+            )
+            |> List.map (fun comp -> comp.Id)
+        let newComps = 
+            comps |> List.filter (fun comp -> 
+                match comp.Type with
+                |Custom c when c.Name = name -> 
+                    printfn "custom %A" c
+                    false
+                |_ -> true
+            )
+        printfn "todeleteids %A" idsToBeDeleted
+        let newConns =
+            conns |> List.filter (fun conn ->
+                match conn.Source.HostId,conn.Target.HostId with
+                |hostId,_ when (List.exists (fun id -> id = hostId) idsToBeDeleted) -> false
+                |_,targetId when (List.exists (fun id -> id = targetId) idsToBeDeleted) -> false
+                |_,_ -> true
+            )
+        {lc with CanvasState=(newComps,newConns)}
+    )
+
+
 /// Remove file.
-let private removeFileInProject name project model dispatch =
+let removeFileInProject name project model dispatch =
     removeFile project.ProjectPath name
     // Remove the file from the dependencies and update project.
     let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name.ToLower() <> name.ToLower()) project.LoadedComponents
     // Make sure there is at least one file in the project.
     let project' = {project with LoadedComponents = newComponents}
+
+    //delete all custom components from that sheet
+    let newComponents' = removeAllCustomComps name project' 
+    let project' = {project' with LoadedComponents = newComponents'}
+
     match newComponents, name = project.OpenFileName with
     | [],true -> 
         // reate a new empty file with default name main as sole file in project
@@ -625,7 +663,7 @@ let private removeFileInProject name project model dispatch =
         // nothing chnages except LoadedComponents
         //printfn $"remove sheet '{name}'"
         //printSheetNames {model with CurrentProj = Some project'}
-        //dispatch <| SetProject project'
+        openFileInProject' false project'.OpenFileName project' model dispatch
     dispatch FinishUICmd
 
 /// Create a new file in this project and open it automatically.

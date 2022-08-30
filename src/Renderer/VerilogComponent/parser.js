@@ -25,16 +25,17 @@ export function parseFromFile(source) {
         return JSON.stringify({Result: JSON.stringify(ast), Error: null, NewLinesIndex: linesIndex});
     }
     catch(e) {
-        // console.log(e.message)
+        //console.log(e.message)
         let token = e.token;
         let message = e.message;
         let lineCol = message.match(/[0-9]+/g)
         let expected = message.match(/(?<=A ).*(?= based on:)/g).map(s => s.replace(/\s+token/i,''));
         
         let table = message.substring(message.indexOf(".") + 1);
-        let expectedKeywords = table.match(/assign|input|output|wire|parameter|endmodule/g);
-        let unique = expectedKeywords.filter((v, i, a) => a.indexOf(v) === i);
-        let checkForChars=false;
+        //let expectedKeywords = table.match(/assign|input|output|wire|parameter|endmodule/g);
+        //let unique = expectedKeywords.filter((v, i, a) => a.indexOf(v) === i);
+
+        let checkForChars = false;
         let checkForEqual=false;
         let checkForKeyword=false
         for (let i = 0; i < expected.length; i++) {
@@ -74,7 +75,7 @@ export function parseFromFile(source) {
             }
         }
         if(checkForChars){
-            expected.unshift('assign','wire','endmodule','input','output');
+            expected.unshift('assign', 'wire', 'endmodule');  //,'input','output'
         }
         if(checkForEqual){
             expected = ['"="']

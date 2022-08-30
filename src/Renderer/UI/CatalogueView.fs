@@ -459,7 +459,7 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
 let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origin:CodeEditorOpen) dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
-        fun _ -> str <| sprintf "Verilog Component Name"
+        fun _ -> str <| sprintf "ISSIE Component Name"
     let noErrors = List.isEmpty model.PopupDialogData.VerilogErrors
     let errorDiv = if noErrors then null else getErrorDiv model.PopupDialogData.VerilogErrors
     let errorList = if showExtraErrors then model.PopupDialogData.VerilogErrors else [] 
@@ -765,11 +765,13 @@ let viewCatalogue model dispatch =
                         it can be added any number of times, each instance replicating the sheet logic"
                         (makeCustomList styles model dispatch)
 
-                    makeMenuGroup
+                    makeMenuGroupWithTip 
+                        styles
                         "Verilog"
+                        "Write combinational logic in Verilog and use it as a Custom Component. 
+                         To edit/delete a verilog component add it in a sheet and click on 'properties'"
                         (List.append 
-                            [(catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false None None NewVerilogFile dispatch) "Write combinational logic in Verilog. \
-                                                    Use it as a Custom Component")]
+                            [menuItem styles "New Verilog Component" (fun _ -> createVerilogPopup model false None None NewVerilogFile dispatch) ]
                             (makeVerilogList styles model dispatch))
                           
                 ]

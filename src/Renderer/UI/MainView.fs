@@ -146,8 +146,10 @@ let viewSimSubTab model dispatch =
 
 /// Display the content of the right tab.
 let private viewRightTab model dispatch =
-    match model.RightPaneTabVisible with
-    | Catalogue ->
+    let pane = model.RightPaneTabVisible
+    match pane with
+    | Catalogue | Transition ->
+        
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
             Heading.h4 [] [ str "Catalogue" ]
             div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ] 
@@ -228,6 +230,17 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let viewRightTabs model dispatch =
+    /// Hack to avoid scrollbar artifact changing from Simulation to Catalog
+    /// The problem is that the HTML is bistable - with Y scrollbar on the catalog <aside> 
+    /// moves below the tab body div due to reduced available width, keeping scrollbar on. 
+    /// Not fully understood.
+    /// This code temporarily switches the scrollbar off during the transition.
+    let scrollType = 
+        if model.RightPaneTabVisible = Transition then 
+            dispatch <| ChangeRightTab Catalogue // after one view in transition it is OK to go to Catalogue
+            OverflowOptions.Clip // ensure no scrollbar temporarily after the transition
+        else 
+            OverflowOptions.Auto
     div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Visible]] [
         Tabs.tabs [ 
             Tabs.IsFullWidth; 
@@ -238,7 +251,12 @@ let viewRightTabs model dispatch =
         ] [
             Tabs.tab // catalogue tab to add components
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ]
+                [ a [ OnClick (fun _ -> 
+                        let target = 
+                            if model.RightPaneTabVisible = Simulation then
+                                Transition else
+                                Catalogue
+                        dispatch <| ChangeRightTab target ) ] [str "Catalogue" ] ]
             Tabs.tab // Properties tab to view/change component properties
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
                 [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
@@ -246,10 +264,10 @@ let viewRightTabs model dispatch =
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
                 [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
         ]
-        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"] [viewRightTab model dispatch]
+        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [viewRightTab model dispatch]
 
     ]
-
+let mutable testState:CanvasState = [],[]
 //---------------------------------------------------------------------------------------------------------//
 //------------------------------------------VIEW FUNCTION--------------------------------------------------//
 //---------------------------------------------------------------------------------------------------------//
@@ -274,7 +292,7 @@ let displayView model dispatch =
         let namesColWidth = WaveSimStyle.calcNamesColWidth wsModel
 
         /// The +4 is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
-        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + Constants.dividerBarWidth + Constants.scrollBarWidth + 2
+        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + Constants.dividerBarWidth + Constants.scrollBarWidth + 4
 
         /// This is what the overall waveform width must be
         let waveColWidth = w - otherDivWidths - namesColWidth - Constants.valuesColWidth
@@ -310,7 +328,7 @@ let displayView model dispatch =
             let w = 
                 newWidth
                 |> max minViewerWidth
-                |> min (windowX - minEditorWidth)
+                |> min (windowX - minEditorWidth())
             dispatch <| SetViewerWidth w 
             dispatch <| SetDragMode (DragModeOn (int ev.clientX - w + newWidth))
         | DragModeOn pos, _ ->
@@ -318,7 +336,7 @@ let displayView model dispatch =
             let w =
                 newWidth
                 |> max minViewerWidth
-                |> min (windowX - minEditorWidth)
+                |> min (windowX - minEditorWidth())
             setViewerWidthInWaveSim w
             dispatch <| SetDragMode DragModeOff
         | DragModeOff, _-> ()
@@ -329,6 +347,11 @@ let displayView model dispatch =
     // the whole app window
     let cursorText = model.Sheet.CursorType.Text()
     let topCursorText = match model.Sheet.CursorType with | SheetT.Spinner -> "wait" | _ -> ""
+
+    let conns = BusWire.extractConnections model.Sheet.Wire
+    let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
+    let cv = comps,conns   
+
 
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText

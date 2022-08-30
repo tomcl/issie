@@ -38,22 +38,7 @@ type Gap = {
     Length: int
 }
 
-/// Groups components together in the wave selection table.
-/// NB: There are fields which are commented out: these can be added back in
-/// later on if we want to group those components together by type rather than
-/// separately by name.
-type ComponentGroup =
-    | WireLabel
-    | InputOutput
-    | Viewers
-    | Buses
-    | Gates
-    // | MuxDemux
-    // | Arithmetic
-    // | CustomComp
-    // | FFRegister
-    // | Memories
-    | Component of string
+
 
 module Constants =
     /// The horizontal length of a transition cross-hatch for non-binary waveforms
@@ -240,26 +225,6 @@ let getInputPortNumber (ipn: InputPortNumber) : int =
 let getOutputPortNumber (opn: OutputPortNumber) : int =
     match opn with
     | OutputPortNumber pn -> pn
-
-/// Name for summary field in details element.
-/// NB: There are fields which are commented out: these can be added back in
-/// later on if we want to group those components together by type rather than
-/// separately by name.
-let summaryName (compGroup: ComponentGroup) : ReactElement =
-    match compGroup with
-    | WireLabel -> "Wire Labels"
-    | InputOutput -> "Inputs / Outputs"
-    | Viewers -> "Viewers"
-    | Buses -> "Buses"
-    | Gates -> "Logic Gates"
-    // | MuxDemux -> "Multiplexers"
-    // | Arithmetic -> "Arithmetic"
-    // | CustomComp _ -> "Custom Components"
-    // | FFRegister -> "Flip Flops and Registers"
-    // | Memories -> "RAMs and ROMs"
-    | Component compLabel -> compLabel
-    |> str
-
 /// convert a string to CamelCase: 
 let camelCaseDottedWords (text:string) =
     let camelWord (s:string)=
@@ -271,10 +236,225 @@ let camelCaseDottedWords (text:string) =
     text.Split([|'.'|])
     |> Array.map camelWord
     |> String.concat "."
+    /// get string in the [x:x] format given the bit limits
+
+/// output representation of bus width
+let bitLimsString (a, b) =
+    match (a, b) with
+    | (0, 0) -> ""
+    | (msb, lsb) when msb = lsb -> sprintf "(%d)" msb
+    | (msb, lsb) -> sprintf "(%d:%d)" msb lsb
+
+let portBits n = if n < 2 then "" else $"({n-1}:0)"
 
 
+/// determines how components are dispalyed in waveform selector
+let getCompDetails fs wave =
+    let fc = fs.WaveComps[wave.WaveId.Id]
+    let label = fc.FLabel
+    let descr, oneLine =
+        match fc.FType with
+        | Input1 _ -> "Input",true
+        | Output _ -> "Output", true
+        | Constant1 _ -> "What? can't happen", true
+        | Viewer _ -> "Viewer", true
+        | IOLabel _-> "Wire Label", true
+        | Not | And | Or | Xor | Nand | Nor | Xnor -> 
+            let gateType = $"{fc.FType}".ToUpper()
+            $"{gateType} gate", false
+        | BusCompare (width,v) -> $"Bus Compare ='{v}'", false
+
+        | Mux2 -> "2 input multiplexer", false
+        | Mux4 -> "4 input multiplexer", false
+        | Mux8 -> "8 input multiplexer", false
+        | Demux2 -> "2 input demultiplexer", false
+        | Demux4 -> "4 input demultiplexer", false
+        | Demux8 -> "8 input demultiplexer", false
+        | Decode4 -> "2 line decoder", false
+        | NbitsAdder n -> $"{n} bit adder",false
+        | NbitsXor n -> $"{n} XOR gates",false
+        | NbitsAnd n -> $"{n} AND gates",false
+        | NbitsNot n -> $"{n} Not gates",false
+        | NbitSpreader n -> $"1 -> {n} bits spreader",false
+        | NbitsOr n -> $"{n} OR gates",false
+        | Custom x -> $"({x.Name} instance)",false
+        | DFF -> "D flipflip", false
+        | DFFE -> "D flipflop with enaable", false
+        | Register n -> $"{n} bit D register", false
+        | RegisterE n -> $"{n} bit D register with enable", false
+        | AsyncROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false
+        | ROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
+        | RAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
+        | AsyncRAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false             
+        | BusSelection _ | MergeWires | SplitWire _ ->
+            failwithf "Bus select, MergeWires, SplitWire should not appear"
+        | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
+            failwithf "Legacy component types should not appear"
+    match oneLine with
+    | true -> $"{label}{portBits wave.Width} {descr}"
+    | false -> $"{label} {descr}"
+
+let getCompGroup fs wave =
+    match fs.WaveComps[wave.WaveId.Id].FType with
+    | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel _->
+        InputOutput
+    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+        Gates
+    | BusCompare _ ->
+        Buses
+    | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
+        MuxDemux
+    | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _->
+        Arithmetic
+    | Custom _ -> CustomComp
+    | DFF | DFFE | Register _ | RegisterE _ ->
+        FFRegister
+    | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
+        Memories                
+    | BusSelection _ | MergeWires | SplitWire _ ->
+        failwithf "Bus select, MergeWires, SplitWire should not appear"
+    | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
+        failwithf "Legacy component types should not appear"
+
+
+/// Name for summary field in details element.
+/// NB: There are fields which are commented out: these can be added back in
+/// later on if we want to group those components together by type rather than
+/// separately by name.
+let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list) (waves: Wave list): ReactElement =
+    match cBox with
+    | PortItem (_,name) ->
+        str <| camelCaseDottedWords name
+    | ComponentItem fc->
+        let descr = getCompDetails ws.FastSim (waves[0])
+        str <| descr
+        
+    | GroupItem (compGroup,_) ->
+        match compGroup with
+        | InputOutput -> "Inputs / Outputs / Labels / Viewers"
+        //| Viewers -> "Viewers"
+        //| WireLabel -> "Wire Labels"
+        | Buses -> "Buses"
+        | Gates -> "Logic Gates"
+        | MuxDemux -> "Multiplexers"
+        | Arithmetic -> "Arithmetic"
+        | FFRegister -> "Flip Flops and Registers"
+        | Memories -> "RAMs and ROMs"
+        | Component compLabel -> compLabel
+        | CustomComp -> "Custom Components"
+        | _ -> "What? Not used!"
+        |> (fun name -> str $"""{name.ToUpper()}""")
+
+    | SheetItem subSheet ->
+        str <| $"Subsheet {camelCaseDottedWords subSheet[subSheet.Length-1]}"
+
+
+
+let path2fId (fastSim: FastSimulation) (path:ComponentId list) : FComponentId option=
+    match path with
+    | [] -> 
+        None
+    | p -> 
+        Some <| (p[p.Length-1], p[0..p.Length-2])
+
+
+let sheetIdToName (fastSim:FastSimulation) sheetId =
+    sheetId
+    |> path2fId fastSim
+    |> function | None -> [] | Some fId -> [fastSim.WaveComps[fId].FLabel]
+
+let sheetIdToSubsheets (fastSim:FastSimulation) (sheetId: ComponentId list) =
+    match sheetId.Length with
+    | 0 -> []
+    | n -> [1..n] |> List.collect (fun i -> sheetId[0..i-1] |> sheetIdToName fastSim)
+
+
+let subSheetsToNameReact (subSheets: string list) =
+    subSheets
+    |> String.concat "."
+    |> camelCaseDottedWords
+    |> str
+
+let prefixOf (pre:'a list) (whole:'a list) =
+    whole.Length >= pre.Length && whole[0..pre.Length-1] = pre
+
+
+let wavesToIds (waves: Wave list) = 
+    waves |> List.map (fun wave -> wave.WaveId)
+
+
+
+
+let tr1 react = tr [] [ react ]
+let td1 react = td [] [ react ]
+
+//---------------------------Code for selector details state----------------------------------//
+
+// It would be better to do this with one subfunction and Optics!
+
+/// Sets or clears a subset of ShowSheetDetail
+let setWaveSheetSelectionOpen (wsModel: WaveSimModel) (subSheets: string list list) (show: bool) =
+    let setChange = Set.ofList subSheets
+    let newSelect =
+        match show with
+        | false -> Set.difference wsModel.ShowSheetDetail setChange
+        | true -> Set.union setChange wsModel.ShowSheetDetail
+    {wsModel with ShowSheetDetail = newSelect}   
+
+/// Sets or clears a subset of ShowComponentDetail
+let setWaveComponentSelectionOpen (wsModel: WaveSimModel) (fIds: FComponentId list)  (show: bool) =
+    let fIdSet = Set.ofList fIds
+    let newSelect =
+        match show with
+        | true -> Set.union fIdSet  wsModel.ShowComponentDetail
+        | false -> Set.difference wsModel.ShowComponentDetail fIdSet
+    {wsModel with ShowComponentDetail = newSelect}
+
+
+/// Sets or clears a subset of ShowGroupDetail
+let setWaveGroupSelectionOpen (wsModel: WaveSimModel) (grps :(ComponentGroup*string list) list)  (show: bool) =
+    let grpSet = Set.ofList grps
+    let newSelect =
+        match show with
+        | true -> Set.union grpSet  wsModel.ShowGroupDetail
+        | false -> Set.difference wsModel.ShowGroupDetail grpSet
+    {wsModel with ShowGroupDetail = newSelect}
+
+let setSelectionOpen (wsModel: WaveSimModel) (cBox: CheckBoxStyle) (show:bool) =
+    match cBox with
+    | PortItem _ -> failwithf "What? setselectionopen cannot be called from a Port"
+    | ComponentItem fc -> setWaveComponentSelectionOpen wsModel [fc.fId] show
+    | GroupItem (grp,subSheet) -> setWaveGroupSelectionOpen wsModel [grp,subSheet] show
+    | SheetItem subSheet -> setWaveSheetSelectionOpen wsModel [subSheet] show
 
     
+let getConnsOfWave (model: Model) (wave: Wave) =
+    let symbols = model.Sheet.Wire.Symbol.Symbols
+    let wires = model.Sheet.Wire.Wires
+    let wi = wave.WaveId
+    let portIsTarget (port:Port) (wire:DrawModelType.BusWireT.Wire) = (wire.OutputPort = OutputPortId port.Id)
+    let portIsSource (port:Port) (wire:DrawModelType.BusWireT.Wire) = (wire.InputPort = InputPortId port.Id)
+    Map.tryFind (fst wave.WaveId.Id) symbols
+    |> Option.map (fun sym ->
+                    match wi.PortType with
+                    | PortType.Input -> 
+                        List.tryItem wi.PortNumber sym.Component.InputPorts
+                        |> Option.map portIsSource
+                    | PortType.Output -> 
+                        List.tryItem wi.PortNumber sym.Component.OutputPorts
+                        |> Option.map portIsTarget)
+    |> Option.defaultValue None
+    |> Option.map (fun isConnected  ->   
+        wires
+        |> Map.filter (fun cid wire -> isConnected wire)
+        |> Map.values
+        |> Seq.toList)
+    |> Option.defaultValue []
+    |> List.map (fun wire -> wire.WId)
+
+   
+  
+                            
 
 
 

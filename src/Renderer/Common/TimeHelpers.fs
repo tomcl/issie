@@ -149,9 +149,17 @@ let checkPerformance m n startTimer stopTimer =
 
 //-----------------Code to record and print execution time statistics-------//
 
+open Fable.Core
+
+[<Emit("performance.now()")>]
+let performanceNow() : float = jsNative
+
 let timeNowInMicroS() = 
-    System.DateTime.Now.Ticks
-    |> (fun t -> t /10L)
+    performanceNow()
+    |> (fun t -> t * 1000.)
+
+let timeNowInMS() = 
+    performanceNow()
 
 type Stats = {
     Min: float

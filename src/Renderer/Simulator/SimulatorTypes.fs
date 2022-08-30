@@ -924,7 +924,7 @@ type FastComponent = {
         (EEExtensions.String.substringLength 0 5 sid)
     member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs[n].Step[epoch] <- dat
     member inline this.Id = this.SimComponent.Id
-    member inline this.SubSheet = this.SheetName[0..this.SheetName.Length-1] 
+    member inline this.SubSheet = this.SheetName[0..this.SheetName.Length-2] 
         
 
 type Driver = {
@@ -984,8 +984,16 @@ type FastSimulation = {
     G: GatherData
     // Total number of step arrays (= drivers)
     NumStepArrays: int
+    // Each driver represents one output with its data
     Drivers: Driver option array
+    // Each wave index represents one component port with associated driver and data
     WaveIndex: WaveIndexT array
+    /// Connections on simulated sheets indexed by connected port. Each connection appears twice.
+    ConnectionIdsByPort: Map<Port,ConnectionId>
+    /// Circuit simulated (sheet and all dependencies) stored as reduced components and connections for fast comparison
+    SimulatedCanvasState: LoadedComponent list
+    /// The root sheet being simulated
+    SimulatedTopSheet: string
     } with
         member this.getSimulationData (step: int) ((cid,ap): FComponentId) (opn: OutputPortNumber) =
             let (OutputPortNumber n) = opn

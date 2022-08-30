@@ -190,26 +190,7 @@ let jsonStringToMem (jsonString : string) =
 
 
             
-/// get sheet I/O labels in correct order based on position of components
-let getOrderedCompLabels compType ((comps,_): CanvasState) =
-    comps
-    |> List.collect (fun comp -> 
-        let sortKey = comp.Y,comp.X
-        match comp.Type, compType with 
-        | Input1 (n, defaultVal), Input1 _ -> [sortKey,(comp.Label, n)]
-        | Output n, Output _ -> [sortKey, (comp.Label,n)] 
-        | _ -> [])
-    |> List.sortBy fst
-    |> List.map snd
-   
 
-/// Extract the labels and bus widths of the inputs and outputs nodes as a signature.
-/// Form is inputs,outputs
-let parseDiagramSignature canvasState
-        : (string * int) list * (string * int) list =
-    let inputs = getOrderedCompLabels (Input1 (0, None)) canvasState
-    let outputs = getOrderedCompLabels (Output 0) canvasState
-    inputs, outputs
 
 let getBaseNameNoExtension filePath =
     let name = baseName filePath
@@ -531,7 +512,7 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
 /// load a component from its canvas and other elements
 let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo (sheetInfo:SheetInfo option) =
     let projectPath = path.dirname filePath
-    let inputs, outputs = parseDiagramSignature canvas
+    let inputs, outputs = Extractor.parseDiagramSignature canvas
     //printfn "parsed component"
     let comps,conns = canvas
     let comps' = List.map (checkMemoryContents projectPath) comps

@@ -96,8 +96,8 @@ let getErrorDiv errorList : ReactElement =
     div [
         Style [Position PositionOptions.Absolute ; 
             Display DisplayOptions.Block; 
-            Width "100%"; Height "100%"; 
-            CSSProp.Top "13px"; CSSProp.Left "40px"; CSSProp.Right "0"; CSSProp.Bottom "0";
+            Width "100%"; Height "-13px"; 
+            CSSProp.Top "13px"; CSSProp.Left "40px"; CSSProp.Right "0"; CSSProp.Bottom "0px";
             BackgroundColor "rgba(0,0,0,0)";
             FontWeight "bold";
             Color "Red"; 
@@ -220,11 +220,15 @@ let getErrorTable (errorList: ErrorInfo list) addButton =
 
 let getLineCounterDiv linesNo =
     let childrenElements=
-        [1..linesNo+1]
+        [1..linesNo]
         |> List.collect (fun no ->
-            [p [] [str (sprintf "%i" no)]]
+            [
+            span [] [str (sprintf "%i" no)]
+            br[]
+            ]
         )
     
+    let childrenElements' = List.append childrenElements [(span [] [str (sprintf "%i" (linesNo+1))])]
     
     div [
         Style [Position PositionOptions.Absolute ; 
@@ -237,20 +241,20 @@ let getLineCounterDiv linesNo =
             PointerEvents "none";
             TextAlign TextAlignOptions.Right;
             WhiteSpace WhiteSpaceOptions.PreLine]
-    ] childrenElements
+    ] childrenElements'
 
 
 let infoHoverableElement = 
     let example =
         "\tTHIS IS AN EXAMPLE OF A VALID VERILOG FILE
 ----------------------------------------------------------
-module decoder(instr,n,z,c,mux1sel,aluF,jump);
-\tinput [15:0] instr;
-\tinput n,z,c;
-\toutput mux1sel,jump;
-\toutput [2:0] aluF;
+module decoder(
+\tinput [15:0] instr,
+\tinput n,z,c,
+\toutput mux1sel,jump,
+\toutput [2:0] aluF
+);
 \twire cond = n|z|c;
-
 \tassign mux1sel = instr[15]&cond | instr[14];
 \tassign j = instr[8]&(n|c);
 \tassign aluF = intr[10:8];
@@ -260,7 +264,7 @@ endmodule"
         Style [Position PositionOptions.Absolute ; 
             Display DisplayOptions.Block; 
             Width "100%"; Height "100%"; 
-            CSSProp.Top "-52px"; CSSProp.Left "104px"; CSSProp.Right "0"; CSSProp.Bottom "0";
+            CSSProp.Top "-10px"; CSSProp.Left "104px"; CSSProp.Right "0"; CSSProp.Bottom "0";
             BackgroundColor "rgba(0,0,0,0)";
             Color "#7f7f7f"; 
             ZIndex "2" ;

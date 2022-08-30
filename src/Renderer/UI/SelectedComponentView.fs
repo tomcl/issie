@@ -170,7 +170,7 @@ let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactEle
             let code = 
                 match tryReadFileSync path with
                 |Ok text -> text
-                |Error _ -> "Error in loading file"
+                |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" name
             Button.button [
                 Button.Color IsPrimary
                 Button.OnClick (fun _ -> 
@@ -181,6 +181,40 @@ let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactEle
             ] [str "View/Edit Verilog code"]
         |_ -> null
 
+let makeVerilogDeleteButton (model:Model) (custom:CustomComponentType) dispatch : ReactElement = 
+    match model.CurrentProj with
+    | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+    | Some project ->
+        match custom.Form with
+        |Some (Verilog name) ->
+            let title = "Delete sheet"
+
+            let body =
+                div []
+                    [ 
+                        str "Are you sure you want to delete the following Verilog component?"
+                        br []
+                        str <| pathJoin
+                                    [| project.ProjectPath;
+                                    name + ".v" |]
+                        br []
+                        str <| "This action is irreversible." ]
+
+            let buttonText = "Delete"
+
+            let buttonAction =
+                fun _ ->
+                    dispatch (StartUICmd DeleteSheet)
+                    dispatch <| ExecFuncInMessage(removeFileInProject name project,dispatch)
+                    (removeFileWithExtn ".v" project.ProjectPath name)
+                    dispatch ClosePopup
+            Button.button
+                [ 
+                Button.IsOutlined
+                Button.Color IsDanger
+                Button.OnClick(fun _ -> confirmationPopup title body buttonText buttonAction dispatch) ]
+                [ str "Delete" ]
+        | _ -> null
 
 let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -405,6 +439,9 @@ let private makeDescription (comp:Component) model dispatch =
             br []
             br []
             makeVerilogEditButton model custom dispatch
+            br []
+            br []
+            makeVerilogDeleteButton model custom dispatch
             br []
             br []
             p [  Style [ FontStyle "italic"; FontSize "12px"; LineHeight "1.1"]] [

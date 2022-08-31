@@ -14,6 +14,7 @@ open Helpers
 open JSHelpers
 open DiagramStyle
 open ModelType
+open ModelHelpers
 open CommonTypes
 open FilesIO
 open Extractor
@@ -258,7 +259,6 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             failwithf "Auto saving is no longer used"
             None
         else 
-            printfn "here"
             saveStateToFile project.ProjectPath project.OpenFileName savedState
             |> displayAlertOnError dispatch
             removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
@@ -439,12 +439,21 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
         dispatch CloseTruthTable // Message closes any open Truth Table.
-        dispatch EndWaveSim
+        //dispatch EndWaveSim
         // TODO: make each sheet wavesim remember the list of waveforms.
-    let waveSim =
+
+    let savedWaveSim =
         compToSetup.WaveInfo
         |> Option.map loadWSModelFromSavedWaveInfo 
         |> Option.defaultValue initWSModel
+
+    let waveSim =
+        model.WaveSimSheet
+        |> Option.map (fun sheet -> (Map.tryFind sheet  model.WaveSim))
+        |> Option.defaultValue None
+        |> Option.defaultValue savedWaveSim
+        
+
 
     loadStateIntoModel compToSetup waveSim ldComps model dispatch
     {
@@ -461,10 +470,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Terminates a simulation if one is running
 /// Closes waveadder if it is open
 let openFileInProject' saveCurrent name project (model:Model) dispatch =
-    printfn "open file"
-    //printSheetNames model
     let newModel = {model with CurrentProj = Some project}
-    //printSheetNames newModel
     match getFileInProject name project with
     | None -> 
         log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
@@ -842,11 +848,6 @@ let addToRecents path recents =
 
 /// open an rxisting porject from its path
 let openProjectFromPath (path:string) model dispatch =
-    dispatch <| SetUserData {
-        model.UserData with 
-            LastUsedDirectory = Some path; 
-            RecentProjects = addToRecents path model.UserData.RecentProjects
-            }
     dispatch (ExecFuncAsynch <| fun () ->
         traceIf "project" (fun () -> "loading files")
         match loadAllComponentFiles path with
@@ -858,8 +859,13 @@ let openProjectFromPath (path:string) model dispatch =
             
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
             traceIf "project" (fun () ->  "project successfully opened.")
-
+            dispatch <| SetUserData {
+                model.UserData with 
+                    LastUsedDirectory = Some path; 
+                    RecentProjects = addToRecents path model.UserData.RecentProjects
+                    }
         Elmish.Cmd.none)
+    
 
 /// open an existing project
 let private openProject model dispatch =
@@ -902,7 +908,9 @@ let viewNoProjectMenu model dispatch =
 
     match model.CurrentProj with
     | Some _ -> div [] []
-    | None -> unclosablePopup None initialMenu None [] dispatch
+    | None -> 
+        unclosablePopup None initialMenu None [] dispatch
+
 
 //These two functions deal with the fact that there is a type error otherwise..
 let goBackToProject model dispatch _ =
@@ -976,7 +984,7 @@ let viewTopMenu model dispatch =
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
                                         dispatch (StartUICmd ChangeSheet)
-                                        //printSheetNames model
+                                        printfn "Starting UI Cmd"
                                         dispatch <| ExecFuncInMessage(
                                             (fun model dispatch -> 
                                                 let p = Option.get model.CurrentProj

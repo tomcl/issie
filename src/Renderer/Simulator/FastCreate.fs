@@ -25,9 +25,10 @@ let emptyGather =
       AllComps = Map.empty }
 
 let emptyFastSimulation diagramName =
+    printfn $"Creating empty simulation: {diagramName}"
     { ClockTick = 0
       MaxStepNum = -1 // this must be over-written
-      MaxArraySize = 600 // must be larger than max number of wavesim clocks
+      MaxArraySize = 0 // must be larger than max number of wavesim clocks
       FGlobalInputComps = Array.empty
       FConstantComps = Array.empty
       FClockedComps = Array.empty
@@ -47,6 +48,8 @@ let emptyFastSimulation diagramName =
       SimulatedCanvasState = []
       SimulatedTopSheet= diagramName
       }
+
+let simulationPlaceholder = emptyFastSimulation ""
 
 let getPathIds (cid, ap) =
     let rec getPath ap =
@@ -188,17 +191,17 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
 
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
-let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
+let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun n -> Array.create (numSteps + 1) (Data emptyFastData))
+        |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
 
     let outs =
         [| 0 .. outPortNum - 1 |]
-        |> Array.map (fun n -> Array.create (numSteps + 1) (Data emptyFastData))
+        |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
 
     let inps =
@@ -209,11 +212,11 @@ let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath
             | _ -> []
 
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun i -> (Array.create (numSteps + 1) dat))
+        |> Array.map (fun i -> (Array.create maxArraySize dat))
 
     let state =
         if couldBeSynchronousComponent sComp.Type then
-            Some(Array.create numSteps NoState)
+            Some(Array.create (maxArraySize-1) NoState)
         else
             None
 
@@ -557,9 +560,11 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
         
     
     
-let rec createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulation) =
+let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
+    let numSteps = simulationArraySize
     stepArrayIndex <- -1
     let start = getTimeMs()
+    printfn $"Creating init fast comp phase of sim with {numSteps} array size"
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]
         let fc = createFastComponent numSteps comp ap
@@ -568,7 +573,7 @@ let rec createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulati
         let outs : StepArray<FData> array =
             (if isOutput comp.Type then
                  let outs =
-                     [| Array.create (numSteps + 1) (Data emptyFastData) |> makeStepArray |]
+                     [| Array.create (numSteps) (Data emptyFastData) |> makeStepArray |]
 
                  outs
              else
@@ -598,7 +603,8 @@ let rec createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulati
     { f with
           FComps = comps
           FCustomComps = customComps
-          MaxStepNum = numSteps
+          MaxStepNum = 0
+          MaxArraySize = simulationArraySize
           FSComps = g.AllComps
           FCustomOutputCompLookup = customOutLookup 
           NumStepArrays = stepArrayIndex

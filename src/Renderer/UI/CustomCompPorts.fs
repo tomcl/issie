@@ -16,6 +16,7 @@ open Fable.React.Props
 open Helpers
 open JSHelpers
 open ModelType
+open ModelHelpers
 open CommonTypes
 open FilesIO
 open Extractor

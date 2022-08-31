@@ -62,40 +62,62 @@ let rec sheetsNeeded (ldcs: LoadedComponent list) (sheet:string): string list =
     |> List.distinct
 
 
+/// canvasState: extracted canvasState from draw block.
+/// projLdcs: ldcs from project (current sheet ldc may be outofdate)
+/// diagramName: name of current open sheet.
+/// return updated list of all LDCs
+let getUpdatedLoadedComponentState diagramName canvasState projLdcs =
+    let ldc' = Extractor.extractLoadedSimulatorComponent canvasState diagramName
+    let ldcs = 
+        let ldcIsOpen ldc = ldc.Name = diagramName
+        projLdcs 
+        |> List.map (fun ldc -> if ldcIsOpen ldc then ldc' else ldc)
+        |> (fun ldcs -> if not <| List.exists ldcIsOpen ldcs then ldc' :: ldcs else ldcs)
+    ldcs
 
 
-
-let simulationIsValid (canvasState: CanvasState) (project: Project option) (fs:FastSimulation) =
+/// gets the status of the simulation given current canvasState and project
+let getCurrentSimulationState (canvState: CanvasState) (project: Project option) (fs:FastSimulation) : SimulationRunStatus =
     match project with
     | None -> 
-        false
+        SimNoProject
+    | _ when fs.SimulatedTopSheet = "" ->
+        SimEmpty
     | Some p -> 
-        let openLDC = p.OpenFileName
-        fs.SimulatedCanvasState
-        |> List.forall (fun ldc -> 
-            match openLDC = ldc.Name, List.tryFind (fun (ldc':LoadedComponent) -> ldc'.Name = ldc.Name) p.LoadedComponents with
-            | _, None -> false
-            | false, Some ldc' -> Extractor.loadedComponentIsEqual ldc ldc'
-            | true, Some _ -> Extractor.stateIsEqual ldc.CanvasState canvasState)
+        let simIsUpToDate =
+            fs.SimulatedCanvasState
+            |> List.forall (fun ldc -> 
+                match p.OpenFileName = ldc.Name, List.tryFind (fun (ldc':LoadedComponent) -> ldc'.Name = ldc.Name) p.LoadedComponents with
+                | _, None -> false
+                | false, Some ldc' -> Extractor.loadedComponentIsEqual ldc ldc'
+                | true, Some _ -> Extractor.stateIsEqual ldc.CanvasState canvState)
+        match simIsUpToDate, p.OpenFileName = fs.SimulatedTopSheet with
+        | false, _ -> 
+            SimOutOfDate
+        | true, true -> 
+            SimValidSameSheet
+        | true, false -> 
+            SimValidDifferentSheet
+        
 
 
-    
-let saveStateInSimulation (canvasState:CanvasState) (diagramName: string) (ldcs: LoadedComponent list) (fs:FastSimulation) =
+/// canvasState: extracted canvasState from draw block.
+/// project: current project
+/// diagramName: name of current open sheet.
+/// save all needed by simulation ldcs in the FastSimulation record.
+/// The top sheet name muts be saved separately - since if a simulation is being refreshed it must not change
+let saveStateInSimulation (canvasState:CanvasState) (openFileName: string) (loadedComponents: LoadedComponent list) (fs:FastSimulation) =
+    let diagramName = openFileName
+    let ldcs = getUpdatedLoadedComponentState diagramName canvasState loadedComponents
+    //printfn $"diagramName={diagramName}, sheetNames = {ldcs |> List.map (fun ldc -> ldc.Name)}"
+    sheetsNeeded ldcs diagramName
+    |> List.map (getSheet ldcs)
+    |> (fun updatedLdcs -> {fs with SimulatedCanvasState = updatedLdcs})
 
-    let ldcs = 
-        let openLDC = diagramName
-        let ldc' = Extractor.extractLoadedSimulatorComponent canvasState openLDC
-        let ldcs = 
-            let ldcIsOpen ldc = ldc.Name = openLDC
-            ldcs 
-            |> List.map (fun ldc -> if ldcIsOpen ldc then ldc' else ldc)
-            |> (fun ldcs -> if not <| List.exists ldcIsOpen ldcs then ldc' :: ldcs else ldcs)
-        printfn $"diagramName={openLDC}, sheetNames = {ldcs |> List.map (fun ldc -> ldc.Name)}"
-        sheetsNeeded ldcs openLDC
-        |> List.map (getSheet ldcs)
-    {fs with SimulatedCanvasState = ldcs; SimulatedTopSheet = diagramName}
-
+/// Extract circuit data from inputs and return a checked SimulationData object or an error
+/// SimulationData has some technical debt, it wraps FastSimulation adding some redundant data
 let rec prepareSimulation
+        (simulationArraySize: int)
         (diagramName : string)
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
@@ -103,7 +125,6 @@ let rec prepareSimulation
 
     /// Tune for performance of initial zero-length simulation versus longer run.
     /// Probably this is not critical.
-    let initMaxSteps = 10
     match runCanvasStateChecksAndBuildGraph canvasState loadedDependencies with
     | Error err -> Error err
     | Ok graph ->
@@ -119,7 +140,7 @@ let rec prepareSimulation
             | Some err -> Error err
             | None -> 
                 try
-                    match FastRun.buildFastSimulation diagramName initMaxSteps graph with
+                    match FastRun.buildFastSimulation simulationArraySize diagramName  graph with
                     | Ok fs -> 
                         let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
                         Ok {

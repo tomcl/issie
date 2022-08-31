@@ -6,6 +6,7 @@ open Fable.React.Props
 
 open CommonTypes
 open ModelType
+open ModelHelpers
 open WaveSimStyle
 open WaveSimHelpers
 open FileMenuView
@@ -27,7 +28,7 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
     /// Find start and length of each gap between a Change transition
     let gaps : Gap array =
         // Append dummy transition to end to check final gap length
-        Array.append changeTransitions [|Constants.maxLastClk|]
+        Array.append changeTransitions [|wsModel.StartCycle + transitions.Length - 1|]
         |> Array.pairwise
         // Get start of gap and length of gap
         |> Array.map (fun (i1, i2) -> {
@@ -133,7 +134,7 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
 
     if newClkCycle <= endCycle wsModel then
         if newClkCycle < wsModel.StartCycle then
-            dispatch <| InitiateWaveSimulation
+            dispatch <| GenerateWaveforms
                 {wsModel with 
                     StartCycle = newClkCycle
                     CurrClkCycle = newClkCycle
@@ -146,7 +147,7 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
                     ClkCycleBoxIsEmpty = false
                 }
     else
-        dispatch <| InitiateWaveSimulation
+        dispatch <| GenerateWaveforms
             {wsModel with
                 StartCycle = newClkCycle - (wsModel.ShownCycles - 1)
                 CurrClkCycle = newClkCycle
@@ -177,7 +178,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
                 wsModel.ShownCycles
             else newCycles
 
-    dispatch <| InitiateWaveSimulation { wsModel with ShownCycles = shownCycles }
+    dispatch <| GenerateWaveforms { wsModel with ShownCycles = shownCycles }
     |> TimeHelpers.instrumentInterval "changeZoom" start
 
 /// Click on these buttons to change the number of visible clock cycles.
@@ -195,7 +196,7 @@ let zoomButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
 /// Click on these to change the highlighted clock cycle.
 let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     /// Controls the number of cycles moved by the "◀◀" and "▶▶" buttons
-    let bigStepSize = max 1 (wsModel.ShownCycles / 2)
+    let bigStepSize = max 2 (wsModel.ShownCycles / 2)
 
     let scrollWaveformsBy (numCycles: int) =
         setClkCycle wsModel dispatch (wsModel.CurrClkCycle + numCycles)
@@ -259,7 +260,7 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
             Tabs.Tab.Props radixTabProps
         ] [ a [
             radixTabAStyle
-            OnClick(fun _ -> dispatch <| InitiateWaveSimulation {wsModel with Radix = radix})
+            OnClick(fun _ -> dispatch <| GenerateWaveforms {wsModel with Radix = radix})
             ] [ str radixStr ]
         ]
 
@@ -645,11 +646,10 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
     else div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 
-/// Async function which runs the fast simulator when refreshing the wave sim. Set as asynchronous
-/// since the fast simulator takes some time to run the first time it is started.
-let refreshWaveSim (wsModel, simData, (comps, conns)) : (*Async<WaveSimModel>*)WaveSimModel = //async {
+let refreshWaveSim (wsModel: WaveSimModel, simData, (comps, conns)) : WaveSimModel = 
     let start = TimeHelpers.getTimeMs ()
-    FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
+    // starting runSimulation
+    FastRun.runFastSimulation (wsModel.StartCycle + wsModel.ShownCycles+1) simData.FastSim
     |> TimeHelpers.instrumentInterval "runFastSimulation" start
     let fs = simData.FastSim
 
@@ -693,10 +693,14 @@ let refreshWaveSim (wsModel, simData, (comps, conns)) : (*Async<WaveSimModel>*)W
 //}
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
-let refreshButtonAction model dispatch = fun _ ->
-    let wsSheet = Option.get (getCurrFile model)
+let refreshButtonAction canvasState model dispatch = fun _ ->
+    let wsSheet = 
+        match model.WaveSimSheet with
+        | None -> Option.get (getCurrFile model)
+        | Some sheet -> sheet
     let wsModel = getWSModel model
-    match SimulationView.makeSimData model with
+    //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
+    match SimulationView.makeSimData model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + 1)  canvasState model with
     | None ->
         dispatch <| SetWSModel { wsModel with State = NoProject }
     | Some (Error e, _) ->
@@ -706,13 +710,18 @@ let refreshButtonAction model dispatch = fun _ ->
             let wsModel = { wsModel with State = Loading }
             dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
             dispatch <| RefreshWaveSim (wsModel, simData, canvState)
-
         else
             dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
-
+           
 /// ReactElement showing instructions and wave sim buttons
-let topHalf (model: Model) dispatch : ReactElement =
+let topHalf canvasState (model: Model) dispatch : ReactElement =
+    let title =
+        match model.WaveSimSheet with
+        | None -> "Waveform Simulator"
+        | Some sheet -> $"Simulating sheet '{sheet}'"
     let wsModel = getWSModel model
+    //printfn $"Active wsModel sheet={model.WaveSimSheet}, state = {wsModel.State}"
+    //printfn $"""Wavesim states: {model.WaveSim |> Map.toList |> List.map (fun (sh, ws) -> sh, ws.State.ToString(),ws.Sheets)}"""
     let loading =
         match wsModel.State with
         | Loading -> true
@@ -723,14 +732,31 @@ let topHalf (model: Model) dispatch : ReactElement =
         br []
         Level.level [] [
             Level.left [] [
-                Heading.h4 [] [ str "Waveform Simulator" ]
+                Heading.h4 [] [ str title ]
             ]
             Level.right [] [
-                button
-                    [ Button.Option.IsLoading loading ]
-                    (refreshButtonAction model dispatch)
-                    refreshButtonSvg
-            ]
+                let startOrRenew = refreshButtonAction canvasState model dispatch
+                let waveEnd = endButtonAction canvasState model dispatch
+                let wbo = getWaveSimButtonOptions canvasState model wsModel
+                //printfn $"Sim is Dirty{wbo.IsDirty}" 
+                div []
+                    (if wbo.IsDirty && wbo.IsRunning then
+                        [
+                            button 
+                                (topHalfButtonProps IsInfo)
+                                (fun _ -> ())
+                                WaveSimHelpers.outOfDateInfoButton
+                            button
+                                (topHalfButtonPropsWithWidth IsSuccess)
+                                startOrRenew
+                                refreshButtonSvg
+                        ] else [])
+
+                button 
+                    (topHalfButtonPropsWithWidth wbo.StartEndColor) 
+                    (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
+                    (str wbo.StartEndMsg)
+                ]
         ]
 
         Columns.columns [] [
@@ -769,26 +795,40 @@ let topHalf (model: Model) dispatch : ReactElement =
     ]
 
 /// Entry point to the waveform simulator.
-let viewWaveSim (model: Model) dispatch : ReactElement =
+let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
+    let notRunning = 
+        div [ errorMessageStyle ] [ str "Start the waveform simulator by pressing the Start button." ]
+
+    let simError e =
+        SimulationView.setSimErrorFeedback e model dispatch
+        div [ errorMessageStyle ]
+            [ SimulationView.viewSimulationError e ]
+        
     div [ viewWaveSimStyle ]
         [
-            topHalf model dispatch
-
-            match wsModel.State with
-            | Empty ->
+            topHalf canvasState model dispatch
+            match model.WaveSimSheet, wsModel.State with
+            | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->
+                dispatch <| UpdateModel( fun model -> {model with WaveSimSheet = None})
+                dispatch <| UpdateModel( updateWSModelOfSheet sheet (fun ws -> {ws with State = Ended}))
+                notRunning
+            | None, SimError e  ->
+                notRunning
+            | _,SimError e ->
+                simError e               
+            | _,NonSequential ->
+                dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
                 div [ errorMessageStyle ]
-                    [ str "Start the waveform simulator by pressing the refresh button." ]
-            | NoProject ->
+                    [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms" ]
+            | _,Empty | _,Ended | None,_ | Some "", _-> notRunning
+            | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning              
+            | _,NoProject ->
                 div [ errorMessageStyle ]
                     [ str "Please open a project to use the waveform simulator." ]
-            | SimError e ->
-                div [ errorMessageStyle ]
-                    [ SimulationView.viewSimulationError e ]
-            | NonSequential ->
-                div [ errorMessageStyle ]
-                    [ str "There is no sequential logic in this circuit." ]
-            | Loading | Success ->
+            | _,Loading | _,Success ->
+                dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
+                printfn $"Showing waveforms: fs= {wsModel.FastSim}"
                 div [showWaveformsAndRamStyle] [
 
                     showWaveforms model wsModel dispatch

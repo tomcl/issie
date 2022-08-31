@@ -216,12 +216,72 @@ let makeVerilogDeleteButton (model:Model) (custom:CustomComponentType) dispatch 
                 [ str "Delete" ]
         | _ -> null
 
+let private changeAdderType model (comp:Component) dispatch = 
+    match model.CurrentProj with
+    | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+    | Some project ->
+        let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
+        let colourCin,colourCout =
+            match comp.Type with
+            |NbitsAdder w ->
+                IsPrimary, IsPrimary 
+            |NbitsAdderNoCout w ->
+                IsPrimary, IsDanger
+            |NbitsAdderNoCin w ->
+                IsDanger, IsPrimary 
+            |NbitsAdderNoCinCout w ->
+                IsDanger, IsDanger
+            | _ -> failwithf "Cannot change adder type from non-adder component"
+
+        let buttonActionCin =
+            fun _ ->
+                match comp.Type with
+                |NbitsAdder w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCin w)
+                |NbitsAdderNoCout w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
+                |NbitsAdderNoCin w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdder w)
+                |NbitsAdderNoCinCout w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCout w)
+                | _ -> failwithf "Cannot change adder type from non-adder component"
+        let buttonActionCout =
+            fun _ ->
+                match comp.Type with
+                |NbitsAdder w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCout w)
+                |NbitsAdderNoCin w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
+                |NbitsAdderNoCout w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdder w)
+                |NbitsAdderNoCinCout w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCin w)
+                |_ -> failwithf "Cannot change adder type from non-adder component"
+
+        div [] [
+            Button.button
+                [ 
+                Button.IsOutlined
+                Button.Color colourCin
+                Button.OnClick(buttonActionCin)
+                ]
+                [ str "Cin" ]
+            Button.button
+                [ 
+                Button.IsOutlined
+                Button.Color colourCout
+                Button.OnClick(buttonActionCout)
+                ]
+                [ str "Cout" ]
+            ]
+
 let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
     let title, width =
         match comp.Type with
-        | Input1 (w, _) | Output w | NbitsAdder w 
+        | Input1 (w, _) | Output w | NbitsAdder w  | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
         | NbitsXor w | NbitsAnd w | NbitsOr w |NbitsNot w |NbitSpreader w 
         | Register w | RegisterE w | Viewer w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
@@ -413,7 +473,11 @@ let private makeDescription (comp:Component) model dispatch =
     | Demux8 -> div [] [ str "Demultiplexer with one input and eight outputs." ]
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
     | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m."]
-    | NbitsAdder numberOfBits -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
+    | NbitsAdder numberOfBits 
+    | NbitsAdderNoCin numberOfBits 
+    | NbitsAdderNoCout numberOfBits 
+    | NbitsAdderNoCinCout numberOfBits 
+        -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
     | NbitsXor numberOfBits  -> div [] [ str <| sprintf "%d XOR gates with %d outputs." numberOfBits numberOfBits]
     | NbitsAnd numberOfBits  -> div [] [ str <| sprintf "%d AND gates with %d outputs." numberOfBits numberOfBits]
     | NbitsOr numberOfBits  -> div [] [ str <| sprintf "%d OR gates with %d outputs." numberOfBits numberOfBits]
@@ -509,8 +573,14 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
                 makeNumberOfBitsField model comp text dispatch
                 makeDefaultValueField model comp dispatch
             ]
-    | Output _ | NbitsAdder _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
+    | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch
+    | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ ->
+        div []
+            [
+                makeNumberOfBitsField model comp text dispatch
+                changeAdderType model comp dispatch
+            ]
     | SplitWire _ ->
         makeNumberOfBitsField model comp text dispatch
     | Register _ | RegisterE _ ->

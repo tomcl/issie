@@ -98,6 +98,12 @@ let getPortNumbers (sc: SimulationComponent) =
             9,1
         | NbitsAdder _ -> 
             3,2
+        | NbitsAdderNoCin _ ->
+            2,2
+        | NbitsAdderNoCout _ ->
+            3,1
+        | NbitsAdderNoCinCout _ ->
+            2,1
         | AsyncRAM1 _
         | RAM1 _ -> 
             2,1
@@ -142,9 +148,11 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | NbitsOr w
     | NbitSpreader w
     | NbitsXor w -> putW0 w
-    | NbitsAdder w ->
+    | NbitsAdder w | NbitsAdderNoCin w ->
         putW0 w
         putW1 1
+    | NbitsAdderNoCout w | NbitsAdderNoCinCout w ->
+        putW0 w
     | Not
     | And
     | Or

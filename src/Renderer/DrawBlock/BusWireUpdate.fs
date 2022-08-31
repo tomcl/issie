@@ -910,6 +910,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
 let updateSymbolWires (model: Model) (compId: ComponentId) =
     let wires = filterWiresByCompMoved model [compId]
+    
     let newWires =
         model.Wires
         |> Map.toList

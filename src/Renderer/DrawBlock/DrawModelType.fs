@@ -177,6 +177,7 @@ module SymbolT =
         | ChangeInputValue of compId: ComponentId * newVal: int
         | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
         | ChangeReversedInputs of compId: ComponentId
+        | ChangeAdderComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
         | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 

@@ -458,6 +458,24 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let sum = outs 0
         let cout = outs 1
         $"assign {{%s{cout},%s{sum} }} = %s{a} + %s{b} + %s{cin};\n"
+    | NbitsAdderNoCin n ->
+        let a = ins 0
+        let b = ins 1
+        let sum = outs 0
+        let cout = outs 1
+        $"assign {{%s{cout},%s{sum} }} = %s{a} + %s{b} ;\n"
+    | NbitsAdderNoCout n ->
+        let cin = ins 0
+        let a = ins 1
+        let b = ins 2
+        let sum = outs 0
+        $"assign %s{sum} = %s{a} + %s{b} + %s{cin};\n"
+    | NbitsAdderNoCinCout n ->
+        let a = ins 0
+        let b = ins 1
+        let sum = outs 0
+        $"assign %s{sum} = %s{a} + %s{b} ;\n"
+    
     | NbitsXor n ->
         let a = ins 0
         let b = ins 1

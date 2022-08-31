@@ -107,7 +107,7 @@ let nocr (s:string) =
 
 
 
-/// access to JS reference equality operation (===)
+// access to JS reference equality operation (===)
 
 
 

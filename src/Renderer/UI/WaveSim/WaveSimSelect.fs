@@ -59,10 +59,15 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         | InputPortNumber 0 -> ".P"
         | _ -> ".Q"
 
-    | NbitsAdder _ ->
+    | NbitsAdder _ |NbitsAdderNoCout _ ->
         match port with
         | InputPortNumber 0 -> ".Cin"
         | InputPortNumber 1 -> ".P"
+        | _ -> ".Q"
+
+    | NbitsAdderNoCin _ |NbitsAdderNoCinCout _ ->
+        match port with
+        | InputPortNumber 0 -> ".P"
         | _ -> ".Q"
 
     | DFFE | RegisterE _ ->
@@ -97,7 +102,8 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
             bitLimsString (0, 0)
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor w | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  ->
+        | NbitsXor w | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  
+        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w->
             bitLimsString (w - 1, 0)
 
         // TODO: Find the right parameters for RAMs and ROMs.
@@ -129,12 +135,15 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
         ""
     | Demux2 | Demux4 | Demux8 ->
         "." + string port
-    | NbitsAdder _ ->
+    | NbitsAdder _ |NbitsAdderNoCin _ ->
         match port with
         | OutputPortNumber 0 ->
             ".SUM"
         | _ ->
             ".COUT"
+    | NbitsAdderNoCout _ |NbitsAdderNoCinCout _ ->
+        ".SUM"
+        
     | DFF | DFFE | Register _ | RegisterE _ ->
         ".Q"
     | RAM1 _ | AsyncRAM1 _ | AsyncROM1 _ | ROM1 _ ->
@@ -159,7 +168,8 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
             bitLimsString (0, 0)
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor w | NbitsAnd w | NbitsOr w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w ->
+        | NbitsXor w | NbitsAnd w | NbitsOr w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w 
+        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w ->
             bitLimsString (w - 1, 0)
 
         | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem ->

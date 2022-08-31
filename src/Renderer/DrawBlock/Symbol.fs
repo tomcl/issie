@@ -267,7 +267,9 @@ let getPrefix compType =
     | Demux2 -> "DM"
     | Demux4 -> "DM"
     | Demux8 -> "DM"
-    | NbitsAdder _ -> "ADD"
+    | NbitsAdder _ | NbitsAdderNoCin _
+    | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ 
+        -> "ADD"
     | NbitsXor _ -> "NXOR"
     | NbitsAnd _ -> "AND"
     | NbitsOr _ -> "OR"
@@ -298,7 +300,8 @@ let getComponentLegend (componentType:ComponentType) =
     | Xor | Xnor -> "=1"
     | Not -> "1"
     | Decode4 -> "Decode"
-    | NbitsAdder n -> busTitleAndBits "Adder" n
+    | NbitsAdder n | NbitsAdderNoCin n
+    | NbitsAdderNoCinCout n | NbitsAdderNoCout n -> busTitleAndBits "Adder" n
     | Register n | RegisterE n-> busTitleAndBits "Register" n
     | AsyncROM1 _ -> "Async.ROM"
     | ROM1 _ -> "Sync.ROM"
@@ -318,6 +321,9 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     match componentType with
     | Decode4 -> (["SEL";"DATA"]@["0"; "1";"2"; "3"])
     | NbitsAdder _ -> (["Cin";"P";"Q"]@["SUM "; "COUT"])
+    | NbitsAdderNoCin _ -> (["P";"Q"]@["SUM "; "COUT"])
+    | NbitsAdderNoCinCout _ -> (["P";"Q"]@["SUM "])
+    | NbitsAdderNoCout _ -> (["Cin";"P";"Q"]@["SUM "])
     | Register _ -> (["D"]@["Q"])
     | RegisterE _ -> (["D"; "EN"]@["Q"])
     | ROM1 _ |AsyncROM1 _ -> (["ADDR"]@["DOUT"])
@@ -350,7 +356,7 @@ let movePortsToCorrectEdgeForComponentType (ct: ComponentType) (portMaps: PortMa
         movePortToBottom portMaps 4
     | Mux8 ->
         movePortToBottom portMaps 8
-    | NbitsAdder _ -> 
+    | NbitsAdder _ |NbitsAdderNoCout _ -> 
         let rightSide = portMaps.Order[Right]
         let newRightSide = List.rev rightSide
         let newPortOrder = Map.add Right newRightSide portMaps.Order
@@ -561,7 +567,9 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | NbitsXor (n) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
     | NbitsNot (n) 
     | NbitSpreader (n) -> (1, 1, 2.*gS, 2.*gS)
-    | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS) 
+    | NbitsAdder (n) |NbitsAdderNoCin (n)
+    | NbitsAdderNoCout (n) | NbitsAdderNoCinCout (n) 
+        -> (  3 , 2, 3.*gS  , 4.*gS) 
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 
 /// make a completely new component

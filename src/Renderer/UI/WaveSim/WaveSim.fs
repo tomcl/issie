@@ -828,7 +828,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
                     [ str "Please open a project to use the waveform simulator." ]
             | _,Loading | _,Success ->
                 dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
-                printfn $"Showing waveforms: fs= {wsModel.FastSim}"
+                //printfn $"Showing waveforms: fs= {wsModel.FastSim}"
                 div [showWaveformsAndRamStyle] [
 
                     showWaveforms model wsModel dispatch

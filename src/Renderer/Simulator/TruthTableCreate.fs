@@ -164,7 +164,7 @@ let truthTable
         if isRegeneration then 
             simData
         else
-            match FastRun.buildFastSimulation "" 1 simData.Graph with
+            match FastRun.buildFastSimulation 2 ""  simData.Graph with
             | Ok fs -> 
                 {simData with FastSim = fs}
             | _ -> 

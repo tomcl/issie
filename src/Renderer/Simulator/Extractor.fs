@@ -159,5 +159,54 @@ let extractLoadedSimulatorComponent (canvas: CanvasState)(name: string)=
             }
         ldc
 
+/// Returns true if project exists and ldc is electrically identical to same sheet in project
+/// canvasState must be the project currently open state.
+let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedComponent) (p: Project option) =
+    let ldcIsEq ldc1 ldc2 =
+        ldc1.InputLabels = ldc2.InputLabels &&
+        ldc1.OutputLabels = ldc2.OutputLabels &&
+        stateIsEqual ldc1.CanvasState ldc2.CanvasState 
+
+    match ldc.Name, p with
+    | "", _ 
+    | _, None -> false
+    | name, Some p when name = p.OpenFileName ->
+        let ins, outs = parseDiagramSignature canvasState
+        let sort = List.sort
+        stateIsEqual canvasState ldc.CanvasState && sort ins = sort ldc.InputLabels && sort outs = sort ldc.OutputLabels
+    | name, Some p ->
+        List.tryFind (fun ldc -> ldc.Name = name) p.LoadedComponents
+        |> Option.map (fun ldc' -> ldcIsEq ldc' ldc)
+        |> Option.defaultValue false
+    | _ -> false
+
+/// add given name,state to loadedcomponent lits as a loaded component (overwriting existing if needed)
+let addStateToLoadedComponents openFileName canvasState loadedComponents =
+    let ins, outs = parseDiagramSignature canvasState
+    let ldc: LoadedComponent = 
+        {
+            Name = openFileName
+            InputLabels = ins
+            OutputLabels = outs
+            CanvasState = canvasState
+            Form = None
+            Description = None
+            WaveInfo = None
+            FilePath = ""
+            TimeStamp = System.DateTime.Now
+        }
+    loadedComponents
+    |> List.filter (fun ldc -> ldc.Name <> openFileName) 
+    |> (fun ldcs ->  ldc :: ldcs)
+
+/// the inverse of addStateToLoadedConponents
+/// The loadedComponent list does NOT include diagramName
+let getStateAndDependencies (diagramName:string)  (ldcs:LoadedComponent list) =
+    ldcs
+    |> List.tryFind (fun ldc -> ldc.Name = diagramName)
+    |> Option.map (fun ldc ->ldc.CanvasState)
+    |> Option.map (fun cs -> diagramName, cs, List.filter (fun ldc -> ldc.Name <> diagramName) ldcs)
+    |> Option.defaultWith (fun () -> failwithf $"Error - can't find {diagramName} in dependencies")
+
 
 

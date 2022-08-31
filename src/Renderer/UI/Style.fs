@@ -4,6 +4,9 @@ open ModelType
 open Fable.React.Props
 open Browser.Dom
 
+module Constants =
+    let dividerBarWidth = 10
+
 let headerHeight = "72px"
 let private headerHeightWithBorderOffset = "74px"
 /// Small right section.

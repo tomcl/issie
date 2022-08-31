@@ -27,7 +27,8 @@ open Simulator
 open Sheet.SheetInterface
 open DrawModelType
 
-
+module Constants =
+    let maxArraySize = 550
 
 /// save verilog file
 /// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
@@ -40,7 +41,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
             | Some _ ->
                 () // do nothing if in middle of I/O operation
             | None ->
-                prepareSimulation proj.OpenFileName (state) proj.LoadedComponents 
+                prepareSimulation 2 proj.OpenFileName (state) proj.LoadedComponents
                 |> (function 
                     | Ok sim -> 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
@@ -73,17 +74,17 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
 
 type SimCache = {
     Name: string
-    StoredState: CanvasState
+    StoredState: LoadedComponent list
     StoredResult: Result<SimulationData, SimulationError>
     }
 
 
 
-let simCacheInit name = {
-    Name = name; 
-    StoredState = [],[] // reduced canvas state from extractReducedState
+let simCacheInit () = {
+    Name = ""; 
+    StoredState = []
     StoredResult = Ok {
-        FastSim = FastCreate.emptyFastSimulation name
+        FastSim = FastCreate.simulationPlaceholder
         Graph = Map.empty 
         Inputs = []
         Outputs = []
@@ -94,7 +95,19 @@ let simCacheInit name = {
     }
         
 /// Used to store last canvas state and its simulation
-let mutable simCache: SimCache = simCacheInit ""
+let mutable simCache: SimCache = simCacheInit ()
+
+let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=
+    match cache.StoredResult with
+    | Error _ -> false
+    | Ok {FastSim =fs} -> 
+        fs.SimulatedCanvasState
+        |> List.forall (fun ldc' ->
+            ldcs
+            |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
+            |> Option.map (loadedComponentIsEqual ldc')
+            |> (=) (Some true))
+            
 
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. this is complicated because
@@ -105,44 +118,52 @@ let mutable simCache: SimCache = simCacheInit ""
 /// 3. Therefore we need only compare current sheet canvasState with its
 /// initial value. This is compared using extractReducedState to make a copy that has geometry info removed 
 /// from components and connections.
-let rec prepareSimulationMemoized
+let prepareSimulationMemoized
+        (simulationArraySize: int)
+        (openFileName: string)
         (diagramName : string)
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> * CanvasState =
-    if diagramName <> simCache.Name then
-        simCache <- simCacheInit diagramName
-        // recursive call having initialised the cache state on sheet change
-        prepareSimulationMemoized diagramName canvasState loadedDependencies
+    //printfn $"Diagram{diagramName}, open={openFileName}, deps = {loadedDependencies |> List.map (fun dp -> dp.Name)}"
+    let storedArraySize =
+        match simCache.StoredResult with
+        | Ok sd -> sd.FastSim.MaxArraySize
+        | _ -> 0
+    let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
+    let isSame = 
+            storedArraySize = simulationArraySize &&
+            diagramName = simCache.Name &&
+            cacheIsEqual simCache ldcs
+    if  isSame then
+        simCache.StoredResult, canvasState
     else
-        let isSame = stateIsEqual canvasState  simCache.StoredState
-        if  isSame then
-            simCache.StoredResult, canvasState
-        else
-            printfn "New simulation"
-            let simResult = prepareSimulation diagramName canvasState loadedDependencies
-            simCache <- {
-                Name = diagramName
-                StoredState = canvasState
-                StoredResult = simResult
-                }
-            simResult, canvasState
+        printfn "New simulation"
+        let name, state, ldcs = getStateAndDependencies diagramName ldcs
+        let simResult = prepareSimulation simulationArraySize diagramName state ldcs 
+        simCache <- {
+            Name = diagramName
+            StoredState = ldcs
+            StoredResult = simResult
+            }
+        simResult, canvasState
    
 
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails.
 /// Note that simulation is only redone if current canvas changes.
-let makeSimData model =
+let makeSimData (simulatedSheet: string option) (simulationArraySize: int) canvasState model =
     let start = TimeHelpers.getTimeMs()
-    match model.Sheet.GetCanvasState(), model.CurrentProj with
+    match canvasState, model.CurrentProj with
     | _, None -> None
     | canvasState, Some project ->
+        let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
         let otherComponents = 
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (canvasState, otherComponents)
-        ||> prepareSimulationMemoized project.OpenFileName
+        ||> prepareSimulationMemoized simulationArraySize project.OpenFileName simSheet 
         |> Some
         |> TimeHelpers.instrumentInterval "MakeSimData" start
 
@@ -306,11 +327,11 @@ let viewSimulationError (simError : SimulationError) =
             ]
         | Some dep ->
             div [] [
-                str <| "Error found in dependency \"" + dep + "\":"
+                str <| "Error found in sheet '" + dep + "' which is a dependency:"
                 br []
                 str simError.Msg
                 br []
-                str <| "Please fix the error in the dependency and retry."
+                str <| "Please fix the error in this sheet and retry."
             ]
     div [] [
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
@@ -536,7 +557,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         maybeStatefulComponents()
     ]
 
-let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
+let setSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let keyDispatch = SheetT.KeyPress >> sheetDispatch
     if simError.InDependency.IsNone then
@@ -549,32 +570,31 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
             // make whole diagram visible if any of the errors are not visible
             keyDispatch <| SheetT.KeyboardMsg.CtrlW
 
-let viewSimulation model dispatch =
+let viewSimulation canvasState model dispatch =
     printf "Viewing Simulation"
-    let state = model.Sheet.GetCanvasState ()
     // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
-        match state, model.CurrentProj with
+        match canvasState, model.CurrentProj with
         | _, None -> failwith "what? Cannot start a simulation without a project"
         | canvasState, Some project ->
             let otherComponents =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-            simCache <- simCacheInit ""
+            simCache <- simCacheInit ()
             (canvasState, otherComponents)
-            ||> prepareSimulationMemoized project.OpenFileName
+            ||> prepareSimulationMemoized Constants.maxArraySize project.OpenFileName project.OpenFileName
             |> function
                | Ok (simData), state -> Ok simData
                | Error simError, state ->
                   printfn $"ERROR:{simError}"
-                  SetSimErrorFeedback simError model dispatch
+                  setSimErrorFeedback simError model dispatch
                   Error simError
             |> StartSimulation
             |> dispatch
 
     match model.CurrentStepSimulationStep with
     | None ->
-        let simRes = makeSimData model
+        let simRes = makeSimData None Constants.maxArraySize canvasState model
         let isSync = match simRes with | Some( Ok {IsSynchronous=true},_) | _ -> false
         let buttonColor, buttonText = 
             match simRes with
@@ -584,7 +604,7 @@ let viewSimulation model dispatch =
         div [] [
             str "Simulate simple logic using this tab."
             br []
-            str (if isSync then "You can also use the Waveforms >> button to view waveforms" else "")
+            str (if isSync then "You can also use the Wave Simulation tab to view waveforms" else "")
             br []; br []
             Button.button
                 [ 

@@ -275,7 +275,7 @@ let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
     let start = TimeHelpers.getTimeMs ()
     let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
     //printf "length: %A" (List.length selectedWaves)
-    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
+    dispatch <| GenerateWaveforms {wsModel with SelectedWaves = selectedWaves}
     |> TimeHelpers.instrumentInterval "toggleSelectAll" start
 
 /// Row in wave selection table that selects all values in wsModel.AllWaves
@@ -304,7 +304,7 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
             List.except [index] wsModel.SelectedWaves
         else [index] @ wsModel.SelectedWaves
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
-    dispatch <| InitiateWaveSimulation wsModel
+    dispatch <| GenerateWaveforms wsModel
 
 
 
@@ -328,7 +328,7 @@ let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (wave
 
         else
             List.except waves wsModel.SelectedWaves
-    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
+    dispatch <| GenerateWaveforms {wsModel with SelectedWaves = selectedWaves}
 
 
 /// Table row of a checkbox and name of a wave.
@@ -573,7 +573,7 @@ let  selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> un
 let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let waveCount = Map.count wsModel.AllWaves
     let props, buttonFunc =
-        if waveCount > 0 then
+        if waveCount > 0 && wsModel.State=Success then
             selectWavesButtonProps, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = true}))
         else selectWavesButtonPropsLight, (fun _ -> ())
     button 
@@ -629,7 +629,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
 let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let ramCount = List.length wsModel.RamComps
     let props, buttonFunc =
-        if ramCount > 0 then
+        if ramCount > 0 && wsModel.State=Success then
             selectRamButtonProps, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = true}))
         else selectRamButtonPropsLight, (fun _ -> ())
     button 

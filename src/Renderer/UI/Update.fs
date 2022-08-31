@@ -12,6 +12,7 @@ open TruthTableTypes
 open TruthTableCreate
 open TruthTableReduce
 open ModelType
+open ModelHelpers
 open CommonTypes
 open Extractor
 open CatalogueView
@@ -350,7 +351,7 @@ let sheetMsg sMsg model =
 /// Main MVU model update function
 let update (msg : Msg) oldModel =
     let startUpdate = TimeHelpers.getTimeMs()
-
+    
 
     //Add the message to the pending queue if it is a mouse drag message
     let model =
@@ -371,6 +372,7 @@ let update (msg : Msg) oldModel =
     // main message dispatch match expression
     match testMsg with
     | StartUICmd uiCmd ->
+        //printfn $"starting UI command '{uiCmd}"
         match model.UIState with
         | None -> //if nothing is currently being processed, allow the ui command operation to take place
             match uiCmd with
@@ -380,6 +382,7 @@ let update (msg : Msg) oldModel =
                 {model with UIState = Some uiCmd}, Cmd.ofMsg (Sheet (SheetT.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _->
+        //printfn $"ending UI command '{model.UIState}"
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (SheetT.SetSpinner false))
 
@@ -417,18 +420,20 @@ let update (msg : Msg) oldModel =
         updateWSModel updateFn model, Cmd.none
     | SetWSModelAndSheet (wsModel, wsSheet) ->
         let newModel =
-            {model with WaveSimSheet = wsSheet}
+            {model with WaveSimSheet = if wsSheet = "" then None else Some wsSheet}
             |> setWSModel wsModel
         newModel, Cmd.none
+    | UpdateModel( updateFn: Model -> Model) ->
+        updateFn model, Cmd.none
     | RefreshWaveSim (wsModel, simData, canvState) ->
-        model, (*Cmd.OfAsync.perform*) Cmd.ofMsg (WaveSim.refreshWaveSim (wsModel, simData, canvState)  |> SetWSModel )
+        model, Cmd.ofMsg (WaveSim.refreshWaveSim (wsModel, simData, canvState)  |> SetWSModel )
     | AddWSModel (sheet, wsModel) ->
         { model with 
             WaveSim = Map.add sheet wsModel model.WaveSim
         }, Cmd.none
-    | InitiateWaveSimulation wsModel ->
+    | GenerateWaveforms wsModel ->
         let start = TimeHelpers.getTimeMs ()
-        //printfn "Initiating wave simulation..."
+        WaveSimHelpers.extendSimulation wsModel // ensure simulation is uptodate
         let allWaves =
             Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
             |> TimeHelpers.instrumentInterval "InitiateWaveSimulation generateWaveform" start
@@ -465,7 +470,19 @@ let update (msg : Msg) oldModel =
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
-    | EndWaveSim -> { model with WaveSim = Map.empty }, Cmd.none
+    | EndWaveSim -> 
+        let model =
+            match model.WaveSimSheet with
+            | None | Some "" -> 
+                printfn "What? can't end WaveSim when it is already ended"
+                model
+            | Some sheet -> 
+                { model with 
+                    WaveSimSheet = None; 
+                    WaveSim = Map.change sheet (Option.map (fun ws -> 
+                        {ws with State = Ended })) model.WaveSim
+                }
+        model, Cmd.none
     | GenerateTruthTable simRes ->
         match simRes with
         | Some (Ok sd,_) ->
@@ -963,6 +980,8 @@ let update (msg : Msg) oldModel =
                 if str <> "" then printfn "**Upd:%s" str
                 Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
             model,cmdL)
+    |> ModelHelpers.execOneAsyncJobIfPossible
+
 
 
 

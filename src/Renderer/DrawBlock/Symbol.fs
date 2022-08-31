@@ -272,7 +272,7 @@ let getPrefix compType =
     | NbitsAnd _ -> "AND"
     | NbitsOr _ -> "OR"
     | NbitsNot _ -> "NOT"
-    | NbitSpreader _ -> "SPREAD"
+    | NbitSpreader _ -> "S"
     | DFF | DFFE -> "FF"
     | Register _ | RegisterE _ -> "REG"
     | AsyncROM1 _ -> "AROM"
@@ -310,7 +310,6 @@ let getComponentLegend (componentType:ComponentType) =
     | NbitsOr (x)->   busTitleAndBits "NBits-Or" x
     | NbitsAnd (x)->   busTitleAndBits "NBits-And" x
     | NbitsNot (x)->   busTitleAndBits "NBits-Not" x
-    | NbitSpreader (x)->   busTitleAndBits "NBit-Spreader" x
     | Custom x -> x.Name.ToUpper()
     | _ -> ""
 
@@ -333,7 +332,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | Demux4 -> (["DATA"; "SEL"]@["0"; "1";"2"; "3";])
     | Demux8 -> (["DATA"; "SEL"]@["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
     | NbitsXor _ | NbitsAnd _ -> (["P"; "Q"]@ ["OUT"])
-    | NbitsNot _ | NbitSpreader _ -> (["IN"]@["OUT"])
+    | NbitsNot _ -> (["IN"]@["OUT"])
     | Custom x -> (List.map fst x.InputLabels)@ (List.map fst x.OutputLabels)
     | _ -> ([]@[])
    // |Demux8 -> (["IN"; "SEL"],["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
@@ -560,7 +559,8 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
     | NbitsXor (n) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
-    | NbitsNot (n) | NbitSpreader (n) -> (1, 1, 2.5*gS, 4.*gS)
+    | NbitsNot (n) 
+    | NbitSpreader (n) -> (1, 1, 2.*gS, 2.*gS)
     | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS) 
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 
@@ -965,6 +965,8 @@ let drawSymbol (symbol:Symbol) =
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | Custom x when symbol.IsClocked = true -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
+            | NbitSpreader _ ->
+                [|{X=0;Y=H/2.};{X=W/2.;Y=H/2.};{X=W/2.;Y=H};{X=W/2.0;Y=0.};{X=W/2.;Y=H/2.};{X=W;Y=H/2.}|]
             | _ -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
@@ -983,6 +985,12 @@ let drawSymbol (symbol:Symbol) =
             let textPoints = rotatePoints [|{X=W*0.75;Y=H/6.+2.};{X=W*0.75;Y=H*5./6.+2.};{X=W/4.;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
             match transform.Rotation with
             | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
+            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
+            | _ -> textPoints
+        let NbitSpreaderTextPos =
+            let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.75;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
+            match transform.Rotation with
+            | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=15.;Y=(-5.0)}) textPoints
             | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
             | _ -> textPoints
         let rotate1 pos = 
@@ -1005,6 +1013,17 @@ let drawSymbol (symbol:Symbol) =
                         mergeWiresTextPos[i] 
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
+        | NbitSpreader n -> 
+            //let lo = 1
+            //let msb = hi + lo - 1
+            //let midb = lo
+            //let midt = lo - 1
+            let values = [(0,0);(n,0)]
+            List.fold (fun og i ->
+                og @ mergeSplitLine 
+                        NbitSpreaderTextPos[i] 
+                        (fst values[i]) 
+                        (snd values[i])) [] [0..1]
         | SplitWire mid -> 
             let msb, mid' = match symbol.InWidth0 with | Some n -> n - 1, mid | _ -> -100, -50
             let midb = mid'
@@ -1043,7 +1062,7 @@ let drawSymbol (symbol:Symbol) =
 
     let outlineColour, strokeWidth =
         match comp.Type with
-        | SplitWire _ | MergeWires -> outlineColor colour, "2.0"
+        | SplitWire _ | MergeWires |NbitSpreader _ -> outlineColor colour, "2.0"
         | IOLabel -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"

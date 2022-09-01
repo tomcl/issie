@@ -978,7 +978,7 @@ let drawSymbol (symbol:Symbol) =
             | Custom x when symbol.IsClocked = true -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | NbitSpreader _ ->
-                [|{X=0;Y=H/2.};{X=W/2.;Y=H/2.};{X=W/2.;Y=H};{X=W/2.0;Y=0.};{X=W/2.;Y=H/2.};{X=W;Y=H/2.}|]
+                [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
             | _ -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
@@ -1000,10 +1000,11 @@ let drawSymbol (symbol:Symbol) =
             | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
             | _ -> textPoints
         let NbitSpreaderTextPos =
-            let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.75;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
+            let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.7;Y=H/2.+4.}|] {X=W/2.;Y=H/2.} transform
             match transform.Rotation with
-            | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=15.;Y=(-5.0)}) textPoints
-            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
+            | Degree90 -> Array.map (fun pos -> pos + {X=13.;Y=(-5.0)}) textPoints
+            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +8.}) textPoints
+            | Degree270 -> Array.map (fun pos -> pos + {X=18.;Y=(-5.0)}) textPoints
             | _ -> textPoints
         let rotate1 pos = 
             match rotatePoints [|pos|] {X=W/2.;Y=H/2.} transform with 
@@ -1030,7 +1031,7 @@ let drawSymbol (symbol:Symbol) =
             //let msb = hi + lo - 1
             //let midb = lo
             //let midt = lo - 1
-            let values = [(0,0);(n,0)]
+            let values = [(-1,0);((n-1),0)]
             List.fold (fun og i ->
                 og @ mergeSplitLine 
                         NbitSpreaderTextPos[i] 

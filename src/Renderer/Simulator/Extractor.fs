@@ -178,7 +178,7 @@ let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedCompon
         List.tryFind (fun ldc -> ldc.Name = name) p.LoadedComponents
         |> Option.map (fun ldc' -> ldcIsEq ldc' ldc)
         |> Option.defaultValue false
-    | _ -> false
+
 
 /// add given name,state to loadedcomponent lits as a loaded component (overwriting existing if needed)
 let addStateToLoadedComponents openFileName canvasState loadedComponents =

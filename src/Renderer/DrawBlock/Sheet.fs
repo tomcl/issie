@@ -91,7 +91,9 @@ module SheetInterface =
 
         member this.ChangeAdderComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeAdderComponent (compId,(this.GetComponentById compId), newComp) ) ) )
-            //dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
+            let delPort = SymbolUpdate.findDeletedPort this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPort))
+            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
             //this.DoBusWidthInference dispatch
 
         /// Given a compId, update the ReversedInputs property of the Component specified by compId

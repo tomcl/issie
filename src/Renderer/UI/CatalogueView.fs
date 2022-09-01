@@ -748,7 +748,7 @@ let viewCatalogue model dispatch =
                           catTip1 "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch) "D flip-flop: output will remain unchanged when En is 0"
                           catTip1 "Register" (fun _ -> createRegisterPopup Register model dispatch) "N D flip-flops with inputs and outputs combined into single N bit busses"
                           catTip1 "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) "As register but outputs stay the same if En is 0"
-                          catTip1 "Counter" (fun _ -> createRegisterPopup Counter model dispatch) "Counter..."]
+                          catTip1 "Counter" (fun _ -> createRegisterPopup Counter model dispatch) "N-bits counter with customisable enable and load inputs"]
                     makeMenuGroup
                         "Memories"
                         [ catTip1 "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM1 model dispatch) "This is combinational: \

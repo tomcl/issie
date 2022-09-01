@@ -260,6 +260,7 @@ let private changeAdderType model (comp:Component) dispatch =
                 |_ -> failwithf "Cannot change adder type from non-adder component"
 
         div [] [
+            Label.label [] [ str "Cin/Cout Appearance"]
             Button.button
                 [ 
                 Button.IsOutlined
@@ -283,7 +284,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
         match comp.Type with
         | Input1 (w, _) | Output w | NbitsAdder w  | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
         | NbitsXor w | NbitsAnd w | NbitsOr w |NbitsNot w |NbitSpreader w 
-        | Register w | RegisterE w | Viewer w -> "Number of bits", w
+        | Register w | RegisterE w |Counter w | Viewer w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | BusCompare( w, _) -> "Bus width", w
@@ -589,7 +590,7 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             ]
     | SplitWire _ ->
         makeNumberOfBitsField model comp text dispatch
-    | Register _ | RegisterE _ ->
+    | Register _ | RegisterE _ |Counter _ ->
         makeNumberOfBitsField model comp text dispatch
     | BusSelection _ -> 
         div [] [

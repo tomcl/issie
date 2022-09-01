@@ -171,14 +171,19 @@ let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactEle
                 match tryReadFileSync path with
                 |Ok text -> text
                 |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" name
-            Button.button [
-                Button.Color IsPrimary
-                Button.OnClick (fun _ -> 
-                    dispatch (StartUICmd SaveSheet)
-                    saveOpenFileActionWithModelUpdate model dispatch |> ignore
-                    dispatch <| Sheet(SheetT.DoNothing)
-                    openCodeEditor code name dispatch)
-            ] [str "View/Edit Verilog code"]
+            div []
+                [
+                    br []
+                    Button.button [
+                        Button.Color IsPrimary
+                        Button.OnClick (fun _ -> 
+                            dispatch (StartUICmd SaveSheet)
+                            saveOpenFileActionWithModelUpdate model dispatch |> ignore
+                            dispatch <| Sheet(SheetT.DoNothing)
+                            openCodeEditor code name dispatch)
+                    ] [str "View/Edit Verilog code"]
+                    br []
+                ]
         |_ -> null
 
 let makeVerilogDeleteButton (model:Model) (custom:CustomComponentType) dispatch : ReactElement = 
@@ -208,12 +213,17 @@ let makeVerilogDeleteButton (model:Model) (custom:CustomComponentType) dispatch 
                     dispatch <| ExecFuncInMessage(removeFileInProject name project,dispatch)
                     (removeFileWithExtn ".v" project.ProjectPath name)
                     dispatch ClosePopup
-            Button.button
-                [ 
-                Button.IsOutlined
-                Button.Color IsDanger
-                Button.OnClick(fun _ -> confirmationPopup title body buttonText buttonAction dispatch) ]
-                [ str "Delete" ]
+            div []
+                [
+                    br []
+                    Button.button
+                        [ 
+                        Button.IsOutlined
+                        Button.Color IsDanger
+                        Button.OnClick(fun _ -> confirmationPopup title body buttonText buttonAction dispatch) ]
+                        [ str "Delete" ]
+                    br []
+                ]
         | _ -> null
 
 let private changeAdderType model (comp:Component) dispatch = 
@@ -499,6 +509,16 @@ let private makeDescription (comp:Component) model dispatch =
             |_ -> ": user defined (custom) component."
             //TODO: remaining
 
+        let sheetDescription = 
+            match custom.Description with
+            |Some sheetDescription-> 
+                div [] [
+                    p [] [str "----------------"]
+                    p [] [str sheetDescription]
+                    p [] [str "----------------"]
+                ]
+            |None -> 
+                br []
         let portOrderExplanation =
             match custom.Form with
             |Some (Verilog _) -> $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
@@ -510,17 +530,13 @@ let private makeDescription (comp:Component) model dispatch =
         div [] [
             boldSpan $"{custom.Name}"
             span [] [str <| symbolExplanation]
-            br []
-            br []
+            sheetDescription
             makeVerilogEditButton model custom dispatch
-            br []
-            br []
             makeVerilogDeleteButton model custom dispatch
-            br []
             br []
             p [  Style [ FontStyle "italic"; FontSize "12px"; LineHeight "1.1"]] [
                 str <| portOrderExplanation]
-            
+            br []
             span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Inputs"]
             ul [] (toHTMLList custom.InputLabels)
             br []
@@ -659,5 +675,44 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )
         ]    
-    | _ -> div [] [ str "Select a component in the diagram to view or change its properties, for example number of bits." ]
+    | _ -> 
+        match model.CurrentProj with
+        |Some proj ->
+            let sheetName = proj.OpenFileName
+            let sheetLdc = proj.LoadedComponents |> List.filter (fun ldc -> ldc.Name = sheetName)
+            let sheetDescription = sheetLdc[0].Description
+            match sheetDescription with
+            |None ->
+                div [] [
+                    p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]    
+                    br []
+                    Label.label [] [str "Sheet Description"]
+                    Button.button
+                        [ 
+                            Button.IsOutlined
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ ->
+                                createSheetDescriptionPopup model None sheetName dispatch
+                            )
+                        ]
+                        [str "Add Description"]
+                    ]
+            |Some descr ->
+                div [] [
+                    p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]    
+                    br []
+                    Label.label [] [str "Sheet Description"]
+                    p [] [str descr]
+                    br []
+                    Button.button
+                        [ 
+                            Button.IsOutlined
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ ->
+                                createSheetDescriptionPopup model sheetDescription sheetName dispatch
+                            )
+                        ]
+                        [str "Edit Description"]
+                    ]
+        |None -> null
 

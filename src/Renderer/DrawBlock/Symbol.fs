@@ -286,7 +286,8 @@ let getPrefix compType =
     | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
-    | Counter _ -> "COUNT"
+    | Counter _ |CounterNoEnable _
+    | CounterNoLoad _ |CounterNoEnableLoad _ -> "COUNT"
     | MergeWires -> "MW"
     | SplitWire _ -> "SW"
     | _ -> ""
@@ -310,7 +311,8 @@ let getComponentLegend (componentType:ComponentType) =
     | AsyncRAM1 _ -> "Async.RAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
-    | Counter n -> busTitleAndBits "Counter" n
+    | Counter n |CounterNoEnable n
+    | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
     | NbitsXor (x)->   busTitleAndBits "NBits-Xor" x
     | NbitsOr (x)->   busTitleAndBits "NBits-Or" x
     | NbitsAnd (x)->   busTitleAndBits "NBits-And" x
@@ -329,6 +331,9 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | Register _ -> (["D"]@["Q"])
     | RegisterE _ -> (["D"; "EN"]@["Q"])
     | Counter _ -> (["D"; "LOAD"; "EN"]@["Q"])
+    |CounterNoEnable _ -> (["D"; "LOAD"]@["Q"])
+    | CounterNoLoad _ -> (["EN"]@["Q"])
+    |CounterNoEnableLoad _ ->  ([]@["Q"])
     | ROM1 _ |AsyncROM1 _ -> (["ADDR"]@["DOUT"])
     | RAM1 _ -> (["ADDR"; "DIN";"WEN" ]@["DOUT"])
     | AsyncRAM1 _ -> (["ADDR"; "DIN";"WEN" ]@["DOUT"])
@@ -565,6 +570,9 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Register (a) -> ( 1 , 1, 2.*gS, 4.*gS )
     | RegisterE (a) -> ( 2 , 1, 2.*gS  , 4.*gS)
     | Counter (a) -> (3 , 1 , 4.*gS , 5.*gS)
+    |CounterNoEnable (a) -> (2 , 1 , 3.*gS , 5.*gS)
+    | CounterNoLoad (a) -> (1 , 1 , 2.*gS , 5.*gS)
+    |CounterNoEnableLoad (a) -> (0 , 1 , 2.*gS , 3.5*gS)
     | AsyncROM1 (a)  -> (  1 , 1, 4.*gS  , 5.*gS) 
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
@@ -720,6 +728,7 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
     let baseOffset' = baseOffset + getMuxSelOffset sym side
     let portDimension = float ports.Length - 1.0
+    //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
     match side with
     | Left ->
@@ -739,7 +748,9 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
 let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
     match sym.MovingPort with
     | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
-    | _ -> getPortPos sym port
+    | _ -> 
+        //printfn "symbol %A portDimension %A" sym.Component.Type (getPortPos sym port)
+        getPortPos sym port
 
 let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port

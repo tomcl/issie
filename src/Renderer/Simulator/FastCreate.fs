@@ -65,7 +65,7 @@ let getFid (cid: ComponentId) (ap: ComponentId list) =
 let getPortNumbers (sc: SimulationComponent) =
     let ins,outs =
         match sc.Type with
-        | Constant1 _ | Constant _ ->
+        | Constant1 _ | Constant _ | CounterNoEnableLoad _ ->
             0,1
         | Input1 _
         | Output _
@@ -79,18 +79,21 @@ let getPortNumbers (sc: SimulationComponent) =
         | ROM1 _ 
         | AsyncROM1 _
         | NbitsNot _ 
-        | NbitSpreader _ ->
+        | NbitSpreader _ 
+        | CounterNoLoad _ ->
             1,1
         | MergeWires
         | NbitsXor _
         | NbitsOr _
         | NbitsAnd _
         | RegisterE _
-        | DFFE -> 
+        | DFFE 
+        | CounterNoEnable _ -> 
             2,1
         | SplitWire _ -> 
             1,2
         | Mux2 _ 
+        | NbitsAdderNoCout _
         | Counter _ -> 
             3,1
         | Mux4 _ ->
@@ -101,8 +104,6 @@ let getPortNumbers (sc: SimulationComponent) =
             3,2
         | NbitsAdderNoCin _ ->
             2,2
-        | NbitsAdderNoCout _ ->
-            3,1
         | NbitsAdderNoCinCout _ ->
             2,1
         | AsyncRAM1 _
@@ -140,7 +141,8 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Viewer w
     | Register w
     | RegisterE w
-    | Counter w
+    | Counter w |CounterNoEnable w
+    | CounterNoLoad w |CounterNoEnableLoad w
     | SplitWire w
     | BusSelection (w, _)
     | Constant1 (w, _,_)

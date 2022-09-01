@@ -198,7 +198,8 @@ module CommonTypes
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
-        | Counter of BusWidth:int
+        | Counter of BusWidth:int | CounterNoLoad of BusWidth:int
+        | CounterNoEnable of BusWidth:int | CounterNoEnableLoad of BusWidth:int
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory

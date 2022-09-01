@@ -982,6 +982,56 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 ConnectionsAffected = []
             }
             raise (AlgebraNotImplemented err)
+    | CounterNoEnable width ->
+        //let bits, enable = insOld 0, insOld 1
+        match insOld 0, insOld 1 with
+        | Data bits, Data load ->
+#if ASSERTS
+            assertThat (bits.Width = width)
+            <| sprintf "Counter received data with wrong width: expected %d but got %A" width bits.Width
+#endif
+            if (extractBit (Data load) 1 = 0u) then
+                let lastOut = (getLastCycleOut 0)
+                let n = lastOut.toFastData.GetBigInt + (bigint 1)
+                let res = {Dat = BigWord n; Width = bits.Width}
+                put0 <| Data res
+            else
+                put0 <| Data bits
+            
+        | _ ->
+            let err = {
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    Counter. Algebraic Simulation has not been implemented for this component."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
+    | CounterNoLoad width ->
+        //let bits, enable = insOld 0, insOld 1
+        match insOld 0 with
+        | Data enable ->
+            if (extractBit (Data enable) 1 = 1u) then
+                let lastOut = (getLastCycleOut 0)
+                let n = lastOut.toFastData.GetBigInt + (bigint 1)
+                let res = {Dat = BigWord n; Width = width}
+                put0 <| Data res
+            else
+                put0 (getLastCycleOut 0)
+        | _ ->
+            let err = {
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    Counter. Algebraic Simulation has not been implemented for this component."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
+    | CounterNoEnableLoad width ->
+        let lastOut = (getLastCycleOut 0)
+        let n = lastOut.toFastData.GetBigInt + (bigint 1)
+        let res = {Dat = BigWord n; Width = width}
+        put0 <| Data res
     | AsyncROM1 mem -> // Asynchronous ROM.
         let fd = ins 0
 #if ASSERTS

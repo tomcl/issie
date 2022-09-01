@@ -417,6 +417,9 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | DFFE
     | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
     | Counter _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 2} ? (%s{ins 1} ? %s{ins 0} : (%s{outs 0}+1'b1)) : %s{outs 0};\n"
+    | CounterNoEnable _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : (%s{outs 0}+1'b1) ;\n"
+    | CounterNoLoad _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 0} ? (%s{outs 0}+1'b1) : %s{outs 0};\n"
+    | CounterNoEnableLoad _ -> $"always @(posedge clk) %s{outs 0} <= (%s{outs 0}+1'b1) ;\n"
     | DFF
     | Register _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 0};\n"
     | Constant1 (w, c,_) 

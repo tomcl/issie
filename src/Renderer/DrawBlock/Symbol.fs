@@ -827,7 +827,7 @@ let private drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoint
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
-let createBiColorPolygon points colour strokeColor opacity strokeWidth= 
+let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
         [makePolygon points {defaultPolygon with Fill = colour; Stroke = strokeColor; FillOpacity = opacity; StrokeWidth=strokeWidth}]
     else   
@@ -1156,7 +1156,7 @@ let drawSymbol (symbol:Symbol) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth)
+    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
 
 
 

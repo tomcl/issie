@@ -159,6 +159,37 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
             (getInt dialogData < 1) || notGoodLabel
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
+
+let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
+    let title = sprintf "Sheet Description"
+    let beforeText =
+        fun _ -> str <| sprintf "Add description for sheet '%s'" sheetName
+    let body =  dialogPopupBodyOnlyTextWithDefaultValue beforeText "Description" previousDescr dispatch
+    let buttonText = "Save"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let descr = getText dialogData
+            //printfn "creating adder %d" inputInt
+            //createCompStdLabel (NbitsAdder inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            match model.CurrentProj with
+            |None -> failwithf "Can't happen"
+            |Some p ->
+                let target_ldc = p.LoadedComponents |> List.filter (fun x -> x.Name = sheetName)
+                let other_ldc = p.LoadedComponents |> List.filter (fun x -> x.Name <> sheetName)
+                let ldc' = {target_ldc[0] with Description=Some descr}
+                let fixed_ldcs = other_ldc@[ldc'] 
+                
+                let p' = {p with LoadedComponents=fixed_ldcs}
+                dispatch <| SetProject p'
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) ->
+            getText dialogData
+            |> Seq.toList
+            |> List.tryHead
+            |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
 let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"
     let beforeInt =

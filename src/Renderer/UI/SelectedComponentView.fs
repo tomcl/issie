@@ -537,6 +537,12 @@ let private makeDescription (comp:Component) model dispatch =
                       state of the Register will be updated at the next clock
                       cycle. The component is implicitly connected to the global
                       clock." ]
+    | Counter _ ->
+        div [] [ str "Counter with enable and load options. If the enable signal is high the
+                      state of the Register will be updated at the next clock
+                      cycle taking either the value of input d (when load is enabled)
+                      or the value of out+1 (if load is disabled). 
+                      The component is implicitly connected to the global clock." ]
     | AsyncROM1 mem ->
         let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch

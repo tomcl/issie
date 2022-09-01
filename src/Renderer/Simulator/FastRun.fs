@@ -358,7 +358,8 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | DFF _
                 | DFFE _
                 | Register _
-                | RegisterE _ -> 
+                | RegisterE _ 
+                | Counter _ -> 
                     match fc.Outputs[0].Step[step % fastSim.MaxArraySize] with
                     | Data d ->
                         [| fc, RegisterState d |]

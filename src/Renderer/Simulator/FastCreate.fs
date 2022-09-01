@@ -90,7 +90,8 @@ let getPortNumbers (sc: SimulationComponent) =
             2,1
         | SplitWire _ -> 
             1,2
-        | Mux2 _ -> 
+        | Mux2 _ 
+        | Counter _ -> 
             3,1
         | Mux4 _ ->
             5,1
@@ -139,6 +140,7 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Viewer w
     | Register w
     | RegisterE w
+    | Counter w
     | SplitWire w
     | BusSelection (w, _)
     | Constant1 (w, _,_)
@@ -147,12 +149,12 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | NbitsNot w
     | NbitsOr w
     | NbitSpreader w
-    | NbitsXor w -> putW0 w
+    | NbitsXor w 
+    | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
+        -> putW0 w
     | NbitsAdder w | NbitsAdderNoCin w ->
         putW0 w
         putW1 1
-    | NbitsAdderNoCout w | NbitsAdderNoCinCout w ->
-        putW0 w
     | Not
     | And
     | Or

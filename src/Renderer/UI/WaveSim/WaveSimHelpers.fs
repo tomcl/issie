@@ -284,6 +284,7 @@ let getCompDetails fs wave =
         | DFFE -> "D flipflop with enaable", false
         | Register n -> $"{n} bit D register", false
         | RegisterE n -> $"{n} bit D register with enable", false
+        | Counter n -> $"{n} bit Counter with enable and load", false
         | AsyncROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false
         | ROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
         | RAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
@@ -309,7 +310,7 @@ let getCompGroup fs wave =
     | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _->
         Arithmetic
     | Custom _ -> CustomComp
-    | DFF | DFFE | Register _ | RegisterE _ ->
+    | DFF | DFFE | Register _ | RegisterE _ |Counter _ ->
         FFRegister
     | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
         Memories                

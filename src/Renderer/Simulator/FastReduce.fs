@@ -956,6 +956,32 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 ConnectionsAffected = []
             }
             raise (AlgebraNotImplemented err)
+    | Counter width ->
+        //let bits, enable = insOld 0, insOld 1
+        match insOld 0, insOld 1, insOld 2 with
+        | Data bits, Data load, Data enable ->
+#if ASSERTS
+            assertThat (bits.Width = width)
+            <| sprintf "Counter received data with wrong width: expected %d but got %A" width bits.Width
+#endif
+            if (extractBit (Data enable) 1 = 1u) && (extractBit (Data load) 1 = 0u) then
+                let lastOut = (getLastCycleOut 0)
+                let n = lastOut.toFastData.GetBigInt + (bigint 1)
+                let res = {Dat = BigWord n; Width = bits.Width}
+                put0 <| Data res
+            elif (extractBit (Data enable) 1 = 1u) && (extractBit (Data load) 1 = 1u) then
+                put0 <| Data bits
+            else
+                put0 (getLastCycleOut 0)
+        | _ ->
+            let err = {
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    Counter. Algebraic Simulation has not been implemented for this component."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
     | AsyncROM1 mem -> // Asynchronous ROM.
         let fd = ins 0
 #if ASSERTS

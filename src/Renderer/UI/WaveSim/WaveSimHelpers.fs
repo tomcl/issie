@@ -487,9 +487,15 @@ let infoButton  (tooltipMessage:string) (style: CSSProp list) (tooltipPosition:s
         ]
         [str Constants.infoSignUnicode]
 
+let waveInfoButton (dispatch: Msg -> Unit) : ReactElement =
+    button 
+        [Button.Props [Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]]]
+        (fun _ -> PopupView.viewWaveInfoPopup dispatch)
+        (str Constants.infoSignUnicode)
   
 let selectionInfoButton = infoButton Constants.infoMessage [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left] Tooltip.IsTooltipRight
-let outOfDateInfoButton = infoButton Constants.outOfDateMessage [] Tooltip.IsTooltipLeft
+
+
 
 
 
@@ -547,5 +553,15 @@ let extendSimulation (ws:WaveSimModel) =
     let stepsNeeded = ws.ShownCycles + ws.StartCycle
     FastRun.runFastSimulation (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
-
+let setFastSimInputsToDefault (fs:FastSimulation) =
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, match fc.FType with | Input1 (w,defVal) -> (w,defVal) | _ -> failwithf "What? Impossible")
+    |> Map.toList
+    |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
+        match w,defaultVal with
+        | _, Some defaultVal -> cid, convertIntToWireData w (int64 defaultVal)
+        | _, None -> cid, convertIntToWireData w 0L)
+    |> List.iter (fun (cid, wire) -> changeInput cid (FSInterface.IData wire) 0 fs)
+        
     

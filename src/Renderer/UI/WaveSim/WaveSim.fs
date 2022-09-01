@@ -707,6 +707,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
     | Some (Ok simData, canvState) ->
         if simData.IsSynchronous then
+            setFastSimInputsToDefault simData.FastSim
             let wsModel = { wsModel with State = Loading }
             dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
             dispatch <| RefreshWaveSim (wsModel, simData, canvState)
@@ -732,7 +733,13 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
         br []
         Level.level [] [
             Level.left [] [
-                Heading.h4 [] [ str title ]
+                Heading.h4 [] [ 
+                                (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]] [str title]) 
+                                button 
+                                    (topHalfButtonProps IsInfo)
+                                    (fun _ -> PopupView.viewWaveInfoPopup dispatch)
+                                    (str Constants.infoSignUnicode)
+ ]
             ]
             Level.right [] [
                 let startOrRenew = refreshButtonAction canvasState model dispatch
@@ -742,10 +749,6 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                 div []
                     (if wbo.IsDirty && wbo.IsRunning then
                         [
-                            button 
-                                (topHalfButtonProps IsSuccess)
-                                (fun _ -> ())
-                                WaveSimHelpers.outOfDateInfoButton
                             button
                                 (topHalfButtonPropsWithWidth IsSuccess)
                                 startOrRenew

@@ -390,20 +390,117 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
     
     {symbol with Component = newcompo;PortMaps = newPortMaps}
 
+let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
+    let createNewPort no hostID portType = 
+            {
+                Id = JSHelpers.uuid ()
+                PortNumber = Some no
+                PortType = portType
+                HostId = hostID
+            } 
+    let oldCompType = oldComp.Type
+    let portNoDown (port:Port) =
+        let no = port.PortNumber |> Option.get
+        {port with PortNumber = Some (no-1)}
+    let portNoUp (port:Port) =
+        let no = port.PortNumber |> Option.get
+        {port with PortNumber = Some (no+1)}
+    let symbol = Map.find compId symModel.Symbols
+    let oldInputList = symbol.Component.InputPorts
+    let newInputPorts =
+        match oldCompType,newComp with
+        |Counter _,CounterNoLoad _ ->
+            [portNoDown (portNoDown oldInputList[2])]        
+        |CounterNoEnable _, CounterNoEnableLoad _-> 
+            []
+        |CounterNoLoad _ , Counter _ ->
+            [(createNewPort 0 oldComp.Id PortType.Input);(createNewPort 1 oldComp.Id PortType.Input);portNoUp (portNoUp oldInputList[0])]
+        |CounterNoEnableLoad _ , CounterNoEnable _ ->
+            [(createNewPort 0 oldComp.Id PortType.Input);(createNewPort 1 oldComp.Id PortType.Input)]
+        |Counter _, CounterNoEnable _ ->
+            [oldInputList[0];oldInputList[1]]
+        |CounterNoLoad _, CounterNoEnableLoad _ ->
+            []
+        |CounterNoEnableLoad _ , CounterNoLoad _ ->
+            [(createNewPort 0 oldComp.Id PortType.Input)]
+        |CounterNoEnable _, Counter _ ->
+            oldInputList@[(createNewPort 2 oldComp.Id PortType.Input)]
+        |_,_ -> oldInputList 
+        
 
-let findDeletedPort (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
+    let changePortMaps (oldMaps:PortMaps) removedId1 removedId2 added1 added2 =
+        let order,orientation = oldMaps.Order, oldMaps.Orientation
+        let edge = Edge.Left
+        match removedId1,removedId2,added1,added2 with
+        |Some i1, Some i2,None,None ->
+            let newOrientation = Map.remove i1 orientation
+            let newOrientation' =  Map.remove i2 newOrientation
+            let onEdge = Map.find edge order
+            let newOnEdge = List.filter(fun x -> (x<>i1)) onEdge
+            let newOnEdge' = List.filter(fun x -> (x<>i2)) newOnEdge
+            let newOrder = Map.add edge newOnEdge' order
+            {Order=newOrder;Orientation=newOrientation'}
+        |Some i, None, None, None ->
+            let newOrientation = Map.remove i orientation
+            let onEdge = Map.find edge order
+            let newOnEdge = List.filter(fun x -> x<>i) onEdge
+            let newOrder = Map.add edge newOnEdge order
+            {Order=newOrder;Orientation=newOrientation}
+        |None,None,Some i1, Some i2 ->
+            let newOrientation = Map.add i1 edge orientation
+            let newOrientation' = Map.add i2 edge newOrientation
+            let onEdge = Map.find edge order
+            let newOrder = Map.add edge ([i1;i2]@onEdge) order
+            {Order=newOrder;Orientation=newOrientation'}
+        |None,None,Some i,None ->
+            let newOrientation = Map.add i edge orientation
+            let onEdge = Map.find edge order
+            let newOrder = Map.add edge (onEdge@[i]) order
+            {Order=newOrder;Orientation=newOrientation}
+        |_,_,_,_ -> oldMaps
+
+    
+    
+    //printfn "here"
+    let removedId1, removedId2 = 
+        match oldCompType,newComp with
+        |Counter _,CounterNoLoad _
+        |CounterNoEnable _,CounterNoEnableLoad _-> Some symbol.Component.InputPorts[0].Id, Some symbol.Component.InputPorts[1].Id
+        |Counter _,CounterNoEnable _ -> Some symbol.Component.InputPorts[2].Id, None
+        |CounterNoLoad _,CounterNoEnableLoad _-> Some symbol.Component.InputPorts[0].Id, None
+        |_,_ -> None, None
+
+    let added1,added2 =
+        match oldCompType,newComp with
+        |CounterNoLoad _, Counter _
+        |CounterNoEnableLoad _, CounterNoEnable _ -> Some newInputPorts[0].Id, Some newInputPorts[1].Id
+        |CounterNoEnable _,Counter _ -> Some newInputPorts[2].Id, None
+        |CounterNoEnableLoad _ , CounterNoLoad _ -> Some newInputPorts[0].Id, None
+        |_,_ -> None, None
+
+    let newPortMaps = changePortMaps symbol.PortMaps removedId1 removedId2 added1 added2
+
+    let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
+    printfn "newsymbol %A" {symbol with Component = newcompo;PortMaps = newPortMaps}
+    {symbol with Component = newcompo;PortMaps = newPortMaps}
+
+
+let findDeletedPorts (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
     let symbol = Map.find compId symModel.Symbols
     let oldCompType = oldComp.Type
-    let removedId = 
+    let removedIds = 
         match oldCompType,newComp with
         |NbitsAdder _,NbitsAdderNoCin _
-        |NbitsAdderNoCout _,NbitsAdderNoCinCout _-> Some symbol.Component.InputPorts[0].Id
+        |NbitsAdderNoCout _,NbitsAdderNoCinCout _-> [symbol.Component.InputPorts[0].Id]
         |NbitsAdder _,NbitsAdderNoCout _
-        |NbitsAdderNoCin _,NbitsAdderNoCinCout _-> Some symbol.Component.OutputPorts[1].Id
-        |_ -> None
-    match removedId with
-    |Some i -> Map.tryFind i symModel.Ports
-    |None -> None
+        |NbitsAdderNoCin _,NbitsAdderNoCinCout _-> [symbol.Component.OutputPorts[1].Id]
+        |Counter _,CounterNoLoad _
+        |CounterNoEnable _,CounterNoEnableLoad _-> [symbol.Component.InputPorts[0].Id;symbol.Component.InputPorts[1].Id]
+        |Counter _,CounterNoEnable _ -> [symbol.Component.InputPorts[2].Id]
+        |CounterNoLoad _,CounterNoEnableLoad _-> [symbol.Component.InputPorts[0].Id]
+        |_,_ -> []
+    removedIds
+    |> List.map (fun x -> Map.tryFind x symModel.Ports)
 
 //---------------------Helper functions for the upadte function------------------------------//
 
@@ -1248,6 +1345,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         (replaceSymbol model newSymbol compId), Cmd.none
     | ChangeAdderComponent (compId, oldComp, newComp) ->
         let newSymbol = changeAdderComponent model compId oldComp newComp
+        let newPorts = addToPortModel model newSymbol
+        let newModel = {model with Ports = newPorts}  
+        (replaceSymbol newModel newSymbol compId), Cmd.none
+    | ChangeCounterComponent (compId, oldComp, newComp) ->
+        let newSymbol = changeCounterComponent model compId oldComp newComp
         let newPorts = addToPortModel model newSymbol
         let newModel = {model with Ports = newPorts}  
         (replaceSymbol newModel newSymbol compId), Cmd.none

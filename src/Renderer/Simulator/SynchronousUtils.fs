@@ -14,7 +14,7 @@ open SimulatorTypes
 /// considered synchronous.
 let couldBeSynchronousComponent compType : bool =
     match compType with
-    | DFF | DFFE | Register _ | RegisterE _ |Counter _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
+    | DFF | DFFE | Register _ | RegisterE _ |Counter _ |CounterNoEnable _ |CounterNoEnableLoad _ |CounterNoLoad _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
     | Input1 _ | Output _ | IOLabel | Constant1 _ | BusSelection _ | BusCompare _ | MergeWires | SplitWire _ | Not | And | Or | Xor
     | Nand | Nor | Xnor | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ | NbitsOr _ | NbitsXor _ | NbitsNot _ | NbitSpreader _ |  NbitsAnd _ | Decode4 | AsyncROM1 _ | Viewer _ -> false
     | _ -> failwithf $"Legacy components {compType} should never be read!"
@@ -37,7 +37,7 @@ let rec hasSynchronousComponents graph : bool =
     graph
     |> Map.map (fun compId comp ->
             match comp.Type with
-            | DFF | DFFE | Register _ | RegisterE _ |Counter _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ -> true
+            | DFF | DFFE | Register _ | RegisterE _ |Counter _ |CounterNoEnable _ |CounterNoEnableLoad _ |CounterNoLoad _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ -> true
             | Custom _ -> hasSynchronousComponents <| Option.get comp.CustomSimulationGraph
             | Input1 _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | MergeWires | SplitWire _ | Not | And | Or
             | Xor | Nand | Nor | Xnor | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ | NbitSpreader _ | NbitsXor _ | NbitsOr _ | NbitsNot _ | NbitsAnd _ | Decode4 | AsyncROM1 _ | Constant1 _ | Viewer _ -> false

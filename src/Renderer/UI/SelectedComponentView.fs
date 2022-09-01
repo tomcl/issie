@@ -287,6 +287,68 @@ let private changeAdderType model (comp:Component) dispatch =
                 [ str "Cout" ]
             ]
 
+
+let private changeCounterType model (comp:Component) dispatch = 
+    match model.CurrentProj with
+    | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+    | Some project ->
+        let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
+        let colourLoad,colourEnable =
+            match comp.Type with
+            |Counter _ ->
+                IsPrimary, IsPrimary 
+            |CounterNoEnable _ ->
+                IsPrimary, IsDanger
+            |CounterNoLoad _ ->
+                IsDanger, IsPrimary 
+            |CounterNoEnableLoad _ ->
+                IsDanger, IsDanger
+            | _ -> failwithf "Cannot change counter type from non-counter component"
+
+        let buttonActionLoad =
+            fun _ ->
+                match comp.Type with
+                |Counter w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoLoad w)
+                |CounterNoEnable w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                |CounterNoLoad w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (Counter w)
+                |CounterNoEnableLoad w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnable w)
+                | _ -> failwithf "Cannot change adder type from non-adder component"
+        let buttonActionEnable =
+            fun _ ->
+                match comp.Type with
+                |Counter w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnable w)
+                |CounterNoLoad w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                |CounterNoEnable w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (Counter w)
+                |CounterNoEnableLoad w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoLoad w)
+                |_ -> failwithf "Cannot change adder type from non-adder component"
+
+        div [] [
+            Label.label [] [ str "Load/Enable Appearance"]
+            Button.button
+                [ 
+                Button.IsOutlined
+                Button.Color colourLoad
+                Button.OnClick(buttonActionLoad)
+                ]
+                [ str "Load" ]
+            Button.button
+                [ 
+                Button.IsOutlined
+                Button.Color colourEnable
+                Button.OnClick(buttonActionEnable)
+                ]
+                [ str "Enable" ]
+            ]
+
 let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
@@ -294,7 +356,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
         match comp.Type with
         | Input1 (w, _) | Output w | NbitsAdder w  | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
         | NbitsXor w | NbitsAnd w | NbitsOr w |NbitsNot w |NbitSpreader w 
-        | Register w | RegisterE w |Counter w | Viewer w -> "Number of bits", w
+        | Register w | RegisterE w |Counter w |CounterNoEnable w |CounterNoEnableLoad w |CounterNoLoad w | Viewer w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | BusCompare( w, _) -> "Bus width", w
@@ -554,9 +616,9 @@ let private makeDescription (comp:Component) model dispatch =
                       state of the Register will be updated at the next clock
                       cycle. The component is implicitly connected to the global
                       clock." ]
-    | Counter _ ->
+    | Counter _ |CounterNoEnable _ |CounterNoEnableLoad _ |CounterNoLoad _ ->
         div [] [ str "Counter with enable and load options. If the enable signal is high the
-                      state of the Register will be updated at the next clock
+                      state of the counter will be updated at the next clock
                       cycle taking either the value of input d (when load is enabled)
                       or the value of out+1 (if load is disabled). 
                       The component is implicitly connected to the global clock." ]
@@ -606,8 +668,14 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             ]
     | SplitWire _ ->
         makeNumberOfBitsField model comp text dispatch
-    | Register _ | RegisterE _ |Counter _ ->
+    | Register _ | RegisterE _ ->
         makeNumberOfBitsField model comp text dispatch
+    |Counter _ |CounterNoEnable _ |CounterNoEnableLoad _ |CounterNoLoad _ ->
+        div []
+            [
+                makeNumberOfBitsField model comp text dispatch
+                changeCounterType model comp dispatch
+            ]
     | BusSelection _ -> 
         div [] [
             makeNumberOfBitsField model comp text dispatch

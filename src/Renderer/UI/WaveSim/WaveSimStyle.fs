@@ -24,7 +24,7 @@ module Constants =
     /// Same as SVG ViewBox Height.
     let rowHeight = 30
 
-    let colWidth = 50
+    let colWidth = 120
 
     /// Width of line that separates each clock cycle.
     let clkLineWidth = 0.8
@@ -117,7 +117,7 @@ let selectWavesButtonStyle = Style [
     MarginLeft 0
 ]
 
-/// Style for selectWavesButton
+/// Style for top row of buttons
 let topRowButtonStyle = Style [
     Height Constants.rowHeight
     Width Constants.colWidth

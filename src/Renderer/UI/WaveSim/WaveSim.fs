@@ -761,9 +761,10 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
 
         Columns.columns [] [
             Column.column [] [
-                str "View sequential logic using the waveform simulator by selecting desired waveforms. "
-                str "Select synchronous RAM components to view their contents during the simulation. "
-                str "You must restart the waveform simulator to view any changes to the circuit. "
+                str "View clocked logic waveforms by selecting waves. "
+                str "Select RAMs to view contents during the simulation. "
+                str "View or change any sheet with simulation running. "
+                str "Refresh simulation to see design changes"
             ]
 
             Column.column [

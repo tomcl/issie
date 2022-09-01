@@ -536,7 +536,7 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
         IsDirty =  isDirty
         IsRunning = running
         IsErrored = errored
-        StartEndMsg = if running then "End" else "Start"
+        StartEndMsg = if running then "End Simulation" else "Start Simulation"
         StartEndColor = if running then IsDanger else IsSuccess
     } 
 

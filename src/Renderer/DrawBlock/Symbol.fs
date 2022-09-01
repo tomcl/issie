@@ -286,6 +286,7 @@ let getPrefix compType =
     | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
+    | Counter _ -> "COUNT"
     | MergeWires -> "MW"
     | SplitWire _ -> "SW"
     | _ -> ""
@@ -309,6 +310,7 @@ let getComponentLegend (componentType:ComponentType) =
     | AsyncRAM1 _ -> "Async.RAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
+    | Counter n -> busTitleAndBits "Counter" n
     | NbitsXor (x)->   busTitleAndBits "NBits-Xor" x
     | NbitsOr (x)->   busTitleAndBits "NBits-Or" x
     | NbitsAnd (x)->   busTitleAndBits "NBits-And" x
@@ -326,6 +328,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | NbitsAdderNoCout _ -> (["Cin";"P";"Q"]@["SUM "])
     | Register _ -> (["D"]@["Q"])
     | RegisterE _ -> (["D"; "EN"]@["Q"])
+    | Counter _ -> (["D"; "LOAD"; "EN"]@["Q"])
     | ROM1 _ |AsyncROM1 _ -> (["ADDR"]@["DOUT"])
     | RAM1 _ -> (["ADDR"; "DIN";"WEN" ]@["DOUT"])
     | AsyncRAM1 _ -> (["ADDR"; "DIN";"WEN" ]@["DOUT"])
@@ -560,7 +563,8 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | DFF -> (  1 , 1, 2.5*gS, 2.5*gS) 
     | DFFE -> ( 2  , 1, 2.5*gS  , 2.5*gS) 
     | Register (a) -> ( 1 , 1, 2.*gS, 4.*gS )
-    | RegisterE (a) -> ( 2 , 1, 2.*gS  , 4.*gS) 
+    | RegisterE (a) -> ( 2 , 1, 2.*gS  , 4.*gS)
+    | Counter (a) -> (3 , 1 , 4.*gS , 5.*gS)
     | AsyncROM1 (a)  -> (  1 , 1, 4.*gS  , 5.*gS) 
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 

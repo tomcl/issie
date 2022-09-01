@@ -119,7 +119,7 @@ let private getDefaultState compType =
     | Constant1 _ | Constant _ -> NoState 
     | AsyncROM1 _ -> NoState
     | DFF | DFFE -> DffState 0u
-    | Register w | RegisterE w -> RegisterState <| convertIntToFastData w 0u
+    | Register w | RegisterE w |Counter w -> RegisterState <| convertIntToFastData w 0u
     | RAM1 memory | AsyncRAM1 memory -> RamState memory // The RamState content may change during
                                     // the simulation.
 

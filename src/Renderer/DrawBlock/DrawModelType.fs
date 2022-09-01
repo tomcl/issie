@@ -287,6 +287,7 @@ module BusWireT =
         | BusWidths
         | CopyWires of list<ConnectionId>
         | DeleteWires of list<ConnectionId>
+        | DeleteWiresOnPort of Port option
         | SelectWires of list<ConnectionId>
         | UpdateWires of list<ComponentId> * XYPos
         | UpdateSymbolWires of ComponentId

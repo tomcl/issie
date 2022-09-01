@@ -1076,6 +1076,19 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             {model with Wires = newWires}
         { model with Wires = newWires }, Cmd.ofMsg BusWidths
 
+    | DeleteWiresOnPort (delPort:Port option) ->
+        match delPort with
+        |Some port -> 
+            let wires = model.Wires |> Map.toList
+            let connIds = 
+                wires
+                |> List.filter (fun (connId,wire) -> ((wire.InputPort.ToString() = port.Id) || (wire.OutputPort.ToString() = port.Id)))
+                |> List.map fst
+        
+            model, Cmd.ofMsg (DeleteWires connIds)
+        |None ->
+            model, Cmd.none
+
     | DragSegment (segId : SegmentId, mMsg: MouseT) ->
         let index, connId = segId
         let wire = model.Wires[connId]

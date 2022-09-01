@@ -217,6 +217,9 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | Output _ -> Output newBits
         | Viewer _ -> Viewer newBits
         | NbitsAdder _ -> NbitsAdder newBits
+        | NbitsAdderNoCin _ -> NbitsAdderNoCin newBits
+        | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout newBits
+        | NbitsAdderNoCout _ -> NbitsAdderNoCinCout newBits
         | NbitsXor _ -> NbitsXor newBits
         | NbitsAnd _ -> NbitsAnd newBits
         | NbitsOr _ -> NbitsOr newBits
@@ -224,6 +227,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | NbitSpreader _ -> NbitSpreader newBits 
         | Register _ -> Register newBits
         | RegisterE _ -> RegisterE newBits
+        | Counter _ -> Counter newBits
         | SplitWire _ -> SplitWire newBits
         | BusSelection (_,b) -> BusSelection (newBits,b)
         | BusCompare (_,b) -> BusCompare (newBits,b)
@@ -385,6 +389,22 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
     let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts; OutputPorts = newOutputPorts}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
     
     {symbol with Component = newcompo;PortMaps = newPortMaps}
+
+
+let findDeletedPort (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
+    let symbol = Map.find compId symModel.Symbols
+    let oldCompType = oldComp.Type
+    let removedId = 
+        match oldCompType,newComp with
+        |NbitsAdder _,NbitsAdderNoCin _
+        |NbitsAdderNoCout _,NbitsAdderNoCinCout _-> Some symbol.Component.InputPorts[0].Id
+        |NbitsAdder _,NbitsAdderNoCout _
+        |NbitsAdderNoCin _,NbitsAdderNoCinCout _-> Some symbol.Component.OutputPorts[1].Id
+        |_ -> None
+    match removedId with
+    |Some i -> Map.tryFind i symModel.Ports
+    |None -> None
+
 //---------------------Helper functions for the upadte function------------------------------//
 
 

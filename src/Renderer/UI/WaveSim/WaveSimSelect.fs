@@ -554,7 +554,7 @@ let  selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> un
             dispatch <|SetWaveSheetSelectionOpen (ws.ShowSheetDetail |> Set.toList,false)            
             dispatch <| SetWaveGroupSelectionOpen (ws.ShowGroupDetail |> Set.toList,false)
             dispatch <| SetWaveComponentSelectionOpen (ws.ShowComponentDetail |> Set.toList,false)
-            waves
+            []
         | "" | "-" ->
             waves
         | "*" ->
@@ -562,7 +562,7 @@ let  selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> un
             |> List.map (fun wi -> ws.AllWaves[wi])                       
         | _ ->
             List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) waves
-    let showDetails = wavesToDisplay.Length < 10 || searchText.Length > 0
+    let showDetails = ((wavesToDisplay.Length < 10) || searchText.Length > 0) && searchText <> "-"
     wavesToDisplay
     |> makeSheetRow showDetails ws dispatch []
 

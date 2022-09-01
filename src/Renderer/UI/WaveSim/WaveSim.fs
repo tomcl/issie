@@ -743,7 +743,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                     (if wbo.IsDirty && wbo.IsRunning then
                         [
                             button 
-                                (topHalfButtonProps IsInfo)
+                                (topHalfButtonProps IsSuccess)
                                 (fun _ -> ())
                                 WaveSimHelpers.outOfDateInfoButton
                             button
@@ -818,7 +818,6 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
             | _,SimError e ->
                 simError e               
             | _,NonSequential ->
-                dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
                 div [ errorMessageStyle ]
                     [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms" ]
             | _,Empty | _,Ended | None,_ | Some "", _-> notRunning
@@ -827,7 +826,6 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
                 div [ errorMessageStyle ]
                     [ str "Please open a project to use the waveform simulator." ]
             | _,Loading | _,Success ->
-                dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
                 //printfn $"Showing waveforms: fs= {wsModel.FastSim}"
                 div [showWaveformsAndRamStyle] [
 

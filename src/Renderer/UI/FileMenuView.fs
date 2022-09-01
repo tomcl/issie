@@ -136,7 +136,7 @@ let private displayFileErrorNotification err dispatch =
     dispatch <| SetFilesNotification note
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
-let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (model:Model) dispatch =
+let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) waveSim ldComps (model:Model) dispatch =
     // it seems still need this, however code has been deleted!
     //Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
     let ldcs = tryGetLoadedComponents model
@@ -186,6 +186,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
+            if finishUI then FinishUICmd else DoNothing
 
             //printfn "Check 6..."
         ]
@@ -425,7 +426,7 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
 /// Load a new project as defined by parameters.
 /// Ends any existing simulation
 /// Closes WaveSim if this is being used
-let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
+let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
     let compToSetup =
         match ldComps with
         | [] -> failwithf "setupProjectComponents must be called with at least one LoadedComponent"
@@ -455,7 +456,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
         
 
 
-    loadStateIntoModel compToSetup waveSim ldComps model dispatch
+    loadStateIntoModel finishUI compToSetup waveSim ldComps model dispatch
     {
         ProjectPath = dirName compToSetup.FilePath
         OpenFileName =  compToSetup.Name
@@ -489,11 +490,11 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
                 else
                     project.LoadedComponents
             //printSheetNames {newModel with CurrentProj = Some {Option.get newModel.CurrentProj with LoadedComponents = ldcs }}
-            setupProjectFromComponents name ldcs updatedModel dispatch
+            setupProjectFromComponents true name ldcs updatedModel dispatch
 
 let openFileInProject name project (model:Model) dispatch =
     openFileInProject' true name project (model:Model) dispatch
-    dispatch FinishUICmd
+
 
 
 /// return a react warning message if name if not valid for a sheet Add or Rename, or else None
@@ -556,7 +557,7 @@ let renameSheet oldName newName (model:Model) dispatch =
             renameFile extn p.ProjectPath oldName newName
             |> displayAlertOnError dispatch)
         let proj' = renameSheetsInProject oldName newName p
-        setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
+        setupProjectFromComponents false proj'.OpenFileName proj'.LoadedComponents model dispatch
         //printfn "???Sheets after rename"
         //printSheetNames {model with CurrentProj = Some proj'}
         // save all the other files
@@ -783,7 +784,7 @@ let private newProject model dispatch  =
             // Create empty initial diagram file.
             let initialComponent = createEmptyComponentAndFile path "main"
             dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
-            setupProjectFromComponents "main" [initialComponent] model dispatch
+            setupProjectFromComponents false "main" [initialComponent] model dispatch
 
 /// work out what to do opening a file
 let rec resolveComponentOpenPopup 
@@ -797,7 +798,7 @@ let rec resolveComponentOpenPopup
         (List.maxBy (fun comp -> comp.TimeStamp) onlyUserCreated).Name
     dispatch ClosePopup
     match resolves with
-    | [] -> setupProjectFromComponents (chooseWhichToOpen components) components model dispatch
+    | [] -> setupProjectFromComponents false (chooseWhichToOpen components) components model dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let compChanges, connChanges = quantifyChanges ldComp autoComp

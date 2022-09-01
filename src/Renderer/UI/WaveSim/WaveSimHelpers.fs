@@ -80,7 +80,7 @@ module Constants =
     let infoMessage = 
         "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
 
-    let outOfDateMessage = "To update simulation waveforms to current design click refresh"
+    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
 
     let infoSignUnicode = "\U0001F6C8"
 
@@ -507,6 +507,7 @@ type WaveSimButtonOptions = {
     }
 
 let endButtonAction canvasState model dispatch ev =
+    printf "endbuttonaction"
     removeHighlights model dispatch
     dispatch <| EndWaveSim
 
@@ -525,7 +526,8 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
         simExists &&
         running && 
         not <| FastRun.compareLoadedStates fs canv model.CurrentProj &&
-        model.UIState = None
+        model.UIState = None &&
+        not model.IsLoading
 
     //printfn $"Running= {running}, Dirty={isDirty}"
 

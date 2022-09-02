@@ -64,6 +64,7 @@
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />
+    <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI/Style.fs" />
     <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI\Notifications.fs" />

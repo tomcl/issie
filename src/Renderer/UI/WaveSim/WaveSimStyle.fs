@@ -24,6 +24,8 @@ module Constants =
     /// Same as SVG ViewBox Height.
     let rowHeight = 30
 
+    let colWidth = 120
+
     /// Width of line that separates each clock cycle.
     let clkLineWidth = 0.8
     /// Width of each waveform line.
@@ -42,9 +44,7 @@ module Constants =
 
     /// Padding between name label/value label and waveform column.
     let labelPadding = 3
-    let infoMessage = 
-        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
-    let infoSignUnicode = "\U0001F6C8"
+
 
 
 /// Style for top row in wave viewer.
@@ -117,11 +117,28 @@ let selectWavesButtonStyle = Style [
     MarginLeft 0
 ]
 
-/// Props for selectWavesButton
-let selectWavesButtonProps = [
-    Button.Color IsInfo
+/// Style for top row of buttons
+let topRowButtonStyle = Style [
+    Height Constants.rowHeight
+    Width Constants.colWidth
+    FontSize "16px"
+    Position PositionOptions.Relative
+    MarginLeft 8
+]
+
+let topHalfButtonProps color = [
+    Button.Color color
     Button.Props [selectWavesButtonStyle]
 ]
+
+let topHalfButtonPropsWithWidth color = [
+    Button.Color color
+    Button.Props [topRowButtonStyle]
+]
+
+/// Props for selectWavesButton
+let selectWavesButtonProps = topHalfButtonProps IsInfo
+
 
 /// Props for selectWavesButton when no waves are selectable
 let selectWavesButtonPropsLight =
@@ -242,7 +259,7 @@ let clkCycleInputStyle = Style [
     Margin "0 0 0 0"
     Float FloatOptions.Left
     TextAlign TextAlignOptions.Center
-    Width "40px"
+    Width "60px"
     Height Constants.rowHeight
     Display DisplayOptions.InlineBlock
     FontSize "13px"
@@ -370,7 +387,7 @@ let namesColumnStyle (ws:WaveSimModel) = Style (
         Float FloatOptions.Left
         BorderRight Constants.borderProperties
         GridColumnStart 1
-        OverflowX OverflowOptions.Auto
+        OverflowX OverflowOptions.Clip
         TextAlign TextAlignOptions.Right
     ])
 
@@ -385,7 +402,7 @@ let namesColumnProps (ws:WaveSimModel): IHTMLProp list = [
 let valuesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.valuesColWidth
-        Float FloatOptions.Right
+        Float FloatOptions.Left
         BorderLeft Constants.borderProperties
         OverflowX OverflowOptions.Auto
         GridColumnStart 3
@@ -431,7 +448,7 @@ let showWaveformsStyle = Style [
     Display DisplayOptions.Grid
     ColumnCount 3
     GridAutoFlow "column"
-    GridAutoColumns "auto"
+    GridAutoColumns "min-content"
 ]
 
 
@@ -610,7 +627,7 @@ let topHalfStyle = Style [
 let refreshSvg =
     svg [
             ViewBox "0 0 512 512"
-            SVGAttr.Height "30"
+            SVGAttr.Height "20"
         ] [
             path [
                 D "M496 48V192c0 17.69-14.31 32-32 32H320c-17.69 0-32-14.31-32-32s14.31-32
@@ -620,13 +637,41 @@ let refreshSvg =
                 479.9 32 379.4 32 256s100.5-223.9 223.9-223.9c69.15 0 134 32.47 176.1 86.12V48c0-17.69
                 14.31-32 32-32S496 30.31 496 48z"
                 Style [
-                    Fill "black"
+                    Fill "white"
                 ]
             ] []
         ]
 
 let emptyRefreshSVG =
     svg [
-        SVGAttr.Height "30"
-        SVGAttr.Width "30"
+        SVGAttr.Height "20"
+        SVGAttr.Width "20"
     ] []
+
+
+let inline setViewerWidthInWaveSim w (model:Model) dispatch=
+    let wsModel = getWSModel model
+    //dispatch <| SetViewerWidth w
+    let namesColWidth = calcNamesColWidth wsModel
+
+    /// The +4 is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
+    let otherDivWidths = Constants.leftMargin + Constants.rightMargin + DiagramStyle.Constants.dividerBarWidth + Constants.scrollBarWidth + 2
+
+    /// This is what the overall waveform width must be
+    let waveColWidth = w - otherDivWidths - namesColWidth - Constants.valuesColWidth
+
+    /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
+    let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidth wsModel))
+
+
+    let singleCycleWidth = float waveColWidth / float wholeCycles
+
+    let viewerWidth = namesColWidth + Constants.valuesColWidth + int (singleCycleWidth * float wholeCycles) + otherDivWidths
+
+    let wsModel = {
+        wsModel with
+            ShownCycles = wholeCycles
+            WaveformColumnWidth = singleCycleWidth * float wholeCycles
+        }
+    dispatch <| GenerateWaveforms wsModel
+    dispatch <| SetViewerWidth w

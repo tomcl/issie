@@ -1,13 +1,18 @@
 module WaveSimHelpers
 
 open Fulma
+open Fulma.Extensions.Wikiki
 open Fable.React
+open Fable.React.Props
 
 open CommonTypes
 open ModelType
+open ModelHelpers
 open FileMenuView
 open SimulatorTypes
+open FastRun
 open NumberHelpers
+
 
 /// Determines whether a clock cycle is generated with a vertical bar at the beginning,
 /// denoting that a waveform changes value at the start of that clock cycle. NB this
@@ -59,8 +64,8 @@ module Constants =
     /// y-coordiante of the bottom of a waveform
     let yBot = waveHeight + spacing
 
-    /// TODO: Remove this limit. This stops the waveform simulator moving past 500 clock cycles.
-    let maxLastClk = 500
+    /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
+    let maxLastClk = 1000
 
     /// Minimum number of visible clock cycles.
     let minCycleWidth = 5
@@ -68,6 +73,16 @@ module Constants =
     /// If the width of a non-binary waveform is less than this value, display a cross-hatch
     /// to indicate a non-binary wave is rapidly changing value.
     let clkCycleNarrowThreshold = 20
+
+    /// number of extra steps simulated beyond that used in simulation. Is this needed?
+    let extraSimulatedSteps = 5 
+
+    let infoMessage = 
+        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
+
+    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
+
+    let infoSignUnicode = "\U0001F6C8"
 
 
 /// If true, then show cross-hatch only for non-binary waves when wave is changing value very fast.
@@ -79,17 +94,26 @@ let xShift clkCycleWidth =
         clkCycleWidth / 2.
     else Constants.nonBinaryTransLen
 
-/// Get the current WaveSimModel used by the Model (index the map using the current sheet).
+/// Get the current WaveSimModel used by the Model (index the map using the current wavesim sheet).
 /// If no WaveSimModel for that sheet, return an empty wave sim model.
-let getWSModel model : WaveSimModel =
-    Map.tryFind model.WaveSimSheet model.WaveSim
-    |> function
-        | Some wsModel ->
-            // printf "Sheet %A found in model" model.WaveSimSheet
-            wsModel
-        | None ->
-            // printf "Sheet %A not found in model" model.WaveSimSheet
+let rec getWSModel model : WaveSimModel =
+    match model.WaveSimSheet with
+    | Some sheet ->
+        Map.tryFind sheet model.WaveSim
+        |> function
+            | Some wsModel ->
+                // printf "Sheet %A found in model" model.WaveSimSheet
+                wsModel
+            | None ->
+                // printf "Sheet %A not found in model" model.WaveSimSheet
+                initWSModel
+    | None ->
+        match getCurrFile model with
+        | None -> 
             initWSModel
+        | Some sheet ->
+            getWSModel {model with WaveSimSheet = Some sheet}
+        
 
 /// Width of one clock cycle.
 let singleWaveWidth m = float m.WaveformColumnWidth / float m.ShownCycles
@@ -98,7 +122,7 @@ let singleWaveWidth m = float m.WaveformColumnWidth / float m.ShownCycles
 let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
 
 /// Total width of the SVG viewbox.
-let viewBoxWidth m = string m.WaveformColumnWidth
+let viewBoxWidth m = string (m.WaveformColumnWidth)
 
 /// Right-most visible clock cycle.
 let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
@@ -112,7 +136,7 @@ let selectedWaves (wsModel: WaveSimModel) : Wave list = List.map (fun index -> w
 /// Convert XYPos list to string
 let pointsToString (points: XYPos array) : string =
     Array.fold (fun str (point: XYPos) ->
-        str + string point.X + "," + string point.Y + " "
+        $"{str} %.1f{point.X},%.1f{point.Y} "
     ) "" points
 
 /// Retrieve value of wave at given clock cycle as an int.
@@ -281,7 +305,7 @@ let getCompDetails fs wave =
         | NbitsOr n -> $"{n} OR gates",false
         | Custom x -> $"({x.Name} instance)",false
         | DFF -> "D flipflip", false
-        | DFFE -> "D flipflop with enaable", false
+        | DFFE -> "D flipflop with enable", false
         | Register n -> $"{n} bit D register", false
         | RegisterE n -> $"{n} bit D register with enable", false
         | Counter n -> $"{n} bit Counter with enable and load", false
@@ -458,10 +482,92 @@ let getConnsOfWave (model: Model) (wave: Wave) =
     |> Option.defaultValue []
     |> List.map (fun wire -> wire.WId)
 
-   
+
+
+let infoButton  (tooltipMessage:string) (style: CSSProp list) (tooltipPosition:string)  : ReactElement =
+    div 
+        [
+            HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsInfo} {tooltipPosition}"
+            Tooltip.dataTooltip tooltipMessage
+            Style style
+        ]
+        [str Constants.infoSignUnicode]
+
+let waveInfoButton (dispatch: Msg -> Unit) : ReactElement =
+    button 
+        [Button.Props [Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]]]
+        (fun _ -> PopupView.viewWaveInfoPopup dispatch)
+        (str Constants.infoSignUnicode)
   
+let selectionInfoButton = infoButton Constants.infoMessage [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left] Tooltip.IsTooltipRight
+
+
+
+
+
+let removeHighlights model dispatch =
+    if model.Sheet.SelectedWires.Length > 0 || model.Sheet.SelectedComponents.Length > 0 then
+        dispatch <| Sheet (DrawModelType.SheetT.ResetSelection) // Remove highlights.
+
+
+type WaveSimButtonOptions = {
+    IsDirty: bool
+    IsRunning: bool
+    IsErrored: bool
+    StartEndMsg: string
+    StartEndColor: IColor
+    }
+
+let endButtonAction canvasState model dispatch ev =
+    printf "endbuttonaction"
+    removeHighlights model dispatch
+    dispatch <| EndWaveSim
+
+let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel)  : WaveSimButtonOptions =
+    let fs = ws.FastSim
+    let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
+    let errored = 
+        match ws.State with
+        | SimError _ | NonSequential -> true
+        | _ -> false
+    let success = (ws.State = Success || ws.State=Loading)
+
+    let running = (success || errored) && simExists
+        
+    let isDirty = 
+        simExists &&
+        running && 
+        not <| FastRun.compareLoadedStates fs canv model.CurrentProj &&
+        model.UIState = None &&
+        not model.IsLoading
+
+    //printfn $"Running= {running}, Dirty={isDirty}"
+
+    
+    {
+        IsDirty =  isDirty
+        IsRunning = running
+        IsErrored = errored
+        StartEndMsg = if running then "End Simulation" else "Start Simulation"
+        StartEndColor = if running then IsDanger else IsSuccess
+    } 
+
                             
+/// Run ws.FastSim if necessary to enure simulation has number of steps needed to
+/// display all cycles on screen
+let extendSimulation (ws:WaveSimModel) =
+    let stepsNeeded = ws.ShownCycles + ws.StartCycle
+    FastRun.runFastSimulation (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
-
-
+let setFastSimInputsToDefault (fs:FastSimulation) =
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, match fc.FType with | Input1 (w,defVal) -> (w,defVal) | _ -> failwithf "What? Impossible")
+    |> Map.toList
+    |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
+        match w,defaultVal with
+        | _, Some defaultVal -> cid, convertIntToWireData w (int64 defaultVal)
+        | _, None -> cid, convertIntToWireData w 0L)
+    |> List.iter (fun (cid, wire) -> changeInput cid (FSInterface.IData wire) 0 fs)
+        
     

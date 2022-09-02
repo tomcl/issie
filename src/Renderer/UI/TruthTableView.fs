@@ -409,7 +409,7 @@ let emptySelCache  = {
     UncorrectedCanvas = ([],[])
     CorrectedCanvas = ([],[])
     StoredResult = Ok {
-        FastSim = FastCreate.emptyFastSimulation ""
+        FastSim = FastCreate.simulationPlaceholder
         Graph = Map.empty 
         Inputs = []
         Outputs = []
@@ -464,6 +464,7 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
                 | None ->
                     let sim =
                         prepareSimulation
+                            2
                             project.OpenFileName 
                             (correctComps,correctConns) 
                             selLoadedComponents
@@ -643,7 +644,7 @@ let viewTruthTableData (table: TruthTable) model dispatch =
             dispatch <| SetTTGridCache (Some grid)
             grid
 
-let viewTruthTable model dispatch =
+let viewTruthTable canvasState model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
     // Older Issie versions did not have labels for MergeWires and SplitWire components.
     // This step is needed for backwards compatability with older projects.
@@ -651,7 +652,7 @@ let viewTruthTable model dispatch =
 
     match model.CurrentTruthTable with
     | None ->
-        let wholeSimRes = SimulationView.makeSimData model
+        let wholeSimRes = SimulationView.makeSimData None 2 canvasState model
         let wholeButton =
             match wholeSimRes with
             | None -> div [] []
@@ -660,7 +661,7 @@ let viewTruthTable model dispatch =
                     [
                         Button.Color IColor.IsWarning
                         Button.OnClick (fun _ ->
-                            SimulationView.SetSimErrorFeedback simError model dispatch
+                            SimulationView.setSimErrorFeedback simError model dispatch
                             GenerateTruthTable wholeSimRes |> dispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->
@@ -691,7 +692,7 @@ let viewTruthTable model dispatch =
                     [
                         Button.Color IColor.IsWarning
                         Button.OnClick (fun _ ->
-                            SimulationView.SetSimErrorFeedback simError model dispatch
+                            SimulationView.setSimErrorFeedback simError model dispatch
                             GenerateTruthTable selSimRes |> dispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->

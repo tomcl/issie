@@ -359,7 +359,10 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | DFFE _
                 | Register _
                 | RegisterE _ 
-                | Counter _ -> 
+                | Counter _ 
+                | CounterNoEnable _
+                | CounterNoLoad _ 
+                | CounterNoEnableLoad _ -> 
                     match fc.Outputs[0].Step[step % fastSim.MaxArraySize] with
                     | Data d ->
                         [| fc, RegisterState d |]

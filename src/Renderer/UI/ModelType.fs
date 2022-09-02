@@ -24,6 +24,7 @@ module Constants =
     /// WaveSimStyle.valeusColWidth = 100,
     let initialWaveformColWidth = 650 - 20 - 20 - 20 - 130 - 100
 
+
 /// Groups components together in the wave selection table.
 /// NB: There are fields which are commented out: these can be added back in
 /// later on if we want to group those components together by type rather than
@@ -129,6 +130,8 @@ type WaveSimState =
     | Loading
     /// If there are no errors in the circuit diagram
     | Success
+    /// if waveSim has been explicitly ended
+    | Ended
 
 /// Identifies which Component and Port drives a waveform.
 /// Must be an Output port (Input ports cannot drive waveforms).
@@ -216,31 +219,7 @@ type WaveSimModel = {
     PrevSelectedWaves: WaveIndexT list option
 }
 
-let initWSModel  : WaveSimModel = {
-    TopSheet = ""
-    Sheets = Map.empty
-    State = Empty
-    AllWaves = Map.empty
-    SelectedWaves = List.empty
-    StartCycle = 0
-    ShownCycles = 5
-    CurrClkCycle = 0
-    ClkCycleBoxIsEmpty = false
-    Radix = Hex
-    WaveformColumnWidth = Constants.initialWaveformColWidth
-    WaveModalActive = false
-    RamModalActive = false
-    RamComps = []
-    SelectedRams = Map.empty
-    FastSim = FastCreate.emptyFastSimulation "" // placeholder
-    SearchString = ""
-    ShowComponentDetail = Set.empty
-    ShowSheetDetail = Set.empty
-    ShowGroupDetail = Set.empty
-    HoveredLabel = None
-    DraggedIndex = None
-    PrevSelectedWaves = None
-}
+
 
 type DiagEl = | Comp of Component | Conn of Connection
 
@@ -289,10 +268,8 @@ type Msg =
     | SetWSModelAndSheet of WaveSimModel * string
     /// Generate waveforms according to the current parameters
     /// of the WaveSimModel
-    | InitiateWaveSimulation of WaveSimModel
-    /// Rerun the FastSimulation with the current state of the Canvas.
-    /// This calls an asynchronous function since the FastSim can take
-    /// time to run.
+    | GenerateWaveforms of WaveSimModel
+    /// Run, or rerun, the FastSimulation with the current state of the Canvas.
     | RefreshWaveSim of WaveSimModel * SimulationData * CanvasState
     /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)
     | SetWaveSheetSelectionOpen of (string list list * bool)
@@ -338,6 +315,7 @@ type Msg =
     | SetCreateComponent of Component
     | SetProject of Project
     | UpdateProject of (Project -> Project)
+    | UpdateModel of (Model -> Model)
     | UpdateProjectWithoutSyncing of (Project->Project)
     | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
@@ -427,7 +405,7 @@ type Model = {
     WaveSim : Map<string, WaveSimModel>
 
     /// which top-level sheet is used by wavesim
-    WaveSimSheet: string
+    WaveSimSheet: string option
         
     /// Draw Canvas
     Sheet: DrawModelType.SheetT.Model
@@ -506,199 +484,7 @@ type Model = {
     UIState: UICommandType Option
 } 
 
-/// This is needed because DrawBlock cannot directly access Issie Model.
-/// can be replaced when all Model is placed at start of compile order and DB
-/// model is refactored
-let drawBlockModelToUserData (model: Model) (userData: UserData)=
-    let bwModel =model.Sheet.Wire
-    {userData with WireType = bwModel.Type; ArrowDisplay = bwModel.ArrowDisplay}
-
-/// This is needed because DrawBlock cannot directly access Issie Model.
-/// can be replaced when all Model is placed at start of compile order and DB
-/// model is refactored
-let userDataToDrawBlockModel (model: Model) =
-    let userData = model.UserData
-    {model with 
-        Sheet = 
-            {model.Sheet with 
-                Wire = {
-                    model.Sheet.Wire with 
-                        Type = userData.WireType
-                        ArrowDisplay = userData.ArrowDisplay
-                }}}
-
-let reduce (this: Model) = {|
-         RightTab = this.RightPaneTabVisible
-         Hilighted = this.Hilighted
-         Clipboard = this.Clipboard
-         LastSimulatedCanvasState = this.LastSimulatedCanvasState
-         LastSelectedIds = this.LastSelectedIds
-         CurrentSelected = this.CurrentSelected
-         LastUsedDialogWidth = this.LastUsedDialogWidth
-         SelectedComponent= this.SelectedComponent
-         CreateComponent = this.LastCreatedComponent
-         HasUnsavedChanges = false
-         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
-         PopupDialogData = this.PopupDialogData
-         TopMenu = this.TopMenuOpenState
-         DragMode = this.DividerDragMode
-         ViewerWidth = this.WaveSimViewerWidth
-         ConnsToBeHighlighted = this.ConnsOfSelectedWavesAreHighlighted
-
- |} 
-       
-let reduceApprox (this: Model) = {|
-         RightTab = this.RightPaneTabVisible
-         Clipboard = this.Clipboard
-         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
-         LastUsedDialogWidth = this.LastUsedDialogWidth
-         CreateComponent = this.LastCreatedComponent
-         HasUnsavedChanges = false
-         PopupDialogData = this.PopupDialogData
-         DragMode = this.DividerDragMode
-         ViewerWidth = this.WaveSimViewerWidth
- |} 
-
-let mapOverProject defaultValue (model: Model) transform =
-    match model.CurrentProj with
-    | None -> defaultValue
-    | Some p -> transform p
-
-let getComponentIds (model: Model) =
-    let extractIds ((comps,conns): Component list * Connection list) = 
-        conns
-        |> List.map (fun comp -> ComponentId comp.Id)
-        
-    model.Sheet.GetCanvasState()
-    |> extractIds
-    |> Set.ofList
-
-//------------------------//
-// Saving WaveSim Model   //
-//------------------------//
-
-/// Get saveable record of WaveSimModel
-let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
-    {
-        SelectedWaves = Some wsModel.SelectedWaves
-        Radix = Some wsModel.Radix
-        WaveformColumnWidth = Some wsModel.WaveformColumnWidth
-        ShownCycles = Some wsModel.ShownCycles
-        SelectedFRams = Some wsModel.SelectedRams
-        SelectedRams = None
-
-        // The following fields are from the old waveform simulator.
-        // They are no longer used.
-        ClkWidth = None
-        Cursor = None
-        LastClk = None
-        DisplayedPortIds = None
-    }
-
-/// Setup current WaveSimModel from saved record
-/// NB: note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
-/// old designs
-let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
-    {
-        initWSModel with
-            SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
-            Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
-            WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
-            ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
-            SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedFRams
-    }
-
-//----------------------Print functions-----------------------------//
-//------------------------------------------------------------------//
-
-let spComp (comp:Component) =
-    match comp.Type with
-    | Custom {Name=name; InputLabels=il; OutputLabels=ol} -> sprintf "Custom:%s(ins=%A:outs=%A)" name il il
-    | x -> sprintf "%A" x
-
-let spConn (conn:Connection) = 
-    sprintf "Conn:%A" conn.Vertices
-
-let spState ((comps,conns):CanvasState) = 
-    sprintf "Canvas<%A,%A>" (List.map spComp comps) (List.map spConn conns)
-
-let spCanvas (model : Model) = 
-    model.Sheet.GetCanvasState()
-    |> spState
-
-let spComps comps =  
-    sprintf "Comps%A" (List.map spComp comps)
-
-let spOpt f thingOpt = match thingOpt with |None -> "None" | Some x -> sprintf "Some %s" (f x)
-
-let spLdComp (ldc: LoadedComponent) =
-    sprintf "LDC<%s:%A:%s>" ldc.Name ldc.TimeStamp ((fst >>spComps) ldc.CanvasState)
-
-let spProj (p:Project) =
-    sprintf "PROJ||Sheet=%s\n%s||ENDP\n" p.OpenFileName (String.concat "\n" (List.map spLdComp p.LoadedComponents))
-
-let pp model =
-    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrentProj)
-
-let spMess msg =
-    match msg with
-    //| SetProject p -> sprintf "MSG<<SetProject:%s>>ENDM" (spProj p)
-    //| SetLastSimulatedCanvasState canvasOpt-> sprintf "MSG<SetLastSimCanv:%s>>ENDM" (spOpt spState canvasOpt)
-    | x -> sprintf "MSG<<%20A>>ENDM" x
-
-let tryGetLoadedComponents model =
-    match model.CurrentProj with
-    | Some p -> p.LoadedComponents
-    | _ -> []
-
-let updateLdComps (name:string) (changeFun: LoadedComponent -> LoadedComponent)  (ldComps: LoadedComponent list)=
-    ldComps
-    |> List.map (fun ldc -> if ldc.Name=name then changeFun ldc else ldc)
-
-let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: LoadedComponent list) =
-    match newCompOpt with 
-    | None -> ldComps // no update
-    | Some newComp -> 
-        match List.tryFind (fun (ldc:LoadedComponent) -> ldc.Name = newComp.Name) ldComps with
-        | None -> newComp :: ldComps
-        | Some _ -> updateLdComps newComp.Name (fun _ -> newComp) ldComps
-
-/// returns a string option representing the current file name if file is loaded, otherwise None
-let getCurrFile (model: Model) =
-    match model.CurrentProj with
-    | Some proj -> Some proj.OpenFileName
-    | None -> None
-
-let getCurrSheets (model: Model) =
-    match model.CurrentProj with
-    | Some proj -> 
-        proj.LoadedComponents
-        |> List.map (fun lc -> lc.Name)
-        |> Some
-    | None -> None
 
 
-/// Set WaveSimModel of current sheet.
-let setWSModel (wsModel: WaveSimModel) (model: Model) =
-    match getCurrSheets model, model.WaveSimSheet with
-    | Some sheets, wsSheet when List.contains wsSheet sheets ->
-        { model with WaveSim = Map.add model.WaveSimSheet wsModel model.WaveSim }
-    | None, _ ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
-        model
-    | Some sheets, wsSheet ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
-        model
 
-/// Update WaveSimModel of current sheet.
-let updateWSModel (updateFn: WaveSimModel -> WaveSimModel) (model: Model) =
-    match getCurrSheets model, model.WaveSimSheet with
-    | Some sheets, wsSheet when List.contains wsSheet sheets ->
-        let ws = model.WaveSim[model.WaveSimSheet]
-        { model with WaveSim = Map.add model.WaveSimSheet (updateFn ws) model.WaveSim }
-    | None, _ ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
-        model
-    | Some sheets, wsSheet ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
-        model
+    

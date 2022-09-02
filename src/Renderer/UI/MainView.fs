@@ -18,8 +18,7 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
 
-module Constants =
-    let dividerBarWidth = 10
+
 
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
@@ -79,7 +78,7 @@ let init() = {
     TTGridCache = None
     TTAlgebraInputs = []
     WaveSim = Map.empty
-    WaveSimSheet = ""
+    WaveSimSheet = None
     RightPaneTabVisible = Catalogue
     SimSubTabVisible = StepSim
     CurrentProj = None
@@ -128,24 +127,24 @@ let makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
 
 // -- Create View
 
-let viewSimSubTab model dispatch =
+let viewSimSubTab canvasState model dispatch =
     match model.SimSubTabVisible with
     | StepSim -> 
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Step Simulation" ]
-            SimulationView.viewSimulation model dispatch
+            SimulationView.viewSimulation canvasState model dispatch
         ]
     | TruthTable ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Truth Table" ]
-            TruthTableView.viewTruthTable model dispatch
+            TruthTableView.viewTruthTable canvasState model dispatch
         ]
     | WaveSim -> 
         div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
-            [ viewWaveSim model dispatch ]
+            [ viewWaveSim canvasState model dispatch ]
 
 /// Display the content of the right tab.
-let private viewRightTab model dispatch =
+let private  viewRightTab canvasState model dispatch =
     let pane = model.RightPaneTabVisible
     match pane with
     | Catalogue | Transition ->
@@ -183,7 +182,7 @@ let private viewRightTab model dispatch =
             [
                 //br [] // Should there be a gap between tabs and subtabs for clarity?
                 subtabs
-                viewSimSubTab model dispatch
+                viewSimSubTab canvasState model dispatch
             ]
 
 /// determine whether moving the mouse drags the bar or not
@@ -229,7 +228,7 @@ let dividerbar (model:Model) dispatch =
             OnMouseDown (setDragMode true model dispatch)       
         ] []
 
-let viewRightTabs model dispatch =
+let viewRightTabs canvasState model dispatch =
     /// Hack to avoid scrollbar artifact changing from Simulation to Catalog
     /// The problem is that the HTML is bistable - with Y scrollbar on the catalog <aside> 
     /// moves below the tab body div due to reduced available width, keeping scrollbar on. 
@@ -264,7 +263,7 @@ let viewRightTabs model dispatch =
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
                 [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
         ]
-        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [viewRightTab model dispatch]
+        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [viewRightTab canvasState model dispatch]
 
     ]
 let mutable testState:CanvasState = [],[]
@@ -286,32 +285,6 @@ let displayView model dispatch =
 //    let x' = sd.SheetLeft+sd.SheetX
 //    let y' = sd.SheetTop+sd.SheetY
 
-    let inline setViewerWidthInWaveSim w =
-        let wsModel = getWSModel model
-        //dispatch <| SetViewerWidth w
-        let namesColWidth = WaveSimStyle.calcNamesColWidth wsModel
-
-        /// The +4 is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
-        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + Constants.dividerBarWidth + Constants.scrollBarWidth + 4
-
-        /// This is what the overall waveform width must be
-        let waveColWidth = w - otherDivWidths - namesColWidth - Constants.valuesColWidth
-
-        /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
-        let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidth wsModel))
-
-
-        let singleCycleWidth = float waveColWidth / float wholeCycles
-
-        let viewerWidth = namesColWidth + Constants.valuesColWidth + int (singleCycleWidth * float wholeCycles) + otherDivWidths
-
-        let wsModel = {
-            wsModel with
-                ShownCycles = wholeCycles
-                WaveformColumnWidth = singleCycleWidth * float wholeCycles
-            }
-        dispatch <| InitiateWaveSimulation wsModel
-        dispatch <| SetViewerWidth w
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
@@ -337,7 +310,7 @@ let displayView model dispatch =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth())
-            setViewerWidthInWaveSim w
+            setViewerWidthInWaveSim w model dispatch
             dispatch <| SetDragMode DragModeOff
         | DragModeOff, _-> ()
 
@@ -350,9 +323,8 @@ let displayView model dispatch =
 
     let conns = BusWire.extractConnections model.Sheet.Wire
     let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
-    let cv = comps,conns   
-
-
+    let canvasState = comps,conns   
+    ModelHelpers.setAsyncJobsRunnable()
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText
           OnMouseMove processMouseMove
@@ -366,7 +338,9 @@ let displayView model dispatch =
             Height "calc(100%-4px)"
             Cursor topCursorText ] ] [
         // transient
+        
         FileMenuView.viewNoProjectMenu model dispatch
+        
         
         PopupView.viewPopup model dispatch 
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
@@ -395,4 +369,4 @@ let displayView model dispatch =
                   // vertical and draggable divider bar
                 [ dividerbar model dispatch
                   // tabs for different functions
-                  viewRightTabs model dispatch ] ]
+                  viewRightTabs canvasState model dispatch ] ]

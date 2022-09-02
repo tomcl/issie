@@ -8,6 +8,15 @@ module rec SimulatorTypes
 open Fable.Core
 open CommonTypes
 
+
+/// document current status of a simulation as used by waveform simulator
+type SimulationRunStatus =
+    | SimEmpty // simulation has been created but not yet setup from a circuit
+    | SimOutOfDate // one of more of the sheets being simulated has changed after the simulation was setup
+    | SimValidSameSheet /// simulation has run and is currently uptodate. The current sheet is being simulated
+    | SimValidDifferentSheet // The simulation is uptodate, but a differnt sheet from the current one is being simulated
+    | SimNoProject // there is no open project - this should not normally happen.
+
 /// Binary data used in simulation
 type Bit = Zero | One
 
@@ -25,6 +34,7 @@ type SimulationComponentState =
     | DffState of uint32
     | RegisterState of FastData
     | RamState of Memory1
+
 
 /// Message used to feed forward evaluation. Clock
 /// tick => state changes to that in next cycle
@@ -990,7 +1000,7 @@ type FastSimulation = {
     WaveIndex: WaveIndexT array
     /// Connections on simulated sheets indexed by connected port. Each connection appears twice.
     ConnectionIdsByPort: Map<Port,ConnectionId>
-    /// Circuit simulated (sheet and all dependencies) stored as reduced components and connections for fast comparison
+    /// Circuit simulated (sheet and all dependencies) 
     SimulatedCanvasState: LoadedComponent list
     /// The root sheet being simulated
     SimulatedTopSheet: string
@@ -1081,7 +1091,7 @@ let extractLabel (label: ComponentLabel) =
     name
 
 //-------------------------------------------------------------------------------------//
-//-------------------Helper functions for WaveformSpec---------------------------------//
+//-------------------Helper functions for WaveformSim----------------------------------//
 //-------------------------------------------------------------------------------------//
 
 // NB - all the NetGroup functions assume a working netlist in which NO NET IS UNDRIVEN
@@ -1119,3 +1129,4 @@ let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPor
         
     | _ -> 
         (driverComp.Id, []), driverPort
+

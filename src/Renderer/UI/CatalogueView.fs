@@ -13,6 +13,7 @@ open Fable.React
 open Fable.React.Props
 open DiagramStyle
 open ModelType
+open ModelHelpers
 open CommonTypes
 open PopupView
 open Sheet.SheetInterface

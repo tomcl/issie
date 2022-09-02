@@ -1019,3 +1019,62 @@ let viewInfoPopup dispatch =
     let foot _ = div [] []
     dynamicClosablePopup title body foot [Width 800] dispatch
 
+let viewWaveInfoPopup dispatch =
+    let makeH h =
+        Text.span [ Modifiers [
+            Modifier.TextSize (Screen.Desktop, TextSize.Is6)
+            Modifier.TextWeight TextWeight.Bold
+        ] ] [str h; br []]
+    let styledSpan styles txt = span [Style styles] [str <| txt]
+    let bSpan txt = styledSpan [FontWeight "bold"] txt
+    let iSpan txt = styledSpan [FontStyle "italic"] txt
+    let tSpan txt = span [] [str txt]
+
+    let title = "How to Use the Waveform Simulator"
+
+    let waveInfo = div [] [
+        makeH "Wave and RAM Selection"
+        str "Unlike the step simulator, the waveform simulator can view any port of any component on any sheet in the current design. There is redundancy: \
+            one signal will normally have multiple components and ports connected."
+        br []
+        str "Use the Wave Select window to change which waveforms are viewed. The filter box allows components or ports to be selected by any part of name. \
+            You can select or deselect ports, or groups of ports using the tick-boxes and expanding groups and components to get ports."
+                    
+        br [];
+        str "You can view any number of waveforms. It is good practice to edit your waveforms \
+            and keep only the ones you need at any time. This will also make it easier to find waveforms. \
+            The waveforms you view can be changed at any time.";
+        br []; 
+        str "RAMs and ROMs can be viewed showing the memory contents in the current (cursor) cycle. The display also shows when memory locations \
+            are written and read."
+               
+        br []; br [];
+
+        makeH "Waveforms"
+        str "If you hover the mouse over waveform names in the viewer the component and connection of the waveform will be highlighted. You can change sheet \
+             to find a component. \
+             Waveforms can be reordered by dragging names, and deleted using the delete icon to the right of the name."
+        br []
+        str "Use cursor and zoom controls at any time to show which cycles to display. This setting will be preserved from one simulation to the next. \
+             The waveform simulator uses a cursor to select the cycle currently viewed. The cursor is greayed and can be moved by clicking the waveforms \
+             or altering the number in the cursor box, or clicking arrows."
+        br []; br [];
+       
+
+        makeH "Miscellaneous"
+
+        str "During a simulation you can move to any sheet and view or edit the design. If the design changes a button will appear allowing you to simulate \
+             the newer design, this will work even if you have edited a subsheet. You can move the grey bar to give the waveforms more or less room."
+        br []
+        str "You can set default values for inputs in properties boxes. The main sheet inputs to the simulation are given these values throughout the simulation. \
+            Components can be edited during a simulation and the new values will appear when the simulation is refreshed."
+        br []
+        str "The waveform radix can be changed. When waveforms are too small to fit binary this will be automatically changed to hex: when there is still \
+               not enough room in waveforms, numric values can still be viewed using the cursor and the righthand panel."
+        ]
+
+   
+    let body (dialogData:PopupDialogData) =
+        waveInfo
+    let foot _ = div [] []
+    dynamicClosablePopup title body foot [Width 1000] dispatch

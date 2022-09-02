@@ -270,18 +270,18 @@ let createFastArrays fs gather =
 /// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
 /// mutable arrays
 let buildFastSimulation 
+        (simulationArraySize: int) 
         (diagramName: string) 
-        (numberOfSteps: int) 
         (graph: SimulationGraph) 
             : Result<FastSimulation,SimulationError> =
     let gather = gatherSimulation graph
     let fs =  
         emptyFastSimulation diagramName
-        |> createInitFastCompPhase numberOfSteps gather
+        |> createInitFastCompPhase simulationArraySize gather
         |> linkFastComponents gather
     gather
     |> createFastArrays fs
-    |> orderCombinationalComponents numberOfSteps
+    |> orderCombinationalComponents simulationArraySize
     |> checkAndValidate
     |> Result.map addWavesToFastSimulation
 
@@ -381,7 +381,9 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
 /// If the simulation data arrays are not large enough they are extended up to a limit. After that, they act as a circular buffer.
 let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
-
+        if fs.MaxArraySize = 0 then
+            failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
+        //printfn $"running sim steps={numberOfSteps}, arraySize = {fs.MaxArraySize}, maxstepnum={fs.MaxStepNum}"
         let simStartTime = getTimeMs()
         let stepsToDo = float (numberOfSteps - fs.ClockTick)
         let numComponents = float fs.FComps.Count
@@ -408,8 +410,8 @@ let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
             printfn $"Simulation speed: {numComponents*stepsToDo/sTime} Component-Steps/ms ({int stepsToDo} steps, {int numComponents} components)"
 
 /// Run a fast simulation for a given number of steps building it from the graph
-let runSimulationZeroInputs (diagramName: string) (steps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
-    let fsResult = buildFastSimulation diagramName steps graph
+let runSimulationZeroInputs (simulationArraySize: int) (diagramName: string) (steps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
+    let fsResult = buildFastSimulation simulationArraySize diagramName  graph
     fsResult
     |> Result.map (runFastSimulation steps)
     |> ignore
@@ -538,3 +540,6 @@ let extractViewers
         (fun (fid,fc) ->
             let width = Option.get fc.OutputWidth[0]
             getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))
+
+let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project option) =
+    List.forall (fun ldc -> Extractor.loadedComponentIsSameAsProject canv ldc p) fs.SimulatedCanvasState

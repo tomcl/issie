@@ -14,6 +14,7 @@ open Helpers
 open JSHelpers
 open DiagramStyle
 open ModelType
+open ModelHelpers
 open CommonTypes
 open FilesIO
 open Extractor
@@ -135,7 +136,7 @@ let private displayFileErrorNotification err dispatch =
     dispatch <| SetFilesNotification note
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
-let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (model:Model) dispatch =
+let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) waveSim ldComps (model:Model) dispatch =
     // it seems still need this, however code has been deleted!
     //Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
     let ldcs = tryGetLoadedComponents model
@@ -185,6 +186,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
+            if finishUI then FinishUICmd else DoNothing
 
             //printfn "Check 6..."
         ]
@@ -258,7 +260,6 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             failwithf "Auto saving is no longer used"
             None
         else 
-            printfn "here"
             saveStateToFile project.ProjectPath project.OpenFileName savedState
             |> displayAlertOnError dispatch
             removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
@@ -425,7 +426,7 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
 /// Load a new project as defined by parameters.
 /// Ends any existing simulation
 /// Closes WaveSim if this is being used
-let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
+let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
     let compToSetup =
         match ldComps with
         | [] -> failwithf "setupProjectComponents must be called with at least one LoadedComponent"
@@ -439,14 +440,23 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
         dispatch CloseTruthTable // Message closes any open Truth Table.
-        dispatch EndWaveSim
+        //dispatch EndWaveSim
         // TODO: make each sheet wavesim remember the list of waveforms.
-    let waveSim =
+
+    let savedWaveSim =
         compToSetup.WaveInfo
         |> Option.map loadWSModelFromSavedWaveInfo 
         |> Option.defaultValue initWSModel
 
-    loadStateIntoModel compToSetup waveSim ldComps model dispatch
+    let waveSim =
+        model.WaveSimSheet
+        |> Option.map (fun sheet -> (Map.tryFind sheet  model.WaveSim))
+        |> Option.defaultValue None
+        |> Option.defaultValue savedWaveSim
+        
+
+
+    loadStateIntoModel finishUI compToSetup waveSim ldComps model dispatch
     {
         ProjectPath = dirName compToSetup.FilePath
         OpenFileName =  compToSetup.Name
@@ -461,10 +471,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Terminates a simulation if one is running
 /// Closes waveadder if it is open
 let openFileInProject' saveCurrent name project (model:Model) dispatch =
-    printfn "open file"
-    //printSheetNames model
     let newModel = {model with CurrentProj = Some project}
-    //printSheetNames newModel
     match getFileInProject name project with
     | None -> 
         log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
@@ -483,11 +490,11 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
                 else
                     project.LoadedComponents
             //printSheetNames {newModel with CurrentProj = Some {Option.get newModel.CurrentProj with LoadedComponents = ldcs }}
-            setupProjectFromComponents name ldcs updatedModel dispatch
+            setupProjectFromComponents true name ldcs updatedModel dispatch
 
 let openFileInProject name project (model:Model) dispatch =
     openFileInProject' true name project (model:Model) dispatch
-    dispatch FinishUICmd
+
 
 
 /// return a react warning message if name if not valid for a sheet Add or Rename, or else None
@@ -550,7 +557,7 @@ let renameSheet oldName newName (model:Model) dispatch =
             renameFile extn p.ProjectPath oldName newName
             |> displayAlertOnError dispatch)
         let proj' = renameSheetsInProject oldName newName p
-        setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
+        setupProjectFromComponents false proj'.OpenFileName proj'.LoadedComponents model dispatch
         //printfn "???Sheets after rename"
         //printSheetNames {model with CurrentProj = Some proj'}
         // save all the other files
@@ -777,7 +784,7 @@ let private newProject model dispatch  =
             // Create empty initial diagram file.
             let initialComponent = createEmptyComponentAndFile path "main"
             dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
-            setupProjectFromComponents "main" [initialComponent] model dispatch
+            setupProjectFromComponents false "main" [initialComponent] model dispatch
 
 /// work out what to do opening a file
 let rec resolveComponentOpenPopup 
@@ -791,7 +798,7 @@ let rec resolveComponentOpenPopup
         (List.maxBy (fun comp -> comp.TimeStamp) onlyUserCreated).Name
     dispatch ClosePopup
     match resolves with
-    | [] -> setupProjectFromComponents (chooseWhichToOpen components) components model dispatch
+    | [] -> setupProjectFromComponents false (chooseWhichToOpen components) components model dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let compChanges, connChanges = quantifyChanges ldComp autoComp
@@ -842,11 +849,6 @@ let addToRecents path recents =
 
 /// open an rxisting porject from its path
 let openProjectFromPath (path:string) model dispatch =
-    dispatch <| SetUserData {
-        model.UserData with 
-            LastUsedDirectory = Some path; 
-            RecentProjects = addToRecents path model.UserData.RecentProjects
-            }
     dispatch (ExecFuncAsynch <| fun () ->
         traceIf "project" (fun () -> "loading files")
         match loadAllComponentFiles path with
@@ -858,8 +860,13 @@ let openProjectFromPath (path:string) model dispatch =
             
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
             traceIf "project" (fun () ->  "project successfully opened.")
-
+            dispatch <| SetUserData {
+                model.UserData with 
+                    LastUsedDirectory = Some path; 
+                    RecentProjects = addToRecents path model.UserData.RecentProjects
+                    }
         Elmish.Cmd.none)
+    
 
 /// open an existing project
 let private openProject model dispatch =
@@ -902,7 +909,9 @@ let viewNoProjectMenu model dispatch =
 
     match model.CurrentProj with
     | Some _ -> div [] []
-    | None -> unclosablePopup None initialMenu None [] dispatch
+    | None -> 
+        unclosablePopup None initialMenu None [] dispatch
+
 
 //These two functions deal with the fact that there is a type error otherwise..
 let goBackToProject model dispatch _ =
@@ -976,7 +985,7 @@ let viewTopMenu model dispatch =
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
                                         dispatch (StartUICmd ChangeSheet)
-                                        //printSheetNames model
+                                        printfn "Starting UI Cmd"
                                         dispatch <| ExecFuncInMessage(
                                             (fun model dispatch -> 
                                                 let p = Option.get model.CurrentProj

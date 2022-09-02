@@ -794,6 +794,8 @@ let createSymbol ldcs prevSymbols comp =
                 MovingPort = None
                 IsClocked = clocked
                 MovingPortTarget = None
+                HScale = match comp.SymbolInfo with |Some si -> si.HScale |_ -> None
+                VScale = match comp.SymbolInfo with |Some si -> si.VScale |_ -> None
             }
             |> autoScaleHAndW
             |> calcLabelBoundingBox
@@ -1155,7 +1157,10 @@ let getLayoutInfoFromSymbol symbol =
         if symbol.LabelHasDefaultPos then 
             None 
         else 
-            Some symbol.LabelBoundingBox}
+            Some symbol.LabelBoundingBox
+      HScale = symbol.HScale
+      VScale = symbol.VScale
+    }
 /// Return a symbol with its embedded component correctly updated with symbol layoiut info.
 /// Should be called juts before saving a component.
 let storeLayoutInfoInComponent _ symbol =
@@ -1353,6 +1358,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newsymbol = changeNumberOfBitsf model compId newBits
         (replaceSymbol model newsymbol compId), Cmd.none
     
+    | ChangeScale (compId,newScale,whichScale) ->
+        let symbol = Map.find compId model.Symbols
+        let newSymbol = 
+            match whichScale with
+            |Horizontal -> {symbol with HScale=Some newScale}
+            |Vertical -> {symbol with VScale=Some newScale}
+        (replaceSymbol model newSymbol compId), Cmd.none
+
     | ChangeLsb (compId, newLsb) -> 
         let newsymbol = changeLsbf model compId newLsb
         (replaceSymbol model newsymbol compId), Cmd.none

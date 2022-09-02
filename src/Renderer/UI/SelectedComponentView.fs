@@ -67,6 +67,16 @@ let private intFormField name (width:string) defaultValue minValue onChange =
         ]
     ]
 
+let private floatFormField name (width:string) defaultValue minValue onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Input.number [
+            Input.Props [Style [Width width]; Min minValue]
+            Input.DefaultValue <| sprintf "%A" defaultValue
+            Input.OnChange (getFloatEventValue >> onChange)
+        ]
+    ]
+
 let private int64FormField name (width:string) defaultValue minValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
@@ -349,6 +359,48 @@ let private changeCounterType model (comp:Component) dispatch =
                 [ str "Enable" ]
             ]
 
+let private makeScaleAdjustmentField model (comp:Component) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
+    let textw =  
+        match comp.SymbolInfo with
+        |Some si ->
+            match si.HScale with
+            |Some no -> no
+            |None -> 1.0
+        |None -> 1.0
+    let texth =  
+        match comp.SymbolInfo with
+        |Some si ->
+            match si.VScale with
+            |Some no -> no
+            |None -> 1.0
+        |None -> 1.0
+
+    div [] [
+        floatFormField "Width Scale" "60px" textw 0.0 (
+            fun (newWidth) ->
+                if newWidth < 0.0
+                then
+                    let props = errorPropsNotification "Invalid number of bits."
+                    dispatch <| SetPropertiesNotification props
+                else
+                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Horizontal
+                    dispatch ClosePropertiesNotification
+        )
+        floatFormField "Height Scale" "60px" texth 0.0 (
+            fun (newWidth) ->
+                if newWidth < 0.0
+                then
+                    let props = errorPropsNotification "Invalid number of bits."
+                    dispatch <| SetPropertiesNotification props
+                else
+                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Vertical
+                    dispatch ClosePropertiesNotification
+        )
+    ]
+
+
 let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
@@ -603,7 +655,9 @@ let private makeDescription (comp:Component) model dispatch =
             ul [] (toHTMLList custom.InputLabels)
             br []
             span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Outputs"]
-            ul [] (toHTMLList custom.OutputLabels)            
+            ul [] (toHTMLList custom.OutputLabels)
+            br []
+            makeScaleAdjustmentField model comp dispatch
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
     | DFFE -> div [] [

@@ -180,7 +180,9 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
                 let fixed_ldcs = other_ldc@[ldc'] 
                 
                 let p' = {p with LoadedComponents=fixed_ldcs}
+                let model' = {model with CurrentProj = Some p'}
                 dispatch <| SetProject p'
+                saveOpenFileActionWithModelUpdate model' dispatch |> ignore
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) ->

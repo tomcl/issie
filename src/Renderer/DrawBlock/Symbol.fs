@@ -66,21 +66,22 @@ module Constants =
 /// as the tuple (real H, real W).
 /// Needed because H & W in Component do not chnage with rotation.
 /// NB Pos in component = Pos in Symbol and DOES change with rotation!
-let inline getCompRotatedHAndW (comp: Component) (transform: STransform)  =
+let inline getCompRotatedHAndW (comp: Component) (transform: STransform) hScale vScale  =
+    let hS,vS = (Option.defaultValue 1.0 hScale),(Option.defaultValue 1.0 vScale)
     match transform.Rotation with
-    | Degree0 | Degree180 -> comp.H, comp.W
-    | Degree90 | Degree270 -> comp.W, comp.H
+    | Degree0 | Degree180 -> comp.H*vS, comp.W*hS
+    | Degree90 | Degree270 -> comp.W*hS, comp.H*vS
 
 /// Returns the correct height and width of a transformed symbol
 /// as the tuple (real H, real W).
 /// Needed because H & W in Component do not chnage with rotation.
 /// NB Pos in component = Pos in Symbol and DOES change with rotation!
-let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform
+let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform sym.HScale sym.VScale
 
 /// returns the true centre of a component's symbol
-let inline getRotatedCompCentre comp transform =
+let inline getRotatedCompCentre comp transform hScale vScale =
     // true component BB is (comp.X,comp.Y), h, w
-    let h,w = getCompRotatedHAndW comp transform
+    let h,w = getCompRotatedHAndW comp transform hScale vScale
     let centreX = comp.X + w / 2.
     let centreY = comp.Y + h / 2.
     {X=centreX;Y=centreY}
@@ -88,7 +89,7 @@ let inline getRotatedCompCentre comp transform =
 /// returns the true centre of a symbol, taking into account
 /// its current rotation
 let inline getRotatedSymbolCentre (symbol:Symbol) =
-    getRotatedCompCentre symbol.Component symbol.STransform
+    getRotatedCompCentre symbol.Component symbol.STransform symbol.HScale symbol.VScale
 /// Returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol.
 /// Works with rotation. For a rotated symbol, TopLeft = Pos, and H,W swapped in getrotatedHAndW
 let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
@@ -206,8 +207,8 @@ let calcLabelBoundingBox (sym: Symbol) =
                      | _ -> transform.Rotation
         | false -> transform.Rotation
         |> combineRotation (Option.defaultValue Degree0 sym.LabelRotation)
-    let h,w = getCompRotatedHAndW comp transform
-    let centre = getRotatedCompCentre comp transform
+    let h,w = getRotatedHAndW sym
+    let centre = getRotatedSymbolCentre sym
 
     let margin = 
         match sym.Component.Type with
@@ -607,7 +608,9 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
                 STransform=defaultSTransform; 
                 ReversedInputPorts=None
                 PortOrder = Map.empty; 
-                PortOrientation=Map.empty}
+                PortOrientation=Map.empty
+                HScale = None
+                VScale = None}
         }
     let props = getComponentProperties compType label           
     makeComponent' props label
@@ -643,6 +646,8 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
       MovingPortTarget = None
+      HScale = None
+      VScale = None
     }
     |> autoScaleHAndW
     |> calcLabelBoundingBox
@@ -908,8 +913,8 @@ let drawSymbol (symbol:Symbol) =
     let opacity = appear.Opacity
     let comp = symbol.Component
     let h,w = getRotatedHAndW symbol
-    let H = float comp.H
-    let W = float comp.W
+    let H = float comp.H*(Option.defaultValue 1.0 symbol.VScale)
+    let W = float comp.W*(Option.defaultValue 1.0 symbol.HScale)
     let transform = symbol.STransform
 
     let mergeSplitLine pos msb lsb  =

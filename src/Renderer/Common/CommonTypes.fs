@@ -242,6 +242,11 @@ module CommonTypes
     }
         with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
     
+    
+    type ScaleAdjustment =
+        | Horizontal
+        | Vertical
+    
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option
         LabelRotation: Rotation option
@@ -249,6 +254,8 @@ module CommonTypes
         ReversedInputPorts: bool option
         PortOrientation: Map<string, Edge>
         PortOrder: Map<Edge, string list>
+        HScale: float option
+        VScale: float option
     }
 
 

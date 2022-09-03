@@ -942,6 +942,12 @@ type Driver = {
     DriverWidth: int
     DriverData: StepArray<FData>
 }
+
+type SheetPort = {
+    Sheet: string
+    PortOnComp: Port // muts include port number (which ports on connections do not)
+    }
+
 // The fast simulation components are similar to the issie components they are based on but with addition of arrays
 // for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the
 // inputs are connected to, the InputPortNumber integer indexes this.
@@ -998,8 +1004,13 @@ type FastSimulation = {
     Drivers: Driver option array
     // Each wave index represents one component port with associated driver and data
     WaveIndex: WaveIndexT array
-    /// Connections on simulated sheets indexed by connected port. Each connection appears twice.
-    ConnectionIdsByPort: Map<Port,ConnectionId>
+    /// Connections on simulated sheets indexed by directly connected port. Each connection appears twice.
+    ConnectionsByPort: Map<SheetPort,Connection list>
+    /// This contains all components in the sheets of the simulation indexed by ComponentId. 
+    /// Subsheet components are indexed only once.
+    /// Contrast this with Fast Components - which have the design expanded out with
+    /// one per instance: the different versions correspond to distinct access paths.
+    ComponentsById: Map<string,Map<ComponentId,Component>>
     /// Circuit simulated (sheet and all dependencies) 
     SimulatedCanvasState: LoadedComponent list
     /// The root sheet being simulated

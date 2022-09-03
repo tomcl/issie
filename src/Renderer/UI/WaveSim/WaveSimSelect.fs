@@ -417,7 +417,7 @@ let waveCheckBoxItem  (wsModel:WaveSimModel) (waveIds:WaveIndexT list)  dispatch
             |> List.head
             |> snd
     let checkBoxState =
-        List.forall (fun w -> List.contains w wsModel.SelectedWaves) minDepthSelectedWaves
+        List.exists (fun w -> List.contains w wsModel.SelectedWaves) minDepthSelectedWaves
     Checkbox.checkbox [] [
         Checkbox.input [
             Props [

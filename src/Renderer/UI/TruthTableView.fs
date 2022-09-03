@@ -425,7 +425,7 @@ let mutable selCache: SelectionCache = emptySelCache
 /// Identical functionality to SimulationView.makeSimData, but only considers selected components.
 /// Includes memoization: if the selected components have not changed then the cached corrected
 /// canvas and simulation are returned.
-let makeSimDataSelected model : (Result<SimulationData,SimulationError> * CanvasState) option =
+let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> * CanvasState) option =
     let (selComponents,selConnections) = model.Sheet.GetSelectedCanvasState
     let wholeCanvas = model.Sheet.GetCanvasState()
     match selComponents, selConnections, model.CurrentProj with

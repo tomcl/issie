@@ -240,7 +240,7 @@ let viewRightTabs canvasState model dispatch =
             OverflowOptions.Clip // ensure no scrollbar temporarily after the transition
         else 
             OverflowOptions.Auto
-    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Visible]] [
+    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto]] [
         Tabs.tabs [ 
             Tabs.IsFullWidth; 
             Tabs.IsBoxed; 

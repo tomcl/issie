@@ -27,6 +27,9 @@ open Simulator
 open Sheet.SheetInterface
 open DrawModelType
 
+open Optics
+open Optics.Operators
+
 module Constants =
     let maxArraySize = 550
 
@@ -70,7 +73,49 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                        |> dispatch)
         | _ -> () // do nothing if no project is loaded
 
+let setFastSimInputsToDefault (fs:FastSimulation) =
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, match fc.FType with | Input1 (w,defVal) -> (w,defVal) | _ -> failwithf "What? Impossible")
+    |> Map.toList
+    |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
+        match w,defaultVal with
+        | _, Some defaultVal -> cid, convertIntToWireData w (int64 defaultVal)
+        | _, None -> cid, convertIntToWireData w 0L)
+    |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
+
+
+let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
+    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
+        let comp = sym.Component
+        let comp' = 
+            let ct =
+                match comp.Type with 
+                | Input1(w,defVal) -> Input1(w,Some newDefault)
+                | x -> x
+            {comp with Type = ct}
+        {sym with Component = comp'}
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[0])
+    |> Map.values
+    |> Seq.iter (fun (cid, currentValue) -> 
+            match currentValue with
+            | Data fd -> 
+                let newDefault = convertFastDataToInt fd
+                SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
+                |> Optic.map DrawModelType.SheetT.symbol_ 
+                |> Optic.map ModelType.sheet_
+                |> UpdateModel
+                |> dispatch
+            | _ -> () // should never happen
+        )
+    |> ignore
+        
+       
+    
 //----------------------------View level simulation helpers------------------------------------//
+
 
 type SimCache = {
     Name: string
@@ -584,7 +629,10 @@ let viewSimulation canvasState model dispatch =
             (canvasState, otherComponents)
             ||> prepareSimulationMemoized Constants.maxArraySize project.OpenFileName project.OpenFileName
             |> function
-               | Ok (simData), state -> Ok simData
+               | Ok (simData), state -> 
+                if simData.FastSim.ClockTick = 0 then 
+                    setFastSimInputsToDefault simData.FastSim
+                Ok simData
                | Error simError, state ->
                   printfn $"ERROR:{simError}"
                   setSimErrorFeedback simError model dispatch
@@ -617,15 +665,29 @@ let viewSimulation canvasState model dispatch =
         let body = match sim with
                    | Error simError -> viewSimulationError simError
                    | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
+        let setDefaultButton =
+            match sim with
+            | Error _ -> div [] []
+            | Ok simData ->
+            div [] [
+                Button.button
+                    [ 
+                        Button.Color IsInfo; 
+                        Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch) ; 
+                        Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
+                    ]
+                    [ str "Set default values for Inputs" ]
+            ]
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
             dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
-        div [] [
+        div [Style[Height "100%"]] [
             Button.button
-                [ Button.Color IsDanger; Button.OnClick endSimulation ]
+                [ Button.Color IsDanger; Button.OnClick endSimulation ; Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left ]]]
                 [ str "End simulation" ]
+            setDefaultButton
             br []; br []
             str "The simulation uses the diagram as it was at the moment of
                  pressing the \"Start simulation\" button."

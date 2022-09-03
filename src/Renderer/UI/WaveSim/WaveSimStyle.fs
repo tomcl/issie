@@ -624,10 +624,11 @@ let topHalfStyle = Style [
     ZIndex 10000
 ]
 
-let refreshSvg =
+/// display react of refresh button with color (e.g. white) at given height (e.g. 10px)
+let refreshSvg (color:string) (height:string)=
     svg [
             ViewBox "0 0 512 512"
-            SVGAttr.Height "20"
+            SVGAttr.Height height
         ] [
             path [
                 D "M496 48V192c0 17.69-14.31 32-32 32H320c-17.69 0-32-14.31-32-32s14.31-32
@@ -637,7 +638,7 @@ let refreshSvg =
                 479.9 32 379.4 32 256s100.5-223.9 223.9-223.9c69.15 0 134 32.47 176.1 86.12V48c0-17.69
                 14.31-32 32-32S496 30.31 496 48z"
                 Style [
-                    Fill "white"
+                    Fill color
                 ]
             ] []
         ]

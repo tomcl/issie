@@ -96,18 +96,28 @@ async function readOne() {
             //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
             var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
             console.log(`Received message: ${message}`);
-            check=false;
+            check = false;
+            return message;
            }
     }
 }
 
 export async function tryRead0(){
     // sendTimer = setInterval(function(){device.transferOut(TX_EP, TX_READ + "0")},TX_INTERVAL);
-    await device.transferOut(TX_EP, TX_CONTINUE);
-    await readOne();
-
+    //await device.transferOut(TX_EP, TX_CONTINUE);
+    //let res = await readOne()
+        // .then((res) => {
+        //    return res;
+        // })
     //Disconnect
-    console.log("Stopping");
+    // console.log("Stopping");
+
+    //const rtrn = () => {
+    //    res.then((a) => {
+    //        return a;
+    //    });
+    //};
+    return readOne();
 }
 
 

@@ -159,26 +159,43 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
 let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
     let start = TimeHelpers.getTimeMs ()
     let shownCycles =
+        let wantedCycles = int (float wsModel.ShownCycles / Constants.zoomChangeFactor)
         if zoomIn then
-            let newCycles = int <| float wsModel.ShownCycles * 0.8
-
+            // try to reduce number of cycles displayed
+            wantedCycles
             // If number of cycles after casting to int does not change
-            if newCycles = int wsModel.ShownCycles then
-                wsModel.ShownCycles - 1
-            // Require at least one visible cycle
-            else max 1 (newCycles)
+            |> (fun nc -> if nc = wsModel.ShownCycles then nc - 1 else nc )
+            // Require a minimum of cycles
+            |> (fun nc -> 
+                    let minVis = min wsModel.ShownCycles Constants.minVisibleCycles
+                    max nc minVis)
         else
-            let newCycles = int <| float wsModel.ShownCycles * 1.25
-
+            let wantedCycles = int (float wsModel.ShownCycles * Constants.zoomChangeFactor)
+            // try to increase number of cycles displayed
+            wantedCycles
             // If number of cycles after casting to int does not change
-            if newCycles = wsModel.ShownCycles then
-                wsModel.ShownCycles + 1
-            // If width of clock cycle is too small
-            else if wsModel.WaveformColumnWidth / float newCycles < Constants.minCycleWidth then
-                wsModel.ShownCycles
-            else newCycles
-
-    dispatch <| GenerateWaveforms { wsModel with ShownCycles = shownCycles }
+            |> (fun nc -> if nc = wsModel.ShownCycles then nc + 1 else nc )
+            |> (fun nc -> 
+                let maxNc = int (wsModel.WaveformColumnWidth / float Constants.minCycleWidth)
+                max wsModel.ShownCycles (min nc maxNc))
+    let startCycle =
+        // preferred start cycle to keep centre of screen ok
+        let sc = (wsModel.StartCycle - (shownCycles - wsModel.ShownCycles)/2)
+        let cOffset = wsModel.CurrClkCycle - sc
+        sc
+        // try to keep cursor on screen
+        |> (fun sc -> 
+            if cOffset > shownCycles - 1 then
+                sc + cOffset - shownCycles + 1
+            elif cOffset < 0 then
+                (sc + cOffset)
+            else
+                sc)
+        // final limits check so no cycle is outside allowed range
+        |> max 0
+        |> min (Constants.maxLastClk - shownCycles)
+        
+    dispatch <| GenerateWaveforms { wsModel with ShownCycles = shownCycles; StartCycle = startCycle }
     |> TimeHelpers.instrumentInterval "changeZoom" start
 
 /// Click on these buttons to change the number of visible clock cycles.

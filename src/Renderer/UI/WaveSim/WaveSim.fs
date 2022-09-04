@@ -429,8 +429,11 @@ let namesColumn model wsModel dispatch : ReactElement =
 /// rows, rather than many rows of three columns.
 let valueRows (wsModel: WaveSimModel) =
     selectedWaves wsModel
-    |> List.map (getWaveValue wsModel.CurrClkCycle)
-    |> List.map (valToString wsModel.Radix)
+    |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycle wave, wave.Width)
+    |> List.map (fun (busVal, width) ->
+        match width with
+        | 1 -> $" {busVal}" 
+        | _ -> valToString wsModel.Radix busVal)
     |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
 
 /// Create column of waveform values

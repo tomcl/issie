@@ -14,6 +14,53 @@ open FastRun
 open NumberHelpers
 
 
+
+
+module Constants =
+    /// The horizontal length of a transition cross-hatch for non-binary waveforms
+    let nonBinaryTransLen : float = 8.
+
+    /// The height of the viewbox used for a wave's SVG. This is the same as the height
+    /// of a label in the name and value columns.
+    /// TODO: Combine this with WaveSimStyle.Constants.rowHeight?
+    let viewBoxHeight : float = 30.0
+
+    /// Height of a waveform
+    let waveHeight : float = 0.8 * viewBoxHeight
+    /// Vertical padding between top and bottom of each wave and the row it is in.
+    let spacing : float = (viewBoxHeight - waveHeight) / 2.
+
+    /// y-coordinate of the top of a waveform
+    let yTop = spacing
+    /// y-coordiante of the bottom of a waveform
+    let yBot = waveHeight + spacing
+
+    /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
+    let maxLastClk = 1000
+
+    /// minium number of cycles on screen when zooming in
+    let minVisibleCycles = 3
+
+    /// Minimum number of visible clock cycles.
+    let minCycleWidth = 5
+
+    let zoomChangeFactor = 1.5
+
+    /// If the width of a non-binary waveform is less than this value, display a cross-hatch
+    /// to indicate a non-binary wave is rapidly changing value.
+    let clkCycleNarrowThreshold = 20
+
+    /// number of extra steps simulated beyond that used in simulation. Is this needed?
+    let extraSimulatedSteps = 5 
+
+    let infoMessage = 
+        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
+
+    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
+
+    let infoSignUnicode = "\U0001F6C8"
+
+
 /// Determines whether a clock cycle is generated with a vertical bar at the beginning,
 /// denoting that a waveform changes value at the start of that clock cycle. NB this
 /// does not determine whether a waveform changes value at the end of that clock cycle.
@@ -43,46 +90,6 @@ type Gap = {
     Length: int
 }
 
-
-
-module Constants =
-    /// The horizontal length of a transition cross-hatch for non-binary waveforms
-    let nonBinaryTransLen : float = 8.
-
-    /// The height of the viewbox used for a wave's SVG. This is the same as the height
-    /// of a label in the name and value columns.
-    /// TODO: Combine this with WaveSimStyle.Constants.rowHeight?
-    let viewBoxHeight : float = 30.0
-
-    /// Height of a waveform
-    let waveHeight : float = 0.8 * viewBoxHeight
-    /// Vertical padding between top and bottom of each wave and the row it is in.
-    let spacing : float = (viewBoxHeight - waveHeight) / 2.
-
-    /// y-coordinate of the top of a waveform
-    let yTop = spacing
-    /// y-coordiante of the bottom of a waveform
-    let yBot = waveHeight + spacing
-
-    /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
-    let maxLastClk = 1000
-
-    /// Minimum number of visible clock cycles.
-    let minCycleWidth = 5
-
-    /// If the width of a non-binary waveform is less than this value, display a cross-hatch
-    /// to indicate a non-binary wave is rapidly changing value.
-    let clkCycleNarrowThreshold = 20
-
-    /// number of extra steps simulated beyond that used in simulation. Is this needed?
-    let extraSimulatedSteps = 5 
-
-    let infoMessage = 
-        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
-
-    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
-
-    let infoSignUnicode = "\U0001F6C8"
 
 
 /// If true, then show cross-hatch only for non-binary waves when wave is changing value very fast.

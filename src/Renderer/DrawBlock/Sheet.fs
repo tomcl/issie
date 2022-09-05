@@ -927,7 +927,7 @@ let displaySvgWithZoom
     div [ 
           HTMLAttr.Id "Canvas"
           Key cursorText // force cursor change to be rendered
-          Style (CSSProp.Cursor cursorText :: style)
+          Style (CSSProp.Cursor cursorText :: style @ [BackgroundColor "rgba(255,255,0,0.1)"])
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)

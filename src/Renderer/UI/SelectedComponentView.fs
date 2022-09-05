@@ -617,6 +617,10 @@ let private makeDescription (comp:Component) model dispatch =
             |_ -> ": user defined (custom) component."
             //TODO: remaining
 
+        //let origLdc =
+        //    match model.CurrentProj with
+        //    |Some p -> p.LoadedComponents |> List.find (fun ldc -> ldc.Name = custom.Name)
+        //    |None -> failwithf "What? current project cannot be None at this point in finding custom component description"
         let sheetDescription = 
             match custom.Description with
             |Some sheetDescription-> 
@@ -795,8 +799,8 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         match model.CurrentProj with
         |Some proj ->
             let sheetName = proj.OpenFileName
-            let sheetLdc = proj.LoadedComponents |> List.filter (fun ldc -> ldc.Name = sheetName)
-            let sheetDescription = sheetLdc[0].Description
+            let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
+            let sheetDescription = sheetLdc.Description
             match sheetDescription with
             |None ->
                 div [] [

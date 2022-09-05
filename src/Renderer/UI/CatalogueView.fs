@@ -170,16 +170,32 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let descr = getText dialogData
-            //printfn "creating adder %d" inputInt
-            //createCompStdLabel (NbitsAdder inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+
             match model.CurrentProj with
             |None -> failwithf "Can't happen"
             |Some p ->
-                let target_ldc = p.LoadedComponents |> List.filter (fun x -> x.Name = sheetName)
+                let target_ldc = p.LoadedComponents |> List.find (fun x -> x.Name = sheetName)
                 let other_ldc = p.LoadedComponents |> List.filter (fun x -> x.Name <> sheetName)
-                let ldc' = {target_ldc[0] with Description=Some descr}
-                let fixed_ldcs = other_ldc@[ldc'] 
+                let target_ldc' = {target_ldc with Description=Some descr}  //add description to ldc
                 
+                let other_ldc' =  //find all custom comps originating from that sheet and update their description
+                    other_ldc 
+                    |> List.map (fun ldc -> 
+                        let newComps = 
+                            ldc.CanvasState
+                            |> fst
+                            |> List.map (fun comp ->
+                                match comp.Type with
+                                |Custom x when x.Name = sheetName -> 
+                                    let newCompType = Custom {x with Description = Some descr} 
+                                    {comp with Type = newCompType}
+                                |_ -> comp
+                        )
+                        let newCS = newComps,(ldc.CanvasState |> snd)
+                        {ldc with CanvasState = newCS}
+                    )
+
+                let fixed_ldcs = other_ldc'@[target_ldc'] 
                 let p' = {p with LoadedComponents=fixed_ldcs}
                 let model' = {model with CurrentProj = Some p'}
                 dispatch <| SetProject p'

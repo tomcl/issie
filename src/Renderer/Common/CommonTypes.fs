@@ -99,6 +99,8 @@ module CommonTypes
         HostId : string
     }
 
+    type PortId = | PortId of string
+
     // NB - this.Text() is not currently used.
 
     /// This width is for wire displaying, >8 buswires displayed with 8px thickness. Actual size stored in Port type
@@ -203,6 +205,7 @@ module CommonTypes
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
+
 
     /// Active pattern which matches 2-input gate component types.
     /// NB - NOT gates are not included here.
@@ -310,6 +313,10 @@ module CommonTypes
         SymbolInfo : SymbolInfo option
     }
 
+    with member this.getPort (PortId portId: PortId) = 
+            List.tryFind (fun (port:Port) -> port.Id = portId ) (this.InputPorts @ this.OutputPorts)
+        
+
     /// JSConnection mapped to F# record.
     /// Id uniquely identifies connection globally and is used by library.
     type Connection = {
@@ -329,7 +336,6 @@ module CommonTypes
 
     let unreduced (ReducedCanvasState(rComps,rConns)) = rComps,rConns
 
-    
 
 
     //===================================================================================================//

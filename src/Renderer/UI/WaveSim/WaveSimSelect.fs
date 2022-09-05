@@ -441,7 +441,7 @@ let waveCheckBoxItem  (wsModel:WaveSimModel) (waveIds:WaveIndexT list)  dispatch
             |> List.head
             |> snd
     let checkBoxState =
-        List.forall (fun w -> List.contains w wsModel.SelectedWaves) minDepthSelectedWaves
+        List.exists (fun w -> List.contains w wsModel.SelectedWaves) minDepthSelectedWaves
     Checkbox.checkbox [] [
         Checkbox.input [
             Props [
@@ -607,6 +607,12 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
 
 /// Modal that, when active, allows users to select waves to be viewed.
 let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let endModal _ = 
+        dispatch <| UpdateWSModel (fun ws ->
+            {wsModel with
+                WaveModalActive = false
+                SearchString = ""
+            })
     Modal.modal [
         Modal.IsActive wsModel.WaveModalActive
     ] [
@@ -623,13 +629,21 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                         Level.right [
                         ] [ Delete.delete [
                                 Delete.Option.Size IsMedium
-                                Delete.Option.OnClick (fun _ ->
-                                    dispatch <| UpdateWSModel (fun ws ->
-                                        {wsModel with
-                                            WaveModalActive = false
-                                            SearchString = ""
-                                        })
-                                )
+                                Delete.Option.OnClick (
+                                    fun _ ->
+                                        let numWaves = wsModel.SelectedWaves.Length
+                                        if numWaves > 20 then
+                                            PopupView.viewWaveSelectConfirmationPopup 
+                                                numWaves
+                                                (fun finish _ -> 
+                                                        dispatch ClosePopup
+                                                        match finish with | true -> endModal() | false -> ()) 
+                                                dispatch
+                                        else
+                                            endModal())
+                                    
+                                    
+                                
                             ] []
                         ]
                     ]

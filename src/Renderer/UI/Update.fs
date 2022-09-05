@@ -433,7 +433,7 @@ let update (msg : Msg) oldModel =
         }, Cmd.none
     | GenerateWaveforms wsModel ->
         let start = TimeHelpers.getTimeMs ()
-        WaveSimHelpers.extendSimulation wsModel // ensure simulation is uptodate
+        WaveSimHelpers.extendSimulation None wsModel // ensure simulation is uptodate
         let allWaves =
             Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
             |> TimeHelpers.instrumentInterval "InitiateWaveSimulation generateWaveform" start

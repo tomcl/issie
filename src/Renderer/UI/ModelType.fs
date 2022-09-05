@@ -484,7 +484,7 @@ type Model = {
     UIState: UICommandType Option
 } 
 
-
+let sheet_ = Optics.Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
 
 
     

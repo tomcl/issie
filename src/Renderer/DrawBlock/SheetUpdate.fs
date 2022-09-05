@@ -1035,7 +1035,7 @@ let init () =
         ConnectPortsLine = {X=0.0; Y=0.0}, {X=0.0; Y=0.0}
         TargetPortId = ""
         Action = Idle
-        ShowGrid = true
+        ShowGrid = false
         LastMousePos = { X = 0.0; Y = 0.0 }
         SnapSymbols=emptySnap
         SnapSegments = emptySnap

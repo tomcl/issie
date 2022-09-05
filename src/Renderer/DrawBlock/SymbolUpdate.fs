@@ -1109,9 +1109,10 @@ let reCreateVerilogSymbol (comp: Component) (oldSym:Symbol) : Symbol =
 
 
 let inline replaceSymbol (model: Model) (newSymbol: Symbol) (compId: ComponentId) : Model =
-    let symbolswithoutone = model.Symbols.Remove compId
-    let newSymbolsWithChangedSymbol = symbolswithoutone.Add (compId, newSymbol)
-    { model with Symbols = newSymbolsWithChangedSymbol }
+    { model with Symbols = model.Symbols.Add (compId, newSymbol) }
+
+let inline updateSymbol (updateFn: Symbol->Symbol) (compId: ComponentId) (model: Model): Model =
+    { model with Symbols = model.Symbols.Add (compId, updateFn model.Symbols[compId]) }
 
 let inline transformSymbols transform model compList =
     let transformedSymbols = 

@@ -6,6 +6,7 @@ open SynchronousUtils
 open NumberHelpers
 open FastCreate
 open FastReduce
+open System.Numerics
 
 
 
@@ -16,6 +17,11 @@ open FastReduce
 
 //--------------------------Determine Correct omponent Reduction Order-----------------------------------//
 
+module Constants =
+    /// a number bigger than any possible simulation time in ms
+    let maxSimulationTime = 1.0 ** 10.0 
+    /// used to prevent time instrument overhead in simulation - too large and simulations prevent responsiveness
+    let numberOfStepsBeforeTimeCheck = 5 
 
 /// Invalid data is used as default to determine which inputs have been given data when ordering components
 let private isValidData (fd: FData) = 
@@ -380,14 +386,15 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 /// Run an existing fast simulation up to the given number of steps. This function will mutate the write-once data arrays
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
 /// If the simulation data arrays are not large enough they are extended up to a limit. After that, they act as a circular buffer.
-let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
+/// TimeOut if not None is the cutoff time after which the simulation terminates execution unfinished.
+/// Use fs.ClockTick to determine whetehr simulation has completed.
+let runFastSimulation (timeOut: float option)(numberOfSteps: int) (fs: FastSimulation) : Unit =
         if fs.MaxArraySize = 0 then
             failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
         //printfn $"running sim steps={numberOfSteps}, arraySize = {fs.MaxArraySize}, maxstepnum={fs.MaxStepNum}"
         let simStartTime = getTimeMs()
         let stepsToDo = float (numberOfSteps - fs.ClockTick)
         let numComponents = float fs.FComps.Count
-   
         if numberOfSteps > fs.MaxStepNum then
             if fs.MaxStepNum < fs.MaxArraySize then
                 let newMaxNum =
@@ -398,22 +405,34 @@ let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
                 //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps" 
                 extendFastSimulation newMaxNum fs
 
-        let start = fs.ClockTick + 1
-
-        [ start .. numberOfSteps ]
-        |> List.iter
-            (fun n ->
-                //if n % (100 * (int (1. + 3000. / numComponents))) = 0 then printfn "Step %d" n
-                stepSimulation fs)
-        let sTime = getTimeMs() - simStartTime
-        if sTime > 50. then
-            printfn $"Simulation speed: {numComponents*stepsToDo/sTime} Component-Steps/ms ({int stepsToDo} steps, {int numComponents} components)"
-
+        let doSimulation() =
+            let lastTick = fs.ClockTick + 1
+            let startTick = fs.ClockTick
+            let mutable time = simStartTime
+            let startOfTestStep = getTimeMs()
+            if fs.ClockTick < lastTick then stepSimulation fs
+            let oneStepTime = max (getTimeMs() - startOfTestStep) 0.5
+            // work out a number of steps we can safely execute without impacting response
+            // we run as many as possible to reduce time checking overhead. Maybe this is not needed.
+            let stepsBeforeCheck = int (100.0 / oneStepTime) + 1
+            while fs.ClockTick < numberOfSteps  &&
+                  (match timeOut with | None -> true | Some incr ->  time < simStartTime + incr) do
+                stepSimulation fs
+                if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
+                    time <- getTimeMs()
+        doSimulation()
+                   
 /// Run a fast simulation for a given number of steps building it from the graph
-let runSimulationZeroInputs (simulationArraySize: int) (diagramName: string) (steps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
+let runSimulationZeroInputs 
+        (timeOut: float option)
+        (simulationArraySize: int) 
+        (diagramName: string) 
+        (steps: int) 
+        (graph: SimulationGraph) 
+            : Result<FastSimulation,SimulationError> =
     let fsResult = buildFastSimulation simulationArraySize diagramName  graph
     fsResult
-    |> Result.map (runFastSimulation steps)
+    |> Result.map (runFastSimulation timeOut steps)
     |> ignore
     fsResult
 

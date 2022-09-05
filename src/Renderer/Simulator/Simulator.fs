@@ -98,21 +98,73 @@ let getCurrentSimulationState (canvState: CanvasState) (project: Project option)
             SimValidSameSheet
         | true, false -> 
             SimValidDifferentSheet
-        
 
+
+/// Helper used convert port into SheetPort for use by wave simulator determining connectivity
+/// within a design sheet
+let portSheetPort (compsWithIds:Map<ComponentId,Component>) (name:string)  port  =
+    let comp = compsWithIds[ComponentId port.HostId]
+    let compPort = comp.getPort (PortId port.Id)
+    match compPort with
+    | None -> None
+    | Some cPort ->
+        {
+            PortOnComp = cPort
+            Sheet = name
+        } |> Some
 
 /// canvasState: extracted canvasState from draw block.
-/// project: current project
+/// loadedComponents: from project
 /// diagramName: name of current open sheet.
 /// save all needed by simulation ldcs in the FastSimulation record.
-/// The top sheet name muts be saved separately - since if a simulation is being refreshed it must not change
+/// The top sheet name must be saved separately - since if a simulation is being refreshed it must not change
 let saveStateInSimulation (canvasState:CanvasState) (openFileName: string) (loadedComponents: LoadedComponent list) (fs:FastSimulation) =
     let diagramName = openFileName
     let ldcs = getUpdatedLoadedComponentState diagramName canvasState loadedComponents
     //printfn $"diagramName={diagramName}, sheetNames = {ldcs |> List.map (fun ldc -> ldc.Name)}"
     sheetsNeeded ldcs diagramName
     |> List.map (getSheet ldcs)
-    |> (fun updatedLdcs -> {fs with SimulatedCanvasState = updatedLdcs})
+    |> (fun updatedLdcs -> 
+
+        let compMap, portMap =
+            updatedLdcs
+            |> List.map (
+                fun ldc -> 
+                    let comps,conns = ldc.CanvasState
+                    let compsWithIds = 
+                        comps 
+                        |> List.map (fun comp -> ComponentId comp.Id, comp)
+                        |> Map.ofList
+                    
+                    let portSheetPort = portSheetPort compsWithIds ldc.Name 
+                    
+                    let addConnToPort (portOpt: SheetPort option) conn pMap: Map<SheetPort,Connection list> =
+                        match portOpt with
+                        | None -> pMap
+                        | Some port ->
+                            pMap
+                            |> Map.change port (function | Some conns -> Some (conn :: conns) | None -> Some [conn])
+                    let portsToConnections =
+                        (Map.empty, conns)
+                        ||> List.fold (fun pMap conn ->
+                            pMap
+                            |> addConnToPort (portSheetPort conn.Source) conn
+                            |> addConnToPort (portSheetPort conn.Target) conn)
+                        |> Map.toList
+                    ((ldc.Name,compsWithIds), portsToConnections))
+            |> List.unzip  
+
+
+        let compMap = compMap|> Map.ofList
+        let portMap = portMap |> List.concat |> Map.ofList
+    
+            
+        {fs with 
+            SimulatedCanvasState = updatedLdcs
+            ComponentsById = compMap
+            ConnectionsByPort = portMap 
+        })
+     
 
 /// Extract circuit data from inputs and return a checked SimulationData object or an error
 /// SimulationData has some technical debt, it wraps FastSimulation adding some redundant data

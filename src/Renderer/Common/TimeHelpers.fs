@@ -214,7 +214,7 @@ let printStats() =
 /// returns absolute time in ms, works under both .Net and Fable
 let getTimeMs() = 
 #if FABLE_COMPILER
-    Fable.Core.JS.Constructors.Date.now()
+    performanceNow()
 #else
     let start = System.DateTime.UtcNow;           
     float start.Ticks / float 10000

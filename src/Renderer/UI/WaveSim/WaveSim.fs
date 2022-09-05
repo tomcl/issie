@@ -159,26 +159,43 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
 let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
     let start = TimeHelpers.getTimeMs ()
     let shownCycles =
+        let wantedCycles = int (float wsModel.ShownCycles / Constants.zoomChangeFactor)
         if zoomIn then
-            let newCycles = int <| float wsModel.ShownCycles * 0.8
-
+            // try to reduce number of cycles displayed
+            wantedCycles
             // If number of cycles after casting to int does not change
-            if newCycles = int wsModel.ShownCycles then
-                wsModel.ShownCycles - 1
-            // Require at least one visible cycle
-            else max 1 (newCycles)
+            |> (fun nc -> if nc = wsModel.ShownCycles then nc - 1 else nc )
+            // Require a minimum of cycles
+            |> (fun nc -> 
+                    let minVis = min wsModel.ShownCycles Constants.minVisibleCycles
+                    max nc minVis)
         else
-            let newCycles = int <| float wsModel.ShownCycles * 1.25
-
+            let wantedCycles = int (float wsModel.ShownCycles * Constants.zoomChangeFactor)
+            // try to increase number of cycles displayed
+            wantedCycles
             // If number of cycles after casting to int does not change
-            if newCycles = wsModel.ShownCycles then
-                wsModel.ShownCycles + 1
-            // If width of clock cycle is too small
-            else if wsModel.WaveformColumnWidth / float newCycles < Constants.minCycleWidth then
-                wsModel.ShownCycles
-            else newCycles
-
-    dispatch <| GenerateWaveforms { wsModel with ShownCycles = shownCycles }
+            |> (fun nc -> if nc = wsModel.ShownCycles then nc + 1 else nc )
+            |> (fun nc -> 
+                let maxNc = int (wsModel.WaveformColumnWidth / float Constants.minCycleWidth)
+                max wsModel.ShownCycles (min nc maxNc))
+    let startCycle =
+        // preferred start cycle to keep centre of screen ok
+        let sc = (wsModel.StartCycle - (shownCycles - wsModel.ShownCycles)/2)
+        let cOffset = wsModel.CurrClkCycle - sc
+        sc
+        // try to keep cursor on screen
+        |> (fun sc -> 
+            if cOffset > shownCycles - 1 then
+                sc + cOffset - shownCycles + 1
+            elif cOffset < 0 then
+                (sc + cOffset)
+            else
+                sc)
+        // final limits check so no cycle is outside allowed range
+        |> max 0
+        |> min (Constants.maxLastClk - shownCycles)
+        
+    dispatch <| GenerateWaveforms { wsModel with ShownCycles = shownCycles; StartCycle = startCycle }
     |> TimeHelpers.instrumentInterval "changeZoom" start
 
 /// Click on these buttons to change the number of visible clock cycles.
@@ -269,6 +286,13 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
         Tabs.Props [ radixTabsStyle ]
     ] (List.map (radixTab) radixString)
 
+
+let highlightCircuit fs comps wave (dispatch: Msg -> Unit) =
+    dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols comps)))
+    // Filter out any non-existent wires
+    let conns = connsOfWave fs wave 
+    dispatch <| Sheet (SheetT.Msg.SelectWires conns)    
+
 /// Create label of waveform name for each selected wave.
 /// Note that this is generated after calling selectedWaves. Any changes to this function
 /// must also be made to valueRows and waveRows, as the order of the waves matters here.
@@ -290,19 +314,25 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                     if wsModel.DraggedIndex = None then
                         dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
                         // Check if symbol exists on Canvas
-                        match Map.tryFind (fst wave.WaveId.Id) model.Sheet.Wire.Symbol.Symbols with
+                        let symbols = model.Sheet.Wire.Symbol.Symbols
+                        match Map.tryFind (fst wave.WaveId.Id) symbols with
+                        | Some {Component={Type=IOLabel;Label=lab}} ->
+                            let labelComps =
+                                symbols
+                                |> Map.toList
+                                |> List.map (fun (_,sym) -> sym.Component)
+                                |> List.filter (function | {Type=IOLabel;Label = lab} -> true |_ -> false)
+                                |> List.map (fun comp -> ComponentId comp.Id)
+                            highlightCircuit wsModel.FastSim labelComps wave dispatch                            
                         | Some sym ->
-                            dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [fst wave.WaveId.Id])))
-                            // Filter out any non-existent wires
-                            let conns = getConnsOfWave model wave 
-                            dispatch <| Sheet (SheetT.Msg.SelectWires conns)
+                            highlightCircuit wsModel.FastSim [fst wave.WaveId.Id] wave dispatch
                         | None -> ()
                         
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None}
                     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
-                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (getConnsOfWave model wave, false))
+                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (connsOfWave wsModel.FastSim wave, false))
                 )
 
                 Draggable true
@@ -399,8 +429,11 @@ let namesColumn model wsModel dispatch : ReactElement =
 /// rows, rather than many rows of three columns.
 let valueRows (wsModel: WaveSimModel) =
     selectedWaves wsModel
-    |> List.map (getWaveValue wsModel.CurrClkCycle)
-    |> List.map (valToString wsModel.Radix)
+    |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycle wave, wave.Width)
+    |> List.map (fun (busVal, width) ->
+        match width with
+        | 1 -> $" {busVal}" 
+        | _ -> valToString wsModel.Radix busVal)
     |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
 
 /// Create column of waveform values
@@ -649,7 +682,7 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
 let refreshWaveSim (wsModel: WaveSimModel, simData, (comps, conns)) : WaveSimModel = 
     let start = TimeHelpers.getTimeMs ()
     // starting runSimulation
-    FastRun.runFastSimulation (wsModel.StartCycle + wsModel.ShownCycles+1) simData.FastSim
+    FastRun.runFastSimulation None (wsModel.StartCycle + wsModel.ShownCycles+1) simData.FastSim
     |> TimeHelpers.instrumentInterval "runFastSimulation" start
     let fs = simData.FastSim
 
@@ -707,7 +740,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
     | Some (Ok simData, canvState) ->
         if simData.IsSynchronous then
-            setFastSimInputsToDefault simData.FastSim
+            SimulationView.setFastSimInputsToDefault simData.FastSim
             let wsModel = { wsModel with State = Loading }
             dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
             dispatch <| RefreshWaveSim (wsModel, simData, canvState)
@@ -718,7 +751,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
 let topHalf canvasState (model: Model) dispatch : ReactElement =
     let title =
         match model.WaveSimSheet with
-        | None -> "Waveform Simulator"
+        | None -> "Waveform Viewer"
         | Some sheet -> $"Simulating sheet '{sheet}'"
     let wsModel = getWSModel model
     //printfn $"Active wsModel sheet={model.WaveSimSheet}, state = {wsModel.State}"
@@ -727,7 +760,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
         match wsModel.State with
         | Loading -> true
         | _ -> false
-    let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg
+    let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg "white" "20px"
 
     div [ topHalfStyle ] [
         br []
@@ -747,13 +780,16 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                 let wbo = getWaveSimButtonOptions canvasState model wsModel
                 //printfn $"Sim is Dirty{wbo.IsDirty}" 
                 div []
-                    (if wbo.IsDirty && wbo.IsRunning then
-                        [
+                    (let needsRefresh = wbo.IsDirty && wbo.IsRunning
+                    (if not wbo.IsRunning then 
+                        [] 
+                    else
+                        [                        
                             button
-                                (topHalfButtonPropsWithWidth IsSuccess)
+                                (Button.Disabled (not needsRefresh) :: topHalfButtonPropsWithWidth IsSuccess)
                                 startOrRenew
                                 refreshButtonSvg
-                        ] else [])
+                        ]))
 
                 button 
                     (topHalfButtonPropsWithWidth wbo.StartEndColor) 
@@ -763,12 +799,20 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
         ]
 
         Columns.columns [] [
-            Column.column [] [
-                str "View clocked logic waveforms by selecting waves. "
-                str "Select RAMs to view contents during the simulation. "
-                str "View or change any sheet with simulation running. "
-                str "Refresh simulation to see design changes"
-            ]
+            Column.column [] (
+                if model.WaveSimSheet <> None then 
+                    [
+                        str "View clocked logic waveforms by selecting waves. "
+                        str "Select RAMs or ROMs to view contents during the simulation. "
+                        str "View or change any sheet with simulation running. "
+                        str "After design changes use "
+                        refreshSvg "black" "12px"
+                        str " to update waveforms."
+                    ] else
+                    [
+                        str "Use 'Start Simulation' button to simulate current sheet."
+                        str "Drag diver to change width of Viewer."
+                    ])
 
             Column.column [
                 Column.Option.Width (Screen.All, Column.IsNarrow)
@@ -802,7 +846,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
 let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
     let notRunning = 
-        div [ errorMessageStyle ] [ str "Start the waveform simulator by pressing the Start button." ]
+        div [ errorMessageStyle ] [ str "Start the waveform viewer by pressing the Start button." ]
 
     let simError e =
         SimulationView.setSimErrorFeedback e model dispatch
@@ -828,7 +872,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
             | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning              
             | _,NoProject ->
                 div [ errorMessageStyle ]
-                    [ str "Please open a project to use the waveform simulator." ]
+                    [ str "Please open a project to use the waveform viewer." ]
             | _,Loading | _,Success ->
                 //printfn $"Showing waveforms: fs= {wsModel.FastSim}"
                 div [showWaveformsAndRamStyle] [

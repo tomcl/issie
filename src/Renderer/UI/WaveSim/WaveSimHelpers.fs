@@ -14,6 +14,53 @@ open FastRun
 open NumberHelpers
 
 
+
+
+module Constants =
+    /// The horizontal length of a transition cross-hatch for non-binary waveforms
+    let nonBinaryTransLen : float = 8.
+
+    /// The height of the viewbox used for a wave's SVG. This is the same as the height
+    /// of a label in the name and value columns.
+    /// TODO: Combine this with WaveSimStyle.Constants.rowHeight?
+    let viewBoxHeight : float = 30.0
+
+    /// Height of a waveform
+    let waveHeight : float = 0.8 * viewBoxHeight
+    /// Vertical padding between top and bottom of each wave and the row it is in.
+    let spacing : float = (viewBoxHeight - waveHeight) / 2.
+
+    /// y-coordinate of the top of a waveform
+    let yTop = spacing
+    /// y-coordiante of the bottom of a waveform
+    let yBot = waveHeight + spacing
+
+    /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
+    let maxLastClk = 1000
+
+    /// minium number of cycles on screen when zooming in
+    let minVisibleCycles = 3
+
+    /// Minimum number of visible clock cycles.
+    let minCycleWidth = 5
+
+    let zoomChangeFactor = 1.5
+
+    /// If the width of a non-binary waveform is less than this value, display a cross-hatch
+    /// to indicate a non-binary wave is rapidly changing value.
+    let clkCycleNarrowThreshold = 20
+
+    /// number of extra steps simulated beyond that used in simulation. Is this needed?
+    let extraSimulatedSteps = 5 
+
+    let infoMessage = 
+        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
+
+    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
+
+    let infoSignUnicode = "\U0001F6C8"
+
+
 /// Determines whether a clock cycle is generated with a vertical bar at the beginning,
 /// denoting that a waveform changes value at the start of that clock cycle. NB this
 /// does not determine whether a waveform changes value at the end of that clock cycle.
@@ -43,46 +90,6 @@ type Gap = {
     Length: int
 }
 
-
-
-module Constants =
-    /// The horizontal length of a transition cross-hatch for non-binary waveforms
-    let nonBinaryTransLen : float = 8.
-
-    /// The height of the viewbox used for a wave's SVG. This is the same as the height
-    /// of a label in the name and value columns.
-    /// TODO: Combine this with WaveSimStyle.Constants.rowHeight?
-    let viewBoxHeight : float = 30.0
-
-    /// Height of a waveform
-    let waveHeight : float = 0.8 * viewBoxHeight
-    /// Vertical padding between top and bottom of each wave and the row it is in.
-    let spacing : float = (viewBoxHeight - waveHeight) / 2.
-
-    /// y-coordinate of the top of a waveform
-    let yTop = spacing
-    /// y-coordiante of the bottom of a waveform
-    let yBot = waveHeight + spacing
-
-    /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
-    let maxLastClk = 1000
-
-    /// Minimum number of visible clock cycles.
-    let minCycleWidth = 5
-
-    /// If the width of a non-binary waveform is less than this value, display a cross-hatch
-    /// to indicate a non-binary wave is rapidly changing value.
-    let clkCycleNarrowThreshold = 20
-
-    /// number of extra steps simulated beyond that used in simulation. Is this needed?
-    let extraSimulatedSteps = 5 
-
-    let infoMessage = 
-        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
-
-    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
-
-    let infoSignUnicode = "\U0001F6C8"
 
 
 /// If true, then show cross-hatch only for non-binary waves when wave is changing value very fast.
@@ -457,30 +464,111 @@ let setSelectionOpen (wsModel: WaveSimModel) (cBox: CheckBoxStyle) (show:bool) =
     | GroupItem (grp,subSheet) -> setWaveGroupSelectionOpen wsModel [grp,subSheet] show
     | SheetItem subSheet -> setWaveSheetSelectionOpen wsModel [subSheet] show
 
+
+/// get all waves electrically connected to a given wave
+let getConnectedWaves (ws:WaveSimModel) (wave:Wave) : Wave list =
+    ws.AllWaves
+    |> Map.filter (fun wi _ -> wi.SimArrayIndex = wave.WaveId.SimArrayIndex)
+    |> Map.values
+    |> Seq.toList
+
+
+
+
+/// convenience type for use when checking which drivers are connected
+type PortIndex = FastComponent * int * PortType
+
+let getFastSimualationLinkedPorts (fs:FastSimulation) ((fc,pNum, pType)) =
+    fs.FSComps
     
-let getConnsOfWave (model: Model) (wave: Wave) =
-    let symbols = model.Sheet.Wire.Symbol.Symbols
-    let wires = model.Sheet.Wire.Wires
+let getConnectedComponentPorts (ws:WaveSimModel) ((fc, portNum, portType) as port: PortIndex) : PortIndex list =
+    let fs = ws.FastSim
+    let portIO = [fc,portNum,PortType.Input; fc,portNum,PortType.Output]
+    
+    match fc.FType with
+    | Output _ -> 
+        portIO
+    | IOLabel when Map.containsKey (ComponentLabel fc.FLabel,snd fc.fId) fs.FIOActive ->
+        portIO
+    | _ -> 
+        [port]
+
+
+let nameOfSubsheet (fs:FastSimulation) (subSheet: string List) =
+    match subSheet with
+    | [] -> fs.SimulatedTopSheet
+    | sheets -> sheets[sheets.Length - 1]
+    
+let waveToSheetPort fs (wave:Wave) =
+    let sheet = nameOfSubsheet fs wave.SubSheet
+    printfn $"sheet={sheet}, subsheet={wave.SubSheet}"
     let wi = wave.WaveId
-    let portIsTarget (port:Port) (wire:DrawModelType.BusWireT.Wire) = (wire.OutputPort = OutputPortId port.Id)
-    let portIsSource (port:Port) (wire:DrawModelType.BusWireT.Wire) = (wire.InputPort = InputPortId port.Id)
-    Map.tryFind (fst wave.WaveId.Id) symbols
-    |> Option.map (fun sym ->
-                    match wi.PortType with
-                    | PortType.Input -> 
-                        List.tryItem wi.PortNumber sym.Component.InputPorts
-                        |> Option.map portIsSource
-                    | PortType.Output -> 
-                        List.tryItem wi.PortNumber sym.Component.OutputPorts
-                        |> Option.map portIsTarget)
-    |> Option.defaultValue None
-    |> Option.map (fun isConnected  ->   
-        wires
-        |> Map.filter (fun cid wire -> isConnected wire)
-        |> Map.values
-        |> Seq.toList)
+    printfn $"sheets = {fs.ComponentsById |> Map.keys}"
+    let comp = fs.ComponentsById[sheet.ToLower()][fst wi.Id]
+    let port =
+        match wi.PortType, comp.InputPorts.Length > 0, comp.OutputPorts.Length > 0 with
+        | PortType.Input, true, _ | PortType.Output, true, false -> comp.InputPorts[wi.PortNumber]
+        | PortType.Output ,_, true | PortType.Input, false, true -> comp.OutputPorts[wi.PortNumber]
+        | _ -> failwithf "What? no parts found in waveToSheetPort"
+    {
+        Sheet = sheet.ToLower()
+        PortOnComp = port
+    }
+
+
+let connectedPorts fs sheetPort =
+    let compMap = fs.ComponentsById
+    let portMap = fs.ConnectionsByPort
+    let name = sheetPort.Sheet
+    Map.tryFind sheetPort portMap
     |> Option.defaultValue []
-    |> List.map (fun wire -> wire.WId)
+    |> List.collect (fun conn -> 
+        [conn.Source; conn.Target]
+        |> List.map (Simulator.portSheetPort compMap[name] name)
+        |> List.collect (function | None -> [] | Some sheetPort -> [sheetPort]))
+
+let connectedIOs (fs: FastSimulation) (sp: SheetPort) =
+    let comps = fs.ComponentsById[sp.Sheet]
+    match comps[ComponentId sp.PortOnComp.HostId] with
+    | {Type = IOLabel} as comp -> 
+        let sheet = sp.Sheet
+        comps
+        |> Map.values
+        |> Seq.toList
+        |> List.collect (
+            function | {Type=IOLabel; Label = label} as comp1 when label = comp.Label -> 
+                        (
+                            (if comp1.OutputPorts.Length > 0 then [{Sheet = sheet; PortOnComp = comp1.OutputPorts[0]}] else [])@
+                            (if comp1.InputPorts.Length > 0 then [{Sheet = sheet; PortOnComp = comp1.InputPorts[0]}] else [])@
+                            [sp]
+                        )
+                     | _ -> 
+                        [])
+
+    | _ -> [sp]
+
+let rec allConnectedPorts (fs: FastSimulation) (sp:SheetPort list) =
+    let newSP =
+        sp
+        |> List.collect (connectedPorts fs)
+        |> List.collect (connectedIOs fs)
+        |> List.distinct
+    match newSP.Length - sp.Length with
+    | 0 ->
+        newSP
+    | n when n >= 0 -> 
+        allConnectedPorts fs newSP
+    | _ -> 
+        newSP
+
+let connsOfWave (fs:FastSimulation) (wave:Wave) =
+    wave
+    |> waveToSheetPort fs
+    |> (fun sp -> [sp])
+    |> allConnectedPorts fs
+    |> List.collect (fun sp -> match Map.tryFind sp fs.ConnectionsByPort with | None -> [] | Some conns -> conns)
+    |> List.map (fun conn -> ConnectionId conn.Id)
+    |> List.distinct
 
 
 
@@ -505,7 +593,7 @@ let selectionInfoButton = infoButton Constants.infoMessage [FontSize "25px"; Mar
 
 
 
-let removeHighlights model dispatch =
+let removeHighlights (model:Model) dispatch =
     if model.Sheet.SelectedWires.Length > 0 || model.Sheet.SelectedComponents.Length > 0 then
         dispatch <| Sheet (DrawModelType.SheetT.ResetSelection) // Remove highlights.
 
@@ -553,21 +641,12 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
     } 
 
                             
-/// Run ws.FastSim if necessary to enure simulation has number of steps needed to
-/// display all cycles on screen
-let extendSimulation (ws:WaveSimModel) =
+/// Run ws.FastSim if necessary to ensure simulation has number of steps needed to
+/// display all cycles on screen. TimeOut is an optional time out.
+let extendSimulation timeOut (ws:WaveSimModel) =
     let stepsNeeded = ws.ShownCycles + ws.StartCycle
-    FastRun.runFastSimulation (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
+    FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
-let setFastSimInputsToDefault (fs:FastSimulation) =
-    fs.FComps
-    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, match fc.FType with | Input1 (w,defVal) -> (w,defVal) | _ -> failwithf "What? Impossible")
-    |> Map.toList
-    |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
-        match w,defaultVal with
-        | _, Some defaultVal -> cid, convertIntToWireData w (int64 defaultVal)
-        | _, None -> cid, convertIntToWireData w 0L)
-    |> List.iter (fun (cid, wire) -> changeInput cid (FSInterface.IData wire) 0 fs)
+
         
     

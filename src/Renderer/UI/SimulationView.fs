@@ -27,6 +27,9 @@ open Simulator
 open Sheet.SheetInterface
 open DrawModelType
 
+open Optics
+open Optics.Operators
+
 module Constants =
     let maxArraySize = 550
 
@@ -70,7 +73,49 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                        |> dispatch)
         | _ -> () // do nothing if no project is loaded
 
+let setFastSimInputsToDefault (fs:FastSimulation) =
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, match fc.FType with | Input1 (w,defVal) -> (w,defVal) | _ -> failwithf "What? Impossible")
+    |> Map.toList
+    |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
+        match w,defaultVal with
+        | _, Some defaultVal -> cid, convertIntToWireData w (int64 defaultVal)
+        | _, None -> cid, convertIntToWireData w 0L)
+    |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
+
+
+let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
+    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
+        let comp = sym.Component
+        let comp' = 
+            let ct =
+                match comp.Type with 
+                | Input1(w,defVal) -> Input1(w,Some newDefault)
+                | x -> x
+            {comp with Type = ct}
+        {sym with Component = comp'}
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[0])
+    |> Map.values
+    |> Seq.iter (fun (cid, currentValue) -> 
+            match currentValue with
+            | Data fd -> 
+                let newDefault = convertFastDataToInt fd
+                SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
+                |> Optic.map DrawModelType.SheetT.symbol_ 
+                |> Optic.map ModelType.sheet_
+                |> UpdateModel
+                |> dispatch
+            | _ -> () // should never happen
+        )
+    |> ignore
+        
+       
+    
 //----------------------------View level simulation helpers------------------------------------//
+
 
 type SimCache = {
     Name: string
@@ -362,9 +407,9 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
         ]
 
-let simulateWithTime steps simData =
+let simulateWithTime timeOut steps simData =
     let startTime = getTimeMs()
-    FastRun.runFastSimulation (steps + simData.ClockTickNumber) simData.FastSim 
+    FastRun.runFastSimulation timeOut (steps + simData.ClockTickNumber) simData.FastSim 
     getTimeMs() - startTime
 
 let cmd block =
@@ -386,7 +431,7 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let oldClock = simData.FastSim.ClockTick
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
-        FastRun.runFastSimulation clock simData.FastSim 
+        FastRun.runFastSimulation None clock simData.FastSim 
         printfn $"clokctick after runFastSim{clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
@@ -416,7 +461,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
     let numComps = simData.FastSim.FComps.Count
     let initChunk = min steps (20000/(numComps + 1))
     let initTime = getTimeMs()
-    let estimatedTime = (float steps / float initChunk) * (simulateWithTime initChunk simData + 0.0000001)
+    let estimatedTime = (float steps / float initChunk) * (simulateWithTime None initChunk simData + 0.0000001)
     let chunkTime = min 2000. (estimatedTime / 5.)
     let chunk = int <| float steps * chunkTime / estimatedTime
     if steps > 2*initChunk && estimatedTime > 500. then 
@@ -443,7 +488,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
         |> ExecCmdAsynch
         |> dispatch
     else
-        FastRun.runFastSimulation clock simData.FastSim 
+        FastRun.runFastSimulation None clock simData.FastSim 
         printfn $"test2 clock={clock}, clokcticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
@@ -495,7 +540,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             printfn "*********************Incrementing clock from simulator button******************************"
                             printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
-                        FastRun.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
+                        FastRun.runFastSimulation None (simData.ClockTickNumber+1) simData.FastSim 
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
                         if SimulationRunner.simTrace <> None then
                             printfn "-------------------------------------------------------------------------------------------"
@@ -584,7 +629,10 @@ let viewSimulation canvasState model dispatch =
             (canvasState, otherComponents)
             ||> prepareSimulationMemoized Constants.maxArraySize project.OpenFileName project.OpenFileName
             |> function
-               | Ok (simData), state -> Ok simData
+               | Ok (simData), state -> 
+                if simData.FastSim.ClockTick = 0 then 
+                    setFastSimInputsToDefault simData.FastSim
+                Ok simData
                | Error simError, state ->
                   printfn $"ERROR:{simError}"
                   setSimErrorFeedback simError model dispatch
@@ -617,15 +665,29 @@ let viewSimulation canvasState model dispatch =
         let body = match sim with
                    | Error simError -> viewSimulationError simError
                    | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
+        let setDefaultButton =
+            match sim with
+            | Error _ -> div [] []
+            | Ok simData ->
+            div [] [
+                Button.button
+                    [ 
+                        Button.Color IsInfo; 
+                        Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch) ; 
+                        Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
+                    ]
+                    [ str "Set default values for Inputs" ]
+            ]
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
             dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
-        div [] [
+        div [Style[Height "100%"]] [
             Button.button
-                [ Button.Color IsDanger; Button.OnClick endSimulation ]
+                [ Button.Color IsDanger; Button.OnClick endSimulation ; Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left ]]]
                 [ str "End simulation" ]
+            setDefaultButton
             br []; br []
             str "The simulation uses the diagram as it was at the moment of
                  pressing the \"Start simulation\" button."

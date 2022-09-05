@@ -1021,8 +1021,8 @@ let viewWaveInfoPopup dispatch =
             li [] [str "Use 'select waves' window to select which waveforms are viewed. The filter box allows ports to be selected by name. \
                        Expand groups to explore design and find ports."]
                     
-            li [] [str "The waveforms you view can be changed whenever the simulation is running. It is good practice to prune your waveforms \
-                        and keep only the ones you need at any time. This will also make it easier to find waveforms."]
+            li [] [str "The waveforms you view can be changed whenever the simulation is running. It is good practice to \
+                        keep only the ones you need at any time."]
             li [] [str "RAMs and ROMs can be viewed showing contents in the current (cursor) cycle, and showing reads and writes."]
             li [] [str "Selected waveforms are preserved from one simulation to the next."]
         ]
@@ -1057,3 +1057,29 @@ let viewWaveInfoPopup dispatch =
         waveInfo
     let foot _ = div [] []
     dynamicClosablePopup title body foot [Width 1000] dispatch
+
+
+let viewWaveSelectConfirmationPopup numWaves action dispatch =
+    let makeH h =
+        Text.span [ Modifiers [
+            Modifier.TextSize (Screen.Desktop, TextSize.Is6)
+            Modifier.TextWeight TextWeight.Bold
+        ] ] [str h; br []]
+    let styledSpan styles txt = span [Style styles] [str <| txt]
+    let bSpan txt = styledSpan [FontWeight "bold"] txt
+    let iSpan txt = styledSpan [FontStyle "italic"] txt
+    let tSpan txt = span [] [str txt]
+    
+    let title = "Warning"
+    
+    let warning = 
+        div [] [
+            str $"You have selected {numWaves} waveforms. "
+            str "Consider reducing this number to less than 20. Too many waveforms selected in the viewer may impact viewer reponsiveness. \
+                 Best practice is to select only the waveforms you need to view."
+        ]  
+       
+    let body (dialogData:PopupDialogData) =
+        warning
+    let foot _ = div [] []
+    choicePopup title warning "Select waveforms" "Change selection"  action dispatch

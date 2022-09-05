@@ -910,6 +910,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
 let updateSymbolWires (model: Model) (compId: ComponentId) =
     let wires = filterWiresByCompMoved model [compId]
+    
     let newWires =
         model.Wires
         |> Map.toList
@@ -1074,6 +1075,26 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let model =
             {model with Wires = newWires}
         { model with Wires = newWires }, Cmd.ofMsg BusWidths
+
+    | DeleteWiresOnPort (delPorts:(Port option) list) ->
+        match delPorts with
+        |[] ->
+            model, Cmd.none
+        |_ -> 
+            let wires = model.Wires |> Map.toList
+            let connIds = 
+                ([],delPorts)
+                ||> List.fold (fun conns p ->
+                    match p with
+                    |Some port ->
+                        let localConns = 
+                            wires
+                            |> List.filter (fun (connId,wire) -> ((wire.InputPort.ToString() = port.Id) || (wire.OutputPort.ToString() = port.Id)))
+                            |> List.map fst
+                        conns@localConns
+                    |None -> conns                    
+                )
+            model, Cmd.ofMsg (DeleteWires connIds)
 
     | DragSegment (segId : SegmentId, mMsg: MouseT) ->
         let index, connId = segId

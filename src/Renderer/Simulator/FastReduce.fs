@@ -536,7 +536,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             }
             // Algebra at SEL port is not supported
             raise (AlgebraNotImplemented err)
-    | NbitsAdder numberOfBits ->
+    | NbitsAdder numberOfBits |NbitsAdderNoCout numberOfBits ->
         //let cin, A, B = ins 0, ins 1, ins 2
         match ins 0, ins 1, ins 2 with
         | Data cin, Data A, Data B ->
@@ -567,16 +567,73 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                         sum, packBit cout
                 | a, b -> 
                     failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
-            put0 <| Data sum
-            put1 cout
+            match componentType with
+            |NbitsAdder _ -> 
+                put0 <| Data sum
+                put1 cout
+            |_ ->
+                put0 <| Data sum
         | cin, A, B ->
             let cinExp, aExp, bExp =
                 cin.toExp, A.toExp, B.toExp
             let newExp = BinaryExp(BinaryExp(aExp,AddOp,bExp),AddOp,cinExp)
             let out0 = newExp
             let out1 = UnaryExp(CarryOfOp,newExp)
-            put0 <| Alg out0
-            put1 <| Alg out1
+            match componentType with
+            |NbitsAdder _ -> 
+                put0 <| Alg out0
+                put1 <| Alg out1
+            |_ ->
+                put0 <| Alg out0
+    | NbitsAdderNoCin numberOfBits |NbitsAdderNoCinCout numberOfBits ->
+        //let cin, A, B = ins 0, ins 1, ins 2
+        match ins 0, ins 1 with
+        | Data A, Data B ->
+            let sum, cout =
+                let cin = 0u
+                let w = A.Width
+                match A.Dat, B.Dat with
+                | BigWord a, BigWord b ->
+                    let mask = bigIntMask w
+                    let a = a &&& mask
+                    let b = b &&& mask
+                    let sumInt = if cin = 0u then a + b else a + b + bigint 1
+                    let sum = {Dat = BigWord (sumInt &&& bigIntMask w); Width = w}
+                    let cout = if (sumInt >>> w) = bigint 0 then 0u else 1u
+                    sum, packBit cout
+                | Word a, Word b ->
+                    let mask = (1ul <<< w) - 1ul
+                    if w = 32 then
+                        // mask is not needed, but 64 bit adition is needed!
+                        let sumInt =  uint64 a + uint64 b + uint64 (cin &&& 1u)
+                        let cout = uint32 (sumInt >>> w) &&& 1u
+                        let sum = convertIntToFastData w (uint32 sumInt) 
+                        sum, packBit cout
+                    else
+                        let sumInt =  (a &&& mask) + (b &&& mask) + (cin &&& 1u)
+                        let cout = (sumInt >>> w) &&& 1u
+                        let sum = convertIntToFastData w (sumInt &&& mask) 
+                        sum, packBit cout
+                | a, b -> 
+                    failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
+            match componentType with
+            |NbitsAdderNoCin _ -> 
+                put0 <| Data sum
+                put1 cout
+            |_ ->
+                put0 <| Data sum
+        | A, B ->
+            let aExp, bExp =
+                A.toExp, B.toExp
+            let newExp = BinaryExp(aExp,AddOp,bExp)
+            let out0 = newExp
+            let out1 = UnaryExp(CarryOfOp,newExp)
+            match componentType with
+            |NbitsAdderNoCin _ -> 
+                put0 <| Alg out0
+                put1 <| Alg out1
+            |_ ->
+                put0 <| Alg out0
     | NbitsXor numberOfBits ->
         //let A, B = ins 0, ins 1
         match ins 0, ins 1 with
@@ -899,6 +956,82 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 ConnectionsAffected = []
             }
             raise (AlgebraNotImplemented err)
+    | Counter width ->
+        //let bits, enable = insOld 0, insOld 1
+        match insOld 0, insOld 1, insOld 2 with
+        | Data bits, Data load, Data enable ->
+#if ASSERTS
+            assertThat (bits.Width = width)
+            <| sprintf "Counter received data with wrong width: expected %d but got %A" width bits.Width
+#endif
+            if (extractBit (Data enable) 1 = 1u) && (extractBit (Data load) 1 = 0u) then
+                let lastOut = (getLastCycleOut 0)
+                let n = lastOut.toFastData.GetBigInt + (bigint 1)
+                let res = {Dat = BigWord n; Width = bits.Width}
+                put0 <| Data res
+            elif (extractBit (Data enable) 1 = 1u) && (extractBit (Data load) 1 = 1u) then
+                put0 <| Data bits
+            else
+                put0 (getLastCycleOut 0)
+        | _ ->
+            let err = {
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    Counter. Algebraic Simulation has not been implemented for this component."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
+    | CounterNoEnable width ->
+        //let bits, enable = insOld 0, insOld 1
+        match insOld 0, insOld 1 with
+        | Data bits, Data load ->
+#if ASSERTS
+            assertThat (bits.Width = width)
+            <| sprintf "Counter received data with wrong width: expected %d but got %A" width bits.Width
+#endif
+            if (extractBit (Data load) 1 = 0u) then
+                let lastOut = (getLastCycleOut 0)
+                let n = lastOut.toFastData.GetBigInt + (bigint 1)
+                let res = {Dat = BigWord n; Width = bits.Width}
+                put0 <| Data res
+            else
+                put0 <| Data bits
+            
+        | _ ->
+            let err = {
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    Counter. Algebraic Simulation has not been implemented for this component."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
+    | CounterNoLoad width ->
+        //let bits, enable = insOld 0, insOld 1
+        match insOld 0 with
+        | Data enable ->
+            if (extractBit (Data enable) 1 = 1u) then
+                let lastOut = (getLastCycleOut 0)
+                let n = lastOut.toFastData.GetBigInt + (bigint 1)
+                let res = {Dat = BigWord n; Width = width}
+                put0 <| Data res
+            else
+                put0 (getLastCycleOut 0)
+        | _ ->
+            let err = {
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    Counter. Algebraic Simulation has not been implemented for this component."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
+    | CounterNoEnableLoad width ->
+        let lastOut = (getLastCycleOut 0)
+        let n = lastOut.toFastData.GetBigInt + (bigint 1)
+        let res = {Dat = BigWord n; Width = width}
+        put0 <| Data res
     | AsyncROM1 mem -> // Asynchronous ROM.
         let fd = ins 0
 #if ASSERTS

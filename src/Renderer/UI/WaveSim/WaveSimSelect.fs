@@ -41,7 +41,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         | InputPortNumber 0 -> ".SEL"
         | _ -> ".DATA"
 
-    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ ->
+    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ |CounterNoEnableLoad _ ->
         ""
     | DFF | Register _ ->
         ".D"
@@ -59,10 +59,15 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         | InputPortNumber 0 -> ".P"
         | _ -> ".Q"
 
-    | NbitsAdder _ ->
+    | NbitsAdder _ |NbitsAdderNoCout _ ->
         match port with
         | InputPortNumber 0 -> ".Cin"
         | InputPortNumber 1 -> ".P"
+        | _ -> ".Q"
+
+    | NbitsAdderNoCin _ |NbitsAdderNoCinCout _ ->
+        match port with
+        | InputPortNumber 0 -> ".P"
         | _ -> ".Q"
 
     | DFFE | RegisterE _ ->
@@ -70,6 +75,19 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         | InputPortNumber 0 -> ".D"
         | _ -> ".EN"
 
+    | Counter _ ->
+        match port with
+        | InputPortNumber 0 -> ".D"
+        | InputPortNumber 1 -> ".LOAD"
+        | _ -> ".EN"
+
+    | CounterNoEnable _ ->
+        match port with
+        | InputPortNumber 0 -> ".D"
+        | _ -> ".LOAD"
+
+    | CounterNoLoad _ -> ".EN"
+        
     | RAM1 _ | AsyncRAM1 _ ->
         match port with
         | InputPortNumber 0 -> ".ADDR"
@@ -93,11 +111,13 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
         match comp.FType with
         | Not | BusCompare _ | And | Or | Xor | Nand | Nor | Xnor
         | Mux2 | Mux4 | Mux8 | Decode4 | Demux2 | Demux4 | Demux8
-        | DFF | Register _ | DFFE | RegisterE _ |NbitSpreader _ ->
+        | DFF | Register _ | DFFE | RegisterE _ |Counter _
+        |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _|NbitSpreader _ ->
             bitLimsString (0, 0)
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor w | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  ->
+        | NbitsXor w | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  
+        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w->
             bitLimsString (w - 1, 0)
 
         // TODO: Find the right parameters for RAMs and ROMs.
@@ -129,13 +149,16 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
         ""
     | Demux2 | Demux4 | Demux8 ->
         "." + string port
-    | NbitsAdder _ ->
+    | NbitsAdder _ |NbitsAdderNoCin _ ->
         match port with
         | OutputPortNumber 0 ->
             ".SUM"
         | _ ->
             ".COUT"
-    | DFF | DFFE | Register _ | RegisterE _ ->
+    | NbitsAdderNoCout _ |NbitsAdderNoCinCout _ ->
+        ".SUM"
+        
+    | DFF | DFFE | Register _ | RegisterE _ |Counter _ |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
         ".Q"
     | RAM1 _ | AsyncRAM1 _ | AsyncROM1 _ | ROM1 _ ->
         ".DOUT"
@@ -159,7 +182,8 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
             bitLimsString (0, 0)
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor w | NbitsAnd w | NbitsOr w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w ->
+        | NbitsXor w | NbitsAnd w | NbitsOr w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w 
+        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w | Counter w |CounterNoEnable w |CounterNoLoad w |CounterNoEnableLoad w->
             bitLimsString (w - 1, 0)
 
         | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem ->

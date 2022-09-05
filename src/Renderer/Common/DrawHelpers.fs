@@ -255,6 +255,7 @@ let makePolygon (points: string) (polygonParameters: Polygon) =
             SVGAttr.FillOpacity polygonParameters.FillOpacity
     ] []
     
+
 /// Makes a circle ReactElement
 let makeCircle (centreX: float) (centreY: float) (circleParameters: Circle) =
     circle

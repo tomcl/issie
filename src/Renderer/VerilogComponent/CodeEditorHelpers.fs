@@ -224,7 +224,7 @@ let getLineCounterDiv linesNo =
         |> List.collect (fun no ->
             [
             span [] [str (sprintf "%i" no)]
-            br[]
+            br []
             ]
         )
     

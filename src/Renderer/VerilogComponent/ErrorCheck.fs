@@ -1008,7 +1008,7 @@ let getWireLocationMap items =
 let getSemanticErrors ast linesLocations (origin:CodeEditorOpen) (project:Project) =
     
     let (items: ItemT list) = ast.Module.ModuleItems.ItemList |> Array.toList
-    ///////// MAPS, LISTS NEEDED  ////////////////
+    ///////// STATIC MAPS, LISTS NEEDED  ////////////////
     let portMap  = getPortMap items
     let portSizeMap,portLocationMap = getPortSizeAndLocationMap items
     let portWidthDeclarationMap = getPortWidthDeclarationMap items

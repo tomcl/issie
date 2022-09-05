@@ -89,6 +89,30 @@ module SheetInterface =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeNumberOfBits (compId, width) ) ) )
             this.DoBusWidthInference dispatch
 
+        /// Given a compId and a width, update the width of the Component specified by compId
+        member this.ChangeScale (dispatch: Dispatch<Msg>) (compId: ComponentId) (newScale: float) (whichScale:ScaleAdjustment) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeScale (compId, newScale, whichScale) ) ) )
+            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
+
+        member this.ChangeAdderComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeAdderComponent (compId,(this.GetComponentById compId), newComp) ) ) )
+            let delPorts = SymbolUpdate.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
+            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
+            //this.DoBusWidthInference dispatch
+        
+        member this.ChangeCounterComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeCounterComponent (compId,(this.GetComponentById compId), newComp) ) ) )
+            let delPorts = SymbolUpdate.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
+            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
+        
+        /// Given a compId, update the ReversedInputs property of the Component specified by compId
+        member this.ChangeReversedInputs (dispatch: Dispatch<Msg>) (compId: ComponentId) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeReversedInputs (compId) ) ) )
+            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
+            this.DoBusWidthInference dispatch
+
         /// Given a compId and a LSB, update the LSB of the Component specified by compId
         member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeLsb (compId, lsb) ) ) )

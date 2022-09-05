@@ -321,7 +321,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                                 symbols
                                 |> Map.toList
                                 |> List.map (fun (_,sym) -> sym.Component)
-                                |> List.filter (function | {Type=IOLabel;Label = lab} -> true |_ -> false)
+                                |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
                                 |> List.map (fun comp -> ComponentId comp.Id)
                             highlightCircuit wsModel.FastSim labelComps wave dispatch                            
                         | Some sym ->

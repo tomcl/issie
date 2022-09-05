@@ -515,6 +515,17 @@ let waveToSheetPort fs (wave:Wave) =
         PortOnComp = port
     }
 
+/// function to print a lits of SheetPort for debugging IOLabels
+let printSPL (tp:string) (fs:FastSimulation) (spL:SheetPort list) =
+    let comps = fs.ComponentsById
+    let printSP (sp: SheetPort) =
+        let comp = comps[sp.Sheet][ComponentId sp.PortOnComp.HostId]
+        sprintf $"IsIOLabel={comp.Type=IOLabel}, lab={comp.Label}"
+    spL
+    |> List.map printSP
+    |> String.concat ","
+    |> printfn "%s:[%s]" tp
+    spL
 
 let connectedPorts fs sheetPort =
     let compMap = fs.ComponentsById
@@ -550,8 +561,9 @@ let connectedIOs (fs: FastSimulation) (sp: SheetPort) =
 let rec allConnectedPorts (fs: FastSimulation) (sp:SheetPort list) =
     let newSP =
         sp
-        |> List.collect (connectedPorts fs)
         |> List.collect (connectedIOs fs)
+        |> List.distinct
+        |> List.collect (connectedPorts fs)
         |> List.distinct
     match newSP.Length - sp.Length with
     | 0 ->

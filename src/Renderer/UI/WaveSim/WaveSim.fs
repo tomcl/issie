@@ -682,7 +682,7 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
 let refreshWaveSim (wsModel: WaveSimModel, simData, (comps, conns)) : WaveSimModel = 
     let start = TimeHelpers.getTimeMs ()
     // starting runSimulation
-    FastRun.runFastSimulation (wsModel.StartCycle + wsModel.ShownCycles+1) simData.FastSim
+    FastRun.runFastSimulation None (wsModel.StartCycle + wsModel.ShownCycles+1) simData.FastSim
     |> TimeHelpers.instrumentInterval "runFastSimulation" start
     let fs = simData.FastSim
 

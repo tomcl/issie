@@ -548,9 +548,10 @@ let rec allConnectedPorts (fs: FastSimulation) (sp:SheetPort list) =
         |> List.collect (connectedIOs fs)
         |> List.distinct
     match newSP.Length - sp.Length with
-    | 0 -> newSP
-    | n when n >= 0 -> allConnectedPorts fs newSP
-    | _ -> failwithf $"What? allconnectedPorts has decreased ports:\n'{sp}' ->\n'{newSP}'"
+    | n when n >= 0 -> 
+        allConnectedPorts fs newSP
+    | _ -> 
+        newSP
 
 let connsOfWave (fs:FastSimulation) (wave:Wave) =
     wave
@@ -632,11 +633,11 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
     } 
 
                             
-/// Run ws.FastSim if necessary to enure simulation has number of steps needed to
-/// display all cycles on screen
-let extendSimulation (ws:WaveSimModel) =
+/// Run ws.FastSim if necessary to ensure simulation has number of steps needed to
+/// display all cycles on screen. TimeOut is an optional time out.
+let extendSimulation timeOut (ws:WaveSimModel) =
     let stepsNeeded = ws.ShownCycles + ws.StartCycle
-    FastRun.runFastSimulation (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
+    FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
 
         

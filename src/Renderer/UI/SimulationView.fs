@@ -407,9 +407,9 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
         ]
 
-let simulateWithTime steps simData =
+let simulateWithTime timeOut steps simData =
     let startTime = getTimeMs()
-    FastRun.runFastSimulation (steps + simData.ClockTickNumber) simData.FastSim 
+    FastRun.runFastSimulation timeOut (steps + simData.ClockTickNumber) simData.FastSim 
     getTimeMs() - startTime
 
 let cmd block =
@@ -431,7 +431,7 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let oldClock = simData.FastSim.ClockTick
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
-        FastRun.runFastSimulation clock simData.FastSim 
+        FastRun.runFastSimulation None clock simData.FastSim 
         printfn $"clokctick after runFastSim{clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
@@ -461,7 +461,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
     let numComps = simData.FastSim.FComps.Count
     let initChunk = min steps (20000/(numComps + 1))
     let initTime = getTimeMs()
-    let estimatedTime = (float steps / float initChunk) * (simulateWithTime initChunk simData + 0.0000001)
+    let estimatedTime = (float steps / float initChunk) * (simulateWithTime None initChunk simData + 0.0000001)
     let chunkTime = min 2000. (estimatedTime / 5.)
     let chunk = int <| float steps * chunkTime / estimatedTime
     if steps > 2*initChunk && estimatedTime > 500. then 
@@ -488,7 +488,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
         |> ExecCmdAsynch
         |> dispatch
     else
-        FastRun.runFastSimulation clock simData.FastSim 
+        FastRun.runFastSimulation None clock simData.FastSim 
         printfn $"test2 clock={clock}, clokcticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
@@ -540,7 +540,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             printfn "*********************Incrementing clock from simulator button******************************"
                             printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
-                        FastRun.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
+                        FastRun.runFastSimulation None (simData.ClockTickNumber+1) simData.FastSim 
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
                         if SimulationRunner.simTrace <> None then
                             printfn "-------------------------------------------------------------------------------------------"

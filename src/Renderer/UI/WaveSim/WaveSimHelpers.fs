@@ -548,6 +548,8 @@ let rec allConnectedPorts (fs: FastSimulation) (sp:SheetPort list) =
         |> List.collect (connectedIOs fs)
         |> List.distinct
     match newSP.Length - sp.Length with
+    | 0 ->
+        newSP
     | n when n >= 0 -> 
         allConnectedPorts fs newSP
     | _ -> 

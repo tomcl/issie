@@ -302,7 +302,9 @@ let getCompDetails fs wave =
         | Demux4 -> "4 input demultiplexer", false
         | Demux8 -> "8 input demultiplexer", false
         | Decode4 -> "2 line decoder", false
-        | NbitsAdder n -> $"{n} bit adder",false
+        | NbitsAdder n | NbitsAdderNoCin n 
+        | NbitsAdderNoCout n | NbitsAdderNoCinCout n     
+            -> $"{n} bit adder",false
         | NbitsXor n -> $"{n} XOR gates",false
         | NbitsAnd n -> $"{n} AND gates",false
         | NbitsNot n -> $"{n} Not gates",false
@@ -313,6 +315,10 @@ let getCompDetails fs wave =
         | DFFE -> "D flipflop with enable", false
         | Register n -> $"{n} bit D register", false
         | RegisterE n -> $"{n} bit D register with enable", false
+        | Counter n -> $"{n} bit Counter with enable and load", false
+        | CounterNoLoad n -> $"{n} bit Counter with enable", false
+        | CounterNoEnable n -> $"{n} bit Counter with load", false
+        | CounterNoEnableLoad n -> $"{n} bit Counter", false
         | AsyncROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false
         | ROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
         | RAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
@@ -335,10 +341,10 @@ let getCompGroup fs wave =
         Buses
     | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
         MuxDemux
-    | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _->
+    | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _->
         Arithmetic
     | Custom _ -> CustomComp
-    | DFF | DFFE | Register _ | RegisterE _ ->
+    | DFF | DFFE | Register _ | RegisterE _ |Counter _ |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
         FFRegister
     | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
         Memories                

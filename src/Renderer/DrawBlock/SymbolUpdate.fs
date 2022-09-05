@@ -217,6 +217,9 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | Output _ -> Output newBits
         | Viewer _ -> Viewer newBits
         | NbitsAdder _ -> NbitsAdder newBits
+        | NbitsAdderNoCin _ -> NbitsAdderNoCin newBits
+        | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout newBits
+        | NbitsAdderNoCout _ -> NbitsAdderNoCinCout newBits
         | NbitsXor _ -> NbitsXor newBits
         | NbitsAnd _ -> NbitsAnd newBits
         | NbitsOr _ -> NbitsOr newBits
@@ -224,6 +227,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | NbitSpreader _ -> NbitSpreader newBits 
         | Register _ -> Register newBits
         | RegisterE _ -> RegisterE newBits
+        | Counter _ -> Counter newBits
         | SplitWire _ -> SplitWire newBits
         | BusSelection (_,b) -> BusSelection (newBits,b)
         | BusCompare (_,b) -> BusCompare (newBits,b)
@@ -269,6 +273,260 @@ let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (c
     let newcompo = {symbol.Component with Type = newcompotype}
     printfn "Changing symbol to: %A" newcompotype
     {symbol with Component = newcompo}
+
+
+let changeReversedInputs (symModel: Model) (compId: ComponentId) =
+    let symbol = Map.find compId symModel.Symbols
+    let newValue =
+        match symbol.ReversedInputPorts with
+        |Some false -> Some true
+        |Some true -> Some false
+        |None -> Some true
+    let newSymbolInfo = 
+        match symbol.Component.SymbolInfo with
+        |Some si -> Some {si with ReversedInputPorts = newValue}
+        |None -> None
+    let newcompo = {symbol.Component with SymbolInfo = newSymbolInfo }
+    {symbol with Component = newcompo; ReversedInputPorts = newValue}
+
+let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
+    let createNewPort no hostID portType = 
+            {
+                Id = JSHelpers.uuid ()
+                PortNumber = Some no
+                PortType = portType
+                HostId = hostID
+            } 
+    let oldCompType = oldComp.Type
+    let portNoDown (port:Port) =
+        let no = port.PortNumber |> Option.get
+        {port with PortNumber = Some (no-1)}
+    let portNoUp (port:Port) =
+        let no = port.PortNumber |> Option.get
+        {port with PortNumber = Some (no+1)}
+    let changeInputPortList (inputPortList:Port list) =
+        inputPortList
+        |> List.collect (fun port ->
+            match oldCompType,newComp with
+            |NbitsAdder _,NbitsAdderNoCin _ 
+            |NbitsAdderNoCout _, NbitsAdderNoCinCout _-> 
+                match port.PortNumber with
+                |Some 0 -> []
+                |_ -> [portNoDown port]
+            |NbitsAdderNoCin _ , NbitsAdder _ 
+            |NbitsAdderNoCinCout _ , NbitsAdderNoCout _ ->
+                match port.PortNumber with
+                |Some 0 -> [(createNewPort 0 oldComp.Id PortType.Input);portNoUp port]
+                |_ -> [portNoUp port]
+            |_,_ -> [port] 
+        )
+
+    let changeOutputPortList (outputPortList:Port list) =
+        outputPortList
+        |> List.collect (fun port ->
+            match oldCompType,newComp with
+            |NbitsAdder _,NbitsAdderNoCout _ 
+            |NbitsAdderNoCin _, NbitsAdderNoCinCout _-> 
+                match port.PortNumber with
+                |Some 0 -> [port]
+                |_ -> []
+            |NbitsAdderNoCout _ , NbitsAdder _ 
+            |NbitsAdderNoCinCout _ , NbitsAdderNoCin _ ->
+                match port.PortNumber with
+                |Some x -> [port; createNewPort 1 oldComp.Id PortType.Output]
+                |_ -> []
+            |_,_ -> [port]
+        )
+
+    let inputEdge (rotation:Rotation) flipped =
+        match rotation,flipped with
+        |Degree0,false |Degree0,true -> Bottom
+        |Degree90,false |Degree270,true -> Right
+        |Degree180,true |Degree180,false  -> Top
+        |Degree270,false |Degree90,true -> Left
+
+
+    let changePortMaps rotation flipped (oldMaps:PortMaps) addedId removedId =
+        let order,orientation = oldMaps.Order, oldMaps.Orientation
+        match addedId,removedId with
+        |None, Some i ->
+            let edge = Map.find i orientation
+            let newOrientation = Map.remove i orientation
+            let onEdge = Map.find edge order
+            let newOnEdge = List.filter(fun x -> x<>i) onEdge
+            let newOrder = Map.add edge newOnEdge order
+            {Order=newOrder;Orientation=newOrientation}
+        |Some i, None ->
+            let edge = 
+                match oldCompType,newComp with
+                |NbitsAdderNoCin _,NbitsAdder _
+                |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> inputEdge rotation flipped
+                |NbitsAdderNoCout _, NbitsAdder _
+                |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> Map.find oldComp.OutputPorts[0].Id orientation
+                |_ -> failwithf "Can't happen"
+            let newOrientation = Map.add i edge orientation
+            let onEdge = Map.find edge order
+            let newOrder = 
+                match flipped with
+                |false -> Map.add edge (onEdge@[i]) order
+                |true -> Map.add edge ([i]@onEdge) order
+            {Order=newOrder;Orientation=newOrientation}
+        |_,_ -> oldMaps
+
+    let symbol = Map.find compId symModel.Symbols
+    
+    //printfn "here"
+    let newInputPorts = (changeInputPortList symbol.Component.InputPorts)
+    let newOutputPorts = (changeOutputPortList symbol.Component.OutputPorts)
+    let removedId = 
+        match oldCompType,newComp with
+        |NbitsAdder _,NbitsAdderNoCin _
+        |NbitsAdderNoCout _,NbitsAdderNoCinCout _-> Some symbol.Component.InputPorts[0].Id
+        |NbitsAdder _,NbitsAdderNoCout _
+        |NbitsAdderNoCin _,NbitsAdderNoCinCout _-> Some symbol.Component.OutputPorts[1].Id
+        |_ -> None 
+
+    let addedId =
+        match oldCompType,newComp with
+        |NbitsAdderNoCin _,NbitsAdder _
+        |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> Some newInputPorts[0].Id
+        |NbitsAdderNoCout _, NbitsAdder _
+        |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> Some newOutputPorts[1].Id
+        |_ -> None 
+    
+
+    let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.STransform.flipped symbol.PortMaps addedId removedId
+
+    let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts; OutputPorts = newOutputPorts}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
+    
+    {symbol with Component = newcompo;PortMaps = newPortMaps}
+
+let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
+    let createNewPort no hostID portType = 
+            {
+                Id = JSHelpers.uuid ()
+                PortNumber = Some no
+                PortType = portType
+                HostId = hostID
+            } 
+    let oldCompType = oldComp.Type
+    let portNoDown (port:Port) =
+        let no = port.PortNumber |> Option.get
+        {port with PortNumber = Some (no-1)}
+    let portNoUp (port:Port) =
+        let no = port.PortNumber |> Option.get
+        {port with PortNumber = Some (no+1)}
+    let symbol = Map.find compId symModel.Symbols
+    let oldInputList = symbol.Component.InputPorts
+    let newInputPorts =
+        match oldCompType,newComp with
+        |Counter _,CounterNoLoad _ ->
+            [portNoDown (portNoDown oldInputList[2])]        
+        |CounterNoEnable _, CounterNoEnableLoad _-> 
+            []
+        |CounterNoLoad _ , Counter _ ->
+            [(createNewPort 0 oldComp.Id PortType.Input);(createNewPort 1 oldComp.Id PortType.Input);portNoUp (portNoUp oldInputList[0])]
+        |CounterNoEnableLoad _ , CounterNoEnable _ ->
+            [(createNewPort 0 oldComp.Id PortType.Input);(createNewPort 1 oldComp.Id PortType.Input)]
+        |Counter _, CounterNoEnable _ ->
+            [oldInputList[0];oldInputList[1]]
+        |CounterNoLoad _, CounterNoEnableLoad _ ->
+            []
+        |CounterNoEnableLoad _ , CounterNoLoad _ ->
+            [(createNewPort 0 oldComp.Id PortType.Input)]
+        |CounterNoEnable _, Counter _ ->
+            oldInputList@[(createNewPort 2 oldComp.Id PortType.Input)]
+        |_,_ -> oldInputList 
+        
+
+    let findOpposite (edge:Edge) =
+        match edge with
+        |Right -> Left
+        |Top -> Bottom
+        |Left -> Right
+        |Bottom -> Top
+    
+    let changePortMaps flipped (oldMaps:PortMaps) removedId1 removedId2 added1 added2 =
+        let order,orientation = oldMaps.Order, oldMaps.Orientation
+        let edge = findOpposite (Map.find oldComp.OutputPorts[0].Id orientation)
+        match removedId1,removedId2,added1,added2 with
+        |Some i1, Some i2,None,None ->
+            let newOrientation = Map.remove i1 orientation
+            let newOrientation' =  Map.remove i2 newOrientation
+            let onEdge = Map.find edge order
+            let newOnEdge = List.filter(fun x -> (x<>i1)) onEdge
+            let newOnEdge' = List.filter(fun x -> (x<>i2)) newOnEdge
+            let newOrder = Map.add edge newOnEdge' order
+            {Order=newOrder;Orientation=newOrientation'}
+        |Some i, None, None, None ->
+            let newOrientation = Map.remove i orientation
+            let onEdge = Map.find edge order
+            let newOnEdge = List.filter(fun x -> x<>i) onEdge
+            let newOrder = Map.add edge newOnEdge order
+            {Order=newOrder;Orientation=newOrientation}
+        |None,None,Some i1, Some i2 ->
+            let newOrientation = Map.add i1 edge orientation
+            let newOrientation' = Map.add i2 edge newOrientation
+            let onEdge = Map.find edge order
+            let newOrder = 
+                match flipped with
+                |false -> Map.add edge ([i1;i2]@onEdge) order
+                |true -> Map.add edge (onEdge@[i1;i2]) order
+            {Order=newOrder;Orientation=newOrientation'}
+        |None,None,Some i,None ->
+            let newOrientation = Map.add i edge orientation
+            let onEdge = Map.find edge order
+            let newOrder = 
+                match flipped with
+                |false -> Map.add edge (onEdge@[i]) order
+                |true -> Map.add edge ([i]@onEdge) order
+            {Order=newOrder;Orientation=newOrientation}
+        |_,_,_,_ -> oldMaps
+
+    
+    
+    //printfn "here"
+    let removedId1, removedId2 = 
+        match oldCompType,newComp with
+        |Counter _,CounterNoLoad _
+        |CounterNoEnable _,CounterNoEnableLoad _-> Some symbol.Component.InputPorts[0].Id, Some symbol.Component.InputPorts[1].Id
+        |Counter _,CounterNoEnable _ -> Some symbol.Component.InputPorts[2].Id, None
+        |CounterNoLoad _,CounterNoEnableLoad _-> Some symbol.Component.InputPorts[0].Id, None
+        |_,_ -> None, None
+
+    let added1,added2 =
+        match oldCompType,newComp with
+        |CounterNoLoad _, Counter _
+        |CounterNoEnableLoad _, CounterNoEnable _ -> Some newInputPorts[0].Id, Some newInputPorts[1].Id
+        |CounterNoEnable _,Counter _ -> Some newInputPorts[2].Id, None
+        |CounterNoEnableLoad _ , CounterNoLoad _ -> Some newInputPorts[0].Id, None
+        |_,_ -> None, None
+
+    let newPortMaps = changePortMaps symbol.STransform.flipped symbol.PortMaps removedId1 removedId2 added1 added2
+
+    let h',w' = match getComponentProperties newComp "" with |_,_,h,w -> h,w
+
+    let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts; H=h'; W=w'}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
+    //printfn "newsymbol %A" {symbol with Component = newcompo;PortMaps = newPortMaps}
+    {symbol with Component = newcompo;PortMaps = newPortMaps;}
+
+
+let findDeletedPorts (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
+    let symbol = Map.find compId symModel.Symbols
+    let oldCompType = oldComp.Type
+    let removedIds = 
+        match oldCompType,newComp with
+        |NbitsAdder _,NbitsAdderNoCin _
+        |NbitsAdderNoCout _,NbitsAdderNoCinCout _-> [symbol.Component.InputPorts[0].Id]
+        |NbitsAdder _,NbitsAdderNoCout _
+        |NbitsAdderNoCin _,NbitsAdderNoCinCout _-> [symbol.Component.OutputPorts[1].Id]
+        |Counter _,CounterNoLoad _
+        |CounterNoEnable _,CounterNoEnableLoad _-> [symbol.Component.InputPorts[0].Id;symbol.Component.InputPorts[1].Id]
+        |Counter _,CounterNoEnable _ -> [symbol.Component.InputPorts[2].Id]
+        |CounterNoLoad _,CounterNoEnableLoad _-> [symbol.Component.InputPorts[0].Id]
+        |_,_ -> []
+    removedIds
+    |> List.map (fun x -> Map.tryFind x symModel.Ports)
 
 //---------------------Helper functions for the upadte function------------------------------//
 
@@ -535,11 +793,14 @@ let createSymbol ldcs prevSymbols comp =
                 InWidth0 = None
                 InWidth1 = None
                 STransform = getSTransformWithDefault comp.SymbolInfo
+                ReversedInputPorts = match comp.SymbolInfo with |Some si -> si.ReversedInputPorts |_ -> None
                 PortMaps = portMaps
                 
                 MovingPort = None
                 IsClocked = clocked
                 MovingPortTarget = None
+                HScale = match comp.SymbolInfo with |Some si -> si.HScale |_ -> None
+                VScale = match comp.SymbolInfo with |Some si -> si.VScale |_ -> None
             }
             |> autoScaleHAndW
             |> calcLabelBoundingBox
@@ -844,31 +1105,7 @@ let reCreateVerilogSymbol (comp: Component) (oldSym:Symbol) : Symbol =
     let comp = comp
     let transform = {Rotation= Degree0; flipped= false}
     {oldSym with Component=comp}
-    // { 
-    //   Pos = oldSym.Pos
-    //   LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
-    //   LabelHasDefaultPos = true
-    //   LabelRotation = None
-    //   Appearance =
-    //       {
-    //         HighlightLabel = false
-    //         ShowPorts = ShowNone
-    //         Colour = "lightgray"
-    //         Opacity = 1.0
-    //       }
-    //   InWidth0 = None // set by BusWire
-    //   InWidth1 = None
-    //   Id = ComponentId id
-    //   Component = comp
-    //   Moving = false
-    //   PortMaps = initPortOrientation comp
-    //   STransform = transform
-    //   MovingPort = None
-    //   IsClocked = false
-    //   MovingPortTarget = None
-    // }
-    // |> autoScaleHAndW
-    // |> calcLabelBoundingBox
+
 
 
 let inline replaceSymbol (model: Model) (newSymbol: Symbol) (compId: ComponentId) : Model =
@@ -918,6 +1155,7 @@ let private modifySymbolsByCompIds
 /// It is saved in extra SymbolInfo type and corresp field in Component.
 let getLayoutInfoFromSymbol symbol =
     { STransform = symbol.STransform
+      ReversedInputPorts = symbol.ReversedInputPorts
       PortOrientation = symbol.PortMaps.Orientation
       PortOrder = symbol.PortMaps.Order 
       LabelRotation = symbol.LabelRotation
@@ -925,7 +1163,10 @@ let getLayoutInfoFromSymbol symbol =
         if symbol.LabelHasDefaultPos then 
             None 
         else 
-            Some symbol.LabelBoundingBox}
+            Some symbol.LabelBoundingBox
+      HScale = symbol.HScale
+      VScale = symbol.VScale
+    }
 /// Return a symbol with its embedded component correctly updated with symbol layoiut info.
 /// Should be called juts before saving a component.
 let storeLayoutInfoInComponent _ symbol =
@@ -1123,6 +1364,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newsymbol = changeNumberOfBitsf model compId newBits
         (replaceSymbol model newsymbol compId), Cmd.none
     
+    | ChangeScale (compId,newScale,whichScale) ->
+        let symbol = Map.find compId model.Symbols
+        let newSymbol = 
+            match whichScale with
+            |Horizontal -> {symbol with HScale=Some newScale}
+            |Vertical -> {symbol with VScale=Some newScale}
+        (replaceSymbol model newSymbol compId), Cmd.none
+
     | ChangeLsb (compId, newLsb) -> 
         let newsymbol = changeLsbf model compId newLsb
         (replaceSymbol model newsymbol compId), Cmd.none
@@ -1131,6 +1380,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newSymbol = changeInputValue model compId newVal
         (replaceSymbol model newSymbol compId), Cmd.none
 
+    | ChangeReversedInputs (compId) ->
+        let newSymbol = changeReversedInputs model compId
+        (replaceSymbol model newSymbol compId), Cmd.none
+    | ChangeAdderComponent (compId, oldComp, newComp) ->
+        let newSymbol = changeAdderComponent model compId oldComp newComp
+        let newPorts = addToPortModel model newSymbol
+        let newModel = {model with Ports = newPorts}  
+        (replaceSymbol newModel newSymbol compId), Cmd.none
+    | ChangeCounterComponent (compId, oldComp, newComp) ->
+        let newSymbol = changeCounterComponent model compId oldComp newComp
+        let newPorts = addToPortModel model newSymbol
+        let newModel = {model with Ports = newPorts}  
+        (replaceSymbol newModel newSymbol compId), Cmd.none
     | ChangeConstant (compId, newVal, newText) -> 
         let newsymbol = changeConstantf model compId newVal newText
         (replaceSymbol model newsymbol compId), Cmd.none

@@ -160,6 +160,55 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
             (getInt dialogData < 1) || notGoodLabel
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
+
+let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
+    let title = sprintf "Sheet Description"
+    let beforeText =
+        fun _ -> str <| sprintf "Add description for sheet '%s'" sheetName
+    let body =  dialogPopupBodyOnlyTextWithDefaultValue beforeText "Description" previousDescr dispatch
+    let buttonText = "Save"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let descr = getText dialogData
+
+            match model.CurrentProj with
+            |None -> failwithf "Can't happen"
+            |Some p ->
+                let target_ldc = p.LoadedComponents |> List.find (fun x -> x.Name = sheetName)
+                let other_ldc = p.LoadedComponents |> List.filter (fun x -> x.Name <> sheetName)
+                let target_ldc' = {target_ldc with Description=Some descr}  //add description to ldc
+                
+                let other_ldc' =  //find all custom comps originating from that sheet and update their description
+                    other_ldc 
+                    |> List.map (fun ldc -> 
+                        let newComps = 
+                            ldc.CanvasState
+                            |> fst
+                            |> List.map (fun comp ->
+                                match comp.Type with
+                                |Custom x when x.Name = sheetName -> 
+                                    let newCompType = Custom {x with Description = Some descr} 
+                                    {comp with Type = newCompType}
+                                |_ -> comp
+                        )
+                        let newCS = newComps,(ldc.CanvasState |> snd)
+                        {ldc with CanvasState = newCS}
+                    )
+
+                let fixed_ldcs = other_ldc'@[target_ldc'] 
+                let p' = {p with LoadedComponents=fixed_ldcs}
+                let model' = {model with CurrentProj = Some p'}
+                dispatch <| SetProject p'
+                saveOpenFileActionWithModelUpdate model' dispatch |> ignore
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) ->
+            getText dialogData
+            |> Seq.toList
+            |> List.tryHead
+            |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
 let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"
     let beforeInt =
@@ -715,7 +764,8 @@ let viewCatalogue model dispatch =
                           catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or \
                                                                                                 more selected bits of its input"
                           catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \
-                                                                                                 matches a constant value" ]
+                                                                                                 matches a constant value" 
+                          catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "1-to-N bits spreader"]
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
@@ -739,8 +789,7 @@ let viewCatalogue model dispatch =
                           catTip1 "N bits XOR" (fun _ -> createNbitsXorPopup model dispatch) "N bit XOR gates - use to make subtractor or comparator"
                           catTip1 "N bits AND" (fun _ -> createNbitsAndPopup model dispatch) "N bit AND gates"
                           catTip1 "N bits OR" (fun _ -> createNbitsOrPopup model dispatch) "N bit OR gates"
-                          catTip1 "N bits NOT" (fun _ -> createNbitsNotPopup model dispatch) "N bit NOT gates"
-                          catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "1-to-N bits spreader"]
+                          catTip1 "N bits NOT" (fun _ -> createNbitsNotPopup model dispatch) "N bit NOT gates"]
 
                     makeMenuGroup
                         "Flip Flops and Registers"
@@ -748,7 +797,8 @@ let viewCatalogue model dispatch =
                                                                                                    so ripple counters cannot be implemented in Issie"
                           catTip1 "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch) "D flip-flop: output will remain unchanged when En is 0"
                           catTip1 "Register" (fun _ -> createRegisterPopup Register model dispatch) "N D flip-flops with inputs and outputs combined into single N bit busses"
-                          catTip1 "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) "As register but outputs stay the same if En is 0"]
+                          catTip1 "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) "As register but outputs stay the same if En is 0"
+                          catTip1 "Counter" (fun _ -> createRegisterPopup Counter model dispatch) "N-bits counter with customisable enable and load inputs"]
                     makeMenuGroup
                         "Memories"
                         [ catTip1 "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM1 model dispatch) "This is combinational: \

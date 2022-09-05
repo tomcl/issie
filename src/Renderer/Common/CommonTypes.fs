@@ -190,7 +190,9 @@ module CommonTypes
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
         | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
-        | NbitsAdder of BusWidth: int | NbitsXor of BusWidth:int
+        | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
+        |NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
+        | NbitsXor of BusWidth:int
         | NbitsAnd of BusWidth: int | NbitsNot of BusWidth: int
         | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
         | Custom of CustomComponentType // schematic sheet used as component
@@ -198,6 +200,8 @@ module CommonTypes
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
+        | Counter of BusWidth:int | CounterNoLoad of BusWidth:int
+        | CounterNoEnable of BusWidth:int | CounterNoEnableLoad of BusWidth:int
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
@@ -241,12 +245,20 @@ module CommonTypes
     }
         with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
     
+    
+    type ScaleAdjustment =
+        | Horizontal
+        | Vertical
+    
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option
         LabelRotation: Rotation option
         STransform: STransform
+        ReversedInputPorts: bool option
         PortOrientation: Map<string, Edge>
         PortOrder: Map<Edge, string list>
+        HScale: float option
+        VScale: float option
     }
 
 
@@ -599,7 +611,7 @@ module CommonTypes
         ProjectPath : string
         /// name of viewed sheet (Form: User) (without extension)
         OpenFileName : string
-        /// name of sheet performing operation on
+        /// name of sheet performing operation on (e.g.: when Verilog Editor is open)
         WorkingFileName : string option
         /// componnets have one-one correspondence with files
         LoadedComponents : LoadedComponent list

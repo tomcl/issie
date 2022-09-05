@@ -9,6 +9,7 @@ module FileMenuView
 open Fulma
 open Fable.React
 open Fable.React.Props
+open Fulma.Extensions.Wikiki
 
 open Helpers
 open JSHelpers
@@ -254,7 +255,8 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         // "DEBUG: Saving Sheet"
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
-        let sheetInfo = {Form=Some User;Description=None} //only user defined sheets are editable and thus saveable
+        let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
+        let sheetInfo = {Form = ldc.Form; Description = ldc.Description} //only user defined sheets are editable and thus saveable
         let savedState = canvasState, getSavedWave model,(Some sheetInfo)
         if isAuto then
             failwithf "Auto saving is no longer used"
@@ -957,6 +959,22 @@ let getSheetTrees (p:Project) =
     |> Map.ofList
 
 /// Display top menu.
+let getInfoButton (name:string) (project:Project) : ReactElement =
+    let comp =
+        project.LoadedComponents
+        |> List.find (fun ldc -> ldc.Name = name)
+
+    match comp.Description with
+    |Some discr ->
+        div 
+            [
+                HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsInfo} {Tooltip.IsTooltipRight}"
+                Tooltip.dataTooltip discr
+                Style [FontSize "20px"; MarginTop "0px"; MarginRight "10px"; Float FloatOptions.Left]] 
+            [str "\U0001F6C8"]
+    | None ->
+        null
+
 let viewTopMenu model dispatch =
     let compIds = getComponentIds model
 
@@ -975,9 +993,11 @@ let viewTopMenu model dispatch =
                 [Props [Style [FontWeight "bold"]]]
         Navbar.Item.div [ Navbar.Item.Props [ styleNoBorder  ] ]
             [ Level.level [ Level.Level.Props [ styleNoBorder ]]
-                  [ Level.left nameProps [ Level.item [] [ str name ] ]
+                  [ Level.left nameProps [ Level.item [] [ str name] ]
                     Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
-                        [ Level.item []
+                        [ 
+                          (getInfoButton name project)
+                          Level.item []
                               [ Button.button
                                   [ Button.Size IsSmall
                                     Button.IsOutlined

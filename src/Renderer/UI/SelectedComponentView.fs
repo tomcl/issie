@@ -280,7 +280,7 @@ let private changeAdderType model (comp:Component) dispatch =
                 |_ -> failwithf "Cannot change adder type from non-adder component"
 
         div [] [
-            Label.label [] [ str "Cin/Cout Appearance"]
+            Label.label [] [ str "Optional Ports"]
             Button.button
                 [ 
                 Button.IsOutlined
@@ -342,7 +342,7 @@ let private changeCounterType model (comp:Component) dispatch =
                 |_ -> failwithf "Cannot change adder type from non-adder component"
 
         div [] [
-            Label.label [] [ str "Load/Enable Appearance"]
+            Label.label [] [ str "Optional Inputs"]
             Button.button
                 [ 
                 Button.IsOutlined
@@ -811,8 +811,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                     Label.label [] [str "Sheet Description"]
                     Button.button
                         [ 
-                            Button.IsOutlined
-                            Button.Color IsPrimary
+                            Button.Color IsSuccess
                             Button.OnClick (fun _ ->
                                 createSheetDescriptionPopup model None sheetName dispatch
                             )
@@ -827,9 +826,8 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                     p [] [str descr]
                     br []
                     Button.button
-                        [ 
-                            Button.IsOutlined
-                            Button.Color IsPrimary
+                        [
+                            Button.Color IsSuccess
                             Button.OnClick (fun _ ->
                                 createSheetDescriptionPopup model sheetDescription sheetName dispatch
                             )

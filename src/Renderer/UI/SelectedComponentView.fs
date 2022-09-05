@@ -241,17 +241,17 @@ let private changeAdderType model (comp:Component) dispatch =
     | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
     | Some project ->
         let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    
-        let colourCin,colourCout =
+        
+        let checkedCin,checkedCout =
             match comp.Type with
             |NbitsAdder w ->
-                IsPrimary, IsPrimary 
+                Checked true, Checked true
             |NbitsAdderNoCout w ->
-                IsPrimary, IsDanger
+                Checked true, Checked false
             |NbitsAdderNoCin w ->
-                IsDanger, IsPrimary 
+                Checked false, Checked true 
             |NbitsAdderNoCinCout w ->
-                IsDanger, IsDanger
+                Checked false, Checked false
             | _ -> failwithf "Cannot change adder type from non-adder component"
 
         let buttonActionCin =
@@ -281,20 +281,18 @@ let private changeAdderType model (comp:Component) dispatch =
 
         div [] [
             Label.label [] [ str "Optional Ports"]
-            Button.button
-                [ 
-                Button.IsOutlined
-                Button.Color colourCin
-                Button.OnClick(buttonActionCin)
+            
+            Table.table [] [
+                tr [] [
+                    td [Style [BorderStyle "solid"]] [str "Cin"]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnClick (buttonActionCin); Value "Cin"; Id "Cin-button"; Name "Cin-button"; checkedCin; Style [Height "15px"; Width "15px"]]]]
                 ]
-                [ str "Cin" ]
-            Button.button
-                [ 
-                Button.IsOutlined
-                Button.Color colourCout
-                Button.OnClick(buttonActionCout)
+                tr [] [
+                    td [Style [BorderStyle "solid"]] [str "Cout"]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnClick (buttonActionCout); Value "Cout"; Id "Cout-button"; Name "Cout-button"; checkedCout; Style [Height "15px"; Width "15px"]]]]
                 ]
-                [ str "Cout" ]
+            ]
+            br []
             ]
 
 
@@ -304,16 +302,16 @@ let private changeCounterType model (comp:Component) dispatch =
     | Some project ->
         let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
-        let colourLoad,colourEnable =
+        let checkedLoad,checkedEnable=
             match comp.Type with
             |Counter _ ->
-                IsPrimary, IsPrimary 
+                Checked true, Checked true 
             |CounterNoEnable _ ->
-                IsPrimary, IsDanger
+                Checked true, Checked false
             |CounterNoLoad _ ->
-                IsDanger, IsPrimary 
+                Checked false, Checked true 
             |CounterNoEnableLoad _ ->
-                IsDanger, IsDanger
+                Checked false, Checked false
             | _ -> failwithf "Cannot change counter type from non-counter component"
 
         let buttonActionLoad =
@@ -343,20 +341,16 @@ let private changeCounterType model (comp:Component) dispatch =
 
         div [] [
             Label.label [] [ str "Optional Inputs"]
-            Button.button
-                [ 
-                Button.IsOutlined
-                Button.Color colourLoad
-                Button.OnClick(buttonActionLoad)
+            Table.table [] [
+                tr [] [
+                    td [Style [BorderStyle "solid"]] [str "Load"]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnClick (buttonActionLoad); Value "Load"; Id "Load-button"; Name "Load-button"; checkedLoad; Style [Height "15px"; Width "15px"]]]]
                 ]
-                [ str "Load" ]
-            Button.button
-                [ 
-                Button.IsOutlined
-                Button.Color colourEnable
-                Button.OnClick(buttonActionEnable)
+                tr [] [
+                    td [Style [BorderStyle "solid"]] [str "Enable"]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnClick (buttonActionEnable); Value "Enable"; Id "Enable-button"; Name "Enable-button"; checkedEnable; Style [Height "15px"; Width "15px"]]]]
                 ]
-                [ str "Enable" ]
+            ]
             ]
 
 let private makeScaleAdjustmentField model (comp:Component) dispatch =

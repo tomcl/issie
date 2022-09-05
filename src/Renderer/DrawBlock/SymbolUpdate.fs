@@ -338,21 +338,15 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
             |_,_ -> [port]
         )
 
-    let inputEdge (rotation:Rotation) =
-        match rotation with
-        |Degree0 -> Bottom
-        |Degree90 -> Right
-        |Degree180 -> Top
-        |Degree270 -> Left
+    let inputEdge (rotation:Rotation) flipped =
+        match rotation,flipped with
+        |Degree0,false |Degree180,false|Degree0,true -> Bottom
+        |Degree90,false |Degree270,true -> Right
+        |Degree180,true  -> Top
+        |Degree270,false |Degree90,true -> Left
 
-    let outputEdge (rotation:Rotation) =
-        match rotation with
-        |Degree0 -> Right
-        |Degree90 -> Top
-        |Degree180 -> Left
-        |Degree270 -> Bottom
 
-    let changePortMaps rotation (oldMaps:PortMaps) addedId removedId =
+    let changePortMaps rotation flipped (oldMaps:PortMaps) addedId removedId =
         let order,orientation = oldMaps.Order, oldMaps.Orientation
         match addedId,removedId with
         |None, Some i ->
@@ -366,13 +360,16 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
             let edge = 
                 match oldCompType,newComp with
                 |NbitsAdderNoCin _,NbitsAdder _
-                |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> inputEdge rotation
+                |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> inputEdge rotation flipped
                 |NbitsAdderNoCout _, NbitsAdder _
-                |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> outputEdge rotation
+                |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> Map.find oldComp.OutputPorts[0].Id orientation
                 |_ -> failwithf "Can't happen"
             let newOrientation = Map.add i edge orientation
             let onEdge = Map.find edge order
-            let newOrder = Map.add edge (onEdge@[i]) order
+            let newOrder = 
+                match flipped with
+                |false -> Map.add edge (onEdge@[i]) order
+                |true -> Map.add edge ([i]@onEdge) order
             {Order=newOrder;Orientation=newOrientation}
         |_,_ -> oldMaps
 
@@ -398,7 +395,7 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
         |_ -> None 
     
 
-    let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.PortMaps addedId removedId
+    let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.STransform.flipped symbol.PortMaps addedId removedId
 
     let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts; OutputPorts = newOutputPorts}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
     
@@ -442,16 +439,16 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
         |_,_ -> oldInputList 
         
 
-    let inputEdge (rotation:Rotation) =
-        match rotation with
-        |Degree0 -> Left
-        |Degree90 -> Bottom
-        |Degree180 -> Right
-        |Degree270 -> Top
+    let findOpposite (edge:Edge) =
+        match edge with
+        |Right -> Left
+        |Top -> Bottom
+        |Left -> Right
+        |Bottom -> Top
     
-    let changePortMaps rotation (oldMaps:PortMaps) removedId1 removedId2 added1 added2 =
+    let changePortMaps flipped (oldMaps:PortMaps) removedId1 removedId2 added1 added2 =
         let order,orientation = oldMaps.Order, oldMaps.Orientation
-        let edge = inputEdge rotation
+        let edge = findOpposite (Map.find oldComp.OutputPorts[0].Id orientation)
         match removedId1,removedId2,added1,added2 with
         |Some i1, Some i2,None,None ->
             let newOrientation = Map.remove i1 orientation
@@ -471,12 +468,18 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
             let newOrientation = Map.add i1 edge orientation
             let newOrientation' = Map.add i2 edge newOrientation
             let onEdge = Map.find edge order
-            let newOrder = Map.add edge ([i1;i2]@onEdge) order
+            let newOrder = 
+                match flipped with
+                |false -> Map.add edge ([i1;i2]@onEdge) order
+                |true -> Map.add edge (onEdge@[i1;i2]) order
             {Order=newOrder;Orientation=newOrientation'}
         |None,None,Some i,None ->
             let newOrientation = Map.add i edge orientation
             let onEdge = Map.find edge order
-            let newOrder = Map.add edge (onEdge@[i]) order
+            let newOrder = 
+                match flipped with
+                |false -> Map.add edge (onEdge@[i]) order
+                |true -> Map.add edge ([i]@onEdge) order
             {Order=newOrder;Orientation=newOrientation}
         |_,_,_,_ -> oldMaps
 
@@ -499,11 +502,13 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
         |CounterNoEnableLoad _ , CounterNoLoad _ -> Some newInputPorts[0].Id, None
         |_,_ -> None, None
 
-    let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.PortMaps removedId1 removedId2 added1 added2
+    let newPortMaps = changePortMaps symbol.STransform.flipped symbol.PortMaps removedId1 removedId2 added1 added2
 
-    let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
+    let h',w' = match getComponentProperties newComp "" with |_,_,h,w -> h,w
+
+    let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts; H=h'; W=w'}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
     //printfn "newsymbol %A" {symbol with Component = newcompo;PortMaps = newPortMaps}
-    {symbol with Component = newcompo;PortMaps = newPortMaps}
+    {symbol with Component = newcompo;PortMaps = newPortMaps;}
 
 
 let findDeletedPorts (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =

@@ -285,11 +285,11 @@ let private changeAdderType model (comp:Component) dispatch =
             Table.table [] [
                 tr [] [
                     td [Style [BorderStyle "solid"]] [str "Cin"]
-                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnClick (buttonActionCin); Value "Cin"; Id "Cin-button"; Name "Cin-button"; checkedCin; Style [Height "15px"; Width "15px"]]]]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionCin); Value "Cin"; Id "Cin-button"; Name "Cin-button"; checkedCin; Style [Height "15px"; Width "15px"]]]]
                 ]
                 tr [] [
                     td [Style [BorderStyle "solid"]] [str "Cout"]
-                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnClick (buttonActionCout); Value "Cout"; Id "Cout-button"; Name "Cout-button"; checkedCout; Style [Height "15px"; Width "15px"]]]]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionCout); Value "Cout"; Id "Cout-button"; Name "Cout-button"; checkedCout; Style [Height "15px"; Width "15px"]]]]
                 ]
             ]
             br []
@@ -344,11 +344,11 @@ let private changeCounterType model (comp:Component) dispatch =
             Table.table [] [
                 tr [] [
                     td [Style [BorderStyle "solid"]] [str "Load"]
-                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnClick (buttonActionLoad); Value "Load"; Id "Load-button"; Name "Load-button"; checkedLoad; Style [Height "15px"; Width "15px"]]]]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionLoad); Value "Load"; Id "Load-button"; Name "Load-button"; checkedLoad; Style [Height "15px"; Width "15px"]]]]
                 ]
                 tr [] [
                     td [Style [BorderStyle "solid"]] [str "Enable"]
-                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnClick (buttonActionEnable); Value "Enable"; Id "Enable-button"; Name "Enable-button"; checkedEnable; Style [Height "15px"; Width "15px"]]]]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionEnable); Value "Enable"; Id "Enable-button"; Name "Enable-button"; checkedEnable; Style [Height "15px"; Width "15px"]]]]
                 ]
             ]
             ]

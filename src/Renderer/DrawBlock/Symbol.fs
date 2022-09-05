@@ -572,7 +572,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | RegisterE (a) -> ( 2 , 1, 2.*gS  , 4.*gS)
     | Counter (a) -> (3 , 1 , 4.*gS , 5.*gS)
     |CounterNoEnable (a) -> (2 , 1 , 3.*gS , 5.*gS)
-    | CounterNoLoad (a) -> (1 , 1 , 2.*gS , 5.*gS)
+    | CounterNoLoad (a) -> (1 , 1 , 3.*gS , 5.*gS)
     |CounterNoEnableLoad (a) -> (0 , 1 , 2.*gS , 3.5*gS)
     | AsyncROM1 (a)  -> (  1 , 1, 4.*gS  , 5.*gS) 
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 

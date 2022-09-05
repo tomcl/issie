@@ -340,9 +340,9 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
 
     let inputEdge (rotation:Rotation) flipped =
         match rotation,flipped with
-        |Degree0,false |Degree180,false|Degree0,true -> Bottom
+        |Degree0,false |Degree0,true -> Bottom
         |Degree90,false |Degree270,true -> Right
-        |Degree180,true  -> Top
+        |Degree180,true |Degree180,false  -> Top
         |Degree270,false |Degree90,true -> Left
 
 

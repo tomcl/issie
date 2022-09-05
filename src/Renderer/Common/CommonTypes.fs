@@ -605,7 +605,7 @@ module CommonTypes
         ProjectPath : string
         /// name of viewed sheet (Form: User) (without extension)
         OpenFileName : string
-        /// name of sheet performing operation on
+        /// name of sheet performing operation on (e.g.: when Verilog Editor is open)
         WorkingFileName : string option
         /// componnets have one-one correspondence with files
         LoadedComponents : LoadedComponent list

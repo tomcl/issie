@@ -549,7 +549,12 @@ let mMoveUpdate
     match model.Action with
     | DragAndDrop -> moveSymbols model mMsg
     | InitialisedCreateComponent (ldcs, compType, lbl) ->
-        let labelTest = if lbl = "" then SymbolUpdate.generateLabel model.Wire.Symbol compType else lbl
+        let labelTest = 
+            match compType with
+            |Input _ | Input1 (_,_) |Output _ ->
+                SymbolUpdate.generateIOLabel model.Wire.Symbol compType lbl
+            | _ ->
+                if lbl = "" then SymbolUpdate.generateLabel model.Wire.Symbol compType else lbl
         let newSymbolModel, newCompId = SymbolUpdate.addSymbol ldcs model.Wire.Symbol mMsg.Pos compType labelTest
 
         { model with Wire = { model.Wire with Symbol = newSymbolModel }
@@ -652,7 +657,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             wireCmd (BusWireT.CopyWires model.SelectedWires)
         ]
     | KeyPress CtrlV ->
-        let newSymbolModel, pastedCompIds = SymbolUpdate.pasteSymbols model.Wire.Symbol model.LastMousePos // Symbol has Copied Symbols stored
+        let newSymbolModel, pastedCompIds = SymbolUpdate.pasteSymbols model.Wire.Symbol model.Wire.Wires model.LastMousePos // Symbol has Copied Symbols stored
         let newBusWireModel, pastedConnIds = BusWireUpdate.pasteWires { model.Wire with Symbol = newSymbolModel } pastedCompIds
 
         { model with Wire = newBusWireModel

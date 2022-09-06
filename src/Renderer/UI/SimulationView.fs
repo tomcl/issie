@@ -683,7 +683,7 @@ let viewSimulation canvasState model dispatch =
             dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
-        div [Style[Height "100%"]] [
+        div [Style [Height "100%"]] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick endSimulation ; Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left ]]]
                 [ str "End simulation" ]

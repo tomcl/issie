@@ -61,6 +61,18 @@ module Constants =
     let infoSignUnicode = "\U0001F6C8"
 
 
+//-----------------------------List & Map utilities to deal with exceptions------------------------------------------//
+
+// maybe these should be defined earlier in compile order? Or added as list functions?
+
+let listMaxWithDef defaultValue lst =
+    defaultValue :: lst
+    |> List.max
+
+let listCollectSomes mapFn lst =
+    lst
+    |> List.collect (fun x -> match mapFn x with | Some r -> [r] | None -> [])
+
 /// Determines whether a clock cycle is generated with a vertical bar at the beginning,
 /// denoting that a waveform changes value at the start of that clock cycle. NB this
 /// does not determine whether a waveform changes value at the end of that clock cycle.
@@ -123,13 +135,13 @@ let rec getWSModel model : WaveSimModel =
         
 
 /// Width of one clock cycle.
-let singleWaveWidth m = float m.WaveformColumnWidth / float m.ShownCycles
+let singleWaveWidth m = max 5.0 (float m.WaveformColumnWidth / float m.ShownCycles)
 
 /// Left-most coordinate of the SVG viewbox.
 let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
 
 /// Total width of the SVG viewbox.
-let viewBoxWidth m = string (m.WaveformColumnWidth)
+let viewBoxWidth m = string (max 5.0 (m.WaveformColumnWidth))
 
 /// Right-most visible clock cycle.
 let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1

@@ -259,7 +259,7 @@ let busSelectTitle (wob:int) (lsb:int) : string =
     | _ -> failwith "non positive bus width in bustitle"
 
 ///Decodes the component type into component labels
-let getPrefix compType = 
+let getPrefix (compType:ComponentType) = 
     match compType with
     | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
     | Mux2 -> "MUX"
@@ -291,7 +291,7 @@ let getPrefix compType =
     | CounterNoLoad _ |CounterNoEnableLoad _ -> "COUNT"
     | MergeWires -> "MW"
     | SplitWire _ -> "SW"
-    | _ -> ""
+    |_  -> ""
 
 
 
@@ -580,9 +580,10 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | NbitsXor (n) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
     | NbitsNot (n) 
     | NbitSpreader (n) -> (1, 1, 2.*gS, 2.*gS)
-    | NbitsAdder (n) |NbitsAdderNoCin (n)
-    | NbitsAdderNoCout (n) | NbitsAdderNoCinCout (n) 
-        -> (  3 , 2, 3.*gS  , 4.*gS) 
+    | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS)
+    |NbitsAdderNoCin (n) -> (  2 , 2, 3.*gS  , 4.*gS)
+    | NbitsAdderNoCout (n)-> (  3 , 1, 3.*gS  , 4.*gS)
+    | NbitsAdderNoCinCout (n) -> (  2 , 1, 3.*gS  , 4.*gS)
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 
 /// make a completely new component

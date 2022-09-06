@@ -10,8 +10,45 @@ open DrawModelType.SymbolT
 open Symbol
 open Optics
 open Operators
+open System
 
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
+let rec extractIOPrefix (str : string) (charLst: char list) =
+    let len = String.length str
+    match str[len-1] with
+    |c when Char.IsNumber(Convert.ToChar(c)) -> 
+        let newstr = str.Remove(len-1)
+        extractIOPrefix newstr ([str[len-1]]@charLst)
+    | _ -> 
+        let strNo = ("", charLst) ||> List.fold (fun s v -> s+(string v))
+        let no = match strNo with |"" -> -1 |_ -> int <| strNo
+        str,no
+
+let generateIOLabel (model: Model) (compType: ComponentType) (name:string) : string =
+    let listSymbols = List.map snd (Map.toList model.Symbols)
+    let newCompBaseName, newCompNo = extractIOPrefix name []
+    //printfn "s %s , n%i" newCompBaseName newCompNo
+    let existingNumbers =
+        listSymbols
+        |> List.collect (fun sym ->
+            let baseName,no = extractIOPrefix sym.Component.Label []
+            if baseName = newCompBaseName then
+                [no]
+            else []
+        )
+    match existingNumbers with
+    |[] -> name
+    |[-1] ->
+        if newCompNo = -1 then
+            name+"1"
+        else name
+    |lst -> 
+        let max = List.max existingNumbers
+        if List.exists (fun x -> x=newCompNo) lst then
+            newCompBaseName + (string (max+1))
+        else 
+            name
+
 
 /// Returns the number of the component label (i.e. the number 1 from IN1 or ADDER16.1)
 let getLabelNumber (str : string) = 
@@ -44,6 +81,16 @@ let generateLabel (model: Model) (compType: ComponentType) : string =
     match compType with
     | IOLabel | BusSelection _ -> prefix
     | _ -> prefix + (generateLabelNumber listSymbols compType)
+
+let generateCopiedLabel (model: Model) (oldSymbol:Symbol) (compType: ComponentType) : string =
+    let listSymbols = List.map snd (Map.toList model.Symbols) 
+    let prefix = getPrefix compType
+    match compType with
+    | IOLabel -> oldSymbol.Component.Label
+    | BusSelection _ -> prefix
+    |Input _ | Input1 (_,_) |Output _ -> generateIOLabel model compType oldSymbol.Component.Label
+    | _ -> prefix + (generateLabelNumber listSymbols compType)
+
 
 /// Initialises and returns the PortMaps of a pasted symbol
 let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
@@ -80,14 +127,41 @@ let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
 /// Interface function to paste symbols. Is a function instead of a message because we want an output.
 /// Currently drag-and-drop.
 /// Pastes a list of symbols into the model and returns the new model and the id of the pasted modules.
-let pasteSymbols (model: Model) (newBasePos: XYPos) : (Model * ComponentId list) =
+let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT.Wire>) (newBasePos: XYPos) : (Model * ComponentId list) =
+    
+    let oldSymbolsList =
+            model.CopiedSymbols
+            |> Map.toList
+            |> List.map snd
+    
     let addNewSymbol (basePos: XYPos) ((currSymbolModel, pastedIdsList) : Model * ComponentId List) (oldSymbol: Symbol): Model * ComponentId List =
+        
         let newId = JSHelpers.uuid()
         let newPos = oldSymbol.Pos - basePos + newBasePos
         let compType = oldSymbol.Component.Type
         let newLabel = 
-            compType
-            |> generateLabel { model with Symbols = currSymbolModel.Symbols}
+            match compType with
+            | IOLabel  -> //Wire label is special case: if the driver of the wire label is not included -> keep same name
+                          //else generate new label (cannot have wire labels with same name driven by 2 different components)
+                let inPortId = oldSymbol.Component.InputPorts[0].Id
+                let wires = wireMap |> Map.toList |> List.map snd
+                let targetWire = 
+                    wires
+                    |> List.tryFind (fun w -> w.InputPort = (InputPortId inPortId)) 
+                match targetWire with
+                |Some w -> 
+                    let origSymPortId = match w.OutputPort with |OutputPortId id -> id
+                    let origSym = 
+                        oldSymbolsList 
+                        |> List.tryFind (fun s -> (List.exists (fun (p:Port) -> p.Id = origSymPortId) s.Component.OutputPorts))
+                    
+                    match origSym with 
+                    |Some s -> generateIOLabel { model with Symbols = currSymbolModel.Symbols} compType oldSymbol.Component.Label
+                    |None -> generateCopiedLabel { model with Symbols = currSymbolModel.Symbols} oldSymbol compType
+                |None -> generateCopiedLabel { model with Symbols = currSymbolModel.Symbols} oldSymbol compType
+            | _ -> 
+                compType
+                |> generateCopiedLabel { model with Symbols = currSymbolModel.Symbols} oldSymbol
 
         let newComp = makeComponent newPos compType newId newLabel
        
@@ -114,10 +188,6 @@ let pasteSymbols (model: Model) (newBasePos: XYPos) : (Model * ComponentId list)
         let newPastedIdsList = pastedIdsList @ [ newSymbol.Id ]
         newModel, newPastedIdsList
         
-    let oldSymbolsList =
-        model.CopiedSymbols
-        |> Map.toList
-        |> List.map snd
 
     match oldSymbolsList with
     | [] -> model, []

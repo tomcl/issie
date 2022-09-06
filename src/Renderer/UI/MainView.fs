@@ -292,30 +292,30 @@ let displayView model dispatch =
         if topMenu <> Closed then 
             dispatch <| Msg.SetTopMenu Closed
     /// used only to make the divider bar draggable
-    let inline processMouseMove (ev: Browser.Types.MouseEvent) =
+    let inline processMouseMove (keyUp: bool) (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then 
             dispatch SelectionHasChanged
-        match model.DividerDragMode, ev.buttons with
-        | DragModeOn pos , 1.-> 
+        match model.DividerDragMode, ev.buttons, keyUp with
+        | DragModeOn pos , 1., false-> 
             let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
             let w = 
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth())
-            dispatch <| SetViewerWidth w 
             dispatch <| SetDragMode (DragModeOn (int ev.clientX - w + newWidth))
-        | DragModeOn pos, _ ->
+            dispatch <| SetViewerWidth w 
+        | DragModeOn pos, _, true ->
             let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
             let w =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth())
+            printfn $"*****setting w = {w}*****"
             setViewerWidthInWaveSim w model dispatch
             dispatch <| SetDragMode DragModeOff
             dispatch <| SetViewerWidth w 
-
-        | DragModeOff _, _-> ()
+        | _ -> ()
 
     let headerHeight = getHeaderHeight
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -330,8 +330,9 @@ let displayView model dispatch =
     ModelHelpers.setAsyncJobsRunnable()
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText
-          OnMouseMove processMouseMove
+          OnMouseMove (processMouseMove false)
           OnClick (processAppClick model.TopMenuOpenState dispatch)
+          OnMouseUp (processMouseMove true)
           Style [ 
             //CSSProp.Cursor cursorText
             UserSelect UserSelectOptions.None

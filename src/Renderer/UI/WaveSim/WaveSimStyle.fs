@@ -357,7 +357,10 @@ let calcNamesColWidth (ws:WaveSimModel) : int =
             let sizeInPx = float ((Constants.columnFontSize.ToLower()).Replace("px",""))   
             sizeInPx * DrawHelpers.canvasWidthContext.measureText(txt).width / 10.0
         ws.SelectedWaves
-        |> List.map (fun wi -> ws.AllWaves[wi].ViewerDisplayName)
+        |> listCollectSomes (
+            fun wi -> 
+                Map.tryFind wi ws.AllWaves
+                |> Option.map (fun wave -> wave.ViewerDisplayName))
         |> (fun lst -> "Dummy" :: lst)
         |> List.map getWidth
         |> List.max
@@ -674,5 +677,6 @@ let inline setViewerWidthInWaveSim w (model:Model) dispatch=
             ShownCycles = wholeCycles
             WaveformColumnWidth = singleCycleWidth * float wholeCycles
         }
+    dispatch <| SetViewerWidth w
+
     dispatch <| GenerateWaveforms wsModel
-    //dispatch <| SetViewerWidth w

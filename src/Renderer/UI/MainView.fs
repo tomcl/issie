@@ -267,6 +267,8 @@ let viewRightTabs canvasState model dispatch =
 
     ]
 let mutable testState:CanvasState = [],[]
+let mutable lastDragModeOn = false
+
 //---------------------------------------------------------------------------------------------------------//
 //------------------------------------------VIEW FUNCTION--------------------------------------------------//
 //---------------------------------------------------------------------------------------------------------//
@@ -289,7 +291,6 @@ let displayView model dispatch =
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
             dispatch <| Msg.SetTopMenu Closed
- 
     /// used only to make the divider bar draggable
     let inline processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
@@ -312,7 +313,9 @@ let displayView model dispatch =
                 |> min (windowX - minEditorWidth())
             setViewerWidthInWaveSim w model dispatch
             dispatch <| SetDragMode DragModeOff
-        | DragModeOff, _-> ()
+            dispatch <| SetViewerWidth w 
+
+        | DragModeOff _, _-> ()
 
     let headerHeight = getHeaderHeight
     let sheetDispatch sMsg = dispatch (Sheet sMsg)

@@ -311,7 +311,6 @@ let displayView model dispatch =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth())
-            printfn $"*****setting w = {w}*****"
             setViewerWidthInWaveSim w model dispatch
             dispatch <| SetDragMode DragModeOff
             dispatch <| SetViewerWidth w 

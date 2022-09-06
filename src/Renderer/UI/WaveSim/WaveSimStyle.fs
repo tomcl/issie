@@ -675,4 +675,4 @@ let inline setViewerWidthInWaveSim w (model:Model) dispatch=
             WaveformColumnWidth = singleCycleWidth * float wholeCycles
         }
     dispatch <| GenerateWaveforms wsModel
-    dispatch <| SetViewerWidth w
+    //dispatch <| SetViewerWidth w

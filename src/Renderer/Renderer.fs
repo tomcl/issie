@@ -257,7 +257,7 @@ let init() =
 
 // -- Create View
 let addDebug dispatch (msg:Msg) =
-    let str = Update.getMessageTraceString msg
+    let str = UpdateHelpers.getMessageTraceString msg
     if str <> "" then printfn ">>Dispatch %s" str else ()
     dispatch msg
 

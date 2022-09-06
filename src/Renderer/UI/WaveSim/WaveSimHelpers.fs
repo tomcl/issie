@@ -501,9 +501,7 @@ let nameOfSubsheet (fs:FastSimulation) (subSheet: string List) =
     
 let waveToSheetPort fs (wave:Wave) =
     let sheet = nameOfSubsheet fs wave.SubSheet
-    printfn $"sheet={sheet}, subsheet={wave.SubSheet}"
     let wi = wave.WaveId
-    printfn $"sheets = {fs.ComponentsById |> Map.keys}"
     let comp = fs.ComponentsById[sheet.ToLower()][fst wi.Id]
     let port =
         match wi.PortType, comp.InputPorts.Length > 0, comp.OutputPorts.Length > 0 with

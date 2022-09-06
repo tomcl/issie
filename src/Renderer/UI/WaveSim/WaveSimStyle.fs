@@ -100,14 +100,6 @@ let selectRamButtonStyle = Style [
 ]
 
 /// Props for selectRamButton
-let selectRamButtonProps = [
-    Button.Color IsInfo
-    Button.Props [selectRamButtonStyle]
-]
-
-/// Props for selectRamButton when no RAMs are selectable
-let selectRamButtonPropsLight =
-    selectRamButtonProps @ [Button.IsLight]
 
 /// Style for selectWavesButton
 let selectWavesButtonStyle = Style [
@@ -123,13 +115,37 @@ let topRowButtonStyle = Style [
     Width Constants.colWidth
     FontSize "16px"
     Position PositionOptions.Relative
-    MarginLeft 8
+    MarginRight 5
+    MarginLeft 5
 ]
+
+let infoButtonProps color = [
+        Button.Color color
+        Button.IsRounded
+        Button.Size ISize.IsSmall
+        Button.Props [
+            Style [
+                Height (float Constants.rowHeight)
+                FontSize "15px"
+                Width "20px"
+                Position PositionOptions.Relative
+                MarginRight 0
+                MarginLeft 0
+            ]
+        ]
+    ]
 
 let topHalfButtonProps color = [
     Button.Color color
-    Button.Props [selectWavesButtonStyle]
+    Button.Props [topRowButtonStyle]
 ]
+
+let selectRamButtonProps = topHalfButtonProps IsInfo
+
+/// Props for selectRamButton when no RAMs are selectable
+let selectRamButtonPropsLight =
+    selectRamButtonProps @ [Button.IsLight]
+
 
 let topHalfButtonPropsWithWidth color = [
     Button.Color color

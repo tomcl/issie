@@ -88,7 +88,7 @@ let generateCopiedLabel (model: Model) (oldSymbol:Symbol) (compType: ComponentTy
     match compType with
     | IOLabel -> oldSymbol.Component.Label
     | BusSelection _ -> prefix
-    |Input _ | Input1 (_,_) |Output _ -> generateIOLabel model compType oldSymbol.Component.Label
+    |Input _ | Input1 (_,_) |Output _ |Viewer _ -> generateIOLabel model compType oldSymbol.Component.Label
     | _ -> prefix + (generateLabelNumber listSymbols compType)
 
 

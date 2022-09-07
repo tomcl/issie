@@ -353,6 +353,7 @@ let private changeCounterType model (comp:Component) dispatch =
                     td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionEnable); Value "Enable"; Id "Enable-button"; Name "Enable-button"; checkedEnable; Style [Height "15px"; Width "15px"]]]]
                 ]
             ]
+            br []
             ]
 
 let private makeScaleAdjustmentField model (comp:Component) dispatch =

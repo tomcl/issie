@@ -460,8 +460,8 @@ module SheetT =
         | TickCompilation of float
         | FinishedCompilationStage
         | DebugSingleStep
-        | DebugRead of parts: int
-        | OnDebugRead of data: int
+        | DebugRead of parts: int 
+        | OnDebugRead of data: int * viewer: int
         | DebugConnect
         | DebugDisconnect
         | DebugUpdateMapping of string array

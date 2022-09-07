@@ -248,6 +248,26 @@ export async function main2() {
 
 // (async => main())();
 
+export async function readAllViewers(n){
+    let viewerValues = [];
+    for (var i=0;i<n;i++){
+        let check = true;
+        await device.transferOut(TX_EP, TX_READ + i.toString());
+        while(check){
+            var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
+            if (result.data.byteLength > RX_PAD_BYTES) {
+                //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
+                var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
+                console.log(`Received message: ${message}`);
+                check = false;
+                viewerValues.push(message);
+               }
+        }       
+    }
+    return viewerValues;
+}
+
+
 export async function step() {
     await device.transferOut(TX_EP, "S");
     console.log("Step sent!");

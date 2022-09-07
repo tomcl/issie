@@ -29,7 +29,7 @@ module node = Node.Api
 
 //[<Emit("import * as ISuart from '../../../Tests/hw/IS-uart.js' ")>]
 //let importGrammar : unit = jsNative
-[<Emit("import {main,tryRead0,main2} from '../../../Tests/hw/IS-uart.js' ")>]
+[<Emit("import {main,tryRead0,pauseOp,continuedOp,stepRead,connect,disconnect,step} from '../../../Tests/hw/IS-uart.js' ")>]
 let importReadUart : unit = jsNative
 
 [<Emit("main()")>]
@@ -42,6 +42,23 @@ let main2 (): unit = jsNative
 let read (): JS.Promise<string> = jsNative
 // let read (): string = jsNative
 
+[<Emit("pauseOp()")>]
+let pause (): unit = jsNative
+
+[<Emit("continuedOp()")>]
+let continuedOp (): unit = jsNative
+
+[<Emit("stepRead($0)")>]
+let stepRead (part:int): JS.Promise<string> = jsNative
+
+[<Emit("connect()")>]
+let connect (): unit = jsNative
+
+[<Emit("disconnect()")>]
+let disconnect (): unit = jsNative
+
+[<Emit("step()")>]
+let step (): unit = jsNative
 
 importReadUart
 
@@ -1204,26 +1221,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         model, Cmd.none
     | DebugSingleStep ->
-        //fs.writeFileSync ("/dev/ttyUSB1", "S")
-        //printfn "stepped"
-
+        step()
+        printfn "stepped"
+        printfn "mappings: %A" model.DebugMappings
+        let viewerNo = (Array.length model.DebugMappings) / 8
         let readAllViewersCmd = 
-            [0..(Array.length model.DebugMappings) / 8]
+            [0..(viewerNo-1)]
             |> List.map (fun i -> Cmd.ofMsg (DebugRead i))
             |> Cmd.batch
         model, readAllViewersCmd
     | DebugRead part ->
         //fs.writeFileSync ("/dev/ttyUSB1", $"R{part}")
-
+        printfn "reading"
         //let res = read()
         //let v = res.``then``(fun v-> v)
-        let startComp dispatch =
+        let readSingleStep p dispatch =
+            
             Async.StartImmediate(async {
             let exit_code = ref 0
             try
                 let keepGoing = ref true
 
-                let r = read()
+                let r = stepRead(p)
                 r.``then``(fun v -> 
                     printfn "got : %s" (v[0].ToString() + v[1].ToString())
                     dispatch <| (OnDebugRead (hextoInt (v[0].ToString() + v[1].ToString())))) |> ignore
@@ -1246,12 +1265,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         { model with
             DebugReadLogs = List.append model.DebugReadLogs [ReadLog part]
-        }, Cmd.ofSub startComp
+        }, Cmd.ofSub (readSingleStep part)
     | DebugConnect ->
         match model.DebugConnection with
         | Some c -> model, Cmd.none//c.push None |> ignore; c.destroy()
         | _ -> 
-            main()
+            connect()
+            //main()
             //main2()
             // Set up the tty
                 
@@ -1270,86 +1290,22 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 finally
                     ()
                 })
-            
-            //let readAsync dispatch =
-            //    printfn "starting debugconnect"
-            //    Async.StartImmediate(async {
-            //        let exit_code = ref 0
-            //        try
-            //            let keepGoing = ref true
-
-                        
-
-            //            while keepGoing.Value do
-            //                do! Async.Sleep 1000
-            //                printf "state of child: %A" keepGoing.Value
-
-            //                dispatch <| TickCompilation child.pid
-            //        finally
-            //            printf "Child finished with exit code: %i" exit_code.Value
-            //            if exit_code.Value = 0 then
-            //                dispatch <| FinishedCompilationStage
-            //                match stage with
-            //                | Synthesis -> dispatch <| StartCompilationStage (PlaceAndRoute, path, name, profile)
-            //                | PlaceAndRoute -> dispatch <| StartCompilationStage (Generate, path, name, profile)
-            //                | Generate -> dispatch <| StartCompilationStage (Upload, path, name, profile)
-            //                | Upload when profile = Verilog.Debug-> dispatch <| DebugConnect
-            //                | _ -> ()
-            //            else
-            //                dispatch <| StopCompilation
-            //    })
-
-            // let cwd = getCWD()
-            // let str = cwd+"/Tests/hw/IS-uart2.js"
-            // printfn "here"
-            // let nd = node.childProcess.spawn (
-            //     "node",
-            //     [str] |> ResizeArray)
-            
-            
-            
-            
-            // //node.childProcess.spawnSync (
-            // //    "stty",
-            // //    ["-F"; "/dev/ttyUSB1"; "9600"; "-hupcl"; "brkint"; "ignpar"; "-icrnl";
-            // //     "-opost"; "-onlcr"; "-isig"; "-icanon"; "-echo"] |> ResizeArray) |> ignore
-            // ////let options = {| shell = false |} |> toPlainJsObj
-            // ////let conn = node.childProcess.spawn ("socat", ["stdio"; "/dev/ttyUSB1"] |> ResizeArray, options);
-            // //let stream: Node.Fs.ReadStream<string> = fs.createReadStream("/dev/ttyUSB1")
-            // //printfn "Connected to read stream"
-            // let spawnListener dispatch =
-            //     nd.stdout.on("data", fun (data: byte[]) ->
-            //         //printfn "Read (from stream): %A" data
-            //         printfn "Got this many things: %A" (Array.length data)
-            //         Array.map (fun b ->
-            //             printfn "Got integer: %d" (int b)
-            //             dispatch <| OnDebugRead (int b)) data
-            //         |> ignore
-            //     ) |> ignore
-            //     nd.on("close", fun _ -> printfn "it was closed") |> ignore
-            //     //conn.stdout.on ("data", fun (data:byte[]) ->
-            //     //    printfn "Got this many things: %A" (Array.length data)
-            //     //    Array.map (fun b ->
-            //     //        printfn "Got integer: %d" (int b)
-            //     //        dispatch <| OnDebugRead (int b)) data
-            //     //    |> ignore
-            //     //    ) |> ignore
-            //     ()
 
             { model with
                 //DebugConnection = Some nd
                 DebugReadLogs = []
-            }, Cmd.ofSub startComp
+            }, Cmd.none
     | DebugDisconnect ->
-        printfn "Closed read stream"
-        match model.DebugConnection with
-        | Some c -> c.push None |> ignore; c.destroy()
-        | _ -> ()
+        printfn "Closing device"
+        disconnect()
+        //match model.DebugConnection with
+        //| Some c -> c.push None |> ignore; c.destroy()
+        //| _ -> ()
         { model with DebugConnection = None }, Cmd.none
     | OnDebugRead data ->
         printfn $"Have read {model.DebugReadCount + 1} messages"
         printfn $"There are this many logs to receive: {List.length model.DebugReadLogs}"
-        let (ReadLog part) = ReadLog 0
+        let (ReadLog part) = ReadLog 0 //List.head model.DebugReadLogs
         let bits =
             [0..7]
             |> List.rev
@@ -1360,12 +1316,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         { model with
             DebugReadCount = model.DebugReadCount + 1
             DebugData = List.insertAt part data (List.removeAt part model.DebugData)
-            DebugReadLogs = [] //List.tail model.DebugReadLogs
+            DebugReadLogs = List.tail model.DebugReadLogs
         }, Cmd.none
     | DebugUpdateMapping mappings ->
         {model with DebugMappings = mappings }, Cmd.none
     | DebugContinue ->
         //fs.writeFileSync ("/dev/ttyUSB1", "C")
+        continuedOp ()
         printfn "Continued execution"
         let startComp dispatch =
                 Async.StartImmediate(async {
@@ -1385,10 +1342,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     ()
                 })
 
-        {model with DebugState = Running}, Cmd.ofSub startComp
+        {model with DebugState = Running}, Cmd.none
     | DebugPause ->
-        fs.writeFileSync ("/dev/ttyUSB1", "P")
-        printfn "Continued execution"
+        //fs.writeFileSync ("/dev/ttyUSB1", "P")
+        pause()
+        printfn "Continued execution Stopped"
         let readAllViewersCmd = 
             [0..(Array.length model.DebugMappings) / 8]
             |> List.map (fun i -> Cmd.ofMsg (DebugRead i))

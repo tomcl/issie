@@ -138,7 +138,6 @@ let viewBuild model dispatch =
                             makeRowForCompilationStage "Upload" model.Sheet.CompilationStatus.Upload
                         ]
                     ]
-
                     if model.Sheet.DebugState = SheetT.Paused then
                         Button.button
                             [ 
@@ -162,6 +161,13 @@ let viewBuild model dispatch =
 
                     if model.Sheet.DebugState <> SheetT.NotDebugging then
                         br [];
+                        Button.button
+                            [ 
+                                Button.Color IsDanger;
+                                Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugDisconnect) |> dispatch);
+                            ]
+                            [ str "Disconnect" ]
+                        br []
                         Table.table [
                             Table.IsFullWidth
                             Table.IsBordered

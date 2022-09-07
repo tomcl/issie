@@ -250,6 +250,12 @@ let busTitleAndBits (t:string) (n:int) : string =
     | _ -> 
         failwith "non positive bus width"
 
+
+let nBitsGateTitle (gateType:string) (n:int) : string =
+    match n with
+    |1 -> gateType
+    |_ -> (string n) + "-bit " + gateType 
+
 ///Insert titles for bus select
 /// used once 
 let busSelectTitle (wob:int) (lsb:int) : string = 
@@ -288,7 +294,7 @@ let getPrefix (compType:ComponentType) =
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
     | Counter _ |CounterNoEnable _
-    | CounterNoLoad _ |CounterNoEnableLoad _ -> "COUNT"
+    | CounterNoLoad _ |CounterNoEnableLoad _ -> "CNT"
     | MergeWires -> "MW"
     | SplitWire _ -> "SW"
     |_  -> ""
@@ -314,10 +320,10 @@ let getComponentLegend (componentType:ComponentType) =
     | DFFE -> "DFFE"
     | Counter n |CounterNoEnable n
     | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
-    | NbitsXor (x)->   busTitleAndBits "NBits-Xor" x
-    | NbitsOr (x)->   busTitleAndBits "NBits-Or" x
-    | NbitsAnd (x)->   busTitleAndBits "NBits-And" x
-    | NbitsNot (x)->   busTitleAndBits "NBits-Not" x
+    | NbitsXor (x)->   nBitsGateTitle "XOR" x
+    | NbitsOr (x)->   nBitsGateTitle "OR" x
+    | NbitsAnd (x)->   nBitsGateTitle "AND" x
+    | NbitsNot (x)->  nBitsGateTitle "NOT" x
     | Custom x -> x.Name.ToUpper()
     | _ -> ""
 
@@ -578,7 +584,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
     | NbitsXor (n) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
-    | NbitsNot (n) 
+    | NbitsNot (n)  -> (  1 , 1, 3.*gS  , 4.*gS) 
     | NbitSpreader (n) -> (1, 1, 2.*gS, 2.*gS)
     | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS)
     |NbitsAdderNoCin (n) -> (  2 , 2, 3.*gS  , 4.*gS)
@@ -1092,7 +1098,8 @@ let drawSymbol (symbol:Symbol) =
 
     let outlineColour, strokeWidth =
         match comp.Type with
-        | SplitWire _ | MergeWires |NbitSpreader _ -> outlineColor colour, "2.0"
+        | SplitWire _ | MergeWires -> outlineColor colour, "2.0"
+        |NbitSpreader _ -> outlineColor colour, "4.0"
         | IOLabel -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"

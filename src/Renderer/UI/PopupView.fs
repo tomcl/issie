@@ -318,14 +318,9 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
 
         ]
 
-/// Create the body of a dialog Popup with only text.
+/// Create the body of a dialog Popup with only text for sheet description (can have an initial value + allow empty).
 let dialogPopupBodyOnlyTextWithDefaultValue before placeholder currDescr dispatch =
     fun (dialogData : PopupDialogData) ->
-        let goodLabel =
-                getText dialogData
-                |> Seq.toList
-                |> List.tryHead
-                |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
         let defaultValue = Option.defaultValue "" currDescr
         div [] [
             before dialogData
@@ -335,8 +330,6 @@ let dialogPopupBodyOnlyTextWithDefaultValue before placeholder currDescr dispatc
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
-            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]            
-
         ]
 
 

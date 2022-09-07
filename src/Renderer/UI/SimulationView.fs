@@ -84,6 +84,28 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
         | _, None -> cid, convertIntToWireData w 0L)
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
+let InputDefaultsEqualInputs fs (model:Model) =
+    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
+        let comp = sym.Component
+        let comp' = 
+            let ct =
+                match comp.Type with 
+                | Input1(w,defVal) -> Input1(w,Some newDefault)
+                | x -> x
+            {comp with Type = ct}
+        {sym with Component = comp'}
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[0])
+    |> Map.values
+    |> Seq.forall (fun (cid, currentValue) -> 
+            match currentValue with
+            | Data fd -> 
+                let newDefault = int (convertFastDataToInt fd)
+                let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
+                match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
+            | _ -> true)
+            
 
 let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
@@ -673,10 +695,11 @@ let viewSimulation canvasState model dispatch =
                 Button.button
                     [ 
                         Button.Color IsInfo; 
+                        Button.Disabled (InputDefaultsEqualInputs simData.FastSim model)
                         Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch) ; 
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
                     ]
-                    [ str "Set default values for Inputs" ]
+                    [ str "Save current input values as default" ]
             ]
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.

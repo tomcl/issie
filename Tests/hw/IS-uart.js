@@ -247,3 +247,104 @@ export async function main2() {
 
 
 // (async => main())();
+
+export async function step() {
+    await device.transferOut(TX_EP, "S");
+    console.log("Step sent!");
+}
+
+export async function stepRead(part) {
+    const decoder = new TextDecoder();
+    let check = true;
+    // await device.transferOut(TX_EP, "S");
+    await device.transferOut(TX_EP, TX_READ + part.toString());
+    // sendTimer = setInterval(function(){device.transferOut(TX_EP, TX_READ + "0")},TX_INTERVAL);
+    while(check){
+        var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
+        if (result.data.byteLength > RX_PAD_BYTES) {
+            //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
+            var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
+            console.log(`Received message: ${message}`);
+            check = false;
+            return message;
+           }
+    }
+}
+
+export async function pauseOp() {
+    await device.transferOut(TX_EP, "P");
+    
+}
+
+export async function continuedOp() {
+    await device.transferOut(TX_EP, "C");    
+}
+
+
+export async function disconnect() {
+    await device.close();    
+    console.log("Device Closed");
+}
+
+export async function connect() {
+
+    const customWebUSB = new WebUSB({
+        // Bypass cheking for authorised devices
+        allowAllDevices: true
+    });
+
+
+    
+    //Find device with correct VID and PID
+    try {
+        device = await customWebUSB.requestDevice({
+            filters: [{
+                vendorId: VID,
+                productId: PID
+            }]
+        });
+    }
+    catch(err) {
+        throw new Error("IceStick or IssieStick device (FT2232H) not found");
+    }
+
+    if (device) {
+        console.log(`Found ${device.productName} (${device.vendorId},${device.productId})`);
+    }
+    
+    //Open and configure device
+    await device.open();
+    console.log('Opened:', device.opened);
+
+    await device.claimInterface(DEVICE_IF);
+
+    const result = await device.controlTransferOut({
+        requestType: 'vendor',
+        recipient: 'device',
+        request: BAUD_REQ,
+        value: BAUD_VALUE,
+        index: BAUD_INDEX,
+    });
+
+    console.log(`Set baud = ${result.status}`)
+
+    //Send Clock Continue Message
+    // await device.transferOut(TX_EP, TX_CONTINUE);
+
+    // //Send regular Viewer Request messages
+    // console.log(`Reading Viewer Index 0`)
+    // sendTimer = setInterval(function(){device.transferOut(TX_EP, TX_READ + "0")},TX_INTERVAL);
+    
+    // //Start receiver
+    // await readLoop();
+
+    //Disconnect
+    // console.log("Stopping");
+    // await device.close();
+    // console.log('Opened:', device.opened);
+    // process.exit();
+
+
+}
+
+

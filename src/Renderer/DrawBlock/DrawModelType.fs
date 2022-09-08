@@ -383,6 +383,10 @@ module SheetT =
             | Grabbing -> "grabbing"
 
 
+    type ThemeType =
+        |White
+        |Yellow
+        |Colourful
 
     /// For Keyboard messages
     type KeyboardMsg =
@@ -461,6 +465,7 @@ module SheetT =
         TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
         ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
+        //Theme: ThemeType
         CursorType: CursorType
         LastValidPos: XYPos
         SnapSymbols: SnapXY

@@ -108,7 +108,9 @@ let canvasVisibleStyleList model =
         Bottom "0px"
         Right widthRightSec
         BorderTop "2px solid lightgray"
-        BackgroundColor "rgba(255,255,0,0.1)"
+        //BackgroundColor "rgba(255,255,0,0.1)" //YELLOW
+        BackgroundColor "rgba(0,0,0,0.05)" //LIGHT GREY
+        //BackgroundColor "#ACD1E9" //BLUE (WITH WHITE SYMBOLS)
     ]
 
 let canvasSmallMenuStyle = Style [

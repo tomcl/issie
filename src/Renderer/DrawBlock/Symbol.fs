@@ -171,7 +171,15 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
 
 
     
-
+let getSymbolColour compType clocked =
+    match compType with
+    | Register _ | RegisterE _ | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ 
+    | ROM1 _ |AsyncROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 
+    | Custom _ when clocked
+        -> "lightblue"  //for clocked components
+    |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
+        -> "#E8D0A9"  //dark orange: for IO
+    | _ -> "rgba(255,255,0,0.15)" //lightyellow: for combinational components
 
 
 
@@ -630,6 +638,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
     let transform = {Rotation= Degree0; flipped= false}
+
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
@@ -639,7 +648,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
           {
             HighlightLabel = false
             ShowPorts = ShowNone
-            Colour = "lightgray"
+            Colour = getSymbolColour comptype (isClocked [] ldcs comp)
             Opacity = 1.0
           }
       InWidth0 = None // set by BusWire
@@ -867,7 +876,7 @@ let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygo
 
 let outlineColor (color:string) =
     match color.ToLower() with
-    | "lightgray"  -> "black"
+    | "lightgray" |"lightblue" | "#E8D0A9" | "rgba(255,255,0,0.15)"  -> "black"
     | c -> c
 
 let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Line instead of polygon?
@@ -1166,7 +1175,6 @@ let drawSymbol (symbol:Symbol) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
-   
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)

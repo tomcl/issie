@@ -154,12 +154,13 @@ let shortDisplayMsg (msg:Msg) =
     | FinishUICmd
     | ReadUserData _
     | SetUserData _
-    | ExecCmd _
-    | ExecFuncInMessage _
-    | ExecFuncAsynch _
-    | ExecCmdAsynch _
-    | SendSeqMsgAsynch _ 
     | SetThemeUserData _ -> None
+    | ExecCmd _ -> Some "ExecCmd"
+    | ExecFuncInMessage _ -> Some "ExecFuncInMessage"
+    | ExecFuncAsynch _ -> Some "ExecFuncAsync"
+    | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
+    | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
+
 
 
 

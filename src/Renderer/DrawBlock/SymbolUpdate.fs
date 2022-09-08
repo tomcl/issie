@@ -753,7 +753,7 @@ let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
 let inline symbolsHaveError model compList =
     let resetSymbols = 
         model.Symbols
-        |> Map.map (fun _ sym -> Optic.set (appearance_ >-> colour_) "lightgray" sym)
+        |> Map.map (fun _ sym -> Optic.set (appearance_ >-> colour_) (getSymbolColour sym.Component.Type sym.IsClocked) sym)
 
     let setSymColorToRed prevSymbols sId =
         Map.add sId (Optic.set (appearance_ >-> colour_)  "Red" resetSymbols[sId]) prevSymbols
@@ -768,7 +768,7 @@ let inline selectSymbols model compList =
     let resetSymbols = 
         model.Symbols
         |> Map.map (fun _ sym -> 
-            Optic.map appearance_ (Optic.set colour_ "lightgray" >> Optic.set opacity_ 1.0 ) sym)
+            Optic.map appearance_ (Optic.set colour_ (getSymbolColour sym.Component.Type sym.IsClocked) >> Optic.set opacity_ 1.0 ) sym)
 
     let updateSymbolColour prevSymbols sId =
         Map.add sId (Optic.set (appearance_ >-> colour_)  "lightgreen" resetSymbols[sId]) prevSymbols
@@ -784,7 +784,7 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols = 
         model.Symbols
         |> Map.map 
-            (fun _ sym ->  Optic.map appearance_ (Optic.set colour_ "lightgray" >> Optic.set opacity_ 1.0) sym)
+            (fun _ sym ->  Optic.map appearance_ (Optic.set colour_ (getSymbolColour sym.Component.Type sym.IsClocked) >> Optic.set opacity_ 1.0) sym)
             
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
@@ -860,7 +860,7 @@ let createSymbol ldcs prevSymbols comp =
                     HighlightLabel = false
                     ShowPorts = ShowNone //do not show input ports initially
                     // ShowOutputPorts = false //do not show output ports initially
-                    Colour = "lightgray"     // initial color 
+                    Colour = getSymbolColour comp.Type clocked
                     Opacity = 1.0
                 }
                 Id = ComponentId comp.Id

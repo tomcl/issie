@@ -191,7 +191,7 @@ module CommonTypes
         | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
-        |NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
+        | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
         | NbitsXor of BusWidth:int
         | NbitsAnd of BusWidth: int | NbitsNot of BusWidth: int
         | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int

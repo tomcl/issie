@@ -938,8 +938,3 @@ let update (msg : Msg) oldModel =
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
     |> UpdateHelpers.traceMessage startOfUpdateTime msg
     |> ModelHelpers.execOneAsyncJobIfPossible
-
-
-
-
-

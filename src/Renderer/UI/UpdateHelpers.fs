@@ -102,6 +102,7 @@ let shortDisplayMsg (msg:Msg) =
     | ShowPopup _ -> None
     | ShowStaticInfoPopup _ -> None
     | ClosePopup -> None
+    | SetPopupDialogBadLabel _ -> None
     | SetPopupDialogText _ -> None
     | SetPopupDialogCode _ -> None
     | SetPopupDialogVerilogErrors _ -> None
@@ -137,7 +138,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetTopMenu _ -> None
     | ReloadSelectedComponent _ -> None
     | SetDragMode _ -> None
-    /// Set width of right-hand pane when tab is WaveSimulator or TruthTable
+    // Set width of right-hand pane when tab is WaveSimulator or TruthTable
     | SetViewerWidth _ -> None
     | MenuAction _ -> None
     | DiagramMouseEvent

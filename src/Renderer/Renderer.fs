@@ -157,7 +157,6 @@ let viewMenu dispatch =
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.Togglefullscreen
-        makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         menuSeparator
         makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Shift+Plus") MenuItemRole.ZoomIn
         makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
@@ -167,6 +166,12 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
+        makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
+        makeMenu false "Theme" [
+            makeItem "Grayscale" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
+            makeItem "Light" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
+            makeItem "Colourful" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
+        ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
         makeMenu false "Wire Type" [
             makeItem "Jump wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)

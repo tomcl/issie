@@ -158,7 +158,8 @@ let shortDisplayMsg (msg:Msg) =
     | ExecFuncInMessage _
     | ExecFuncAsynch _
     | ExecCmdAsynch _
-    | SendSeqMsgAsynch _ -> None
+    | SendSeqMsgAsynch _ 
+    | SetThemeUserData _ -> None
 
 
 

@@ -230,7 +230,7 @@ let showMemoryEditorPopup maybeTitle body maybeFoot extraStyle dispatch =
 
 let private buildPopup title body foot close extraStyle =
     fun (dispatch:Msg->Unit) (dialogData : PopupDialogData) ->
-        Modal.modal [ Modal.IsActive true; Modal.CustomClass "modal1"] [
+        Modal.modal [ Modal.IsActive true; Modal.CustomClass "modal1"; Modal.Props [Style [ZIndex 20000]]] [
             Modal.background [ Props [ OnClick (close dispatch)]] []
             Modal.Card.card [ Props [
                 Style ([
@@ -866,15 +866,45 @@ let simulationLegend (model:Model) (pp: PopupProgress) =
         str <| $"simulation speed: %6.0f{speed} component-clocks / ms"
     | _ -> div [] []
 
+/// Popup to implement spinner for long operations
+let viewSpinnerPopup (spinPayload:SpinPayload) (model: Model) (dispatch: (Msg -> Unit)) =
+    dispatch <| UpdateModel spinPayload.Payload
+    let body (dispatch: Msg->Unit) (dialog: PopupDialogData) =
+        Progress.progress
+            [   Progress.Color IsSuccess
+                Progress.Value (spinPayload.Total - spinPayload.ToDo)
+                Progress.Max (spinPayload.Total)
+            ]
+            [ str $"{spinPayload.Total - spinPayload.ToDo}"]
+
+    let foot (dispatch:Msg->Unit) (dialog:PopupDialogData) =
+        Level.level [ Level.Level.Props [ Style [ Width "100%"] ] ] [
+            Level.left [] []
+            Level.right [] [
+                Level.item [] [
+                    Button.button [
+                        Button.Color IsLight
+                        Button.OnClick (fun _ -> 
+                            dispatch ClosePopup)
+                    ] [ str "Cancel" ]
+                ]
+            ]
+        ]
+        
+    buildPopup spinPayload.Name body foot (fun dispatch _ -> dispatch ClosePopup) [] dispatch model.PopupDialogData
 
 /// Display popup, if any is present.
-/// A progress popup, if present, overrides any other active popup.
+/// A progress popup, if present, overrides any display popup.
+/// A spinner popup, if present, overrides all other popups
 let viewPopup model dispatch =
-    match model.PopupDialogData.Progress, model.PopupViewFunc with
-    | None, None -> div [] []
-    | Some amount, _ ->
+    match model.PopupDialogData.Progress, model.PopupViewFunc, model.SpinnerPayload with
+    | None, None, None -> 
+        div [] []
+    | _, _, Some payload ->
+        viewSpinnerPopup payload model dispatch
+    | Some amount, _, _ ->
         progressPopup simulationLegend model dispatch
-    | None, Some popup -> popup dispatch model.PopupDialogData 
+    | None, Some popup, _ -> popup dispatch model.PopupDialogData 
 
 
 
@@ -1095,3 +1125,10 @@ let viewWaveSelectConfirmationPopup numWaves action dispatch =
         warning
     let foot _ = div [] []
     choicePopup title warning "Select waveforms" "Change selection"  action dispatch
+
+
+
+
+
+
+

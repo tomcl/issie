@@ -68,13 +68,20 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
     )
     |> List.concat
 
+/// Detects if SVG is correct, based on zoom & position & existence
+/// The fast simulation data is assumed unchanged
+let waveformIsUptodate (ws: WaveSimModel) (wave:Wave) =
+    wave.SVG <> None &&
+    wave.ShownCycles = ws.ShownCycles &&
+    wave.StartCycle = ws.StartCycle &&
+    wave.CycleWidth = singleWaveWidth ws &&
+    wave.Radix = ws.Radix
+
 /// Called when InitiateWaveSimulation msg is dispatched
 /// and when wave simulator is refreshed.
-/// Generates the SVG for a specific waveform.
-let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
-    // Only generate waveforms for selected waves
-    //printfn $"generating {wave.DisplayName} of {wsModel.SelectedWaves.Length} waves"
-    if List.contains index wsModel.SelectedWaves then
+/// Generates or updates the SVG for a specific waveform if necessary
+/// Assumes that the fast simulation data has not changed and has enough cycles
+let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
         let waveform =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
@@ -82,30 +89,29 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
             | 1 ->
                 //printfn "starting binary"
                 let start = TimeHelpers.getTimeMs ()
-                let transitions = calculateBinaryTransitions wave.WaveValues
+                let transitions = calculateBinaryTransitions wave.WaveValues.Step
                 /// TODO: Fix this so that it does not generate all 500 points.
                 /// Currently takes in 0, but this should ideally only generate the points that
                 /// are shown on screen, rather than all 500 cycles.
                 let wavePoints =
-                    Array.mapi (binaryWavePoints (singleWaveWidth wsModel) 0) transitions 
+                    Array.mapi (binaryWavePoints (singleWaveWidth ws) 0) transitions 
                     |> Array.concat
                     |> Array.distinct
 
-                svg (waveRowProps wsModel)
+                svg (waveRowProps ws)
                     [ polyline (wavePolylineStyle wavePoints) [] ]
-                |> TimeHelpers.instrumentInterval "binary waveform" start
             // Non-binary waveform
             | _ ->
                 //printfn "starting non-binary"
                 let start = TimeHelpers.getTimeMs ()
 
-                let transitions = calculateNonBinaryTransitions wave.WaveValues
+                let transitions = calculateNonBinaryTransitions wave.WaveValues.Step
                 //printfn "calculating trans..."
                 /// TODO: Fix this so that it does not generate all 500 points.
                 /// Currently takes in 0, but this should ideally only generate the points that
                 /// are shown on screen, rather than all 500 cycles.
                 let fstPoints, sndPoints =
-                    Array.mapi (nonBinaryWavePoints (singleWaveWidth wsModel) 0) transitions 
+                    Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions 
                     |> Array.unzip
                 //printfn "points"
                 let makePolyline points = 
@@ -115,15 +121,19 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
                         |> Array.distinct
                     polyline (wavePolylineStyle points) []
 
-                let valuesSVG = displayValuesOnWave wsModel wave.WaveValues transitions
+                let valuesSVG = displayValuesOnWave ws wave.WaveValues.Step transitions
                 //printfn "values"
-                svg (waveRowProps wsModel)
+                svg (waveRowProps ws)
                     (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
                 //|> (fun x -> printfn "makepolyline"; x)
-                |> TimeHelpers.instrumentInterval "nonbinary waveform" start
         //printfn "end generate"
-        {wave with SVG = Some waveform}
-    else wave
+        {wave with 
+            Radix = ws.Radix
+            ShownCycles = ws.ShownCycles
+            StartCycle = ws.StartCycle
+            CycleWidth = singleWaveWidth ws
+            SVG = Some waveform}
+    
 
 
 
@@ -472,7 +482,6 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
             | Some waveform ->
                 waveform
             | None ->
-                printf "no waveform generated for %A" wave.DisplayName
                 div [] []
         )
 
@@ -679,50 +688,145 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
     else div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 
-let refreshWaveSim (wsModel: WaveSimModel, simData, (comps, conns)) : WaveSimModel = 
+
+let makeWaveformsWithTimeOut
+        (timeOut: float option) 
+        (ws: WaveSimModel)
+        (allWaves: Map<WaveIndexT,Wave>) 
+        (wavesToBeMade: WaveIndexT list) =
+    let start = TimeHelpers.getTimeMs()
+    let allWaves, numberDone, timeToDo =
+        ((allWaves, 0, None), wavesToBeMade)
+        ||> List.fold (fun (all,n, timeOpt) wi ->
+                match timeOut, TimeHelpers.getTimeMs() - start with
+                | Some timeOut, timeSoFar when timeOut < timeSoFar ->
+                    all, n, Some timeSoFar
+                | _ -> 
+                    (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
+//    printfn $"Making {numberDone} waveforms from {wavesToBeMade.Length}."
+    allWaves, numberDone, timeToDo
+
+/// Start or update a spinner popup
+let updateSpinner (name:string) payload (numToDo:int) (model: Model) =
+    match model.SpinnerPayload with
+    | Some sp when sp.Name = name ->
+        {model with SpinnerPayload = Some {Name = name; Payload = payload; ToDo = numToDo; Total = sp.Total}}
+    | _ ->
+        {model with SpinnerPayload = Some {Name = name; Payload = payload; ToDo = numToDo; Total = numToDo + 1}}
+
+    
+
+
+/// remove the spinner popup
+let cancelSpinner (model:Model) =
+    {model with SpinnerPayload = None}
+    
+
+/// 
+let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
     let start = TimeHelpers.getTimeMs ()
+    let fs = wsModel.FastSim
+    if fs.NumStepArrays = 0 then
+        model, Elmish.Cmd.none
+    else
     // starting runSimulation
-    FastRun.runFastSimulation None (wsModel.StartCycle + wsModel.ShownCycles+1) simData.FastSim
-    |> TimeHelpers.instrumentInterval "runFastSimulation" start
-    let fs = simData.FastSim
+        //printfn "Starting refresh"
+        let lastCycleNeeded = wsModel.StartCycle + wsModel.ShownCycles+1
+        //printfn $"Running fs: {fs.ClockTick} --> {lastCycleNeeded}"
 
-    let allWaves =
-        let allWavesStart = TimeHelpers.getTimeMs ()
-        //printfn "starting getwaves"
-        getWaves simData 
-        //|> (fun x -> printfn "getwaves done";x)
-        |> TimeHelpers.instrumentInterval "getWaves" allWavesStart
-        |> Map.map (generateWaveform wsModel)
-        //|> (fun x -> printfn "generatemap done.";x)
-        |> TimeHelpers.instrumentInterval "allWaves" allWavesStart
+        FastRun.runFastSimulation (Some Constants.initSimulationTime) lastCycleNeeded fs
+        |> (fun speedOpt ->
+            let cyclesToDo = lastCycleNeeded - wsModel.FastSim.ClockTick
+            match speedOpt with
+            | Some speed when  float cyclesToDo / speed + Constants.initSimulationTime > Constants.maxSimulationTimeWithoutSpinner  &&
+                               Option.isNone model.Spinner ->
+                // long simulation, set spinner on and dispatch another refresh 
+                let spinnerFunc = fun model -> fst (refreshWaveSim newSimulation wsModel model)
+                let model = model |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
+                //printfn "ending refresh with continuation..."
+                model, Elmish.Cmd.none
+                |> TimeHelpers.instrumentInterval "refreshWaveSim" start
+            | _ ->
+                if speedOpt <> None then 
+                    //printfn "Force running simulation"
+                    // force simulation to finish now
+                    FastRun.runFastSimulation None lastCycleNeeded fs |> ignore                
+                // simulation has finished so can generate waves
 
-    let ramComps =
-        let isRAMOrROM fcid (fc: FastComponent) =
-            match fc.FType with
-            | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ ->
-                true
-            | _ -> false
-        Map.filter isRAMOrROM simData.FastSim.FComps
-        |> Map.toList
-        |> List.map (fun (fcid,fc) -> fc)
-        |> List.sortBy (fun fc -> fc.FullName)
+                //printfn $"Ending refresh now at Tick {fs.ClockTick}..."
+                let allWavesStart = TimeHelpers.getTimeMs ()    
+                    //printfn "starting getwaves"
+            
+                let allWaves = 
+                    if newSimulation then
+                        //printfn "making new waves..."
+                        getWaves wsModel fs 
+                    else wsModel.AllWaves
 
-    let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
+                let wavesToBeMade =
+                    allWaves
+                    |> Map.filter (fun wi wave ->
+                        // Only generate waveforms for selected waves.
+                        // Regenerate waveforms whenever they have changed
+                        let hasChanged = not <| waveformIsUptodate wsModel wave
+                        let simulationIsUptodate = wsModel.FastSim.ClockTick > wsModel.ShownCycles + wsModel.StartCycle
+                        //if List.contains index ws.SelectedWaves then 
+                        List.contains wi wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
+                    |> Map.toList
+                    |> List.map fst
 
-    let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
-    let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
+                let model, allWaves, spinnerPayload, numToDo =
+                    //printfn $"{wavesToBeMade.Length} waves to make."
+                    let numToDo = wavesToBeMade.Length
+                    makeWaveformsWithTimeOut (Some Constants.initSimulationTime) wsModel allWaves wavesToBeMade
+                    |> (fun (allWaves, numDone, timeOpt) ->
+                            match wavesToBeMade.Length - numDone, timeOpt with
+                            | n, None -> 
+                                model, allWaves, None, n // finished
+                            | _ when numDone = 0 -> 
+                                failwithf "What? makewaveformsWithTimeOut must make at least one waveform"
+                            | numToDo, Some t when 
+                                    float wavesToBeMade.Length * t / float numDone < Constants.maxSimulationTimeWithoutSpinner ->
+                                model, allWaves, None, numToDo
+                            | numToDo, _ ->
+                                let payload = Some ("Making waves", refreshWaveSim false {wsModel with AllWaves = allWaves} >> fst)
+                                model,  allWaves, payload, numToDo)
 
-    //return 
-    {
-        wsModel with
-            State = Success
-            AllWaves = allWaves
-            SelectedWaves = selectedWaves
-            RamComps = ramComps
-            SelectedRams = selectedRams
-            FastSim = simData.FastSim
-    }
-    |> TimeHelpers.instrumentInterval "refreshWaveSim" start
+                let ramComps =
+                    let isRAMOrROM fcid (fc: FastComponent) =
+                        match fc.FType with
+                        | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ ->
+                            true
+                        | _ -> false
+                    Map.filter isRAMOrROM fs.FComps
+                    |> Map.toList
+                    |> List.map (fun (fcid,fc) -> fc)
+                    |> List.sortBy (fun fc -> fc.FullName)
+
+                let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
+
+                let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
+                let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
+
+                let ws =  
+                    {
+                        wsModel with
+                            State = Success
+                            AllWaves = allWaves
+                            SelectedWaves = selectedWaves
+                            RamComps = ramComps
+                            SelectedRams = selectedRams
+                            FastSim = fs
+                    }
+
+                let model = 
+                    match spinnerPayload with
+                    | None -> cancelSpinner model
+                    | Some sp -> 
+                        updateSpinner (fst sp) (snd sp) numToDo model
+                    |> updateWSModel (fun _ -> ws)
+                model, Elmish.Cmd.none
+                |> TimeHelpers.instrumentInterval "refreshWaveSim" start)
 //}
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
@@ -731,19 +835,25 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         match model.WaveSimSheet with
         | None -> Option.get (getCurrFile model)
         | Some sheet -> sheet
+    printfn $"Refresh Button with width = {model.WaveSimViewerWidth}"
+    let model = 
+        model
+        |> removeAllSimulationsFromModel
+        |> fun model -> {model with WaveSimSheet = Some wsSheet}
+        |> WaveSimStyle.updateViewerWidthInWaveSim model.WaveSimViewerWidth
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
     match SimulationView.makeSimData model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + 1)  canvasState model with
     | None ->
-        dispatch <| SetWSModel { wsModel with State = NoProject }
+        dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
     | Some (Error e, _) ->
         dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
     | Some (Ok simData, canvState) ->
         if simData.IsSynchronous then
             SimulationView.setFastSimInputsToDefault simData.FastSim
-            let wsModel = { wsModel with State = Loading }
+            let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }
             dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
-            dispatch <| RefreshWaveSim (wsModel, simData, canvState)
+            dispatch <| RefreshWaveSim wsModel 
         else
             dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
            
@@ -796,26 +906,25 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                     let startOrRenew = refreshButtonAction canvasState model dispatch
                     let waveEnd = endButtonAction canvasState model dispatch
                     let wbo = getWaveSimButtonOptions canvasState model wsModel
-                    //printfn $"Sim is Dirty{wbo.IsDirty}" 
-                    div [Style [MarginBottom "20px" ]]
-                        ((let needsRefresh = wbo.IsDirty && wbo.IsRunning
-                        (if not wbo.IsRunning then 
-                            [] 
-                        else
-                            [                        
-                                button
-                                    (Button.Disabled (not needsRefresh) :: topHalfButtonProps IsSuccess)
-                                    startOrRenew
-                                    refreshButtonSvg
-                            ])) @
-
-                        [
-                            button 
-                                (topHalfButtonProps wbo.StartEndColor) 
-                                (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
-                                (str wbo.StartEndMsg)
+                    let startEndButton =
+                        button 
+                            (topHalfButtonProps wbo.StartEndColor) 
+                            (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
+                            (str wbo.StartEndMsg)
+                    let needsRefresh = wbo.IsDirty && wbo.IsRunning
+                    div 
+                        [Style [MarginBottom "20px" ]]                      
+                        (if not wbo.IsRunning then [
+                            startEndButton
+                         ] 
+                        else [
+                            startEndButton
+                            button
+                                (Button.Disabled (not needsRefresh) :: topHalfButtonProps IsSuccess)
+                                startOrRenew
+                                refreshButtonSvg
                         ])
-                    
+
                     Level.level [] [
                         Level.item [ ] [
                             Button.list [] [
@@ -852,37 +961,37 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
         SimulationView.setSimErrorFeedback e model dispatch
         div [ errorMessageStyle ]
             [ SimulationView.viewSimulationError e ]
+    div [] [
+        div [ viewWaveSimStyle ]
+            [
+                topHalf canvasState model dispatch
+                match model.WaveSimSheet, wsModel.State with
+                | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->
+                    dispatch <| UpdateModel( fun model -> {model with WaveSimSheet = None})
+                    dispatch <| UpdateModel( updateWSModelOfSheet sheet (fun ws -> {ws with State = Ended}))
+                    notRunning
+                | None, SimError e  ->
+                    notRunning
+                | _,SimError e ->
+                    simError e               
+                | _,NonSequential ->
+                    div [ errorMessageStyle ]
+                        [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms" ]
+                | _,Empty | _,Ended | None,_ | Some "", _-> notRunning
+                | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning              
+                | _,NoProject ->
+                    div [ errorMessageStyle ]
+                        [ str "Please open a project to use the waveform viewer." ]
+                | _,Loading | _,Success ->
+                    //printfn $"Showing waveforms: fs= {wsModel.FastSim}"
+                    div [showWaveformsAndRamStyle] [
+                        showWaveforms model wsModel dispatch
+                        hr []
+                        ramTables wsModel
+                        ]
+
+                hr []
+            ]
         
-    div [ viewWaveSimStyle ]
-        [
-            topHalf canvasState model dispatch
-            match model.WaveSimSheet, wsModel.State with
-            | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->
-                dispatch <| UpdateModel( fun model -> {model with WaveSimSheet = None})
-                dispatch <| UpdateModel( updateWSModelOfSheet sheet (fun ws -> {ws with State = Ended}))
-                notRunning
-            | None, SimError e  ->
-                notRunning
-            | _,SimError e ->
-                simError e               
-            | _,NonSequential ->
-                div [ errorMessageStyle ]
-                    [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms" ]
-            | _,Empty | _,Ended | None,_ | Some "", _-> notRunning
-            | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning              
-            | _,NoProject ->
-                div [ errorMessageStyle ]
-                    [ str "Please open a project to use the waveform viewer." ]
-            | _,Loading | _,Success ->
-                //printfn $"Showing waveforms: fs= {wsModel.FastSim}"
-                div [showWaveformsAndRamStyle] [
+    ]
 
-                    showWaveforms model wsModel dispatch
-
-                    hr []
-
-                    ramTables wsModel
-                    ]
-
-            hr []
-        ]

@@ -976,16 +976,21 @@ let getInfoButton (name:string) (project:Project) : ReactElement =
         null
 
 let addVerticalScrollBars r =
-    let height = (Browser.Dom.document.getElementById "Canvas").offsetHeight - 100.0
-    [div 
-        [Style 
-            [
-                MaxHeight height; 
-                OverflowY OverflowOptions.Auto
-                OverflowX OverflowOptions.Clip
-            ]
-        ] 
-        r]
+    // dealwith case where Canvas does not exist
+    let (el :Browser.Types.HTMLElement option) = unbox (Browser.Dom.document.getElementById "Canvas")
+    match el with
+    | None -> r
+    | Some el -> 
+        let height =el.offsetHeight - 100.0
+        [div 
+            [Style 
+                [
+                    MaxHeight height; 
+                    OverflowY OverflowOptions.Auto
+                    OverflowX OverflowOptions.Clip
+                ]
+            ] 
+            r]
 
 
 let viewTopMenu model dispatch =

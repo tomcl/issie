@@ -975,6 +975,19 @@ let getInfoButton (name:string) (project:Project) : ReactElement =
     | None ->
         null
 
+let addVerticalScrollBars r =
+    let height = (Browser.Dom.document.getElementById "Canvas").offsetHeight - 100.0
+    [div 
+        [Style 
+            [
+                MaxHeight height; 
+                OverflowY OverflowOptions.Auto
+                OverflowX OverflowOptions.Clip
+            ]
+        ] 
+        r]
+
+
 let viewTopMenu model dispatch =
     let compIds = getComponentIds model
 
@@ -1080,6 +1093,7 @@ let viewTopMenu model dispatch =
                     makeFileLine (isSubSheet tree.Node) comp.Name project model , tree)
                 |> List.sortBy (fun (line,tree) -> isSubSheet tree.Node, tree.Node, -tree.Size, tree.Node.ToLower())
                 |> List.map fst
+                |> addVerticalScrollBars
             Navbar.Item.div
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props
@@ -1097,11 +1111,13 @@ let viewTopMenu model dispatch =
                                        b) then
                                       DisplayOptions.Block
                                    else
-                                      DisplayOptions.None) ] ] ]
-                      ([ Navbar.Item.a [ Navbar.Item.Props [ OnClick(fun _ -> 
-                            dispatch (StartUICmd AddSheet)
-                            addFileToProject model dispatch) ] ]
-                             [ str "New Sheet" ]
+                                      DisplayOptions.None) 
+                                ] ] ]
+                      ([ Navbar.Item.a [ Navbar.Item.Props 
+                            [ OnClick(fun _ -> 
+                                dispatch (StartUICmd AddSheet)
+                                addFileToProject model dispatch) ] ]
+                                 [ str "New Sheet" ]
                          Navbar.divider [] [] ]
                        @ projectFiles) ]
 

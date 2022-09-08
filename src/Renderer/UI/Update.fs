@@ -24,6 +24,7 @@ open Fable.SimpleJson
 open Helpers
 open NumberHelpers
 open DiagramStyle
+open UpdateHelpers
 
 
 //---------------------------------------------------------------------------------------------//
@@ -31,43 +32,7 @@ open DiagramStyle
 //---------------------------------- Update Model ---------------------------------------------//
 //---------------------------------------------------------------------------------------------//
 
-///Used to filter specific mouse messages based on mouse data.
-let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
-    match msg with
-    | Sheet sMsg ->
-        match sMsg with
-        | SheetT.MouseMsg mMsg ->
-            msgSelect mMsg
-        | _ -> false
-    | _ -> false
 
-/// If debugTrace is on print out human readable info on message.
-/// Be careful not to do this on mouse moves (there are too many).
-/// be careful not to try to ptint simulation result arrays (that would crash the renderer!).
-/// optimise for very quick return in the case that debugLevel = 0 (production version)
-/// optimise for quick return if nothing is printed.
-let getMessageTraceString (msg: Msg) =
-    let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = 
-        mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
-    let noDisplayMessage = function
-        | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> true
-        | _ -> false
-    let shortDisplayMsg = function 
-        | SetWSModel _ -> Some "U(SetWSModel)"
-        | StartSimulation _ -> Some "U(StartSimulation)"
-        | SetSimulationGraph _ -> Some "U(SetSimulationGraph)"
-        | SetPopupMemoryEditorData _ -> Some "U(SetPopupmemoryEditorData)"
-        | _ -> None 
-    if JSHelpers.debugLevel = 0 ||
-       not (Set.contains "update" JSHelpers.debugTraceUI) ||
-       matchMouseMsg noDisplayMouseOp msg ||
-       noDisplayMessage msg then
-        ""
-    else 
-        match shortDisplayMsg msg with
-        | Some shortName -> shortName
-        | None ->
-            Helpers.sprintInitial 70 $"{msg}"
 
 
 
@@ -350,7 +315,7 @@ let sheetMsg sMsg model =
 
 /// Main MVU model update function
 let update (msg : Msg) oldModel =
-    let startUpdate = TimeHelpers.getTimeMs()
+    let startOfUpdateTime = TimeHelpers.getTimeMs()
     
 
     //Add the message to the pending queue if it is a mouse drag message
@@ -971,17 +936,7 @@ let update (msg : Msg) oldModel =
     | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
-    |> (fun (model,cmdL) -> 
-            if JSHelpers.debugLevel > 0 then
-                let str = getMessageTraceString msg
-                let rootOfMsg = 
-                    match str.Split [|' ';'('|] with
-                    | ss when ss.Length > 0 -> ss.[0]
-                    | _ -> ""
-                TimeHelpers.instrumentInterval rootOfMsg startUpdate |> ignore
-                if str <> "" then printfn "**Upd:%s" str
-                Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
-            model,cmdL)
+    |> UpdateHelpers.traceMessage startOfUpdateTime msg
     |> ModelHelpers.execOneAsyncJobIfPossible
 
 

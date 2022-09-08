@@ -82,6 +82,9 @@ let waveformIsUptodate (ws: WaveSimModel) (wave:Wave) =
 /// Generates or updates the SVG for a specific waveform if necessary
 /// Assumes that the fast simulation data has not changed and has enough cycles
 let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
+        //if wave.ViewerDisplayName.StartsWith "DATAPATH.MUX" then
+            //let wave1 = {wave with SVG=None ; WaveValues = {wave.WaveValues with Step = Array.empty}}
+            //printfn $"Generating waveform '{wave.ViewerDisplayName}'\n wave={wave1}"
         let waveform =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
@@ -763,16 +766,19 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         getWaves wsModel fs 
                     else wsModel.AllWaves
 
+                let simulationIsUptodate = wsModel.FastSim.ClockTick > wsModel.ShownCycles + wsModel.StartCycle
                 let wavesToBeMade =
                     allWaves
                     |> Map.filter (fun wi wave ->
                         // Only generate waveforms for selected waves.
                         // Regenerate waveforms whenever they have changed
                         let hasChanged = not <| waveformIsUptodate wsModel wave
-                        let simulationIsUptodate = wsModel.FastSim.ClockTick > wsModel.ShownCycles + wsModel.StartCycle
                         //if List.contains index ws.SelectedWaves then 
                         List.contains wi wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
                     |> Map.toList
+                   
+                    //|> (fun lst -> lst |> List.iter (fun (wi,wave) -> 
+                        //printfn $"wave={wi.SimArrayIndex},{wi.PortNumber},{wi.PortType},{wave.ViewerDisplayName}"); lst)
                     |> List.map fst
 
                 let model, allWaves, spinnerPayload, numToDo =
@@ -787,7 +793,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                                 failwithf "What? makewaveformsWithTimeOut must make at least one waveform"
                             | numToDo, Some t when 
                                     float wavesToBeMade.Length * t / float numDone < Constants.maxSimulationTimeWithoutSpinner ->
-                                model, allWaves, None, numToDo
+                                let (allWaves, numDone, timeOpt) = makeWaveformsWithTimeOut None wsModel allWaves wavesToBeMade
+                                model, allWaves, None, numToDo - numDone
                             | numToDo, _ ->
                                 let payload = Some ("Making waves", refreshWaveSim false {wsModel with AllWaves = allWaves} >> fst)
                                 model,  allWaves, payload, numToDo)

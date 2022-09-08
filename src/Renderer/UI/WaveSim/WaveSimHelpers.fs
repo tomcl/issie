@@ -17,6 +17,10 @@ open NumberHelpers
 
 
 module Constants =
+    /// initial time running simulation without spinner to check speed (in ms)
+    let initSimulationTime = 100.
+    /// max estimated time to run simulation and not need a spinner (in ms)
+    let maxSimulationTimeWithoutSpinner = 200.
     /// The horizontal length of a transition cross-hatch for non-binary waveforms
     let nonBinaryTransLen : float = 8.
 
@@ -160,7 +164,7 @@ let pointsToString (points: XYPos array) : string =
 
 /// Retrieve value of wave at given clock cycle as an int.
 let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
-    Array.tryItem currClkCycle wave.WaveValues
+    Array.tryItem currClkCycle wave.WaveValues.Step
     |> function
         | Some (Data fData) ->
             convertFastDataToInt64 fData |> int64
@@ -667,6 +671,7 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
 /// display all cycles on screen. TimeOut is an optional time out.
 let extendSimulation timeOut (ws:WaveSimModel) =
     let stepsNeeded = ws.ShownCycles + ws.StartCycle
+    printfn $"Extending simulation to {stepsNeeded} cycles"
     FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
 

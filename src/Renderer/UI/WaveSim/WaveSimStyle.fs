@@ -669,7 +669,9 @@ let emptyRefreshSVG =
     ] []
 
 
-let inline setViewerWidthInWaveSim w (model:Model) dispatch=
+
+
+let inline updateViewerWidthInWaveSim w (model:Model) =
     let wsModel = getWSModel model
     //dispatch <| SetViewerWidth w
     let namesColWidth = calcNamesColWidth wsModel
@@ -688,11 +690,20 @@ let inline setViewerWidthInWaveSim w (model:Model) dispatch=
 
     let viewerWidth = namesColWidth + Constants.valuesColWidth + int (singleCycleWidth * float wholeCycles) + otherDivWidths
 
-    let wsModel = {
+    let updateFn wsModel = 
+        {
         wsModel with
             ShownCycles = wholeCycles
             WaveformColumnWidth = singleCycleWidth * float wholeCycles
         }
-    dispatch <| SetViewerWidth w
+    {model with WaveSimViewerWidth = w}
+    |> ModelHelpers.updateWSModel updateFn
 
+
+
+let inline setViewerWidthInWaveSim w (model:Model) dispatch =
+    let model = updateViewerWidthInWaveSim w model 
+    let wsModel = getWSModel model
+    dispatch <| SetViewerWidth w
+    dispatch <| UpdateWSModel (fun _ -> wsModel)
     dispatch <| GenerateWaveforms wsModel

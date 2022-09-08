@@ -88,6 +88,8 @@ type PopupDialogData = {
     BadLabel: bool
 }
 
+let progress_ = Optics.Lens.create (fun a -> a.Progress) (fun s a -> {a with Progress = s})
+
 type TopMenu = | Closed | Project | Files
 
 //==========//
@@ -145,7 +147,14 @@ type DriverT = {
 type Wave = {
     /// Uniquely identifies a waveform
     WaveId: WaveIndexT
-
+    /// First cycle displayed
+    StartCycle: int
+    /// Number of cycles displayed
+    ShownCycles: int
+    /// width of one cycle: TODO - remove this and stretch SVGs to fit
+    CycleWidth: float
+    /// radix of waveform numbers
+    Radix: NumberBase
     /// unique within design sheet (SheetId)
     /// [] for top-level waveform: path to sheet
     /// Currently unused.
@@ -163,7 +172,7 @@ type Wave = {
     Width: int
     /// TODO: Consider changing to a map keyed by clock cycle.
     /// List indexed by clock cycle to show value of wave.
-    WaveValues: FData array
+    WaveValues: StepArray<FData>
     /// SVG of waveform
     SVG: ReactElement option
 }
@@ -271,7 +280,7 @@ type Msg =
     /// of the WaveSimModel
     | GenerateWaveforms of WaveSimModel
     /// Run, or rerun, the FastSimulation with the current state of the Canvas.
-    | RefreshWaveSim of WaveSimModel * SimulationData * CanvasState
+    | RefreshWaveSim of WaveSimModel
     /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)
     | SetWaveSheetSelectionOpen of (string list list * bool)
     /// Sets or clears ShowComponentDetail
@@ -403,6 +412,16 @@ type UserData = {
     Theme: DrawModelType.SymbolT.ThemeType
     }
 
+type SpinnerState =
+   | WaveSimSpinner
+
+type SpinPayload = {
+    Payload: Model -> Model
+    Name: string
+    ToDo: int
+    Total: int
+    }
+
 type Model = {
     UserData: UserData
     /// Map of sheet name to WaveSimModel
@@ -410,6 +429,9 @@ type Model = {
 
     /// which top-level sheet is used by wavesim
     WaveSimSheet: string option
+
+    /// If the application has a modal spinner waiting for simulation
+    Spinner: (Model -> Model) option
         
     /// Draw Canvas
     Sheet: DrawModelType.SheetT.Model
@@ -471,6 +493,8 @@ type Model = {
     CurrentProj : Project option
     /// function to create popup pane if present
     PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
+    /// function to create spinner popup pane if present (overrides otehr popups)
+    SpinnerPayload : SpinPayload option
     /// data to populate popup (may not all be used)
     PopupDialogData : PopupDialogData
     /// record containing functions that create react elements of notifications
@@ -488,7 +512,16 @@ type Model = {
     UIState: UICommandType Option
 } 
 
+    with member this.WaveSimOrCurrentSheet =
+            match this.WaveSimSheet, this.CurrentProj with
+            | None, Some {OpenFileName = name} -> name
+            | Some name, _ -> name
+            | None, None -> failwithf "What? Project is not open cannot guess sheet!"
+
+
 let sheet_ = Optics.Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
+let popupDialogData_ = Optics.Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
+
 
 
     

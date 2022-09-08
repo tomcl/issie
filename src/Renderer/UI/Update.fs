@@ -378,7 +378,7 @@ let update (msg : Msg) oldModel =
     | ReloadSelectedComponent width ->
         {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
-        { model with CurrentStepSimulationStep = Some simData }, Cmd.none
+        {model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel ->
         setWSModel wsModel model, Cmd.none
     | UpdateWSModel updateFn ->
@@ -390,22 +390,19 @@ let update (msg : Msg) oldModel =
         newModel, Cmd.none
     | UpdateModel( updateFn: Model -> Model) ->
         updateFn model, Cmd.none
-    | RefreshWaveSim (wsModel, simData, canvState) ->
-        model, Cmd.ofMsg (WaveSim.refreshWaveSim (wsModel, simData, canvState)  |> SetWSModel )
+    | RefreshWaveSim ws ->
+        // restart the wave simulator after design change etc that invalidates all waves
+        WaveSim.refreshWaveSim true ws model
     | AddWSModel (sheet, wsModel) ->
         { model with 
             WaveSim = Map.add sheet wsModel model.WaveSim
         }, Cmd.none
-    | GenerateWaveforms wsModel ->
-        let start = TimeHelpers.getTimeMs ()
-        WaveSimHelpers.extendSimulation None wsModel // ensure simulation is uptodate
-        let allWaves =
-            Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
-            |> TimeHelpers.instrumentInterval "InitiateWaveSimulation generateWaveform" start
+    | GenerateWaveforms ws ->
+        // Update the wave simulator with new waveforms
+        // Is called whenever any waveform might need to be changed
+        WaveSim.refreshWaveSim false ws model
 
-        let wsModel' = {wsModel with AllWaves = allWaves}
-
-        setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
+        
 
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
         let model = 
@@ -437,6 +434,7 @@ let update (msg : Msg) oldModel =
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> 
         let model =
+            let model = removeAllSimulationsFromModel model
             match model.WaveSimSheet with
             | None | Some "" -> 
                 printfn "What? can't end WaveSim when it is already ended"
@@ -445,12 +443,14 @@ let update (msg : Msg) oldModel =
                 { model with 
                     WaveSimSheet = None; 
                     WaveSim = Map.change sheet (Option.map (fun ws -> 
-                        {ws with State = Ended })) model.WaveSim
+                        {ws with State = Ended ; WaveModalActive = false})) model.WaveSim
                 }
         model, Cmd.none
     | GenerateTruthTable simRes ->
         match simRes with
         | Some (Ok sd,_) ->
+            // delete any old simulations
+            let model = ModelHelpers.removeAllSimulationsFromModel model
             // Generate the Truth Table
             let tt = 
                 truthTable 

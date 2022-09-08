@@ -241,7 +241,7 @@ let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIn
     | path ->  camelCaseDottedWords(path[path.Length - 2]) + "." + dispName
 
 /// Make Wave for each component and port on sheet
-let makeWave (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
+let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
     let fc = fastSim.WaveComps[wi.Id]
     //printfn $"Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}, SubSheet={fc.SubSheet}, SheetName={fc.SheetName}"
     let driver = 
@@ -263,13 +263,17 @@ let makeWave (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
  
     {
         WaveId = wi
+        StartCycle = ws.StartCycle
+        ShownCycles = ws.ShownCycles
+        CycleWidth = singleWaveWidth ws
+        Radix = ws.Radix
         SubSheet = fc.SubSheet
         DisplayName = dispName
         ViewerDisplayName = nameWithSheet fastSim dispName wi
         CompLabel = fc.FLabel
         PortLabel = portLabel
         Width = driver.DriverWidth
-        WaveValues = driver.DriverData.Step
+        WaveValues = driver.DriverData
         SheetId = []
         Conns = []
         SVG = None
@@ -280,13 +284,12 @@ let makeWave (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
 
 
 /// Get all simulatable waves from CanvasState. Includes top-level Input and Output ports.
-let getWaves (simData: SimulationData) : Map<WaveIndexT, Wave> =
+let getWaves (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
     let start = TimeHelpers.getTimeMs ()
-    let fs = simData.FastSim
     printfn $"{fs.WaveIndex.Length} possible waves"
     fs.WaveIndex
     |> TimeHelpers.instrumentInterval "getAllPorts" start
-    |> Array.map (fun wi -> wi, makeWave fs wi)
+    |> Array.map (fun wi -> wi, makeWave ws fs wi)
     //|> fun x -> printfn $"Made waves!";x
     |> Map.ofArray
     |> TimeHelpers.instrumentInterval "makeWavePipeline" start
@@ -569,26 +572,28 @@ let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> U
 
 let  selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
 
-    let fs = ws.FastSim
-    let searchText = ws.SearchString
-    let waves = Map.values ws.AllWaves |> Seq.toList
-    let wavesToDisplay =
-        match searchText with
-        | "-" when ws.ShowSheetDetail.Count <> 0 || ws.ShowComponentDetail.Count <> 0  || ws.ShowGroupDetail.Count <> 0 ->
-            dispatch <|SetWaveSheetSelectionOpen (ws.ShowSheetDetail |> Set.toList,false)            
-            dispatch <| SetWaveGroupSelectionOpen (ws.ShowGroupDetail |> Set.toList,false)
-            dispatch <| SetWaveComponentSelectionOpen (ws.ShowComponentDetail |> Set.toList,false)
-            []
-        | "" | "-" ->
-            waves
-        | "*" ->
-            ws.SelectedWaves
-            |> List.map (fun wi -> ws.AllWaves[wi])                       
-        | _ ->
-            List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) waves
-    let showDetails = ((wavesToDisplay.Length < 10) || searchText.Length > 0) && searchText <> "-"
-    wavesToDisplay
-    |> makeSheetRow showDetails ws dispatch []
+    if not ws.WaveModalActive then div [] []
+    else
+        let fs = ws.FastSim
+        let searchText = ws.SearchString
+        let waves = Map.values ws.AllWaves |> Seq.toList
+        let wavesToDisplay =
+            match searchText with
+            | "-" when ws.ShowSheetDetail.Count <> 0 || ws.ShowComponentDetail.Count <> 0  || ws.ShowGroupDetail.Count <> 0 ->
+                dispatch <|SetWaveSheetSelectionOpen (ws.ShowSheetDetail |> Set.toList,false)            
+                dispatch <| SetWaveGroupSelectionOpen (ws.ShowGroupDetail |> Set.toList,false)
+                dispatch <| SetWaveComponentSelectionOpen (ws.ShowComponentDetail |> Set.toList,false)
+                []
+            | "" | "-" ->
+                waves
+            | "*" ->
+                ws.SelectedWaves
+                |> List.map (fun wi -> ws.AllWaves[wi])                       
+            | _ ->
+                List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) waves
+        let showDetails = ((wavesToDisplay.Length < 10) || searchText.Length > 0) && searchText <> "-"
+        wavesToDisplay
+        |> makeSheetRow showDetails ws dispatch []
 
 
 

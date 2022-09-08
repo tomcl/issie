@@ -170,13 +170,17 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let descr = getText dialogData
-
+            let descrToSave =
+                match descr with
+                |"" -> None
+                |_ -> Some descr
+            
             match model.CurrentProj with
             |None -> failwithf "Can't happen"
             |Some p ->
                 let target_ldc = p.LoadedComponents |> List.find (fun x -> x.Name = sheetName)
                 let other_ldc = p.LoadedComponents |> List.filter (fun x -> x.Name <> sheetName)
-                let target_ldc' = {target_ldc with Description=Some descr}  //add description to ldc
+                let target_ldc' = {target_ldc with Description=descrToSave}  //add description to ldc
                 
                 let other_ldc' =  //find all custom comps originating from that sheet and update their description
                     other_ldc 
@@ -187,7 +191,7 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
                             |> List.map (fun comp ->
                                 match comp.Type with
                                 |Custom x when x.Name = sheetName -> 
-                                    let newCompType = Custom {x with Description = Some descr} 
+                                    let newCompType = Custom {x with Description = descrToSave} 
                                     {comp with Type = newCompType}
                                 |_ -> comp
                         )
@@ -203,10 +207,7 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
-            getText dialogData
-            |> Seq.toList
-            |> List.tryHead
-            |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
+            false  //allow all
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitsAdderPopup (model:Model) dispatch =

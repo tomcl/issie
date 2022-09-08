@@ -85,6 +85,7 @@ type PopupDialogData = {
     AlgebraError: SimulationError option
     VerilogCode: string option
     VerilogErrors: ErrorInfo list
+    BadLabel: bool
 }
 
 type TopMenu = | Closed | Project | Files
@@ -321,6 +322,7 @@ type Msg =
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
+    | SetPopupDialogBadLabel of bool
     | SetPopupDialogCode of string option
     | SetPopupDialogVerilogErrors of ErrorInfo list
     | SetPopupDialogInt of int option

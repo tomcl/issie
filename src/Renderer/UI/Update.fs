@@ -759,6 +759,8 @@ let update (msg : Msg) oldModel =
                     }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
+    | SetPopupDialogBadLabel isBad ->
+        { model with PopupDialogData = {model.PopupDialogData with BadLabel = isBad} }, Cmd.none
     | SetPopupDialogCode code ->
         { model with PopupDialogData = {model.PopupDialogData with VerilogCode = code} }, Cmd.none
     | SetPopupDialogVerilogErrors errorList ->

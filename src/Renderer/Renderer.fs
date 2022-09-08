@@ -148,11 +148,16 @@ let fileMenu (dispatch) =
 
 
 let viewMenu dispatch =
+    let maindispatch = dispatch
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let dispatch = SheetT.KeyPress >> sheetDispatch
     let wireTypeDispatch = SheetT.WireType >> sheetDispatch
     let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
+    
+    
+    
+    let symbolDispatch msg = busWireDispatch (BusWireT.Msg.Symbol msg)
 
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
@@ -168,9 +173,18 @@ let viewMenu dispatch =
         menuSeparator
         makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         makeMenu false "Theme" [
-            makeItem "Grayscale" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
-            makeItem "Light" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
-            makeItem "Colourful" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
+            makeItem "Grayscale" None (fun ev -> 
+                maindispatch <| SetThemeUserData SymbolT.ThemeType.White
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.White)
+            )
+            makeItem "Light" None (fun ev -> 
+                maindispatch <| SetThemeUserData SymbolT.ThemeType.Light
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Light)
+            )
+            makeItem "Colourful" None (fun ev -> 
+                maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
+            )
         ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
         makeMenu false "Wire Type" [

@@ -171,15 +171,19 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
 
 
     
-let getSymbolColour compType clocked =
-    match compType with
-    | Register _ | RegisterE _ | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ 
-    | ROM1 _ |AsyncROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 
-    | Custom _ when clocked
-        -> "lightblue"  //for clocked components
-    |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
-        -> "#E8D0A9"  //dark orange: for IO
-    | _ -> "rgba(255,255,0,0.15)" //lightyellow: for combinational components
+let getSymbolColour compType clocked (theme:ThemeType) =
+    match theme with
+    | White | Light -> "lightgray"
+    | Colourful ->
+        match compType with
+        | Register _ | RegisterE _ 
+        | ROM1 _ |AsyncROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 
+        | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ -> "lightblue"
+        | Custom _ when clocked
+            -> "lightblue"  //for clocked components
+        |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
+            -> "#E8D0A9"  //dark orange: for IO
+        | _ -> "rgba(255,255,0,0.15)" //lightyellow: for combinational components
 
 
 
@@ -633,7 +637,7 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
 
 
 /// Function to generate a new symbol
-let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) =
+let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
@@ -648,7 +652,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
           {
             HighlightLabel = false
             ShowPorts = ShowNone
-            Colour = getSymbolColour comptype (isClocked [] ldcs comp)
+            Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
           }
       InWidth0 = None // set by BusWire
@@ -921,7 +925,7 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 
 
 
-let drawSymbol (symbol:Symbol) =
+let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
@@ -1196,7 +1200,7 @@ let init () =
     { 
         Symbols = Map.empty; CopiedSymbols = Map.empty
         Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty;
+        OutputPortsConnected = Map.empty; Theme = Colourful
     }, Cmd.none
 
 //----------------------------View Function for Symbols----------------------------//
@@ -1204,7 +1208,8 @@ type private RenderSymbolProps =
     {
         Symbol : Symbol 
         Dispatch : Dispatch<Msg>
-        key: string 
+        key: string
+        Theme: ThemeType
     }
 
 /// View for one symbol. Using FunctionComponent.Of to improve efficiency (not printing all symbols but only those that are changing)
@@ -1216,7 +1221,7 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol)
+                (drawSymbol props.Symbol props.Theme)
             
         , "Symbol"
         , equalsButFunctions
@@ -1257,6 +1262,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
                 Symbol = symbol
                 Dispatch = dispatch
                 key = id
+                Theme = model.Theme
             }
     )
     |> ofList

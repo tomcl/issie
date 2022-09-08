@@ -598,7 +598,8 @@ module CommonTypes
                         
 
                             
-        | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _ ->
+        | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _
+        | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ ->
             true
         | _ -> false
 

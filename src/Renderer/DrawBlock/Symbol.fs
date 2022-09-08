@@ -171,7 +171,19 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
 
 
     
-
+let getSymbolColour compType clocked (theme:ThemeType) =
+    match theme with
+    | White | Light -> "lightgray"
+    | Colourful ->
+        match compType with
+        | Register _ | RegisterE _ 
+        | ROM1 _ |AsyncROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 
+        | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ -> "lightblue"
+        | Custom _ when clocked
+            -> "lightblue"  //for clocked components
+        |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
+            -> "#E8D0A9"  //dark orange: for IO
+        | _ -> "rgba(255,255,0,0.15)" //lightyellow: for combinational components
 
 
 
@@ -625,11 +637,12 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
 
 
 /// Function to generate a new symbol
-let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) =
+let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
     let transform = {Rotation= Degree0; flipped= false}
+
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
@@ -639,7 +652,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
           {
             HighlightLabel = false
             ShowPorts = ShowNone
-            Colour = "lightgray"
+            Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
           }
       InWidth0 = None // set by BusWire
@@ -867,7 +880,7 @@ let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygo
 
 let outlineColor (color:string) =
     match color.ToLower() with
-    | "lightgray"  -> "black"
+    | "lightgray" |"lightblue" | "#E8D0A9" | "rgba(255,255,0,0.15)"  -> "black"
     | c -> c
 
 let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Line instead of polygon?
@@ -912,7 +925,7 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 
 
 
-let drawSymbol (symbol:Symbol) =
+let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
@@ -996,7 +1009,9 @@ let drawSymbol (symbol:Symbol) =
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*0.6;Y=H};{X=W*0.8;Y=H*0.7};{X=W;Y=H*0.7};{X=W;Y =H*0.3};{X=W*0.8;Y=H*0.3};{X=W*0.6;Y=0}|]
             | Not | Nand | Nor | Xnor -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
-            | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ -> 
+            | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ 
+            | Counter _ | CounterNoEnable _ 
+            | CounterNoLoad _ | CounterNoEnableLoad _ -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | Custom x when symbol.IsClocked = true -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
@@ -1070,7 +1085,7 @@ let drawSymbol (symbol:Symbol) =
                         splitWiresTextPos[i] 
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
-        | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _  -> 
+        | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
             (addText clockTxtPos " clk" "middle" "normal" "12px")
         | BusSelection(nBits,lsb) ->           
             busSelectLine (lsb + nBits - 1) lsb
@@ -1166,7 +1181,6 @@ let drawSymbol (symbol:Symbol) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
-   
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
@@ -1188,7 +1202,7 @@ let init () =
     { 
         Symbols = Map.empty; CopiedSymbols = Map.empty
         Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty;
+        OutputPortsConnected = Map.empty; Theme = Colourful
     }, Cmd.none
 
 //----------------------------View Function for Symbols----------------------------//
@@ -1196,7 +1210,8 @@ type private RenderSymbolProps =
     {
         Symbol : Symbol 
         Dispatch : Dispatch<Msg>
-        key: string 
+        key: string
+        Theme: ThemeType
     }
 
 /// View for one symbol. Using FunctionComponent.Of to improve efficiency (not printing all symbols but only those that are changing)
@@ -1208,7 +1223,7 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol)
+                (drawSymbol props.Symbol props.Theme)
             
         , "Symbol"
         , equalsButFunctions
@@ -1249,6 +1264,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
                 Symbol = symbol
                 Dispatch = dispatch
                 key = id
+                Theme = model.Theme
             }
     )
     |> ofList

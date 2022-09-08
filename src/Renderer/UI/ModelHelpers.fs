@@ -52,7 +52,9 @@ let userDataToDrawBlockModel (model: Model) =
                     model.Sheet.Wire with 
                         Type = userData.WireType
                         ArrowDisplay = userData.ArrowDisplay
-                }}}
+                        Symbol = {
+                            model.Sheet.Wire.Symbol with Theme = userData.Theme
+                        }}}}
 
 let reduce (this: Model) = {|
          RightTab = this.RightPaneTabVisible

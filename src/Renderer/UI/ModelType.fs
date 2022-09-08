@@ -381,6 +381,7 @@ type Msg =
     | FinishUICmd
     | ReadUserData of string
     | SetUserData of UserData
+    | SetThemeUserData of DrawModelType.SymbolT.ThemeType
     | ExecCmd of Elmish.Cmd<Msg>
     | ExecFuncInMessage of (Model -> (Msg->Unit) -> Unit) * (Msg -> Unit)
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
@@ -408,6 +409,7 @@ type UserData = {
     RecentProjects: string list option
     ArrowDisplay: bool
     WireType: DrawModelType.BusWireT.WireType
+    Theme: DrawModelType.SymbolT.ThemeType
     }
 
 type SpinnerState =

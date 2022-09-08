@@ -97,6 +97,12 @@ let canvasVisibleStyle model =
     
 // Used by Sheet
 let canvasVisibleStyleList model = 
+    let background =
+        match model.Sheet.Wire.Symbol.Theme with
+        |DrawModelType.SymbolT.ThemeType.White -> BackgroundColor "white"
+        |DrawModelType.SymbolT.ThemeType.Light -> BackgroundColor "rgba(255,255,0,0.1)"  //light yellow
+        |DrawModelType.SymbolT.ThemeType.Colourful -> BackgroundColor "rgba(0,0,0,0.05)" //light gray
+    
     let widthRightSec = rightSectionWidth model
     [
         Display DisplayOptions.Block
@@ -108,7 +114,7 @@ let canvasVisibleStyleList model =
         Bottom "0px"
         Right widthRightSec
         BorderTop "2px solid lightgray"
-        BackgroundColor "rgba(255,255,0,0.1)"
+        background
     ]
 
 let canvasSmallMenuStyle = Style [

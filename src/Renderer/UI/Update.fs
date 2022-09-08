@@ -911,6 +911,11 @@ let update (msg : Msg) oldModel =
             {model with UserData = data}
             |> userDataToDrawBlockModel
         model, Cmd.none
+    | SetThemeUserData (theme: DrawModelType.SymbolT.ThemeType) ->
+        let model =
+            {model with UserData = {model.UserData with Theme=theme}}
+            |> userDataToDrawBlockModel
+        model, Cmd.none
     | ExecutePendingMessages n ->
         if n = (List.length model.Pending)
         then 

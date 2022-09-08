@@ -202,7 +202,7 @@ let editMenu dispatch' =
                makeElmItem "Flip Vertically" "CmdOrCtrl+Up" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
                makeElmItem "Flip Horizontally" "CmdOrCtrl+Down" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
                makeItem "Move Component Ports" None (fun _ -> 
-                    dispatch' <| ShowStaticInfoPopup("How to move component Ports", SymbolUpdate.moveCustomPortsPopup(), dispatch'))
+                    dispatch' <| ShowStaticInfoPopup("How to move component ports", SymbolUpdate.moveCustomPortsPopup(), dispatch'))
                menuSeparator
                makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
                makeElmItem "Distribute" "CmdOrCtrl+Shift+D" (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
@@ -257,7 +257,7 @@ let init() =
 
 // -- Create View
 let addDebug dispatch (msg:Msg) =
-    let str = Update.getMessageTraceString msg
+    let str = UpdateHelpers.getMessageTraceString msg
     if str <> "" then printfn ">>Dispatch %s" str else ()
     dispatch msg
 

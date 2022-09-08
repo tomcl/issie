@@ -321,7 +321,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                                 symbols
                                 |> Map.toList
                                 |> List.map (fun (_,sym) -> sym.Component)
-                                |> List.filter (function | {Type=IOLabel;Label = lab} -> true |_ -> false)
+                                |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
                                 |> List.map (fun comp -> ComponentId comp.Id)
                             highlightCircuit wsModel.FastSim labelComps wave dispatch                            
                         | Some sym ->
@@ -763,84 +763,84 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
     let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg "white" "20px"
 
     div [ topHalfStyle ] [
-        br []
-        Level.level [] [
-            Level.left [] [
-                Heading.h4 [] [ 
-                                (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]] [str title]) 
-                                button 
-                                    (topHalfButtonProps IsInfo)
-                                    (fun _ -> PopupView.viewWaveInfoPopup dispatch)
-                                    (str Constants.infoSignUnicode)
- ]
-            ]
-            Level.right [] [
-                let startOrRenew = refreshButtonAction canvasState model dispatch
-                let waveEnd = endButtonAction canvasState model dispatch
-                let wbo = getWaveSimButtonOptions canvasState model wsModel
-                //printfn $"Sim is Dirty{wbo.IsDirty}" 
-                div []
-                    (let needsRefresh = wbo.IsDirty && wbo.IsRunning
-                    (if not wbo.IsRunning then 
-                        [] 
-                    else
-                        [                        
-                            button
-                                (Button.Disabled (not needsRefresh) :: topHalfButtonPropsWithWidth IsSuccess)
-                                startOrRenew
-                                refreshButtonSvg
-                        ]))
-
-                button 
-                    (topHalfButtonPropsWithWidth wbo.StartEndColor) 
-                    (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
-                    (str wbo.StartEndMsg)
-                ]
-        ]
-
         Columns.columns [] [
-            Column.column [] (
-                if model.WaveSimSheet <> None then 
-                    [
-                        str "View clocked logic waveforms by selecting waves. "
-                        str "Select RAMs or ROMs to view contents during the simulation. "
-                        str "View or change any sheet with simulation running. "
-                        str "After design changes use "
-                        refreshSvg "black" "12px"
-                        str " to update waveforms."
-                    ] else
-                    [
-                        str "Use 'Start Simulation' button to simulate current sheet."
-                        str "Drag diver to change width of Viewer."
-                    ])
+            Column.column [Column.Props [Style [Height "200px"; OverflowY OverflowOptions.Clip]]] [
+                Heading.h4 [] [ 
+                    (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]] [str title]) 
+                    button 
+                        (infoButtonProps IsInfo)
+                        (fun _ -> PopupView.viewWaveInfoPopup dispatch)
+                        (str Constants.infoSignUnicode)                        
+                ]
+                div [] 
+                    (if model.WaveSimSheet <> None then 
+                        [
+                            str "View clocked logic waveforms by selecting waves. "
+                            str "Select RAMs or ROMs to view contents during the simulation. "
+                            str "View or change any sheet with simulation running. "
+                            str "After design changes use "
+                            refreshSvg "black" "12px"
+                            str " to update waveforms."
+                        ] else
+                        [
+                            str "Use 'Start Simulation' button to simulate current sheet."
+                            str "Drag diver to change width of Viewer."
+                        ])
+                ]
 
-            Column.column [
-                Column.Option.Width (Screen.All, Column.IsNarrow)
-            ] [ Level.level [] [
-                    Level.item [ ] [
-                        Button.list [] [
-                            selectWavesButton wsModel dispatch
-                            selectWavesModal wsModel dispatch
+            Column.column 
+                [
+                    Column.Option.Width (Screen.All, Column.IsNarrow)
+                ] 
+                [ 
+                    let startOrRenew = refreshButtonAction canvasState model dispatch
+                    let waveEnd = endButtonAction canvasState model dispatch
+                    let wbo = getWaveSimButtonOptions canvasState model wsModel
+                    //printfn $"Sim is Dirty{wbo.IsDirty}" 
+                    div [Style [MarginBottom "20px" ]]
+                        ((let needsRefresh = wbo.IsDirty && wbo.IsRunning
+                        (if not wbo.IsRunning then 
+                            [] 
+                        else
+                            [                        
+                                button
+                                    (Button.Disabled (not needsRefresh) :: topHalfButtonProps IsSuccess)
+                                    startOrRenew
+                                    refreshButtonSvg
+                            ])) @
 
-                            selectRamButton wsModel dispatch
-                            selectRamModal wsModel dispatch
+                        [
+                            button 
+                                (topHalfButtonProps wbo.StartEndColor) 
+                                (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
+                                (str wbo.StartEndMsg)
+                        ])
+                    
+                    Level.level [] [
+                        Level.item [ ] [
+                            Button.list [] [
+                                selectWavesButton wsModel dispatch
+                                selectWavesModal wsModel dispatch
+
+                                selectRamButton wsModel dispatch
+                                selectRamModal wsModel dispatch
+                            ]
                         ]
                     ]
-                ]
-                Level.level [] [
-                    Level.left [] [
-                        zoomButtons wsModel dispatch
+                    Level.level [] [
+                        Level.left [GenericOption.Props [Style [MarginLeft "5px"]]] [
+                            zoomButtons wsModel dispatch
+                        ]
+                        Level.right [] [
+                            radixButtons wsModel dispatch
+                        ]
                     ]
-                    Level.right [] [
-                        radixButtons wsModel dispatch
-                    ]
+                    clkCycleButtons wsModel dispatch
                 ]
-                clkCycleButtons wsModel dispatch
             ]
-        ]
-        hr [ Style [ MarginBottom "5px" ] ]
+        hr [ Style [ MarginBottom "0px" ] ]
         br []
-    ]
+        ]
 
 /// Entry point to the waveform simulator.
 let viewWaveSim canvasState (model: Model) dispatch : ReactElement =

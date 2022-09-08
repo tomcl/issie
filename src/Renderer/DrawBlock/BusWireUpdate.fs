@@ -1142,8 +1142,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             (List.fold (fun prevWires cId ->
                 let oldWireOpt = Map.tryFind cId model.Wires
                 match oldWireOpt with
-                | None ->
-                    printfn "BusWire error: expected wire in ColorWires does not exist"
+                | None -> 
                     prevWires
                 | Some oldWire ->
                     Map.add cId { oldWire with Color = color } prevWires) model.Wires connIds)

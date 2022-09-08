@@ -82,6 +82,7 @@
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />
     <Compile Include="UI/WaveSim/WaveSim.fs" />
     <Compile Include="UI\MainView.fs" />
+    <Compile Include="UI\UpdateHelpers.fs" />
     <Compile Include="UI\Update.fs" />
     <Compile Include="Renderer.fs" />
   </ItemGroup>

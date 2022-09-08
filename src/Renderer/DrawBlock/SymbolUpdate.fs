@@ -1,6 +1,7 @@
 ﻿module SymbolUpdate
 
 open Elmish
+open Fable.React.Props
 open DrawHelpers
 open CommonTypes
 open Fable.React
@@ -1071,20 +1072,39 @@ let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
     (intersect1D getX) && (intersect1D getY)
 
 let moveCustomPortsPopup() : ReactElement =
+    let styledSpan styles txt = span [Style styles] [str <| txt]
+    let bSpan txt = styledSpan [FontWeight "bold"] txt
+    let iSpan txt = styledSpan [FontStyle "italic"] txt
+    let tSpan txt = span [] [str txt]
     div [] [
-        str "Normal components can be rotated and flipped to change port orientation, \
-              however port positions cannot be changed."
-        br []
-        str "Custom components (sheets inserted as components) can have ports moved \
-              to any side of the symbol and reordered."
-        br []
-        str "To move custom component ports press CTRL and use a mouse to drag \
-              a port to another position on the outline of the symbol. \
-              You can reorder ports and place them on any symbol edge including top and bottom."
-        br []
-        str "Note that the symbol will resize itself if you change the edge of a port"
+    bSpan "Ports" ; tSpan " are the inputs and outputs of a component symbol."
+    br []; br []
+    ul [Style [ListStyle "disc"; MarginLeft "30px"]]
+        [
+            li [] [str "Normal components can be rotated and flipped to change port orientation, \
+                         however port positions cannot be changed."]
 
-    ]
+            li [] [ str "2-input MUX components can have 0 & 1 inputs swapped using properties."]
+            
+            li [] [str "Custom components (sheets inserted as components) can have ports moved \
+                        to any side of the symbol and reordered."]
+            
+            li [] [ 
+                    str "To move custom component ports:"
+                    ul [Style [ListStyle "circle"; MarginLeft "30px"]]
+                        [   
+                            li [] [str "Press CTRL and use a mouse to drag \
+                                        a port to another position on the outline of the symbol."] 
+                            li [] [str "You can reorder ports and place them on any symbol edge including top and bottom." ]           
+                            li [] [str "The symbol will resize itself if you change the edge of a port."]
+                            li [] [str "If default sizing makes port legends overlap you can scale custom component width and height in Properties"]
+                        ]
+                ]
+            ]
+        ]
+        
+
+        
 
    
 /// Returns an Option Edge. Returns Some edge if position is on edge of Symbol, and None if it was not on an edge

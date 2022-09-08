@@ -1009,7 +1009,9 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*0.6;Y=H};{X=W*0.8;Y=H*0.7};{X=W;Y=H*0.7};{X=W;Y =H*0.3};{X=W*0.8;Y=H*0.3};{X=W*0.6;Y=0}|]
             | Not | Nand | Nor | Xnor -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
-            | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ -> 
+            | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ 
+            | Counter _ | CounterNoEnable _ 
+            | CounterNoLoad _ | CounterNoEnableLoad _ -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | Custom x when symbol.IsClocked = true -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
@@ -1083,7 +1085,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                         splitWiresTextPos[i] 
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
-        | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _  -> 
+        | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
             (addText clockTxtPos " clk" "middle" "normal" "12px")
         | BusSelection(nBits,lsb) ->           
             busSelectLine (lsb + nBits - 1) lsb

@@ -21,7 +21,9 @@ let initWSModel  : WaveSimModel = {
     RamModalActive = false
     RamComps = []
     SelectedRams = Map.empty
-    FastSim = FastCreate.simulationPlaceholder // placeholder
+    FastSim = 
+        printfn "Creating initWSModel"
+        FastCreate.simulationPlaceholder // placeholder
     SearchString = ""
     ShowComponentDetail = Set.empty
     ShowSheetDetail = Set.empty
@@ -209,13 +211,12 @@ let getCurrSheets (model: Model) =
 /// For reasons of space efficiency, ensure that no non-empty unused FastSimulation records are kept
 /// FastSimulation records can be very large and at most one should exist, it must be for the sheet referenced by
 /// model.WaveSimSheet
-let removeUnusedSimulationsFromModel (model:Model) =
-    let wsUsedSheet = Option.defaultValue "" model.WaveSimSheet
+let removeAllSimulationsFromModel (model:Model) =
     let removeFastSimFromWaveSimMap (sheet:string) (wsM:Map<string,WaveSimModel>) =
         let ws = wsM[sheet]
-        if ws.FastSim.SimulatedTopSheet <> "" || sheet = wsUsedSheet then wsM 
-        else Map.add sheet {ws with FastSim = FastCreate.emptyFastSimulation ""} wsM
-        
+        if ws.FastSim.SimulatedTopSheet = "" then wsM 
+        else 
+            Map.add sheet {ws with FastSim = FastCreate.emptyFastSimulation ""} wsM       
     (model.WaveSim, model.WaveSim)
     ||> Map.fold (fun wsM sheet ws -> removeFastSimFromWaveSimMap sheet wsM)
     |> (fun wsM -> {model with WaveSim = wsM})
@@ -223,30 +224,28 @@ let removeUnusedSimulationsFromModel (model:Model) =
 
 /// Set WaveSimModel of current sheet.
 let setWSModel (wsModel: WaveSimModel) (model: Model) =
-    match getCurrSheets model, model.WaveSimSheet with
-    | Some sheets, Some wsSheet when List.contains wsSheet sheets ->
+    match getCurrSheets model, model.WaveSimOrCurrentSheet with
+    | Some sheets, wsSheet when List.contains wsSheet sheets ->
         { model with WaveSim = Map.add wsSheet wsModel model.WaveSim }
+    | Some sheets, wsSheet ->
+        failwithf $"What? can't find {wsSheet} in {sheets} to set WSModel"
     | None, _ ->
         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
         model
-    | Some sheets, wsSheet ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
-        model
-    |> removeUnusedSimulationsFromModel
+
+
 
 /// Update WaveSimModel of current sheet.
 let updateWSModel (updateFn: WaveSimModel -> WaveSimModel) (model: Model) =
-    match getCurrSheets model, model.WaveSimSheet with
-    | Some sheets, Some wsSheet when List.contains wsSheet sheets ->
+    match getCurrSheets model, model.WaveSimOrCurrentSheet with
+    | Some sheets, wsSheet when List.contains wsSheet sheets ->
         let ws = model.WaveSim[wsSheet]
         { model with WaveSim = Map.add wsSheet (updateFn ws) model.WaveSim }
+    | Some sheets, wsSheet ->
+        failwithf $"What? can't find {wsSheet} in {sheets} to set WSModel"
     | None, _ ->
         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
         model
-    | Some sheets, wsSheet ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
-        model
-    |> removeUnusedSimulationsFromModel
 
 /// Update WaveSimModel of given sheet - if it does not exist do nothing
 let updateWSModelOfSheet (sheet: string) (updateFn: WaveSimModel -> WaveSimModel) (model: Model) =
@@ -259,6 +258,7 @@ let updateWSModelOfSheet (sheet: string) (updateFn: WaveSimModel -> WaveSimModel
         model
     | Some sheets, wsSheet ->
         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
+        //failwithf "Help"
         model
 
 /// a long function to be executed in a message after the view function has run at least once
@@ -273,9 +273,13 @@ let mutable asyncJobs: ViewableJob list = []
 
 let runAfterView (jobName:string) ( workFn: Model -> Model * Cmd<Msg>) =
     let job = {JobWork=workFn; ViewHasExecuted = false; JobName = jobName}
+    printfn $"scheduling {jobName}"
     asyncJobs <- List.append asyncJobs [job]
 
-let setAsyncJobsRunnable() =
+let setAsyncJobsRunnable dispatch =
+    dispatch DoNothing
+    if asyncJobs.Length > 0 then 
+        printfn "setting asynch jobs to vieHasExecuted"
     asyncJobs <- 
         asyncJobs 
         |> List.map (fun job -> {job with ViewHasExecuted = true}); 
@@ -288,7 +292,8 @@ let execOneAsyncJobIfPossible (model: Model,cmd: Cmd<Msg>)=
     |> function 
         | [] -> (model,cmd)
         | job::_ -> 
-            asyncJobs <- List.filter (fun job' -> job'.JobName = job.JobName) asyncJobs 
+            asyncJobs <- List.filter (fun job' -> job'.JobName <> job.JobName) asyncJobs 
+            printfn $"Executing async '{job.JobName}."
             job.JobWork model
-            |> (fun (model', cmd') -> model', Cmd.batch [cmd' ; cmd])
+            |> (fun (model', cmd') -> model', Cmd.batch [cmd; cmd'])
 

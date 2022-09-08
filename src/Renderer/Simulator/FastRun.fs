@@ -387,8 +387,9 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
 /// If the simulation data arrays are not large enough they are extended up to a limit. After that, they act as a circular buffer.
 /// TimeOut if not None is the cutoff time after which the simulation terminates execution unfinished.
-/// Use fs.ClockTick to determine whetehr simulation has completed.
-let runFastSimulation (timeOut: float option)(numberOfSteps: int) (fs: FastSimulation) : Unit =
+/// Use fs.ClockTick to determine whether simulation has completed.
+/// returns speed, in clock cycles per ms, or None if complete
+let runFastSimulation (timeOut: float option)(numberOfSteps: int) (fs: FastSimulation) : float option =
         if fs.MaxArraySize = 0 then
             failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
         //printfn $"running sim steps={numberOfSteps}, arraySize = {fs.MaxArraySize}, maxstepnum={fs.MaxStepNum}"
@@ -420,7 +421,14 @@ let runFastSimulation (timeOut: float option)(numberOfSteps: int) (fs: FastSimul
                 stepSimulation fs
                 if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
                     time <- getTimeMs()
+            if fs.ClockTick >= numberOfSteps then
+                None
+            else
+                Some ( float (fs.ClockTick - startTick)/ (time - simStartTime))
+                
         doSimulation()
+        
+            
                    
 /// Run a fast simulation for a given number of steps building it from the graph
 let runSimulationZeroInputs 

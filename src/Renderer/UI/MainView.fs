@@ -49,6 +49,8 @@ let viewOnDiagramButtons model dispatch =
 
 /// Initial value of model
 let init() = {
+    SpinnerPayload = None
+    Spinner = None
     UserData = {
         WireType = BusWireT.Radial
         ArrowDisplay = true
@@ -328,7 +330,10 @@ let displayView model dispatch =
     let conns = BusWire.extractConnections model.Sheet.Wire
     let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
     let canvasState = comps,conns   
-    ModelHelpers.setAsyncJobsRunnable()
+    match model.Spinner with
+    | Some fn -> 
+        dispatch <| UpdateModel fn
+    | None -> ()
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText
           OnMouseMove (processMouseMove false)

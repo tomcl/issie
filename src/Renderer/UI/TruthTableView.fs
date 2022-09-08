@@ -409,7 +409,9 @@ let emptySelCache  = {
     UncorrectedCanvas = ([],[])
     CorrectedCanvas = ([],[])
     StoredResult = Ok {
-        FastSim = FastCreate.simulationPlaceholder
+        FastSim = 
+            printfn "creating empty selcache"
+            FastCreate.simulationPlaceholder
         Graph = Map.empty 
         Inputs = []
         Outputs = []

@@ -84,6 +84,29 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
         | _, None -> cid, convertIntToWireData w 0L)
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
+let InputDefaultsEqualInputs fs (model:Model) =
+    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
+        let comp = sym.Component
+        let comp' = 
+            let ct =
+                match comp.Type with 
+                | Input1(w,defVal) -> Input1(w,Some newDefault)
+                | x -> x
+            {comp with Type = ct}
+        {sym with Component = comp'}
+    let tick = fs.ClockTick
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[tick % fs.MaxArraySize])
+    |> Map.values
+    |> Seq.forall (fun (cid, currentValue) -> 
+            match currentValue with
+            | Data fd -> 
+                let newDefault = int (convertFastDataToInt fd)
+                let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
+                match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
+            | _ -> true)
+            
 
 let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
@@ -95,9 +118,10 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
                 | x -> x
             {comp with Type = ct}
         {sym with Component = comp'}
+    let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[0])
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[tick % fs.MaxArraySize])
     |> Map.values
     |> Seq.iter (fun (cid, currentValue) -> 
             match currentValue with
@@ -129,7 +153,9 @@ let simCacheInit () = {
     Name = ""; 
     StoredState = []
     StoredResult = Ok {
-        FastSim = FastCreate.simulationPlaceholder
+        FastSim = 
+            printfn "Creating cache"
+            FastCreate.simulationPlaceholder
         Graph = Map.empty 
         Inputs = []
         Outputs = []
@@ -409,7 +435,7 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
 let simulateWithTime timeOut steps simData =
     let startTime = getTimeMs()
-    FastRun.runFastSimulation timeOut (steps + simData.ClockTickNumber) simData.FastSim 
+    FastRun.runFastSimulation None (steps + simData.ClockTickNumber) simData.FastSim |> ignore
     getTimeMs() - startTime
 
 let cmd block =
@@ -431,7 +457,7 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let oldClock = simData.FastSim.ClockTick
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
-        FastRun.runFastSimulation None clock simData.FastSim 
+        FastRun.runFastSimulation None clock simData.FastSim |> ignore
         printfn $"clokctick after runFastSim{clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
@@ -488,7 +514,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
         |> ExecCmdAsynch
         |> dispatch
     else
-        FastRun.runFastSimulation None clock simData.FastSim 
+        FastRun.runFastSimulation None clock simData.FastSim |> ignore
         printfn $"test2 clock={clock}, clokcticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
@@ -540,7 +566,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             printfn "*********************Incrementing clock from simulator button******************************"
                             printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
-                        FastRun.runFastSimulation None (simData.ClockTickNumber+1) simData.FastSim 
+                        FastRun.runFastSimulation None (simData.ClockTickNumber+1) simData.FastSim |> ignore
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
                         if SimulationRunner.simTrace <> None then
                             printfn "-------------------------------------------------------------------------------------------"
@@ -673,10 +699,11 @@ let viewSimulation canvasState model dispatch =
                 Button.button
                     [ 
                         Button.Color IsInfo; 
+                        Button.Disabled (InputDefaultsEqualInputs simData.FastSim model)
                         Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch) ; 
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
                     ]
-                    [ str "Set default values for Inputs" ]
+                    [ str "Save current input values as default" ]
             ]
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.

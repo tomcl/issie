@@ -15,14 +15,20 @@ open System
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
 let rec extractIOPrefix (str : string) (charLst: char list) =
     let len = String.length str
-    match str[len-1] with
-    |c when Char.IsNumber(Convert.ToChar(c)) -> 
-        let newstr = str.Remove(len-1)
-        extractIOPrefix newstr ([str[len-1]]@charLst)
-    | _ -> 
-        let strNo = ("", charLst) ||> List.fold (fun s v -> s+(string v))
-        let no = match strNo with |"" -> -1 |_ -> int <| strNo
-        str,no
+    match len with
+    |0 -> "",-1
+    |_ -> 
+        match str[len-1] with
+        |c when Char.IsNumber(Convert.ToChar(c)) -> 
+            let newstr = str.Remove(len-1)
+            extractIOPrefix newstr ([str[len-1]]@charLst)
+        | _ -> 
+            let strNo = 
+                match List.length charLst with
+                |0 -> ""
+                |_ -> ("", charLst) ||> List.fold (fun s v -> s+(string v))
+            let no = match strNo with |"" -> -1 |_ -> int <| strNo
+            str,no
 
 let generateIOLabel (model: Model) (compType: ComponentType) (name:string) : string =
     let listSymbols = List.map snd (Map.toList model.Symbols)

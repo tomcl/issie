@@ -33,7 +33,7 @@ let private readOnlyFormField name body =
 
 
 
-let private textFormField isRequired name defaultValue onChange =
+let private textFormField isRequired name defaultValue isBad onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.text [
@@ -42,7 +42,9 @@ let private textFormField isRequired name defaultValue onChange =
             Input.CustomClass "www"
             Input.Placeholder (if isRequired then "Name (required)" else "Name (optional)")
             Input.OnChange (getTextEventValue >> onChange)
-        ] 
+        ]
+        br []
+        span [Style [FontStyle "Italic"; Color "Red"]; Hidden (not isBad)] [str "This label already exists"]
     ]
 
 let private textFormFieldSimple name defaultValue onChange =
@@ -351,6 +353,7 @@ let private changeCounterType model (comp:Component) dispatch =
                     td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionEnable); Value "Enable"; Id "Enable-button"; Name "Enable-button"; checkedEnable; Style [Height "15px"; Width "15px"]]]]
                 ]
             ]
+            br []
             ]
 
 let private makeScaleAdjustmentField model (comp:Component) dispatch =
@@ -754,7 +757,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             | _ -> false
         | _ -> false
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let formatLabelText (txt: string) =
+    let formatLabelText (txt: string) compId =
         txt.ToUpper()
         |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true 
                                 | '.' -> true 
@@ -770,26 +773,35 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             | 0 -> 
                 None 
             | _ -> 
-                Some chars)
+                let symbols = model.Sheet.Wire.Symbol.Symbols |> Map.toList |> List.filter (fun (i,s) -> i <> compId) |> List.map snd
+                match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) symbols with
+                |true -> Some "!bad-label!" //such name cannot occur as symbols will be filtered out in the beginning and characters converted to upper
+                |false -> Some chars
+            
+            )
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
         let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase
-            let label' = Option.defaultValue "" (formatLabelText comp.Label) // No formatting atm
+            let label' = Option.defaultValue "" (formatLabelText comp.Label compId) // No formatting atm
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
             let required = 
                 match comp.Type with 
                 | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
-            textFormField required "Component Name" label' (fun text ->
+            let isBad = model.PopupDialogData.BadLabel
+            textFormField required "Component Name" label' isBad (fun text ->
                 // TODO: removed formatLabel for now
                 //setComponentLabel model sheetDispatch comp (formatLabel comp text)
-                match formatLabelText text with
+                match formatLabelText text compId with
+                | Some "!bad-label!" ->
+                    dispatch <| SetPopupDialogBadLabel (true)
                 | Some label -> 
                     setComponentLabel model sheetDispatch comp label
                     dispatch <| SetPopupDialogText (Some label)
+                    dispatch <| SetPopupDialogBadLabel (false)
                 | None -> ()
                 //updateNames model (fun _ _ -> model.WaveSim.Ports) |> StartWaveSim |> dispatch
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component

@@ -103,6 +103,7 @@ let init() = {
         AlgebraError = None
         VerilogCode = None
         VerilogErrors = []
+        BadLabel = false
     }
     Notifications = {
         FromDiagram = None

@@ -51,12 +51,12 @@ let shortDisplayMsg (msg:Msg) =
     | JSDiagramMsg _ -> None
     | KeyboardShortcutMsg _ -> None
     | StartSimulation x -> Some $"""StartSimulation({match x with | Ok _ -> "OK" | Error x -> "Error"})"""
-    | AddWSModel (s,ws) -> Some $"AddWSModel:{s}->{shortDWSM}"
-    | SetWSModel ws -> Some $"SetWSModel:{ws.FastSim.SimulatedTopSheet}->{shortDWSM}"
+    | AddWSModel (s,ws) -> Some $"AddWSModel:{s}->{shortDWSM ws}"
+    | SetWSModel ws -> Some $"SetWSModel:{ws.FastSim.SimulatedTopSheet}->{shortDWSM ws}"
     | UpdateWSModel _ -> None
-    | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM}"
+    | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM ws}"
     | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"
-    | RefreshWaveSim (ws,sd,cs) -> Some "RRefreshWaveSim"
+    | RefreshWaveSim ws -> Some "RefreshWaveSim"
     | SetWaveSheetSelectionOpen _
     | SetWaveComponentSelectionOpen _-> Some "SetWaveComponentSelectionOpen"
     | SetWaveGroupSelectionOpen _
@@ -96,50 +96,51 @@ let shortDisplayMsg (msg:Msg) =
     | SetClipboard _ -> Some "SetClipboard"
     | SetCreateComponent _ -> Some "SetCreateComponent"
     | SetProject _ -> Some "SetProject"
-    | UpdateProject _ -> None
-    | UpdateModel _ -> None
-    | UpdateProjectWithoutSyncing _ -> None
-    | ShowPopup _ -> None
-    | ShowStaticInfoPopup _ -> None
-    | ClosePopup -> None
-    | SetPopupDialogText _ -> None
-    | SetPopupDialogCode _ -> None
-    | SetPopupDialogVerilogErrors _ -> None
-    | SetPopupDialogInt _ -> None
-    | SetPopupDialogInt2 _ -> None
-    | SetPopupDialogTwoInts _ -> None
-    | SetPropertiesExtraDialogText _ -> None
-    | SetPopupDialogMemorySetup _  -> None
-    | SetPopupMemoryEditorData _ -> None
-    | SetPopupProgress _ -> None
-    | UpdatePopupProgress _ -> None
-    | SetPopupInputConstraints _ -> None
-    | SetPopupOutputConstraints _ -> None
-    | SetPopupConstraintTypeSel _ -> None
-    | SetPopupConstraintIOSel _ -> None
-    | SetPopupConstraintErrorMsg _ -> None
-    | SetPopupNewConstraint _ -> None
-    | SetPopupAlgebraInputs _ -> None
+    | UpdateProject _ 
+    | UpdateModel _ 
+    | UpdateProjectWithoutSyncing _ 
+    | ShowPopup _ 
+    | ShowStaticInfoPopup _ 
+    | ClosePopup 
+    | SetPopupDialogText _ 
+    | SetPopupDialogCode _ 
+    | SetPopupDialogVerilogErrors _ 
+    | SetPopupDialogInt _ 
+    | SetPopupDialogInt2 _ 
+    | SetPopupDialogTwoInts _ 
+    | SetPropertiesExtraDialogText _ 
+    | SetPopupDialogBadLabel _ 
+    | SetPopupDialogMemorySetup _  
+    | SetPopupMemoryEditorData _ 
+    | SetPopupProgress _ 
+    | UpdatePopupProgress _ 
+    | SetPopupInputConstraints _ 
+    | SetPopupOutputConstraints _ 
+    | SetPopupConstraintTypeSel _ 
+    | SetPopupConstraintIOSel _ 
+    | SetPopupConstraintErrorMsg _ 
+    | SetPopupNewConstraint _ 
+    | SetPopupAlgebraInputs _ 
     | SetPopupAlgebraError _ -> None
     | TogglePopupAlgebraInput _ -> Some  "TogglePopupAlgebraInput"
-    | SimulateWithProgressBar _ -> None
-    | SetSelectedComponentMemoryLocation _ -> None
+    | SimulateWithProgressBar _ 
+    | SetSelectedComponentMemoryLocation _ 
     | CloseDiagramNotification
-    | SetSimulationNotification _ -> None
+    | SetSimulationNotification _ 
     | CloseSimulationNotification
     | CloseWaveSimNotification
-    | SetFilesNotification _ -> None
+    | SetFilesNotification _ 
     | CloseFilesNotification
-    | SetMemoryEditorNotification _ -> None
+    | SetMemoryEditorNotification _ 
     | CloseMemoryEditorNotification
-    | SetPropertiesNotification _ -> None
+    | SetPropertiesNotification _ 
     | ClosePropertiesNotification
-    | SetTopMenu _ -> None
-    | ReloadSelectedComponent _ -> None
-    | SetDragMode _ -> None
+    | SetTopMenu _ 
+    | ReloadSelectedComponent _ 
+    | SetDragMode _ 
     /// Set width of right-hand pane when tab is WaveSimulator or TruthTable
-    | SetViewerWidth _ -> None
-    | MenuAction _ -> None
+    | SetViewerWidth _ 
+    | MenuAction _ 
     | DiagramMouseEvent
     | SelectionHasChanged
     | SetIsLoading _
@@ -195,4 +196,9 @@ let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
         if str <> "" then printfn "**Upd:%s" str
         Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
     model,cmdL
+
+
+
+    
+    
     

@@ -278,7 +278,7 @@ let getEquivalentCopiedPorts (model: Model) (copiedIds) (pastedIds) (InputPortId
 
 /// Creates and adds a symbol into model, returns the updated model and the component id
 let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
-    let newSym = createNewSymbol ldcs pos compType lbl
+    let newSym = createNewSymbol ldcs pos compType lbl model.Theme
     let newPorts = addToPortModel model newSym
     let newSymModel = Map.add newSym.Id newSym model.Symbols
     { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
@@ -753,7 +753,7 @@ let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
 let inline symbolsHaveError model compList =
     let resetSymbols = 
         model.Symbols
-        |> Map.map (fun _ sym -> Optic.set (appearance_ >-> colour_) "lightgray" sym)
+        |> Map.map (fun _ sym -> Optic.set (appearance_ >-> colour_) (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) sym)
 
     let setSymColorToRed prevSymbols sId =
         Map.add sId (Optic.set (appearance_ >-> colour_)  "Red" resetSymbols[sId]) prevSymbols
@@ -768,7 +768,7 @@ let inline selectSymbols model compList =
     let resetSymbols = 
         model.Symbols
         |> Map.map (fun _ sym -> 
-            Optic.map appearance_ (Optic.set colour_ "lightgray" >> Optic.set opacity_ 1.0 ) sym)
+            Optic.map appearance_ (Optic.set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> Optic.set opacity_ 1.0 ) sym)
 
     let updateSymbolColour prevSymbols sId =
         Map.add sId (Optic.set (appearance_ >-> colour_)  "lightgreen" resetSymbols[sId]) prevSymbols
@@ -784,7 +784,7 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols = 
         model.Symbols
         |> Map.map 
-            (fun _ sym ->  Optic.map appearance_ (Optic.set colour_ "lightgray" >> Optic.set opacity_ 1.0) sym)
+            (fun _ sym ->  Optic.map appearance_ (Optic.set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> Optic.set opacity_ 1.0) sym)
             
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
@@ -828,7 +828,7 @@ let inline colorSymbols (model: Model) compList colour =
     { model with Symbols = newSymbols }
 
 /// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
-let createSymbol ldcs prevSymbols comp =
+let createSymbol ldcs theme prevSymbols comp =
         let clocked = isClocked [] ldcs comp
         let portMaps = 
             match comp.SymbolInfo with
@@ -860,7 +860,7 @@ let createSymbol ldcs prevSymbols comp =
                     HighlightLabel = false
                     ShowPorts = ShowNone //do not show input ports initially
                     // ShowOutputPorts = false //do not show output ports initially
-                    Colour = "lightgray"     // initial color 
+                    Colour = getSymbolColour comp.Type clocked theme
                     Opacity = 1.0
                 }
                 Id = ComponentId comp.Id
@@ -888,7 +888,7 @@ let createSymbol ldcs prevSymbols comp =
 /// Given a model and a list of components, it creates and adds the symbols containing the specified components and returns the updated model.
 let loadComponents loadedComponents model comps=
     let symbolMap =
-        (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents)
+        (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents model.Theme)
     let addPortsToModel currModel _ sym =
         { currModel with Ports = addToPortModel currModel sym }
         
@@ -1523,7 +1523,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none
-
+    | SetTheme (theme) ->
+        let resetSymbols = 
+            model.Symbols
+            |> Map.map 
+                (fun _ sym ->  Optic.map appearance_ (Optic.set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
+        {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
 
 
 

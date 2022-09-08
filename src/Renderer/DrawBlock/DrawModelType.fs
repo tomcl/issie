@@ -85,6 +85,11 @@ module SymbolT =
             Opacity: float  
         }
 
+    type ThemeType =
+        |White
+        |Light
+        |Colourful
+
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
@@ -154,6 +159,7 @@ module SymbolT =
         /// Represents the number of wires connected to each output port in the model
         OutputPortsConnected: Map<OutputPortId, int>
 
+        Theme: ThemeType
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -193,6 +199,7 @@ module SymbolT =
         | MovePort of portId: string * move: XYPos
         | MovePortDone of portId: string * move: XYPos
         | SaveSymbols
+        | SetTheme of ThemeType
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
 
@@ -461,6 +468,7 @@ module SheetT =
         TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
         ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
+        //Theme: ThemeType
         CursorType: CursorType
         LastValidPos: XYPos
         SnapSymbols: SnapXY

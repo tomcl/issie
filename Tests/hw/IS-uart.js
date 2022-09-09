@@ -245,14 +245,26 @@ export async function main2() {
 
 }
 
+function decimalToHex(d, padding) {
+    var hex = Number(d).toString(16);
+    padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
 
+    while (hex.length < padding) {
+        hex = "0" + hex;
+    }
+
+    return hex;
+}
 // (async => main())();
 
 export async function readAllViewers(n){
+    
     let viewerValues = [];
     for (var i=0;i<n;i++){
         let check = true;
-        await device.transferOut(TX_EP, TX_READ + i.toString());
+        console.log("reading: ")
+        console.log(decimalToHex(i,2))
+        await device.transferOut(TX_EP, TX_READ + decimalToHex(i,2));
         while(check){
             var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
             if (result.data.byteLength > RX_PAD_BYTES) {

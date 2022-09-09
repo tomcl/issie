@@ -284,6 +284,8 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
 
 
 /// Get all simulatable waves from CanvasState. Includes top-level Input and Output ports.
+/// Waves contain info which will be used later to create the SVGs for those waves actually
+/// selected. Init value of these from this function is None.
 let getWaves (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
     let start = TimeHelpers.getTimeMs ()
     printfn $"{fs.WaveIndex.Length} possible waves"
@@ -386,6 +388,8 @@ let infoButton  : ReactElement =
         [str Constants.infoSignUnicode]
 
 /// Search bar to allow users to filter out waves by DisplayName
+/// some special cases '-', '*' collapse or expand (for selected waves)
+/// the wave select window.
 let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     div [] [
         Input.text [
@@ -404,18 +408,6 @@ let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         infoButton
         label [Style [Float FloatOptions.Right; FontSize "24px"]]  [str $"{wsModel.SelectedWaves.Length} waves selected."]
     ]
-
-
-
-        (*
-    Button.button 
-        [ Button.OnClick(fun _ -> ()) 
-          Button.Color IsInfo
-          Button.Option.Size IsSmall
-          Button.IsRounded
-          Button.Props [Style [Float FloatOptions.Left; MarginTop "3px";MarginRight "10px"] ]
-        ] 
-        [ span [Style [FontSize "25px"; Margin "0px"]] [str "\U0001F6C8"] ]*)
 
 /// Implemements a checkbox, with toggle state stored in WaveSimModel under ShowDetailMap
 /// using  waveIds as key.

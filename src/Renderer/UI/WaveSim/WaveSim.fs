@@ -79,12 +79,10 @@ let waveformIsUptodate (ws: WaveSimModel) (wave:Wave) =
 
 /// Called when InitiateWaveSimulation msg is dispatched
 /// and when wave simulator is refreshed.
-/// Generates or updates the SVG for a specific waveform if necessary
+/// Generates or updates the SVG for a specific waveform whetehr needed or not.
+/// The SVG depends on cycle width as well as start/stop clocks and design.
 /// Assumes that the fast simulation data has not changed and has enough cycles
 let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
-        //if wave.ViewerDisplayName.StartsWith "DATAPATH.MUX" then
-            //let wave1 = {wave with SVG=None ; WaveValues = {wave.WaveValues with Step = Array.empty}}
-            //printfn $"Generating waveform '{wave.ViewerDisplayName}'\n wave={wave1}"
         let waveform =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
@@ -168,7 +166,8 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
             }
     |> TimeHelpers.instrumentInterval "setClkCycle" start
 
-/// if zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles)
+/// If zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles).
+/// otherwise reduce width. GenerateWaveforms message will reconstitute SVGs after the change.
 let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
     let start = TimeHelpers.getTimeMs ()
     let shownCycles =
@@ -691,7 +690,12 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
     else div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 
-
+/// This function regenerates all the waveforms listed on wavesToBeMade.
+/// Generation is subject to timeout, so may not complete.
+/// Returns tuple: 
+/// allWaves (with new waveforms); 
+/// numberDone (no of waveforms made);
+/// timeToDo; Some (time actually taken) (> timeout) or None if complete with no timeOut.
 let makeWaveformsWithTimeOut
         (timeOut: float option) 
         (ws: WaveSimModel)
@@ -725,7 +729,14 @@ let cancelSpinner (model:Model) =
     {model with SpinnerPayload = None}
     
 
-/// 
+/// Major function called after changes to extend simulation and/or redo waveforms.
+/// Note that after design change simulation muts be redonne externally, and function called with
+/// newSimulation = true.
+/// First extend simulation, if needed, with timeout and callback from Spinner if needed.
+/// Then remake any waveforms which have chnaged and not yte been remade. Again if needed with
+/// timeOut and callback from Spinner.
+/// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
+/// a constant. To get the estimate some initila execution must be completed (1 clock cycle and one waveform).
 let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
     let start = TimeHelpers.getTimeMs ()
     let fs = wsModel.FastSim
@@ -837,6 +848,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 //}
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
+/// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
+/// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
 let refreshButtonAction canvasState model dispatch = fun _ ->
     let wsSheet = 
         match model.WaveSimSheet with

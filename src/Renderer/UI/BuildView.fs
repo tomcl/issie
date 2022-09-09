@@ -160,13 +160,14 @@ let viewBuild model dispatch =
                             [ str "Pause" ]
 
                     if model.Sheet.DebugState <> SheetT.NotDebugging then
-                        br [];
-                        Button.button
-                            [ 
-                                Button.Color IsDanger;
-                                Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugDisconnect) |> dispatch);
-                            ]
-                            [ str "Disconnect" ]
+                        //br [];
+                        //Button.button
+                        //    [ 
+                        //        Button.Color IsDanger;
+                        //        Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugDisconnect) |> dispatch);
+                        //    ]
+                        //    [ str "Disconnect" ]
+                        br []
                         br []
                         Table.table [
                             Table.IsFullWidth

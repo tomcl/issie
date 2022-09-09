@@ -460,6 +460,7 @@ module SheetT =
         | TickCompilation of float
         | FinishedCompilationStage
         | DebugSingleStep
+        | DebugStepAndRead of parts: int 
         | DebugRead of parts: int 
         | OnDebugRead of data: int * viewer: int
         | DebugConnect

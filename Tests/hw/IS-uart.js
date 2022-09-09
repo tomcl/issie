@@ -12,9 +12,11 @@
 
 const usb = require("usb");
 const WebUSB = usb.WebUSB;
-const fs = require("fs")
 
-const writer = fs.createWriteStream('output.txt') 
+const Mutex = require('async-mutex').Mutex;
+
+const mutex = new Mutex();
+
  
 //USB device settings for FT2232H channel B
 const VID = 0x0403; //0x0403 = 1027
@@ -37,213 +39,20 @@ const RX_BUF_SIZE = 64;
 const RX_PAD_BYTES = 2; //Extra bytes prefixing every transfer in
 
 const TX_CONTINUE = "C"; //Message to start clock
+const TX_PAUSE = "P"; //Message to stop clock
+const TX_STEP = "S"; //Message to step one clock cycle
 const TX_READ = "R";  //Message to read viewer 0
-const DEFAULT_VIEWER = "0";
 const TX_INTERVAL = 500;
 
 var device
 var sendTimer
 var kill = false
-var viewIndex
-
-if (process.argv.length < 3) {
-    console.log("Using default viewer index");
-    viewIndex = DEFAULT_VIEWER;
-} else {
-    viewIndex = process.argv[2];
-}
 
 //Terminate on Ctrl+C
 process.on('SIGINT', async function() {
     clearInterval(sendTimer);
     kill = true;
 });
-
-//Receive thread
-async function readLoop2() {
-    const decoder = new TextDecoder();
-    while (device.opened && !kill) {
-        var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
-        if (result.data.byteLength > RX_PAD_BYTES) {
-            //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
-            var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
-            console.log(`Received message: ${message}`);
-        }
-    }
-}
-
-//Receive thread
-async function readLoop() {
-    const decoder = new TextDecoder();
-    while (device.opened && !kill) {
-        var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
-        if (result.data.byteLength > RX_PAD_BYTES) {
-            //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
-            var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
-            console.log(`Received (loop) message: ${message}`);
-            // writer.write(`${message}`);
-            return `Received (loop) message: ${message}`;
-        }
-    }
-}
-
-async function readOne() {
-    const decoder = new TextDecoder();
-    let check = true;
-    while(check){
-        var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
-        if (result.data.byteLength > RX_PAD_BYTES) {
-            //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
-            var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
-            console.log(`Received message: ${message}`);
-            check = false;
-            return message;
-           }
-    }
-}
-
-export async function tryRead0(){
-    // sendTimer = setInterval(function(){device.transferOut(TX_EP, TX_READ + "0")},TX_INTERVAL);
-    //await device.transferOut(TX_EP, TX_CONTINUE);
-    //let res = await readOne()
-        // .then((res) => {
-        //    return res;
-        // })
-    //Disconnect
-    // console.log("Stopping");
-
-    //const rtrn = () => {
-    //    res.then((a) => {
-    //        return a;
-    //    });
-    //};
-    return readOne();
-}
-
-
-export async function main() {
-
-    const customWebUSB = new WebUSB({
-        // Bypass cheking for authorised devices
-        allowAllDevices: true
-    });
-
-    //Find device with correct VID and PID
-    try {
-        device = await customWebUSB.requestDevice({
-            filters: [{
-                vendorId: VID,
-                productId: PID
-            }]
-        });
-    }
-    catch(err) {
-        throw new Error("IceStick or IssieStick device (FT2232H) not found");
-    }
-
-    if (device) {
-        console.log(`Found ${device.productName} (${device.vendorId},${device.productId})`);
-    }
-    
-    //Open and configure device
-    await device.open();
-    console.log('Opened:', device.opened);
-
-    await device.claimInterface(DEVICE_IF);
-
-    const result = await device.controlTransferOut({
-        requestType: 'vendor',
-        recipient: 'device',
-        request: BAUD_REQ,
-        value: BAUD_VALUE,
-        index: BAUD_INDEX,
-    });
-
-    console.log(`Set baud = ${result.status}`)
-
-    //Send Clock Continue Message
-    await device.transferOut(TX_EP, TX_CONTINUE);
-
-    //Send regular Viewer Request messages
-    console.log(`Reading Viewer Index 0`)
-    sendTimer = setInterval(function(){device.transferOut(TX_EP, TX_READ + "0")},TX_INTERVAL);
-    
-    //Start receiver
-    await readOne();
-
-    //Disconnect
-    console.log("Stopping");
-    // await device.close();
-    // console.log('Opened:', device.opened);
-    
-    // process.exit();
-
-
-}
-
-
-
-//Main thread
-export async function main2() {
-
-    const customWebUSB = new WebUSB({
-        // Bypass cheking for authorised devices
-        allowAllDevices: true
-    });
-
-
-    
-    //Find device with correct VID and PID
-    try {
-        device = await customWebUSB.requestDevice({
-            filters: [{
-                vendorId: VID,
-                productId: PID
-            }]
-        });
-    }
-    catch(err) {
-        throw new Error("IceStick or IssieStick device (FT2232H) not found");
-    }
-
-    if (device) {
-        console.log(`Found ${device.productName} (${device.vendorId},${device.productId})`);
-    }
-    
-    //Open and configure device
-    await device.open();
-    console.log('Opened:', device.opened);
-
-    await device.claimInterface(DEVICE_IF);
-
-    const result = await device.controlTransferOut({
-        requestType: 'vendor',
-        recipient: 'device',
-        request: BAUD_REQ,
-        value: BAUD_VALUE,
-        index: BAUD_INDEX,
-    });
-
-    console.log(`Set baud = ${result.status}`)
-
-    //Send Clock Continue Message
-    await device.transferOut(TX_EP, TX_CONTINUE);
-
-    //Send regular Viewer Request messages
-    console.log(`Reading Viewer Index 0`)
-    sendTimer = setInterval(function(){device.transferOut(TX_EP, TX_READ + "0")},TX_INTERVAL);
-    
-    //Start receiver
-    await readLoop();
-
-    //Disconnect
-    // console.log("Stopping");
-    // await device.close();
-    // console.log('Opened:', device.opened);
-    // process.exit();
-
-
-}
 
 function decimalToHex(d, padding) {
     var hex = Number(d).toString(16);
@@ -255,61 +64,67 @@ function decimalToHex(d, padding) {
 
     return hex;
 }
-// (async => main())();
 
-export async function readAllViewers(n){
+export async function stepAndReadAllViewers(n){
     
+    const release = await mutex.acquire();
+    await device.transferOut(TX_EP, TX_STEP);
+    console.log("Step sent!");
     let viewerValues = [];
     for (var i=0;i<n;i++){
         let check = true;
-        console.log("reading: ")
-        console.log(decimalToHex(i,2))
         await device.transferOut(TX_EP, TX_READ + decimalToHex(i,2));
         while(check){
             var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
             if (result.data.byteLength > RX_PAD_BYTES) {
                 //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
                 var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
-                console.log(`Received message: ${message}`);
+                //console.log(`Received message: ${message}`);
                 check = false;
                 viewerValues.push(message);
                }
         }       
     }
+    release();
+    return viewerValues;
+}
+
+export async function readAllViewers(n){
+    
+    const release = await mutex.acquire();
+    let viewerValues = [];
+    for (var i=0;i<n;i++){
+        let check = true;
+        await device.transferOut(TX_EP, TX_READ + decimalToHex(i,2));
+        while(check){
+            var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
+            if (result.data.byteLength > RX_PAD_BYTES) {
+                //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
+                var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
+                //console.log(`Received message: ${message}`);
+                check = false;
+                viewerValues.push(message);
+               }
+        }       
+    }
+    release();
     return viewerValues;
 }
 
 
 export async function step() {
-    await device.transferOut(TX_EP, "S");
+    await mutex.waitForUnlock();
+    await device.transferOut(TX_EP, TX_STEP);
     console.log("Step sent!");
 }
 
-export async function stepRead(part) {
-    const decoder = new TextDecoder();
-    let check = true;
-    // await device.transferOut(TX_EP, "S");
-    await device.transferOut(TX_EP, TX_READ + part.toString());
-    // sendTimer = setInterval(function(){device.transferOut(TX_EP, TX_READ + "0")},TX_INTERVAL);
-    while(check){
-        var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
-        if (result.data.byteLength > RX_PAD_BYTES) {
-            //var message = decoder.decode(result.data.buffer.slice(RX_PAD_BYTES)); //Format input as string
-            var message = Buffer.from(result.data.buffer.slice(RX_PAD_BYTES)).toString('hex');   //Format input as hex
-            console.log(`Received message: ${message}`);
-            check = false;
-            return message;
-           }
-    }
-}
-
 export async function pauseOp() {
-    await device.transferOut(TX_EP, "P");
+    await device.transferOut(TX_EP, TX_PAUSE);
     
 }
 
 export async function continuedOp() {
-    await device.transferOut(TX_EP, "C");    
+    await device.transferOut(TX_EP, TX_CONTINUE);    
 }
 
 
@@ -318,7 +133,8 @@ export async function disconnect() {
     console.log("Device Closed");
 }
 
-export async function connect() {
+
+export async function connectAndRead(n) {
 
     const customWebUSB = new WebUSB({
         // Bypass cheking for authorised devices
@@ -358,25 +174,55 @@ export async function connect() {
         index: BAUD_INDEX,
     });
 
-    console.log(`Set baud = ${result.status}`)
+    console.log(`Set baud = ${result.status}`);
 
-    //Send Clock Continue Message
-    // await device.transferOut(TX_EP, TX_CONTINUE);
+    let values = await readAllViewers(n);
 
-    // //Send regular Viewer Request messages
-    // console.log(`Reading Viewer Index 0`)
-    // sendTimer = setInterval(function(){device.transferOut(TX_EP, TX_READ + "0")},TX_INTERVAL);
-    
-    // //Start receiver
-    // await readLoop();
-
-    //Disconnect
-    // console.log("Stopping");
-    // await device.close();
-    // console.log('Opened:', device.opened);
-    // process.exit();
-
+    return values;
 
 }
 
+export async function simpleConnect() {
 
+    const customWebUSB = new WebUSB({
+        // Bypass cheking for authorised devices
+        allowAllDevices: true
+    });
+
+
+    
+    //Find device with correct VID and PID
+    try {
+        device = await customWebUSB.requestDevice({
+            filters: [{
+                vendorId: VID,
+                productId: PID
+            }]
+        });
+    }
+    catch(err) {
+        throw new Error("IceStick or IssieStick device (FT2232H) not found");
+    }
+
+    if (device) {
+        console.log(`Found ${device.productName} (${device.vendorId},${device.productId})`);
+    }
+    
+    //Open and configure device
+    await device.open();
+    console.log('Opened:', device.opened);
+
+    await device.claimInterface(DEVICE_IF);
+
+    const result = await device.controlTransferOut({
+        requestType: 'vendor',
+        recipient: 'device',
+        request: BAUD_REQ,
+        value: BAUD_VALUE,
+        index: BAUD_INDEX,
+    });
+
+    console.log(`Set baud = ${result.status}`);
+
+
+}

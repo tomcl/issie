@@ -654,11 +654,19 @@ let getDebugController (profile: CompilationProfile) (fs: FastSimulation) =
             | (_, None) -> [||]
             | (name, Some width) -> [0 .. width - 1] |> List.toArray |> Array.map (fun i -> $"{name}[{i}]"))
         //|> Array.map (fun (name, index) -> $"{name}[{index}]")
+    
+    
+    
     let comps =
         comps
         |> Array.chunkBySize 8
         |> Array.map padWithZeros
-        |> Array.mapi (fun i s -> $"    8'h3{i}: tx_byte <= {{ {s} }};")
+        |> Array.mapi (fun i s -> 
+            let i32 = (int32 i)
+            let hexString = i32.ToString("x2");
+            $"    \"{hexString}\": tx_byte <= {{ {s} }};")
+    
+    //printfn "comps: %A"
     let comps = 
         Array.append comps [|"    default: tx_byte <= 8'hFF;"|]
         |> String.concat "\n"
@@ -725,11 +733,11 @@ always @ (posedge debug_clk) begin
             num_received <= 4'h0;
             is_running <= 0;
         end
-    end else if (num_received == 4'd2) begin
-        if (received_bytes[15:8] == 8'h52/*R*/) begin // Read value of internal registers/wires
+    end else if (num_received == 4'd3) begin
+        if (received_bytes[23:16] == 8'h52/*R*/) begin // Read value of internal registers/wires
             num_received <= 4'h0;
             transmit <= 1;
-            case (received_bytes[7:0])
+            case (received_bytes[15:0])
             {comps}
             endcase
         end

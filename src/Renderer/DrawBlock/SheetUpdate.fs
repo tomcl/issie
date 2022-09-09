@@ -20,27 +20,8 @@ open Node
 
 module node = Node.Api
 
-//type ISUART =
-//    abstract main : unit -> unit
-
-
-//[<ImportAll("../../../Tests/hw/IS-uart.js")>]
-//let ISUart: ISUART = jsNative
-
-//[<Emit("import * as ISuart from '../../../Tests/hw/IS-uart.js' ")>]
-//let importGrammar : unit = jsNative
-[<Emit("import {main,tryRead0,pauseOp,continuedOp,stepRead,connect,disconnect,step,readAllViewers} from '../../../Tests/hw/IS-uart.js' ")>]
+[<Emit("import {pauseOp,continuedOp,connectAndRead,simpleConnect,disconnect,step,readAllViewers,stepAndReadAllViewers} from '../../../Tests/hw/IS-uart.js' ")>]
 let importReadUart : unit = jsNative
-
-[<Emit("main()")>]
-let main (): unit = jsNative
-
-[<Emit("main2()")>]
-let main2 (): unit = jsNative
-
-[<Emit("tryRead0()")>]
-let read (): JS.Promise<string> = jsNative
-// let read (): string = jsNative
 
 [<Emit("pauseOp()")>]
 let pause (): unit = jsNative
@@ -48,11 +29,12 @@ let pause (): unit = jsNative
 [<Emit("continuedOp()")>]
 let continuedOp (): unit = jsNative
 
-[<Emit("stepRead($0)")>]
-let stepRead (part:int): JS.Promise<string> = jsNative
 
-[<Emit("connect()")>]
-let connect (): unit = jsNative
+[<Emit("connectAndRead($0)")>]
+let connect (numberOfViewers:int): JS.Promise<string array> = jsNative
+
+[<Emit("simpleConnect($0)")>]
+let simpleConnect (): JS.Promise<unit> = jsNative
 
 [<Emit("disconnect()")>]
 let disconnect (): unit = jsNative
@@ -63,6 +45,8 @@ let step (): unit = jsNative
 [<Emit("readAllViewers($0)")>]
 let readAllViewers (numberOfViewers:int): JS.Promise<string array> = jsNative
 
+[<Emit("stepAndReadAllViewers($0)")>]
+let stepAndReadAllViewers (numberOfViewers:int): JS.Promise<string array> = jsNative
 
 importReadUart
 
@@ -1225,38 +1209,40 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         model, Cmd.none
     | DebugSingleStep ->
-        step()
-        printfn "stepped"
-        printfn "mappings: %A" model.DebugMappings
+        //printfn "mappings: %A" model.DebugMappings
         let viewerNo = (Array.length model.DebugMappings) / 8
         
-        //let readAllViewersCmd = 
-        //    [0..(viewerNo-1)]
-        //    |> List.map (fun i -> Cmd.ofMsg (DebugRead i))
-        //    |> Cmd.batch
         
-        model, Cmd.ofMsg (DebugRead viewerNo)
-    | DebugRead n ->
-        //fs.writeFileSync ("/dev/ttyUSB1", $"R{part}")
-        printfn "reading"
+        model, Cmd.ofMsg (DebugStepAndRead viewerNo)
+    | DebugStepAndRead n ->
+        //printfn "reading"
         
-        //let readSingleStep p dispatch =
+        let readSingleStep viewers dispatch =
             
-        //    Async.StartImmediate(async {
-        //    let exit_code = ref 0
-        //    try
-        //        let keepGoing = ref true
+            Async.StartImmediate(async {
+            let exit_code = ref 0
+            try
+                let keepGoing = ref true
 
-        //        let r = stepRead(p)
-        //        r.``then``(fun v -> 
+                let r = stepAndReadAllViewers(viewers)
+                r.``then``(fun v -> 
+                    v
+                    |> Array.iteri (fun i reading -> 
+                        //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
+                        dispatch <| (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
+                    ) 
+                ) |> ignore
                     
-        //            printfn "got : %s" (v[0].ToString() + v[1].ToString())
-        //            dispatch <| (OnDebugRead (hextoInt (v[0].ToString() + v[1].ToString())))) |> ignore
-                    
-        //        keepGoing.Value <- false
-        //    finally
-        //        ()
-        //    })
+                keepGoing.Value <- false
+            finally
+                ()
+            })
+        
+        { model with
+            DebugReadLogs = List.append model.DebugReadLogs [ReadLog n]
+        }, Cmd.ofSub (readSingleStep n)
+    | DebugRead n ->
+        //printfn "reading"
         
         let readSingleStep viewers dispatch =
             
@@ -1269,7 +1255,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 r.``then``(fun v -> 
                     v
                     |> Array.iteri (fun i reading -> 
-                        printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
+                        //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
                         dispatch <| (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
                     ) 
                 ) |> ignore
@@ -1279,36 +1265,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 ()
             })
         
-
-
-        
-        //printfn $"reading from {n}"
-        //printfn "read from F# this %A" v
-        //printfn $"There were this many logs to receive: {List.length model.DebugReadLogs}"
-        //printfn $"Now there are this many logs to receive: {List.length (List.append model.DebugReadLogs [ReadLog part])}"
-
         { model with
             DebugReadLogs = List.append model.DebugReadLogs [ReadLog n]
         }, Cmd.ofSub (readSingleStep n)
     | DebugConnect ->
         match model.DebugConnection with
-        | Some c -> model, Cmd.none//c.push None |> ignore; c.destroy()
+        | Some c -> 
+            model, Cmd.none//c.push None |> ignore; c.destroy()
         | _ -> 
-            connect()
-            //main()
-            //main2()
-            // Set up the tty
-                
-            let startComp dispatch =
+            //simpleConnect()
+            
+            let viewerNo = (Array.length model.DebugMappings) / 8
+
+            let connectAndRead viewers dispatch =
                 Async.StartImmediate(async {
                 let exit_code = ref 0
                 try
                     let keepGoing = ref true
 
-                    let r = read()
-                    r.``then``(fun v -> 
-                        printfn "got : %s" (v[0].ToString() + v[1].ToString())
-                        dispatch <| (OnDebugRead (hextoInt (v[0].ToString() + v[1].ToString()),0))) |> ignore
+                    let c = simpleConnect()
+                    c.``then``(fun v -> 
+                        dispatch <| (DebugRead viewers)
+                    )|> ignore
                     
                     keepGoing.Value <- false
                 finally
@@ -1316,20 +1294,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 })
 
             { model with
-                //DebugConnection = Some nd
                 DebugReadLogs = []
-            }, Cmd.none
+            }, Cmd.ofSub (connectAndRead viewerNo)
     | DebugDisconnect ->
         printfn "Closing device"
         disconnect()
-        //match model.DebugConnection with
-        //| Some c -> c.push None |> ignore; c.destroy()
-        //| _ -> ()
+
         { model with DebugConnection = None }, Cmd.none
     | OnDebugRead (data,whichViewer) ->
-        printfn $"Have read {model.DebugReadCount + 1} messages"
-        printfn $"There are this many logs to receive: {List.length model.DebugReadLogs}"
-        //let (ReadLog part) = ReadLog 0 //List.head model.DebugReadLogs
         let part = whichViewer
         let bits =
             [0..7]
@@ -1349,23 +1321,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //fs.writeFileSync ("/dev/ttyUSB1", "C")
         continuedOp ()
         printfn "Continued execution"
-        let startComp dispatch =
-                Async.StartImmediate(async {
-                let exit_code = ref 0
-                try
-                    let keepGoing = ref true
-
-                    let r = read()
-                    r.``then``(fun v -> 
-                        printfn "got : %s" (v[0].ToString() + v[1].ToString())
-                        dispatch <| (OnDebugRead (hextoInt (v[0].ToString() + v[1].ToString()),0))) |> ignore
-                    
-                    while keepGoing.Value do
-                        do! Async.Sleep 1000
-                        dispatch <| DebugContinue
-                finally
-                    ()
-                })
+        
 
         {model with DebugState = Running}, Cmd.none
     | DebugPause ->
@@ -1373,13 +1329,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         pause()
         printfn "Continued execution Stopped"
         let viewerNo = (Array.length model.DebugMappings) / 8
+
         
-        //let readAllViewersCmd = 
-        //    [0..(viewerNo-1)]
-        //    |> List.map (fun i -> Cmd.ofMsg (DebugRead i))
-        //    |> Cmd.batch
-        
-        {model with DebugState = Paused}, Cmd.ofMsg (DebugRead viewerNo)
+        {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -1425,7 +1377,7 @@ let init () =
         ScrollUpdateIsOutstanding = false
         PrevWireSelection = []
         Compiling = false
-        CompilationStatus = {Synthesis = Completed 65; PlaceAndRoute = InProgress 87; Generate = Failed; Upload = Queued}
+        CompilationStatus = {Synthesis = Queued; PlaceAndRoute = Queued; Generate = Queued; Upload = Queued}
         CompilationProcess = None
         DebugState = NotDebugging
         DebugData = [1..256] |> List.map (fun i -> 0b00111011)

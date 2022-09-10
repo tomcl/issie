@@ -683,7 +683,9 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
         let headerRow =
             ["read", RAMRead; "overwritten",RAMWritten]
             |> List.map (fun (op, opStyle) -> inlineStyle [] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
-            |> function | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use control to change cycle."] | _ -> failwithf "What? Can't happen!"
+            |> function 
+                | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
+                | _ -> failwithf "What? Can't happen!"
         List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
         |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
         |> Fulma.Table.table [Table.TableOption.Props ramTablesLevelProps; Table.IsFullWidth; Table.IsBordered; Table.Props [Style [Height "100%"]]]
@@ -738,6 +740,8 @@ let cancelSpinner (model:Model) =
 /// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
 /// a constant. To get the estimate some initila execution must be completed (1 clock cycle and one waveform).
 let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
+    // use given (more uptodate) wsModel
+    let model = updateWSModel (fun _ -> wsModel) model
     let start = TimeHelpers.getTimeMs ()
     let fs = wsModel.FastSim
     if fs.NumStepArrays = 0 then
@@ -770,12 +774,17 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 //printfn $"Ending refresh now at Tick {fs.ClockTick}..."
                 let allWavesStart = TimeHelpers.getTimeMs ()    
                     //printfn "starting getwaves"
-            
+                // redo waves based on new simulation
                 let allWaves = 
                     if newSimulation then
                         //printfn "making new waves..."
                         getWaves wsModel fs 
                     else wsModel.AllWaves
+                // redo viewer with (and tehrefore shown cycles etc) based on selected waves names
+                // which are currently only calculatable afetr getwaves has generated waves
+                let model = updateViewerWidthInWaveSim model.WaveSimViewerWidth model 
+                // extract wsModel from updated model for processing below
+                let wsModel = getWSModel model
 
                 let simulationIsUptodate = wsModel.FastSim.ClockTick > wsModel.ShownCycles + wsModel.StartCycle
                 let wavesToBeMade =
@@ -860,7 +869,6 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         model
         |> removeAllSimulationsFromModel
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
-        |> WaveSimStyle.updateViewerWidthInWaveSim model.WaveSimViewerWidth
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
     match SimulationView.makeSimData model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + 1)  canvasState model with

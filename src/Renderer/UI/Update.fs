@@ -401,9 +401,10 @@ let update (msg : Msg) oldModel =
         // Update the wave simulator with new waveforms
         // Is called whenever any waveform might need to be changed
         WaveSim.refreshWaveSim false ws model
-
-        
-
+    | GenerateCurrentWaveforms ->
+        // Update the wave simulator with new waveforms based on current WsMdel
+        let ws = WaveSimHelpers.getWSModel model
+        WaveSim.refreshWaveSim false ws model
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
         let model = 
             model

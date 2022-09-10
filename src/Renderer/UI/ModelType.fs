@@ -278,8 +278,10 @@ type Msg =
     /// and update the WaveSimModel of the specified sheet.
     | SetWSModelAndSheet of WaveSimModel * string
     /// Generate waveforms according to the current parameters
-    /// of the WaveSimModel
+    /// of the given WaveSimModel
     | GenerateWaveforms of WaveSimModel
+    /// Generate waveforms according to the model paramerts of Wavesim
+    | GenerateCurrentWaveforms 
     /// Run, or rerun, the FastSimulation with the current state of the Canvas.
     | RefreshWaveSim of WaveSimModel
     /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)

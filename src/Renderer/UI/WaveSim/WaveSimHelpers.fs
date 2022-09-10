@@ -521,20 +521,28 @@ let nameOfSubsheet (fs:FastSimulation) (subSheet: string List) =
     | sheets -> 
         sheets[sheets.Length - 1]
 
-///Work out a SheetPort from a wave    
+/// Work out a SheetPort from a wave, if one exists
+/// SheetPorts may not exist in some corner cases when simulation is ending etc.
 let waveToSheetPort fs (wave:Wave) =
     let sheet = nameOfSubsheet fs wave.SubSheet
     let wi = wave.WaveId
-    let comp = fs.ComponentsById[sheet.ToLower()][fst wi.Id]
-    let port =
-        match wi.PortType, comp.InputPorts.Length > 0, comp.OutputPorts.Length > 0 with
-        | PortType.Input, true, _ | PortType.Output, true, false -> comp.InputPorts[wi.PortNumber]
-        | PortType.Output ,_, true | PortType.Input, false, true -> comp.OutputPorts[wi.PortNumber]
-        | _ -> failwithf "What? no parts found in waveToSheetPort"
-    {
-        Sheet = sheet.ToLower()
-        PortOnComp = port
-    }
+    fs.ComponentsById
+    |> Map.tryFind (sheet.ToLower()) 
+    |> Option.map (Map.tryFind  (fst wi.Id))
+    |> Option.flatten
+    |> Option.map (fun comp ->
+            let port =
+                match wi.PortType, comp.InputPorts.Length > 0, comp.OutputPorts.Length > 0 with
+                | PortType.Input, true, _ | PortType.Output, true, false -> comp.InputPorts[wi.PortNumber]
+                | PortType.Output ,_, true | PortType.Input, false, true -> comp.OutputPorts[wi.PortNumber]
+                | _ -> failwithf "What? no parts found in waveToSheetPort"
+            {
+                Sheet = sheet.ToLower()
+                PortOnComp = port
+            }
+            |> fun p -> [p])
+    |> Option.defaultValue []
+
 
 /// function to print a lits of SheetPort for debugging IOLabels
 let printSPL (tp:string) (fs:FastSimulation) (spL:SheetPort list) =
@@ -602,7 +610,6 @@ let rec allConnectedPorts (fs: FastSimulation) (sp:SheetPort list) =
 let connsOfWave (fs:FastSimulation) (wave:Wave) =
     wave
     |> waveToSheetPort fs
-    |> (fun sp -> [sp])
     |> allConnectedPorts fs
     |> List.collect (fun sp -> match Map.tryFind sp fs.ConnectionsByPort with | None -> [] | Some conns -> conns)
     |> List.map (fun conn -> ConnectionId conn.Id)

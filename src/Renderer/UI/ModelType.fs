@@ -54,6 +54,7 @@ type RightTab =
     | Properties
     | Catalogue
     | Simulation
+    | Build
     | Transition // hack to make a transition from Simulation to Catalog without a scrollbar artifact
 
 type SimSubTab =
@@ -366,6 +367,7 @@ type Msg =
     | SetTopMenu of TopMenu
     | ReloadSelectedComponent of int
     | SetDragMode of DragMode
+    | ChangeBuildTabVisibility
     /// Set width of right-hand pane when tab is WaveSimulator or TruthTable
     | SetViewerWidth of int
     | MenuAction of MenuCommand * (Msg -> unit)
@@ -510,6 +512,8 @@ type Model = {
     /// Contains a list of pending messages
     Pending: Msg list
     UIState: UICommandType Option
+    /// if true the "build" tab appears on the RHS
+    BuildVisible: bool
 } 
 
     with member this.WaveSimOrCurrentSheet =

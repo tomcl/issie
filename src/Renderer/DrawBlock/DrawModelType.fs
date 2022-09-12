@@ -7,6 +7,7 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 open Optics
+open Node.ChildProcess
 
 //--------------------------COMMON TYPES------------------------------//
 
@@ -410,6 +411,25 @@ module SheetT =
 
     type Arrange = | AlignSymbols | DistributeSymbols
 
+    type CompilationStage =
+        | Completed of int
+        | InProgress of int
+        | Failed
+        | Queued
+    
+    type CompilationStageLabel =
+        | Synthesis
+        | PlaceAndRoute
+        | Generate
+        | Upload
+
+    type CompileStatus = {
+        Synthesis: CompilationStage;
+        PlaceAndRoute: CompilationStage;
+        Generate: CompilationStage;
+        Upload: CompilationStage;
+    }
+
     type Msg =
         | Wire of BusWireT.Msg
         | KeyPress of KeyboardMsg
@@ -449,6 +469,28 @@ module SheetT =
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
+        // ------------------- Compilation and Debugging ----------------------
+        | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
+        | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
+        | StopCompilation
+        | TickCompilation of float
+        | FinishedCompilationStage
+        | DebugSingleStep
+        | DebugStepAndRead of parts: int 
+        | DebugRead of parts: int 
+        | OnDebugRead of data: int * viewer: int
+        | DebugConnect
+        | DebugDisconnect
+        | DebugUpdateMapping of string array
+        | DebugContinue
+        | DebugPause
+
+    type ReadLog = | ReadLog of int
+
+    type DebugState =
+        | NotDebugging
+        | Paused
+        | Running
 
     type Model = {
         Wire: BusWireT.Model
@@ -493,6 +535,13 @@ module SheetT =
         CtrlKeyDown : bool
         ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list
+        Compiling: bool
+        CompilationStatus: CompileStatus
+        CompilationProcess: ChildProcess option
+        DebugState: DebugState
+        DebugData: int list
+        DebugMappings: string array
+        DebugIsConnected: bool
         }
     
     open Operators

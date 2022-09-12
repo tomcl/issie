@@ -10,6 +10,18 @@ open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open Sheet
 open Optics
+open FilesIO
+open NumberHelpers
+open FSharp.Core
+open Fable.Core
+open Fable.Core.JsInterop
+open BuildUartHelpers
+open Node.ChildProcess
+open Node
+
+module node = Node.Api
+
+importReadUart
 
 let rotateLabel (sym:Symbol) =
     let currentRot = Option.defaultValue Degree0 sym.LabelRotation
@@ -196,6 +208,19 @@ let snapWire
                 Cmd.ofMsg CheckAutomaticScrolling] 
 
 
+
+let hextoInt (s:string) =
+    let s0 = s[0].ToString()
+    let s1 = s[1].ToString()
+    let i0 = 
+        match s0 with
+        |"a" -> 10 |"b" ->11 |"c" ->12 |"d" ->13 |"e" ->14 |"f" ->15
+        |_ -> int <| s0
+    let i1 = 
+        match s1 with
+        |"a" -> 10 |"b" ->11 |"c" ->12 |"d" ->13 |"e" ->14 |"f" ->15
+        |_ -> int <| s1
+    (i0*16+i1)
 // ----------------------------------------- Mouse Update Helper Functions ----------------------------------------- //
 // (Kept in separate functions since Update function got too long otherwise)
 
@@ -1016,6 +1041,270 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if isOn then {model with CursorType = Spinner}, Cmd.none
         else {model with CursorType = Default}, Cmd.none
 
+    | StartCompiling (path, name, profile) ->
+        printfn "starting compiling %s :: %s" path name
+        {model with
+            Compiling = true
+            CompilationStatus = {
+                Synthesis = InProgress 0
+                PlaceAndRoute = Queued
+                Generate = Queued
+                Upload = Queued
+            }
+            DebugIsConnected = false
+            DebugState = match profile with | Verilog.Debug -> Paused | Verilog.Release -> NotDebugging
+        }, Cmd.ofMsg (StartCompilationStage (Synthesis, path, name, profile))
+    | StartCompilationStage (stage, path, name, profile) ->
+        printfn "are we compiling? %A" model.Compiling
+        printfn "do we have process? %A" (model.CompilationProcess |> Option.map (fun c -> c.pid))
+        if not model.Compiling then
+            model, Cmd.none
+        else 
+            let cwd = getCWD ()
+            let include_path = 
+                match JSHelpers.debugLevel <> 0 with
+                |true -> cwd+"/static/hdl"
+                |false -> cwd+"/resources/static/hdl" 
+            
+            printfn "include_path: %s" include_path
+            let pcf = match profile with
+                      | Verilog.Release -> $"{include_path}/icestick.pcf"
+                      | Verilog.Debug -> $"{include_path}/icestick_debug.pcf"
+            let (prog, args) = 
+                // make build dir
+                match stage with
+                | Synthesis     -> "yosys", ["-p"; $"read_verilog -I{include_path} {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
+                | PlaceAndRoute -> "nextpnr-ice40", ["--hx1k"; "--pcf"; $"{pcf}"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
+                | Generate      -> "icepack", [$"{path}/build/{name}.asc"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
+                | Upload        -> "iceprog", [$"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
+
+            let options = {| shell = false |} |> toPlainJsObj
+            let child = node.childProcess.spawn (prog, args |> ResizeArray, options);
+            //printfn "child pid: %A" child.pid
+
+            let startComp dispatch =
+                printf "starting stage %A" stage
+                Async.StartImmediate(async {
+                let exit_code = ref 0
+                try
+                    let keepGoing = ref true
+
+                    // TODO: record data and display it in special tab
+                    child.stdout.on ("data", fun _ -> ()) |> ignore
+                    child.stderr.on ("data", fun e -> printfn "Error: %s" e) |> ignore
+                    child.on("exit", fun code ->
+                        keepGoing.Value <- false
+                        exit_code.Value <- code
+                    ) |> ignore
+
+                    while keepGoing.Value do
+                        do! Async.Sleep 1000
+                        printf "state of child: %A" keepGoing.Value
+                        dispatch <| TickCompilation child.pid
+                finally
+                    printf "Child finished with exit code: %i" exit_code.Value
+                    if exit_code.Value = 0 then
+                        dispatch <| FinishedCompilationStage
+                        match stage with
+                        | Synthesis -> dispatch <| StartCompilationStage (PlaceAndRoute, path, name, profile)
+                        | PlaceAndRoute -> dispatch <| StartCompilationStage (Generate, path, name, profile)
+                        | Generate -> dispatch <| StartCompilationStage (Upload, path, name, profile)
+                        | Upload when profile = Verilog.Debug-> dispatch <| DebugConnect
+                        | _ -> ()
+                    else
+                        dispatch <| StopCompilation
+                })
+
+            {model with CompilationProcess = Some child}, Cmd.ofSub <| startComp
+    | StopCompilation ->
+        //printfn "stopping compilation"
+        match model.CompilationProcess with
+        | Some child -> child.kill()
+        | _ -> ()
+
+        let failIfInProgress stage =
+            match stage with
+            | InProgress t -> Failed
+            | s -> s
+
+        { model with
+            Compiling = false
+            CompilationStatus = {
+                Synthesis = failIfInProgress model.CompilationStatus.Synthesis
+                PlaceAndRoute = failIfInProgress model.CompilationStatus.PlaceAndRoute
+                Generate = failIfInProgress model.CompilationStatus.Generate
+                Upload = failIfInProgress model.CompilationStatus.Upload
+            }
+            CompilationProcess = None
+        }, Cmd.none
+    | TickCompilation pid ->
+        //printfn "ticking %A while process is %A" pid (model.CompilationProcess |> Option.map (fun c -> c.pid))
+        let correctPid =
+            model.CompilationProcess
+            |> Option.map (fun child -> child.pid = pid) 
+            |> Option.defaultValue false
+
+        let tick stage =
+            match stage with
+                | InProgress t when correctPid -> InProgress (t + 1)
+                | s -> s
+
+        {model with
+            CompilationStatus = {
+                Synthesis = tick model.CompilationStatus.Synthesis
+                PlaceAndRoute = tick model.CompilationStatus.PlaceAndRoute
+                Generate = tick model.CompilationStatus.Generate
+                Upload = tick model.CompilationStatus.Upload
+            }
+        }, Cmd.none
+    | FinishedCompilationStage ->
+        let model =
+            if not model.Compiling then
+                model
+            else
+                let finishOrStart cur prev =
+                    match (prev, cur) with
+                        | (_, InProgress t) -> Completed t
+                        | (Some (InProgress _), _) -> InProgress 0
+                        | (_, cur) -> cur
+                let synthesis = model.CompilationStatus.Synthesis
+                let placeAndRoute = model.CompilationStatus.PlaceAndRoute
+                let generate = model.CompilationStatus.Generate
+                let upload = model.CompilationStatus.Upload
+                let isCompiling =
+                    match upload with
+                    | InProgress _ -> false
+                    | _ -> model.Compiling
+
+                {model with
+                    Compiling = isCompiling
+                    CompilationStatus = {
+                        Synthesis = finishOrStart synthesis None
+                        PlaceAndRoute = finishOrStart placeAndRoute <| Some synthesis
+                        Generate = finishOrStart generate <| Some placeAndRoute
+                        Upload = finishOrStart upload <| Some generate
+                    }
+                }
+
+        model, Cmd.none
+    | DebugSingleStep ->
+        //printfn "mappings: %A" model.DebugMappings
+        let viewerNo = (Array.length model.DebugMappings) / 8
+        
+        
+        model, Cmd.ofMsg (DebugStepAndRead viewerNo)
+    | DebugStepAndRead n ->
+        //printfn "reading"
+        
+        let readSingleStep viewers dispatch =
+            
+            Async.StartImmediate(async {
+            let exit_code = ref 0
+            try
+                let keepGoing = ref true
+
+                let r = stepAndReadAllViewers(viewers)
+                r.``then``(fun v -> 
+                    v
+                    |> Array.iteri (fun i reading -> 
+                        //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
+                        dispatch <| (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
+                    ) 
+                ) |> ignore
+                    
+                keepGoing.Value <- false
+            finally
+                ()
+            })
+        
+        model, Cmd.ofSub (readSingleStep n)
+    | DebugRead n ->
+        //printfn "reading"
+        
+        let readSingleStep viewers dispatch =
+            
+            Async.StartImmediate(async {
+            let exit_code = ref 0
+            try
+                let keepGoing = ref true
+
+                let r = readAllViewers(viewers)
+                r.``then``(fun v -> 
+                    v
+                    |> Array.iteri (fun i reading -> 
+                        //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
+                        dispatch <| (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
+                    ) 
+                ) |> ignore
+                    
+                keepGoing.Value <- false
+            finally
+                ()
+            })
+        
+        model, Cmd.ofSub (readSingleStep n)
+    | DebugConnect ->
+        //match model.DebugConnection with
+        //| Some c -> 
+        //    model, Cmd.none//c.push None |> ignore; c.destroy()
+        //| _ -> 
+            //simpleConnect()
+            
+        let viewerNo = (Array.length model.DebugMappings) / 8
+
+        let connectAndRead viewers dispatch =
+            Async.StartImmediate(async {
+            let exit_code = ref 0
+            try
+                let keepGoing = ref true
+
+                let c = simpleConnect()
+                c.``then``(fun v -> 
+                    dispatch <| (DebugRead viewers)
+                )|> ignore
+                    
+                keepGoing.Value <- false
+            finally
+                ()
+            })
+
+        { model with
+            DebugIsConnected = true
+        }, Cmd.ofSub (connectAndRead viewerNo)
+    | DebugDisconnect ->
+        printfn "Closing device"
+        disconnect()
+
+        { model with DebugIsConnected = false}, Cmd.none
+    | OnDebugRead (data,whichViewer) ->
+        let part = whichViewer
+        let bits =
+            [0..7]
+            |> List.rev
+            |> List.map (fun i -> Some <| (data / (pown 2 i)) % 2)
+            |> List.map (fun b -> b.ToString())
+            |> String.concat ","
+        //printfn $"read {data} from {part} ([{bits}])"
+        { model with
+            DebugData = List.insertAt part data (List.removeAt part model.DebugData)
+        }, Cmd.none
+    | DebugUpdateMapping mappings ->
+        {model with DebugMappings = mappings }, Cmd.none
+    | DebugContinue ->
+        //fs.writeFileSync ("/dev/ttyUSB1", "C")
+        continuedOp ()
+        printfn "Continued execution"
+        
+
+        {model with DebugState = Running}, Cmd.none
+    | DebugPause ->
+        //fs.writeFileSync ("/dev/ttyUSB1", "P")
+        pause()
+        printfn "Continued execution Stopped"
+        let viewerNo = (Array.length model.DebugMappings) / 8
+
+        
+        {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -1060,6 +1349,13 @@ let init () =
         CtrlKeyDown = false
         ScrollUpdateIsOutstanding = false
         PrevWireSelection = []
+        Compiling = false
+        CompilationStatus = {Synthesis = Queued; PlaceAndRoute = Queued; Generate = Queued; Upload = Queued}
+        CompilationProcess = None
+        DebugState = NotDebugging
+        DebugData = [1..256] |> List.map (fun i -> 0b00111011)
+        DebugIsConnected = false
+        DebugMappings = [||]
     }, Cmd.none
 
 

@@ -48,6 +48,7 @@ let rec hasSynchronousComponents graph : bool =
 
 let isInput = function | Input1 _ -> true | _ -> false
 let isOutput = function | Output _ -> true | _ -> false
+let isViewer = function | Viewer _ -> true | _ -> false
 let isCustom = function | Custom _ -> true | _ -> false
 let isIOLabel = function | IOLabel _ -> true | _ -> false
 

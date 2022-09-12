@@ -8,7 +8,11 @@ open Fable.React.Props
 open ElectronAPI
 open FilesIO
 open SimulatorTypes
+open TruthTableTypes
+open TruthTableCreate
+open TruthTableReduce
 open ModelType
+open ModelHelpers
 open CommonTypes
 open Extractor
 open CatalogueView
@@ -17,6 +21,10 @@ open FileMenuView
 open Sheet.SheetInterface
 open DrawModelType
 open Fable.SimpleJson
+open Helpers
+open NumberHelpers
+open DiagramStyle
+open UpdateHelpers
 
 
 //---------------------------------------------------------------------------------------------//
@@ -24,43 +32,7 @@ open Fable.SimpleJson
 //---------------------------------- Update Model ---------------------------------------------//
 //---------------------------------------------------------------------------------------------//
 
-///Used to filter specific mouse messages based on mouse data.
-let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
-    match msg with
-    | Sheet sMsg ->
-        match sMsg with
-        | SheetT.MouseMsg mMsg ->
-            msgSelect mMsg
-        | _ -> false
-    | _ -> false
 
-/// If debugTrace is on print out human readable info on message.
-/// Be careful not to do this on mouse moves (there are too many).
-/// be careful not to try to ptint simulation result arrays (that would crash the renderer!).
-/// optimise for very quick return in the case that debugLevel = 0 (production version)
-/// optimise for quick return if nothing is printed.
-let getMessageTraceString (msg: Msg) =
-    let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = 
-        mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
-    let noDisplayMessage = function
-        | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> true
-        | _ -> false
-    let shortDisplayMsg = function 
-        | SetWSModel _ -> Some "U(SetWSModel)"
-        | StartSimulation _ -> Some "U(StartSimulation)"
-        | SetSimulationGraph _ -> Some "U(SetSimulationGraph)"
-        | SetPopupMemoryEditorData _ -> Some "U(SetPopupmemoryEditorData)"
-        | _ -> None 
-    if JSHelpers.debugLevel = 0 ||
-       not (Set.contains "update" JSHelpers.debugTraceUI) ||
-       matchMouseMsg noDisplayMouseOp msg ||
-       noDisplayMessage msg then
-        ""
-    else 
-        match shortDisplayMsg msg with
-        | Some shortName -> shortName
-        | None ->
-            Helpers.sprintInitial 70 $"{msg}"
 
 
 
@@ -99,7 +71,6 @@ let private writeUserData (model:Model) =
         |> Result.mapError (fun mess -> $"Write error on directory {userAppDir}: %s{mess}")
         |> function | Error mess -> printfn "%s" mess | _ -> ())
     |> ignore
-
 /// subfunction used in model update function
 let private getSimulationDataOrFail model msg =
     match model.CurrentStepSimulationStep with
@@ -109,12 +80,82 @@ let private getSimulationDataOrFail model msg =
         | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
         | Ok simData -> simData
 
+let private getTruthTableOrFail model msg =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Getting truth table when no table has been generated: %s" msg
+    | Some res ->
+        match res with
+        | Error _ -> failwithf "what? Getting truth table when there is error in generation: %s" msg
+        | Ok tt -> tt
+
+let truncationWarning table =
+    $"The Truth Table has been truncated to {table.TableMap.Count} input combinations.
+    Not all rows may be shown."
+
+/// Apply a single numerical output constraint to a Truth Table Map
+let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
+    table
+    |> Map.filter (fun _ right ->
+        right
+        |> List.exists (fun cell ->
+            match con with
+            | Equality e ->
+                if e.IO <> cell.IO then
+                    false
+                else
+                    match cell.Data with
+                    | Algebra _ -> false
+                    | DC -> true
+                    | Bits wd ->
+                        let cellVal = convertWireDataToInt wd
+                        cellVal = e.Value
+            | Inequality i ->
+                if i.IO <> cell.IO then
+                    false
+                else
+                    match cell.Data with
+                    | Algebra _ -> false
+                    | DC -> true
+                    | Bits wd ->
+                        let cellVal = convertWireDataToInt wd
+                        i.LowerBound <= int cellVal && cellVal <= i.UpperBound
+                        ))
+
+/// Comparison function for CellData values
+let compareCellData (cd1: CellData) (cd2: CellData) =
+    match cd1, cd2 with
+    | DC, DC -> 0 // X = X
+    | DC, _ -> 1 // DC is considered larger than anything
+    | _, DC -> -1
+    | Algebra _, Bits _ -> 1 // Algebra is considered larger than Bits
+    | Bits _, Algebra _ -> -1
+    | Algebra a1, Algebra a2 -> 
+        compare a1 a2 // Algebra compared by alphabetical order
+    | Bits wd1, Bits wd2 -> // Bits compared by which is largest
+        (convertWireDataToInt wd1, convertWireDataToInt wd2)
+        ||> compare
+
+let sortByIO (io: CellIO) (lst: TruthTableRow list) = 
+    let idx = 
+        lst.Head
+        |> List.tryFindIndex (fun c ->
+            c.IO = io)
+        |> function
+            | Some i -> i
+            | None -> failwithf "what? Failed to find IO: %s while sorting TT" io.getLabel
+    
+    lst
+    |> List.sortWith (fun r1 r2 ->
+        let cd1 = r1[idx].Data
+        let cd2 = r2[idx].Data
+        compareCellData cd1 cd2)
+
 let verilogOutputPage sheet fPath  =
     div [] [
         str $"You can write sheet '{sheet}' (and its subsheets) in either simulation or synthesis format. The output will be written to:"
         Text.div [ 
             Modifiers [ Modifier.TextWeight TextWeight.Bold]
-            Props [Style [TextAlign TextAlignOptions.Center; Padding "10px"; FontFamily "monospace"; FontSize "15px"]]] [str $"%s{Helpers.cropToLength 55 false fPath}.v"]
+            Props [Style [TextAlign TextAlignOptions.Center; CSSProp.Padding "10px"; FontFamily "monospace"; FontSize "15px"]]] [str $"%s{Helpers.cropToLength 55 false fPath}.v"]
         Columns.columns [ ]
             [ Column.column [ ]
                 [ Panel.panel [ Panel.Color IsInfo ]
@@ -145,7 +186,6 @@ let verilogOutputPage sheet fPath  =
                         ]
                       
                          ] ] ] ] 
-
 
 /// handle Menu actions that may need Model data
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
@@ -275,7 +315,8 @@ let sheetMsg sMsg model =
 
 /// Main MVU model update function
 let update (msg : Msg) oldModel =
-    let startUpdate = TimeHelpers.getTimeMs()
+    let startOfUpdateTime = TimeHelpers.getTimeMs()
+    
 
     //Add the message to the pending queue if it is a mouse drag message
     let model =
@@ -293,10 +334,10 @@ let update (msg : Msg) oldModel =
             DoNothing, Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
         | None ->
             msg, Cmd.none
-
     // main message dispatch match expression
     match testMsg with
     | StartUICmd uiCmd ->
+        //printfn $"starting UI command '{uiCmd}"
         match model.UIState with
         | None -> //if nothing is currently being processed, allow the ui command operation to take place
             match uiCmd with
@@ -305,9 +346,11 @@ let update (msg : Msg) oldModel =
             | _ -> 
                 {model with UIState = Some uiCmd}, Cmd.ofMsg (Sheet (SheetT.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
-    | FinishUICmd _ ->
+    | FinishUICmd _->
+        //printfn $"ending UI command '{model.UIState}"
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (SheetT.SetSpinner false))
+
     (*| ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
@@ -335,30 +378,50 @@ let update (msg : Msg) oldModel =
     | ReloadSelectedComponent width ->
         {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
-        { model with CurrentStepSimulationStep = Some simData }, Cmd.none
+        {model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel ->
         setWSModel wsModel model, Cmd.none
+    | UpdateWSModel updateFn ->
+        updateWSModel updateFn model, Cmd.none
     | SetWSModelAndSheet (wsModel, wsSheet) ->
         let newModel =
-            {model with WaveSimSheet = wsSheet}
+            {model with WaveSimSheet = if wsSheet = "" then None else Some wsSheet}
             |> setWSModel wsModel
         newModel, Cmd.none
-    | RefreshWaveSim (wsModel, simData, canvState) ->
-        model, Cmd.OfAsync.perform WaveSim.refreshWaveSim (wsModel, simData, canvState) SetWSModel
+    | UpdateModel( updateFn: Model -> Model) ->
+        updateFn model, Cmd.none
+    | RefreshWaveSim ws ->
+        // restart the wave simulator after design change etc that invalidates all waves
+        WaveSim.refreshWaveSim true ws model
     | AddWSModel (sheet, wsModel) ->
         { model with 
             WaveSim = Map.add sheet wsModel model.WaveSim
         }, Cmd.none
-    | InitiateWaveSimulation wsModel ->
-        let start = TimeHelpers.getTimeMs ()
-        let allWaves =
-            Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
-            |> TimeHelpers.instrumentInterval "InitiateWaveSimulation generateWaveform" start
+    | GenerateWaveforms ws ->
+        // Update the wave simulator with new waveforms
+        // Is called whenever any waveform might need to be changed
+        WaveSim.refreshWaveSim false ws model
 
-        let wsModel' = {wsModel with AllWaves = allWaves}
+        
 
-        setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
+    | SetWaveComponentSelectionOpen (fIdL, show) ->       
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveComponentSelectionOpen ws fIdL show)
+        model, cmd
+    | SetWaveGroupSelectionOpen (fIdL, show) -> 
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveGroupSelectionOpen ws fIdL show)
+        model, cmd
 
+        
+    | SetWaveSheetSelectionOpen (fIdL, show) ->       
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveSheetSelectionOpen ws fIdL show)
+        model, cmd
+        
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none
@@ -368,10 +431,279 @@ let update (msg : Msg) oldModel =
     | IncrementSimulationClockTick n ->
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
-    | EndSimulation ->
-        { model with CurrentStepSimulationStep = None }, Cmd.none
-    | EndWaveSim ->
-        { model with WaveSim = Map.empty; WaveSimSheet = ""}, Cmd.none
+    | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
+    | EndWaveSim -> 
+        let model =
+            let model = removeAllSimulationsFromModel model
+            match model.WaveSimSheet with
+            | None | Some "" -> 
+                printfn "What? can't end WaveSim when it is already ended"
+                model
+            | Some sheet -> 
+                { model with 
+                    WaveSimSheet = None; 
+                    WaveSim = Map.change sheet (Option.map (fun ws -> 
+                        {ws with State = Ended ; WaveModalActive = false})) model.WaveSim
+                }
+        model, Cmd.none
+    | GenerateTruthTable simRes ->
+        match simRes with
+        | Some (Ok sd,_) ->
+            // delete any old simulations
+            let model = ModelHelpers.removeAllSimulationsFromModel model
+            // Generate the Truth Table
+            let tt = 
+                truthTable 
+                    sd 
+                    model.TTInputConstraints 
+                    model.TTAlgebraInputs 
+                    model.TTBitLimit
+                    false
+            // Styles for the grid
+            let colStyles = 
+                tt.IOOrder
+                |> List.mapi (fun i io -> (io,ttGridColumnProps i))
+                |> Map.ofList 
+            // List of messages
+            let commands = 
+                [
+                    // Set the IO Order for the Truth Table
+                    tt.IOOrder 
+                    |> List.toArray 
+                    |> SetIOOrder
+                    // Set the popup Algebra inputs to empty list
+                    SetPopupAlgebraInputs (Some [])
+                    // Truncation warning
+                    if tt.IsTruncated then
+                        Notifications.warningPropsNotification (truncationWarning tt)
+                        |> SetPropertiesNotification
+                ]
+                |> List.map Cmd.ofMsg
+            {model with CurrentTruthTable = Some (Ok tt); TTGridStyles = colStyles}, Cmd.batch <| commands
+        | Some (Error e, _) ->
+            {model with CurrentTruthTable = Some (Error e); TTGridStyles = Map.empty}, Cmd.none
+        | None -> model, Cmd.none
+    | RegenerateTruthTable ->
+        let table = getTruthTableOrFail model "Regeneration"
+        let ttRes, commands =
+            try
+                let tt =
+                    truthTable
+                        table.TableSimData
+                        model.TTInputConstraints
+                        model.TTAlgebraInputs
+                        model.TTBitLimit
+                        true
+                let comms = 
+                    [
+                        // If table is truncated, issue truncation warning. 
+                        if tt.IsTruncated then
+                            Notifications.warningPropsNotification (truncationWarning tt)
+                            |> SetPropertiesNotification
+                        // Else, clear any prior truncation warning.
+                        else
+                            ClosePropertiesNotification
+                        // Filter using output constraints
+                        FilterTruthTable
+                    ]
+                    |> List.map Cmd.ofMsg
+                Ok tt, comms
+            with
+            // Protections when setting algebraic inputs should mean this never occurs,
+            // but leaving this in as a fallback.
+            | AlgebraNotImplemented err -> Error err, []
+        {model with CurrentTruthTable = Some ttRes}, Cmd.batch <| commands
+    | FilterTruthTable ->
+        let table = getTruthTableOrFail model "Refilter"
+        let tMap = 
+            match table.DCMap with
+            | Some m -> m
+            | None -> table.TableMap
+        let allOutputConstraints =
+            (model.TTOutputConstraints.Equalities
+            |> List.map Equality)
+            @
+            (model.TTOutputConstraints.Inequalities
+            |> List.map Inequality)
+        let filteredMap =
+            (tMap, allOutputConstraints)
+            ||> List.fold applyNumericalOutputConstraint
+        let newTable = {table with FilteredMap = filteredMap} |> Ok |> Some
+        {model with CurrentTruthTable = newTable}, Cmd.ofMsg SortTruthTable
+    | SortTruthTable ->
+        let start = TimeHelpers.getTimeMs()
+        let table = getTruthTableOrFail model "Sorting"
+        let sortedTable =
+            match model.TTSortType, tableAsList table.FilteredMap with 
+            | _, [] -> 
+                {table with SortedListRep = []}
+            | None, lst ->
+                {table with SortedListRep = lst}
+            | Some (io, Ascending), lst ->
+                let sortedLst = sortByIO io lst
+                {table with SortedListRep = sortedLst}
+            | Some (io, Descending), lst ->
+                let sortedLst = 
+                    sortByIO io lst
+                    |> List.rev
+                {table with SortedListRep = sortedLst}
+            |> TimeHelpers.instrumentInterval "Sorting Truth Table" start
+            |> Ok
+            |> Some
+        {model with CurrentTruthTable = sortedTable}, Cmd.ofMsg HideTTColumns
+    | DCReduceTruthTable ->
+        let table = getTruthTableOrFail model "DC Reduction"
+        let start = TimeHelpers.getTimeMs() 
+        let reducedTable = 
+            reduceTruthTable table None
+            |> TimeHelpers.instrumentInterval "DC Reduction" start
+            |> Ok
+            |> Some
+        {model with CurrentTruthTable = reducedTable}, Cmd.ofMsg FilterTruthTable
+    | HideTTColumns ->
+        let start = TimeHelpers.getTimeMs()
+        /// Recursive function to hide columns and adjust the positions of the remaining
+        /// visible columns.
+        let rec correctProps (index: int) (acc: list<CellIO*list<CSSProp>>) (lst: CellIO list):  list<CellIO*list<CSSProp>>=
+            let hiddenProps = ttGridHiddenColumnProps model.TTIOOrder.Length
+            match lst with
+            | [] -> acc
+            | io::tl ->
+                if List.contains io model.TTHiddenColumns then
+                    correctProps (index) ((io,hiddenProps)::acc) tl
+                else
+                    correctProps (index+1) ((io,ttGridColumnProps index)::acc) tl
+        let newStyles =
+            correctProps 0 [] (Array.toList model.TTIOOrder)
+            |> Map.ofList
+            |> TimeHelpers.instrumentInterval "Hiding Columns" start
+        {model with TTGridStyles = newStyles}, Cmd.ofMsg (SetTTGridCache None)
+    | CloseTruthTable -> 
+        let newPopupData =
+            {model.PopupDialogData with 
+                AlgebraInputs = None
+                AlgebraError = None
+                ConstraintErrorMsg = None}
+        {model with 
+            CurrentTruthTable = None
+            TTInputConstraints = emptyConstraintSet
+            TTOutputConstraints = emptyConstraintSet
+            TTSortType = None
+            TTIOOrder = [||]
+            TTHiddenColumns = []
+            TTAlgebraInputs = []
+            TTGridCache = None
+            PopupDialogData = newPopupData}, Cmd.none
+    | ClearInputConstraints -> 
+        {model with TTInputConstraints = emptyConstraintSet}, Cmd.ofMsg RegenerateTruthTable
+    | ClearOutputConstraints -> 
+        {model with TTOutputConstraints = emptyConstraintSet}, Cmd.ofMsg RegenerateTruthTable
+    | AddInputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTInputConstraints.Equalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.ofMsg RegenerateTruthTable
+        | Inequality i ->
+            let newIneq = i::model.TTInputConstraints.Inequalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.ofMsg RegenerateTruthTable
+    | DeleteInputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTInputConstraints.Equalities
+                |> List.except [e]
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.ofMsg RegenerateTruthTable
+        | Inequality i ->
+            let newIneq =
+                model.TTInputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.ofMsg RegenerateTruthTable
+    | AddOutputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTOutputConstraints.Equalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.ofMsg FilterTruthTable
+        | Inequality i ->
+            let newIneq = i::model.TTOutputConstraints.Inequalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.ofMsg FilterTruthTable
+    | DeleteOutputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTOutputConstraints.Equalities
+                |> List.except [e]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.ofMsg FilterTruthTable
+        | Inequality i ->
+            let newIneq =
+                model.TTOutputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.ofMsg FilterTruthTable
+    | ToggleHideTTColumn io ->
+        // Column is currently hidden, so we unhide
+        if List.contains io model.TTHiddenColumns then
+            let newHC = List.except [io] model.TTHiddenColumns
+            {model with TTHiddenColumns = newHC}, Cmd.ofMsg HideTTColumns
+        else
+            let newSort =
+                match model.TTSortType with
+                | None -> None
+                | Some (cIO,st) ->
+                    if cIO = io then None
+                    else Some (cIO,st)
+            {model with 
+                TTHiddenColumns = io::model.TTHiddenColumns
+                TTSortType = newSort}, Cmd.ofMsg HideTTColumns
+    | ClearHiddenTTColumns -> 
+        {model with TTHiddenColumns = []}, Cmd.ofMsg HideTTColumns
+    | ClearDCMap ->
+        let newTT = 
+            match model.CurrentTruthTable with
+            | None -> None
+            | Some tableopt ->
+                match tableopt with
+                | Error _ -> failwithf "what? Trying to clear DC Map in TT with error"
+                | Ok table ->
+                    {table with DCMap = None}
+                    |> Ok
+                    |> Some
+        {model with CurrentTruthTable = newTT}, Cmd.ofMsg FilterTruthTable
+    | SetTTSortType stOpt ->
+        {model with TTSortType = stOpt}, Cmd.ofMsg SortTruthTable
+    | MoveColumn (io, dir) ->
+        let oldOrder = model.TTIOOrder
+        let idx = 
+            oldOrder
+            |> Array.tryFindIndex (fun cIO -> cIO = io)
+            |> function
+                | Some i -> i
+                | None -> failwithf "what? IO: %A not found in TTIOOrder" io
+        let newOrder =
+            match dir, idx with
+            | MLeft, 0 -> oldOrder
+            | MLeft, i -> swapArrayEls (i) (i-1) oldOrder
+            | MRight, i -> 
+                if i = (oldOrder.Length-1) then
+                    oldOrder
+                else
+                    swapArrayEls (idx) (idx+1) oldOrder
+        let newStyles =
+            newOrder
+            |> Array.mapi (fun i io -> (io,ttGridColumnProps i))
+            |> Map.ofArray
+        {model with TTIOOrder = newOrder; TTGridStyles = newStyles}, Cmd.ofMsg (SetTTGridCache None)
+    | SetIOOrder x -> 
+        {model with TTIOOrder = x}, Cmd.none
+    | SetTTAlgebraInputs lst ->
+        {model with TTAlgebraInputs = lst}, Cmd.ofMsg RegenerateTruthTable
+    | SetTTBase numBase ->
+        let table = getTruthTableOrFail model "SetTTBase"
+        let updatedTT = 
+            {table with TableSimData = {table.TableSimData with NumberBase = numBase}}
+            |> Ok
+            |> Some
+        {model with CurrentTruthTable = updatedTT}, Cmd.ofMsg (SetTTGridCache None)
+    | SetTTGridCache gridopt ->
+        {model with TTGridCache = gridopt}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -383,6 +715,7 @@ let update (msg : Msg) oldModel =
         | Simulation -> Cmd.batch <| editCmds
         | Build -> Cmd.batch  <| editCmds
         //| TruthTable -> Cmd.batch <| editCmds
+        | Transition -> Cmd.none
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -423,11 +756,21 @@ let update (msg : Msg) oldModel =
                         Int2 = None;
                         MemorySetup = None;
                         MemoryEditorData = None;
+                        VerilogCode = None;
+                        VerilogErrors = [];
                     }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
+    | SetPopupDialogBadLabel isBad ->
+        { model with PopupDialogData = {model.PopupDialogData with BadLabel = isBad} }, Cmd.none
+    | SetPopupDialogCode code ->
+        { model with PopupDialogData = {model.PopupDialogData with VerilogCode = code} }, Cmd.none
+    | SetPopupDialogVerilogErrors errorList ->
+        { model with PopupDialogData = {model.PopupDialogData with VerilogErrors = errorList} }, Cmd.none
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
+    | SetPopupDialogInt2 int ->
+        { model with PopupDialogData = {model.PopupDialogData with Int2 = int} }, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData =
                         match data with
@@ -442,7 +785,58 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Progress = progOpt} }, Cmd.none
     | UpdatePopupProgress updateFn ->
         { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
-
+    | SetPopupConstraintTypeSel ct ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintTypeSel = ct}}, Cmd.none
+    | SetPopupConstraintIOSel io ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
+    | SetPopupConstraintErrorMsg msg ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
+    | SetPopupNewConstraint con ->
+        { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
+    | TogglePopupAlgebraInput (io,sd) ->
+        let (_,_,w) = io
+        let oldLst =
+            match model.PopupDialogData.AlgebraInputs with
+            | Some l -> l
+            | None -> failwithf  "what? PopupDialogData.AlgebraInputs is None when trying to toggle"
+        if List.contains io oldLst then // Algebra -> Values
+            let zero = IData <| convertIntToWireData w 0
+            match ConstraintReduceView.validateAlgebraInput io zero sd with
+            | Ok _ ->
+                let newLst = List.except [io] oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = None}}, Cmd.none
+            | Error err ->
+                let newLst = List.except [io] oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = Some err}}, Cmd.none
+        else // Values -> Algebra
+            let alg = IAlg <| SingleTerm io
+            match ConstraintReduceView.validateAlgebraInput io alg sd with
+            | Ok _ ->
+                let newLst = io::oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = None}}, Cmd.none
+            | Error err ->
+                let newLst = io::oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = Some err}}, Cmd.none
+    | SetPopupAlgebraInputs opt ->
+        {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = opt}}, Cmd.none
+    | SetPopupAlgebraError opt ->
+        {model with PopupDialogData = {model.PopupDialogData with AlgebraError = opt}}, Cmd.none
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model
     | SetSelectedComponentMemoryLocation (addr,data) ->
@@ -519,6 +913,11 @@ let update (msg : Msg) oldModel =
             {model with UserData = data}
             |> userDataToDrawBlockModel
         model, Cmd.none
+    | SetThemeUserData (theme: DrawModelType.SymbolT.ThemeType) ->
+        let model =
+            {model with UserData = {model.UserData with Theme=theme}}
+            |> userDataToDrawBlockModel
+        model, Cmd.none
     | ExecutePendingMessages n ->
         if n = (List.length model.Pending)
         then 
@@ -533,23 +932,16 @@ let update (msg : Msg) oldModel =
         //ignore the exectue message
         else 
             model, Cmd.none
+    // Various messages here that are not implemented as yet, or are no longer used
+    // should be sorted out
+    | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 
+    | SetPopupInputConstraints _ | SetPopupOutputConstraints _ 
+    | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
+    | ShowExitDialog _ -> model, Cmd.none
     | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
         model, cmd
-    | msg ->
+    | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
-    |> (fun (model,cmdL) -> 
-            if JSHelpers.debugLevel > 0 then
-                let str = getMessageTraceString msg
-                let rootOfMsg = 
-                    match str.Split [|' ';'('|] with
-                    | ss when ss.Length > 0 -> ss.[0]
-                    | _ -> ""
-                TimeHelpers.instrumentInterval rootOfMsg startUpdate |> ignore
-                if str <> "" then printfn "**Upd:%s" str
-                Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
-            model,cmdL)
-
-
-
-
+    |> UpdateHelpers.traceMessage startOfUpdateTime msg
+    |> ModelHelpers.execOneAsyncJobIfPossible

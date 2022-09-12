@@ -86,6 +86,11 @@ module SymbolT =
             Opacity: float  
         }
 
+    type ThemeType =
+        |White
+        |Light
+        |Colourful
+
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
@@ -118,8 +123,12 @@ module SymbolT =
             Moving: bool
             IsClocked: bool
             STransform: STransform
+            ReversedInputPorts: bool option
 
             PortMaps : PortMaps
+
+            HScale : float option
+            VScale : float option
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
@@ -151,6 +160,7 @@ module SymbolT =
         /// Represents the number of wires connected to each output port in the model
         OutputPortsConnected: Map<OutputPortId, int>
 
+        Theme: ThemeType
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -175,7 +185,11 @@ module SymbolT =
         | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
         | ChangeLsb of compId: ComponentId * NewBits:int64 
         | ChangeInputValue of compId: ComponentId * newVal: int
+        | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
         | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
+        | ChangeReversedInputs of compId: ComponentId
+        | ChangeAdderComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
+        | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
         | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
@@ -186,6 +200,7 @@ module SymbolT =
         | MovePort of portId: string * move: XYPos
         | MovePortDone of portId: string * move: XYPos
         | SaveSymbols
+        | SetTheme of ThemeType
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
 
@@ -285,6 +300,7 @@ module BusWireT =
         | BusWidths
         | CopyWires of list<ConnectionId>
         | DeleteWires of list<ConnectionId>
+        | DeleteWiresOnPort of (Port option) list
         | SelectWires of list<ConnectionId>
         | UpdateWires of list<ComponentId> * XYPos
         | UpdateSymbolWires of ComponentId
@@ -494,6 +510,7 @@ module SheetT =
         TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
         ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
+        //Theme: ThemeType
         CursorType: CursorType
         LastValidPos: XYPos
         SnapSymbols: SnapXY

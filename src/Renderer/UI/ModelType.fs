@@ -10,8 +10,10 @@ module rec ModelType
 
 open CommonTypes
 open SimulatorTypes
+open TruthTableTypes
 open Fable.React
 open Sheet.SheetInterface
+open VerilogTypes
 
 module Constants =
     /// DiagramStyle.rightSectinoWidthL = 650,
@@ -20,14 +22,40 @@ module Constants =
     /// 2 * MainView.Constants.dividerBarWidth = 20,
     /// WaveSimStyle.namesColWidth = 200,
     /// WaveSimStyle.valeusColWidth = 100,
-    let initialWaveformColWidth = 650 - 50 - 50 - 20 - 200 - 100
+    let initialWaveformColWidth = 650 - 20 - 20 - 20 - 130 - 100
+
+
+/// Groups components together in the wave selection table.
+/// NB: There are fields which are commented out: these can be added back in
+/// later on if we want to group those components together by type rather than
+/// separately by name.
+type ComponentGroup =
+    | WireLabel
+    | InputOutput
+    | Viewers
+    | Buses
+    | Gates
+    | MuxDemux
+    | Arithmetic
+    | CustomComp
+    | FFRegister
+    | Memories
+    | Component of string
+
+
+/// control checkboxes in waveform simulator wave selection
+type CheckBoxStyle =
+    | PortItem of Wave * string
+    | ComponentItem of FastComponent
+    | GroupItem of ComponentGroup * string list
+    | SheetItem of string list
 
 type RightTab =
     | Properties
     | Catalogue
     | Simulation
     | Build
-    
+    | Transition // hack to make a transition from Simulation to Catalog without a scrollbar artifact
 
 type SimSubTab =
     | StepSim
@@ -50,7 +78,18 @@ type PopupDialogData = {
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     Progress: PopupProgress option
+    ConstraintTypeSel: ConstraintType option
+    ConstraintIOSel: CellIO option
+    ConstraintErrorMsg: string option
+    NewConstraint: Constraint option
+    AlgebraInputs: SimulationIO list option
+    AlgebraError: SimulationError option
+    VerilogCode: string option
+    VerilogErrors: ErrorInfo list
+    BadLabel: bool
 }
+
+let progress_ = Optics.Lens.create (fun a -> a.Progress) (fun s a -> {a with Progress = s})
 
 type TopMenu = | Closed | Project | Files
 
@@ -74,7 +113,7 @@ type UICommandType =
     | StartWaveSim
     | ViewWaveSim
     | CloseWaveSim
-
+    
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
 //---------------------------------------------------------------
@@ -95,6 +134,8 @@ type WaveSimState =
     | Loading
     /// If there are no errors in the circuit diagram
     | Success
+    /// if waveSim has been explicitly ended
+    | Ended
 
 /// Identifies which Component and Port drives a waveform.
 /// Must be an Output port (Input ports cannot drive waveforms).
@@ -107,27 +148,32 @@ type DriverT = {
 type Wave = {
     /// Uniquely identifies a waveform
     WaveId: WaveIndexT
-    /// Type of component from which this waveform is obtained
-    Type: ComponentType
-    /// Label of component from which this waveform is obtained
-    CompLabel: string
-
+    /// First cycle displayed
+    StartCycle: int
+    /// Number of cycles displayed
+    ShownCycles: int
+    /// width of one cycle: TODO - remove this and stretch SVGs to fit
+    CycleWidth: float
+    /// radix of waveform numbers
+    Radix: NumberBase
     /// unique within design sheet (SheetId)
     /// [] for top-level waveform: path to sheet
     /// Currently unused.
     SheetId: ComponentId list
+    SubSheet: string list // SheetId mapped to custom component names
     /// Wires connected to this waveform. Used to highlight wires
     /// when hovering over wave label.
     Conns: ConnectionId list
-    /// Identifies which Output port drives this waveform.
-    Driver: DriverT
     /// Name shown in the waveform viewer. Not guaranteed to be unique.
     DisplayName: string
     /// Number of bits in wave
+    ViewerDisplayName: string
+    CompLabel: string
+    PortLabel: string
     Width: int
     /// TODO: Consider changing to a map keyed by clock cycle.
     /// List indexed by clock cycle to show value of wave.
-    WaveValues: WireData list
+    WaveValues: StepArray<FData>
     /// SVG of waveform
     SVG: ReactElement option
 }
@@ -137,6 +183,10 @@ type Wave = {
 type WaveSimModel = {
     /// Current state of WaveSimModel.
     State: WaveSimState
+    /// Top-level sheet for current waveform simulation: copy of model.WaveSimSheet when simulation is running
+    TopSheet: string
+    /// Copy of all sheets used with reduced canvasState as simulated
+    Sheets: Map<string,CanvasState>
     /// Map of all simulatable waves
     AllWaves: Map<WaveIndexT, Wave>
     /// List of which waves are currently visible in the waveform viewer.
@@ -152,21 +202,26 @@ type WaveSimModel = {
     /// Radix in which values are being displayed in the wave simulator.
     Radix: NumberBase
     /// Width of the waveform column.
-    WaveformColumnWidth: int
+    WaveformColumnWidth: float
     /// TODO: Should this be refactored into an ActiveModal type option?
     /// If the wave selection modal is visible.
     WaveModalActive: bool
     /// If the ram selection modal is visible.
     RamModalActive: bool
     /// List of RAM components on the sheet.
-    RamComps: Component list
+    RamComps: FastComponent list
     /// Map of which RAM components have been selected.
-    SelectedRams: Map<ComponentId, string>
+    SelectedRams: Map<FComponentId, string>
     /// FastSimulation used in the wave simulator.
     FastSim: FastSimulation
     /// String which the user is searching the list of waves by.
     SearchString: string
-    /// The label which a user is hovering over.
+    /// What is shown in wave sim sheet detail elements
+    ShowSheetDetail: Set<string list>
+    /// What is shown in wave sim component detail elements
+    ShowComponentDetail: Set<FComponentId>
+    /// What is shown in wave sim group detail elements
+    ShowGroupDetail: Set<ComponentGroup * string list>    /// The label which a user is hovering over.
     HoveredLabel: WaveIndexT option
     /// The index of the wave which the user is dragging.
     DraggedIndex: WaveIndexT option
@@ -175,26 +230,7 @@ type WaveSimModel = {
     PrevSelectedWaves: WaveIndexT list option
 }
 
-let initWSModel : WaveSimModel = {
-    State = Empty
-    AllWaves = Map.empty
-    SelectedWaves = List.empty
-    StartCycle = 0
-    ShownCycles = 6
-    CurrClkCycle = 0
-    ClkCycleBoxIsEmpty = false
-    Radix = Hex
-    WaveformColumnWidth = Constants.initialWaveformColWidth
-    WaveModalActive = false
-    RamModalActive = false
-    RamComps = []
-    SelectedRams = Map.empty
-    FastSim = FastCreate.emptyFastSimulation ()
-    SearchString = ""
-    HoveredLabel = None
-    DraggedIndex = None
-    PrevSelectedWaves = None
-}
+
 
 type DiagEl = | Comp of Component | Conn of Connection
 
@@ -236,22 +272,52 @@ type Msg =
     | AddWSModel of (string * WaveSimModel)
     /// Update the WaveSimModel of the current sheet.
     | SetWSModel of WaveSimModel
+    /// Update the WaveSimModel of the specified sheet from update function
+    | UpdateWSModel of (WaveSimModel -> WaveSimModel)
     /// Set the current WaveSimModel to the specified sheet
     /// and update the WaveSimModel of the specified sheet.
     | SetWSModelAndSheet of WaveSimModel * string
     /// Generate waveforms according to the current parameters
     /// of the WaveSimModel
-    | InitiateWaveSimulation of WaveSimModel
-    /// Rerun the FastSimulation with the current state of the Canvas.
-    /// This calls an asynchronous function since the FastSim can take
-    /// time to run.
-    | RefreshWaveSim of WaveSimModel * SimulationData * CanvasState
+    | GenerateWaveforms of WaveSimModel
+    /// Run, or rerun, the FastSimulation with the current state of the Canvas.
+    | RefreshWaveSim of WaveSimModel
+    /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)
+    | SetWaveSheetSelectionOpen of (string list list * bool)
+    /// Sets or clears ShowComponentDetail
+    | SetWaveComponentSelectionOpen of (FComponentId list * bool)
+    /// Sets or clears GroupDetail
+    | SetWaveGroupSelectionOpen of ((ComponentGroup * string list) list * bool)
+    | LockTabsToWaveSim
+    | UnlockTabsFromWaveSim
     | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int
     | EndSimulation
     /// Clears the Model.WaveSim and Model.WaveSimSheet fields.
     | EndWaveSim
+    | GenerateTruthTable of option<Result<SimulationData,SimulationError> * CanvasState>
+    | RegenerateTruthTable
+    | FilterTruthTable
+    | SortTruthTable
+    | DCReduceTruthTable
+    | HideTTColumns
+    | CloseTruthTable
+    | ClearInputConstraints
+    | ClearOutputConstraints
+    | AddInputConstraint of Constraint
+    | AddOutputConstraint of Constraint
+    | DeleteInputConstraint of Constraint
+    | DeleteOutputConstraint of Constraint
+    | ToggleHideTTColumn of CellIO
+    | ClearHiddenTTColumns
+    | ClearDCMap
+    | SetTTSortType of (CellIO * SortType) option
+    | MoveColumn of (CellIO * MoveDirection)
+    | SetIOOrder of CellIO []
+    | SetTTAlgebraInputs of SimulationIO list
+    | SetTTBase of NumberBase
+    | SetTTGridCache of ReactElement option
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -260,18 +326,32 @@ type Msg =
     | SetCreateComponent of Component
     | SetProject of Project
     | UpdateProject of (Project -> Project)
+    | UpdateModel of (Model -> Model)
     | UpdateProjectWithoutSyncing of (Project->Project)
     | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
+    | SetPopupDialogBadLabel of bool
+    | SetPopupDialogCode of string option
+    | SetPopupDialogVerilogErrors of ErrorInfo list
     | SetPopupDialogInt of int option
+    | SetPopupDialogInt2 of int64 option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
+    | SetPopupInputConstraints of ConstraintSet option
+    | SetPopupOutputConstraints of ConstraintSet option
+    | SetPopupConstraintTypeSel of ConstraintType option
+    | SetPopupConstraintIOSel of CellIO option
+    | SetPopupConstraintErrorMsg of string option
+    | SetPopupNewConstraint of Constraint option
+    | SetPopupAlgebraInputs of SimulationIO list option
+    | SetPopupAlgebraError of SimulationError option
+    | TogglePopupAlgebraInput of (SimulationIO * SimulationData)
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
@@ -302,6 +382,7 @@ type Msg =
     | FinishUICmd
     | ReadUserData of string
     | SetUserData of UserData
+    | SetThemeUserData of DrawModelType.SymbolT.ThemeType
     | ExecCmd of Elmish.Cmd<Msg>
     | ExecFuncInMessage of (Model -> (Msg->Unit) -> Unit) * (Msg -> Unit)
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
@@ -329,15 +410,29 @@ type UserData = {
     RecentProjects: string list option
     ArrowDisplay: bool
     WireType: DrawModelType.BusWireT.WireType
+    Theme: DrawModelType.SymbolT.ThemeType
+    }
+
+type SpinnerState =
+   | WaveSimSpinner
+
+type SpinPayload = {
+    Payload: Model -> Model
+    Name: string
+    ToDo: int
+    Total: int
     }
 
 type Model = {
     UserData: UserData
-
     /// Map of sheet name to WaveSimModel
     WaveSim : Map<string, WaveSimModel>
+
     /// which top-level sheet is used by wavesim
-    WaveSimSheet: string
+    WaveSimSheet: string option
+
+    /// If the application has a modal spinner waiting for simulation
+    Spinner: (Model -> Model) option
         
     /// Draw Canvas
     Sheet: DrawModelType.SheetT.Model
@@ -353,6 +448,7 @@ type Model = {
     /// used to determine whether current canvas has been saved (includes any change)
     LastDetailedSavedState: CanvasState
     /// components and connections currently selected
+
     CurrentSelected: Component list * Connection list
     /// component ids and connection ids previously selected (used to detect changes)
     LastSelectedIds: string list * string list
@@ -362,6 +458,26 @@ type Model = {
     SelectedComponent : Component option // None if no component is selected.
     /// used during step simulation: simgraph for current clock tick
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
+    /// stores the generated truth table 
+    CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
+    /// bits associated with the maximum number of input rows allowed in a Truth Table
+    TTBitLimit: int
+    /// input constraints on truth table generation
+    TTInputConstraints: ConstraintSet
+    /// output constraints on truth table viewing
+    TTOutputConstraints: ConstraintSet
+    /// which output or viewer columns in the Truth Table should be hidden
+    TTHiddenColumns: CellIO list
+    /// by which IO and in what way is the Table being sorted
+    TTSortType: (CellIO * SortType) option
+    /// what is the display order of IOs in Table
+    TTIOOrder: CellIO []
+    /// Grid Styles for each column in the Table
+    TTGridStyles: Map<CellIO,Props.CSSProp list>
+    /// Cached CSS Grid for displaying the Truth Table
+    TTGridCache: ReactElement option
+    /// which of the Truth Table's inputs are currently algebra
+    TTAlgebraInputs: SimulationIO list
     /// which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     /// which of the subtabs for the right pane simulation is visible
@@ -378,6 +494,8 @@ type Model = {
     CurrentProj : Project option
     /// function to create popup pane if present
     PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
+    /// function to create spinner popup pane if present (overrides otehr popups)
+    SpinnerPayload : SpinPayload option
     /// data to populate popup (may not all be used)
     PopupDialogData : PopupDialogData
     /// record containing functions that create react elements of notifications
@@ -390,191 +508,21 @@ type Model = {
     WaveSimViewerWidth: int
     /// if true highlight connections from wavesim editor
     ConnsOfSelectedWavesAreHighlighted: bool
-    /// true if wavesim scroll position needs checking
+    /// Contains a list of pending messages
     Pending: Msg list
     UIState: UICommandType Option
 } 
 
-/// This is needed because DrawBlock cannot directly access Issie Model.
-/// can be replaced when all Model is placed at start of compile order and DB
-/// model is refactored
-let drawBlockModelToUserData (model: Model) (userData: UserData)=
-    let bwModel =model.Sheet.Wire
-    {userData with WireType = bwModel.Type; ArrowDisplay = bwModel.ArrowDisplay}
-
-/// This is needed because DrawBlock cannot directly access Issie Model.
-/// can be replaced when all Model is placed at start of compile order and DB
-/// model is refactored
-let userDataToDrawBlockModel (model: Model) =
-    let userData = model.UserData
-    {model with 
-        Sheet = 
-            {model.Sheet with 
-                Wire = {
-                    model.Sheet.Wire with 
-                        Type = userData.WireType
-                        ArrowDisplay = userData.ArrowDisplay
-                }}}
-
-let reduce (this: Model) = {|
-         RightTab = this.RightPaneTabVisible
-         Hilighted = this.Hilighted
-         Clipboard = this.Clipboard
-         LastSimulatedCanvasState = this.LastSimulatedCanvasState
-         LastSelectedIds = this.LastSelectedIds
-         CurrentSelected = this.CurrentSelected
-         LastUsedDialogWidth = this.LastUsedDialogWidth
-         SelectedComponent= this.SelectedComponent
-         CreateComponent = this.LastCreatedComponent
-         HasUnsavedChanges = false
-         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
-         PopupDialogData = this.PopupDialogData
-         TopMenu = this.TopMenuOpenState
-         DragMode = this.DividerDragMode
-         ViewerWidth = this.WaveSimViewerWidth
-         ConnsToBeHighlighted = this.ConnsOfSelectedWavesAreHighlighted
-
- |} 
-       
-let reduceApprox (this: Model) = {|
-         RightTab = this.RightPaneTabVisible
-         Clipboard = this.Clipboard
-         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
-         LastUsedDialogWidth = this.LastUsedDialogWidth
-         CreateComponent = this.LastCreatedComponent
-         HasUnsavedChanges = false
-         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
-         PopupDialogData = this.PopupDialogData
-         DragMode = this.DividerDragMode
-         ViewerWidth = this.WaveSimViewerWidth
- |} 
-
-let mapOverProject defaultValue (model: Model) transform =
-    match model.CurrentProj with
-    | None -> defaultValue
-    | Some p -> transform p
+    with member this.WaveSimOrCurrentSheet =
+            match this.WaveSimSheet, this.CurrentProj with
+            | None, Some {OpenFileName = name} -> name
+            | Some name, _ -> name
+            | None, None -> failwithf "What? Project is not open cannot guess sheet!"
 
 
-let getComponentIds (model: Model) =
-    let extractIds ((comps,conns): Component list * Connection list) = 
-        conns
-        |> List.map (fun comp -> ComponentId comp.Id)
-        
-    model.Sheet.GetCanvasState()
-    |> extractIds
-    |> Set.ofList
+let sheet_ = Optics.Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
+let popupDialogData_ = Optics.Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
 
-//------------------------//
-// Saving WaveSim Model   //
-//------------------------//
 
-/// Get saveable record of WaveSimModel
-let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
-    {
-        SelectedWaves = Some wsModel.SelectedWaves
-        Radix = Some wsModel.Radix
-        WaveformColumnWidth = Some wsModel.WaveformColumnWidth
-        ShownCycles = Some wsModel.ShownCycles
-        SelectedRams = Some wsModel.SelectedRams
 
-        // The following fields are from the old waveform simulator.
-        // They are no longer used.
-        ClkWidth = None
-        Cursor = None
-        LastClk = None
-        DisplayedPortIds = None
-    }
-
-/// Setup current WaveSimModel from saved record
-/// NB: note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
-/// old designs
-let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
-    {
-        initWSModel with
-            SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
-            Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
-            WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
-            ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
-            SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedRams
-    }
-
-//----------------------Print functions-----------------------------//
-//------------------------------------------------------------------//
-
-let spComp (comp:Component) =
-    match comp.Type with
-    | Custom {Name=name; InputLabels=il; OutputLabels=ol} -> sprintf "Custom:%s(ins=%A:outs=%A)" name il il
-    | x -> sprintf "%A" x
-
-let spConn (conn:Connection) = 
-    sprintf "Conn:%A" conn.Vertices
-
-let spState ((comps,conns):CanvasState) = 
-    sprintf "Canvas<%A,%A>" (List.map spComp comps) (List.map spConn conns)
-
-let spCanvas (model : Model) = 
-    model.Sheet.GetCanvasState()
-    |> spState
-
-let spComps comps =  
-    sprintf "Comps%A" (List.map spComp comps)
-
-let spOpt f thingOpt = match thingOpt with |None -> "None" | Some x -> sprintf "Some %s" (f x)
-
-let spLdComp (ldc: LoadedComponent) =
-    sprintf "LDC<%s:%A:%s>" ldc.Name ldc.TimeStamp ((fst >>spComps) ldc.CanvasState)
-
-let spProj (p:Project) =
-    sprintf "PROJ||Sheet=%s\n%s||ENDP\n" p.OpenFileName (String.concat "\n" (List.map spLdComp p.LoadedComponents))
-
-let pp model =
-    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrentProj)
-
-let spMess msg =
-    match msg with
-    //| SetProject p -> sprintf "MSG<<SetProject:%s>>ENDM" (spProj p)
-    //| SetLastSimulatedCanvasState canvasOpt-> sprintf "MSG<SetLastSimCanv:%s>>ENDM" (spOpt spState canvasOpt)
-    | x -> sprintf "MSG<<%20A>>ENDM" x
-
-let tryGetLoadedComponents model =
-    match model.CurrentProj with
-    | Some p -> p.LoadedComponents
-    | _ -> []
-
-let updateLdComps (name:string) (changeFun: LoadedComponent -> LoadedComponent)  (ldComps: LoadedComponent list)=
-    ldComps
-    |> List.map (fun ldc -> if ldc.Name=name then changeFun ldc else ldc)
-
-let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: LoadedComponent list) =
-    match newCompOpt with 
-    | None -> ldComps // no update
-    | Some newComp -> 
-        match List.tryFind (fun (ldc:LoadedComponent) -> ldc.Name = newComp.Name) ldComps with
-        | None -> newComp :: ldComps
-        | Some _ -> updateLdComps newComp.Name (fun _ -> newComp) ldComps
-
-/// returns a string option representing the current file name if file is loaded, otherwise None
-let getCurrFile (model: Model) =
-    match model.CurrentProj with
-    | Some proj -> Some proj.OpenFileName
-    | None -> None
-
-let getCurrSheets (model: Model) =
-    match model.CurrentProj with
-    | Some proj -> 
-        proj.LoadedComponents
-        |> List.map (fun lc -> lc.Name)
-        |> Some
-    | None -> None
-
-/// Update WaveSimModel of current sheet.
-let setWSModel (wsModel: WaveSimModel) (model: Model) =
-    match getCurrSheets model, model.WaveSimSheet with
-    | Some sheets, wsSheet when List.contains wsSheet sheets ->
-        { model with WaveSim = Map.add model.WaveSimSheet wsModel model.WaveSim }
-    | None, _ ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
-        model
-    | Some sheets, wsSheet ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
-        model
+    

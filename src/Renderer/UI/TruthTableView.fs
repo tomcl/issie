@@ -24,36 +24,92 @@ open MemoryEditorView
 open ModelType
 open CommonTypes
 open SimulatorTypes
+open TruthTableTypes
+open ConstraintReduceView
 open Extractor
 open Simulator
 open TruthTableCreate
+open TruthTableReduce
 open BusWidthInferer
+open Symbol
+open SymbolUpdate
+open Sheet.SheetInterface
+open DrawModelType
 
-let getPortIdsfromConnectionId (cid: ConnectionId) (conns: Connection list) = 
+/// Updates MergeWires and SplitWire Component labels to MWx/SWx.
+/// Previous Issie versions had empty labels for these components.
+// This change is necessary as all components must have labels for automatic IO
+// generation when calculating Truth Tables for partial selections.
+let updateMergeSplitWireLabels (model: Model) dispatch =
+    let symModel = model.Sheet.Wire.Symbol
+    let mwStartLabel =
+        SymbolUpdate.generateLabel symModel MergeWires
+    let mutable mwIdx =
+        (mwStartLabel.[mwStartLabel.Length - 1]
+        |> int) - (int '0')
+
+    let swStartLabel =
+        SymbolUpdate.generateLabel symModel (SplitWire 1)
+    let mutable swIdx =
+        (swStartLabel.[swStartLabel.Length - 1]
+        |> int) - (int '0')
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+
+    model.Sheet.GetCanvasState()
+    |> fst
+    |> List.iter (fun c ->
+        match c.Type, c.Label with
+        | MergeWires, "" | MergeWires, "L" ->
+            let newLabel = sprintf "MW%i" mwIdx
+            mwIdx <- mwIdx + 1
+            setComponentLabel model sheetDispatch c newLabel
+        | SplitWire _, "" | SplitWire _, "L" ->
+            let newLabel = sprintf "SW%i" swIdx
+            swIdx <- swIdx + 1
+            setComponentLabel model sheetDispatch c newLabel
+        | _ -> ())
+
+//-------------------------------------------------------------------------------------//
+//-----------Functions for generating Truth Tables from selection----------------------//
+//-------------------------------------------------------------------------------------//
+
+/// From a Connection Id and a list of all Connections, return the Ids for the source
+/// and target ports of Connection described by the Connection Id.
+let getPortIdsfromConnectionId (cid: ConnectionId) (conns: Connection list) =
     ([],conns)
     ||> List.fold (fun pIds c -> if c.Id = (string cid) then pIds @ [c.Source.Id;c.Target.Id] else pIds)
-    
 
+/// Returns true if the provided port is present in any of the connections in the
+/// Connection list.
 let isPortInConnections (port: Port) (conns: Connection list) =
     (false,conns)
     ||> List.fold (fun b c -> (port.Id = c.Source.Id || port.Id = c.Target.Id) || b )
 
+/// Returns true if the provided port is present in any of the components in the
+/// Component list.
 let isPortInComponents (port: Port) (comps: Component list) =
     (false,comps)
-    ||> List.fold (fun b c -> 
+    ||> List.fold (fun b c ->
         let compPortIds = (c.InputPorts @ c.OutputPorts) |> List.map (fun p -> p.Id)
         List.contains port.Id compPortIds || b)
 
-let filterResults results = 
+/// Partitions a list of results into a list of Ok and list of Error
+let partitionResults results =
     let rec filter lst success error =
         match lst with
         | [] -> success,error
         | (Ok c)::tl -> filter tl (success @ [c]) error
         | (Error e)::tl -> filter tl success (error @ [e])
     filter results [] []
-        
+
+/// Corrects the Selected Canvas State by adding extra connections and IOs to components
+/// not connected to anything. On success returns a new, corrected CanvasState compatible
+/// with Step Simulator. On failure returns SimulationError.
 let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
     let components,connections = selectedCanvasState
+
+    // Dummy ports for temporary use within function. Connections/Components with these
+    // ports should never be in the CanvasState returned by this function!
     let dummyInputPort = {
         Id = "DummyIn"
         PortNumber = None
@@ -67,34 +123,86 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         HostId = "DummyOut_Host"
     }
 
-    let connectionWidths = 
-        match BusWidthInferer.inferConnectionsWidth wholeCanvasState with
-        | Ok cw -> cw
-        | Error _ -> failwithf "what? WidthInferrer failed to infer widths from whole canvas during TT Calculation"
-
+    // Mapping between PortIds and their corresponding port widths.
+    // Is error when WidthInferrer fails to infer widths.
     let portWidths =
-        Map.toList connectionWidths
-        |> List.fold (fun acc (cid,widthopt) ->
-            let pIdEntries = 
-                getPortIdsfromConnectionId cid (snd wholeCanvasState)
-                |> List.map (fun pId -> (pId,widthopt))
-            acc @ pIdEntries) []
-        |> Map.ofList
+        match BusWidthInferer.inferConnectionsWidth wholeCanvasState with
+        | Ok cw ->
+            Map.toList cw
+            |> List.fold (fun acc (cid,widthopt) ->
+                let pIdEntries =
+                    getPortIdsfromConnectionId cid (snd wholeCanvasState)
+                    |> List.map (fun pId -> (pId,widthopt))
+                acc @ pIdEntries) []
+            |> Map.ofList
+            |> Ok
+        | Error e -> Error e
 
-    let getPortWidth pId =
-        match Map.tryFind pId portWidths with
-        | Some(Some w) -> Some w
-        | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
-        | None -> None
+    // First try to get port width from the portWidths Map, which contains mappings
+    // generated by WidthInferrer
+    let rec getPortWidth' (port: Port) pw run =
+        let pId = string port.Id
+        match Map.tryFind pId pw with
+        | Some(Some w) -> 
+            Some w
+        | Some(None) -> 
+            failwithf "what? WidthInferrer did not infer a width for a port"
+        | None -> 
+            // Try see if width can be inferred from componenet properties
+            getPortWidthFromComponent port pw run
+    and
+        getPortWidthFromComponent port pw run =
+            let hostComponent =
+                components
+                |> List.filter (fun c -> port.HostId = c.Id)
+                |> function
+                    | [comp] -> comp
+                    | [] -> failwithf "what? Port HostId does not match any ComponentIds in model"
+                    | _ -> failwithf "what? Port HostId matches multiple ComponentIds in model"
+            match hostComponent.Type with
+            | Not | And | Or | Xor | Nand | Nor | Xnor ->
+                // Logic gates inputs/outputs always have width 1.
+                Some 1
+            | Input w | Output w | Constant (w,_)| BusCompare (w,_)
+            | BusSelection (w,_)| NbitsAdder w | NbitsXor w -> 
+                // The above components all have width specified in their
+                // component properties.
+                Some w
+            | IOLabel ->
+                // For IOLabels, try find the width of the component connected to the other port.
+                // NOTE: This case calls getPortWidth again: MUTUAL RECURSION.
+                // The run count (run) ensures that this mutual call doesn't happen more than once.
+                if run > 0 then
+                    None
+                else
+                    let otherPort =
+                        if port.PortType = PortType.Input then
+                            hostComponent.OutputPorts.Head
+                        else
+                            hostComponent.InputPorts.Head
+                    getPortWidth' otherPort pw (run+1)
+            | _ -> None
 
+    /// Find the width of a port. First try using WidthInferrer, and if that fails then
+    /// try use the properties of the host component.
+    let getPortWidth (port:Port) =
+        match portWidths with
+        | Error e -> Error e
+        | Ok pw ->
+            Ok <| getPortWidth' port pw 0
+
+    /// Infer the label for newly created IOs so that they can be displayed in Truth Tables.
     let inferIOLabel (port: Port) =
+        // The component the port is on
         let hostComponent =
-            components 
+            components
             |> List.filter (fun c -> port.HostId = c.Id)
-            |> function 
+            |> function
                 | [comp] -> comp
                 | [] -> failwithf "what? Port HostId does not match any ComponentIds in model"
                 | _ -> failwithf "what? Port HostId matches multiple ComponentIds in model"
+        // If the port is on a component, return the same port.
+        // If the port is on a connection, find the equivalent port on a component.
         let portOnComponent =
             match port.PortNumber with
             | Some n -> port
@@ -105,60 +213,84 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 |> function
                     | [p] -> p
                     | _ -> failwithf "what? connection port does not map to a component port"
-                
         match portOnComponent.PortNumber, port.PortType with
         | None,_ -> failwithf "what? no PortNumber. A connection port was probably passed to inferIOLabel"
-        | Some pn, PortType.Input -> 
-            match Symbol.portDecName hostComponent with
-            | ([],_) -> hostComponent.Label + "_IN" + (string pn)
-            | (lst,_) -> 
+        | Some pn, PortType.Input ->
+            match Symbol.portNames hostComponent.Type with
+            | ([]) -> hostComponent.Label + "_IN" + (string pn)
+            | lst ->
                 if pn >= lst.Length then
                     failwithf "what? input PortNumber is greater than number of input port names on component"
                 else
                     hostComponent.Label + "_" + lst[pn]
         | Some pn, PortType.Output ->
-            match Symbol.portDecName hostComponent with
-            | (_,[]) -> hostComponent.Label + "_OUT" + (string pn)
-            | (_,lst) ->
+            match Symbol.portNames hostComponent.Type with
+            | ([]) -> hostComponent.Label + "_OUT" + (string pn)
+            | lst ->
                 if pn >= lst.Length then
                     failwithf "what? output PortNumber is greater than number of output port names on component"
                 else
-                    hostComponent.Label + "_" + lst[pn]
+                    let offset = hostComponent.InputPorts.Length
+                    hostComponent.Label + "_" + lst[offset+pn]
 
+    // Check for cases where a component has two connections connected to its output port,
+    // with both of these connection selected, but not the components on the other side of
+    // the connection. Remove duplicate connections like these, as they would otherwise cause
+    // two identical extra IOs to be added.
+    let removeDuplicateConnections (comps: Component list,conns: Connection list) =
+        let checkDuplicate con lst =
+            lst
+            |> List.exists (fun c ->
+                (c.Source = con.Source)
+                && not (isPortInComponents c.Target comps)
+                && not (isPortInComponents con.Target comps))
+        comps,
+        ([],conns)
+        ||> List.fold (fun acc con ->
+            match acc with
+            | [] -> [con]
+            | lst ->
+                if checkDuplicate con lst then
+                    lst
+                else
+                    con::lst)
 
+    // Add connections to any ports in the selection that are not connected to anything.
+    // These extra connections are temporarily connected to dummy ports.
     let addExtraConnections (comps: Component list,conns: Connection list) =
         comps,
         (conns,comps)
-        ||> List.fold (fun acc comp -> 
-            let extraInputConns = 
+        ||> List.fold (fun acc comp ->
+            let extraInputConns =
                 comp.InputPorts
                 |> List.filter (fun p -> not (isPortInConnections p conns))
-                |> List.map (fun p -> 
+                |> List.map (fun p ->
                     {
                         Id = JSHelpers.uuid()
                         Source = dummyOutputPort
                         Target = {p with PortNumber = None}
-                        Vertices = [(0.0,0.0)] // Irrelevant as we never draw this connection
+                        Vertices = [(0.0,0.0,false)] // Irrelevant as we never draw this connection
                     })
             let extraOutputConns =
                 comp.OutputPorts
                 |> List.filter (fun p -> not (isPortInConnections p conns))
-                |> List.map (fun p -> 
+                |> List.map (fun p ->
                     {
                         Id = JSHelpers.uuid()
                         Source = {p with PortNumber = None}
                         Target = dummyInputPort
-                        Vertices = [(0.0,0.0)] // Irrelevant as we never draw this connection
+                        Vertices = [(0.0,0.0,false)] // Irrelevant as we never draw this connection
                     })
             acc @ extraInputConns @ extraOutputConns)
 
+    // Find any dangling connections and add an IO component to the side not
+    // connected to any components.
     let addExtraIOs (comps: Component list,conns: Connection list) =
-        // let mutable inputCount = 0
-        // let mutable outputCount = 0
         let compsOk : Result<Component,SimulationError> list = List.map (fun c -> Ok c) comps
-
         (compsOk,conns)
         ||> List.mapFold (fun acc con ->
+            // Source and target ports of connection are not on any selected components.
+            // This is an invalid selection.
             if  not (isPortInComponents con.Source comps) && not (isPortInComponents con.Target comps) then
                 let error = {
                     Msg = "Selected logic includes a wire connected to no components."
@@ -166,12 +298,12 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     ComponentsAffected = []
                     ConnectionsAffected = [ConnectionId(con.Id)]}
                 Error error,acc
+            // Source port is not in components, so try add an Input Component
             else if not (isPortInComponents con.Source comps) then
-                match getPortWidth con.Target.Id with
-                | Some pw ->
+                match getPortWidth con.Target with
+                | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Target
-                    // inputCount <- inputCount + 1
                     let newPort = {
                         Id = JSHelpers.uuid()
                         PortNumber = Some 0
@@ -179,16 +311,17 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         HostId = newId}
                     let extraInput = {
                         Id = newId
-                        Type = Input(pw)
+                        Type = Input1 (pw,None)
                         Label = newLabel
                         InputPorts = []
                         OutputPorts = [newPort]
                         X = 0
                         Y = 0
                         H = 0
-                        W = 0}
+                        W = 0
+                        SymbolInfo = None}
                     Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
-                | None ->
+                | Ok (None) ->
                     let error = {
                         Msg = "Could not infer the width for an input into the selected logic."
                         InDependency = None
@@ -196,9 +329,18 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         ConnectionsAffected = []
                     }
                     Ok con, acc @ [Error error]
+                | Error e ->
+                    let error = {
+                        Msg = e.Msg
+                        InDependency = None
+                        ConnectionsAffected = e.ConnectionsAffected
+                        ComponentsAffected = []
+                    }
+                    Ok con, acc @ [Error error]
+            // Target port is not in components, so try add an Output Component
             else if not (isPortInComponents con.Target comps) then
-                match getPortWidth con.Source.Id with
-                | Some pw ->
+                match getPortWidth con.Source with
+                | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Source
                     //outputCount <- outputCount + 1
@@ -216,9 +358,10 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         X = 0
                         Y = 0
                         H = 0
-                        W = 0}
+                        W = 0
+                        SymbolInfo = None}
                     Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
-                | None ->
+                | Ok (None) ->
                     let error = {
                         Msg = "Could not infer the width for an output produced by the selected logic."
                         InDependency = None
@@ -226,87 +369,239 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         ConnectionsAffected = []
                     }
                     Ok con, acc @ [Error error]
+                | Error e ->
+                    let error = {
+                        Msg = e.Msg
+                        InDependency = None
+                        ConnectionsAffected = e.ConnectionsAffected
+                        ComponentsAffected = []
+                    }
+                    Ok con, acc @ [Error error]
+            // Otherwise, everything is ok for this connection, no action needed.
             else
                 Ok con,acc)
         |> (fun (a,b) -> (b,a))
-    
-    let checkCanvasWasCorrected (compsRes: Result<Component,SimulationError> list,connsRes: Result<Connection,SimulationError> list) =
-        let comps,compErrors = filterResults compsRes
-        let conns,connErrors = filterResults connsRes
 
+    // If canvas correction completed successfully, return the corrected canvas.
+    // Otherwise, return the first error which stopped successful canvas correction.
+    let checkCanvasWasCorrected (compsRes: Result<Component,SimulationError> list,connsRes: Result<Connection,SimulationError> list) =
+        let comps,compErrors = partitionResults compsRes
+        let conns,connErrors = partitionResults connsRes
         match compErrors,connErrors with
         | [],[] -> Ok (comps,conns)
         | e::tl,_ -> Error e
         | _,e::tl -> Error e
-        
 
     (components,connections)
+    |> removeDuplicateConnections
     |> addExtraConnections
     |> addExtraIOs
     |> checkCanvasWasCorrected
-    
-let makeSimDataSelected model : (Result<SimulationData,SimulationError> * CanvasState) option =
+
+// Used to store last canvas state, the last corrected canvas, and the selected simulation
+type SelectionCache = {
+    UncorrectedCanvas: CanvasState
+    CorrectedCanvas: CanvasState
+    StoredResult: Result<SimulationData, SimulationError>
+}
+
+let emptySelCache  = {
+    UncorrectedCanvas = ([],[])
+    CorrectedCanvas = ([],[])
+    StoredResult = Ok {
+        FastSim = 
+            printfn "creating empty selcache"
+            FastCreate.simulationPlaceholder
+        Graph = Map.empty 
+        Inputs = []
+        Outputs = []
+        IsSynchronous=false
+        NumberBase = NumberBase.Hex
+        ClockTickNumber = 0
+        }
+}
+
+let mutable selCache: SelectionCache = emptySelCache
+
+/// Make and return Simulation Data (or Simulation Error) for the model for selected components.
+/// Identical functionality to SimulationView.makeSimData, but only considers selected components.
+/// Includes memoization: if the selected components have not changed then the cached corrected
+/// canvas and simulation are returned.
+let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> * CanvasState) option =
     let (selComponents,selConnections) = model.Sheet.GetSelectedCanvasState
     let wholeCanvas = model.Sheet.GetCanvasState()
-    let selOtherComponents =
-        ([],selComponents)
-        ||> List.fold (fun acc comp ->
-            match comp.Type with
-            | Custom cc -> acc @ [cc.Name]
-            | _ -> acc)
-
     match selComponents, selConnections, model.CurrentProj with
     | _,_,None -> None
     | [],[],_ -> None
-    | [],_,_ -> Some <| (Error {
-        Msg = "Only connections selected. Please select a combination of connections and components."
-        InDependency = None
-        ComponentsAffected = []
-        ConnectionsAffected =[] }, (selComponents,selConnections))
+    | [],_,_ -> 
+        let affected =
+            selConnections
+            |> List.map (fun c -> ConnectionId c.Id)
+        Some <| (Error {
+            Msg = "Only connections selected. Please select a combination of connections and components."
+            InDependency = None
+            ComponentsAffected = []
+            ConnectionsAffected = affected },  (selComponents,selConnections))
     | selComps,selConns,Some project ->
-        let selLoadedComponents =
-            project.LoadedComponents
-            |> List.filter (fun comp ->
-                comp.Name <> project.OpenFileName
-                && List.contains comp.Name selOtherComponents)
-        match correctCanvasState (selComps,selConns) wholeCanvas with
-        | Error e -> Some (Error e, (selComps,selConns))
-        | Ok (correctComps,correctConns) ->
-            match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
-            | Some e -> Some (Error e,(correctComps,correctConns))
-            | None ->
-                Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
+        let state = (selComponents,selConnections)
+        // Check if selected components have changed
+        if stateIsEqual state selCache.UncorrectedCanvas then
+            Some (selCache.StoredResult, selCache.CorrectedCanvas)
+        else
+            let selLoadedComponents =
+                project.LoadedComponents
+                |> List.filter (fun comp ->
+                    comp.Name <> project.OpenFileName)
+            match correctCanvasState (selComps,selConns) wholeCanvas with
+            | Error e -> 
+                selCache <- {
+                    UncorrectedCanvas = state
+                    CorrectedCanvas = (selComponents,selConnections)
+                    StoredResult = Error e 
+                }
+                Some (Error e, (selComps,selConns))
+            | Ok (correctComps,correctConns) ->
+                match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
+                | Some e -> Some (Error e, (correctComps,correctConns))
+                | None ->
+                    let sim =
+                        prepareSimulation
+                            2
+                            project.OpenFileName 
+                            (correctComps,correctConns) 
+                            selLoadedComponents
+                    let newState = (correctComps,correctConns)
+                    selCache <- {
+                        UncorrectedCanvas =  state
+                        CorrectedCanvas = newState
+                        StoredResult = sim
+                    }
+                    Some (sim, newState)
 
-let tableAsList (table: TruthTable): TruthTableRow list =
-    table.TableMap
-    |> Map.toList
-    |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
+//-------------------------------------------------------------------------------------//
+//----------View functions for Truth Tables and Tab UI components----------------------//
+//-------------------------------------------------------------------------------------//
 
-let viewCellAsHeading (cell: TruthTableCell) = 
-    let (_,label,_) = cell.IO
-    let headingText = string label
-    th [ ] [str headingText]
+let makeSortingArrows (io: CellIO) sortInfo dispatch =
+    let upSel, downSel =
+        match sortInfo with
+        | None -> false, false
+        | Some (cio, Ascending) -> cio = io, false
+        | Some (cio, Descending) -> false, cio = io
+    let upArrow = 
+        Button.button
+            [
+                Button.Props [sortArrowStyle]
+                if upSel then Button.Color IsInfo
+                Button.OnClick (fun _ -> 
+                    (io,Ascending) |> Some |> SetTTSortType |> dispatch)
+            ]
+            [str "▲"]
+    let downArrow =
+        Button.button
+            [
+                Button.Props [sortArrowStyle]
+                if downSel then Button.Color IsInfo
+                Button.OnClick (fun _ -> 
+                    (io,Descending) |> Some |> SetTTSortType |> dispatch)
+            ]
+            [str "▼"]
+    div [] [upArrow; downArrow]
 
-let viewCellAsData (cell: TruthTableCell) =
-    match cell.Data with 
-    | Bits [] -> failwithf "what? Empty WireData in TruthTable"
-    | Bits [bit] -> td [] [str <| bitToString bit]
-    | Bits bits ->
-        let width = List.length bits
-        let value = viewFilledNum width Hex <| convertWireDataToInt bits
-        td [] [str value]
-    | Algebra a -> td [] [str <| a]
-    | DC -> td [] [str <| "X"]
+let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
+    let leftArrow = 
+        Button.button
+            [
+                Button.Props [colMoveArrowStyle]
+                Button.OnClick (fun _ -> 
+                    (io,MLeft) |> MoveColumn |> dispatch)
+            ]
+            [str "<"]
+    let rightArrow = 
+        Button.button
+            [
+                Button.Props [colMoveArrowStyle]
+                Button.OnClick (fun _ -> 
+                    (io,MRight) |> MoveColumn |> dispatch)
+            ]
+            [str ">"]
+    makeElementLine [leftArrow; headingEl; rightArrow] []
 
-let viewRowAsData (row: TruthTableRow) =
-    let cells = 
+let private makeMenuGroup openDefault title menuList =
+    details [Open openDefault] [
+        summary [menuLabelStyle] [ str title ]
+        Menu.list [] menuList
+    ]
+
+let viewOutputHider table hidden dispatch =
+    let makeToggleRow io =
+        let isChecked = not <| List.contains io hidden
+        let changeAction = (fun _ ->
+            dispatch <| ToggleHideTTColumn io)
+        let toggle = makeOnOffToggle isChecked changeAction "Visible" "Hidden"
+        let ioLabel = str io.getLabel
+        makeElementLine [ioLabel;toggle]
+    if table.FilteredMap.IsEmpty then
+        div [] [str "No Rows in Truth Table"]
+    else
+        let preamble = div [] [
+            str "Hide or Un-hide Output or Viewer columns in the Truth Table."
+            br []; br []
+        ]
+        let toggleRows =
+            table.TableMap
+            |> Map.toList
+            |> List.head
+            |> snd
+            |> List.map (fun cell -> makeToggleRow cell.IO [])
+        div [] (preamble::toggleRows)
+
+let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (cell: TruthTableCell) =
+    let cellStyle =
+        match Map.tryFind cell.IO styleInfo with
+        | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
+        | Some s -> Style <| (FontWeight "bold")::s
+    match cell.IO with
+    | SimIO (_,label,_) ->
+        let headingText = string label
+        div [cellStyle] 
+            [
+                makeElementLine [makeColumnMoveArrows cell.IO (str headingText) dispatch] 
+                    [makeSortingArrows cell.IO sortInfo dispatch]
+            ] 
+    | Viewer ((label,fullName), width) ->
+        let headingEl =
+            label |> string |> str
+            |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
+        div [cellStyle] [
+            makeElementLine [makeColumnMoveArrows cell.IO headingEl dispatch] 
+                [makeSortingArrows cell.IO sortInfo dispatch]
+            ]
+
+let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =
+    let viewCellAsData (cell: TruthTableCell) =
+        let cellStyle =
+            match Map.tryFind cell.IO styleInfo, i%2 with
+            | None, _ -> failwithf "what? IO %A not found in Grid Styles" cell.IO
+            | Some s, 1 -> Style <| (BackgroundColor "whitesmoke")::s
+            | Some s, _ -> Style s
+        match cell.Data with
+        | Bits [] -> failwithf "what? Empty WireData in TruthTable"
+        | Bits [bit] -> div [cellStyle] [str <| bitToString bit]
+        | Bits bits ->
+            let width = List.length bits
+            let value = viewFilledNum width numBase <| convertWireDataToInt bits
+            div [cellStyle] [str value]
+        | Algebra a -> div [cellStyle] [str <| a]
+        | DC -> div [cellStyle] [str <| "X"]
+
+    let cells =
         row
         |> List.map viewCellAsData
-        |> List.toSeq
-    tr [] cells
-        
+    cells
+
 let viewTruthTableError simError =
-    let error = 
+    let error =
         match simError.InDependency with
         | None ->
             div [] [
@@ -326,102 +621,150 @@ let viewTruthTableError simError =
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
         error
     ]
-    
-let viewTruthTableData (table: TruthTable) =
-    if table.TableMap.IsEmpty then // Should never be matched
-        div [] [str "No Truth Table to Display"]
-    else
-        let TTasList = tableAsList table
-        let headings =
-            TTasList.Head
-            |> List.map viewCellAsHeading
-            |> List.toSeq
-        let body =
-            TTasList
-            |> List.map viewRowAsData
-            |> List.toSeq
-            
 
-        div [] [
-            Table.table [
-                Table.IsBordered
-                Table.IsFullWidth
-                Table.IsStriped
-                Table.IsHoverable] 
-                [ 
-                    thead [] [tr [] headings]
-                    tbody [] body
-                ]
-        ]
+let viewTruthTableData (table: TruthTable) model dispatch =
+    match model.TTGridCache with
+    | Some grid -> 
+        grid
+    | None ->
+        let tLst = table.SortedListRep
+        let sortInfo = model.TTSortType
+        let styleInfo = model.TTGridStyles
+        if tLst.IsEmpty then
+            div [] [str "No Rows in Truth Table"]
+        else
+            let headings =
+                tLst.Head
+                |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
+            let body =
+                tLst
+                |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
+                |> List.concat
 
-let viewTruthTable model dispatch =
-    let generateTruthTable simRes =
-        match simRes with 
-        | Some (Ok sd,_) -> 
-            sd
-            |> truthTable
-            |> Ok
-            |> GenerateTruthTable
-            |> dispatch
-        | Some (Error e,_) ->
-            Error e
-            |> GenerateTruthTable
-            |> dispatch
-        | None -> ()
+            let all = headings @ body
+            let grid = div [(ttGridContainerStyle model)] all
+            dispatch <| SetTTGridCache (Some grid)
+            grid
+
+let viewTruthTable canvasState model dispatch =
+    // Truth Table Generation for selected components requires all components to have distinct labels.
+    // Older Issie versions did not have labels for MergeWires and SplitWire components.
+    // This step is needed for backwards compatability with older projects.
+    updateMergeSplitWireLabels model dispatch
 
     match model.CurrentTruthTable with
     | None ->
-        let wholeSimRes = SimulationView.makeSimData model
-        let wholeButtonColor, wholeButtonText, wholeButtonAction =
+        let wholeSimRes = SimulationView.makeSimData None 2 canvasState model
+        let wholeButton =
             match wholeSimRes with
-            | None -> IColor.IsWhite, "", (fun _ -> ())
-            | Some (Ok sd,_) -> 
-                if sd.IsSynchronous = false then 
-                    IColor.IsSuccess, "Generate Truth Table", generateTruthTable
-                else 
-                    IColor.IsInfo, "Combinational Only!", (fun _ -> ())
-            | Some (Error _,_) -> IColor.IsWarning, "See Problems", generateTruthTable
+            | None -> div [] []
+            | Some (Error simError,_) ->
+                Button.button
+                    [
+                        Button.Color IColor.IsWarning
+                        Button.OnClick (fun _ ->
+                            SimulationView.setSimErrorFeedback simError model dispatch
+                            GenerateTruthTable wholeSimRes |> dispatch)
+                    ] [str "See Problems"]
+            | Some (Ok sd,_) ->
+                if sd.IsSynchronous = false then
+                    Button.button
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.OnClick (fun _ -> GenerateTruthTable wholeSimRes |> dispatch)
+                        ] [str "Generate Truth Table"]
+                else
+                    Button.button
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.IsLight
+                            Button.OnClick (fun _ ->
+                                let popup =
+                                    Notifications.errorPropsNotification
+                                        "Truth Table generation only supported for Combinational Logic"
+                                dispatch <| SetPropertiesNotification popup)
+                        ] [str "Generate Truth Table"]
+
+        let selSimRes = makeSimDataSelected model
+        let selButton =
+            match selSimRes with
+            | None -> div [] []
+            | Some (Error simError,_) ->
+                Button.button
+                    [
+                        Button.Color IColor.IsWarning
+                        Button.OnClick (fun _ ->
+                            SimulationView.setSimErrorFeedback simError model dispatch
+                            GenerateTruthTable selSimRes |> dispatch)
+                    ] [str "See Problems"]
+            | Some (Ok sd,_) ->
+                if sd.IsSynchronous = false then
+                    Button.button
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.OnClick (fun _ -> GenerateTruthTable selSimRes |> dispatch)
+                        ] [str "Generate Truth Table"]
+                else
+                    Button.button
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.IsLight
+                            Button.OnClick (fun _ ->
+                                let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
+                                dispatch <| SetPropertiesNotification popup)
+                        ] [str "Generate Truth Table"]
         div [] [
             str "Generate Truth Tables for combinational logic using this tab."
-            br[]
-            hr[]
+            br []
+            hr []
             Heading.h5 [] [str "Truth Table for whole sheet"]
             br []
-            Button.button
-                [ 
-                    Button.Color wholeButtonColor; 
-                    Button.OnClick (fun _ -> wholeButtonAction  wholeSimRes ) ; 
-                ]
-                [ str wholeButtonText ]
-            hr[]
-
-            let selSimRes = makeSimDataSelected model
-            let selButtonColor, selButtonText, selButtonAction =
-                match selSimRes with
-                | None -> IColor.IsWhite, "", (fun _ -> ())
-                | Some (Ok sd,_) -> 
-                    if sd.IsSynchronous = false then 
-                        IColor.IsSuccess, "Generate Truth Table", generateTruthTable
-                    else 
-                        IColor.IsInfo, "Combinational Only!", (fun _ -> ())
-                | Some (Error _,_) -> IColor.IsWarning, "See Problems", generateTruthTable 
+            wholeButton
+            hr []
             Heading.h5 [] [str "Truth Table for selected logic"]
-            br []
-            Button.button
-                [ 
-                    Button.Color selButtonColor; 
-                    Button.OnClick (fun _ -> selButtonAction selSimRes ) ; 
-                ]
-                [ str selButtonText ]
-            hr[]
+            br  []
+            br  []
+            selButton
+            hr []
         ]
     | Some tableopt ->
         let closeTruthTable _ =
+            dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
+            dispatch <| (JSDiagramMsg << InferWidths) ()
+            dispatch ClosePropertiesNotification
             dispatch CloseTruthTable
-        let body = 
+        let body =
             match tableopt with
             | Error e -> viewTruthTableError e
-            | Ok table -> viewTruthTableData table
+            | Ok table -> 
+                let truncation =
+                    Notification.notification [Notification.Color IsWarning; Notification.IsLight] [
+                        str "Due to a large number of input combinations, caused by inputs that are
+                            too big or too numerous, the truth table has been truncated. Please use
+                            more restrictive input constraints, or set wider inputs as algebra."
+                    ]
+                div [] [
+                    if table.IsTruncated then
+                        truncation
+                    viewReductions table model dispatch
+                    br []; br []
+                    viewTruthTableData table model dispatch]
+               
+        let constraints =
+            match tableopt with
+            | Error _ -> div [] []
+            | Ok _ -> div [] [viewConstraints model dispatch]
+        let hidden =
+            match tableopt with
+            | Error _ -> div [] []
+            | Ok table -> div [] [viewOutputHider table model.TTHiddenColumns dispatch]
+        let menu =
+            Menu.menu []  [
+                makeMenuGroup false "Filter" [constraints; br [] ; hr []]
+                makeMenuGroup false "Hide/Un-hide Columns" [hidden; br []; hr []]
+                makeMenuGroup true "Truth Table" [body; br []; hr []]
+            ]
+
         div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick closeTruthTable ]
@@ -429,8 +772,5 @@ let viewTruthTable model dispatch =
             br []; br []
             str "The Truth Table generator uses the diagram as it was at the moment of
                  pressing the \"Generate Truth Table\" button."
-            hr []
-            body
-            br []
-            hr []
+            menu
             ]

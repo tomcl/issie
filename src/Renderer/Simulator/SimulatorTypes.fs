@@ -8,12 +8,21 @@ module rec SimulatorTypes
 open Fable.Core
 open CommonTypes
 
+
+/// document current status of a simulation as used by waveform simulator
+type SimulationRunStatus =
+    | SimEmpty // simulation has been created but not yet setup from a circuit
+    | SimOutOfDate // one of more of the sheets being simulated has changed after the simulation was setup
+    | SimValidSameSheet /// simulation has run and is currently uptodate. The current sheet is being simulated
+    | SimValidDifferentSheet // The simulation is uptodate, but a differnt sheet from the current one is being simulated
+    | SimNoProject // there is no open project - this should not normally happen.
+
 /// Binary data used in simulation
 type Bit = Zero | One
 
 /// Fixed width bus data used in simulation
 /// TODO: refactor as int64 or bigint for efficiency
-/// The list is little-endian: the LSB is at index 0, and the MSB is at index N,
+/// The list is little-endian: the LSB is at index 0, and the MSB is at index N-1,
 /// where N is the length of the list.
 type WireData = Bit list
 
@@ -25,6 +34,7 @@ type SimulationComponentState =
     | DffState of uint32
     | RegisterState of FastData
     | RamState of Memory1
+
 
 /// Message used to feed forward evaluation. Clock
 /// tick => state changes to that in next cycle
@@ -47,7 +57,7 @@ type SimulationComponent = {
     // Mapping from each input port number to its value (it will be set
     // during the simulation process).
     // TODO: maybe using a list would improve performance?
-    Inputs : Map<InputPortNumber, WireData>
+    Inputs : Map<InputPortNumber,WireData>
     // Mapping from each output port number to all of the ports and
     // Components connected to that port.
     Outputs : Map<OutputPortNumber,(ComponentId * InputPortNumber) list>
@@ -56,28 +66,11 @@ type SimulationComponent = {
     // propagated in propagateStateChanges. Location n corresponds to
     // OutputPortNumber n.
     // not used except for synchronous components and custom components
-    OutputsPropagated: bool array
-    // This CustomSimulationGraph should only be Some when the component Type is
-    // Custom. A custom component keeps track of its internal state using this
-    // CustomSimulationGraph. This graph will be passed to the reducer and
-    // updated from the reducer return value.
     CustomSimulationGraph : SimulationGraph option
     // State for synchronous stateful components, like flip flops and memories.
     // The state should only be changed when clock ticks are fed. Other changes
     // will be ignored.
     State : SimulationComponentState
-    // Function that takes the inputs and transforms them into the outputs,
-    // according to the behaviour of the component.
-    // The size of the Inputs map, must be as expected by the component,
-    // otherwhise the reducer will return None (i.e. keep on waiting for more
-    // inputs to arrive).
-    // The idea is similar to partial application, keep on providing inputs
-    // until the output can be evaluated.
-    // The reducer should fail if more inputs than expected are received.
-    // The reducer accepts a SimulationGraph for custom components only.
-    // The reducer accepts an IsClockTick flag that tells you if that is an
-    // update due to the global clock.
-    Reducer : ReducerInput -> ReducerOutput
 }
 
 /// Map every ComponentId to its SimulationComponent.
@@ -182,7 +175,476 @@ type FastData =
         match this.Dat with
         | Word n -> n
         | BigWord n when this.Width <= 32 -> uint32 n
-        | _ -> failwithf $"Can't turn {this} into a uint32"
+        | _ -> failwithf $"GetQint32 Can't turn Alg into a uint32"
+
+//-------------------------------------------------------------------------------------//
+//-----------------------------TT Algebra Types----------------------------------------//
+//-------------------------------------------------------------------------------------//
+
+// Types used for Algebraic Truth Tables caluclated in the Fast Simulation
+// Defined here instead of in TruthTableTypes.fs because they are used in the FastSimulation
+
+// Binary Algebraic Operators
+type BinaryOp = 
+    | AddOp // A + B (mathematical addition)
+    | SubOp // A - B (mathematical subtraction)
+    | BitAndOp // A & B (bitwise AND)
+    | BitOrOp // A | B (bitwise OR)
+    | BitXorOp // A XOR B (bitwise XOR)
+    //| AppendOp // B::A (B becomes MSB, A becomes LSB)
+
+// Unary Algebraic Operators
+type UnaryOp = 
+    | NegOp // -A (mathematical negation, bitwise two's complement)
+    | NotOp // bit inversion (bitwise XOR with -1)
+    | BitRangeOp of Lower:int * Upper:int // A[upper:lower] (subset of bits of A)
+    | CarryOfOp
+
+// Comparison between expression and constant
+type ComparisonOp = | Equals
+
+// Type for algebraic expressions in Issie
+type FastAlgExp =
+    | SingleTerm of SimulationIO
+    | DataLiteral of FastData
+    | UnaryExp of Op: UnaryOp * Exp: FastAlgExp
+    | BinaryExp of Exp1: FastAlgExp * Op: BinaryOp * Exp2: FastAlgExp
+    | ComparisonExp of Exp: FastAlgExp * Op: ComparisonOp * uint32
+    | AppendExp of FastAlgExp list
+
+/// Calculates and returns the expected width of an Algebraic Expression
+let rec getAlgExpWidth (exp: FastAlgExp) = 
+    match exp with
+    | SingleTerm (_,_,w) -> w
+    | DataLiteral d -> d.Width
+    | UnaryExp (BitRangeOp(l,u),_) -> u-l+1
+    | UnaryExp (CarryOfOp,_) -> 1
+    // Assuming all other unary operators do not change width of expression
+    | UnaryExp (_,exp) -> getAlgExpWidth exp
+    // Assuming all other binary operators do not change width of expression
+    // Return the greatest width
+    | BinaryExp (exp1,_,exp2) -> 
+        let w1 = getAlgExpWidth exp1
+        let w2 = getAlgExpWidth exp2
+        if w1 > w2 then w1 else w2
+    | ComparisonExp _ -> 1
+    | AppendExp exps ->
+        if exps.IsEmpty then
+            failwithf "what? List in AppendExp is empty"
+        else
+            (0,exps)
+            ||> List.fold (fun w exp -> w + getAlgExpWidth exp)
+
+// /// Converts multiple AppendOps which would usually be nested inside one another
+// /// to a list of expressions for easier evaluation and clearer printing
+// let rec flattenNestedAppends exp =
+//     match exp with
+//     | BinaryExp (left,AppendOp,right) ->
+//         (flattenNestedAppends left) @ (flattenNestedAppends right)
+//     | _ -> [exp]
+
+let rec flattenNestedArithmetic exp =
+    /// Multiplies an expression by -1: Positive <-> Negative
+    let multiplyByMinusOne exp =
+        match exp with
+        | UnaryExp (NegOp,e) -> e
+        | e -> UnaryExp (NegOp,e)
+    match exp with
+    | BinaryExp (left,AddOp,right) ->
+        (flattenNestedArithmetic left) @ (flattenNestedArithmetic right)
+    | BinaryExp (left,SubOp,right) ->
+        let rhs = 
+            flattenNestedArithmetic right
+            |> List.map multiplyByMinusOne
+        (flattenNestedArithmetic left) @ rhs
+    | UnaryExp (NotOp,e) ->
+        let w = getAlgExpWidth e
+        let minusOne = UnaryExp (NegOp,DataLiteral{Dat = Word 1u; Width = w})
+        flattenNestedArithmetic <| BinaryExp (minusOne,SubOp,e)
+
+    | _ -> [exp]
+
+let assembleArithmetic width expLst =
+    let rec assemble stateExp currentExp =
+        match currentExp with
+        | UnaryExp (NegOp,e) ->
+            BinaryExp (stateExp,SubOp,e)
+        | _ ->
+            BinaryExp (stateExp,AddOp,currentExp)
+    match expLst with
+    | [] -> 
+        DataLiteral {Dat = Word 0u; Width = width}
+    | [exp] ->
+        exp
+    | [UnaryExp(NegOp,expN);exp] | [exp;UnaryExp(NegOp,expN)] ->
+        BinaryExp (exp,SubOp,expN)
+    | [exp1;exp2] ->
+        BinaryExp (exp1,AddOp,exp2)
+    | UnaryExp(NegOp,expN)::exp::tl | exp::UnaryExp(NegOp,expN)::tl ->
+        (BinaryExp(exp,SubOp,expN),tl)
+        ||> List.fold assemble
+    | exp1::exp2::tl ->
+        (BinaryExp (exp1,AddOp,exp2),tl)
+        ||> List.fold assemble
+
+let tryBitwiseOperation (expressions: FastAlgExp list) =
+    match expressions with
+    | [] -> failwithf "what? Expressions List should never be empty"
+    | (BinaryExp(_,AddOp,_))::tl | (BinaryExp(_,SubOp,_))::tl -> None
+    | (BinaryExp(UnaryExp(BitRangeOp(_,_),left),bop,UnaryExp(BitRangeOp(_,_),right)))::tl ->
+        let rec checkList exps state remBits =
+            match (exps: FastAlgExp list), state with
+            | [], s -> s, remBits
+            | hd::tl, false -> checkList tl false remBits
+            | (BinaryExp (UnaryExp(BitRangeOp(ll,lu),l),op,UnaryExp(BitRangeOp(rl,ru),r)))::tl, true ->
+                if ll = lu && ll = rl && rl = ru && l = left && r = right && op = bop then
+                    let newRemBits = List.except [ll] remBits
+                    checkList tl true newRemBits
+                else 
+                    checkList tl false remBits
+            | _::tl, s ->
+                checkList tl false remBits
+        let widthL, widthR = 
+            getAlgExpWidth left, getAlgExpWidth right
+        if widthL <> widthR then
+            None
+        else
+            let remBits = [0..(widthL-1)]
+            match checkList expressions true remBits with
+            | true, [] ->
+                BinaryExp (left,bop,right)
+                |> Some
+            | _,_ -> None
+    | _ -> None
+
+/// Check the Bit Ranges for two expressions, and check if they can be merged.
+/// If they can, return the merged expression, otherwise return None.
+// A[5:3] and A[2:1] -> A[5:1]
+// A[5:4] and A[2:1] -> None
+// A[5:3] and B[2:1] -> None
+let tryMergeBitRanges (l1,u1,exp1) (l2,u2,exp2) =
+    let lHigh, lLow = if l1 > l2 then l1,l2 else l2,l1 
+    let uHigh, uLow = if u1 > u2 then u1,u2 else u2,u1 
+    if exp1 = exp2 && lHigh = uLow+1 then
+        UnaryExp (BitRangeOp(lLow,uHigh),exp1)
+        |> Some
+    else
+       None
+
+let foldAppends (expressions: FastAlgExp list) =
+    ([],expressions)
+    ||> List.fold (fun acc exp ->
+        match acc, exp with
+        | [], e -> exp::acc
+        | (UnaryExp(BitRangeOp(l1,u1),exp0))::tl, UnaryExp(BitRangeOp(l2,u2),exp1) ->
+            match tryMergeBitRanges (l1,u1,exp0) (l2,u2,exp1) with
+            | Some newExp -> newExp::tl
+            | None -> exp::acc
+        | _,_ -> exp::acc)
+    |> List.rev
+
+/// Converts an Algebraic Expression to a string for pretty printing
+let expToString exp =
+    let rec expToString' (exp: FastAlgExp) =
+        match exp with
+        | SingleTerm (_,label,_) ->
+            string label
+        | DataLiteral {Dat=Word w; Width=_} -> string w  
+        | DataLiteral {Dat=BigWord w; Width=_} -> string w
+        | UnaryExp (NegOp,exp) ->
+            let expStr = expToString' exp
+            $"(-{expStr})"
+        | UnaryExp (NotOp,exp) ->
+            let expStr = expToString' exp
+            $"(~{expStr})"
+        | UnaryExp (BitRangeOp(low,up),exp) ->
+            let expStr = expToString' exp
+            if low = up then // Replace A[x:x] with A[x]
+                $"{expStr}[{up}]"
+            else if getAlgExpWidth exp = (up-low+1) then
+                // Replace A[w-1:0] with A when A has width w
+                expStr
+            else
+                $"{expStr}[{up}:{low}]"
+        | UnaryExp (CarryOfOp,exp) ->
+            let expStr = expToString' exp
+            $"carry({expStr})"
+        | BinaryExp (exp1, AddOp, exp2) ->
+            // let expStr1 = expToString' exp1
+            // let expStr2 = expToString' exp2
+            // $"({expStr1}+{expStr2})"
+            $"({arithmeticToString exp})"
+        | BinaryExp (exp1, SubOp, exp2) ->
+            // let expStr1 = expToString' exp1
+            // let expStr2 = expToString' exp2
+            // $"({expStr1}-{expStr2})"
+            $"({arithmeticToString exp})"
+        | BinaryExp (exp1, BitAndOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}&{expStr2})"
+        | BinaryExp (exp1, BitOrOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}|{expStr2})"
+        | BinaryExp (exp1, BitXorOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}⊕{expStr2})"
+        | ComparisonExp (exp, Equals, x) ->
+            let expStr = expToString' exp
+            $"({expStr} == {string x})"
+        | AppendExp exps ->
+            exps
+            |> List.map expToString'
+            |> String.concat "::"
+            |> fun s -> $"({s})"
+
+    and arithmeticToString exp =
+        exp
+        |> flattenNestedArithmetic
+        |> List.mapi (fun i expr ->
+            match i, expr with
+            | 0, e ->
+                expToString' e
+            | _, UnaryExp (NegOp,e) ->
+                $"- {expToString' e}"
+            | _, e ->
+                $"+ {expToString' e}")
+        |> String.concat " "
+
+    let expS = expToString' exp
+    // Remove the parentheses from the outermost expression
+    if expS.StartsWith "(" && expS.EndsWith ")" then
+        expS[1..(expS.Length-2)]
+    else
+        expS
+    
+/// Recursively evaluates an expression to reduce it to its simplest form
+let rec evalExp exp =
+    match exp with
+    | SingleTerm _ -> exp
+    | DataLiteral _ -> exp
+    | UnaryExp (NotOp, exp) ->
+        match evalExp exp with
+        | UnaryExp (NotOp, inner) -> // Catch double inversion ~(~(A))
+            evalExp inner
+        | _ ->
+            let evaluated = evalExp exp
+            UnaryExp (NotOp, evaluated)
+    | UnaryExp (NegOp, UnaryExp(NegOp,exp)) -> // Catch double negation -(-(A))
+        match evalExp exp with
+        | UnaryExp (NegOp, inner) ->
+            evalExp inner
+        | _ ->
+            let evaluated = evalExp exp
+            UnaryExp (NegOp, evaluated)
+    | UnaryExp (op,exp) ->
+        let evaluated = evalExp exp
+        UnaryExp (op,evaluated)
+    | BinaryExp (exp1, BitAndOp, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        // Annulment: AND with 0 is always 0
+        | exp, DataLiteral {Dat= Word 0u;Width=w}
+        | DataLiteral {Dat= Word 0u;Width=w}, exp ->
+            DataLiteral {Dat= Word 0u;Width=w}
+        // Identity: AND with 1 is always the other operand
+        | exp, DataLiteral {Dat= Word n;Width=w}
+        | DataLiteral {Dat= Word n;Width=w}, exp ->
+            let one = uint32 <| (2.0**w) - 1.0
+            if n = one then
+                exp
+            else
+                BinaryExp (left,BitAndOp,right)
+        // Complement: A AND (NOT A) = 0
+        | e1, UnaryExp(NotOp,e2) ->
+            if e1 = e2 then
+                let w = getAlgExpWidth e1
+                DataLiteral {Dat= Word 0u;Width=w}
+            else
+                BinaryExp (left,BitAndOp,right)
+        // (A OR B) AND (A OR C) = A OR (B AND C)
+        | BinaryExp(e1,BitOrOp,e2), BinaryExp(e3,BitOrOp,e4) ->
+            if e1 = e3 then
+                BinaryExp(e1,BitOrOp,BinaryExp(e2,BitAndOp,e4))
+            else if e1 = e4 then
+                BinaryExp(e1,BitOrOp,BinaryExp(e2,BitAndOp,e3))
+            else if e2 = e3 then
+                BinaryExp(e2,BitOrOp,BinaryExp(e1,BitAndOp,e4))
+            else if e2 = e4 then
+                BinaryExp(e2,BitOrOp,BinaryExp(e1,BitAndOp,e3))
+            else
+                BinaryExp (left,BitAndOp,right)
+        | l,r -> 
+            // Idempotent: A AND A = A
+            if l = r then
+                l
+            else
+                BinaryExp (l,BitAndOp,r)
+    | BinaryExp (exp1, BitOrOp, exp2) ->
+        printfn "Or Case Matched"
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        // Identity: OR with 0 is always the other operand
+        | exp, DataLiteral {Dat= Word 0u;Width=_}
+        | DataLiteral {Dat= Word 0u;Width=_}, exp ->
+            exp
+        // Annulment: OR with 1 is always 1
+        | exp, DataLiteral {Dat= Word n;Width=w}
+        | DataLiteral {Dat= Word n;Width=w}, exp ->
+            let one = uint32 <| (2.0**w) - 1.0
+            if n = one then
+                DataLiteral {Dat= Word one;Width=w}
+            else
+                BinaryExp (left,BitAndOp,right)
+        // Complement: A OR (NOT A) = 1
+        | e1, UnaryExp(NotOp,e2) ->
+            if e1 = e2 then
+                let w = getAlgExpWidth e1
+                DataLiteral {Dat= Word 1u;Width=w}
+            else
+                BinaryExp (left,BitOrOp,right)
+        // Check for Carry from Full Adder
+        // All combinations of: CIN&(A+B)|(A&B)
+        | BinaryExp(c1,BitAndOp,BinaryExp(a1,AddOp,b1)), BinaryExp(a2,BitAndOp,b2)
+        | BinaryExp(a2,BitAndOp,b2), BinaryExp(c1,BitAndOp,BinaryExp(a1,AddOp,b1))
+        | BinaryExp(BinaryExp(a1,AddOp,b1),BitAndOp,c1), BinaryExp(a2,BitAndOp,b2) 
+        | BinaryExp(a2,BitAndOp,b2), BinaryExp(BinaryExp(a1,AddOp,b1),BitAndOp,c1) ->
+            let a1Eval, a2Eval, b1Eval, b2Eval, c1Eval =
+                evalExp a1, evalExp a2, evalExp b1, evalExp b2, evalExp c1
+            if (a1Eval = a2Eval && b1Eval = b2Eval) || (a1Eval = b2Eval && a2Eval = b1Eval) then
+                let addition = BinaryExp(c1Eval,AddOp,BinaryExp(a1Eval,AddOp,b1Eval))
+                UnaryExp (CarryOfOp,addition)
+            else
+                BinaryExp (left,BitOrOp,right)
+        | e1, BinaryExp(e2,BitAndOp,e3)
+        | BinaryExp(e2,BitAndOp,e3), e1 ->
+            // A OR (A AND B) = A
+            if e1 = e2 || e1 = e3 then
+                e1
+            // A OR ((NOT A) AND B) = A OR B
+            else if e1 = UnaryExp(NotOp,e2) then
+                BinaryExp (e1,BitOrOp,e3)
+            else if e1 = UnaryExp(NotOp,e3) then
+                BinaryExp (e1,BitOrOp,e2)
+            else
+                BinaryExp (left,BitOrOp,right)
+
+        | l,r ->
+            // Idempotent: A OR A = A
+            if l = r then
+                l
+            else
+                BinaryExp (l,BitOrOp,r)
+    | BinaryExp (exp1, BitXorOp, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        // XOR with 0 is always the other operand
+        | exp, DataLiteral {Dat= Word 0u;Width=_}
+        | DataLiteral {Dat= Word 0u;Width=_}, exp ->
+            exp
+        // XOR with 1 is always the inverse of the other operand
+        | exp, DataLiteral {Dat= Word n;Width=w}
+        | DataLiteral {Dat= Word n;Width=w}, exp ->
+            let one = uint32 <| (2.0**w) - 1.0
+            if n = one then
+                UnaryExp (NotOp,exp)
+            else
+                reduceArithmetic (BinaryExp (exp,AddOp,DataLiteral {Dat= Word n;Width=w}))
+        | l,r ->
+            if getAlgExpWidth l = 1 && getAlgExpWidth r = 1 then
+                reduceArithmetic (BinaryExp (l,AddOp,r))
+            else
+                BinaryExp (l,BitXorOp,r)
+    | BinaryExp (_,AddOp,_) | BinaryExp (_,SubOp,_) ->
+        reduceArithmetic exp
+    | ComparisonExp (exp, Equals, x) ->
+        let evaluated = evalExp exp
+        ComparisonExp (evaluated, Equals, x)
+    | AppendExp exps ->
+        let evaluated = List.map evalExp exps
+        evaluated
+        |> tryBitwiseOperation
+        |> function
+            | Some e -> e
+            | None -> 
+                evaluated
+                |> foldAppends
+                |> AppendExp
+
+and reduceArithmetic expression =
+    let increment x = x + 1
+    let decrement x = x - 1
+
+    let updateExpCount exp (trackMap: Map<FastAlgExp,int>) action =
+        match Map.tryFind exp trackMap with
+        | Some count ->
+            let newCount = action count
+            Map.add exp newCount trackMap
+        | None ->
+            let newCount = action 0
+            Map.add exp newCount trackMap
+
+    let width = getAlgExpWidth expression
+    let flatLst = 
+        flattenNestedArithmetic expression
+        |> List.map evalExp
+
+    let numVal, expCounts =
+        ((0,Map.empty<FastAlgExp,int>),flatLst)
+        ||> List.fold (fun (numTrack,expTrack) expr ->
+            match expr with
+            | DataLiteral {Dat = Word w; Width = _} ->
+                (numTrack + (int w)) , expTrack
+            | UnaryExp (NegOp, DataLiteral {Dat = Word w; Width = _}) ->
+                (numTrack - (int w)) , expTrack
+            | UnaryExp (NegOp,e) ->
+                let newExpTrack = updateExpCount e expTrack decrement
+                numTrack, newExpTrack
+            | _ ->
+                let newExpTrack = updateExpCount expr expTrack increment
+                numTrack, newExpTrack)
+
+    let numDataExp =
+        numVal %  (int (2.**width))
+        |> fun n ->
+            if n > 0 then
+                DataLiteral {Dat = Word (uint32 n); Width = width}
+            else
+                UnaryExp(NegOp,DataLiteral {Dat = Word (uint32 <| abs n); Width = width})
+
+    let expressionsToAssemble =
+        expCounts
+        |> Map.toList
+        |> List.collect (fun (exp,count) ->
+            if count = 0 then
+                []
+            else if count > 0 then
+                [for i in 1..count -> exp]
+            else
+                [for i in 1..(abs count) -> UnaryExp (NegOp,exp)])
+        |> fun l -> 
+            if numVal = 0 then
+                l
+            else
+                l @ [numDataExp]
+    printfn "To Assemble: %A" (List.map expToString expressionsToAssemble)
+
+    assembleArithmetic width expressionsToAssemble
+    
+
+/// Raised when an Algebraic case is found in FastSim which has not been implemented,
+/// or does not make sense to implement.
+exception AlgebraNotImplemented of SimulationError
+
+// Types that can be passed to and retrieved from the Fast Simulation
+type FSInterface =
+    | IData of WireData
+    | IAlg of FastAlgExp
 
 //------------------------------------------------------------------------------//
 //-------------------EXPERIMENTAL - new data structure to replace WireData------//
@@ -405,15 +867,40 @@ let appendBits (fMS: FastData) (fLS: FastData) : FastData =
 //--------------------------------Fast Simulation Data Structure-------------------------//
 //---------------------------------------------------------------------------------------//
    
-type FComponentId = ComponentId * ComponentId list
+// type FComponentId = ComponentId * ComponentId list moved to CommonTypes
 
-type FData = FastData // for now...
+type FData = | Data of FastData | Alg of FastAlgExp
+    with
+    member this.Width =
+        match this with
+        | Data d -> d.Width
+        | Alg exp -> getAlgExpWidth exp
+    member this.fdToString =
+        match this with
+        | Data {Dat=Word w; Width=_} -> string w
+        | Data {Dat=BigWord w; Width=_} -> string w
+        | Alg exp ->  expToString exp
+    member this.toExp =
+        match this with
+        | Alg exp -> exp
+        | Data fd -> DataLiteral fd
+    member this.toFastData =
+        match this with
+        | Data fd -> fd
+        | _ -> failwithf "Expected data, found Alg FData"
+    member this.toInt64 =
+        match this with
+        | Data {Width =w} when w > 64 -> failwithf "Help! Can't convert numbers wider than 64 bits to int64."
+        | Data {Dat = Word w} -> int64 (uint64 w)
+        | Data {Dat = BigWord w} -> int64 w
+        | _ -> failwithf "Can't convert Alg style FData to int64"
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs
 type StepArray<'T> = {
     // this field is mutable to allow resizing
     mutable Step: 'T array
+    Index: int
     }
 
 type FastComponent = {
@@ -429,6 +916,8 @@ type FastComponent = {
     SimComponent: SimulationComponent
     AccessPath: ComponentId list
     FullName: string
+    FLabel: string
+    SheetName: string list
     // these fields are used only to determine component ordering for correct evaluation
     mutable Touched: bool // legacy field
     mutable DrivenComponents: FastComponent list
@@ -445,6 +934,19 @@ type FastComponent = {
         (EEExtensions.String.substringLength 0 5 sid)
     member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs[n].Step[epoch] <- dat
     member inline this.Id = this.SimComponent.Id
+    member inline this.SubSheet = this.SheetName[0..this.SheetName.Length-2] 
+        
+
+type Driver = {
+    Index: int //index of this driver in the array, also
+    DriverWidth: int
+    DriverData: StepArray<FData>
+}
+
+type SheetPort = {
+    Sheet: string
+    PortOnComp: Port // muts include port number (which ports on connections do not)
+    }
 
 // The fast simulation components are similar to the issie components they are based on but with addition of arrays
 // for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the
@@ -463,7 +965,6 @@ type FastComponent = {
 // Note that custom component info is still kept because each component in the graph has a path - the list of custom component ids
 // between its graph and root. Following issie this does not include a custom component for the sheet being simulated, which is viewed as
 // root. Since custom components have been removed this no longer complicates the simulation.
-
 type FastSimulation = {
     // last step number (starting from 0) which is simulated.
     mutable ClockTick: int
@@ -488,11 +989,32 @@ type FastSimulation = {
     // Fast components: this array is longer than FOrderedComps because it contains
     // IOlabel components that are redundant in the simulation
     FComps: Map<FComponentId,FastComponent>
+    FCustomComps: Map<FComponentId,FastComponent>
+    // Fast components: this map is longer than FComps because it contains
+    // Custom components not used by Fast simulation but needed in Waveform simulation
+    WaveComps: Map<FComponentId,FastComponent>
     FSComps: Map<FComponentId,SimulationComponent * ComponentId list>
     // look up from output port of custom component to the relevant Output component
     FCustomOutputCompLookup: Map<(ComponentId*ComponentId list)*OutputPortNumber, FComponentId>
     // GatherData from which this simulation was made
     G: GatherData
+    // Total number of step arrays (= drivers)
+    NumStepArrays: int
+    // Each driver represents one output with its data
+    Drivers: Driver option array
+    // Each wave index represents one component port with associated driver and data
+    WaveIndex: WaveIndexT array
+    /// Connections on simulated sheets indexed by directly connected port. Each connection appears twice.
+    ConnectionsByPort: Map<SheetPort,Connection list>
+    /// This contains all components in the sheets of the simulation indexed by ComponentId. 
+    /// Subsheet components are indexed only once.
+    /// Contrast this with Fast Components - which have the design expanded out with
+    /// one per instance: the different versions correspond to distinct access paths.
+    ComponentsById: Map<string,Map<ComponentId,Component>>
+    /// Circuit simulated (sheet and all dependencies) 
+    SimulatedCanvasState: LoadedComponent list
+    /// The root sheet being simulated
+    SimulatedTopSheet: string
     } with
         member this.getSimulationData (step: int) ((cid,ap): FComponentId) (opn: OutputPortNumber) =
             let (OutputPortNumber n) = opn
@@ -549,6 +1071,10 @@ and  GatherData = {
             List.map ( fun cid -> match Map.tryFind cid this.Labels with | Some lab -> lab | None -> "*" ) (ap @ [cid])
             |> String.concat "."
 
+    member this.getSheetName (cid,ap) = 
+        List.map ( fun cid -> match Map.tryFind cid this.Labels with | Some lab -> lab.ToUpper() | None -> "*" ) (ap @ [cid])
+
+
 //-------------------------------------------------------------------------------------//
 //-------------------Helper functions for simulation types-----------------------------//
 //-------------------------------------------------------------------------------------//
@@ -576,7 +1102,7 @@ let extractLabel (label: ComponentLabel) =
     name
 
 //-------------------------------------------------------------------------------------//
-//-------------------Helper functions for WaveformSpec---------------------------------//
+//-------------------Helper functions for WaveformSim----------------------------------//
 //-------------------------------------------------------------------------------------//
 
 // NB - all the NetGroup functions assume a working netlist in which NO NET IS UNDRIVEN
@@ -593,7 +1119,9 @@ let mapItems (map:Map<'a,'b>) = Map.toArray map
 
 let getFastOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    fc.Outputs[n].Step[0].Width
+    match fc.Outputs[n].Step[0] with
+    | Data fd -> fd.Width
+    | Alg exp -> getAlgExpWidth exp
 
 let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPort: OutputPortNumber) =
     match driverComp.Type with
@@ -612,3 +1140,4 @@ let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPor
         
     | _ -> 
         (driverComp.Id, []), driverPort
+

@@ -417,6 +417,10 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | Xor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
     | DFFE
     | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
+    | Counter _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 2} ? (%s{ins 1} ? %s{ins 0} : (%s{outs 0}+1'b1)) : %s{outs 0};\n"
+    | CounterNoEnable _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : (%s{outs 0}+1'b1) ;\n"
+    | CounterNoLoad _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 0} ? (%s{outs 0}+1'b1) : %s{outs 0};\n"
+    | CounterNoEnableLoad _ -> $"always @(posedge clk) %s{outs 0} <= (%s{outs 0}+1'b1) ;\n"
     | DFF
     | Register _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 0};\n"
     | Constant1 (w, c,_) 
@@ -459,11 +463,50 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let sum = outs 0
         let cout = outs 1
         $"assign {{%s{cout},%s{sum} }} = %s{a} + %s{b} + %s{cin};\n"
+    | NbitsAdderNoCin n ->
+        let a = ins 0
+        let b = ins 1
+        let sum = outs 0
+        let cout = outs 1
+        $"assign {{%s{cout},%s{sum} }} = %s{a} + %s{b} ;\n"
+    | NbitsAdderNoCout n ->
+        let cin = ins 0
+        let a = ins 1
+        let b = ins 2
+        let sum = outs 0
+        $"assign %s{sum} = %s{a} + %s{b} + %s{cin};\n"
+    | NbitsAdderNoCinCout n ->
+        let a = ins 0
+        let b = ins 1
+        let sum = outs 0
+        $"assign %s{sum} = %s{a} + %s{b} ;\n"
+    
     | NbitsXor n ->
         let a = ins 0
         let b = ins 1
         let xor = outs 0
         $"assign {xor} = {a} ^ {b};\n"
+    | NbitsAnd n ->
+        let a = ins 0
+        let b = ins 1
+        let andOut = outs 0
+        $"assign {andOut} = {a} & {b};\n"
+    | NbitsOr n ->
+        let a = ins 0
+        let b = ins 1
+        let orOut = outs 0
+        $"assign {orOut} = {a} | {b};\n"
+    | NbitsNot n ->
+        let a = ins 0
+        let not = outs 0
+        $"assign {not} = ~{a};\n"
+    | NbitSpreader n ->
+        let a = ins 0
+        let out = outs 0
+        let result1 =
+            ("",[1..n])||>List.fold (fun s v -> s+"1") 
+        // $"assign {out} = {a} << {n});\n"
+        $"assign {out} = {a} ? {n}'b{result1} : {n}'b0;\n"
     | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
     | Mux4 -> 
         let outputBit = 

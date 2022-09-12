@@ -44,6 +44,7 @@ let testMaps() =
     printfn "%d iterations of iterMap took %.1fms" count interval
 
 
+
 (****************************************************************************************************
 *
 *                                  MENU HELPER FUNCTIONS
@@ -142,20 +143,25 @@ let fileMenu (dispatch) =
             testMaps()
             displayPerformance 100 4000000)
         makeCondItem (JSHelpers.debugLevel <> 0) "Force Exception" None  (fun ev -> failwithf "User exception from menus")
+        makeCondItem (JSHelpers.debugLevel <> 0) "Call update" None  (fun ev -> failwithf "User exception from menus")
      ]
 
 
 let viewMenu dispatch =
+    let maindispatch = dispatch
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let dispatch = SheetT.KeyPress >> sheetDispatch
     let wireTypeDispatch = SheetT.WireType >> sheetDispatch
     let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
+    
+    
+    
+    let symbolDispatch msg = busWireDispatch (BusWireT.Msg.Symbol msg)
 
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.Togglefullscreen
-        makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         menuSeparator
         makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Shift+Plus") MenuItemRole.ZoomIn
         makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
@@ -165,6 +171,21 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
+        makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
+        makeMenu false "Theme" [
+            makeItem "Grayscale" None (fun ev -> 
+                maindispatch <| SetThemeUserData SymbolT.ThemeType.White
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.White)
+            )
+            makeItem "Light" None (fun ev -> 
+                maindispatch <| SetThemeUserData SymbolT.ThemeType.Light
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Light)
+            )
+            makeItem "Colourful" None (fun ev -> 
+                maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
+            )
+        ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
         makeMenu false "Wire Type" [
             makeItem "Jump wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
@@ -200,7 +221,7 @@ let editMenu dispatch' =
                makeElmItem "Flip Vertically" "CmdOrCtrl+Up" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
                makeElmItem "Flip Horizontally" "CmdOrCtrl+Down" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
                makeItem "Move Component Ports" None (fun _ -> 
-                    dispatch' <| ShowStaticInfoPopup("How to move component Ports", SymbolUpdate.moveCustomPortsPopup(), dispatch'))
+                    dispatch' <| ShowStaticInfoPopup("How to move component ports", SymbolUpdate.moveCustomPortsPopup(), dispatch'))
                menuSeparator
                makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
                makeElmItem "Distribute" "CmdOrCtrl+Shift+D" (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
@@ -255,7 +276,7 @@ let init() =
 
 // -- Create View
 let addDebug dispatch (msg:Msg) =
-    let str = Update.getMessageTraceString msg
+    let str = UpdateHelpers.getMessageTraceString msg
     if str <> "" then printfn ">>Dispatch %s" str else ()
     dispatch msg
 

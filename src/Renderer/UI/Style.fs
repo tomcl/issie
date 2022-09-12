@@ -2,6 +2,10 @@ module DiagramStyle
 
 open ModelType
 open Fable.React.Props
+open Browser.Dom
+
+module Constants =
+    let dividerBarWidth = 10
 
 let headerHeight = "72px"
 let private headerHeightWithBorderOffset = "74px"
@@ -10,7 +14,7 @@ let private rightSectionWidthS = "400px"
 /// Large right section.
 let private rightSectionWidthL = "650px"
 let minViewerWidth = 400
-let minEditorWidth = 400
+let minEditorWidth() = int ((document.getElementById "WholeApp").offsetWidth * 0.25)
 
 let rightSectionWidthViewerDefault = 650
 
@@ -21,7 +25,7 @@ let getHeaderHeight =
     
 let rightSectionWidth (model:Model) =
     match model.RightPaneTabVisible with
-    | RightTab.Properties | RightTab.Catalogue -> rightSectionWidthS
+    | RightTab.Properties | RightTab.Catalogue | RightTab.Transition -> rightSectionWidthS
     | RightTab.Build -> rightSectionWidthL
     | RightTab.Simulation -> 
         match model.SimSubTabVisible with
@@ -63,14 +67,20 @@ let rightSectionStyle model =
         Top "0px"
         Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
         Width widthRightSec
-        OverflowX OverflowOptions.Hidden
-        OverflowY OverflowOptions.Scroll
+        OverflowX OverflowOptions.Visible
+        //OverflowY OverflowOptions.Auto
         BorderTop "2px solid lightgray"
         UserSelect UserSelectOptions.None
         ZIndex 31
         BackgroundColor "white"
         //UserSelect UserSelectOptions.None
 ]
+
+let belowHeaderStyle headerSize =
+    Style [
+        OverflowY OverflowOptions.Auto
+        Height $"calc(100%% - {headerSize})"
+        ]
 
 let canvasVisibleStyle model = 
     let widthRightSec = rightSectionWidth model
@@ -88,6 +98,12 @@ let canvasVisibleStyle model =
     
 // Used by Sheet
 let canvasVisibleStyleList model = 
+    let background =
+        match model.Sheet.Wire.Symbol.Theme with
+        |DrawModelType.SymbolT.ThemeType.White -> BackgroundColor "white"
+        |DrawModelType.SymbolT.ThemeType.Light -> BackgroundColor "rgba(255,255,0,0.1)"  //light yellow
+        |DrawModelType.SymbolT.ThemeType.Colourful -> BackgroundColor "rgba(0,0,0,0.05)" //light gray
+    
     let widthRightSec = rightSectionWidth model
     [
         Display DisplayOptions.Block
@@ -99,6 +115,7 @@ let canvasVisibleStyleList model =
         Bottom "0px"
         Right widthRightSec
         BorderTop "2px solid lightgray"
+        background
     ]
 
 let canvasSmallMenuStyle = Style [
@@ -135,6 +152,11 @@ let simulationNumberStyle = Style [
     Height "30px"
 ]
 
+let constraintNumberStyle = Style [
+    Width "200px"
+    Height "30px"
+]
+
 let simulationBitStyle = Style [
     Width "100px"
     Height "30px"
@@ -150,3 +172,53 @@ let menuLabelStyle = Style [
     LetterSpacing "0.1em"
     TextTransform "uppercase"
 ]
+
+let sortArrowStyle = Style [
+    Margin "0"
+    Display DisplayOptions.Block
+    Width "100%"
+    Height "50%"
+    Padding "0 0 0 0"
+    Top "0"
+    FontSize "50%"
+    Position PositionOptions.Relative
+    BorderColor "white"
+]
+
+let colMoveArrowStyle = Style [
+    Margin "0"
+    Display DisplayOptions.Block
+    Width "100%"
+    Height "50%"
+    Padding "0 0 0 0"
+    Top "0"
+    FontSize "80%"
+    Position PositionOptions.Relative
+    BorderColor "white"
+]
+
+let ttGridColumnProps index = [
+    Border "1px solid gray"
+    Padding "7px"
+    FontSize "18px"
+    TextAlign TextAlignOptions.Left
+    GridColumnStart <| string (index+1)
+    GridColumnEnd <| string (index+2)
+    OverflowX OverflowOptions.Auto
+    OverflowWrap "break-word"
+]
+
+let ttGridHiddenColumnProps gridWidth= [
+    GridColumnStart (string <| gridWidth + 1)
+    GridColumnEnd (string <| gridWidth + 2)
+    Width 0
+    OverflowX OverflowOptions.Hidden
+    Visibility "hidden"
+]
+
+let ttGridContainerStyle model = 
+    let widthRightSec = rightSectionWidth model
+    Style [
+        Display DisplayOptions.Grid
+        GridAutoFlow "column"
+    ]

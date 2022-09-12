@@ -1,6 +1,6 @@
 {
   "name": "issie",
-  "version": "3.0.0beta.5",
+  "version": "3.0.0beta.10",
   "description": "Schematic editor and Simulator",
   "homepage": "https://github.com/tomcl/issie",
   "bugs": {
@@ -19,6 +19,8 @@
     "compile": "dotnet fable src/Main -s && dotnet fable src/Renderer -s",
     "dev": "dotnet fable watch src/Main -s --run npm run devrenderer",
     "devrenderer": "dotnet fable watch src/Renderer -s --define ASSERTS --run npm run start",
+    "devfast": "dotnet fable watch src/Main -s --run npm run devrendererfast",
+    "devrendererfast": "dotnet fable watch src/Renderer -s --run npm run start",
     "start": "cross-env NODE_ENV=development node scripts/start.js",
     "build": "cross-env NODE_ENV=production node scripts/build.js",
     "pack": "npm run compile && npm run build && electron-builder --dir",
@@ -96,6 +98,9 @@
     "jest": "^27.5.1",
     "loglevel": "^1.7.1",
     "mini-css-extract-plugin": "^2.6.0",
+    "nearley": "^2.20.1",
+    "prismjs": "^1.15.0",
+    "react-simple-code-editor": "^0.11.0",
     "prettier": "^2.5.1",
     "react": "^17.0.0",
     "react-dom": "^17.0.0",

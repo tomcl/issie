@@ -15,39 +15,11 @@ open NumberHelpers
 open FSharp.Core
 open Fable.Core
 open Fable.Core.JsInterop
+open BuildUartHelpers
 open Node.ChildProcess
 open Node
 
 module node = Node.Api
-
-[<Emit("import {pauseOp,continuedOp,connectAndRead,simpleConnect,disconnect,step,readAllViewers,stepAndReadAllViewers} from '../UartFiles/IS-uart.js' ")>]
-let importReadUart : unit = jsNative
-
-[<Emit("pauseOp()")>]
-let pause (): unit = jsNative
-
-[<Emit("continuedOp()")>]
-let continuedOp (): unit = jsNative
-
-
-[<Emit("connectAndRead($0)")>]
-let connect (numberOfViewers:int): JS.Promise<string array> = jsNative
-
-[<Emit("simpleConnect($0)")>]
-let simpleConnect (): JS.Promise<unit> = jsNative
-
-[<Emit("disconnect()")>]
-let disconnect (): unit = jsNative
-
-[<Emit("step()")>]
-let step (): unit = jsNative
-
-[<Emit("readAllViewers($0)")>]
-let readAllViewers (numberOfViewers:int): JS.Promise<string array> = jsNative
-
-[<Emit("stepAndReadAllViewers($0)")>]
-let stepAndReadAllViewers (numberOfViewers:int): JS.Promise<string array> = jsNative
-
 
 importReadUart
 
@@ -1079,7 +1051,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 Generate = Queued
                 Upload = Queued
             }
-            DebugReadLogs = []
+            DebugIsConnected = false
             DebugState = match profile with | Verilog.Debug -> Paused | Verilog.Release -> NotDebugging
         }, Cmd.ofMsg (StartCompilationStage (Synthesis, path, name, profile))
     | StartCompilationStage (stage, path, name, profile) ->
@@ -1088,14 +1060,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if not model.Compiling then
             model, Cmd.none
         else 
-            // TODO: Make this the issie install path
-            //let include_path = "C:/Users/apant/Documents/issie/hdl"
             let cwd = getCWD ()
             let include_path = 
                 match JSHelpers.debugLevel <> 0 with
                 |true -> cwd+"/static/hdl"
-                |false -> cwd+"/resources/static/hdl"//path+"/hdl" 
-            // node.process.cwd()+"/hdl"
+                |false -> cwd+"/resources/static/hdl" 
+            
             printfn "include_path: %s" include_path
             let pcf = match profile with
                       | Verilog.Release -> $"{include_path}/icestick.pcf"
@@ -1247,9 +1217,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 ()
             })
         
-        { model with
-            DebugReadLogs = List.append model.DebugReadLogs [ReadLog n]
-        }, Cmd.ofSub (readSingleStep n)
+        model, Cmd.ofSub (readSingleStep n)
     | DebugRead n ->
         //printfn "reading"
         
@@ -1274,42 +1242,40 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 ()
             })
         
-        { model with
-            DebugReadLogs = List.append model.DebugReadLogs [ReadLog n]
-        }, Cmd.ofSub (readSingleStep n)
+        model, Cmd.ofSub (readSingleStep n)
     | DebugConnect ->
-        match model.DebugConnection with
-        | Some c -> 
-            model, Cmd.none//c.push None |> ignore; c.destroy()
-        | _ -> 
+        //match model.DebugConnection with
+        //| Some c -> 
+        //    model, Cmd.none//c.push None |> ignore; c.destroy()
+        //| _ -> 
             //simpleConnect()
             
-            let viewerNo = (Array.length model.DebugMappings) / 8
+        let viewerNo = (Array.length model.DebugMappings) / 8
 
-            let connectAndRead viewers dispatch =
-                Async.StartImmediate(async {
-                let exit_code = ref 0
-                try
-                    let keepGoing = ref true
+        let connectAndRead viewers dispatch =
+            Async.StartImmediate(async {
+            let exit_code = ref 0
+            try
+                let keepGoing = ref true
 
-                    let c = simpleConnect()
-                    c.``then``(fun v -> 
-                        dispatch <| (DebugRead viewers)
-                    )|> ignore
+                let c = simpleConnect()
+                c.``then``(fun v -> 
+                    dispatch <| (DebugRead viewers)
+                )|> ignore
                     
-                    keepGoing.Value <- false
-                finally
-                    ()
-                })
+                keepGoing.Value <- false
+            finally
+                ()
+            })
 
-            { model with
-                DebugReadLogs = [ReadLog 0]
-            }, Cmd.ofSub (connectAndRead viewerNo)
+        { model with
+            DebugIsConnected = true
+        }, Cmd.ofSub (connectAndRead viewerNo)
     | DebugDisconnect ->
         printfn "Closing device"
         disconnect()
 
-        { model with DebugConnection = None }, Cmd.none
+        { model with DebugIsConnected = false}, Cmd.none
     | OnDebugRead (data,whichViewer) ->
         let part = whichViewer
         let bits =
@@ -1318,11 +1284,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             |> List.map (fun i -> Some <| (data / (pown 2 i)) % 2)
             |> List.map (fun b -> b.ToString())
             |> String.concat ","
-        printfn $"read {data} from {part} ([{bits}])"
+        //printfn $"read {data} from {part} ([{bits}])"
         { model with
-            DebugReadCount = model.DebugReadCount + 1
             DebugData = List.insertAt part data (List.removeAt part model.DebugData)
-            DebugReadLogs = model.DebugReadLogs
         }, Cmd.none
     | DebugUpdateMapping mappings ->
         {model with DebugMappings = mappings }, Cmd.none
@@ -1390,10 +1354,8 @@ let init () =
         CompilationProcess = None
         DebugState = NotDebugging
         DebugData = [1..256] |> List.map (fun i -> 0b00111011)
-        DebugConnection = None
+        DebugIsConnected = false
         DebugMappings = [||]
-        DebugReadLogs = []
-        DebugReadCount  = 0
     }, Cmd.none
 
 

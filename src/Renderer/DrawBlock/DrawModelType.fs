@@ -541,9 +541,7 @@ module SheetT =
         DebugState: DebugState
         DebugData: int list
         DebugMappings: string array
-        DebugConnection: Node.Fs.ReadStream<string> option
-        DebugReadLogs: ReadLog list
-        DebugReadCount: int
+        DebugIsConnected: bool
         }
     
     open Operators

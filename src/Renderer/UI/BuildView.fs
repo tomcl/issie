@@ -54,7 +54,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (profile: Verilog.Compil
             match model.UIState with
             | Some _ -> () // do nothing if in middle of I/O operation
             | None ->
-                match Simulator.prepareSimulation proj.OpenFileName state proj.LoadedComponents with
+                match Simulator.prepareSimulation 2 proj.OpenFileName state proj.LoadedComponents with
                 | Ok sim -> 
                     let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
                     printfn "should be compiling %s :: %s" proj.ProjectPath proj.OpenFileName

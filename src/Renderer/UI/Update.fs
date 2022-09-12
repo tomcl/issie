@@ -724,6 +724,8 @@ let update (msg : Msg) oldModel =
         | StepSim -> Cmd.batch <| editCmds
         | TruthTable -> Cmd.batch <| editCmds
         | WaveSim -> Cmd.batch <| editCmds
+    | ChangeBuildTabVisibility ->
+        {model with BuildVisible = (not <| model.BuildVisible)}, Cmd.none
     | SetHighlighted (componentIds, connectionIds) ->
         let sModel, sCmd = SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd

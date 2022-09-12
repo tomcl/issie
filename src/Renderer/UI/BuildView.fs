@@ -197,9 +197,15 @@ let viewBuild model dispatch =
                                         | _ -> (name, [bit]) :: s
                                         ) []
 
+                                
                                 let numOrX nOpt =
                                     Option.map (fun b -> b.ToString()) nOpt
                                     |> Option.defaultValue "x"
+                                    |> String.map( fun ch ->
+                                        match List.length model.Sheet.DebugReadLogs with
+                                        |0 -> 'X'
+                                        |_ -> ch
+                                    )
 
                                 values
                                 |> List.map (fun (name, bits) ->

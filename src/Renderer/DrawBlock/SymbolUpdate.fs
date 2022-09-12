@@ -931,6 +931,26 @@ let inline writeMemoryType model compId memory =
     
     Optic.set (symbolOf_ compId >-> component_) newComp model
 
+/// Given a model, a component Id and a memory component type, updates the type of the component to the specified memory and returns the updated model.
+let inline updateMemory model compId updateFn =
+    let symbol = model.Symbols[compId]
+    let comp = symbol.Component 
+    
+    let newCompType =
+        match comp.Type with
+        | RAM1 m -> RAM1 (updateFn m)
+        | ROM1 m -> ROM1 (updateFn m)
+        | AsyncROM1 m -> AsyncROM1 (updateFn m)
+        | AsyncRAM1 m -> AsyncRAM1 (updateFn m)
+        | _ -> 
+            printfn $"Warning: improper use of WriteMemoryType on {comp} ignored"
+            comp.Type
+    
+    let newComp = { comp with Type = newCompType }
+    
+    Optic.set (symbolOf_ compId >-> component_) newComp model
+
+
 let rotateSide (rotation: RotationType) (side:Edge) :Edge =
     match rotation, side with
     | RotateAntiClockwise, Top -> Left
@@ -1504,6 +1524,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | WriteMemoryType (compId, memory) ->
         (writeMemoryType model compId memory), Cmd.none
+
+    | UpdateMemory (compId, updateFn) ->  
+        (updateMemory model compId updateFn), Cmd.none
 
     | RotateLeft(compList, rotation) ->
         (transformSymbols (rotateSymbol rotation) model compList), Cmd.none

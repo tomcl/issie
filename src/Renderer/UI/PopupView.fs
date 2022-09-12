@@ -62,6 +62,9 @@ open Sheet.SheetInterface
 open CodeEditorHelpers
 open System
 
+module Constants =
+    let infoSignUnicode = "\U0001F6C8"
+
 
 /////////////////////   CODE EDITOR React Component  /////////////////////////
 // Basically: a code editor wrapped in Stateful React Component
@@ -527,137 +530,6 @@ let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispat
             ]
         ]
 
-let makeSourceMenu 
-        (dialog: PopupDialogData)
-        (dispatch: Msg -> Unit) =
-
-    let popupKey =
-        match dialog.MemorySetup with
-        | Some(_,_, key,_) -> key
-        | None -> 
-            printfn "No memory setup"
-            FromData
-
-    let onSelect key  =
-        let n1,n2, _,_ = getMemorySetup dialog 1
-        printfn $"Select {key}"
-        dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2,key,None))
-
-    let files =
-        FilesIO.readFilesFromDirectoryWithExtn dialog.ProjectPath ".ram"
-        |> List.map (FilesIO.removeExtn ".ram" >> Option.get)
-
-    let inputValidate text =
-         (text = "" || 
-            List.exists ((=) text) files || 
-            not (Seq.forall System.Char.IsLetterOrDigit (text)) || 
-            not (System.Char.IsLetter (char text[0])))
-         |> not
- 
-    let fileEntryBox =
-        let n1,n2, _,_ = getMemorySetup dialog 1
-        match popupKey with
-        | ToFile fName | ToFileBadName fName ->
-            Input.text [
-                Input.Props [Style [MarginLeft "2em"]]
-                Input.DefaultValue fName
-                Input.Placeholder "Enter file name"
-                Input.Color (if inputValidate fName then IsSuccess else IsDanger)
-                Input.OnChange 
-                    (getTextEventValue 
-                    >> (fun newName -> 
-                            let newKey = if inputValidate newName then ToFile newName else ToFileBadName newName
-                            dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2, newKey,None) ) ) )
-                ]
-        | _ -> str ""
-
-       
-    let existingFiles =
-        List.map FromFile files
-
-    /// Create one item in the drop-down RAM source menu
-    let printSource inList key =
-
-        let hSpace width = span [Style [Display DisplayOptions.InlineBlock; Width width]] []
-
-        let questionIcon = str "\u003F"
-
-        let tip txt =
-            span [
-                    Style [Float FloatOptions.Right]
-                    HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
-                    Tooltip.dataTooltip txt
-                ]
-                [
-                    Text.span [
-                        Modifiers [
-                            Modifier.TextWeight TextWeight.Bold
-                            Modifier.TextColor IsLight
-                            Modifier.BackgroundColor IsPrimary]
-                        Props [
-                            Style [
-                                Display DisplayOptions.InlineBlock
-                                Width "50px"
-                                TextAlign TextAlignOptions.Center]]
-                ] [questionIcon] ]
-
-        let (aWidth,dWidth,_,_) = getMemorySetup dialog 1
-
-        let multiplyTip mType =
-            tip ($"Dout = Addr[{aWidth-1}:{aWidth/2}] * Addr[{aWidth/2-1}:0]. \
-            Multiplication is {mType}." + 
-             (if dWidth < aWidth then 
-                $"The result will be truncated to bits [{dWidth-1}:0] on Dout."
-             else
-                ""))
-
-        match key with
-        | FromData -> [str "Enter data later"]
-        | SignedMultiplier -> [
-            str "Signed multiply"
-            hSpace "30px"
-            multiplyTip "signed"
-            ]
-        | UnsignedMultiplier -> [
-            str "Unsigned multiply "; 
-            hSpace "30px"
-            multiplyTip "unsigned"
-            ]
-        | ToFile _ | ToFileBadName _ -> // not needed - direct write from properties is better
-            [ str "Enter data later - create a new file " ; if inList then str "" else fileEntryBox]
-        | FromFile s -> [str $"{s}.ram"]
-
-    let sources =
-            [
-                FromData
-                SignedMultiplier
-                UnsignedMultiplier
-                //ToFileBadName ""
-            ] @ existingFiles
-
-
-    let isActiveFile key = 
-        match popupKey, key with
-        | ToFile _, ToFile _ -> true
-        | ToFileBadName _,ToFileBadName _ -> true
-        | popup, key -> key = popup
-
-    let menuItem (key) =
-        let react = printSource true key
-        Menu.Item.li
-            [ Menu.Item.IsActive (isActiveFile key)
-              Menu.Item.OnClick (fun _ -> onSelect key) ] react 
-    
-    Dropdown.dropdown [ Dropdown.IsUp; Dropdown.IsHoverable; ]
-        [ Dropdown.trigger [ ]
-            [ Button.button [Button.Color IsPrimary; Button.IsLight] (printSource false popupKey) ]                                
-          Dropdown.menu [Props [Style [Width "300px"] ]]
-            [ Dropdown.content [Props [Style [ZIndex 1000]] ]
-                [ Dropdown.Item.div [ ] [
-                    Menu.menu []
-                        [ Menu.list [] (List.map menuItem sources) ]
-                    ] ] ] ] 
-    
 
 /// Create the body of a memory dialog popup: asks for AddressWidth and
 /// WordWidth, two integers.
@@ -672,8 +544,8 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
                 let setup = getMemorySetup dialogData intDefault
                 dispatch <| SetPopupDialogMemorySetup (Some setup)
                 setup
-            | Some setup ->
-                setup
+            | Some (n1,n2,init, nameOpt) ->
+                (n1,n2,FromData, None)
         // needed in case getMemorySetup has delivered default values not yet stored
         if dialogData.MemorySetup <> Some setup then
             dispatch <| SetPopupDialogMemorySetup (Some setup)
@@ -711,9 +583,6 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
                     |> SetPopupDialogMemorySetup |> dispatch
                 )
             ]
-            br []
-            br []
-            makeSourceMenu dialogData dispatch
             br []
             br []
             str dataSetupMess
@@ -907,17 +776,42 @@ let viewPopup model dispatch =
     | None, Some popup, _ -> popup dispatch model.PopupDialogData 
 
 
+let makeH h =
+    Text.span [ Modifiers [
+        Modifier.TextSize (Screen.Desktop, TextSize.Is6)
+        Modifier.TextWeight TextWeight.Bold
+    ] ] [str h; br []]
+let styledSpan styles txt = span [Style styles] [str <| txt]
+let bSpan txt = styledSpan [FontWeight "bold"] txt
+let iSpan txt = styledSpan [FontStyle "italic"] txt
+let tSpan txt = span [] [str txt]
+
+
+let makeInfoPopupButton (title: string) (info: ReactElement) dispatch =
+
+    let foot _ = div [] []
+    let popup dispatch = dynamicClosablePopup title (fun _ -> info) foot [Width 1000] dispatch
+    // button driving a popup with a page of info
+    Button.button
+        [
+            Button.OnClick (fun _ -> popup dispatch)
+            Button.Size IsSmall
+            Button.IsRounded
+            Button.Color IColor.IsInfo
+            Button.Props [Style [
+                Height "32px"
+                FontSize "24px"; 
+                MarginLeft "10px"; 
+                MarginRight "10px"; 
+                MarginTop "3px";
+                MarginBottom "0px"
+                Padding "5px"; 
+                PaddingTop "5px"; 
+                PaddingBottom "8px"]]
+        ]
+        [str Constants.infoSignUnicode]
 
 let viewInfoPopup dispatch =
-    let makeH h =
-        Text.span [ Modifiers [
-            Modifier.TextSize (Screen.Desktop, TextSize.Is6)
-            Modifier.TextWeight TextWeight.Bold
-        ] ] [str h; br []]
-    let styledSpan styles txt = span [Style styles] [str <| txt]
-    let bSpan txt = styledSpan [FontWeight "bold"] txt
-    let iSpan txt = styledSpan [FontStyle "italic"] txt
-    let tSpan txt = span [] [str txt]
 
     let title = "ISSIE: Interactive Schematic Simulator and Integrated Editor"
 
@@ -1127,6 +1021,146 @@ let viewWaveSelectConfirmationPopup numWaves action dispatch =
     choicePopup title warning "Select waveforms" "Change selection"  action dispatch
 
 
+let memPropsInfoButton dispatch =
+    let title = "Issie Memories: how RAM and ROM data works"
+    let bullet s = li [] [str s]
+    let info = 
+        ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
+            bullet "RAMs and ROMs need to have initial data contents defined. For ROMs this never chamges. For RAMs the initial data \
+                    is reset for clock cycle 0 whenever a simulation is started."  
+            bullet "The default initial data is all 0s. Initial data is stored with the design sheet and  may be viewed or \
+                    modified with the memory editor from poperties. The editor can change locations numberd higehr than 15 by entering a \
+                    number in the 'first location displayed' box."
+            bullet "During the step or waveform viewer simulation RAM data can be viewed, but not manually changed. RAM data may change as the result of writes. \
+                    These changes don't affect the initial data."
+            bullet "When using external tools like an assembler it is useful to enter RAM or ROM initial data from a text file. Memory data can be \
+                    written to a file with extension '.ram'. If a '.ram' file is placed in the project directory a RAM or ROM component can be linked to the \
+                    file permananetly by selecting it from the properties page."
+            bullet "Linked memories can have initial data updated to latest file contents, if they change, from a button on properties. Update is automatic
+                    when a new simulation is started."
+        ]
+    makeInfoPopupButton title info dispatch
+
+
+/// maybe no longer needed...
+let fileEntryBox files fName dialog dispatch =
+    let inputValidate text =
+        (text = "" || 
+        List.exists ((=) text) files || 
+        not (Seq.forall System.Char.IsLetterOrDigit (text)) || 
+        not (System.Char.IsLetter (char text[0])))
+        |> not
+    let n1,n2, _,_ = getMemorySetup dialog 1
+
+    Input.text [
+        Input.Props [Style [MarginLeft "2em"]]
+        Input.DefaultValue fName
+        Input.Placeholder "Enter file name"
+        Input.Color (if inputValidate fName then IsSuccess else IsDanger)
+        Input.OnChange 
+            (getTextEventValue 
+            >> (fun newName -> 
+                    let newKey = if inputValidate newName then ToFile newName else ToFileBadName newName
+                    dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2, newKey,None) ) ) )
+        ]
+
+let makeSourceMenu 
+        (projOpt: Project option)
+        (updateMem: ComponentId -> (Memory1 -> Memory1) -> Unit)
+        (cid: ComponentId)
+        (dispatch: Msg -> Unit)
+        (dialog: PopupDialogData) =
+
+    match dialog.MemorySetup with
+    | None ->
+        printfn "Error: can't find memory setup in dialog data"
+        div [] []
+    | Some (n1, n2, mem, nameOpt) ->
+
+        let popupKey mSetup =
+            match mSetup with
+            | Some(_,_, key,_) -> 
+                key
+            | None -> 
+                FromData
+
+
+
+        let onSelect key  =
+            let n1,n2, mem,_ = getMemorySetup dialog 1 // current values
+            printfn $"Select {key}"
+            //dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2,key,None))
+            dispatch <| SetPopupDialogMemorySetup (Some (n1,n2,key, match key with | FromFile name -> Some name | _ -> None))
+        
+            match key, projOpt with
+            | FromFile s, Some p ->
+                let mem1 = {Init = FromFile s; AddressWidth = n1; WordWidth = n2; Data=Map.empty}
+                let sheetDispatch sMsg = dispatch (Sheet sMsg)
+                let mem = FilesIO.initialiseMem mem1 p.ProjectPath
+                match mem with
+                | Ok mem' -> updateMem cid (fun _ -> mem')
+                | Error msg -> 
+                    dispatch <| SetFilesNotification
+                                    (Notifications.errorFilesNotification msg) 
+            | _ ->
+                updateMem cid (fun mem -> {mem with Init = FromData})
+                
+
+        let files =
+            FilesIO.readFilesFromDirectoryWithExtn dialog.ProjectPath ".ram"
+            |> List.map (FilesIO.removeExtn ".ram" >> Option.get)
+       
+        let existingFiles =
+            List.map FromFile files
+
+        /// Create one item in the drop-down RAM source menu
+        let printSource inList key =
+
+            match key with
+            | FromData -> [str "Unlink and use data from memory viewer/editor"]
+            | FromFile s -> [str $"Link memory to file {s}.ram"]
+            | _ -> []
+
+        let menuItem (key) =
+            let react = printSource true key
+            Menu.Item.li
+                [ Menu.Item.IsActive (key = popupKey dialog.MemorySetup)
+                  Menu.Item.OnClick (fun _ -> onSelect key) ] react 
+
+        let noFileItem =
+            Menu.Item.li
+                [ Menu.Item.IsActive (mem = FromData)
+                  Menu.Item.OnClick (fun _ -> onSelect FromData) ] (printSource true FromData)
+
+        let modalContents =
+            div [] [
+                str "Use this menu to change how the memory initial data is sourced. "
+                str "You can link data to the contents of an external file, or unlink it. "
+                str "Unlinked data can be edited from the properties panel."
+                br []; br []
+                Menu.menu []
+                    [ Menu.list [] (noFileItem :: List.map menuItem existingFiles) ]
+        
+            ]
+        
+        match mem with
+        | _ when existingFiles.Length > 0 ->
+            modalContents
+        | _ ->
+            str "To link this memory to external file data, add a .ram file to the project directory"
+
+let makePopupButton (title: string) (menu: PopupDialogData -> ReactElement) (buttonLegend: string) dispatch =
+
+    let foot _ = div [] []
+    let popup dispatch = 
+        dynamicClosablePopup title (fun dialog -> menu dialog) foot [Width 600] dispatch
+    // button driving a popup with a page of info
+    Button.button
+        [
+            Button.OnClick (fun _ -> popup dispatch)
+            Button.Color IsPrimary
+        ]
+        [str buttonLegend]
 
 
 

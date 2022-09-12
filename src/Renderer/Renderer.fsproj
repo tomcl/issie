@@ -68,8 +68,8 @@
     <Compile Include="UI/ModelType.fs" />
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI/Style.fs" />
-    <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI\Notifications.fs" />
+    <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI/MemoryEditorView.fs" />
     <Compile Include="UI/FileMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />

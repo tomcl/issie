@@ -66,21 +66,22 @@ module Constants =
 /// as the tuple (real H, real W).
 /// Needed because H & W in Component do not chnage with rotation.
 /// NB Pos in component = Pos in Symbol and DOES change with rotation!
-let inline getCompRotatedHAndW (comp: Component) (transform: STransform)  =
+let inline getCompRotatedHAndW (comp: Component) (transform: STransform) hScale vScale  =
+    let hS,vS = (Option.defaultValue 1.0 hScale),(Option.defaultValue 1.0 vScale)
     match transform.Rotation with
-    | Degree0 | Degree180 -> comp.H, comp.W
-    | Degree90 | Degree270 -> comp.W, comp.H
+    | Degree0 | Degree180 -> comp.H*vS, comp.W*hS
+    | Degree90 | Degree270 -> comp.W*hS, comp.H*vS
 
 /// Returns the correct height and width of a transformed symbol
 /// as the tuple (real H, real W).
 /// Needed because H & W in Component do not chnage with rotation.
 /// NB Pos in component = Pos in Symbol and DOES change with rotation!
-let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform
+let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform sym.HScale sym.VScale
 
 /// returns the true centre of a component's symbol
-let inline getRotatedCompCentre comp transform =
+let inline getRotatedCompCentre comp transform hScale vScale =
     // true component BB is (comp.X,comp.Y), h, w
-    let h,w = getCompRotatedHAndW comp transform
+    let h,w = getCompRotatedHAndW comp transform hScale vScale
     let centreX = comp.X + w / 2.
     let centreY = comp.Y + h / 2.
     {X=centreX;Y=centreY}
@@ -88,7 +89,7 @@ let inline getRotatedCompCentre comp transform =
 /// returns the true centre of a symbol, taking into account
 /// its current rotation
 let inline getRotatedSymbolCentre (symbol:Symbol) =
-    getRotatedCompCentre symbol.Component symbol.STransform
+    getRotatedCompCentre symbol.Component symbol.STransform symbol.HScale symbol.VScale
 /// Returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol.
 /// Works with rotation. For a rotated symbol, TopLeft = Pos, and H,W swapped in getrotatedHAndW
 let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
@@ -170,7 +171,19 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
 
 
     
-
+let getSymbolColour compType clocked (theme:ThemeType) =
+    match theme with
+    | White | Light -> "lightgray"
+    | Colourful ->
+        match compType with
+        | Register _ | RegisterE _ 
+        | ROM1 _ |AsyncROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 
+        | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ -> "lightblue"
+        | Custom _ when clocked
+            -> "lightblue"  //for clocked components
+        |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
+            -> "#E8D0A9"  //dark orange: for IO
+        | _ -> "rgba(255,255,0,0.15)" //lightyellow: for combinational components
 
 
 
@@ -206,8 +219,8 @@ let calcLabelBoundingBox (sym: Symbol) =
                      | _ -> transform.Rotation
         | false -> transform.Rotation
         |> combineRotation (Option.defaultValue Degree0 sym.LabelRotation)
-    let h,w = getCompRotatedHAndW comp transform
-    let centre = getRotatedCompCentre comp transform
+    let h,w = getRotatedHAndW sym
+    let centre = getRotatedSymbolCentre sym
 
     let margin = 
         match sym.Component.Type with
@@ -249,6 +262,12 @@ let busTitleAndBits (t:string) (n:int) : string =
     | _ -> 
         failwith "non positive bus width"
 
+
+let nBitsGateTitle (gateType:string) (n:int) : string =
+    match n with
+    |1 -> gateType
+    |_ -> (string n) + "-bit " + gateType 
+
 ///Insert titles for bus select
 /// used once 
 let busSelectTitle (wob:int) (lsb:int) : string = 
@@ -258,7 +277,7 @@ let busSelectTitle (wob:int) (lsb:int) : string =
     | _ -> failwith "non positive bus width in bustitle"
 
 ///Decodes the component type into component labels
-let getPrefix compType = 
+let getPrefix (compType:ComponentType) = 
     match compType with
     | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
     | Mux2 -> "MUX"
@@ -267,8 +286,14 @@ let getPrefix compType =
     | Demux2 -> "DM"
     | Demux4 -> "DM"
     | Demux8 -> "DM"
-    | NbitsAdder _ -> "ADD"
+    | NbitsAdder _ | NbitsAdderNoCin _
+    | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ 
+        -> "ADD"
     | NbitsXor _ -> "NXOR"
+    | NbitsAnd _ -> "AND"
+    | NbitsOr _ -> "OR"
+    | NbitsNot _ -> "NOT"
+    | NbitSpreader _ -> "S"
     | DFF | DFFE -> "FF"
     | Register _ | RegisterE _ -> "REG"
     | AsyncROM1 _ -> "AROM"
@@ -280,7 +305,12 @@ let getPrefix compType =
     | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
-    | _ -> ""
+    | Counter _ |CounterNoEnable _
+    | CounterNoLoad _ |CounterNoEnableLoad _ -> "CNT"
+    | MergeWires -> "MW"
+    | SplitWire _ -> "SW"
+    |_  -> ""
+
 
 
 // Text to be put inside different Symbols depending on their ComponentType
@@ -291,7 +321,8 @@ let getComponentLegend (componentType:ComponentType) =
     | Xor | Xnor -> "=1"
     | Not -> "1"
     | Decode4 -> "Decode"
-    | NbitsAdder n -> busTitleAndBits "Adder" n
+    | NbitsAdder n | NbitsAdderNoCin n
+    | NbitsAdderNoCinCout n | NbitsAdderNoCout n -> busTitleAndBits "Adder" n
     | Register n | RegisterE n-> busTitleAndBits "Register" n
     | AsyncROM1 _ -> "Async.ROM"
     | ROM1 _ -> "Sync.ROM"
@@ -299,7 +330,12 @@ let getComponentLegend (componentType:ComponentType) =
     | AsyncRAM1 _ -> "Async.RAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
-    | NbitsXor (x)->   busTitleAndBits "NBits-Xor" x
+    | Counter n |CounterNoEnable n
+    | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
+    | NbitsXor (x)->   nBitsGateTitle "XOR" x
+    | NbitsOr (x)->   nBitsGateTitle "OR" x
+    | NbitsAnd (x)->   nBitsGateTitle "AND" x
+    | NbitsNot (x)->  nBitsGateTitle "NOT" x
     | Custom x -> x.Name.ToUpper()
     | _ -> ""
 
@@ -308,8 +344,15 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     match componentType with
     | Decode4 -> (["SEL";"DATA"]@["0"; "1";"2"; "3"])
     | NbitsAdder _ -> (["Cin";"P";"Q"]@["SUM "; "COUT"])
+    | NbitsAdderNoCin _ -> (["P";"Q"]@["SUM "; "COUT"])
+    | NbitsAdderNoCinCout _ -> (["P";"Q"]@["SUM "])
+    | NbitsAdderNoCout _ -> (["Cin";"P";"Q"]@["SUM "])
     | Register _ -> (["D"]@["Q"])
     | RegisterE _ -> (["D"; "EN"]@["Q"])
+    | Counter _ -> (["D"; "LOAD"; "EN"]@["Q"])
+    |CounterNoEnable _ -> (["D"; "LOAD"]@["Q"])
+    | CounterNoLoad _ -> (["EN"]@["Q"])
+    |CounterNoEnableLoad _ ->  ([]@["Q"])
     | ROM1 _ |AsyncROM1 _ -> (["ADDR"]@["DOUT"])
     | RAM1 _ -> (["ADDR"; "DIN";"WEN" ]@["DOUT"])
     | AsyncRAM1 _ -> (["ADDR"; "DIN";"WEN" ]@["DOUT"])
@@ -321,7 +364,8 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | Demux2 -> (["DATA" ; "SEL"]@["0"; "1"])
     | Demux4 -> (["DATA"; "SEL"]@["0"; "1";"2"; "3";])
     | Demux8 -> (["DATA"; "SEL"]@["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
-    | NbitsXor _ -> (["P"; "Q"]@ ["OUT"])
+    | NbitsXor _ | NbitsAnd _ -> (["P"; "Q"]@ ["OUT"])
+    | NbitsNot _ -> (["IN"]@["OUT"])
     | Custom x -> (List.map fst x.InputLabels)@ (List.map fst x.OutputLabels)
     | _ -> ([]@[])
    // |Demux8 -> (["IN"; "SEL"],["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
@@ -339,7 +383,7 @@ let movePortsToCorrectEdgeForComponentType (ct: ComponentType) (portMaps: PortMa
         movePortToBottom portMaps 4
     | Mux8 ->
         movePortToBottom portMaps 8
-    | NbitsAdder _ -> 
+    | NbitsAdder _ |NbitsAdderNoCout _ -> 
         let rightSide = portMaps.Order[Right]
         let newRightSide = List.rev rightSide
         let newPortOrder = Map.add Right newRightSide portMaps.Order
@@ -543,12 +587,21 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | DFF -> (  1 , 1, 2.5*gS, 2.5*gS) 
     | DFFE -> ( 2  , 1, 2.5*gS  , 2.5*gS) 
     | Register (a) -> ( 1 , 1, 2.*gS, 4.*gS )
-    | RegisterE (a) -> ( 2 , 1, 2.*gS  , 4.*gS) 
+    | RegisterE (a) -> ( 2 , 1, 2.*gS  , 4.*gS)
+    | Counter (a) -> (3 , 1 , 4.*gS , 5.*gS)
+    |CounterNoEnable (a) -> (2 , 1 , 3.*gS , 5.*gS)
+    | CounterNoLoad (a) -> (1 , 1 , 3.*gS , 5.*gS)
+    |CounterNoEnableLoad (a) -> (0 , 1 , 2.*gS , 3.5*gS)
     | AsyncROM1 (a)  -> (  1 , 1, 4.*gS  , 5.*gS) 
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
-    | NbitsXor (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
-    | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS) 
+    | NbitsXor (n) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
+    | NbitsNot (n)  -> (  1 , 1, 3.*gS  , 4.*gS) 
+    | NbitSpreader (n) -> (1, 1, 2.*gS, 2.*gS)
+    | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS)
+    |NbitsAdderNoCin (n) -> (  2 , 2, 3.*gS  , 4.*gS)
+    | NbitsAdderNoCout (n)-> (  3 , 1, 3.*gS  , 4.*gS)
+    | NbitsAdderNoCinCout (n) -> (  2 , 1, 3.*gS  , 4.*gS)
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 
 /// make a completely new component
@@ -572,8 +625,11 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
                 LabelBoundingBox = None
                 LabelRotation = None
                 STransform=defaultSTransform; 
+                ReversedInputPorts=None
                 PortOrder = Map.empty; 
-                PortOrientation=Map.empty}
+                PortOrientation=Map.empty
+                HScale = None
+                VScale = None}
         }
     let props = getComponentProperties compType label           
     makeComponent' props label
@@ -581,11 +637,12 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
 
 
 /// Function to generate a new symbol
-let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) =
+let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
     let transform = {Rotation= Degree0; flipped= false}
+
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
@@ -595,7 +652,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
           {
             HighlightLabel = false
             ShowPorts = ShowNone
-            Colour = "lightgray"
+            Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
           }
       InWidth0 = None // set by BusWire
@@ -605,9 +662,12 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       Moving = false
       PortMaps = initPortOrientation comp
       STransform = transform
+      ReversedInputPorts = Some false
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
       MovingPortTarget = None
+      HScale = None
+      VScale = None
     }
     |> autoScaleHAndW
     |> calcLabelBoundingBox
@@ -685,32 +745,37 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     //get ports on the same edge first
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
-    let index = float( List.findIndex (fun (p:string)  -> p = port.Id) ports )
+    let numberOnSide = List.length ports
+    let index = ( List.findIndex (fun (p:string)  -> p = port.Id) ports )
+    let index' = match sym.ReversedInputPorts with |Some true -> float (numberOnSide-1-index) | _ -> float(index)
     let gap = getPortPosEdgeGap sym.Component.Type 
     let topBottomGap = gap + 0.3 // extra space for clk symbol
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
     let baseOffset' = baseOffset + getMuxSelOffset sym side
     let portDimension = float ports.Length - 1.0
+    //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
     match side with
     | Left ->
-        let yOffset = float h * ( index + gap )/(portDimension + 2.0*gap)
+        let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
         baseOffset' + {X = 0.0; Y = yOffset }
     | Right -> 
-        let yOffset = float h * (portDimension - index + gap )/(portDimension + 2.0*gap)
+        let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
         baseOffset' + {X = 0.0; Y = yOffset }
     | Bottom -> 
-        let xOffset = float  w * (index + topBottomGap)/(portDimension + 2.0*topBottomGap)
+        let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
         baseOffset' + {X = xOffset; Y = 0.0 }
     | Top ->
-        let xOffset = float w * (portDimension - index + topBottomGap)/(portDimension + 2.0*topBottomGap)
+        let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
         baseOffset' + {X = xOffset; Y = 0.0 }
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
 let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
     match sym.MovingPort with
     | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
-    | _ -> getPortPos sym port
+    | _ -> 
+        //printfn "symbol %A portDimension %A" sym.Component.Type (getPortPos sym port)
+        getPortPos sym port
 
 let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port
@@ -798,7 +863,7 @@ let private drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoint
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
-let createBiColorPolygon points colour strokeColor opacity strokeWidth= 
+let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
         [makePolygon points {defaultPolygon with Fill = colour; Stroke = strokeColor; FillOpacity = opacity; StrokeWidth=strokeWidth}]
     else   
@@ -815,7 +880,7 @@ let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygo
 
 let outlineColor (color:string) =
     match color.ToLower() with
-    | "lightgray"  -> "black"
+    | "lightgray" |"lightblue" | "#E8D0A9" | "rgba(255,255,0,0.15)"  -> "black"
     | c -> c
 
 let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Line instead of polygon?
@@ -860,7 +925,7 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 
 
 
-let drawSymbol (symbol:Symbol) =
+let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
@@ -868,8 +933,8 @@ let drawSymbol (symbol:Symbol) =
     let opacity = appear.Opacity
     let comp = symbol.Component
     let h,w = getRotatedHAndW symbol
-    let H = float comp.H
-    let W = float comp.W
+    let H = float comp.H*(Option.defaultValue 1.0 symbol.VScale)
+    let W = float comp.W*(Option.defaultValue 1.0 symbol.HScale)
     let transform = symbol.STransform
 
     let mergeSplitLine pos msb lsb  =
@@ -918,10 +983,10 @@ let drawSymbol (symbol:Symbol) =
             match comp.Type with
             // legacy component: to be deleted
             | Input _
-            | Input1 _ -> 
+            | Input1 _ |Output _ -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*4./5.;Y=H};{X=W;Y=H/2.};{X=W*0.8;Y=0}|] 
-            | Output _ -> 
-                [|{X=W/5.;Y=0};{X=0;Y=H/2.};{X=W/5.;Y=H};{X=W;Y=H};{X=W;Y=0}|]
+            //| Output _ -> 
+            //    [|{X=W/5.;Y=0};{X=0;Y=H/2.};{X=W/5.;Y=H};{X=W;Y=H};{X=W;Y=0}|]
             | Constant1 _ -> 
                 [|{X=W;Y=H/2.};{X=W/2.;Y=H/2.};{X=0;Y=H};{X=0;Y=0};{X=W/2.;Y=H/2.}|]
             | IOLabel ->
@@ -944,10 +1009,14 @@ let drawSymbol (symbol:Symbol) =
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*0.6;Y=H};{X=W*0.8;Y=H*0.7};{X=W;Y=H*0.7};{X=W;Y =H*0.3};{X=W*0.8;Y=H*0.3};{X=W*0.6;Y=0}|]
             | Not | Nand | Nor | Xnor -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
-            | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ -> 
+            | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ 
+            | Counter _ | CounterNoEnable _ 
+            | CounterNoLoad _ | CounterNoEnableLoad _ -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | Custom x when symbol.IsClocked = true -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
+            | NbitSpreader _ ->
+                [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
             | _ -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
@@ -967,6 +1036,13 @@ let drawSymbol (symbol:Symbol) =
             match transform.Rotation with
             | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
             | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
+            | _ -> textPoints
+        let NbitSpreaderTextPos =
+            let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.7;Y=H/2.+4.}|] {X=W/2.;Y=H/2.} transform
+            match transform.Rotation with
+            | Degree90 -> Array.map (fun pos -> pos + {X=13.;Y=(-5.0)}) textPoints
+            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +8.}) textPoints
+            | Degree270 -> Array.map (fun pos -> pos + {X=18.;Y=(-5.0)}) textPoints
             | _ -> textPoints
         let rotate1 pos = 
             match rotatePoints [|pos|] {X=W/2.;Y=H/2.} transform with 
@@ -988,6 +1064,17 @@ let drawSymbol (symbol:Symbol) =
                         mergeWiresTextPos[i] 
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
+        | NbitSpreader n -> 
+            //let lo = 1
+            //let msb = hi + lo - 1
+            //let midb = lo
+            //let midt = lo - 1
+            let values = [(-1,0);((n-1),0)]
+            List.fold (fun og i ->
+                og @ mergeSplitLine 
+                        NbitSpreaderTextPos[i] 
+                        (fst values[i]) 
+                        (snd values[i])) [] [0..1]
         | SplitWire mid -> 
             let msb, mid' = match symbol.InWidth0 with | Some n -> n - 1, mid | _ -> -100, -50
             let midb = mid'
@@ -998,7 +1085,7 @@ let drawSymbol (symbol:Symbol) =
                         splitWiresTextPos[i] 
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
-        | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _  -> 
+        | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
             (addText clockTxtPos " clk" "middle" "normal" "12px")
         | BusSelection(nBits,lsb) ->           
             busSelectLine (lsb + nBits - 1) lsb
@@ -1027,6 +1114,7 @@ let drawSymbol (symbol:Symbol) =
     let outlineColour, strokeWidth =
         match comp.Type with
         | SplitWire _ | MergeWires -> outlineColor colour, "2.0"
+        |NbitSpreader _ -> outlineColor colour, "4.0"
         | IOLabel -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"
@@ -1093,7 +1181,6 @@ let drawSymbol (symbol:Symbol) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
-   
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
@@ -1107,7 +1194,7 @@ let drawSymbol (symbol:Symbol) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth)
+    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
 
 
 
@@ -1115,7 +1202,7 @@ let init () =
     { 
         Symbols = Map.empty; CopiedSymbols = Map.empty
         Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty;
+        OutputPortsConnected = Map.empty; Theme = Colourful
     }, Cmd.none
 
 //----------------------------View Function for Symbols----------------------------//
@@ -1123,7 +1210,8 @@ type private RenderSymbolProps =
     {
         Symbol : Symbol 
         Dispatch : Dispatch<Msg>
-        key: string 
+        key: string
+        Theme: ThemeType
     }
 
 /// View for one symbol. Using FunctionComponent.Of to improve efficiency (not printing all symbols but only those that are changing)
@@ -1135,7 +1223,7 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol)
+                (drawSymbol props.Symbol props.Theme)
             
         , "Symbol"
         , equalsButFunctions
@@ -1176,6 +1264,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
                 Symbol = symbol
                 Dispatch = dispatch
                 key = id
+                Theme = model.Theme
             }
     )
     |> ofList

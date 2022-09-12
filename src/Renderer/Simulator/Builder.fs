@@ -15,14 +15,17 @@ open SimulatorTypes
 open CanvasStateAnalyser
 
 /// Assert that the FData only contain a single bit, and return such bit.
-let inline extractBit (fd: FData) : uint32 =
+let inline extractBit (fd_: FData) : uint32 =
+    match fd_ with
+    | Alg _ -> failwithf "Can't extract data from Algebra"
+    | Data fd ->
 #if ASSERTS
-    assertThat (fd.Width = 1)
-    <| sprintf "extractBit called with wireData: %A" fd
+        assertThat (fd.Width = 1)
+        <| sprintf "extractBit called with wireData: %A" fd
 #endif
-    match fd.Dat with | Word n -> n | BigWord _ -> failwithf "Can't extract 1 bit from BigWord data {wireData}"
+        match fd.Dat with | Word n -> n | BigWord _ -> failwithf "Can't extract 1 bit from BigWord data {wireData}"
 
-let inline packBit (bit: uint32) : FData = if bit = 0u then {Dat=Word 0u; Width = 1} else {Dat = Word 1u; Width = 1}
+let inline packBit (bit: uint32) : FData = if bit = 0u then Data {Dat=Word 0u; Width = 1} else Data {Dat = Word 1u; Width = 1}
 
 
 /// This function should only be called on Component ports, never on Connection
@@ -110,12 +113,13 @@ let private getDefaultState compType =
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
-    | Input1 _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Mux4 | Mux8 | Decode4
-    | Demux2 | Demux4 | Demux8 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  | Viewer _ -> NoState
+    | Input1 _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Mux4 | Mux8 | Decode4 | NbitSpreader _
+    | Demux2 | Demux4 | Demux8 | NbitsAdder _ | NbitsOr _ |NbitsXor _ |NbitsAnd _ |NbitsNot _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  | Viewer _ 
+    | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ -> NoState
     | Constant1 _ | Constant _ -> NoState 
     | AsyncROM1 _ -> NoState
     | DFF | DFFE -> DffState 0u
-    | Register w | RegisterE w -> RegisterState <| convertIntToFastData w 0u
+    | Register w | RegisterE w |Counter w |CounterNoEnable w | CounterNoLoad w |CounterNoEnableLoad w -> RegisterState <| convertIntToFastData w 0u
     | RAM1 memory | AsyncRAM1 memory -> RamState memory // The RamState content may change during
                                     // the simulation.
 
@@ -173,10 +177,8 @@ let private buildSimulationComponent
         Label = ComponentLabel comp.Label
         Inputs = inputs
         Outputs = outputs
-        OutputsPropagated = Array.replicate 0 false // default for non-clocked components
         CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.
         State = getDefaultState comp.Type
-        Reducer = getReducer comp.Type
     }
 
 let getLabelConnections (comps:Component list) (conns: Connection list) =

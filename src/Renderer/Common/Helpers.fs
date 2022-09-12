@@ -7,23 +7,28 @@
 module Helpers
 open CommonTypes
 
+
     [<AutoOpen>]
     module JsonHelpers =
         open Fable.SimpleJson
         open LegacyCanvas
+
+        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveSheetInfoAndNewConns of CanvasState * 'T option * SheetInfo option * System.DateTime
 
         type SavedInfo =
             | CanvasOnly of LegacyCanvasState
             | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime
             | CanvasWithFileWaveInfoAndNewConns of LegacyCanvasState * SavedWaveInfo option * System.DateTime
             | NewCanvasWithFileWaveInfoAndNewConns of CanvasState * SavedWaveInfo option * System.DateTime
-
+            | NewCanvasWithFileWaveSheetInfoAndNewConns of CanvasState * SavedWaveInfo option * SheetInfo option * System.DateTime
+            
             member self.getCanvas = 
                 match self with
                 | CanvasOnly c -> legacyTypesConvert c 
                 | CanvasWithFileWaveInfo (c,_,_) -> legacyTypesConvert c
                 | CanvasWithFileWaveInfoAndNewConns (c,_,_) -> legacyTypesConvert c
                 | NewCanvasWithFileWaveInfoAndNewConns(c,_,_) -> c
+                | NewCanvasWithFileWaveSheetInfoAndNewConns (c,_,_,_) -> c
 
             member self.getTimeStamp = 
                 match self with
@@ -31,6 +36,7 @@ open CommonTypes
                 | CanvasWithFileWaveInfo (_,_,ts) -> ts
                 | CanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
                 | NewCanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
+                | NewCanvasWithFileWaveSheetInfoAndNewConns (_,_,_,ts) -> ts
 
             member self.getWaveInfo =
                 match self with
@@ -38,17 +44,26 @@ open CommonTypes
                 | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
                 | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
                 | NewCanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
+                | NewCanvasWithFileWaveSheetInfoAndNewConns (_,waveInfo,_,_) -> waveInfo
 
-        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
+            member self.getSheetInfo =
+                match self with
+                | CanvasOnly _ -> None 
+                | CanvasWithFileWaveInfo (_,waveInfo,_) -> None
+                | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> None
+                | NewCanvasWithFileWaveInfoAndNewConns (_,_,ts) -> None
+                | NewCanvasWithFileWaveSheetInfoAndNewConns (_,_,sheetInfo,_) -> sheetInfo
+
+        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
             let time = System.DateTime.Now
             //printfn "%A" cState
             try            
-                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveInfoAndNewConns (cState, waveInfo, time))
+                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
             with
             | e -> 
                 printfn "HELP: exception in SimpleJson.stringify %A" e
                 "Error in stringify"
-
+        
         let jsonStringToState (jsonString : string) =
              Json.tryParseAs<LegacyCanvasState> jsonString
              |> (function
@@ -57,8 +72,14 @@ open CommonTypes
                         match Json.tryParseAs<SavedInfo> jsonString with
                         | Ok state -> Ok state
                         | Error str -> 
-                            printfn "Error in Json parse of %s : %s" jsonString str
-                            Error str)
+                            match Json.tryParseAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
+                            | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
+                                Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)                               
+                            | Error str -> 
+                                printfn "Error in Json parse of %s : %s" jsonString str
+                                Error str)
+
+
 
 (*-----------------------------------General helpers-----------------------------------------*)
 
@@ -83,6 +104,12 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
 /// replace new lines in a string by ';' for easier debug printing of records using %A
 let nocr (s:string) = 
     s.Replace("\n",";")
+
+
+
+// access to JS reference equality operation (===)
+
+
 
 // NB mapKeys and mapValues should probably be changed to use F# 6 Map.kets, Map.values
 
@@ -184,6 +211,14 @@ let getMemData (address: int64) (memData: Memory1) =
     Map.tryFind address memData.Data
     |> Option.defaultValue 0L
 
+/// Returns a new array with the elements at index i1 and index i2 swapped
+let swapArrayEls i1 i2 (arr: 'a[]) =
+    arr
+    |> Array.mapi (fun i x ->
+        if i = i1 then arr[i2]
+        else if i = i2 then arr[i1]
+        else x)
+
 //--------------------Helper Functions-------------------------------//
 //-------------------------------------------------------------------//
 
@@ -196,7 +231,7 @@ let getNetList ((comps,conns) : CanvasState) =
     let id2Ins = id2X (fun (c:Component) -> ComponentId c.Id,c.InputPorts)
     let id2Comp = id2X (fun (c:Component) -> ComponentId c.Id,c)
 
-    let getPortInts sel initV (ports: Port list) =
+    let getPortInts sel initV (ports: Port list) = 
         ports
         |> List.map (fun port -> 
             match port.PortNumber with
@@ -206,7 +241,7 @@ let getNetList ((comps,conns) : CanvasState) =
 
     let initNets =
         comps
-        |> List.map ( fun (comp: Component) ->
+        |> List.map ( fun comp ->
             {
                 Id = ComponentId comp.Id
                 Type = comp.Type

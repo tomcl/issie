@@ -3,148 +3,7 @@
 *)
 
 module CommonTypes
-    open Fable.Core
-
-    //=================================================//
-    // Faster version of Map for objects with SHA hash //
-    //=================================================//
-
-    // Currently not used. Does it work?
-    
-    type HMap<'T> = 
-        | Tree of HMap<'T> array
-        | Found of 'T
-        | Empty
-
-    let inline initHArray() = Array.create 16 Empty
-
-    let charCodeF = int 'a' 
-    let charCode0 = int '0' 
-
-    let inline getHashDigit n (h:string) =
-        let ch = h[n]
-        if System.Char.IsDigit ch then
-            int ch - charCode0          
-        elif System.Char.IsLetter ch then
-            int ch - charCodeF + 10
-        elif ch = '-' then 0           
-        else
-            failwithf "Hash to digit conversion failed on n={n}, char={ch}"
-
-    let getFastHash (sha:string) =
-        sha 
-        |> Seq.toArray 
-        |> Array.mapi (fun i _ -> getHashDigit i sha)
-
-    let getFastHItem (x,_,_) = x
-
-    let getFastSHA (sha:string, x:int array, _)  n = x[n]
-
-    let inline copyUpdate n item arr =
-        Array.init 
-            (Array.length arr) 
-            (fun i -> if i = n then item else Empty)
-
-    let hMapAdd (getFastEq: 'T -> string) (getSHA: 'T -> int -> int) (item: 'T) (hm: HMap<'T>) =
-        let hash = getSHA item
-        let rec hAdd shaIndex hm =
-            match hm with
-            | Empty -> Found item
-            | Found item' ->
-                let hash' = getSHA item'
-                if getFastEq item' = getFastEq item then  
-                    Found item
-                else
-                    let h = hash shaIndex
-                    let h' = hash' shaIndex
-                    let arr = initHArray()
-                    if h <> h' then
-                        arr[h] <- Found item 
-                        arr[h'] <- Found item'
-                        Tree arr
-                    else 
-                        arr[h'] <- hAdd (shaIndex+1) (Found item')
-                        Tree arr
-            | Tree arr ->
-                let h = hash shaIndex
-                let hm' = hAdd (shaIndex+1) arr[h]
-                Tree <| copyUpdate h hm' arr
-        hAdd 0 hm  
-
-
-    let hMapAddMutate (getFastEq: 'T -> string) (getSHA: 'T -> int -> int) (item: 'T) (hm: HMap<'T>) =
-        let hash = getSHA item
-        let rec hAdd shaIndex hm =
-            match hm with
-            | Empty -> Found item
-            | Found item' ->
-                let hash' = getSHA item'
-                if getFastEq item = getFastEq item' then  
-                    Found item
-                else
-                    let arr = initHArray()
-                    let h = hash shaIndex
-                    let h' = hash' shaIndex
-                    if h <> h' then
-                        arr[h] <- Found item 
-                        arr[h'] <- Found item'
-                        Tree arr
-                    else 
-                        arr[h'] <- hAdd (shaIndex+1) (Found item')
-                        Tree arr
-                        
-            | Tree arr ->
-                let h = hash shaIndex
-                let hm' = hAdd (shaIndex+1) arr[h]
-                arr[h] <- hm'
-                Tree arr
-        hAdd 0 hm  
-
-    let hMapTryFind (getFastEq: 'T -> string) (getSHA: 'T -> int -> int) (item: 'T) (hm: HMap<'T>) =
-        let rec lookup shaIndex (hm:HMap<'T>) =
-            match hm with
-            | Found item' when getFastEq item' = getFastEq item ->
-                Some item'
-            | Tree arr ->
-                let hit = arr[getSHA item shaIndex]
-                lookup (shaIndex+1) hit
-            | _ -> None
-        lookup 0 hm
-
-    let rec hMapFilter (pred: 'T -> bool) (hm: HMap<'T>) =
-        match hm with
-        | Found item' as x when pred item' -> x
-        | Tree arr ->
-            let arr' = Array.map (hMapFilter pred) arr
-            if Array.exists (fun x -> x <> Empty) arr' then 
-                Tree arr'
-            else Empty                
-        | _ -> Empty
-
-    let rec hMapToArray (hm: HMap<'T>) =
-        match hm with
-        | Empty -> [||]
-        | Found x -> [|x|]
-        | Tree arr -> 
-            arr
-            |> Array.map hMapToArray
-            |> Array.concat
-
-    let rec arrayToHmap (getFastEq: 'T -> string) (getSHA: 'T -> int -> int) (arr: 'T array) =
-        (Empty, arr)
-        ||> Array.fold (fun hm item -> hMapAddMutate getFastEq getSHA item hm)
-
-
-    let rec hMapCount (hm: HMap<'T>) =
-        match hm with
-        | Empty -> 0
-        | Found _ -> 1
-        | Tree arr -> 
-            arr
-            |> Array.map hMapCount
-            |> Array.sum
-
-                
+    open Fable.Core               
 
     /// Position on SVG canvas
     /// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
@@ -240,6 +99,8 @@ module CommonTypes
         HostId : string
     }
 
+    type PortId = | PortId of string
+
     // NB - this.Text() is not currently used.
 
     /// This width is for wire displaying, >8 buswires displayed with 8px thickness. Actual size stored in Port type
@@ -257,6 +118,14 @@ module CommonTypes
             | Eight -> "8px"
             
             
+    /// Type to specify the origin of a custom component
+    type CCForm =
+        |User
+        |Library
+        |Protected of string
+        |Verilog of string
+
+
     /// Name identifies the LoadedComponent used.
     /// The labels define legends on symbol designating inputs or outputs: and are the names of the Input or Output components of the CC sheet.
     /// Label strings are unique per CustomComponent.
@@ -267,6 +136,8 @@ module CommonTypes
         // Tuples with (label * connection width).
         InputLabels: (string * int) list
         OutputLabels: (string * int) list
+        Form : CCForm option
+        Description : string option
     }
 
     /// Note that any memory addresses which have not been explicitly set when printing
@@ -319,15 +190,22 @@ module CommonTypes
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
         | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
-        | NbitsAdder of BusWidth: int | NbitsXor of BusWidth:int
+        | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
+        | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
+        | NbitsXor of BusWidth:int
+        | NbitsAnd of BusWidth: int | NbitsNot of BusWidth: int
+        | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
+        | Counter of BusWidth:int | CounterNoLoad of BusWidth:int
+        | CounterNoEnable of BusWidth:int | CounterNoEnableLoad of BusWidth:int
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
+
 
     /// Active pattern which matches 2-input gate component types.
     /// NB - NOT gates are not included here.
@@ -367,12 +245,20 @@ module CommonTypes
     }
         with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
     
+    
+    type ScaleAdjustment =
+        | Horizontal
+        | Vertical
+    
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option
         LabelRotation: Rotation option
         STransform: STransform
+        ReversedInputPorts: bool option
         PortOrientation: Map<string, Edge>
         PortOrder: Map<Edge, string list>
+        HScale: float option
+        VScale: float option
     }
 
 
@@ -427,6 +313,10 @@ module CommonTypes
         SymbolInfo : SymbolInfo option
     }
 
+    with member this.getPort (PortId portId: PortId) = 
+            List.tryFind (fun (port:Port) -> port.Id = portId ) (this.InputPorts @ this.OutputPorts)
+        
+
     /// JSConnection mapped to F# record.
     /// Id uniquely identifies connection globally and is used by library.
     type Connection = {
@@ -438,6 +328,14 @@ module CommonTypes
 
     /// F# data describing the contents of a single schematic sheet.
     type CanvasState = Component list * Connection list
+
+    
+
+    /// reduced version of CanvasState for electrical comparison, all geometry removed, components ordered
+    type ReducedCanvasState = | ReducedCanvasState of CanvasState
+
+    let unreduced (ReducedCanvasState(rComps,rConns)) = rComps,rConns
+
 
 
     //===================================================================================================//
@@ -496,12 +394,13 @@ module CommonTypes
     /// lots of colors can be added, see https://www.w3schools.com/colors/colors_names.asp
     /// The Text() method converts it to the correct HTML string
     /// Where speed matters the color must be added as a case in the match statement
-    type HighLightColor = Red | Blue | Yellow | Green | Orange | Grey | White | Purple | DarkSlateGrey | Thistle | Brown
+    type HighLightColor = Red | Blue | Yellow | Green | Orange | Grey | White | Purple | DarkSlateGrey | Thistle | Brown |SkyBlue
     with 
         member this.Text() = // the match statement is used for performance
             match this with
             | Red -> "Red"
             | Blue -> "Blue"
+            | SkyBlue -> "Skyblue"
             | Yellow -> "Yellow"
             | Green -> "Green"
             | Grey -> "Grey"
@@ -517,10 +416,12 @@ module CommonTypes
 
     /// SHA hash unique to a component - common between JS and F#
     [<Erase>]
-    type ComponentId      = | ComponentId of string
+    type ComponentId = | ComponentId of string
 
-
-    /// SHA hash unique to a connection - common between JS and F#
+    /// Unique identifier for a fast component.
+    /// The list is the access path, a list of all the containing custom components 
+    /// from the top sheet of the simulation (root first)
+    type FComponentId = ComponentId * ComponentId list
 
     /// SHA hash unique to a connection - common between JS and F#
     [<Erase>]
@@ -603,14 +504,20 @@ module CommonTypes
     (*-----------------------------------------------------------------------------*)
     // Types used within waveform Simulation code, and for saved wavesim configuartion
 
+    
     /// Uniquely identifies a wave by the component it comes from, and the port on which that
     /// wave is from. Two waves can be identical but have a different index (e.g. a wave with
     /// PortType Input must be driven by another wave of PortType Output).
     type WaveIndexT = {
-        Id: ComponentId
+        SimArrayIndex: int
+        Id: FComponentId
         PortType: PortType
         PortNumber: int
     }
+
+
+    
+
 
     /// Info saved by Wave Sim.
     /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
@@ -621,17 +528,24 @@ module CommonTypes
         /// Radix in which values are displayed in the wave simulator
         Radix: NumberBase option
         /// Width of the waveform column
-        WaveformColumnWidth: int option
+        WaveformColumnWidth: float option
         /// Number of visible cycles in the waveform column
         ShownCycles: int option
         /// RAMs which are selected to be shown in the RAM tables
         SelectedRams: Map<ComponentId, string> option
+        SelectedFRams: Map<FComponentId, string> option
 
         /// The below fields are legacy values and no longer used.
         ClkWidth: float option
         Cursor: uint32 option
         LastClk: uint32 option
         DisplayedPortIds: string array option
+    }
+
+    /// Info regarding sheet saved in the .dgm file
+    type SheetInfo = {
+        Form: CCForm option 
+        Description: string option
     }
 
     (*--------------------------------------------------------------------------------------------------*)
@@ -664,6 +578,8 @@ module CommonTypes
         InputLabels : (string * int) list
         /// Output port names, and port numbers in any created custom component
         OutputLabels : (string * int) list
+        Form : CCForm option
+        Description: string option
     }
 
     /// Returns true if a component is clocked
@@ -682,7 +598,8 @@ module CommonTypes
                         
 
                             
-        | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _ ->
+        | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _
+        | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ ->
             true
         | _ -> false
 
@@ -693,8 +610,10 @@ module CommonTypes
     type Project = {
         /// directory which contains the project files
         ProjectPath : string
-        /// name of open sheet (without extension)
+        /// name of viewed sheet (Form: User) (without extension)
         OpenFileName : string
+        /// name of sheet performing operation on (e.g.: when Verilog Editor is open)
+        WorkingFileName : string option
         /// componnets have one-one correspondence with files
         LoadedComponents : LoadedComponent list
         }

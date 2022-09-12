@@ -314,7 +314,7 @@ let private radixTabs (wsModel: WaveSimModel) dispatch =
                         Height "30px" ] ] ]
             [ a
                 [ Style
-                    [ Padding "0 0 0 0"
+                    [ CSSProp.Padding "0 0 0 0"
                       Height "30px" ]
                   OnClick(fun _ ->
                       InitiateWaveSimulation (WSViewerOpen,{wsModel.SimParams with WaveViewerRadix = rad})

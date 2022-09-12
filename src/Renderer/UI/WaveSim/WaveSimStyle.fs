@@ -8,24 +8,30 @@ open Fable.React
 open Fable.React.Props
 
 module Constants =
-    /// Width of names column
-    let namesColWidth = 200
+    // Width of names column - replaced by calcNamesColWidth function
+
     /// Width of values column
     let valuesColWidth = 100
+    let deleteSymbolWidth = 20
+    let scrollBarWidth = 15
 
     /// Width of left margin of waveform simulator
-    let leftMargin = 50
+    let leftMargin = 30
     /// Width of right margin of waveform simulator
-    let rightMargin = 50
+    let rightMargin = 30
 
     /// Height of each row in name and value columns.
     /// Same as SVG ViewBox Height.
     let rowHeight = 30
 
+    let colWidth = 120
+
     /// Width of line that separates each clock cycle.
     let clkLineWidth = 0.8
     /// Width of each waveform line.
     let lineThickness : float = 0.8
+    let columnFontSize = "12px"
+    let columnFontFamily = "Helvetica"
 
     let fontSizeValueOnWave = "10px"
     /// Text used to display vlaues on non-binary waves
@@ -38,6 +44,8 @@ module Constants =
 
     /// Padding between name label/value label and waveform column.
     let labelPadding = 3
+
+
 
 /// Style for top row in wave viewer.
 let topRowStyle = Style [
@@ -92,14 +100,6 @@ let selectRamButtonStyle = Style [
 ]
 
 /// Props for selectRamButton
-let selectRamButtonProps = [
-    Button.Color IsInfo
-    Button.Props [selectRamButtonStyle]
-]
-
-/// Props for selectRamButton when no RAMs are selectable
-let selectRamButtonPropsLight =
-    selectRamButtonProps @ [Button.IsLight]
 
 /// Style for selectWavesButton
 let selectWavesButtonStyle = Style [
@@ -109,11 +109,52 @@ let selectWavesButtonStyle = Style [
     MarginLeft 0
 ]
 
-/// Props for selectWavesButton
-let selectWavesButtonProps = [
-    Button.Color IsInfo
-    Button.Props [selectWavesButtonStyle]
+/// Style for top row of buttons
+let topRowButtonStyle = Style [
+    Height Constants.rowHeight
+    Width Constants.colWidth
+    FontSize "16px"
+    Position PositionOptions.Relative
+    MarginRight 5
+    MarginLeft 5
 ]
+
+let infoButtonProps color = [
+        Button.Color color
+        Button.IsRounded
+        Button.Size ISize.IsSmall
+        Button.Props [
+            Style [
+                Height (float Constants.rowHeight)
+                FontSize "15px"
+                Width "20px"
+                Position PositionOptions.Relative
+                MarginRight 0
+                MarginLeft 0
+            ]
+        ]
+    ]
+
+let topHalfButtonProps color = [
+    Button.Color color
+    Button.Props [topRowButtonStyle]
+]
+
+let selectRamButtonProps = topHalfButtonProps IsInfo
+
+/// Props for selectRamButton when no RAMs are selectable
+let selectRamButtonPropsLight =
+    selectRamButtonProps @ [Button.IsLight]
+
+
+let topHalfButtonPropsWithWidth color = [
+    Button.Color color
+    Button.Props [topRowButtonStyle]
+]
+
+/// Props for selectWavesButton
+let selectWavesButtonProps = topHalfButtonProps IsInfo
+
 
 /// Props for selectWavesButton when no waves are selectable
 let selectWavesButtonPropsLight =
@@ -121,6 +162,7 @@ let selectWavesButtonPropsLight =
 
 let centerAlignStyle = Style [
     TextAlign TextAlignOptions.Center
+    FontSize "15px"
 ]
 
 /// Style for row in ramTable
@@ -129,37 +171,48 @@ let ramRowStyle = Style [
     BorderBottom "1px solid rgb(219,219,219)"
 ]
 
+type RamRowType = RAMWritten | RAMRead | RAMNormal 
+
 /// Style for each row of ramTable
-let ramTableRowStyle wenHigh correctAddr =
+let ramTableRowStyle (rowType:RamRowType) =
+    match rowType with
     // Highlight in red on write
-    if wenHigh && correctAddr then
-        Style [
+    | RAMWritten ->
+        [
             BackgroundColor "hsl(347, 90%, 96%)"
             Color "hsl(348, 100%, 61%)"
             FontWeight "bold"
         ]
     // Highlight in blue on write
-    else if correctAddr then
-        Style [
+    | RAMRead ->
+        [
             BackgroundColor "hsl(206, 70%, 96%)"
             Color "hsl(204, 86%, 53%)"
             FontWeight "bold"
         ]
-    else Style []
+
+    | RAMNormal ->
+        []
 
 /// Props for Bulma Level element for single ramTable
 let ramTableLevelProps : IHTMLProp list = [
     Style [
+        Font Constants.columnFontFamily
+        FontSize Constants.columnFontSize
         Position PositionOptions.Relative
         Display DisplayOptions.InlineBlock
-        MarginRight 10
+        MarginRight 20
+        MarginLeft 20
     ]
 ]
 
 /// Props for Bulma Level element for ramTables
 let ramTablesLevelProps : IHTMLProp list = [
     Style [
-        OverflowX OverflowOptions.Scroll
+        OverflowX OverflowOptions.Auto
+        Font Constants.columnFontFamily
+        FontSize Constants.columnFontSize
+        
     ]
 ]
 
@@ -222,7 +275,7 @@ let clkCycleInputStyle = Style [
     Margin "0 0 0 0"
     Float FloatOptions.Left
     TextAlign TextAlignOptions.Center
-    Width "40px"
+    Width "60px"
     Height Constants.rowHeight
     Display DisplayOptions.InlineBlock
     FontSize "13px"
@@ -309,6 +362,29 @@ let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
     ]
 ]
 
+       
+       
+
+
+let calcNamesColWidth (ws:WaveSimModel) : int =
+    let cWidth =
+        DrawHelpers.canvasWidthContext.font <- String.concat " " ["10px"; Constants.columnFontFamily]; // e.g. "16px bold sans-serif";
+        let getWidth (txt:string) =
+            let sizeInPx = float ((Constants.columnFontSize.ToLower()).Replace("px",""))   
+            sizeInPx * DrawHelpers.canvasWidthContext.measureText(txt).width / 10.0
+        ws.SelectedWaves
+        |> listCollectSomes (
+            fun wi -> 
+                Map.tryFind wi ws.AllWaves
+                |> Option.map (fun wave -> wave.ViewerDisplayName))
+        |> (fun lst -> "Dummy" :: lst)
+        |> List.map getWidth
+        |> List.max
+        |> System.Math.Ceiling
+        |> int
+    cWidth + Constants.deleteSymbolWidth
+
+
 /// List of Style properties for columns in wave viewer.
 let waveSimColumn = [
     Height "100%"
@@ -316,34 +392,38 @@ let waveSimColumn = [
     BorderTop Constants.borderProperties
     Display DisplayOptions.Grid
     GridAutoRows Constants.rowHeight
-    FontSize "12px"
-    OverflowX OverflowOptions.Scroll
+    FontSize Constants.columnFontSize
+    FontFamily Constants.columnFontFamily
+    OverflowX OverflowOptions.Auto
     WhiteSpace WhiteSpaceOptions.Nowrap
     LineHeight "25px"
 ]
 
 /// Style properties for names column
-let namesColumnStyle = Style (
+let namesColumnStyle (ws:WaveSimModel) = Style (
     (waveSimColumn) @ [
-        MinWidth Constants.namesColWidth
+        MinWidth (calcNamesColWidth ws)
         Float FloatOptions.Left
         BorderRight Constants.borderProperties
         GridColumnStart 1
+        OverflowX OverflowOptions.Clip
         TextAlign TextAlignOptions.Right
     ])
 
 /// Props for names column
-let namesColumnProps : IHTMLProp list = [
+let namesColumnProps (ws:WaveSimModel): IHTMLProp list = [
     Id "namesColumn"
-    namesColumnStyle
+    
+    namesColumnStyle ws
 ]
 
 /// Style properties for values column
 let valuesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.valuesColWidth
-        Float FloatOptions.Right
+        Float FloatOptions.Left
         BorderLeft Constants.borderProperties
+        OverflowX OverflowOptions.Auto
         GridColumnStart 3
     ])
 
@@ -366,23 +446,31 @@ let waveRowsStyle width = Style [
     GridRowStart 1
 ]
 
-/// Style for waveform viewer
-let showWaveformsStyle = Style [
-    Height "calc(100% - 50px)"
-    Width "100%"
-    OverflowY OverflowOptions.Auto
-    Display DisplayOptions.Grid
-    ColumnCount 3
-    GridAutoFlow "column"
-    GridAutoColumns "auto"
-]
-
 /// Style for viewWaveSim
 let viewWaveSimStyle = Style [
     MarginLeft Constants.leftMargin
     MarginRight Constants.rightMargin
     MarginTop "15px"
+    Height "calc(100% - 72px)"
 ]
+
+// style for waveforms and RAM viewer
+let showWaveformsAndRamStyle = Style [
+    OverflowY OverflowOptions.Auto; Height "calc(100% - 250px)"
+    ]
+
+/// Style for waveforms only path of viewer
+let showWaveformsStyle = Style [
+    //Height "calc(100% - 50px)"
+    Width "100%"
+    //OverflowY OverflowOptions.Auto
+    Display DisplayOptions.Grid
+    ColumnCount 3
+    GridAutoFlow "column"
+    GridAutoColumns "min-content"
+]
+
+
 
 /// Props for text in clock cycle row
 let clkCycleText m i : IProp list = [
@@ -467,7 +555,7 @@ let clkCycleHighlightSVG m dispatch =
             /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
             /// add m.StartCycle to account for when viewBoxMinX is not 0
             let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
-            dispatch <| SetWSModel {m with CurrClkCycle = cycle}
+            dispatch <| UpdateWSModel (fun m -> {m with CurrClkCycle = cycle})
         )
         ]
         (List.append 
@@ -511,17 +599,41 @@ let wavePolylineStyle points : IProp list = [
 ]
 
 /// Props for HTML Summary element
-let summaryProps : IHTMLProp list = [
+let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = [
+
+    let clickHandler (e:Browser.Types.Event) = 
+        if isSummary then
+            let show =
+                match cBox with
+                | PortItem _ -> false
+                | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
+                | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
+                | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
+            dispatch <| UpdateWSModel (fun ws -> setSelectionOpen ws cBox (not show))
+    let size,weight =
+        match cBox with 
+        | SheetItem _ -> "20px", "bold"
+        | ComponentItem _ -> "16px", "bold"
+        | GroupItem _ -> "18px", "bold"
+        | PortItem _ -> "12px", "normal"
     Style [
-        FontSize "20px"
-        FontWeight "bold"
+        FontSize size
+        FontWeight weight
     ]
+    OnClick clickHandler
 ]
 
 /// Props for HTML Details element
-let detailsProps : IHTMLProp list = [
-    Open false
-]
+let detailsProps showDetails cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
+    let show =
+        match cBox with
+        | PortItem _ -> false
+        | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
+        | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
+        | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
+    [
+        Open (show || showDetails)
+    ]
 
 /// Style for top half of waveform simulator (instructions and buttons)
 let topHalfStyle = Style [
@@ -531,10 +643,11 @@ let topHalfStyle = Style [
     ZIndex 10000
 ]
 
-let refreshSvg =
+/// display react of refresh button with color (e.g. white) at given height (e.g. 10px)
+let refreshSvg (color:string) (height:string)=
     svg [
             ViewBox "0 0 512 512"
-            SVGAttr.Height "30"
+            SVGAttr.Height height
         ] [
             path [
                 D "M496 48V192c0 17.69-14.31 32-32 32H320c-17.69 0-32-14.31-32-32s14.31-32
@@ -544,13 +657,53 @@ let refreshSvg =
                 479.9 32 379.4 32 256s100.5-223.9 223.9-223.9c69.15 0 134 32.47 176.1 86.12V48c0-17.69
                 14.31-32 32-32S496 30.31 496 48z"
                 Style [
-                    Fill "black"
+                    Fill color
                 ]
             ] []
         ]
 
 let emptyRefreshSVG =
     svg [
-        SVGAttr.Height "30"
-        SVGAttr.Width "30"
+        SVGAttr.Height "20"
+        SVGAttr.Width "20"
     ] []
+
+
+
+
+let inline updateViewerWidthInWaveSim w (model:Model) =
+    let wsModel = getWSModel model
+    //dispatch <| SetViewerWidth w
+    let namesColWidth = calcNamesColWidth wsModel
+
+    /// The +4 is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
+    let otherDivWidths = Constants.leftMargin + Constants.rightMargin + DiagramStyle.Constants.dividerBarWidth + Constants.scrollBarWidth + 2
+
+    /// This is what the overall waveform width must be
+    let waveColWidth = w - otherDivWidths - namesColWidth - Constants.valuesColWidth
+
+    /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
+    let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidth wsModel))
+
+
+    let singleCycleWidth = float waveColWidth / float wholeCycles
+
+    let viewerWidth = namesColWidth + Constants.valuesColWidth + int (singleCycleWidth * float wholeCycles) + otherDivWidths
+
+    let updateFn wsModel = 
+        {
+        wsModel with
+            ShownCycles = wholeCycles
+            WaveformColumnWidth = singleCycleWidth * float wholeCycles
+        }
+    {model with WaveSimViewerWidth = w}
+    |> ModelHelpers.updateWSModel updateFn
+
+
+
+let inline setViewerWidthInWaveSim w (model:Model) dispatch =
+    let model = updateViewerWidthInWaveSim w model 
+    let wsModel = getWSModel model
+    dispatch <| SetViewerWidth w
+    dispatch <| UpdateWSModel (fun _ -> wsModel)
+    dispatch <| GenerateWaveforms wsModel

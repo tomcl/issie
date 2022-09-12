@@ -16,8 +16,6 @@ let inline assertThat cond msg =
     if not cond
     then failwithf "what? assert failed: %s" msg
 
-let makeStepArray (arr: 'T array) : StepArray<'T> = { Step = arr }
-
 let emptyGather =
     { Labels = Map.empty
       Simulation = Map.empty
@@ -26,10 +24,11 @@ let emptyGather =
       CustomOutputLookup = Map.empty
       AllComps = Map.empty }
 
-let emptyFastSimulation () =
+let emptyFastSimulation diagramName =
+    printfn $"Creating empty simulation: {diagramName}"
     { ClockTick = 0
       MaxStepNum = -1 // this must be over-written
-      MaxArraySize = 600 // must be larger than max number of wavesim clocks
+      MaxArraySize = 0 // must be larger than max number of wavesim clocks
       FGlobalInputComps = Array.empty
       FConstantComps = Array.empty
       FClockedComps = Array.empty
@@ -37,9 +36,21 @@ let emptyFastSimulation () =
       FIOActive = Map.empty
       FIOLinks = []
       FComps = Map.empty
+      FCustomComps = Map.empty
+      WaveComps = Map.empty
       FSComps = Map.empty
       FCustomOutputCompLookup = Map.empty
-      G = emptyGather }
+      G = emptyGather 
+      NumStepArrays = 0 // this will be overwritten by createInitFastCompPhase
+      Drivers = Array.empty
+      WaveIndex = Array.empty
+      ConnectionsByPort = Map.empty
+      ComponentsById = Map.empty
+      SimulatedCanvasState = []
+      SimulatedTopSheet= diagramName
+      }
+
+let simulationPlaceholder = emptyFastSimulation ""
 
 let getPathIds (cid, ap) =
     let rec getPath ap =
@@ -58,7 +69,7 @@ let getFid (cid: ComponentId) (ap: ComponentId list) =
 let getPortNumbers (sc: SimulationComponent) =
     let ins,outs =
         match sc.Type with
-        | Constant1 _ | Constant _ ->
+        | Constant1 _ | Constant _ | CounterNoEnableLoad _ ->
             0,1
         | Input1 _
         | Output _
@@ -70,16 +81,24 @@ let getPortNumbers (sc: SimulationComponent) =
         | Register _
         | IOLabel  
         | ROM1 _ 
-        | AsyncROM1 _->
+        | AsyncROM1 _
+        | NbitsNot _ 
+        | NbitSpreader _ 
+        | CounterNoLoad _ ->
             1,1
         | MergeWires
         | NbitsXor _
+        | NbitsOr _
+        | NbitsAnd _
         | RegisterE _
-        | DFFE -> 
+        | DFFE 
+        | CounterNoEnable _ -> 
             2,1
         | SplitWire _ -> 
             1,2
-        | Mux2 _ -> 
+        | Mux2 _ 
+        | NbitsAdderNoCout _
+        | Counter _ -> 
             3,1
         | Mux4 _ ->
             5,1
@@ -87,6 +106,10 @@ let getPortNumbers (sc: SimulationComponent) =
             9,1
         | NbitsAdder _ -> 
             3,2
+        | NbitsAdderNoCin _ ->
+            2,2
+        | NbitsAdderNoCinCout _ ->
+            2,1
         | AsyncRAM1 _
         | RAM1 _ -> 
             2,1
@@ -99,7 +122,7 @@ let getPortNumbers (sc: SimulationComponent) =
         | Demux8 ->
             2,8
         | Not | And | Or | Xor | Nand | Nor | Xnor -> 2,1
-        | Custom _ -> failwithf "Custom components should not occur in fast simulation"
+        | Custom ct -> ct.InputLabels.Length, ct.OutputLabels.Length
         | AsyncROM _ | RAM _ | ROM _ -> failwithf "legacy component type is not supported"
         | Input _ -> failwithf "Legacy Input component types should never occur"
 
@@ -122,12 +145,20 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Viewer w
     | Register w
     | RegisterE w
+    | Counter w |CounterNoEnable w
+    | CounterNoLoad w |CounterNoEnableLoad w
     | SplitWire w
     | BusSelection (w, _)
     | Constant1 (w, _,_)
     | Constant (w,_)
-    | NbitsXor w -> putW0 w
-    | NbitsAdder w ->
+    | NbitsAnd w
+    | NbitsNot w
+    | NbitsOr w
+    | NbitSpreader w
+    | NbitsXor w 
+    | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
+        -> putW0 w
+    | NbitsAdder w | NbitsAdderNoCin w ->
         putW0 w
         putW1 1
     | Not
@@ -162,19 +193,28 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     wa
 
 
+let mutable stepArrayIndex = -1
+let makeStepArray (arr: 'T array) : StepArray<'T> = 
+    stepArrayIndex <- stepArrayIndex + 1
+    { 
+        Step = arr 
+        Index = stepArrayIndex
+    }
+
+
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
-let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
+let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun n -> Array.create (numSteps + 1) emptyFastData)
+        |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
 
     let outs =
         [| 0 .. outPortNum - 1 |]
-        |> Array.map (fun n -> Array.create (numSteps + 1) emptyFastData)
+        |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
 
     let inps =
@@ -185,11 +225,11 @@ let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath
             | _ -> []
 
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun i -> (Array.create (numSteps + 1) dat))
+        |> Array.map (fun i -> (Array.create maxArraySize dat))
 
     let state =
         if couldBeSynchronousComponent sComp.Type then
-            Some(Array.create numSteps NoState)
+            Some(Array.create (maxArraySize-1) NoState)
         else
             None
 
@@ -210,6 +250,7 @@ let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath
       cId = sComp.Id
       FType = sComp.Type
       AccessPath = accessPath
+      SheetName = []
       Touched = false
       DrivenComponents = []
       NumMissingInputValues = reduceIfHybrid sComp inPortNum
@@ -217,6 +258,7 @@ let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath
       InputDrivers = Array.create inPortNum None
       Outputs = outs
       FullName = ""
+      FLabel = extractLabel sComp.Label
       VerilogOutputName = Array.create outPortNum ""
       VerilogComponentName = ""
       Active =
@@ -255,7 +297,7 @@ let extendFastComponent (numSteps: int) (fc: FastComponent) =
         | _ -> ()
 
         [| 0 .. outPortNum - 1 |]
-        |> Array.iter (fun n -> extendArray fc.Outputs[n] emptyFastData)
+        |> Array.iter (fun n -> extendArray fc.Outputs[n] (Data emptyFastData))
 
         Option.iter
             (fun (stateArr: StepArray<SimulationComponentState>) ->
@@ -358,7 +400,9 @@ let rec private createFlattenedSimulation (ap: ComponentId list) (graph: Simulat
             AllCompsT = thisGather.AllCompsT @ total.AllCompsT                     
 
         })
-/// convert the data in the flattened structure into maps for easy access
+/// Convert the data in the a SimulationGraph, created from the circuit
+/// into a final GatherData structure suitable for simulation stored as a set of maps
+/// Calls createFlattenedSimulation as first step.
 let gatherSimulation (graph: SimulationGraph) =
     let startTime = getTimeMs()
     createFlattenedSimulation [] graph
@@ -389,17 +433,161 @@ let printGather (g: GatherData) =
         (fun (cid', ap') ((cid, ap),opn) -> printfn "outlink: %A -> %s" (cid',ap') (g.getFullName (cid, ap)) )
         g.CustomOutputCompLinks
 
-let rec createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulation) =
+
+/// Add one driver changing the fs.Driver array reference.
+/// Return a WaveIndex reference.
+/// WaveIndex refrences are bound to specific component ports 
+/// and not unique per driver.
+let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortType)=
+    let makeWaveIndex index pn pType arr =
+         {
+             SimArrayIndex = index
+             Id = fc.fId
+             PortType = pType
+             PortNumber = pn
+         } 
+
+    let addStepArray pn index stepA=
+        f.Drivers[index] <- Some <|
+            Option.defaultValue {Index=index; DriverData = stepA; DriverWidth = 0} f.Drivers[index]
+        let addWidth w optDriver  = Option.map (fun d -> {d with DriverWidth = w}) optDriver
+        fc.OutputWidth[pn] |> Option.iter (fun w -> f.Drivers[index] <- addWidth w f.Drivers[index])
+    
+    let ioLabelIsActive fc = f.FIOActive[ComponentLabel fc.FLabel, snd fc.fId].fId <> fc.fId
+
+    match pType with
+    | PortType.Output -> fc.Outputs
+    | PortType.Input -> fc.InputLinks
+    |> Array.mapi (fun pn stepA ->
+        let index = stepA.Index
+        let addDriver, addWave =
+            match fc.FType, pType with
+            | IOLabel, PortType.Input 
+            | Input1 _, PortType.Input
+            | Viewer _, PortType.Input
+            | Output _, PortType.Input -> 
+                false, false
+            | Constant1 _, _ -> // special case because constant output drivers are needed!
+                true, false
+            | IOLabel, _ when  ioLabelIsActive fc -> 
+                false, false
+            | _ -> true, true
+        if pType = PortType.Output && addDriver then
+            addStepArray pn index stepA
+        if addWave then 
+            match fc.FType with
+            | SplitWire _
+            | BusSelection _
+            | MergeWires 
+            | Constant1 _ -> 
+                [||]
+            | Output _ when fc.SubSheet <> [] ->
+                [||]
+            | Input1 _ when fc.SubSheet <> [] ->
+                [||]
+            | _ ->
+                [|makeWaveIndex index pn pType stepA|]
+        else
+            [||])
+
+
+
+/// Called after the fs.Drivers array is created.
+/// waveComps must contain all components that can be viewed in the wave simulation.
+/// This function mutates fs.Drivers adding the correct arrays where
+/// these are used. In some cases an array may never be used and therefore is not added.
+/// In parallel with this, the function returns an array of WaveIndexT records that
+/// reference component ports which can be viewed in a wave simulation.
+/// Every WaveIndex references an element of fs.Drivers from which the simulation data is found.
+let addWaveIndexAndDrivers (waveComps: Map<FComponentId,FastComponent>) (f:FastSimulation)  : WaveIndexT array=
+    let comps =
+        waveComps
+        |> Map.toArray
+        |> Array.map snd
+    let addDrivers pType = Array.collect (fun  fc -> addComponentWaveDrivers f fc pType)
+    let outs = addDrivers PortType.Output comps
+    let ins = addDrivers PortType.Input comps
+    Array.append outs ins
+    |> Array.concat
+
+/// Changes all the custom component in and out StepArray links so they point to the correct drivers.
+/// (fid, fc) must be a custom component.
+/// Called after the simulation has been fully constructed and linked.
+let linkFastCustomComponentsToDriverArrays (fs:FastSimulation) (fid: FComponentId) (fc: FastComponent): Unit =
+    let cid,ap' = fid
+    let ap = ap' @ [cid]
+    let ct = 
+        match fc.FType with 
+        | Custom ct -> ct 
+        | _ -> failwithf "linkFastCustomComponent must be called with a custom component"
+    let graph = 
+        match fc.SimComponent.CustomSimulationGraph with 
+        | Some g -> g 
+        | None -> failwithf "What? Can't find customSimulationGraph"
+    graph
+    |> Map.iter (fun cid sc ->
+        match sc.Type with
+        | Input1(w,_) -> 
+            let portNum = 
+                ct.InputLabels 
+                |> List.indexed
+                |> List.find (fun (i, (lab,_)) -> (ComponentLabel lab = sc.Label)) 
+                |> fst
+                
+            fc.InputLinks[portNum] <- fs.FComps[cid,ap].Outputs[0]
+        | Output w ->
+            let portNum = 
+                ct.OutputLabels 
+                |> List.indexed
+                |> List.find (fun (i,(lab,_)) -> ComponentLabel lab = sc.Label) 
+                |> fst
+            fc.Outputs[portNum] <- fs.FComps[cid,ap].InputLinks[0]
+            fc.OutputWidth[portNum] <- Some w
+        | _ -> ())
+
+
+        
+        
+    
+/// Adds WaveComps, Drivers and WaveIndex fields to a fast simulation.
+/// For use by waveform Simulator.
+/// Needs to be run after widths are calculated.
+let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
+    fs.FCustomComps 
+    |> Map.iter (linkFastCustomComponentsToDriverArrays fs)
+    let waveComps =
+        (fs.FComps, fs.FCustomComps)
+        ||> Map.fold (fun s fid fc -> Map.add fid fc s)
+    // Add WaveComps
+    // Create null driver array large enough for all created step arrays
+    // each step array is given a sequentially generated id as it is created
+    // however, some of these arrays will never be used and end up as None
+    // elements of the driver array.
+    {fs with WaveComps = waveComps; Drivers = Array.create fs.NumStepArrays None}
+    // Generate all waves, add (mutably) step arrays to driver array replacing None
+    // by Some array in the index unique to the array added as these are needed
+    // by wave component ports.
+    // One array can be referenced by multiple ports.
+    // The mutable changes to fs.Drivers here are write-once, from None to Some array.
+    |> (fun fs -> {fs with WaveIndex = addWaveIndexAndDrivers waveComps fs})
+
+        
+    
+    
+let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
+    let numSteps = simulationArraySize
+    stepArrayIndex <- -1
     let start = getTimeMs()
-    let makeFastComp cid =
-        let comp, ap = g.AllComps[cid]
+    printfn $"Creating init fast comp phase of sim with {numSteps} array size"
+    let makeFastComp fid =
+        let comp, ap = g.AllComps[fid]
         let fc = createFastComponent numSteps comp ap
-        let fc = { fc with FullName = g.getFullName cid }
+        let fc = { fc with FullName = g.getFullName fid; SheetName = g.getSheetName fid}
 
         let outs : StepArray<FData> array =
             (if isOutput comp.Type then
                  let outs =
-                     [| Array.create (numSteps + 1) emptyFastData |> makeStepArray |]
+                     [| Array.create (numSteps) (Data emptyFastData) |> makeStepArray |]
 
                  outs
              else
@@ -408,28 +596,36 @@ let rec createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulati
         //printfn "***Making %A with %d outs" comp.Type outs.Length
         { fc with Outputs = outs }
 
-    let comps : Map<FComponentId, FastComponent> =
-        (Map.empty, g.AllComps)
+    let comps, customComps : Map<FComponentId, FastComponent> * Map<FComponentId, FastComponent>=
+        ((Map.empty, Map.empty), g.AllComps)
         ||> Map.fold
-                (fun m cid (comp, ap) ->
+                (fun (m,mc) cid (comp, ap) ->
                     if isCustom comp.Type then
-                        m
+                        m, Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) mc
                     else
-                        Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) m)
+                        Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) m, mc)
+
 
     let customOutLookup =
         g.CustomOutputCompLinks
         |> Map.toList
         |> List.map (fun (a, b) -> b, a)
         |> Map.ofList
+
+
     instrumentTime "createInitFastCompPhase" start
     { f with
           FComps = comps
-          MaxStepNum = numSteps
+          FCustomComps = customComps
+          MaxStepNum = 0
+          MaxArraySize = simulationArraySize
           FSComps = g.AllComps
-          FCustomOutputCompLookup = customOutLookup }
+          FCustomOutputCompLookup = customOutLookup 
+          NumStepArrays = stepArrayIndex
+          Drivers = Array.empty
+    }
 
-/// has side effect of making IOLabels of same name (in the same graph) all use same output array
+/// Has side effect of making IOLabels of same name (in the same graph) all use same output array
 /// this means that an input to any one will produce an output on all, for no effort.
 /// IOLabels without driven inputs that are thus not used are later on flagged inactive
 /// they must not be reduced, and will not be included in the ordered component list
@@ -455,7 +651,9 @@ let private reLinkIOLabels (fs: FastSimulation) =
 /// InputLinks[i] array is set equal to the correct driving Outputs array so that Input i reads the data reduced by the
 /// correct output of the component that drives it.
 /// The main work is dealing with custom components which represent whole design sheets with recursively defined component graphs
-/// The custom component itself is not linked, and does not exist as a FastComponent. Instead its CustomSimulationGraph Input and Output components
+/// The custom component itself is not linked, and does not exist as a simulatable FastComponent. 
+/// Note: custom components are linked in later as unsimulatable placeholders to allow wave simulation to access ports
+/// Instead its CustomSimulationGraph Input and Output components
 /// are linked to the components that connect the corresponding inputs and outputs of the custom component.
 let linkFastComponents (g: GatherData) (f: FastSimulation) =
     let start = getTimeMs()
@@ -556,4 +754,5 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
     reLinkIOLabels f
     instrumentTime "linkFastComponents" start
     f
+    
 

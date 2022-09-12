@@ -27,7 +27,11 @@ open Simulator
 open Sheet.SheetInterface
 open DrawModelType
 
+open Optics
+open Optics.Operators
 
+module Constants =
+    let maxArraySize = 550
 
 /// save verilog file
 /// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
@@ -40,7 +44,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
             | Some _ ->
                 () // do nothing if in middle of I/O operation
             | None ->
-                prepareSimulation proj.OpenFileName (state) proj.LoadedComponents 
+                prepareSimulation 2 proj.OpenFileName (state) proj.LoadedComponents
                 |> (function 
                     | Ok sim -> 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
@@ -69,21 +73,89 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                        |> dispatch)
         | _ -> () // do nothing if no project is loaded
 
+let setFastSimInputsToDefault (fs:FastSimulation) =
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, match fc.FType with | Input1 (w,defVal) -> (w,defVal) | _ -> failwithf "What? Impossible")
+    |> Map.toList
+    |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
+        match w,defaultVal with
+        | _, Some defaultVal -> cid, convertIntToWireData w (int64 defaultVal)
+        | _, None -> cid, convertIntToWireData w 0L)
+    |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
+
+let InputDefaultsEqualInputs fs (model:Model) =
+    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
+        let comp = sym.Component
+        let comp' = 
+            let ct =
+                match comp.Type with 
+                | Input1(w,defVal) -> Input1(w,Some newDefault)
+                | x -> x
+            {comp with Type = ct}
+        {sym with Component = comp'}
+    let tick = fs.ClockTick
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[tick % fs.MaxArraySize])
+    |> Map.values
+    |> Seq.forall (fun (cid, currentValue) -> 
+            match currentValue with
+            | Data fd -> 
+                let newDefault = int (convertFastDataToInt fd)
+                let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
+                match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
+            | _ -> true)
+            
+
+let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
+    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
+        let comp = sym.Component
+        let comp' = 
+            let ct =
+                match comp.Type with 
+                | Input1(w,defVal) -> Input1(w,Some newDefault)
+                | x -> x
+            {comp with Type = ct}
+        {sym with Component = comp'}
+    let tick = fs.ClockTick
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[tick % fs.MaxArraySize])
+    |> Map.values
+    |> Seq.iter (fun (cid, currentValue) -> 
+            match currentValue with
+            | Data fd -> 
+                let newDefault = convertFastDataToInt fd
+                SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
+                |> Optic.map DrawModelType.SheetT.symbol_ 
+                |> Optic.map ModelType.sheet_
+                |> UpdateModel
+                |> dispatch
+            | _ -> () // should never happen
+        )
+    |> ignore
+        
+       
+    
 //----------------------------View level simulation helpers------------------------------------//
+
 
 type SimCache = {
     Name: string
-    StoredState: CanvasState
+    StoredState: LoadedComponent list
     StoredResult: Result<SimulationData, SimulationError>
     }
 
 
 
-let simCacheInit name = {
-    Name = name; 
-    StoredState = ([],[]) // reduced canvas state from extractReducedState
+let simCacheInit () = {
+    Name = ""; 
+    StoredState = []
     StoredResult = Ok {
-        FastSim = FastCreate.emptyFastSimulation()
+        FastSim = 
+            printfn "Creating cache"
+            FastCreate.simulationPlaceholder
         Graph = Map.empty 
         Inputs = []
         Outputs = []
@@ -94,7 +166,19 @@ let simCacheInit name = {
     }
         
 /// Used to store last canvas state and its simulation
-let mutable simCache: SimCache = simCacheInit ""
+let mutable simCache: SimCache = simCacheInit ()
+
+let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=
+    match cache.StoredResult with
+    | Error _ -> false
+    | Ok {FastSim =fs} -> 
+        fs.SimulatedCanvasState
+        |> List.forall (fun ldc' ->
+            ldcs
+            |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
+            |> Option.map (loadedComponentIsEqual ldc')
+            |> (=) (Some true))
+            
 
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. this is complicated because
@@ -105,45 +189,52 @@ let mutable simCache: SimCache = simCacheInit ""
 /// 3. Therefore we need only compare current sheet canvasState with its
 /// initial value. This is compared using extractReducedState to make a copy that has geometry info removed 
 /// from components and connections.
-let rec prepareSimulationMemoized
+let prepareSimulationMemoized
+        (simulationArraySize: int)
+        (openFileName: string)
         (diagramName : string)
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> * CanvasState =
-    let rState = extractReducedState canvasState
-    if diagramName <> simCache.Name then
-        simCache <- simCacheInit diagramName
-        // recursive call having initialised the cache state on sheet change
-        prepareSimulationMemoized diagramName canvasState loadedDependencies
+    //printfn $"Diagram{diagramName}, open={openFileName}, deps = {loadedDependencies |> List.map (fun dp -> dp.Name)}"
+    let storedArraySize =
+        match simCache.StoredResult with
+        | Ok sd -> sd.FastSim.MaxArraySize
+        | _ -> 0
+    let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
+    let isSame = 
+            storedArraySize = simulationArraySize &&
+            diagramName = simCache.Name &&
+            cacheIsEqual simCache ldcs
+    if  isSame then
+        simCache.StoredResult, canvasState
     else
-        let isSame = rState = simCache.StoredState
-        if  isSame then
-            simCache.StoredResult, rState
-        else
-            printfn "New simulation"
-            let simResult = prepareSimulation diagramName rState loadedDependencies
-            simCache <- {
-                Name = diagramName
-                StoredState = rState
-                StoredResult = simResult
-                }
-            simResult, rState
+        printfn "New simulation"
+        let name, state, ldcs = getStateAndDependencies diagramName ldcs
+        let simResult = prepareSimulation simulationArraySize diagramName state ldcs 
+        simCache <- {
+            Name = diagramName
+            StoredState = ldcs
+            StoredResult = simResult
+            }
+        simResult, canvasState
    
 
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails.
 /// Note that simulation is only redone if current canvas changes.
-let makeSimData model =
+let makeSimData (simulatedSheet: string option) (simulationArraySize: int) canvasState model =
     let start = TimeHelpers.getTimeMs()
-    match model.Sheet.GetCanvasState(), model.CurrentProj with
+    match canvasState, model.CurrentProj with
     | _, None -> None
     | canvasState, Some project ->
+        let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
         let otherComponents = 
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (canvasState, otherComponents)
-        ||> prepareSimulationMemoized project.OpenFileName
+        ||> prepareSimulationMemoized simulationArraySize project.OpenFileName simSheet 
         |> Some
         |> TimeHelpers.instrumentInterval "MakeSimData" start
 
@@ -161,7 +252,7 @@ let private splittedLine leftContent rightConent =
     ]
 
 /// Pretty print a label with its width.
-let private makeIOLabel label width =
+let makeIOLabel label width =
     let label = cropToLength 15 true label
     match width with
     | 1 -> label
@@ -170,18 +261,15 @@ let private makeIOLabel label width =
 let private viewSimulationInputs
         (numberBase : NumberBase)
         (simulationData : SimulationData)
-        (inputs : (SimulationIO * WireData) list)
+        (inputs : (SimulationIO * FSInterface) list)
         dispatch =
+
     let simulationGraph = simulationData.Graph
-    let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
-#if ASSERTS
-        assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expected %d but got %A" inputLabel width wireData.Length
-#endif
+    let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), inputVals) =
         let valueHandle =
-            match wireData with
-            | [] -> failwith "what? Empty wireData while creating a line in simulation inputs."
-            | [bit] ->
+            match inputVals with
+            | IData [] -> failwith "what? Empty wireData while creating a line in simulation inputs."
+            | IData [bit] ->
                 // For simple bits, just have a Zero/One button.
                 Button.button [
                     Button.Props [ simulationBitStyle ]
@@ -193,11 +281,11 @@ let private viewSimulationInputs
                                      | Zero -> One
                                      | One -> Zero
                         let graph = simulationGraph
-                        FastRun.changeInput (ComponentId inputId) [newBit] simulationData.ClockTickNumber simulationData.FastSim
+                        FastRun.changeInput (ComponentId inputId) (IData [newBit]) simulationData.ClockTickNumber simulationData.FastSim
                         dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                     )
                 ] [ str <| bitToString bit ]
-            | bits ->
+            | IData bits ->
                 let defValue = viewNum numberBase <| convertWireDataToInt bits
                 Input.text [
                     Input.Key (numberBase.ToString())
@@ -215,11 +303,12 @@ let private viewSimulationInputs
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
                                 let graph = simulationGraph
-                                FastRun.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
+                                FastRun.changeInput (ComponentId inputId) (IData bits) simulationData.ClockTickNumber simulationData.FastSim
                                 dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                         ))
                     ]
                 ]
+            | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         splittedLine (str <| makeIOLabel inputLabel width) valueHandle
     div [] <| List.map makeInputLine inputs
 
@@ -241,31 +330,25 @@ let private staticNumberBox numBase bits =
         Input.Props [simulationNumberStyle]
     ]
 
-let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData) list) =
-    let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
-#if ASSERTS
-        assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewSimulationOutput for %s: expcted %d but got %d" outputLabel width wireData.Length
-#endif
+let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * FSInterface) list) =
+    let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), inputVals) =
         let valueHandle =
-            match wireData with
-            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
-            | [bit] -> staticBitButton bit
-            | bits -> staticNumberBox numBase bits
+            match inputVals with
+            | IData [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | IData [bit] -> staticBitButton bit
+            | IData bits -> staticNumberBox numBase bits
+            | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
 
-let private viewViewers numBase (simViewers : ((string*string) * int * WireData) list) =
-    let makeViewerOutputLine ((label,fullName), width, wireData) =
-#if ASSERTS
-        assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewViewer for %s: expcted %d but got %d" label width wireData.Length
-#endif
+let private viewViewers numBase (simViewers : ((string*string) * int * FSInterface) list) =
+    let makeViewerOutputLine ((label,fullName), width, inputVals) =
         let valueHandle =
-            match wireData with
-            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
-            | [bit] -> staticBitButton bit
-            | bits -> staticNumberBox numBase bits
+            match inputVals with
+            | IData [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | IData[bit] -> staticBitButton bit
+            | IData bits -> staticNumberBox numBase bits
+            | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         let addToolTip tip react = 
             div [ 
                 HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"
@@ -315,11 +398,11 @@ let viewSimulationError (simError : SimulationError) =
             ]
         | Some dep ->
             div [] [
-                str <| "Error found in dependency \"" + dep + "\":"
+                str <| "Error found in sheet '" + dep + "' which is a dependency:"
                 br []
                 str simError.Msg
                 br []
-                str <| "Please fix the error in the dependency and retry."
+                str <| "Please fix the error in this sheet and retry."
             ]
     div [] [
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
@@ -350,9 +433,9 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
         ]
 
-let simulateWithTime steps simData =
+let simulateWithTime timeOut steps simData =
     let startTime = getTimeMs()
-    FastRun.runFastSimulation (steps + simData.ClockTickNumber) simData.FastSim 
+    FastRun.runFastSimulation None (steps + simData.ClockTickNumber) simData.FastSim |> ignore
     getTimeMs() - startTime
 
 let cmd block =
@@ -374,7 +457,7 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let oldClock = simData.FastSim.ClockTick
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
-        FastRun.runFastSimulation clock simData.FastSim 
+        FastRun.runFastSimulation None clock simData.FastSim |> ignore
         printfn $"clokctick after runFastSim{clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
@@ -404,7 +487,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
     let numComps = simData.FastSim.FComps.Count
     let initChunk = min steps (20000/(numComps + 1))
     let initTime = getTimeMs()
-    let estimatedTime = (float steps / float initChunk) * (simulateWithTime initChunk simData + 0.0000001)
+    let estimatedTime = (float steps / float initChunk) * (simulateWithTime None initChunk simData + 0.0000001)
     let chunkTime = min 2000. (estimatedTime / 5.)
     let chunk = int <| float steps * chunkTime / estimatedTime
     if steps > 2*initChunk && estimatedTime > 500. then 
@@ -431,7 +514,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
         |> ExecCmdAsynch
         |> dispatch
     else
-        FastRun.runFastSimulation clock simData.FastSim 
+        FastRun.runFastSimulation None clock simData.FastSim |> ignore
         printfn $"test2 clock={clock}, clokcticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
@@ -471,6 +554,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             "Goto Tick"
                             (simulationClockChangeAction dispatch simData)
                             isDisabled
+                            []
                             dispatch)
                         ] [ str "Goto" ]
                 str " "
@@ -482,7 +566,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             printfn "*********************Incrementing clock from simulator button******************************"
                             printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
-                        FastRun.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
+                        FastRun.runFastSimulation None (simData.ClockTickNumber+1) simData.FastSim |> ignore
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
                         if SimulationRunner.simTrace <> None then
                             printfn "-------------------------------------------------------------------------------------------"
@@ -544,7 +628,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         maybeStatefulComponents()
     ]
 
-let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
+let setSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let keyDispatch = SheetT.KeyPress >> sheetDispatch
     if simError.InDependency.IsNone then
@@ -557,31 +641,34 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
             // make whole diagram visible if any of the errors are not visible
             keyDispatch <| SheetT.KeyboardMsg.CtrlW
 
-let viewSimulation model dispatch =
-    let state = model.Sheet.GetCanvasState ()
+let viewSimulation canvasState model dispatch =
+    printf "Viewing Simulation"
     // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
-        match state, model.CurrentProj with
+        match canvasState, model.CurrentProj with
         | _, None -> failwith "what? Cannot start a simulation without a project"
         | canvasState, Some project ->
             let otherComponents =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-            simCache <- simCacheInit ""
+            simCache <- simCacheInit ()
             (canvasState, otherComponents)
-            ||> prepareSimulationMemoized project.OpenFileName
+            ||> prepareSimulationMemoized Constants.maxArraySize project.OpenFileName project.OpenFileName
             |> function
-               | Ok (simData), state -> Ok simData
+               | Ok (simData), state -> 
+                if simData.FastSim.ClockTick = 0 then 
+                    setFastSimInputsToDefault simData.FastSim
+                Ok simData
                | Error simError, state ->
                   printfn $"ERROR:{simError}"
-                  SetSimErrorFeedback simError model dispatch
+                  setSimErrorFeedback simError model dispatch
                   Error simError
             |> StartSimulation
             |> dispatch
 
     match model.CurrentStepSimulationStep with
     | None ->
-        let simRes = makeSimData model
+        let simRes = makeSimData None Constants.maxArraySize canvasState model
         let isSync = match simRes with | Some( Ok {IsSynchronous=true},_) | _ -> false
         let buttonColor, buttonText = 
             match simRes with
@@ -591,7 +678,7 @@ let viewSimulation model dispatch =
         div [] [
             str "Simulate simple logic using this tab."
             br []
-            str (if isSync then "You can also use the Waveforms >> button to view waveforms" else "")
+            str (if isSync then "You can also use the Wave Simulation tab to view waveforms" else "")
             br []; br []
             Button.button
                 [ 
@@ -604,15 +691,30 @@ let viewSimulation model dispatch =
         let body = match sim with
                    | Error simError -> viewSimulationError simError
                    | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
+        let setDefaultButton =
+            match sim with
+            | Error _ -> div [] []
+            | Ok simData ->
+            div [] [
+                Button.button
+                    [ 
+                        Button.Color IsInfo; 
+                        Button.Disabled (InputDefaultsEqualInputs simData.FastSim model)
+                        Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch) ; 
+                        Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
+                    ]
+                    [ str "Save current input values as default" ]
+            ]
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
             dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
-        div [] [
+        div [Style [Height "100%"]] [
             Button.button
-                [ Button.Color IsDanger; Button.OnClick endSimulation ]
+                [ Button.Color IsDanger; Button.OnClick endSimulation ; Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left ]]]
                 [ str "End simulation" ]
+            setDefaultButton
             br []; br []
             str "The simulation uses the diagram as it was at the moment of
                  pressing the \"Start simulation\" button."

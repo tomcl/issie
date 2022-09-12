@@ -6,6 +6,7 @@
 
 module SelectedComponentView
 
+open VerilogTypes
 open Fulma
 open Fable.React
 open Fable.React.Props
@@ -18,6 +19,10 @@ open PopupView
 open Notifications
 open Sheet.SheetInterface
 open DrawModelType
+open FilesIO
+open CatalogueView
+open FileMenuView
+
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -28,7 +33,7 @@ let private readOnlyFormField name body =
 
 
 
-let private textFormField isRequired name defaultValue onChange =
+let private textFormField isRequired name defaultValue isBad onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.text [
@@ -37,7 +42,9 @@ let private textFormField isRequired name defaultValue onChange =
             Input.CustomClass "www"
             Input.Placeholder (if isRequired then "Name (required)" else "Name (optional)")
             Input.OnChange (getTextEventValue >> onChange)
-        ] 
+        ]
+        br []
+        span [Style [FontStyle "Italic"; Color "Red"]; Hidden (not isBad)] [str "This label already exists"]
     ]
 
 let private textFormFieldSimple name defaultValue onChange =
@@ -59,6 +66,16 @@ let private intFormField name (width:string) defaultValue minValue onChange =
             Input.Props [Style [Width width]; Min minValue]
             Input.DefaultValue <| sprintf "%d" defaultValue
             Input.OnChange (getIntEventValue >> onChange)
+        ]
+    ]
+
+let private floatFormField name (width:string) defaultValue minValue onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Input.number [
+            Input.Props [Style [Width width]; Min minValue]
+            Input.DefaultValue <| sprintf "%A" defaultValue
+            Input.OnChange (getFloatEventValue >> onChange)
         ]
     ]
 
@@ -145,12 +162,250 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
 
     ]
 
+let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactElement = 
+    
+    let openCodeEditor code name = 
+        let project' =
+            match model.CurrentProj with
+            |Some proj -> {proj with WorkingFileName = Some (custom.Name)}
+            |None -> failwithf "Can't happen!"
+        let model'= {model with CurrentProj = Some project'} 
+        createVerilogPopup model false (Some code) (Some name) (UpdateVerilogFile name)
+    
+    match model.CurrentProj with
+    | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+    | Some project ->
+        match custom.Form with
+        |Some (Verilog name) ->
+            let folderPath = project.ProjectPath
+            let path = pathJoin [| folderPath; name + ".v" |]
+            let code = 
+                match tryReadFileSync path with
+                |Ok text -> text
+                |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" name
+            div []
+                [
+                    br []
+                    Button.button [
+                        Button.Color IsPrimary
+                        Button.OnClick (fun _ -> 
+                            dispatch (StartUICmd SaveSheet)
+                            saveOpenFileActionWithModelUpdate model dispatch |> ignore
+                            dispatch <| Sheet(SheetT.DoNothing)
+                            openCodeEditor code name dispatch)
+                    ] [str "View/Edit Verilog code"]
+                    br []
+                ]
+        |_ -> null
+
+let makeVerilogDeleteButton (model:Model) (custom:CustomComponentType) dispatch : ReactElement = 
+    match model.CurrentProj with
+    | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+    | Some project ->
+        match custom.Form with
+        |Some (Verilog name) ->
+            let title = "Delete sheet"
+
+            let body =
+                div []
+                    [ 
+                        str "Are you sure you want to delete the following Verilog component?"
+                        br []
+                        str <| pathJoin
+                                    [| project.ProjectPath;
+                                    name + ".v" |]
+                        br []
+                        str <| "This action is irreversible." ]
+
+            let buttonText = "Delete"
+
+            let buttonAction =
+                fun _ ->
+                    dispatch (StartUICmd DeleteSheet)
+                    dispatch <| ExecFuncInMessage(removeFileInProject name project,dispatch)
+                    (removeFileWithExtn ".v" project.ProjectPath name)
+                    dispatch ClosePopup
+            div []
+                [
+                    br []
+                    Button.button
+                        [ 
+                        Button.IsOutlined
+                        Button.Color IsDanger
+                        Button.OnClick(fun _ -> confirmationPopup title body buttonText buttonAction dispatch) ]
+                        [ str "Delete" ]
+                    br []
+                ]
+        | _ -> null
+
+let private changeAdderType model (comp:Component) dispatch = 
+    match model.CurrentProj with
+    | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+    | Some project ->
+        let sheetDispatch sMsg = dispatch (Sheet sMsg)
+        
+        let checkedCin,checkedCout =
+            match comp.Type with
+            |NbitsAdder w ->
+                Checked true, Checked true
+            |NbitsAdderNoCout w ->
+                Checked true, Checked false
+            |NbitsAdderNoCin w ->
+                Checked false, Checked true 
+            |NbitsAdderNoCinCout w ->
+                Checked false, Checked false
+            | _ -> failwithf "Cannot change adder type from non-adder component"
+
+        let buttonActionCin =
+            fun _ ->
+                match comp.Type with
+                |NbitsAdder w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCin w)
+                |NbitsAdderNoCout w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
+                |NbitsAdderNoCin w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdder w)
+                |NbitsAdderNoCinCout w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCout w)
+                | _ -> failwithf "Cannot change adder type from non-adder component"
+        let buttonActionCout =
+            fun _ ->
+                match comp.Type with
+                |NbitsAdder w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCout w)
+                |NbitsAdderNoCin w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
+                |NbitsAdderNoCout w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdder w)
+                |NbitsAdderNoCinCout w ->
+                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCin w)
+                |_ -> failwithf "Cannot change adder type from non-adder component"
+
+        div [] [
+            Label.label [] [ str "Optional Ports"]
+            
+            Table.table [] [
+                tr [] [
+                    td [Style [BorderStyle "solid"]] [str "Cin"]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionCin); Value "Cin"; Id "Cin-button"; Name "Cin-button"; checkedCin; Style [Height "15px"; Width "15px"]]]]
+                ]
+                tr [] [
+                    td [Style [BorderStyle "solid"]] [str "Cout"]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionCout); Value "Cout"; Id "Cout-button"; Name "Cout-button"; checkedCout; Style [Height "15px"; Width "15px"]]]]
+                ]
+            ]
+            br []
+            ]
+
+
+let private changeCounterType model (comp:Component) dispatch = 
+    match model.CurrentProj with
+    | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+    | Some project ->
+        let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
+        let checkedLoad,checkedEnable=
+            match comp.Type with
+            |Counter _ ->
+                Checked true, Checked true 
+            |CounterNoEnable _ ->
+                Checked true, Checked false
+            |CounterNoLoad _ ->
+                Checked false, Checked true 
+            |CounterNoEnableLoad _ ->
+                Checked false, Checked false
+            | _ -> failwithf "Cannot change counter type from non-counter component"
+
+        let buttonActionLoad =
+            fun _ ->
+                match comp.Type with
+                |Counter w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoLoad w)
+                |CounterNoEnable w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                |CounterNoLoad w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (Counter w)
+                |CounterNoEnableLoad w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnable w)
+                | _ -> failwithf "Cannot change adder type from non-adder component"
+        let buttonActionEnable =
+            fun _ ->
+                match comp.Type with
+                |Counter w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnable w)
+                |CounterNoLoad w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                |CounterNoEnable w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (Counter w)
+                |CounterNoEnableLoad w ->
+                    model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoLoad w)
+                |_ -> failwithf "Cannot change adder type from non-adder component"
+
+        div [] [
+            Label.label [] [ str "Optional Inputs"]
+            Table.table [] [
+                tr [] [
+                    td [Style [BorderStyle "solid"]] [str "Load"]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionLoad); Value "Load"; Id "Load-button"; Name "Load-button"; checkedLoad; Style [Height "15px"; Width "15px"]]]]
+                ]
+                tr [] [
+                    td [Style [BorderStyle "solid"]] [str "Enable"]
+                    td [Style [BorderStyle "solid"]] [Checkbox.input [Props [OnChange (buttonActionEnable); Value "Enable"; Id "Enable-button"; Name "Enable-button"; checkedEnable; Style [Height "15px"; Width "15px"]]]]
+                ]
+            ]
+            br []
+            ]
+
+let private makeScaleAdjustmentField model (comp:Component) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
+    let textw =  
+        match comp.SymbolInfo with
+        |Some si ->
+            match si.HScale with
+            |Some no -> no
+            |None -> 1.0
+        |None -> 1.0
+    let texth =  
+        match comp.SymbolInfo with
+        |Some si ->
+            match si.VScale with
+            |Some no -> no
+            |None -> 1.0
+        |None -> 1.0
+
+    div [] [
+        floatFormField "Width Scale" "60px" textw 0.0 (
+            fun (newWidth) ->
+                if newWidth < 0.0
+                then
+                    let props = errorPropsNotification "Invalid number of bits."
+                    dispatch <| SetPropertiesNotification props
+                else
+                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Horizontal
+                    dispatch ClosePropertiesNotification
+        )
+        floatFormField "Height Scale" "60px" texth 0.0 (
+            fun (newWidth) ->
+                if newWidth < 0.0
+                then
+                    let props = errorPropsNotification "Invalid number of bits."
+                    dispatch <| SetPropertiesNotification props
+                else
+                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Vertical
+                    dispatch ClosePropertiesNotification
+        )
+    ]
+
+
 let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
     let title, width =
         match comp.Type with
-        | Input1 (w, _) | Output w | NbitsAdder w | NbitsXor w | Register w | RegisterE w | Viewer w -> "Number of bits", w
+        | Input1 (w, _) | Output w | NbitsAdder w  | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
+        | NbitsXor w | NbitsAnd w | NbitsOr w |NbitsNot w |NbitSpreader w 
+        | Register w | RegisterE w |Counter w |CounterNoEnable w |CounterNoEnableLoad w |CounterNoLoad w | Viewer w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | BusCompare( w, _) -> "Bus width", w
@@ -323,7 +578,16 @@ let private makeDescription (comp:Component) model dispatch =
         ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
-    | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
+    | Mux2 -> div [] [ 
+        str "Multiplexer with two inputs and one output." 
+        br []
+        br []
+        Button.button [
+            Button.Color IsPrimary
+            Button.OnClick (fun _ -> model.Sheet.ChangeReversedInputs (Sheet >> dispatch) (ComponentId comp.Id))
+            ] 
+            [str "Reverse Inputs"]
+        ]
     | Mux4 -> div [] [ str "Multiplexer with four inputs and one output." ]
     | Mux8 -> div [] [ str "Multiplexer with eight inputs and one output." ]
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
@@ -331,8 +595,16 @@ let private makeDescription (comp:Component) model dispatch =
     | Demux8 -> div [] [ str "Demultiplexer with one input and eight outputs." ]
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
     | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m."]
-    | NbitsAdder numberOfBits -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
+    | NbitsAdder numberOfBits 
+    | NbitsAdderNoCin numberOfBits 
+    | NbitsAdderNoCout numberOfBits 
+    | NbitsAdderNoCinCout numberOfBits 
+        -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
     | NbitsXor numberOfBits  -> div [] [ str <| sprintf "%d XOR gates with %d outputs." numberOfBits numberOfBits]
+    | NbitsAnd numberOfBits  -> div [] [ str <| sprintf "%d AND gates with %d outputs." numberOfBits numberOfBits]
+    | NbitsOr numberOfBits  -> div [] [ str <| sprintf "%d OR gates with %d outputs." numberOfBits numberOfBits]
+    | NbitsNot numberOfBits  -> div [] [ str <| sprintf "%d NOT gates with %d outputs." numberOfBits numberOfBits]
+    | NbitSpreader numberOfBits  -> div [] [ str <| sprintf "One input Bit Spreader with one %d-bit output." numberOfBits]
     | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]
     | Custom custom ->
         let styledSpan styles txt = span [Style styles] [str <| txt]
@@ -341,20 +613,52 @@ let private makeDescription (comp:Component) model dispatch =
 
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
+        
+        let symbolExplanation =
+            match custom.Form with
+            |Some (Verilog _) -> ": Verilog Component."
+            |_ -> ": user defined (custom) component."
+            //TODO: remaining
+
+        //let origLdc =
+        //    match model.CurrentProj with
+        //    |Some p -> p.LoadedComponents |> List.find (fun ldc -> ldc.Name = custom.Name)
+        //    |None -> failwithf "What? current project cannot be None at this point in finding custom component description"
+        let sheetDescription = 
+            match custom.Description with
+            |Some sheetDescription-> 
+                div [] [
+                    p [] [str "----------------"]
+                    p [] [str sheetDescription]
+                    p [] [str "----------------"]
+                ]
+            |None -> 
+                br []
+        let portOrderExplanation =
+            match custom.Form with
+            |Some (Verilog _) -> $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
+                    port definition order in the original Verilog file."
+            |_ -> $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
+                    vertical position on the design sheet of the Input or Output components at the time the symbol is added."
+            //TODO: remaining
+
         div [] [
             boldSpan $"{custom.Name}"
-            span [] [str <| ": user defined (custom) component."]
-            br []
+            span [] [str <| symbolExplanation]
+            sheetDescription
+            makeVerilogEditButton model custom dispatch
+            makeVerilogDeleteButton model custom dispatch
             br []
             p [  Style [ FontStyle "italic"; FontSize "12px"; LineHeight "1.1"]] [
-                str <| $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
-                    vertical position on the design sheet of the Input or Output components at the time the symbol is added."]
-            
+                str <| portOrderExplanation]
+            br []
             span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Inputs"]
             ul [] (toHTMLList custom.InputLabels)
             br []
             span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Outputs"]
             ul [] (toHTMLList custom.OutputLabels)
+            br []
+            makeScaleAdjustmentField model comp dispatch
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
     | DFFE -> div [] [
@@ -367,6 +671,12 @@ let private makeDescription (comp:Component) model dispatch =
                       state of the Register will be updated at the next clock
                       cycle. The component is implicitly connected to the global
                       clock." ]
+    | Counter _ |CounterNoEnable _ |CounterNoEnableLoad _ |CounterNoLoad _ ->
+        div [] [ str "Counter with enable and load options. If the enable signal is high the
+                      state of the counter will be updated at the next clock
+                      cycle taking either the value of input d (when load is enabled)
+                      or the value of out+1 (if load is disabled). 
+                      The component is implicitly connected to the global clock." ]
     | AsyncROM1 mem ->
         let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
@@ -403,12 +713,24 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
                 makeNumberOfBitsField model comp text dispatch
                 makeDefaultValueField model comp dispatch
             ]
-    | Output _ | NbitsAdder _ | NbitsXor _ | Viewer _ ->
+    | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch
+    | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ ->
+        div []
+            [
+                makeNumberOfBitsField model comp text dispatch
+                changeAdderType model comp dispatch
+            ]
     | SplitWire _ ->
         makeNumberOfBitsField model comp text dispatch
     | Register _ | RegisterE _ ->
         makeNumberOfBitsField model comp text dispatch
+    |Counter _ |CounterNoEnable _ |CounterNoEnableLoad _ |CounterNoLoad _ ->
+        div []
+            [
+                makeNumberOfBitsField model comp text dispatch
+                changeCounterType model comp dispatch
+            ]
     | BusSelection _ -> 
         div [] [
             makeNumberOfBitsField model comp text dispatch
@@ -435,7 +757,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             | _ -> false
         | _ -> false
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let formatLabelText (txt: string) =
+    let formatLabelText (txt: string) compId =
         txt.ToUpper()
         |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true 
                                 | '.' -> true 
@@ -451,30 +773,76 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             | 0 -> 
                 None 
             | _ -> 
-                Some chars)
+                let symbols = model.Sheet.Wire.Symbol.Symbols |> Map.toList |> List.filter (fun (i,s) -> i <> compId) |> List.map snd
+                match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) symbols with
+                |true -> Some "!bad-label!" //such name cannot occur as symbols will be filtered out in the beginning and characters converted to upper
+                |false -> Some chars
+            
+            )
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
         let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase
-            let label' = Option.defaultValue "" (formatLabelText comp.Label) // No formatting atm
+            let label' = Option.defaultValue "" (formatLabelText comp.Label compId) // No formatting atm
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
             let required = 
                 match comp.Type with 
                 | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
-            textFormField required "Component Name" label' (fun text ->
+            let isBad = model.PopupDialogData.BadLabel
+            textFormField required "Component Name" label' isBad (fun text ->
                 // TODO: removed formatLabel for now
                 //setComponentLabel model sheetDispatch comp (formatLabel comp text)
-                match formatLabelText text with
+                match formatLabelText text compId with
+                | Some "!bad-label!" ->
+                    dispatch <| SetPopupDialogBadLabel (true)
                 | Some label -> 
                     setComponentLabel model sheetDispatch comp label
                     dispatch <| SetPopupDialogText (Some label)
+                    dispatch <| SetPopupDialogBadLabel (false)
                 | None -> ()
                 //updateNames model (fun _ _ -> model.WaveSim.Ports) |> StartWaveSim |> dispatch
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )
         ]    
-    | _ -> div [] [ str "Select a component in the diagram to view or change its properties, for example number of bits." ]
+    | _ -> 
+        match model.CurrentProj with
+        |Some proj ->
+            let sheetName = proj.OpenFileName
+            let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
+            let sheetDescription = sheetLdc.Description
+            match sheetDescription with
+            |None ->
+                div [] [
+                    p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]    
+                    br []
+                    Label.label [] [str "Sheet Description"]
+                    Button.button
+                        [ 
+                            Button.Color IsSuccess
+                            Button.OnClick (fun _ ->
+                                createSheetDescriptionPopup model None sheetName dispatch
+                            )
+                        ]
+                        [str "Add Description"]
+                    ]
+            |Some descr ->
+                div [] [
+                    p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]    
+                    br []
+                    Label.label [] [str "Sheet Description"]
+                    p [] [str descr]
+                    br []
+                    Button.button
+                        [
+                            Button.Color IsSuccess
+                            Button.OnClick (fun _ ->
+                                createSheetDescriptionPopup model sheetDescription sheetName dispatch
+                            )
+                        ]
+                        [str "Edit Description"]
+                    ]
+        |None -> null
 

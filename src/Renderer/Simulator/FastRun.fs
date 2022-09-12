@@ -6,6 +6,7 @@ open SynchronousUtils
 open NumberHelpers
 open FastCreate
 open FastReduce
+open System.Numerics
 
 
 
@@ -16,9 +17,17 @@ open FastReduce
 
 //--------------------------Determine Correct omponent Reduction Order-----------------------------------//
 
+module Constants =
+    /// a number bigger than any possible simulation time in ms
+    let maxSimulationTime = 1.0 ** 10.0 
+    /// used to prevent time instrument overhead in simulation - too large and simulations prevent responsiveness
+    let numberOfStepsBeforeTimeCheck = 5 
 
 /// Invalid data is used as default to determine which inputs have been given data when ordering components
-let private isValidData (fd: FastData) = fd <> emptyFastData
+let private isValidData (fd: FData) = 
+    match fd with
+    | Data d -> d <> emptyFastData
+    | _ -> false
 
 /// True if the component is combinational
 let inline isComb (comp: FastComponent) =
@@ -109,7 +118,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         //printfn "Init input..."
         fc.InputLinks[0].Step
         |> Array.iteri
-            (fun i _ -> fc.InputLinks[0].Step[i] <- (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) inputVal))
+            (fun i _ -> fc.InputLinks[0].Step[i] <- Data (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) 0u))
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
@@ -134,10 +143,10 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                         | Some n -> convertInt64ToFastData w n
                         | _ -> convertIntToFastData w 0u
                     // change simulation semantics to output 0 in cycle 0
-                    vec.Step[0] <- convertIntToFastData w 0u
+                    vec.Step[0] <- Data (convertIntToFastData w 0u)
                 | RAM1 _, _ | AsyncRAM1 _, _->
                     failwithf "What? Bad initial values for RAM %s output %d state <%A>" fc.FullName i fc.FType
-                | _, Some w -> vec.Step[0] <- convertIntToFastData w 0u
+                | _, Some w -> vec.Step[0] <- Data (convertIntToFastData w 0u)
                 | _ -> failwithf "What? Can't find width for %s output %d" fc.FullName i)
     /// print function for debugging
     let pp (fL: FastComponent array) =
@@ -266,15 +275,21 @@ let createFastArrays fs gather =
 /// This function also creates the reducer functions for each component
 /// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
 /// mutable arrays
-let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
+let buildFastSimulation 
+        (simulationArraySize: int) 
+        (diagramName: string) 
+        (graph: SimulationGraph) 
+            : Result<FastSimulation,SimulationError> =
     let gather = gatherSimulation graph
     let fs =  
-        createInitFastCompPhase numberOfSteps gather (emptyFastSimulation ())
+        emptyFastSimulation diagramName
+        |> createInitFastCompPhase simulationArraySize gather
         |> linkFastComponents gather
     gather
     |> createFastArrays fs
-    |> orderCombinationalComponents numberOfSteps
+    |> orderCombinationalComponents simulationArraySize
     |> checkAndValidate
+    |> Result.map addWavesToFastSimulation
 
 
 //---------------------------------------------------------------------------------------------------//
@@ -314,11 +329,29 @@ let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
 
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)
-let changeInput (cid: ComponentId) (wd: WireData) (step: int) (fastSim: FastSimulation) =
+let changeInput (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: FastSimulation) =
     //printfn "wd=%A" wd
-    let fd = (wd |> wireToFast)
+    let fd = 
+        match input with
+        | IData wd -> (wd |> wireToFast |> Data)
+        | IAlg exp -> Alg exp
     setSimulationInput cid fd step fastSim
     //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
+    runCombinationalLogic step fastSim
+
+/// Change multiple inputs in one batch before re-running the simulation
+let changeInputBatch 
+    (step: int) 
+    (fastSim: FastSimulation)
+    (changes: (ComponentId * FSInterface) list) =
+
+    changes
+    |> List.iter (fun (cid,input) ->
+        let fd = 
+            match input with
+            | IData wd -> (wd |> wireToFast |> Data)
+            | IAlg exp -> Alg exp
+        setSimulationInput cid fd step fastSim)
     runCombinationalLogic step fastSim
 
 let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
@@ -331,7 +364,15 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | DFF _
                 | DFFE _
                 | Register _
-                | RegisterE _ -> [| fc, RegisterState fc.Outputs[0].Step[step % fastSim.MaxArraySize] |]
+                | RegisterE _ 
+                | Counter _ 
+                | CounterNoEnable _
+                | CounterNoLoad _ 
+                | CounterNoEnableLoad _ -> 
+                    match fc.Outputs[0].Step[step % fastSim.MaxArraySize] with
+                    | Data d ->
+                        [| fc, RegisterState d |]
+                    | _ -> failwithf "what? Algebra in stateful component"
                 | ROM1 state -> [| fc, RamState state |]
                 | RAM1 _ | AsyncRAM1 _ ->
                     match fc.State
@@ -345,12 +386,16 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 /// Run an existing fast simulation up to the given number of steps. This function will mutate the write-once data arrays
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
 /// If the simulation data arrays are not large enough they are extended up to a limit. After that, they act as a circular buffer.
-let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
-
+/// TimeOut if not None is the cutoff time after which the simulation terminates execution unfinished.
+/// Use fs.ClockTick to determine whether simulation has completed.
+/// returns speed, in clock cycles per ms, or None if complete
+let runFastSimulation (timeOut: float option)(numberOfSteps: int) (fs: FastSimulation) : float option =
+        if fs.MaxArraySize = 0 then
+            failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
+        //printfn $"running sim steps={numberOfSteps}, arraySize = {fs.MaxArraySize}, maxstepnum={fs.MaxStepNum}"
         let simStartTime = getTimeMs()
         let stepsToDo = float (numberOfSteps - fs.ClockTick)
         let numComponents = float fs.FComps.Count
-   
         if numberOfSteps > fs.MaxStepNum then
             if fs.MaxStepNum < fs.MaxArraySize then
                 let newMaxNum =
@@ -361,22 +406,41 @@ let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
                 //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps" 
                 extendFastSimulation newMaxNum fs
 
-        let start = fs.ClockTick + 1
-
-        [ start .. numberOfSteps ]
-        |> List.iter
-            (fun n ->
-                //if n % (100 * (int (1. + 3000. / numComponents))) = 0 then printfn "Step %d" n
-                stepSimulation fs)
-        let sTime = getTimeMs() - simStartTime
-        if sTime > 50. then
-            printfn $"Simulation speed: {numComponents*stepsToDo/sTime} Component-Steps/ms ({int stepsToDo} steps, {int numComponents} components)"
-
+        let doSimulation() =
+            let lastTick = fs.ClockTick + 1
+            let startTick = fs.ClockTick
+            let mutable time = simStartTime
+            let startOfTestStep = getTimeMs()
+            if fs.ClockTick < lastTick then stepSimulation fs
+            let oneStepTime = max (getTimeMs() - startOfTestStep) 0.5
+            // work out a number of steps we can safely execute without impacting response
+            // we run as many as possible to reduce time checking overhead. Maybe this is not needed.
+            let stepsBeforeCheck = int (100.0 / oneStepTime) + 1
+            while fs.ClockTick < numberOfSteps  &&
+                  (match timeOut with | None -> true | Some incr ->  time < simStartTime + incr) do
+                stepSimulation fs
+                if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
+                    time <- getTimeMs()
+            if fs.ClockTick >= numberOfSteps then
+                None
+            else
+                Some ( float (fs.ClockTick - startTick)/ (time - simStartTime))
+                
+        doSimulation()
+        
+            
+                   
 /// Run a fast simulation for a given number of steps building it from the graph
-let runSimulationZeroInputs (steps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
-    let fsResult = buildFastSimulation steps graph
+let runSimulationZeroInputs 
+        (timeOut: float option)
+        (simulationArraySize: int) 
+        (diagramName: string) 
+        (steps: int) 
+        (graph: SimulationGraph) 
+            : Result<FastSimulation,SimulationError> =
+    let fsResult = buildFastSimulation simulationArraySize diagramName  graph
     fsResult
-    |> Result.map (runFastSimulation steps)
+    |> Result.map (runFastSimulation timeOut steps)
     |> ignore
     fsResult
 
@@ -406,7 +470,7 @@ let rec extractFastSimulationOutput
     (fs: FastSimulation)
     (step: int)
     ((cid, ap): ComponentId * ComponentId list)
-    (opn: OutputPortNumber) : WireData =
+    (opn: OutputPortNumber) : FSInterface =
     
    let (OutputPortNumber n) = opn
    match Map.tryFind (cid, ap) fs.FComps with
@@ -414,10 +478,15 @@ let rec extractFastSimulationOutput
         //printfn $"Extracting port {opn} from {fc.FullName} in step {step}"
         match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].Step with
         | None -> failwithf $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
-        | Some fd -> fd
-        |> (fun fd -> 
-                if fd.Width=0 then failwithf $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
-                fd |> fastToWire)
+        | Some (Data d) -> 
+            if d.Width=0 then 
+                failwithf $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
+            else
+                d |> fastToWire |> IData
+        | Some (Alg exp) ->
+            let evaluated = evalExp exp
+            IAlg evaluated
+        
    | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with
@@ -454,16 +523,16 @@ let rec extractFastSimulationState
 let extractFastSimulationIOs
     (simIOs: SimulationIO list)
     (simulationData: SimulationData)
-    : (SimulationIO * WireData) list =
+    : (SimulationIO * FSInterface) list =
     let fs = simulationData.FastSim
     let inputs = simulationData.Inputs
 
     simIOs
     |> List.map
         (fun ((cid, label, width) as io) ->
-            let wd = extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0)
+            let out = extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0)
             //printfn $"Extrcating: {io} --- {wd}"
-            io, wd)
+            io, out)
 
 let getFLabel (fs:FastSimulation) (fId:FComponentId) =
     let fc = fs.FComps[fId]
@@ -481,7 +550,7 @@ let extractFastSimulationWidth (fs:FastSimulation)   (fid: FComponentId) (opn: O
 /// Extract all Viewer components with names and wire widths. Used by legacy code.
 let extractViewers
     (simulationData: SimulationData)
-    : ((string*string) * int * WireData) list =
+    : ((string*string) * int * FSInterface) list =
     let fs = simulationData.FastSim
 
     let comps = 
@@ -498,3 +567,6 @@ let extractViewers
         (fun (fid,fc) ->
             let width = Option.get fc.OutputWidth[0]
             getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))
+
+let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project option) =
+    List.forall (fun ldc -> Extractor.loadedComponentIsSameAsProject canv ldc p) fs.SimulatedCanvasState

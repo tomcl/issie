@@ -6,17 +6,31 @@
 
 module CatalogueView
 
+open VerilogTypes
 open Fulma
 open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
 open DiagramStyle
 open ModelType
+open ModelHelpers
 open CommonTypes
 open PopupView
 open Sheet.SheetInterface
 open DrawModelType
+open FilesIO
+open NearleyBindings
+open ErrorCheck
+open CodeEditorHelpers
+open Fable.SimpleJson
+open Fable.Core.JsInterop
+open System
+open FileMenuView
+open SheetCreator
 
+NearleyBindings.importGrammar
+NearleyBindings.importFix
+NearleyBindings.importParser
 
 let private menuItem styles label onClick =
     Menu.Item.li
@@ -38,8 +52,10 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
     menuItem styles loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name
-            InputLabels = FilesIO.getOrderedCompLabels (Input1 (0, None)) canvas
-            OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
+            InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
+            OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
+            Form = loadedComponent.Form
+            Description = loadedComponent.Description
         }
         
         Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "")) |> dispatch
@@ -52,7 +68,35 @@ let private makeCustomList styles model dispatch =
         // Do no show the open component in the catalogue.
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        |> List.filter (fun comp -> comp.Form = Some User)
         |> List.map (makeCustom styles model dispatch)
+
+let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)  =
+    let canvas = loadedComponent.CanvasState
+    menuItem styles loadedComponent.Name (fun _ ->
+        let verilog = Custom {
+            Name = loadedComponent.Name
+            InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
+            OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
+            Form = loadedComponent.Form
+            Description = loadedComponent.Description
+        }
+        
+        Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, verilog, "")) |> dispatch
+    )
+
+let private makeVerilogList styles model dispatch =
+    match model.CurrentProj with
+    | None -> []
+    | Some project ->
+        // Do no show the open component in the catalogue.
+        project.LoadedComponents
+        |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        |> List.filter (fun comp -> match comp.Form with Some (Verilog _)-> true |_ -> false)
+        |> List.map (makeVerilog styles model dispatch)
+
+
+
 
 let private createInputPopup typeStr (compType: int * int option -> ComponentType) (model:Model) (dispatch: Msg -> unit) =
     let title = sprintf "Add %s node" typeStr
@@ -83,7 +127,7 @@ let private createInputPopup typeStr (compType: int * int option -> ComponentTyp
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
             (getInt dialogData < 1) || notGoodLabel
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
@@ -114,7 +158,57 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
             (getInt dialogData < 1) || notGoodLabel
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+
+let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
+    let title = sprintf "Sheet Description"
+    let beforeText =
+        fun _ -> str <| sprintf "Add description for sheet '%s'" sheetName
+    let body =  dialogPopupBodyOnlyTextWithDefaultValue beforeText "Description" previousDescr dispatch
+    let buttonText = "Save"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let descr = getText dialogData
+            let descrToSave =
+                match descr with
+                |"" -> None
+                |_ -> Some descr
+            
+            match model.CurrentProj with
+            |None -> failwithf "Can't happen"
+            |Some p ->
+                let target_ldc = p.LoadedComponents |> List.find (fun x -> x.Name = sheetName)
+                let other_ldc = p.LoadedComponents |> List.filter (fun x -> x.Name <> sheetName)
+                let target_ldc' = {target_ldc with Description=descrToSave}  //add description to ldc
+                
+                let other_ldc' =  //find all custom comps originating from that sheet and update their description
+                    other_ldc 
+                    |> List.map (fun ldc -> 
+                        let newComps = 
+                            ldc.CanvasState
+                            |> fst
+                            |> List.map (fun comp ->
+                                match comp.Type with
+                                |Custom x when x.Name = sheetName -> 
+                                    let newCompType = Custom {x with Description = descrToSave} 
+                                    {comp with Type = newCompType}
+                                |_ -> comp
+                        )
+                        let newCS = newComps,(ldc.CanvasState |> snd)
+                        {ldc with CanvasState = newCS}
+                    )
+
+                let fixed_ldcs = other_ldc'@[target_ldc'] 
+                let p' = {p with LoadedComponents=fixed_ldcs}
+                let model' = {model with CurrentProj = Some p'}
+                dispatch <| SetProject p'
+                saveOpenFileActionWithModelUpdate model' dispatch |> ignore
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) ->
+            false  //allow all
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"
@@ -131,7 +225,7 @@ let private createNbitsAdderPopup (model:Model) dispatch =
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
 let private createNbitsXorPopup (model:Model) dispatch =
@@ -149,7 +243,75 @@ let private createNbitsXorPopup (model:Model) dispatch =
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+let private createNbitsAndPopup (model:Model) dispatch =
+    let title = sprintf "Add N bits AND gates"
+    let beforeInt =
+        fun _ -> str "How many bits should each operand have?"
+    let intDefault = model.LastUsedDialogWidth
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            //printfn "creating XOR %d" inputInt
+            createCompStdLabel (NbitsAnd inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+let private createNbitsOrPopup (model:Model) dispatch =
+    let title = sprintf "Add N bits OR gates"
+    let beforeInt =
+        fun _ -> str "How many bits should each operand have?"
+    let intDefault = model.LastUsedDialogWidth
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            //printfn "creating XOR %d" inputInt
+            createCompStdLabel (NbitsOr inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+let private createNbitsNotPopup (model:Model) dispatch =
+    let title = sprintf "Add N bits NOT gates"
+    let beforeInt =
+        fun _ -> str "How many bits should the input/output have?"
+    let intDefault = model.LastUsedDialogWidth
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            //printfn "creating XOR %d" inputInt
+            createCompStdLabel (NbitsNot inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+let private createNbitSpreaderPopup (model:Model) dispatch =
+    let title = sprintf "Add 1-to-N bit spreader"
+    let beforeInt =
+        fun _ -> str "How many bits should the output have?"
+    let intDefault = model.LastUsedDialogWidth
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            //printfn "creating XOR %d" inputInt
+            createCompStdLabel (NbitSpreader inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
 let private createSplitWirePopup model dispatch =
@@ -166,7 +328,7 @@ let private createSplitWirePopup model dispatch =
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 /// two react text lines in red
 let private twoErrorLines errMsg1 errMsg2 =
@@ -224,7 +386,7 @@ let private createConstantPopup model dispatch =
             createCompStdLabel (Constant1(width,constant,text')) model dispatch
             dispatch ClosePopup
     let isDisabled = parseConstantDialog >> snd >> Option.isNone
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createBusSelectPopup model dispatch =
     let title = sprintf "Add Bus Selection node" 
@@ -244,7 +406,7 @@ let private createBusSelectPopup model dispatch =
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt2 dialogData < 0L
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createBusComparePopup (model:Model) dispatch =
     let title = sprintf "Add Bus Compare node" 
@@ -267,7 +429,7 @@ let private createBusComparePopup (model:Model) dispatch =
             let w = getInt dialogData
             let cVal = getInt2 dialogData |> uint32
             w > 32 || w < 1 || cVal > (1u <<< w) - 1u
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createRegisterPopup regType (model:Model) dispatch =
     let title = sprintf "Add Register" 
@@ -283,7 +445,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
  
@@ -341,7 +503,192 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
                 | _ -> dispatch <| SetPopupDialogMemorySetup (addError (Some msg) dialogData.MemorySetup)
             | _ -> ()
             addressWidth < 1 || wordWidth < 1 || error <> None
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+
+
+let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origin:CodeEditorOpen) dispatch =
+    let title = sprintf "Create Combinational Logic Components using Verilog" 
+    let beforeText =
+        fun _ -> str <| sprintf "ISSIE Component Name"
+    let noErrors = List.isEmpty model.PopupDialogData.VerilogErrors
+    let errorDiv = if noErrors then null else getErrorDiv model.PopupDialogData.VerilogErrors
+    let errorList = if showExtraErrors then model.PopupDialogData.VerilogErrors else [] 
+
+    let saveButtonAction =
+        fun (dialogData : PopupDialogData) ->
+            match model.CurrentProj with
+            | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+            | Some project ->
+                let name = (Option.get moduleName)
+                let folderPath = project.ProjectPath
+                let path = pathJoin [| folderPath; name + ".v" |]
+                let path2 = pathJoin [| folderPath; name + ".dgm" |]
+                let code = getCode dialogData
+                
+                match writeFile path code with
+                | Ok _ -> ()
+                | Error _ -> failwithf "Writing verilog file FAILED"
+                
+                let parsedCodeNearley = parseFromFile(code)
+                let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                let result = Option.get output.Result
+                let fixedAST = fix result
+                let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
+
+                let cs = SheetCreator.createSheet parsedAST
+                let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {Form = Some (Verilog name);Description=None})
+
+                match writeFile path2 toSaveCanvasState with
+                | Ok _ -> 
+                    let newComponent = 
+                        match tryLoadComponentFromPath path2 with
+                        |Ok comp -> comp
+                        |Error _ -> failwithf "failed to load the created Verilog file"
+                    let updatedProject =
+                        {project with LoadedComponents = newComponent :: project.LoadedComponents}
+                    openFileInProject project.OpenFileName updatedProject model dispatch
+                | Error _ -> failwithf "Writing .dgm file FAILED"
+            dispatch ClosePopup
+
+    let updateButton = 
+        fun (dialogData : PopupDialogData) ->
+            match model.CurrentProj with
+            | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+            | Some project ->
+                let name = (Option.get moduleName)
+                let folderPath = project.ProjectPath
+                let path = pathJoin [| folderPath; name + ".v" |]
+                let code = getCode dialogData
+                match writeFile path code with
+                | Ok _ -> ()
+                | Error _ -> failwithf "Writing verilog file FAILED"
+                
+                let parsedCodeNearley = parseFromFile(code)
+                let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                let result = Option.get output.Result
+                let fixedAST = fix result
+                let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
+                let newCS = SheetCreator.createSheet parsedAST
+
+                dispatch (StartUICmd SaveSheet)               
+                updateVerilogFileActionWithModelUpdate newCS name model dispatch |> ignore
+                dispatch <| Sheet(SheetT.DoNothing)
+
+
+    let compile =
+        fun (dialogData : PopupDialogData) ->
+            match model.CurrentProj with
+            | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
+            | Some project ->
+                let code = getCode dialogData
+                let parsedCodeNearley = parseFromFile(code)
+                let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                if isNullOrUndefined output.Error then
+                    match Option.isNone output.Result with 
+                    |true-> () //do nothing if parser failed for some reason
+                    |false ->
+                        let result = Option.get output.Result
+                        let fixedAST = fix result
+                        let linesIndex = Option.get output.NewLinesIndex |> Array.toList
+                        let parsedAST = fixedAST |> Json.parseAs<VerilogInput>                        
+                        let moduleName = parsedAST.Module.ModuleName.Name
+                        let errorList = ErrorCheck.getSemanticErrors parsedAST linesIndex origin project
+                        let dataUpdated = {dialogData with VerilogErrors = errorList; VerilogCode=Some code}
+                        let showErrors' = 
+                            match List.isEmpty errorList with
+                            | true -> false
+                            | false -> showExtraErrors 
+                        createVerilogPopup {model with PopupDialogData = dataUpdated } showErrors' None (Some moduleName) origin dispatch
+                else
+                    let error = Option.get output.Error
+                    let error'= CodeEditorHelpers.getSyntaxErrorInfo error
+                    let dataUpdated = {dialogData with VerilogErrors = [error'] }
+                    createVerilogPopup {model with PopupDialogData = dataUpdated } showExtraErrors None moduleName origin dispatch
+ 
+
+    let addButton =
+        fun (dialogData : PopupDialogData) ->
+            fun (suggestion,replaceType,line) -> 
+                
+                let findLastIOAndAssignment (oldCode:string) =
+                    let isSmallerThan x y = y <= x
+
+                    let parsedCodeNearley = parseFromFile(oldCode)
+                    let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                    let result = Option.get output.Result
+                    let fixedAST = fix result
+                    let linesIndex = Option.get output.NewLinesIndex |> Array.toList
+                    let parsedAST = fixedAST |> Json.parseAs<VerilogInput>      
+                    let ioDecls = parsedAST.Module.ModuleItems.ItemList |> Array.filter (fun item -> Option.isSome item.IODecl)
+                    let lastIODecl = Array.tryLast ioDecls
+                    let lastIOLocation =
+                        match lastIODecl with
+                        |Some d -> d.Location
+                        |None -> 1
+                    let prevIndexIO = List.findIndexBack (fun x -> isSmallerThan lastIOLocation x) linesIndex
+                    
+                    let assignments = parsedAST.Module.ModuleItems.ItemList |> Array.filter (fun item -> Option.isSome item.Statement)
+                    let lastAssignment = Array.tryLast assignments
+                    let lastAssignmentLocation =
+                        match lastAssignment with
+                        |Some d -> d.Location
+                        |None -> lastIOLocation
+                    let prevIndexA = List.findIndexBack (fun x -> isSmallerThan lastAssignmentLocation x) linesIndex                    
+                    
+                    (prevIndexIO,prevIndexA)
+                
+                
+                let putToCorrectPlace (oldCode:string) suggestion replaceType line =
+                    let sepCode = oldCode.Split([|"\n"|],StringSplitOptions.RemoveEmptyEntries)
+                    let linesList = Seq.toList sepCode
+                    match replaceType with
+                    |IODeclaration |Assignment ->
+                        let untilError = (linesList[0],[2..line+1])||> List.fold (fun s v -> s+"\n"+linesList[v-1])
+                        let fixedError = untilError+"\n  "+ suggestion
+                        (fixedError,[line+1..(List.length linesList)-1])||> List.fold (fun s v -> s+"\n"+linesList[v])
+                    |Variable error ->
+                        let untilError = ("",[1..line-1])||> List.fold (fun s v -> 
+                            match v with
+                            |1 -> linesList[v-1]
+                            |_ -> s+"\n"+linesList[v-1]
+                        )
+                        let fixedLine = linesList[line-1].Replace(error,suggestion)
+                        let fixedError = 
+                            match line with
+                            |1 -> fixedLine
+                            |_ -> untilError+"\n"+ fixedLine
+                        (fixedError,[line..(List.length linesList)-1])||> List.fold (fun s v -> s+"\n"+linesList[v])
+                    |NoReplace ->
+                        oldCode
+
+                let lineToPut =
+                    match replaceType with
+                    |IODeclaration -> fst <| findLastIOAndAssignment (Option.defaultValue "" dialogData.VerilogCode)
+                    |Assignment -> snd <| findLastIOAndAssignment (Option.defaultValue "" dialogData.VerilogCode)
+                    |_ -> line
+                let replacedCode = putToCorrectPlace (Option.defaultValue "" dialogData.VerilogCode) suggestion replaceType lineToPut
+                createVerilogPopup model showExtraErrors (Some replacedCode) moduleName origin dispatch
+    
+    let moreInfoButton = 
+        fun (dialogData : PopupDialogData) ->
+            match model.CurrentProj with
+            | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
+            | Some project ->
+                let errors = dialogData.VerilogErrors
+                createVerilogPopup model (not showExtraErrors) None moduleName origin dispatch
+    
+    let body= dialogVerilogCompBody beforeText moduleName errorDiv errorList showExtraErrors correctedCode compile addButton dispatch
+
+    let isDisabled =
+        fun (dialogData : PopupDialogData) ->   //OverflowX OverflowOptions.Hidden;OverflowY OverflowOptions.Hidden
+            not noErrors
+    
+    let extra = if showExtraErrors then [Width "80%";Height "75%";OverflowX OverflowOptions.Hidden;Position PositionOptions.Fixed;] else [Width "50%";Height "75%";OverflowX OverflowOptions.Hidden;Position PositionOptions.Fixed;]
+    let saveUpdateText = match origin with |NewVerilogFile -> "Save" |UpdateVerilogFile _ -> "Update"
+    let saveUpdateButton = match origin with |NewVerilogFile -> saveButtonAction |UpdateVerilogFile _ -> updateButton
+    dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton isDisabled extra dispatch
+
 
 let private makeMenuGroup title menuList =
     details [Open false] [
@@ -374,7 +721,17 @@ let compareModelsApprox (m1:Model) (m2:Model) =
     //if b = false then printfn "\n\n%A\n\n%A\n\n" m1r m2r
     b
 
+
+
+
 let viewCatalogue model dispatch =
+
+        let muxTipMessage (numBusses:string) = $"Selects the one of its {numBusses} input busses numbered by the value of the select input 
+                                to be the output. Adjusts bus width to match"
+
+        let deMuxTipMessage (numBits:string) = $"The output numbered by the binary value 
+        of the {numBits} sel inputs is equal to Data, the others are 0"
+
         let viewCatOfModel = fun model ->                 
             let styles = 
                 match model.Sheet.Action with
@@ -408,7 +765,8 @@ let viewCatalogue model dispatch =
                           catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or \
                                                                                                 more selected bits of its input"
                           catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \
-                                                                                                 matches a constant value" ]
+                                                                                                 matches a constant value" 
+                          catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "1-to-N bits spreader"]
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
@@ -420,21 +778,19 @@ let viewCatalogue model dispatch =
                           catTip1 "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) "Output is 1 if the two inputs have the same values"]
                     makeMenuGroup
                         "Mux / Demux"
-                        [ catTip1 "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) "Selects the one of its two input busses numbered by the value of the select input
-                                                                                to be the output. Adjusts bus width to match."
-                          catTip1 "Mux4" (fun _ -> createCompStdLabel Mux4 model dispatch) "Selects the one of its four input busses numbered by the value of the select input
-                                                                                            to be the output. Adjusts bus width to match."
-                          catTip1 "Mux8" (fun _ -> createCompStdLabel Mux8 model dispatch) "Selects the one of its eight input busses numbered by the value of the select input
-                                                                                            to be the output. Adjusts bus width to match."                                                                  
-                          catTip1 "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch)  "The output is equal to the input, the other is 0"
-                          catTip1 "Demux4" (fun _ -> createCompStdLabel Demux4 model dispatch)  "The output is equal to the input"
-                          catTip1 "Demux8" (fun _ -> createCompStdLabel Demux8 model dispatch)  "The output is equal to the input"
-                          catTip1 "Decode4" (fun _ -> createCompStdLabel Decode4 model dispatch) "The output numbered by the binary value 
-                                                                                                of the 2 bit sel input is equal to Data, the others are 0"]
+                        [ catTip1 "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"
+                          catTip1 "Mux4" (fun _ -> createCompStdLabel Mux4 model dispatch) <| muxTipMessage "four"
+                          catTip1 "Mux8" (fun _ -> createCompStdLabel Mux8 model dispatch) <| muxTipMessage "eight"                                                             
+                          catTip1 "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch)  <| deMuxTipMessage "two"  
+                          catTip1 "Demux4" (fun _ -> createCompStdLabel Demux4 model dispatch)  <| deMuxTipMessage "four"
+                          catTip1 "Demux8" (fun _ -> createCompStdLabel Demux8 model dispatch)  <| deMuxTipMessage "eight" ]
                     makeMenuGroup
                         "Arithmetic"
                         [ catTip1 "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
-                          catTip1 "N bits XOR" (fun _ -> createNbitsXorPopup model dispatch) "N bit XOR gates - use to make subtractor or comparator"]
+                          catTip1 "N bits XOR" (fun _ -> createNbitsXorPopup model dispatch) "N bit XOR gates - use to make subtractor or comparator"
+                          catTip1 "N bits AND" (fun _ -> createNbitsAndPopup model dispatch) "N bit AND gates"
+                          catTip1 "N bits OR" (fun _ -> createNbitsOrPopup model dispatch) "N bit OR gates"
+                          catTip1 "N bits NOT" (fun _ -> createNbitsNotPopup model dispatch) "N bit NOT gates"]
 
                     makeMenuGroup
                         "Flip Flops and Registers"
@@ -442,7 +798,8 @@ let viewCatalogue model dispatch =
                                                                                                    so ripple counters cannot be implemented in Issie"
                           catTip1 "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch) "D flip-flop: output will remain unchanged when En is 0"
                           catTip1 "Register" (fun _ -> createRegisterPopup Register model dispatch) "N D flip-flops with inputs and outputs combined into single N bit busses"
-                          catTip1 "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) "As register but outputs stay the same if En is 0"]
+                          catTip1 "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) "As register but outputs stay the same if En is 0"
+                          catTip1 "Counter" (fun _ -> createRegisterPopup Counter model dispatch) "N-bits counter with customisable enable and load inputs"]
                     makeMenuGroup
                         "Memories"
                         [ catTip1 "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM1 model dispatch) "This is combinational: \
@@ -459,6 +816,15 @@ let viewCatalogue model dispatch =
                         "Every design sheet is available for use in other sheets as a custom component: \
                         it can be added any number of times, each instance replicating the sheet logic"
                         (makeCustomList styles model dispatch)
-                ]
 
+                    makeMenuGroupWithTip 
+                        styles
+                        "Verilog"
+                        "Write combinational logic in Verilog and use it as a Custom Component. 
+                         To edit/delete a verilog component add it in a sheet and click on 'properties'"
+                        (List.append 
+                            [menuItem styles "New Verilog Component" (fun _ -> createVerilogPopup model false None None NewVerilogFile dispatch) ]
+                            (makeVerilogList styles model dispatch))
+                          
+                ]
         (viewCatOfModel) model 

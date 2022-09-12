@@ -193,6 +193,8 @@ let viewMenu dispatch =
             makeItem "Modern wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
         ]
         menuSeparator
+        makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
+        menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ ->
             renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
     ]

@@ -155,6 +155,7 @@ let shortDisplayMsg (msg:Msg) =
     | FinishUICmd
     | ReadUserData _
     | SetUserData _
+    | ChangeBuildTabVisibility
     | SetThemeUserData _ -> None
     | ExecCmd _ -> Some "ExecCmd"
     | ExecFuncInMessage _ -> Some "ExecFuncInMessage"

@@ -202,9 +202,9 @@ let viewBuild model dispatch =
                                     Option.map (fun b -> b.ToString()) nOpt
                                     |> Option.defaultValue "x"
                                     |> String.map( fun ch ->
-                                        match List.length model.Sheet.DebugReadLogs with
-                                        |0 -> 'X'
-                                        |_ -> ch
+                                        match model.Sheet.DebugIsConnected with
+                                        |false -> 'X'
+                                        |true -> ch
                                     )
 
                                 values

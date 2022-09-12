@@ -69,7 +69,7 @@ export async function stepAndReadAllViewers(n){
     
     const release = await mutex.acquire();
     await device.transferOut(TX_EP, TX_STEP);
-    console.log("Step sent!");
+    //console.log("Step sent!");
     let viewerValues = [];
     for (var i=0;i<n;i++){
         let check = true;

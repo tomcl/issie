@@ -20,9 +20,11 @@
     <Compile Include="Common\Helpers.fs" />
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
-    
- 
-    <!-- simulator -->
+
+	  <!-- UART -->
+    <Compile Include="UartFiles\BuildUartHelpers.fs" />
+
+	  <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />

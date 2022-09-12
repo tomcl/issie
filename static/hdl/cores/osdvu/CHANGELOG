@@ -1,0 +1,52 @@
+Aaron Dahlen  11 Apr 13: 
+  
+      1) added TX_RECOVER state that waits for "transmit" to be
+          released.  This prevents the transmission of multiple characters 
+          for systems with a slowly changing transmit line.
+
+      2) Tested on Digilent NEXYS3 FPGA at 921600 baud (55 slices consumed).
+         Also tested at 300 baud (76 slices).  Not that the lower baud rate 
+         consumes additional FPGA fabric since the clock dividers are larger.
+
+      3) Problems with error at high baud rates.  Split each bit into
+         8 sections.  Discarded the first three section and sampled the last 5.  
+         poor results.
+
+      4) Continued the high bit error problem by eliminating the 
+         clock_divide prescaler.  Success! the system  now operated 
+         error free at 91600 baud.  For this test a Digilent NEXYS3 
+         board with a 100 MHz clock was used.
+
+         The solution was to implement rx_clk and tx_clk.  These 
+         counters directly count down the ticks of the high speed 
+         system clock.  
+  
+         On the downside the complexity of the design has risen as
+         has the required fabric.  The module configured for 300 baud
+         now consumes 111 Macrocells in a coolrunner II.  It consumes
+         79 slices in the Spartan 6.    
+
+Aaron Dahlen, 10 Apr 13: 
+
+      1) Continued work on eliminating warnings.  It seems that 
+         the synthesis for a Spartan-6 is different that the 
+         Spartan-3 and coolrunner.  Unable to clear warnings for both.
+         This code synthesizes without warning for Coolrunner and Spartan 3.
+
+      2) Size in CoolrunnerII is 68 to 89 macrocells.  Actual size is 
+         baud rate dependent with higher rates consuming less FPGA fabric.
+
+      3) removed recv_state and tx_state from the module output
+
+Aaron Dahlen, 07 Apr 13: 
+
+      1) Accepts baud_rate and clock_rate as parameters.  Auto calculates
+         clock_divide.
+      
+      2) Now uses localparam to prevent parameter modification.
+
+      3) Partially developed test bench, added hooks to see internal operation.  
+         These should probable be removed in the future... 
+
+      4) Eliminated warnings from the XILINX ISE 14.4 synthesizer
+

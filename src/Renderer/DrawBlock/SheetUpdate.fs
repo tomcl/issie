@@ -20,7 +20,7 @@ open Node
 
 module node = Node.Api
 
-[<Emit("import {pauseOp,continuedOp,connectAndRead,simpleConnect,disconnect,step,readAllViewers,stepAndReadAllViewers} from '../../../Tests/hw/IS-uart.js' ")>]
+[<Emit("import {pauseOp,continuedOp,connectAndRead,simpleConnect,disconnect,step,readAllViewers,stepAndReadAllViewers} from '../UartFiles/IS-uart.js' ")>]
 let importReadUart : unit = jsNative
 
 [<Emit("pauseOp()")>]
@@ -47,6 +47,7 @@ let readAllViewers (numberOfViewers:int): JS.Promise<string array> = jsNative
 
 [<Emit("stepAndReadAllViewers($0)")>]
 let stepAndReadAllViewers (numberOfViewers:int): JS.Promise<string array> = jsNative
+
 
 importReadUart
 
@@ -1078,7 +1079,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 Generate = Queued
                 Upload = Queued
             }
-            DebugReadLogs = [ReadLog 0] //TODO: was empty
+            DebugReadLogs = []
             DebugState = match profile with | Verilog.Debug -> Paused | Verilog.Release -> NotDebugging
         }, Cmd.ofMsg (StartCompilationStage (Synthesis, path, name, profile))
     | StartCompilationStage (stage, path, name, profile) ->
@@ -1088,9 +1089,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             model, Cmd.none
         else 
             // TODO: Make this the issie install path
-            let include_path = "C:/Users/apant/Documents/issie/hdl"
+            //let include_path = "C:/Users/apant/Documents/issie/hdl"
             let cwd = getCWD ()
-            let include_path = cwd+"/hdl" 
+            let include_path = 
+                match JSHelpers.debugLevel <> 0 with
+                |true -> cwd+"/static/hdl"
+                |false -> cwd+"/resources/static/hdl"//path+"/hdl" 
             // node.process.cwd()+"/hdl"
             printfn "include_path: %s" include_path
             let pcf = match profile with
@@ -1299,7 +1303,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 })
 
             { model with
-                DebugReadLogs = []
+                DebugReadLogs = [ReadLog 0]
             }, Cmd.ofSub (connectAndRead viewerNo)
     | DebugDisconnect ->
         printfn "Closing device"

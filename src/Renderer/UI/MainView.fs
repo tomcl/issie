@@ -255,7 +255,7 @@ let viewRightTabs canvasState model dispatch =
     let buildTab =
         if model.BuildVisible then
             Tabs.tab
-                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Build) ]
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Build)]
                 [ a [  OnClick (fun _ -> 
                         if model.RightPaneTabVisible <> Simulation 
                         then

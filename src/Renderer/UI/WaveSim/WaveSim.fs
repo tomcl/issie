@@ -761,17 +761,17 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 // long simulation, set spinner on and dispatch another refresh 
                 let spinnerFunc = fun model -> fst (refreshWaveSim newSimulation wsModel model)
                 let model = model |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
-                //printfn "ending refresh with continuation..."
+                printfn "ending refresh with continuation..."
                 model, Elmish.Cmd.none
                 |> TimeHelpers.instrumentInterval "refreshWaveSim" start
             | _ ->
                 if speedOpt <> None then 
-                    //printfn "Force running simulation"
+                    printfn "Force running simulation"
                     // force simulation to finish now
                     FastRun.runFastSimulation None lastCycleNeeded fs |> ignore                
                 // simulation has finished so can generate waves
 
-                //printfn $"Ending refresh now at Tick {fs.ClockTick}..."
+                printfn $"Ending refresh now at Tick {fs.ClockTick}..."
                 let allWavesStart = TimeHelpers.getTimeMs ()    
                     //printfn "starting getwaves"
                 // redo waves based on new simulation
@@ -780,13 +780,19 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         //printfn "making new waves..."
                         getWaves wsModel fs 
                     else wsModel.AllWaves
-                // redo viewer with (and tehrefore shown cycles etc) based on selected waves names
-                // which are currently only calculatable afetr getwaves has generated waves
+                let model = updateWSModel (fun ws -> {ws with AllWaves = allWaves}) model
+                // redo viewer width (and therefore shown cycles etc) based on selected waves names
+                // which are currently only calculatable after getwaves has generated waves
                 let model = updateViewerWidthInWaveSim model.WaveSimViewerWidth model 
                 // extract wsModel from updated model for processing below
                 let wsModel = getWSModel model
 
                 let simulationIsUptodate = wsModel.FastSim.ClockTick > wsModel.ShownCycles + wsModel.StartCycle
+
+                match simulationIsUptodate with
+                | falae ->
+                    
+                printfn $"Similationuptodate: {simulationIsUptodate}"
                 let wavesToBeMade =
                     allWaves
                     |> Map.filter (fun wi wave ->
@@ -922,7 +928,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                         ] else
                         [
                             str "Use 'Start Simulation' button to simulate current sheet."
-                            str "Drag diver to change width of Viewer."
+                            str "Drag grey divider to change width of Viewer."
                         ])
                 ]
 

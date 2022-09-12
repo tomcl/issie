@@ -127,7 +127,7 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
                 str <| sprintf "Word width: %d bit(s)" memory.WordWidth
             ]
             Level.item [ Level.Item.HasTextCentered ] [
-                str <| "First Location Displayed"
+                str <| "First Location To View or Change"
                 Input.text [
                     Input.Props [ Style [ MarginLeft "10px"; Width "80px" ] ]
                     Input.DefaultValue ""
@@ -268,23 +268,6 @@ let private makeFoot editMode dispatch (model: Model)=
                  // Diff mode is triggered by a simulationView, not by a
                  // selected component.
                  match editMode with
-                 | Some (ToFile fName) ->
-                    match model.CurrentProj, model.SelectedComponent with
-                    | Some p, Some comp ->
-                        let mem =
-                            match comp.Type with
-                            | RAM1 mem | ROM1 mem | AsyncROM1 mem | AsyncRAM1 mem -> mem
-                            | _ -> failwithf $"Unexpected non-memory component {comp.Type}"
-                        match FilesIO.initialiseMem mem p.ProjectPath with
-                        | Error msg ->
-                            let note = 
-                                errorNotification 
-                                    "Error writing chnaged memory contents to {fName}.ram" 
-                                    CloseMemoryEditorNotification
-                            dispatch <| SetMemoryEditorNotification note
-                        | _ -> ()
-                        dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
-                    | p,comp -> failwithf "What? expecting component {comp} and project {p}"
                  | Some FromData ->
                     dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
                  | _ -> ()

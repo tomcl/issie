@@ -4,7 +4,7 @@
 
 module CommonTypes
     open Fable.Core               
-
+    open Optics
     /// Position on SVG canvas
     /// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
     /// currently these custom operators are not used in Issie - they should be!
@@ -315,7 +315,13 @@ module CommonTypes
 
     with member this.getPort (PortId portId: PortId) = 
             List.tryFind (fun (port:Port) -> port.Id = portId ) (this.InputPorts @ this.OutputPorts)
-        
+     
+     
+    let type_ = Lens.create (fun c -> c.Type) (fun n c -> {c with Type = n})
+    let inputPorts_ = Lens.create (fun c -> c.InputPorts) (fun n c -> {c with InputPorts = n})
+    let outputPorts_ = Lens.create (fun c -> c.OutputPorts) (fun n c -> {c with OutputPorts = n})
+    let h_ = Lens.create (fun c -> c.H) (fun n c -> {c with H= n})
+    let w_ = Lens.create (fun c -> c.W) (fun n c -> {c with W= n})
 
     /// JSConnection mapped to F# record.
     /// Id uniquely identifies connection globally and is used by library.

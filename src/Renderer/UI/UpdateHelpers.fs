@@ -140,7 +140,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetTopMenu _ 
     | ReloadSelectedComponent _ 
     | SetDragMode _ 
-    /// Set width of right-hand pane when tab is WaveSimulator or TruthTable
+    // Set width of right-hand pane when tab is WaveSimulator or TruthTable
     | SetViewerWidth _ 
     | MenuAction _ 
     | DiagramMouseEvent
@@ -153,6 +153,7 @@ let shortDisplayMsg (msg:Msg) =
     | DoNothing
     | StartUICmd _
     | FinishUICmd
+    | ChangeBuildTabVisibility
     | ReadUserData _
     | SetUserData _
     | ChangeBuildTabVisibility

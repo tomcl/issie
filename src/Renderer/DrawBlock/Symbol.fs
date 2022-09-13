@@ -25,7 +25,7 @@ module Constants =
     let customPortSpacing = 40.
     let portPosEdgeGap = 0.7
     let gatePortPosEdgeGap = 0.3
-    let legendVertOffset = 16.
+    let legendVertOffset = 5.
     let legendLineSpacingInPixels = 16.
 
     /// How large are component labels
@@ -314,7 +314,7 @@ let getPrefix (compType:ComponentType) =
 
 
 // Text to be put inside different Symbols depending on their ComponentType
-let getComponentLegend (componentType:ComponentType) =
+let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     match componentType with
     | And | Nand-> "&"
     | Or | Nor-> "≥1"
@@ -323,7 +323,10 @@ let getComponentLegend (componentType:ComponentType) =
     | Decode4 -> "Decode"
     | NbitsAdder n | NbitsAdderNoCin n
     | NbitsAdderNoCinCout n | NbitsAdderNoCout n -> busTitleAndBits "Adder" n
-    | Register n | RegisterE n-> busTitleAndBits "Register" n
+    | Register n | RegisterE n-> 
+        match rotation with
+        |Degree90 |Degree270 -> busTitleAndBits "Reg" n
+        |_ -> busTitleAndBits "Register" n
     | AsyncROM1 _ -> "Async.ROM"
     | ROM1 _ -> "Sync.ROM"
     | RAM1 _ -> "Sync.RAM"
@@ -590,7 +593,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | RegisterE (a) -> ( 2 , 1, 2.*gS  , 4.*gS)
     | Counter (a) -> (3 , 1 , 4.*gS , 5.*gS)
     |CounterNoEnable (a) -> (2 , 1 , 3.*gS , 5.*gS)
-    | CounterNoLoad (a) -> (1 , 1 , 3.*gS , 5.*gS)
+    | CounterNoLoad (a) -> (1 , 1 , 2.*gS , 5.*gS)
     |CounterNoEnableLoad (a) -> (0 , 1 , 2.*gS , 3.5*gS)
     | AsyncROM1 (a)  -> (  1 , 1, 4.*gS  , 5.*gS) 
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
@@ -1169,7 +1172,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             match lhsPortNum % 2, rhsPortNum % 2, symbol.Component.Type with
             | _, _, Not -> {X=0;Y=0}
             | _, _, IsBinaryGate -> {X=0;Y=0}
-            | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 1. else -1.)}
+            | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 0.5 else -3.)}
             | 0, 0, _ -> {X = 0.; Y = 0.}
             | 1, 0, _ -> {X = 10.; Y = 0.}
             | 0, 1, _ -> {X = -10.; Y = 0.}
@@ -1187,7 +1190,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
     |> List.append (addLegendText 
                         (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type) 
+                        (getComponentLegend comp.Type transform.Rotation) 
                         "middle" 
                         "bold" 
                         (legendFontSize comp.Type))

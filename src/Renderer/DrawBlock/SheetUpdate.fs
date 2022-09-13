@@ -24,9 +24,13 @@ module node = Node.Api
 importReadUart
 
 let rotateLabel (sym:Symbol) =
-    let currentRot = Option.defaultValue Degree0 sym.LabelRotation
+    let newRot =
+        Option.defaultValue Degree0 sym.LabelRotation
+        |> Symbol.combineRotation Degree270
+        |> Some
+    
     {sym with 
-        LabelRotation  = Some <| Symbol.combineRotation Degree270 currentRot
+        LabelRotation  = newRot
         LabelHasDefaultPos = true}
 
 let rotateSelectedLabelsClockwise (model:Model) =

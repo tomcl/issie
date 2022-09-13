@@ -25,7 +25,8 @@ open Helpers
 open NumberHelpers
 open DiagramStyle
 open UpdateHelpers
-
+open Optics
+open Operators
 
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
@@ -264,7 +265,9 @@ let findChange (model : Model) : bool =
 let resetDialogIfSelectionHasChanged newModel oldModel =
     let newSelected = newModel.Sheet.SelectedComponents
     if newSelected.Length = 1 && newSelected <> oldModel.Sheet.SelectedComponents then
-        {newModel with PopupDialogData = {newModel.PopupDialogData with Text = None ; Int = None}}
+        Optic.set (popupDialogData_ >-> text_) None newModel
+        |> Optic.set (popupDialogData_ >-> int_) None
+
     else newModel
 
 let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
@@ -583,7 +586,8 @@ let update (msg : Msg) oldModel =
             {model.PopupDialogData with 
                 AlgebraInputs = None
                 AlgebraError = None
-                ConstraintErrorMsg = None}
+                ConstraintErrorMsg = None}    
+            
         {model with 
             CurrentTruthTable = None
             TTInputConstraints = emptyConstraintSet
@@ -735,10 +739,8 @@ let update (msg : Msg) oldModel =
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project ->
-        { model with
-            CurrentProj = Some project
-            PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
-        }, Cmd.none
+        Optic.set currentProj_ (Some project) model
+        |> Optic.set (popupDialogData_ >-> projectPath_) project.ProjectPath, Cmd.none
     | UpdateProject update ->
         CustomCompPorts.updateProjectFiles true update model, Cmd.none
     | UpdateProjectWithoutSyncing update -> 
@@ -762,17 +764,17 @@ let update (msg : Msg) oldModel =
                         VerilogErrors = [];
                     }}, Cmd.none
     | SetPopupDialogText text ->
-        { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
+        Optic.set (popupDialogData_ >-> text_) text model, Cmd.none
     | SetPopupDialogBadLabel isBad ->
-        { model with PopupDialogData = {model.PopupDialogData with BadLabel = isBad} }, Cmd.none
+        Optic.set (popupDialogData_ >-> badLabel_) isBad model, Cmd.none
     | SetPopupDialogCode code ->
-        { model with PopupDialogData = {model.PopupDialogData with VerilogCode = code} }, Cmd.none
+        Optic.set (popupDialogData_ >-> verilogCode_) code model, Cmd.none
     | SetPopupDialogVerilogErrors errorList ->
-        { model with PopupDialogData = {model.PopupDialogData with VerilogErrors = errorList} }, Cmd.none
+        Optic.set (popupDialogData_ >-> verilogErrors_) errorList model, Cmd.none
     | SetPopupDialogInt int ->
-        { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
+        Optic.set (popupDialogData_ >-> int_) int model, Cmd.none
     | SetPopupDialogInt2 int ->
-        { model with PopupDialogData = {model.PopupDialogData with Int2 = int} }, Cmd.none
+        Optic.set (popupDialogData_ >-> int2_) int model, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData =
                         match data with
@@ -780,21 +782,21 @@ let update (msg : Msg) oldModel =
                         | n, SecondInt, optText -> {model.PopupDialogData with Int2 = n}
         }, Cmd.none
     | SetPopupDialogMemorySetup m ->
-        { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
+        Optic.set (popupDialogData_ >-> memorySetup_) m model, Cmd.none
     | SetPopupMemoryEditorData m ->
-        { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
+        Optic.set (popupDialogData_ >-> memoryEditorData_) m model, Cmd.none
     | SetPopupProgress progOpt ->
-        { model with PopupDialogData = {model.PopupDialogData with Progress = progOpt} }, Cmd.none
+        Optic.set (popupDialogData_ >-> progress_) progOpt model, Cmd.none
     | UpdatePopupProgress updateFn ->
         { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
     | SetPopupConstraintTypeSel ct ->
-        { model with PopupDialogData = {model.PopupDialogData with ConstraintTypeSel = ct}}, Cmd.none
+        Optic.set (popupDialogData_ >-> constraintTypeSel_) ct model, Cmd.none
     | SetPopupConstraintIOSel io ->
-        { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
+        Optic.set (popupDialogData_ >-> constraintIOSel_) io model, Cmd.none
     | SetPopupConstraintErrorMsg msg ->
-        { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
+        Optic.set (popupDialogData_ >-> constraintErrorMsg_) msg model, Cmd.none
     | SetPopupNewConstraint con ->
-        { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
+        Optic.set (popupDialogData_ >-> newConstraint_) con model, Cmd.none
     | TogglePopupAlgebraInput (io,sd) ->
         let (_,_,w) = io
         let oldLst =
@@ -806,39 +808,28 @@ let update (msg : Msg) oldModel =
             match ConstraintReduceView.validateAlgebraInput io zero sd with
             | Ok _ ->
                 let newLst = List.except [io] oldLst
-                {model with 
-                    PopupDialogData = {
-                    model.PopupDialogData with 
-                        AlgebraInputs = Some newLst
-                        AlgebraError = None}}, Cmd.none
+                Optic.set (popupDialogData_ >-> algebraInputs_) (Some newLst) model
+                |> Optic.set (popupDialogData_ >-> algebraError_) None, Cmd.none
             | Error err ->
                 let newLst = List.except [io] oldLst
-                {model with 
-                    PopupDialogData = {
-                    model.PopupDialogData with 
-                        AlgebraInputs = Some newLst
-                        AlgebraError = Some err}}, Cmd.none
+                Optic.set (popupDialogData_ >-> algebraInputs_) (Some newLst) model
+                |> Optic.set (popupDialogData_ >-> algebraError_) (Some err), Cmd.none
+
         else // Values -> Algebra
             let alg = IAlg <| SingleTerm io
             match ConstraintReduceView.validateAlgebraInput io alg sd with
             | Ok _ ->
                 let newLst = io::oldLst
-                {model with 
-                    PopupDialogData = {
-                    model.PopupDialogData with 
-                        AlgebraInputs = Some newLst
-                        AlgebraError = None}}, Cmd.none
+                Optic.set (popupDialogData_ >-> algebraInputs_) (Some newLst) model
+                |> Optic.set (popupDialogData_ >-> algebraError_) None, Cmd.none
             | Error err ->
                 let newLst = io::oldLst
-                {model with 
-                    PopupDialogData = {
-                    model.PopupDialogData with 
-                        AlgebraInputs = Some newLst
-                        AlgebraError = Some err}}, Cmd.none
+                Optic.set (popupDialogData_ >-> algebraInputs_) (Some newLst) model
+                |> Optic.set (popupDialogData_ >-> algebraError_) (Some err), Cmd.none
     | SetPopupAlgebraInputs opt ->
-        {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = opt}}, Cmd.none
+        Optic.set (popupDialogData_ >-> algebraInputs_) opt model, Cmd.none
     | SetPopupAlgebraError opt ->
-        {model with PopupDialogData = {model.PopupDialogData with AlgebraError = opt}}, Cmd.none
+        Optic.set (popupDialogData_ >-> algebraError_) opt model, Cmd.none
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model
     | SetSelectedComponentMemoryLocation (addr,data) ->

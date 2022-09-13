@@ -14,6 +14,7 @@ open TruthTableTypes
 open Fable.React
 open Sheet.SheetInterface
 open VerilogTypes
+open Optics
 
 module Constants =
     /// DiagramStyle.rightSectinoWidthL = 650,
@@ -89,7 +90,24 @@ type PopupDialogData = {
     BadLabel: bool
 }
 
-let progress_ = Optics.Lens.create (fun a -> a.Progress) (fun s a -> {a with Progress = s})
+let text_ = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
+let int_ = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
+let int2_ = Lens.create (fun a -> a.Int2) (fun s a -> {a with Int2 = s})
+let projectPath_ = Lens.create (fun a -> a.ProjectPath) (fun s a -> {a with ProjectPath = s})
+let memorySetup_ = Lens.create (fun a -> a.MemorySetup) (fun s a -> {a with MemorySetup = s})
+let memoryEditorData_ = Lens.create (fun a -> a.MemoryEditorData) (fun s a -> {a with MemoryEditorData = s})
+let progress_ = Lens.create (fun a -> a.Progress) (fun s a -> {a with Progress = s})
+let constraintTypeSel_ = Lens.create (fun a -> a.ConstraintTypeSel) (fun s a -> {a with ConstraintTypeSel = s})
+let constraintIOSel_ = Lens.create (fun a -> a.ConstraintIOSel) (fun s a -> {a with ConstraintIOSel = s})
+let constraintErrorMsg_ = Lens.create (fun a -> a.ConstraintErrorMsg) (fun s a -> {a with ConstraintErrorMsg = s})
+let newConstraint_ = Lens.create (fun a -> a.NewConstraint) (fun s a -> {a with NewConstraint = s})
+let algebraInputs_ = Lens.create (fun a -> a.AlgebraInputs) (fun s a -> {a with AlgebraInputs = s})
+let algebraError_ = Lens.create (fun a -> a.AlgebraError) (fun s a -> {a with AlgebraError = s})
+let verilogCode_ = Lens.create (fun a -> a.VerilogCode) (fun s a -> {a with VerilogCode = s})
+let verilogErrors_ = Lens.create (fun a -> a.VerilogErrors) (fun s a -> {a with VerilogErrors = s})
+let badLabel_ = Lens.create (fun a -> a.BadLabel) (fun s a -> {a with BadLabel = s})
+
+
 
 type TopMenu = | Closed | Project | Files
 
@@ -523,9 +541,9 @@ type Model = {
             | None, None -> failwithf "What? Project is not open cannot guess sheet!"
 
 
-let sheet_ = Optics.Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
-let popupDialogData_ = Optics.Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
-
+let sheet_ = Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
+let popupDialogData_ = Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
+let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 
 
     

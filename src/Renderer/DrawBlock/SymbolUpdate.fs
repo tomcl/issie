@@ -310,9 +310,9 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | BusCompare (_,b) -> BusCompare (newBits,b)
         | Constant1 (_,b,txt) -> Constant1 (newBits,b,txt)
         | c -> c
+        
+    Optic.set (component_ >-> type_) newcompotype symbol
 
-    let newcompo = {symbol.Component with Type = newcompotype}
-    {symbol with Component = newcompo}
 
 /// Helper function to change the number of bits expected in the LSB port of BusSelection and BusCompare
 let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
@@ -325,8 +325,7 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
         | Constant1(w, _,txt) -> Constant1 (w, newLsb,txt)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
 
-    let newcompo = {symbol.Component with Type = newcompotype}
-    {symbol with Component = newcompo}
+    Optic.set (component_ >-> type_) newcompotype symbol
 
 /// This function should be called for Input1 components only. Sets the default
 /// value to be used in simulations for an Input1 component if it is not driven.
@@ -337,8 +336,7 @@ let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: int) =
         | Input1 (width, _) -> width
         | _ -> failwithf "changeInputValue should only be called for Input components"
 
-    let newComp = {symbol.Component with Type = Input1 (width, Some newVal)}
-    {symbol with Component = newComp}
+    Optic.set (component_ >-> type_) (Input1 (width, Some newVal)) symbol
 
 /// Updates the value of a constant1 component and returns the updated symbol
 let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (constantText: string) =
@@ -347,9 +345,8 @@ let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (c
         match symbol.Component.Type with
         | Constant1 (w, _, _) -> Constant1 (w, constantVal,constantText)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
-    let newcompo = {symbol.Component with Type = newcompotype}
-    printfn "Changing symbol to: %A" newcompotype
-    {symbol with Component = newcompo}
+    
+    Optic.set (component_ >-> type_) newcompotype symbol
 
 
 let changeReversedInputs (symModel: Model) (compId: ComponentId) =
@@ -366,7 +363,7 @@ let changeReversedInputs (symModel: Model) (compId: ComponentId) =
     let newcompo = {symbol.Component with SymbolInfo = newSymbolInfo }
     {symbol with Component = newcompo; ReversedInputPorts = newValue}
 
-let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
+let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
     let createNewPort no hostID portType = 
             {
                 Id = JSHelpers.uuid ()
@@ -384,7 +381,7 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
     let changeInputPortList (inputPortList:Port list) =
         inputPortList
         |> List.collect (fun port ->
-            match oldCompType,newComp with
+            match oldCompType,newCompType with
             |NbitsAdder _,NbitsAdderNoCin _ 
             |NbitsAdderNoCout _, NbitsAdderNoCinCout _-> 
                 match port.PortNumber with
@@ -401,7 +398,7 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
     let changeOutputPortList (outputPortList:Port list) =
         outputPortList
         |> List.collect (fun port ->
-            match oldCompType,newComp with
+            match oldCompType,newCompType with
             |NbitsAdder _,NbitsAdderNoCout _ 
             |NbitsAdderNoCin _, NbitsAdderNoCinCout _-> 
                 match port.PortNumber with
@@ -435,7 +432,7 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
             {Order=newOrder;Orientation=newOrientation}
         |Some i, None ->
             let edge = 
-                match oldCompType,newComp with
+                match oldCompType,newCompType with
                 |NbitsAdderNoCin _,NbitsAdder _
                 |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> inputEdge rotation flipped
                 |NbitsAdderNoCout _, NbitsAdder _
@@ -456,7 +453,7 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
     let newInputPorts = (changeInputPortList symbol.Component.InputPorts)
     let newOutputPorts = (changeOutputPortList symbol.Component.OutputPorts)
     let removedId = 
-        match oldCompType,newComp with
+        match oldCompType,newCompType with
         |NbitsAdder _,NbitsAdderNoCin _
         |NbitsAdderNoCout _,NbitsAdderNoCinCout _-> Some symbol.Component.InputPorts[0].Id
         |NbitsAdder _,NbitsAdderNoCout _
@@ -464,7 +461,7 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
         |_ -> None 
 
     let addedId =
-        match oldCompType,newComp with
+        match oldCompType,newCompType with
         |NbitsAdderNoCin _,NbitsAdder _
         |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> Some newInputPorts[0].Id
         |NbitsAdderNoCout _, NbitsAdder _
@@ -474,11 +471,13 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
 
     let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.STransform.flipped symbol.PortMaps addedId removedId
 
-    let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts; OutputPorts = newOutputPorts}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
-    
-    {symbol with Component = newcompo;PortMaps = newPortMaps}
+    Optic.set (component_ >-> type_) newCompType symbol
+    |> Optic.set (component_ >-> inputPorts_) newInputPorts
+    |> Optic.set (component_ >-> outputPorts_) newOutputPorts
+    |> Optic.set (portMaps_) newPortMaps
 
-let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
+
+let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
     let createNewPort no hostID portType = 
             {
                 Id = JSHelpers.uuid ()
@@ -496,7 +495,7 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
     let symbol = Map.find compId symModel.Symbols
     let oldInputList = symbol.Component.InputPorts
     let newInputPorts =
-        match oldCompType,newComp with
+        match oldCompType,newCompType with
         |Counter _,CounterNoLoad _ ->
             [portNoDown (portNoDown oldInputList[2])]        
         |CounterNoEnable _, CounterNoEnableLoad _-> 
@@ -564,7 +563,7 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
     
     //printfn "here"
     let removedId1, removedId2 = 
-        match oldCompType,newComp with
+        match oldCompType,newCompType with
         |Counter _,CounterNoLoad _
         |CounterNoEnable _,CounterNoEnableLoad _-> Some symbol.Component.InputPorts[0].Id, Some symbol.Component.InputPorts[1].Id
         |Counter _,CounterNoEnable _ -> Some symbol.Component.InputPorts[2].Id, None
@@ -572,7 +571,7 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
         |_,_ -> None, None
 
     let added1,added2 =
-        match oldCompType,newComp with
+        match oldCompType,newCompType with
         |CounterNoLoad _, Counter _
         |CounterNoEnableLoad _, CounterNoEnable _ -> Some newInputPorts[0].Id, Some newInputPorts[1].Id
         |CounterNoEnable _,Counter _ -> Some newInputPorts[2].Id, None
@@ -580,12 +579,15 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
         |_,_ -> None, None
 
     let newPortMaps = changePortMaps symbol.STransform.flipped symbol.PortMaps removedId1 removedId2 added1 added2
+    let h',w' = match getComponentProperties newCompType "" with |_,_,h,w -> h,w
 
-    let h',w' = match getComponentProperties newComp "" with |_,_,h,w -> h,w
+    Optic.set (component_ >-> type_) newCompType symbol
+    |> Optic.set (component_ >-> inputPorts_) newInputPorts
+    |> Optic.set (component_ >-> h_) h'
+    |> Optic.set (component_ >-> w_) w'
+    |> Optic.set (portMaps_) newPortMaps
 
-    let newcompo = {symbol.Component with Type = newComp; InputPorts = newInputPorts; H=h'; W=w'}// InputPorts = [symbol.Component.InputPorts[1];symbol.Component.InputPorts[2]] }
-    //printfn "newsymbol %A" {symbol with Component = newcompo;PortMaps = newPortMaps}
-    {symbol with Component = newcompo;PortMaps = newPortMaps;}
+
 
 
 let findDeletedPorts (symModel: Model) (compId: ComponentId) (oldComp:Component) (newComp: ComponentType) =
@@ -624,13 +626,27 @@ let copySymbols (model: Model) compIds =
     { model with CopiedSymbols = copiedSymbols }
 
 
+//////////////  Show Ports Helpers  /////////////////////
 
+let showSymbolInPorts _ sym = 
+    Optic.set (appearance_ >-> showPorts_) ShowInput sym
+
+let showSymbolOutPorts _ sym = 
+     Optic.set (appearance_ >-> showPorts_) ShowOutput sym 
+
+let showSymbolBothForPortMovementPorts _ sym =
+    Optic.set (appearance_ >-> showPorts_) ShowBothForPortMovement sym 
+
+let hideSymbolPorts _ sym = 
+    Optic.set (appearance_ >-> showPorts_) ShowNone sym 
+
+let showSymbolPorts sym =
+    Optic.set (appearance_ >-> showPorts_) ShowBoth sym 
+
+/////////////////////////////////////////////////////////
 
 /// Given a model it shows all input ports and hides all output ports, then returns the updated model
 let inline showAllInputPorts (model: Model) =
-    let showSymbolInPorts _ sym = 
-        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowInput}) sym 
-
     let newSymbols = 
         model.Symbols
         |> Map.map showSymbolInPorts
@@ -639,9 +655,6 @@ let inline showAllInputPorts (model: Model) =
 
 /// Given a model it shows all output ports and hides all input ports, then returns the updated model
 let inline showAllOutputPorts (model: Model) =
-    let showSymbolOutPorts _ sym = 
-        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowOutput}) sym
-
     let newSymbols = 
         model.Symbols
         |> Map.map showSymbolOutPorts
@@ -650,20 +663,14 @@ let inline showAllOutputPorts (model: Model) =
 
 /// Given a model it shows all ports of custom components and hides all other ports, then returns the updated model
 let inline showAllCustomPorts (model: Model) =
-    let showSymbolOutPorts _ sym = 
-        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowBothForPortMovement}) sym
-
     let newSymbols = 
         model.Symbols
-        |> Map.map showSymbolOutPorts
+        |> Map.map showSymbolBothForPortMovementPorts
 
     { model with Symbols = newSymbols }
 
 /// Given a model it hides all ports and returns the updated model
 let inline deleteAllPorts (model: Model) =
-    let hideSymbolPorts _ sym = 
-        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowNone}) sym
-
     let updatedSymbols = 
         model.Symbols
         |> Map.map hideSymbolPorts
@@ -672,12 +679,6 @@ let inline deleteAllPorts (model: Model) =
 
 /// Given a model it shows all the specified components' ports and hides all the other ones
 let inline showPorts (model: Model) compList =
-    let hideSymbolPorts _ sym =
-        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowNone}) sym
-
-    let showSymbolPorts sym =
-        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowBoth}) sym
-
     let resetSymbols = 
         model.Symbols
         |> Map.map hideSymbolPorts
@@ -698,12 +699,6 @@ let inline showPorts (model: Model) compList =
 /// Given a model it shows only the custom components of all the specified components' ports and hides all the other ones
 /// Different from the above (only custom components).
 let inline showCustomPorts (model: Model) compList =
-    let hideSymbolPorts _ sym =
-        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowNone}) sym
-
-    let showSymbolPorts sym =
-        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowBothForPortMovement}) sym
-
     let resetSymbols = 
         model.Symbols
         |> Map.map hideSymbolPorts
@@ -909,12 +904,9 @@ let inline writeMemoryLine model (compId, addr, value) =
         | AsyncROM1 mem -> AsyncROM1 { mem with Data = Map.add addr value mem.Data }
         | _ -> comp.Type
 
-    let newComp = { comp with Type = newCompType }
+    let newSym = (Optic.set (component_ >-> type_) newCompType symbol)
+    Optic.set (symbolOf_ compId) newSym model
     
-    let newSymbols = Map.add compId { symbol with Component = newComp } model.Symbols
-    
-    { model with Symbols = newSymbols }
-
 /// Given a model, a component Id and a memory component type, updates the type of the component to the specified memory type and returns the updated model.
 let inline writeMemoryType model compId memory =
     let symbol = model.Symbols[compId]
@@ -1194,18 +1186,8 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
     | _ -> {sym with MovingPort = None;}
 
 
-let reCreateVerilogSymbol (comp: Component) (oldSym:Symbol) : Symbol =
-    let id = JSHelpers.uuid ()
-    let style = Constants.componentLabelStyle
-    let pos = oldSym.Pos
-    let comp = comp
-    let transform = {Rotation= Degree0; flipped= false}
-    {oldSym with Component=comp}
-
-
-
 let inline replaceSymbol (model: Model) (newSymbol: Symbol) (compId: ComponentId) : Model =
-    { model with Symbols = model.Symbols.Add (compId, newSymbol) }
+    Optic.set (symbolOf_ compId) newSymbol model
 
 let inline updateSymbol (updateFn: Symbol->Symbol) (compId: ComponentId) (model: Model): Model =
     { model with Symbols = model.Symbols.Add (compId, updateFn model.Symbols[compId]) }
@@ -1216,7 +1198,8 @@ let inline transformSymbols transform model compList =
     let newSymbolMap = 
         (model.Symbols, transformedSymbols) 
         ||> List.fold (fun currSymMap sym -> currSymMap |> Map.add sym.Id sym)
-    { model with Symbols = newSymbolMap }
+    
+    Optic.set symbols_ newSymbolMap model
 
 //------------------------------------------------------------------------//
 //-------------------------------- Label processing code------------------//
@@ -1381,11 +1364,20 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
     let isTouchingEdge port symId oldSymbol = 
         match getCloseByEdge oldSymbol pos with
         | None -> 
-            let newSymbol = {oldSymbol with MovingPort = Some {|PortId = portId; CurrPos = pos|}; MovingPortTarget = None; Appearance = {oldSymbol.Appearance with ShowPorts = ShowOneNotTouching port}}
+            let newSymbol = 
+                Optic.set movingPort_ (Some {|PortId = portId; CurrPos = pos|}) oldSymbol
+                |> Optic.set movingPortTarget_ None           
+                |> Optic.set (appearance_ >-> showPorts_) (ShowOneNotTouching port)
+                        
             Optic.set (symbolOf_ symId) newSymbol model, Cmd.none            
         | Some _ -> 
             let target = Some (findTargetPos port oldSymbol)  
-            let newSymbol = {oldSymbol with MovingPort = Some {|PortId = portId; CurrPos = pos|}; MovingPortTarget = target; Appearance = {oldSymbol.Appearance with ShowPorts = ShowOneTouching port}}
+            let newSymbol = 
+                Optic.set movingPort_ (Some {|PortId = portId; CurrPos = pos|}) oldSymbol
+                |> Optic.set movingPortTarget_ target
+                |> Optic.set (appearance_ >-> showPorts_) (ShowOneTouching port)
+            
+            
             Optic.set (symbolOf_ symId) newSymbol model, Cmd.none
     
     let port = model.Ports[portId]

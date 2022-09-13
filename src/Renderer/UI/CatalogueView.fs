@@ -778,12 +778,12 @@ let viewCatalogue model dispatch =
                           catTip1 "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) "Output is 1 if the two inputs have the same values"]
                     makeMenuGroup
                         "Mux / Demux"
-                        [ catTip1 "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"
-                          catTip1 "Mux4" (fun _ -> createCompStdLabel Mux4 model dispatch) <| muxTipMessage "four"
-                          catTip1 "Mux8" (fun _ -> createCompStdLabel Mux8 model dispatch) <| muxTipMessage "eight"                                                             
-                          catTip1 "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch)  <| deMuxTipMessage "two"  
-                          catTip1 "Demux4" (fun _ -> createCompStdLabel Demux4 model dispatch)  <| deMuxTipMessage "four"
-                          catTip1 "Demux8" (fun _ -> createCompStdLabel Demux8 model dispatch)  <| deMuxTipMessage "eight" ]
+                        [ catTip1 "2-Mux" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"
+                          catTip1 "4-Mux" (fun _ -> createCompStdLabel Mux4 model dispatch) <| muxTipMessage "four"
+                          catTip1 "8-Mux" (fun _ -> createCompStdLabel Mux8 model dispatch) <| muxTipMessage "eight"                                                             
+                          catTip1 "2-Demux" (fun _ -> createCompStdLabel Demux2 model dispatch)  <| deMuxTipMessage "two"  
+                          catTip1 "4-Demux" (fun _ -> createCompStdLabel Demux4 model dispatch)  <| deMuxTipMessage "four"
+                          catTip1 "8-Demux" (fun _ -> createCompStdLabel Demux8 model dispatch)  <| deMuxTipMessage "eight" ]
                     makeMenuGroup
                         "Arithmetic"
                         [ catTip1 "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"

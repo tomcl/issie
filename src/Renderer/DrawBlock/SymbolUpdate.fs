@@ -10,6 +10,7 @@ open DrawModelType
 open DrawModelType.SymbolT
 open Symbol
 open Optics
+open Optic
 open Operators
 open System
 
@@ -311,7 +312,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | Constant1 (_,b,txt) -> Constant1 (newBits,b,txt)
         | c -> c
         
-    Optic.set (component_ >-> type_) newcompotype symbol
+    set (component_ >-> type_) newcompotype symbol
 
 
 /// Helper function to change the number of bits expected in the LSB port of BusSelection and BusCompare
@@ -325,7 +326,7 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
         | Constant1(w, _,txt) -> Constant1 (w, newLsb,txt)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
 
-    Optic.set (component_ >-> type_) newcompotype symbol
+    set (component_ >-> type_) newcompotype symbol
 
 /// This function should be called for Input1 components only. Sets the default
 /// value to be used in simulations for an Input1 component if it is not driven.
@@ -336,7 +337,7 @@ let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: int) =
         | Input1 (width, _) -> width
         | _ -> failwithf "changeInputValue should only be called for Input components"
 
-    Optic.set (component_ >-> type_) (Input1 (width, Some newVal)) symbol
+    set (component_ >-> type_) (Input1 (width, Some newVal)) symbol
 
 /// Updates the value of a constant1 component and returns the updated symbol
 let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (constantText: string) =
@@ -346,7 +347,7 @@ let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (c
         | Constant1 (w, _, _) -> Constant1 (w, constantVal,constantText)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
     
-    Optic.set (component_ >-> type_) newcompotype symbol
+    set (component_ >-> type_) newcompotype symbol
 
 
 let changeReversedInputs (symModel: Model) (compId: ComponentId) =
@@ -468,13 +469,18 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
         |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> Some newOutputPorts[1].Id
         |_ -> None 
     
-
     let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.STransform.flipped symbol.PortMaps addedId removedId
+    
+    
 
-    Optic.set (component_ >-> type_) newCompType symbol
-    |> Optic.set (component_ >-> inputPorts_) newInputPorts
-    |> Optic.set (component_ >-> outputPorts_) newOutputPorts
-    |> Optic.set (portMaps_) newPortMaps
+    symbol
+    |> set portMaps_ newPortMaps
+    |> map component_ (
+        set type_ newCompType >>
+        set inputPorts_ newInputPorts >>
+        set outputPorts_ newOutputPorts
+        )
+    
 
 
 let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
@@ -580,13 +586,15 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
 
     let newPortMaps = changePortMaps symbol.STransform.flipped symbol.PortMaps removedId1 removedId2 added1 added2
     let h',w' = match getComponentProperties newCompType "" with |_,_,h,w -> h,w
-
-    Optic.set (component_ >-> type_) newCompType symbol
-    |> Optic.set (component_ >-> inputPorts_) newInputPorts
-    |> Optic.set (component_ >-> h_) h'
-    |> Optic.set (component_ >-> w_) w'
-    |> Optic.set (portMaps_) newPortMaps
-
+    
+    symbol
+    |> set portMaps_ newPortMaps
+    |> map component_ (
+        set type_ newCompType >>
+        set inputPorts_ newInputPorts >>
+        set h_ h' >>
+        set w_ w'
+        )
 
 
 
@@ -629,19 +637,19 @@ let copySymbols (model: Model) compIds =
 //////////////  Show Ports Helpers  /////////////////////
 
 let showSymbolInPorts _ sym = 
-    Optic.set (appearance_ >-> showPorts_) ShowInput sym
+    set (appearance_ >-> showPorts_) ShowInput sym
 
 let showSymbolOutPorts _ sym = 
-     Optic.set (appearance_ >-> showPorts_) ShowOutput sym 
+     set (appearance_ >-> showPorts_) ShowOutput sym 
 
 let showSymbolBothForPortMovementPorts _ sym =
-    Optic.set (appearance_ >-> showPorts_) ShowBothForPortMovement sym 
+    set (appearance_ >-> showPorts_) ShowBothForPortMovement sym 
 
 let hideSymbolPorts _ sym = 
-    Optic.set (appearance_ >-> showPorts_) ShowNone sym 
+    set (appearance_ >-> showPorts_) ShowNone sym 
 
 let showSymbolPorts sym =
-    Optic.set (appearance_ >-> showPorts_) ShowBoth sym 
+    set (appearance_ >-> showPorts_) ShowBoth sym 
 
 /////////////////////////////////////////////////////////
 
@@ -748,10 +756,10 @@ let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
 let inline symbolsHaveError model compList =
     let resetSymbols = 
         model.Symbols
-        |> Map.map (fun _ sym -> Optic.set (appearance_ >-> colour_) (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) sym)
+        |> Map.map (fun _ sym -> set (appearance_ >-> colour_) (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) sym)
 
     let setSymColorToRed prevSymbols sId =
-        Map.add sId (Optic.set (appearance_ >-> colour_)  "Red" resetSymbols[sId]) prevSymbols
+        Map.add sId (set (appearance_ >-> colour_)  "Red" resetSymbols[sId]) prevSymbols
 
     let newSymbols =
         (resetSymbols, compList)
@@ -763,10 +771,15 @@ let inline selectSymbols model compList =
     let resetSymbols = 
         model.Symbols
         |> Map.map (fun _ sym -> 
-            Optic.map appearance_ (Optic.set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> Optic.set opacity_ 1.0 ) sym)
+            sym
+            |> map appearance_ (
+                set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> 
+                set opacity_ 1.0 
+            )
+        )
 
     let updateSymbolColour prevSymbols sId =
-        Map.add sId (Optic.set (appearance_ >-> colour_)  "lightgreen" resetSymbols[sId]) prevSymbols
+        Map.add sId (set (appearance_ >-> colour_)  "lightgreen" resetSymbols[sId]) prevSymbols
     
     let newSymbols =
         (resetSymbols, compList)
@@ -779,20 +792,20 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols = 
         model.Symbols
         |> Map.map 
-            (fun _ sym ->  Optic.map appearance_ (Optic.set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> Optic.set opacity_ 1.0) sym)
+            (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> set opacity_ 1.0) sym)
             
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
-            Map.add sId (Optic.set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
+            Map.add sId (set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
         else 
-            Map.add sId (Optic.set (appearance_ >-> opacity_) 0.2 resetSymbols[sId]) prevSymbols
+            Map.add sId (set (appearance_ >-> opacity_) 0.2 resetSymbols[sId]) prevSymbols
 
     let selectSymbols =
         (resetSymbols, selectCompList)
         ||> List.fold updateSymbolStyle 
 
     let setSymColourToRed prevSymbols sId =
-        Map.add sId (Optic.set (appearance_ >-> colour_) "Red" resetSymbols[sId]) prevSymbols
+        Map.add sId (set (appearance_ >-> colour_) "Red" resetSymbols[sId]) prevSymbols
 
     let newSymbols = 
         (selectSymbols, errorCompList)
@@ -807,13 +820,13 @@ let inline changeLabel (model: Model) sId newLabel=
     let newSym = 
         { oldSym with Component = newComp; LabelHasDefaultPos = true}
         |> calcLabelBoundingBox
-    Optic.set (symbolOf_ sId) newSym model
+    set (symbolOf_ sId) newSym model
 
 
 /// Given a model, a component id list and a color, updates the color of the specified symbols and returns the updated model.
 let inline colorSymbols (model: Model) compList colour =
     let changeSymColour (prevSymbols: Map<ComponentId, Symbol>) (sId: ComponentId) =
-        let newSymbol = Optic.set (appearance_ >-> colour_) (string colour) prevSymbols[sId] 
+        let newSymbol = set (appearance_ >-> colour_) (string colour) prevSymbols[sId] 
         prevSymbols |> Map.add sId newSymbol
 
     let newSymbols =
@@ -904,8 +917,8 @@ let inline writeMemoryLine model (compId, addr, value) =
         | AsyncROM1 mem -> AsyncROM1 { mem with Data = Map.add addr value mem.Data }
         | _ -> comp.Type
 
-    let newSym = (Optic.set (component_ >-> type_) newCompType symbol)
-    Optic.set (symbolOf_ compId) newSym model
+    let newSym = (set (component_ >-> type_) newCompType symbol)
+    set (symbolOf_ compId) newSym model
     
 /// Given a model, a component Id and a memory component type, updates the type of the component to the specified memory type and returns the updated model.
 let inline writeMemoryType model compId memory =
@@ -921,7 +934,7 @@ let inline writeMemoryType model compId memory =
     
     let newComp = { comp with Type = newCompType }
     
-    Optic.set (symbolOf_ compId >-> component_) newComp model
+    set (symbolOf_ compId >-> component_) newComp model
 
 let rotateSide (rotation: RotationType) (side:Edge) :Edge =
     match rotation, side with
@@ -1187,7 +1200,7 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
 
 
 let inline replaceSymbol (model: Model) (newSymbol: Symbol) (compId: ComponentId) : Model =
-    Optic.set (symbolOf_ compId) newSymbol model
+    set (symbolOf_ compId) newSymbol model
 
 let inline updateSymbol (updateFn: Symbol->Symbol) (compId: ComponentId) (model: Model): Model =
     { model with Symbols = model.Symbols.Add (compId, updateFn model.Symbols[compId]) }
@@ -1199,7 +1212,7 @@ let inline transformSymbols transform model compList =
         (model.Symbols, transformedSymbols) 
         ||> List.fold (fun currSymMap sym -> currSymMap |> Map.add sym.Id sym)
     
-    Optic.set symbols_ newSymbolMap model
+    set symbols_ newSymbolMap model
 
 //------------------------------------------------------------------------//
 //-------------------------------- Label processing code------------------//
@@ -1365,20 +1378,22 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
         match getCloseByEdge oldSymbol pos with
         | None -> 
             let newSymbol = 
-                Optic.set movingPort_ (Some {|PortId = portId; CurrPos = pos|}) oldSymbol
-                |> Optic.set movingPortTarget_ None           
-                |> Optic.set (appearance_ >-> showPorts_) (ShowOneNotTouching port)
+                oldSymbol
+                |> set movingPort_ (Some {|PortId = portId; CurrPos = pos|})
+                |> set movingPortTarget_ None
+                |> set (appearance_ >-> showPorts_) (ShowOneNotTouching port)
                         
-            Optic.set (symbolOf_ symId) newSymbol model, Cmd.none            
+            set (symbolOf_ symId) newSymbol model, Cmd.none            
         | Some _ -> 
             let target = Some (findTargetPos port oldSymbol)  
             let newSymbol = 
-                Optic.set movingPort_ (Some {|PortId = portId; CurrPos = pos|}) oldSymbol
-                |> Optic.set movingPortTarget_ target
-                |> Optic.set (appearance_ >-> showPorts_) (ShowOneTouching port)
+                oldSymbol
+                |> set movingPort_ (Some {|PortId = portId; CurrPos = pos|}) 
+                |> set movingPortTarget_ target
+                |> set (appearance_ >-> showPorts_) (ShowOneTouching port)
             
             
-            Optic.set (symbolOf_ symId) newSymbol model, Cmd.none
+            set (symbolOf_ symId) newSymbol model, Cmd.none
     
     let port = model.Ports[portId]
     let symId = ComponentId port.HostId
@@ -1442,7 +1457,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newSymbols =
             (model.Symbols, compList)
             ||> List.fold (fun prevSymbols sId -> 
-                Map.add sId (Optic.set (appearance_ >-> opacity_) 0.4 model.Symbols[sId]) prevSymbols) 
+                Map.add sId (set (appearance_ >-> opacity_) 0.4 model.Symbols[sId]) prevSymbols) 
         { model with Symbols = newSymbols }, Cmd.none  
     
     | ColorSymbols (compList, colour) -> 
@@ -1511,7 +1526,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let symId = ComponentId port.HostId
         let oldSymbol = model.Symbols[symId]
         let newSymbol = {(updatePortPos oldSymbol pos portId) with MovingPortTarget = None}
-        Optic.set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
+        set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none
@@ -1519,7 +1534,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let resetSymbols = 
             model.Symbols
             |> Map.map 
-                (fun _ sym ->  Optic.map appearance_ (Optic.set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
+                (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
 
 

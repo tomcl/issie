@@ -675,6 +675,7 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     let wsModel = getWSModel model
     //dispatch <| SetViewerWidth w
     let namesColWidth = calcNamesColWidth wsModel
+    printfn $"Updating viewer namesWith = {namesColWidth}"
 
     /// The +4 is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
     let otherDivWidths = Constants.leftMargin + Constants.rightMargin + DiagramStyle.Constants.dividerBarWidth + Constants.scrollBarWidth + 2
@@ -702,8 +703,5 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
 
 
 let inline setViewerWidthInWaveSim w (model:Model) dispatch =
-    let model = updateViewerWidthInWaveSim w model 
-    let wsModel = getWSModel model
-    dispatch <| SetViewerWidth w
-    dispatch <| UpdateWSModel (fun _ -> wsModel)
-    dispatch <| GenerateWaveforms wsModel
+    dispatch <| UpdateModel (updateViewerWidthInWaveSim w)
+    dispatch <| GenerateCurrentWaveforms

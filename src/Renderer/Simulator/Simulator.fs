@@ -101,7 +101,8 @@ let getCurrentSimulationState (canvState: CanvasState) (project: Project option)
 
 
 /// Helper used convert port into SheetPort for use by wave simulator determining connectivity
-/// within a design sheet
+/// within a design sheet.
+/// name is the name of the containing sheet.
 let portSheetPort (compsWithIds:Map<ComponentId,Component>) (name:string)  port  =
     let comp = compsWithIds[ComponentId port.HostId]
     let compPort = comp.getPort (PortId port.Id)

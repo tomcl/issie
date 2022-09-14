@@ -783,8 +783,6 @@ let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
 let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port
 
-
-
 //--------------------- GETTING PORTS AND THEIR LOCATIONS INTERFACE FUNCTIONS-------------------------------
 // Helpers
 /// Returns the center coordinates of a Symbol

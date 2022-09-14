@@ -195,6 +195,7 @@ module SymbolT =
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
         | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
         | WriteMemoryType of ComponentId * ComponentType
+        | UpdateMemory of ComponentId * (Memory1 -> Memory1)
         | RotateLeft of compList : ComponentId list * RotationType
         | Flip of compList: ComponentId list * orientation: FlipType
         /// Taking the input and..

@@ -73,8 +73,8 @@
     <Compile Include="UI/ModelType.fs" />
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI/Style.fs" />
-    <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI\Notifications.fs" />
+    <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI/MemoryEditorView.fs" />
     <Compile Include="UI/FileMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
@@ -94,9 +94,7 @@
     <Compile Include="UI\Update.fs" />
     <Compile Include="Renderer.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="6.0.1" />
-  </ItemGroup>
+  
   <!-- Dependencies -->
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

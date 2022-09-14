@@ -192,7 +192,7 @@ let private  viewRightTab canvasState model dispatch =
     | Build ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Build" ]
-            div [ Style [ MarginBottom "15px" ] ] [ str "Click on a component to add it to the diagram. Hover on components for details." ]
+            div [ Style [ MarginBottom "15px" ] ] [ str "Compile your design and upload it to one of the supported devices" ]
             BuildView.viewBuild model dispatch
         ]
 

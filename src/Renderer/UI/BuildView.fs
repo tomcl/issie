@@ -120,15 +120,23 @@ let viewBuild model dispatch =
                                 ]
                             ]
                         br []
+                        let isDisabled =
+                            match model.Sheet.DebugDevice with
+                            |None -> true
+                            |_ -> false
+
                         Button.button
                             [ 
                                 Button.Color IsSuccess;
+                                Button.Disabled isDisabled
                                 Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model Verilog.Release dispatch);
+                                
                             ]
                             [ str "Build and upload" ]
                         Button.button
                             [ 
                                 Button.Color IsSuccess;
+                                Button.Disabled isDisabled
                                 Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model Verilog.Debug dispatch);
                             ]
                             [ str "Build and Debug" ]

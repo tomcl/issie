@@ -1320,6 +1320,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         
         
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
+    | SetDebugDevice device ->
+        {model with DebugDevice = Some device}, Cmd.none
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -1371,7 +1373,7 @@ let init () =
         DebugData = [1..256] |> List.map (fun i -> 0b00111011)
         DebugIsConnected = false
         DebugMappings = [||]
-        BU
+        DebugDevice = None
     }, Cmd.none
 
 

@@ -360,5 +360,3 @@ module Operators =
     /// Modify a value using an optic.
     let inline (^%) f optic =
         Optic.map optic f
-
-

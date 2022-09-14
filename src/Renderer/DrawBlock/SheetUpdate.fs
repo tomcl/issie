@@ -472,14 +472,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 |false -> cwd+"/resources/static/hdl" 
             
             printfn "include_path: %s" include_path
-            let pcf = match profile with
-                      | Verilog.Release -> $"{include_path}/icestick.pcf"
-                      | Verilog.Debug -> $"{include_path}/icestick_debug.pcf"
+
+            let pcf,deviceType,devicePackage =
+                match model.DebugDevice, profile with
+                |Some "IceStick",Verilog.Release -> 
+                    $"{include_path}/icestick.pcf", "--hx1k", "--package tq144"
+                
+                |Some "IceStick",Verilog.Debug -> 
+                    $"{include_path}/icestick_debug.pcf", "--hx1k", "--package tq144"
+                
+                |Some "IssieStick-v0.1", Verilog.Release -> 
+                    $"{include_path}/issiestick-0.1.pcf", "--hx4k", "--package tq144"
+                
+                |Some "IssieStick-v0.1", Verilog.Debug -> 
+                    $"{include_path}/issiestick-0.1_debug.pcf", "--hx4k", "--package tq144"
+                
+                |_,_ -> failwithf "Undefined device used in compilation!"
+            
             let (prog, args) = 
                 // make build dir
                 match stage with
                 | Synthesis     -> "yosys", ["-p"; $"read_verilog -I{include_path} {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
-                | PlaceAndRoute -> "nextpnr-ice40", ["--package tq144"; "--hx1k"; "--pcf"; $"{pcf}"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
+                | PlaceAndRoute -> "nextpnr-ice40", [$"{deviceType}"; "--pcf"; $"{pcf}"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
                 | Generate      -> "icepack", [$"{path}/build/{name}.asc"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
                 | Upload        -> "iceprog", [$"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
 
@@ -651,13 +665,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             })
         
         model, Cmd.ofSub (readSingleStep n)
-    | DebugConnect ->
-        //match model.DebugConnection with
-        //| Some c -> 
-        //    model, Cmd.none//c.push None |> ignore; c.destroy()
-        //| _ -> 
-            //simpleConnect()
-            
+    | DebugConnect ->      
         let remainder = (Array.length model.DebugMappings) % 8
         let viewerNo = 
             match remainder with

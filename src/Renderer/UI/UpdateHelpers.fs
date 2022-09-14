@@ -56,6 +56,7 @@ let shortDisplayMsg (msg:Msg) =
     | UpdateWSModel _ -> None
     | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM ws}"
     | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"
+    | GenerateCurrentWaveforms -> Some $"Generate Current Waveforms"
     | RefreshWaveSim ws -> Some "RefreshWaveSim"
     | SetWaveSheetSelectionOpen _
     | SetWaveComponentSelectionOpen _-> Some "SetWaveComponentSelectionOpen"
@@ -155,6 +156,7 @@ let shortDisplayMsg (msg:Msg) =
     | ChangeBuildTabVisibility
     | ReadUserData _
     | SetUserData _
+    | ChangeBuildTabVisibility
     | SetThemeUserData _ -> None
     | ExecCmd _ -> Some "ExecCmd"
     | ExecFuncInMessage _ -> Some "ExecFuncInMessage"

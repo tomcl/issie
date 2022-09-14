@@ -79,12 +79,10 @@ let waveformIsUptodate (ws: WaveSimModel) (wave:Wave) =
 
 /// Called when InitiateWaveSimulation msg is dispatched
 /// and when wave simulator is refreshed.
-/// Generates or updates the SVG for a specific waveform if necessary
+/// Generates or updates the SVG for a specific waveform whetehr needed or not.
+/// The SVG depends on cycle width as well as start/stop clocks and design.
 /// Assumes that the fast simulation data has not changed and has enough cycles
 let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
-        //if wave.ViewerDisplayName.StartsWith "DATAPATH.MUX" then
-            //let wave1 = {wave with SVG=None ; WaveValues = {wave.WaveValues with Step = Array.empty}}
-            //printfn $"Generating waveform '{wave.ViewerDisplayName}'\n wave={wave1}"
         let waveform =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
@@ -168,7 +166,8 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
             }
     |> TimeHelpers.instrumentInterval "setClkCycle" start
 
-/// if zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles)
+/// If zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles).
+/// otherwise reduce width. GenerateWaveforms message will reconstitute SVGs after the change.
 let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
     let start = TimeHelpers.getTimeMs ()
     let shownCycles =
@@ -684,14 +683,21 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
         let headerRow =
             ["read", RAMRead; "overwritten",RAMWritten]
             |> List.map (fun (op, opStyle) -> inlineStyle [] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
-            |> function | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use control to change cycle."] | _ -> failwithf "What? Can't happen!"
+            |> function 
+                | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
+                | _ -> failwithf "What? Can't happen!"
         List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
         |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
         |> Fulma.Table.table [Table.TableOption.Props ramTablesLevelProps; Table.IsFullWidth; Table.IsBordered; Table.Props [Style [Height "100%"]]]
     else div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 
-
+/// This function regenerates all the waveforms listed on wavesToBeMade.
+/// Generation is subject to timeout, so may not complete.
+/// Returns tuple: 
+/// allWaves (with new waveforms); 
+/// numberDone (no of waveforms made);
+/// timeToDo; Some (time actually taken) (> timeout) or None if complete with no timeOut.
 let makeWaveformsWithTimeOut
         (timeOut: float option) 
         (ws: WaveSimModel)
@@ -725,8 +731,17 @@ let cancelSpinner (model:Model) =
     {model with SpinnerPayload = None}
     
 
-/// 
+/// Major function called after changes to extend simulation and/or redo waveforms.
+/// Note that after design change simulation muts be redonne externally, and function called with
+/// newSimulation = true.
+/// First extend simulation, if needed, with timeout and callback from Spinner if needed.
+/// Then remake any waveforms which have chnaged and not yte been remade. Again if needed with
+/// timeOut and callback from Spinner.
+/// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
+/// a constant. To get the estimate some initila execution must be completed (1 clock cycle and one waveform).
 let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
+    // use given (more uptodate) wsModel
+    let model = updateWSModel (fun _ -> wsModel) model
     let start = TimeHelpers.getTimeMs ()
     let fs = wsModel.FastSim
     if fs.NumStepArrays = 0 then
@@ -746,27 +761,38 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 // long simulation, set spinner on and dispatch another refresh 
                 let spinnerFunc = fun model -> fst (refreshWaveSim newSimulation wsModel model)
                 let model = model |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
-                //printfn "ending refresh with continuation..."
+                printfn "ending refresh with continuation..."
                 model, Elmish.Cmd.none
                 |> TimeHelpers.instrumentInterval "refreshWaveSim" start
             | _ ->
                 if speedOpt <> None then 
-                    //printfn "Force running simulation"
+                    printfn "Force running simulation"
                     // force simulation to finish now
                     FastRun.runFastSimulation None lastCycleNeeded fs |> ignore                
                 // simulation has finished so can generate waves
 
-                //printfn $"Ending refresh now at Tick {fs.ClockTick}..."
+                printfn $"Ending refresh now at Tick {fs.ClockTick}..."
                 let allWavesStart = TimeHelpers.getTimeMs ()    
                     //printfn "starting getwaves"
-            
+                // redo waves based on new simulation
                 let allWaves = 
                     if newSimulation then
                         //printfn "making new waves..."
                         getWaves wsModel fs 
                     else wsModel.AllWaves
+                let model = updateWSModel (fun ws -> {ws with AllWaves = allWaves}) model
+                // redo viewer width (and therefore shown cycles etc) based on selected waves names
+                // which are currently only calculatable after getwaves has generated waves
+                let model = updateViewerWidthInWaveSim model.WaveSimViewerWidth model 
+                // extract wsModel from updated model for processing below
+                let wsModel = getWSModel model
 
                 let simulationIsUptodate = wsModel.FastSim.ClockTick > wsModel.ShownCycles + wsModel.StartCycle
+
+                match simulationIsUptodate with
+                | falae ->
+                    
+                printfn $"Similationuptodate: {simulationIsUptodate}"
                 let wavesToBeMade =
                     allWaves
                     |> Map.filter (fun wi wave ->
@@ -837,6 +863,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 //}
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
+/// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
+/// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
 let refreshButtonAction canvasState model dispatch = fun _ ->
     let wsSheet = 
         match model.WaveSimSheet with
@@ -847,7 +875,6 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         model
         |> removeAllSimulationsFromModel
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
-        |> WaveSimStyle.updateViewerWidthInWaveSim model.WaveSimViewerWidth
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
     match SimulationView.makeSimData model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + 1)  canvasState model with
@@ -901,7 +928,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                         ] else
                         [
                             str "Use 'Start Simulation' button to simulate current sheet."
-                            str "Drag diver to change width of Viewer."
+                            str "Drag grey divider to change width of Viewer."
                         ])
                 ]
 

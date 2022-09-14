@@ -23,9 +23,6 @@ module node = Node.Api
 
 importReadUart
 
-
-
-
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     /// check things that might not have been correctly completed in the last update and if so do them

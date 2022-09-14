@@ -167,6 +167,12 @@ module SheetInterface =
         /// Given a list of connIds, select those connections
         member this.SelectConnections dispatch on connIds =
             dispatch <| UpdateSelectedWires (connIds, on)
+        /// Update the memory of component
+        member this.WriteMemoryType dispatch compId mem =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (compId,mem))))
+                /// Update the memory of component
+        member this.UpdateMemory dispatch compId mem =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.UpdateMemory (compId,mem))))
 
         /// Update the memory of component specified by connId at location addr with data value
         member this.WriteMemoryLine dispatch connId addr value =

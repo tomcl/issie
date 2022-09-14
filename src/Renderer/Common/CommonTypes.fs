@@ -224,6 +224,14 @@ module CommonTypes
         | AsyncROM1 _ -> AsyncROM1
         | _ -> failwithf $"Can't get memory type from {cType}"
 
+    let (|Memory|_|) (typ:ComponentType) =
+        match typ with
+        | RAM1 mem 
+        | AsyncRAM1 mem
+        | ROM1 mem
+        | AsyncROM1 mem -> Some mem
+        | _ -> None
+
     // --------------- Types needed for symbol ---------------- //
     /// Represents the rotation of a symbol in degrees, Degree0 is the default symbol rotation.
     /// Angle is anticlockwise

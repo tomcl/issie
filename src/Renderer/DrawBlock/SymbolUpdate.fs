@@ -287,7 +287,6 @@ let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
     { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
 
 
-
 //---------------------Helper functions for the upadte function------------------------------//
 
 
@@ -503,8 +502,10 @@ let inline writeMemoryLine model (compId, addr, value) =
         | AsyncROM1 mem -> AsyncROM1 { mem with Data = Map.add addr value mem.Data }
         | _ -> comp.Type
 
+
     let newSym = (set (component_ >-> type_) newCompType symbol)
     set (symbolOf_ compId) newSym model
+
     
 /// Given a model, a component Id and a memory component type, updates the type of the component to the specified memory type and returns the updated model.
 let inline writeMemoryType model compId memory =
@@ -521,6 +522,26 @@ let inline writeMemoryType model compId memory =
     let newComp = { comp with Type = newCompType }
     
     set (symbolOf_ compId >-> component_) newComp model
+
+/// Given a model, a component Id and a memory component type, updates the type of the component to the specified memory and returns the updated model.
+let inline updateMemory model compId updateFn =
+    let symbol = model.Symbols[compId]
+    let comp = symbol.Component 
+    
+    let newCompType =
+        match comp.Type with
+        | RAM1 m -> RAM1 (updateFn m)
+        | ROM1 m -> ROM1 (updateFn m)
+        | AsyncROM1 m -> AsyncROM1 (updateFn m)
+        | AsyncRAM1 m -> AsyncRAM1 (updateFn m)
+        | _ -> 
+            printfn $"Warning: improper use of WriteMemoryType on {comp} ignored"
+            comp.Type
+    
+    let newComp = { comp with Type = newCompType }
+    
+    Optic.set (symbolOf_ compId >-> component_) newComp model
+
 
 let rotateSide (rotation: RotationType) (side:Edge) :Edge =
     match rotation, side with
@@ -662,11 +683,9 @@ let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
 
     (intersect1D getX) && (intersect1D getY)
 
-
-
-
 let inline replaceSymbol (model: Model) (newSymbol: Symbol) (compId: ComponentId) : Model =
     set (symbolOf_ compId) newSymbol model
+
 
 let inline updateSymbol (updateFn: Symbol->Symbol) (compId: ComponentId) (model: Model): Model =
     { model with Symbols = model.Symbols.Add (compId, updateFn model.Symbols[compId]) }
@@ -678,8 +697,8 @@ let inline transformSymbols transform model compList =
         (model.Symbols, transformedSymbols) 
         ||> List.fold (fun currSymMap sym -> currSymMap |> Map.add sym.Id sym)
     
-    set symbols_ newSymbolMap model
 
+    set symbols_ newSymbolMap model
 
 //------------------------------------------------------------------------//
 //------------------------------------Update function---------------------//
@@ -733,8 +752,6 @@ let storeLayoutInfoInComponent _ symbol =
 
 let checkSymbolIntegrity (sym: Symbol) =
     failwithf ""
-
-
 
 
 /// Update function which displays symbols
@@ -845,6 +862,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | WriteMemoryType (compId, memory) ->
         (writeMemoryType model compId memory), Cmd.none
+
+    | UpdateMemory (compId, updateFn) ->  
+        (updateMemory model compId updateFn), Cmd.none
 
     | RotateLeft(compList, rotation) ->
         (transformSymbols (rotateSymbol rotation) model compList), Cmd.none

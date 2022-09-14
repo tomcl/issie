@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
@@ -32,12 +32,12 @@
     <Compile Include="Simulator\Extractor.fs" />
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />
     <Compile Include="Simulator\SimulationGraphAnalyser.fs" />
+    <Compile Include="Simulator\Fast\FastCreate.fs" />
+    <Compile Include="Simulator\Fast\FastReduce.fs" />
+    <Compile Include="Simulator\Fast\FastRun.fs" />
     <Compile Include="Simulator\Builder.fs" />
-    <Compile Include="Simulator\FastCreate.fs" />
-    <Compile Include="Simulator\FastReduce.fs" />
-    <Compile Include="Simulator\FastRun.fs" />
-     <Compile Include="Simulator\TruthTableReduce.fs" />
-    <Compile Include="Simulator\TruthTableCreate.fs" />
+    <Compile Include="Simulator\TruthTable\TruthTableReduce.fs" />
+    <Compile Include="Simulator\TruthTable\TruthTableCreate.fs" />
     <Compile Include="Simulator\Verilog.fs" />
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />
@@ -59,10 +59,15 @@
     <Compile Include="DrawBlock\PopupDrawingView.fs" />
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
+	<Compile Include="DrawBlock\SymbolView.fs" />
+	<Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
+	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
+	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
     <Compile Include="DrawBlock\BusWireUpdate.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />
+	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />

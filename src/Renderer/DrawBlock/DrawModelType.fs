@@ -486,6 +486,7 @@ module SheetT =
         | DebugUpdateMapping of string array
         | DebugContinue
         | DebugPause
+        | SetDebugDevice of string
 
     type ReadLog = | ReadLog of int
 
@@ -544,6 +545,7 @@ module SheetT =
         DebugData: int list
         DebugMappings: string array
         DebugIsConnected: bool
+        DebugDevice: string option
         }
     
     open Operators

@@ -96,14 +96,14 @@ module SheetInterface =
 
         member this.ChangeAdderComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeAdderComponent (compId,(this.GetComponentById compId), newComp) ) ) )
-            let delPorts = SymbolUpdate.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            let delPorts = SymbolUpdatePortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
             dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
             //this.DoBusWidthInference dispatch
         
         member this.ChangeCounterComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeCounterComponent (compId,(this.GetComponentById compId), newComp) ) ) )
-            let delPorts = SymbolUpdate.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            let delPorts = SymbolUpdatePortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
             dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
         
@@ -333,7 +333,7 @@ let moveCircuit moveDelta (model: Model) =
     model
     |> Optic.map symbol_ (Symbol.moveSymbols moveDelta)
     |> Optic.map wire_ (BusWire.moveWires moveDelta)
-    |> Optic.map wire_ (BusWireUpdate.updateWireSegmentJumps [])
+    |> Optic.map wire_ (BusWireUpdateHelpers.updateWireSegmentJumps [])
 
 /// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
 let getWindowParasToFitBox model (box: BoundingBox)  =

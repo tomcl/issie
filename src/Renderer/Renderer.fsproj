@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
@@ -59,10 +59,15 @@
     <Compile Include="DrawBlock\PopupDrawingView.fs" />
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
+	<Compile Include="DrawBlock\SymbolView.fs" />
+	<Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
+	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
+	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
     <Compile Include="DrawBlock\BusWireUpdate.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />
+	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />

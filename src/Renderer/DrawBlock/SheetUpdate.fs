@@ -1078,7 +1078,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 // make build dir
                 match stage with
                 | Synthesis     -> "yosys", ["-p"; $"read_verilog -I{include_path} {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
-                | PlaceAndRoute -> "nextpnr-ice40", ["--hx1k"; "--pcf"; $"{pcf}"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
+                | PlaceAndRoute -> "nextpnr-ice40", ["--package tq144"; "--hx1k"; "--pcf"; $"{pcf}"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
                 | Generate      -> "icepack", [$"{path}/build/{name}.asc"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
                 | Upload        -> "iceprog", [$"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
 
@@ -1193,8 +1193,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         model, Cmd.none
     | DebugSingleStep ->
         //printfn "mappings: %A" model.DebugMappings
-        let viewerNo = (Array.length model.DebugMappings) / 8
-        
+        let remainder = (Array.length model.DebugMappings) % 8
+        let viewerNo = 
+            match remainder with
+            |0 -> (Array.length model.DebugMappings) / 8 
+            |_ ->  (Array.length model.DebugMappings) / 8 + 1
         
         model, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | DebugStepAndRead n ->
@@ -1254,8 +1257,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //| _ -> 
             //simpleConnect()
             
-        let viewerNo = (Array.length model.DebugMappings) / 8
-
+        let remainder = (Array.length model.DebugMappings) % 8
+        let viewerNo = 
+            match remainder with
+            |0 -> (Array.length model.DebugMappings) / 8 
+            |_ ->  (Array.length model.DebugMappings) / 8 + 1
+        
         let connectAndRead viewers dispatch =
             Async.StartImmediate(async {
             let exit_code = ref 0
@@ -1305,8 +1312,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //fs.writeFileSync ("/dev/ttyUSB1", "P")
         pause()
         printfn "Continued execution Stopped"
-        let viewerNo = (Array.length model.DebugMappings) / 8
-
+        let remainder = (Array.length model.DebugMappings) % 8
+        let viewerNo = 
+            match remainder with
+            |0 -> (Array.length model.DebugMappings) / 8 
+            |_ ->  (Array.length model.DebugMappings) / 8 + 1
+        
         
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
@@ -1360,6 +1371,7 @@ let init () =
         DebugData = [1..256] |> List.map (fun i -> 0b00111011)
         DebugIsConnected = false
         DebugMappings = [||]
+        BU
     }, Cmd.none
 
 

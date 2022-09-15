@@ -35,6 +35,15 @@
     <div id="content-wrapper">
       <div class="inner clearfix">
         <section id="main-content">
+          {% include description.html %}
+          <br><br>
+          {% include carousel.html 
+            height="50" 
+            unit="%" 
+            number="1" 
+            title="Key Features"
+          %}
+          <br><br>
           {{ content }}
         </section>
         

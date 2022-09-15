@@ -217,6 +217,13 @@ Now add an extra register between your adder and the ROM address (or make any ot
 
 ![](../img/userGuide/waveform2.png)
 
+## Truth Table
+
+CONT.
+
+## Verilog Component
+
+CONT. link to verilog component page.
 
 ## Now what?
 

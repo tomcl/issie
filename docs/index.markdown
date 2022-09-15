@@ -5,11 +5,7 @@ title: "Home"
 carousels:
   - images:
     - [image: img/catalogue.gif, 
-      description: "ISSIE has an extensive and library of schematic components available in the 'Catalogue' menu. Components include low-level gates, flipflops, and multiplexers, as well as larger blocks: RAMs, ROMs, n-bit registers and adders. The lack of HDL-based combinational logic is currently filled by special components: Bus Select (extracts a bit-field), Bus Compare (decodes a min-term of a bus). More complex functions can quickly be constructed as sub-sheets and then used as any other component.
-        <br><br>
-        Viewer components are used to (optionally) view simulation waveforms of nodes on sub-sheets. Wire label components allow any number of nodes on one design sheet to be connected without visible wires.
-        <br><br> 
-        Under 'THIS PROJECT' you can find all other design sheets of your project as custom components which can be added to your current sheet and replicate the sheet logic.", 
+      description: "ISSIE has an extensive and library of schematic components available in the 'Catalogue' menu. Components include low-level gates, flipflops, and multiplexers, as well as larger blocks: RAMs, ROMs, n-bit registers and adders. Viewer components are used to (optionally) view simulation waveforms of nodes on sub-sheets. Wire label components allow any number of nodes on one design sheet to be connected without visible wires. More complex functions can quickly be constructed as sub-sheets and then used as any other component (found under \"THIS PROJECT\")", 
         title: "Component Library"]
     - [image: img/canvasCustomisation.gif, 
         description: "The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. <b>Specifically:</b> <br><br> (a) Rotate, flip and Move all symbols <br> (b) Change and move around the symbols' labels <br> (c) Manually route wires as you like <br> (d) Auto-align elements <br> (e) Select the wire type you desire (radiussed, jump or modern wires)", 
@@ -30,7 +26,7 @@ carousels:
         title: "Waveform Simulation"]
     - [image: img/verilogOutput.png, 
         description: "Users may convert their ISSIE schematic design into a Verilog file using the \"Write design as Verilog\" option found in the header bar of the application. This allows great flexibility as ISSIE designs may be used in more complex design tools and other programs that use Verilog; allowing ISSIE to be used as a top-level design that can be further developed if needed. Verilog output for simulation or synthesis is documented as part of the Verilog write process, this includes links to a <a href=\"http://bygone.clairexen.net/yosys/download.html\">YoSys</a> workflow for synthesis on FPGAs. Imperial College users can download a pre-installed VM for this workflow, the VHDL output is standalone and should work with other synthesis methods", 
-        title: "Waveform Simulation"]
+        title: "Verilog Output"]
     - [image: img/memoryEditor.png, 
         description: "ISSIE allows users to directly edit the contents of Memory components, for more versatility and ease of use. Memory contents can also be exported and imported via .ram files", 
         title: "Memory Editor"]

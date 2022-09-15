@@ -150,6 +150,21 @@ max-width: 100%;
     content: "////";
     color: #faa916;
   }
+
+  #main-content th {
+    background-color: #5ee965;
+    border: 1px solid;
+  }
+  
+  #main-content tr td{
+    border: 1px solid;
+    // border-right: 1px solid;
+  }
+  
+  #main-content tr:nth-child(even) {
+    background-color: #dbf5e1;
+  }
+
 a.button small {
     display: block;
     font-size: 14px;

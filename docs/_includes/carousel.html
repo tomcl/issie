@@ -30,10 +30,10 @@
           <ul>
             {% for item in page.carousels[number].images %}
             <li class="carousel__slide" style="background-image: url('{{ item[0].image }}'); background-position: 95% 50%; background-size: 50% 50%; background-repeat: no-repeat;">
-              <div style="width: 50%; height: 100%">
+              <div style="width: 50%; height: 100%;position: absolute;">
                 <h2 style="text-align: left; width: 80%; align-self: center; margin-left: 10%;"> {{ item[2].title }} </h2>
-                <div style="align-content: center; text-align: justify; width: 80%; height: 85%; align-self: center;vertical-align: middle; margin-left: 10%;">
-                  <p style="position: relative;top: 50%;transform: translateY(-50%);"> {{ item[1].description }} </p>
+                <div style="align-content: center; position:absolute;text-align: justify; width: 80%; height: 85%; align-self: center;vertical-align: middle; margin-left: 10%;overflow-y: auto;">
+                  <p style="position: relative;top: 50%;transform: translateY(-60%);"> {{ item[1].description }} </p>
                 </div>
               </div>
             </li> 

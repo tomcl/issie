@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
@@ -20,9 +20,11 @@
     <Compile Include="Common\Helpers.fs" />
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
-    
- 
-    <!-- simulator -->
+
+	  <!-- UART -->
+    <Compile Include="UartFiles\BuildUartHelpers.fs" />
+
+	  <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />
@@ -30,12 +32,12 @@
     <Compile Include="Simulator\Extractor.fs" />
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />
     <Compile Include="Simulator\SimulationGraphAnalyser.fs" />
+    <Compile Include="Simulator\Fast\FastCreate.fs" />
+    <Compile Include="Simulator\Fast\FastReduce.fs" />
+    <Compile Include="Simulator\Fast\FastRun.fs" />
     <Compile Include="Simulator\Builder.fs" />
-    <Compile Include="Simulator\FastCreate.fs" />
-    <Compile Include="Simulator\FastReduce.fs" />
-    <Compile Include="Simulator\FastRun.fs" />
-     <Compile Include="Simulator\TruthTableReduce.fs" />
-    <Compile Include="Simulator\TruthTableCreate.fs" />
+    <Compile Include="Simulator\TruthTable\TruthTableReduce.fs" />
+    <Compile Include="Simulator\TruthTable\TruthTableCreate.fs" />
     <Compile Include="Simulator\Verilog.fs" />
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />
@@ -57,17 +59,22 @@
     <Compile Include="DrawBlock\PopupDrawingView.fs" />
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
+	<Compile Include="DrawBlock\SymbolView.fs" />
+	<Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
+	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
+	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
     <Compile Include="DrawBlock\BusWireUpdate.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />
+	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI/Style.fs" />
-    <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI\Notifications.fs" />
+    <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI/MemoryEditorView.fs" />
     <Compile Include="UI/FileMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
@@ -75,6 +82,7 @@
     <Compile Include="UI\ConstraintReduceView.fs" />
     <Compile Include="UI\TruthTableView.fs" />
     <Compile Include="UI/CatalogueView.fs" />
+    <Compile Include="UI/BuildView.fs" />
     <Compile Include="UI/SelectedComponentView.fs" />
     <!-- <Compile Include="UI/WaveSim/WaveformSimulationView.fs" /> -->
     <Compile Include="UI/WaveSim/WaveSimHelpers.fs" />
@@ -86,9 +94,7 @@
     <Compile Include="UI\Update.fs" />
     <Compile Include="Renderer.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="6.0.1" />
-  </ItemGroup>
+  
   <!-- Dependencies -->
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

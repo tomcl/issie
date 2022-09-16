@@ -24,7 +24,12 @@ MODULE_ITEM
     -> INPUT_DECL ";" _ {%function(d,l, reject) {return {Type: "item", ItemType: "input_decl", IODecl: d[0], ParamDecl: null, Statement: null, Location: l};} %}
     | OUTPUT_DECL ";" _ {%function(d,l, reject) {return {Type: "item", ItemType: "output_decl", IODecl: d[0], ParamDecl: null, Statement: null, Location: l};} %}
     | STATEMENT _ {%function(d,l, reject) {return {Type: "item", ItemType: "statement", IODecl: null, ParamDecl: null, Statement: d[0], Location: l};} %}
-
+    | "wire" __ EVERYTHING {%function(d,l, reject) {return {Type: "WIRE-DECL", ItemType: d[0], IODecl: null, ParamDecl: null, Statement: null, Location: l};} %}
+    | "reg" __ EVERYTHING {%function(d,l, reject) {return {Type: "NO-COMB", ItemType: d[0], IODecl: null, ParamDecl: null, Statement: null, Location: l};} %}
+    | "always" EVERYTHING {%function(d,l, reject) {return {Type: "NO-COMB", ItemType: d[0], IODecl: null, ParamDecl: null, Statement: null, Location: l};} %}
+    | "always_comb" EVERYTHING {%function(d,l, reject) {return {Type: "NO-COMB", ItemType: d[0], IODecl: null, ParamDecl: null, Statement: null, Location: l};} %}
+    | "initial" EVERYTHING {%function(d,l, reject) {return {Type: "NO-COMB", ItemType: d[0], IODecl: null, ParamDecl: null, Statement: null, Location: l};} %}
+    | "case" EVERYTHING {%function(d,l, reject) {return {Type: "NO-CASE", ItemType: d[0], IODecl: null, ParamDecl: null, Statement: null, Location: l};} %}
 
 IO_ITEMS 
     -> IO_ITEM _ "," _ IO_ITEMS {%function(d) {return {Type: "io_items", Head: d[0], Tail: d[4]};} %}
@@ -36,8 +41,8 @@ IO_ITEM
 
 STATEMENTS -> STATEMENT_ITEM:* {%function(d) {return {Type: "module_items", ItemList: d[0]};} %}
 
-STATEMENT_ITEM -> STATEMENT _ {%function(d,l, reject) {return {Type: "item", ItemType: "statement", IODecl: null, ParamDecl: null, Statement: d[0], Location: l};} %}
-
+STATEMENT_ITEM -> 
+    STATEMENT _ {%function(d,l, reject) {return {Type: "item", ItemType: "statement", IODecl: null, ParamDecl: null, Statement: d[0], Location: l};} %}
 ############################################    DECLARATIONS    ###############################################
 
 
@@ -187,7 +192,7 @@ assign -> "assign" {% id %}
 wire -> "wire" {% id %}
 endmodule -> "endmodule" {% id %}
  
-
+EVERYTHING -> [[a-zA-Z_0-9\s;@()]:*
 
 IDENTIFIER -> [a-zA-Z] [a-zA-Z_0-9]:* {%
     function(d,l, reject) {

@@ -62,5 +62,8 @@ module.exports = {
   ],
   resolve: {
     extensions: ['.ts', '.tsx', '.js']
+  },
+  externals: {
+    usb: "commonjs2 usb", // Ref: https://copyprogramming.com/howto/electron-and-serial-ports
   }
 };

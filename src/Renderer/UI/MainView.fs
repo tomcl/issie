@@ -122,6 +122,7 @@ let init() = {
     ConnsOfSelectedWavesAreHighlighted= false
     Pending = []
     UIState = None
+    BuildVisible = false
 }
 
 
@@ -188,6 +189,12 @@ let private  viewRightTab canvasState model dispatch =
                 subtabs
                 viewSimSubTab canvasState model dispatch
             ]
+    | Build ->
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+            Heading.h4 [] [ str "Build" ]
+            div [ Style [ MarginBottom "15px" ] ] [ str "Compile your design and upload it to one of the supported devices" ]
+            BuildView.viewBuild model dispatch
+        ]
 
 /// determine whether moving the mouse drags the bar or not
 let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
@@ -244,6 +251,19 @@ let viewRightTabs canvasState model dispatch =
             OverflowOptions.Clip // ensure no scrollbar temporarily after the transition
         else 
             OverflowOptions.Auto
+    
+    let buildTab =
+        if model.BuildVisible then
+            Tabs.tab
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Build)]
+                [ a [  OnClick (fun _ -> 
+                        if model.RightPaneTabVisible <> Simulation 
+                        then
+                            dispatch <| ChangeRightTab Build ) 
+                    ] [str "Build"] ]
+        else
+            null
+    
     div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto]] [
         Tabs.tabs [ 
             Tabs.IsFullWidth; 
@@ -266,6 +286,7 @@ let viewRightTabs canvasState model dispatch =
             Tabs.tab // simulation tab to view all simulators
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
                 [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
+            buildTab
         ]
         div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [viewRightTab canvasState model dispatch]
 

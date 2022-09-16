@@ -7,6 +7,7 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 open Optics
+open Node.ChildProcess
 
 //--------------------------COMMON TYPES------------------------------//
 
@@ -139,6 +140,7 @@ module SymbolT =
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
     let portMaps_ = Lens.create (fun a -> a.PortMaps) (fun s a -> {a with PortMaps = s})
     let movingPort_ = Lens.create (fun a -> a.MovingPort) (fun s a -> {a with MovingPort = s})
+    let movingPortTarget_ = Lens.create (fun a -> a.MovingPortTarget) (fun s a -> {a with MovingPortTarget = s})
     let component_ = Lens.create (fun a -> a.Component) (fun s a -> {a with Component = s})
 
 
@@ -193,6 +195,7 @@ module SymbolT =
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
         | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
         | WriteMemoryType of ComponentId * ComponentType
+        | UpdateMemory of ComponentId * (Memory1 -> Memory1)
         | RotateLeft of compList : ComponentId list * RotationType
         | Flip of compList: ComponentId list * orientation: FlipType
         /// Taking the input and..
@@ -410,6 +413,25 @@ module SheetT =
 
     type Arrange = | AlignSymbols | DistributeSymbols
 
+    type CompilationStage =
+        | Completed of int
+        | InProgress of int
+        | Failed
+        | Queued
+    
+    type CompilationStageLabel =
+        | Synthesis
+        | PlaceAndRoute
+        | Generate
+        | Upload
+
+    type CompileStatus = {
+        Synthesis: CompilationStage;
+        PlaceAndRoute: CompilationStage;
+        Generate: CompilationStage;
+        Upload: CompilationStage;
+    }
+
     type Msg =
         | Wire of BusWireT.Msg
         | KeyPress of KeyboardMsg
@@ -449,6 +471,29 @@ module SheetT =
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
+        // ------------------- Compilation and Debugging ----------------------
+        | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
+        | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
+        | StopCompilation
+        | TickCompilation of float
+        | FinishedCompilationStage
+        | DebugSingleStep
+        | DebugStepAndRead of parts: int 
+        | DebugRead of parts: int 
+        | OnDebugRead of data: int * viewer: int
+        | DebugConnect
+        | DebugDisconnect
+        | DebugUpdateMapping of string array
+        | DebugContinue
+        | DebugPause
+        | SetDebugDevice of string
+
+    type ReadLog = | ReadLog of int
+
+    type DebugState =
+        | NotDebugging
+        | Paused
+        | Running
 
     type Model = {
         Wire: BusWireT.Model
@@ -493,6 +538,14 @@ module SheetT =
         CtrlKeyDown : bool
         ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list
+        Compiling: bool
+        CompilationStatus: CompileStatus
+        CompilationProcess: ChildProcess option
+        DebugState: DebugState
+        DebugData: int list
+        DebugMappings: string array
+        DebugIsConnected: bool
+        DebugDevice: string option
         }
     
     open Operators

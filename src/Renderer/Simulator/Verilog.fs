@@ -362,7 +362,11 @@ let fastOutputDefinition (vType:VMode) (fc: FastComponent) (opn: OutputPortNumbe
         | ForSynthesis -> $"input {vDef};\n"
         | ForSimulation -> $"reg {vDef} = {getZeros n};\n"
     | Register n, _
-    | RegisterE n, _ -> $"reg {vDef} = {getZeros n};\n"
+    | RegisterE n, _ 
+    | Counter n, _ 
+    | CounterNoEnable n, _
+    | CounterNoLoad n, _
+    | CounterNoEnableLoad n, _ -> $"reg {vDef} = {getZeros n};\n"
     | _ -> $"wire {vDef};\n"
 
 /// Translates from a component to its Verilog description

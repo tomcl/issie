@@ -624,7 +624,7 @@ let getMainHardware (fs: FastSimulation) =
 
 /// make a simple testbench which displays module outputs for the first 30 clock cycles
 let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
-
+    
     let inDefs =
         fs.FGlobalInputComps
         |> Array.map
@@ -687,6 +687,7 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
 
 
 let getDebugController (profile: CompilationProfile) (fs: FastSimulation) =
+    
     let padWithZeros (a: string array) =
         (Array.toList a, List.replicate 8 "1'b0")
         ||> List.append
@@ -801,7 +802,7 @@ end
 let getVerilog (vType: VMode) (fs: FastSimulation) (profile: CompilationProfile) =
     // make sure we have Ok names to use for output
     writeVerilogNames fs
-
+    
     [| getInstantiatedModules fs
        getMainHeader vType profile fs
        getMainSignalDefinitions vType profile fs

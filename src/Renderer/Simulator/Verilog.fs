@@ -444,22 +444,22 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         + $"assign %s{outs 1} = %s{ins 1} ? %s{ins 0} : {makeBits w (uint64 0)};\n"
     | Demux4 ->
         let w = outW 0
-        
-        $"assign %s{outs 0} = %s{demuxOutput (outs 0) (ins 1) w};\n"
-        + $"assign %s{outs 1} = %s{demuxOutput (outs 1) (ins 1) w};\n"
-        + $"assign %s{outs 2} = %s{demuxOutput (outs 2) (ins 1) w};\n"
-        + $"assign %s{outs 3} = %s{demuxOutput (outs 3) (ins 1) w};\n"
+
+        $"assign %s{outs 0} = (%s{ins 1} == 2'b00) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 1} = (%s{ins 1} == 2'b01) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 2} = (%s{ins 1} == 2'b10) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 3} = (%s{ins 1} == 2'b11) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
     | Demux8 ->
         let w = outW 0
         
-        $"assign %s{outs 0} = %s{demuxOutput (outs 0) (ins 1) w};\n"
-        + $"assign %s{outs 1} = %s{demuxOutput (outs 1) (ins 1) w};\n"
-        + $"assign %s{outs 2} = %s{demuxOutput (outs 2) (ins 1) w};\n"
-        + $"assign %s{outs 3} = %s{demuxOutput (outs 3) (ins 1) w};\n"
-        + $"assign %s{outs 4} = %s{demuxOutput (outs 4) (ins 1) w};\n"
-        + $"assign %s{outs 5} = %s{demuxOutput (outs 5) (ins 1) w};\n"
-        + $"assign %s{outs 6} = %s{demuxOutput (outs 6) (ins 1) w};\n"
-        + $"assign %s{outs 7} = %s{demuxOutput (outs 7) (ins 1) w};\n"
+        $"assign %s{outs 0} = (%s{ins 1} == 3'b000) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 1} = (%s{ins 1} == 3'b001) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 2} = (%s{ins 1} == 3'b010) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 3} = (%s{ins 1} == 3'b011) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 4} = (%s{ins 1} == 3'b100) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 5} = (%s{ins 1} == 3'b101) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 6} = (%s{ins 1} == 3'b110) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 7} = (%s{ins 1} == 3'b111) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
     | NbitsAdder n ->
         let cin = ins 0
         let a = ins 1

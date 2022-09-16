@@ -41,10 +41,13 @@ let generateIOLabel (model: Model) (compType: ComponentType) (name:string) : str
     let existingNumbers =
         listSymbols
         |> List.collect (fun sym ->
-            let baseName,no = extractIOPrefix sym.Component.Label []
-            if baseName = newCompBaseName then
-                [no]
-            else []
+            match sym.Component.Type with
+            |IOLabel -> []
+            |_ -> 
+                let baseName,no = extractIOPrefix sym.Component.Label []
+                if baseName = newCompBaseName then
+                    [no]
+                else []
         )
     match existingNumbers with
     |[] -> name

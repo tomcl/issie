@@ -512,30 +512,10 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         // $"assign {out} = {a} << {n});\n"
         $"assign {out} = {a} ? {n}'b{result1} : {n}'b0;\n"
     | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
-    | Mux4 -> 
-        let outputBit = 
-            match ins 4 with
-            | "0" -> ins 0 
-            | "1" -> ins 1 
-            | "2" -> ins 2
-            | "3" -> ins 3
-            | _ -> failwithf "Cannot happen"
-
-        $"assign %s{outs 0} = %s{outputBit};\n"
+    | Mux4 -> $"assign %s{outs 0} = %s{ins 4}[1] ? (%s{ins 4}[0] ? %s{ins 3} : %s{ins 2}) : (%s{ins 4}[0] ? %s{ins 1} : %s{ins 0})  ;\n"
+        
     | Mux8 -> 
-        let outputBit = 
-            match ins 8 with
-            | "0" -> ins 0 
-            | "1" -> ins 1 
-            | "2" -> ins 2
-            | "3" -> ins 3
-            | "4" -> ins 4 
-            | "5" -> ins 5 
-            | "6" -> ins 6
-            | "7" -> ins 7
-            | _ -> failwithf "Cannot happen"
-
-        $"assign %s{outs 0} = %s{outputBit};\n"
+        $"assign %s{outs 0} = %s{ins 8}[2] ? (%s{ins 8}[1] ? (%s{ins 8}[0] ? %s{ins 7} : %s{ins 6}) : (%s{ins 8}[0] ? %s{ins 5} : %s{ins 4})) : (%s{ins 8}[1] ? (%s{ins 8}[0] ? %s{ins 3} : %s{ins 2}) : (%s{ins 8}[0] ? %s{ins 1} : %s{ins 0}))  ;\n"
     | BusSelection (outW, lsb) ->
         let sel = sprintf "[%d:%d]" (outW + lsb - 1) lsb
         $"assign {outs 0} = {ins 0}{sel};\n"

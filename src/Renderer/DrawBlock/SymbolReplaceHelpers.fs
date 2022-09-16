@@ -35,6 +35,9 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | Register _ -> Register newBits
         | RegisterE _ -> RegisterE newBits
         | Counter _ -> Counter newBits
+        | CounterNoEnable _ -> CounterNoEnable newBits
+        | CounterNoLoad _ -> CounterNoLoad newBits
+        | CounterNoEnableLoad _ -> CounterNoEnableLoad newBits
         | SplitWire _ -> SplitWire newBits
         | BusSelection (_,b) -> BusSelection (newBits,b)
         | BusCompare (_,b) -> BusCompare (newBits,b)

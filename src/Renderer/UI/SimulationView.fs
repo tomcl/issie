@@ -50,7 +50,8 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
                         printfn "writing %s" proj.ProjectPath
                         try 
-                            FilesIO.writeFile path (Verilog.getVerilog vType sim.FastSim)
+                            let code = (Verilog.getVerilog vType sim.FastSim Verilog.CompilationProfile.Release)
+                            FilesIO.writeFile path code
                         with
                         | e -> 
                             printfn $"Error in Verilog output: {e.Message}"

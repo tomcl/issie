@@ -570,7 +570,7 @@ let mMoveUpdate
     | InitialisedCreateComponent (ldcs, compType, lbl) ->
         let labelTest = 
             match compType with
-            |Input _ | Input1 (_,_) |Output _ |Viewer _ ->
+            |Input _ | Input1 (_,_) |Output _ |Viewer _ |IOLabel ->
                 SymbolUpdate.generateIOLabel model.Wire.Symbol compType lbl
             | _ ->
                 if lbl = "" then SymbolUpdate.generateLabel model.Wire.Symbol compType else lbl

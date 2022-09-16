@@ -96,14 +96,14 @@ module SheetInterface =
 
         member this.ChangeAdderComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeAdderComponent (compId,(this.GetComponentById compId), newComp) ) ) )
-            let delPorts = SymbolUpdate.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            let delPorts = SymbolUpdatePortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
             dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
             //this.DoBusWidthInference dispatch
         
         member this.ChangeCounterComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeCounterComponent (compId,(this.GetComponentById compId), newComp) ) ) )
-            let delPorts = SymbolUpdate.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            let delPorts = SymbolUpdatePortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
             dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
         
@@ -167,6 +167,12 @@ module SheetInterface =
         /// Given a list of connIds, select those connections
         member this.SelectConnections dispatch on connIds =
             dispatch <| UpdateSelectedWires (connIds, on)
+        /// Update the memory of component
+        member this.WriteMemoryType dispatch compId mem =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (compId,mem))))
+                /// Update the memory of component
+        member this.UpdateMemory dispatch compId mem =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.UpdateMemory (compId,mem))))
 
         /// Update the memory of component specified by connId at location addr with data value
         member this.WriteMemoryLine dispatch connId addr value =
@@ -333,7 +339,7 @@ let moveCircuit moveDelta (model: Model) =
     model
     |> Optic.map symbol_ (Symbol.moveSymbols moveDelta)
     |> Optic.map wire_ (BusWire.moveWires moveDelta)
-    |> Optic.map wire_ (BusWireUpdate.updateWireSegmentJumps [])
+    |> Optic.map wire_ (BusWireUpdateHelpers.updateWireSegmentJumps [])
 
 /// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
 let getWindowParasToFitBox model (box: BoundingBox)  =

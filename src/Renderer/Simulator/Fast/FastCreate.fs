@@ -479,7 +479,8 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
             | SplitWire _
             | BusSelection _
             | MergeWires 
-            | Constant _
+            | Constant1 _ -> 
+                [||]
             | Output _ when fc.SubSheet <> [] ->
                 [||]
             | Input1 _ when fc.SubSheet <> [] ->

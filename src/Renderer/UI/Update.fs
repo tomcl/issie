@@ -25,7 +25,10 @@ open Helpers
 open NumberHelpers
 open DiagramStyle
 open UpdateHelpers
+open Optics
+open Optic
 
+open Operators
 
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
@@ -264,7 +267,13 @@ let findChange (model : Model) : bool =
 let resetDialogIfSelectionHasChanged newModel oldModel =
     let newSelected = newModel.Sheet.SelectedComponents
     if newSelected.Length = 1 && newSelected <> oldModel.Sheet.SelectedComponents then
-        {newModel with PopupDialogData = {newModel.PopupDialogData with Text = None ; Int = None}}
+        newModel
+        |> map popupDialogData_ (
+            set text_ None >>
+            set int_ None
+        )
+
+
     else newModel
 
 let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
@@ -401,9 +410,10 @@ let update (msg : Msg) oldModel =
         // Update the wave simulator with new waveforms
         // Is called whenever any waveform might need to be changed
         WaveSim.refreshWaveSim false ws model
-
-        
-
+    | GenerateCurrentWaveforms ->
+        // Update the wave simulator with new waveforms based on current WsMdel
+        let ws = WaveSimHelpers.getWSModel model
+        WaveSim.refreshWaveSim false ws model
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
         let model = 
             model
@@ -583,7 +593,8 @@ let update (msg : Msg) oldModel =
             {model.PopupDialogData with 
                 AlgebraInputs = None
                 AlgebraError = None
-                ConstraintErrorMsg = None}
+                ConstraintErrorMsg = None}    
+            
         {model with 
             CurrentTruthTable = None
             TTInputConstraints = emptyConstraintSet
@@ -713,6 +724,8 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
+        | Build -> Cmd.batch  <| editCmds
+        //| TruthTable -> Cmd.batch <| editCmds
         | Transition -> Cmd.none
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
@@ -722,6 +735,8 @@ let update (msg : Msg) oldModel =
         | StepSim -> Cmd.batch <| editCmds
         | TruthTable -> Cmd.batch <| editCmds
         | WaveSim -> Cmd.batch <| editCmds
+    | ChangeBuildTabVisibility ->
+        {model with BuildVisible = (not <| model.BuildVisible)}, Cmd.none
     | SetHighlighted (componentIds, connectionIds) ->
         let sModel, sCmd = SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
@@ -731,10 +746,9 @@ let update (msg : Msg) oldModel =
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project ->
-        { model with
-            CurrentProj = Some project
-            PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
-        }, Cmd.none
+        model
+        |> set currentProj_ (Some project) 
+        |> set (popupDialogData_ >-> projectPath_) project.ProjectPath, Cmd.none
     | UpdateProject update ->
         CustomCompPorts.updateProjectFiles true update model, Cmd.none
     | UpdateProjectWithoutSyncing update -> 
@@ -758,17 +772,17 @@ let update (msg : Msg) oldModel =
                         VerilogErrors = [];
                     }}, Cmd.none
     | SetPopupDialogText text ->
-        { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
+        set (popupDialogData_ >-> text_) text model, Cmd.none
     | SetPopupDialogBadLabel isBad ->
-        { model with PopupDialogData = {model.PopupDialogData with BadLabel = isBad} }, Cmd.none
+        set (popupDialogData_ >-> badLabel_) isBad model, Cmd.none
     | SetPopupDialogCode code ->
-        { model with PopupDialogData = {model.PopupDialogData with VerilogCode = code} }, Cmd.none
+        set (popupDialogData_ >-> verilogCode_) code model, Cmd.none
     | SetPopupDialogVerilogErrors errorList ->
-        { model with PopupDialogData = {model.PopupDialogData with VerilogErrors = errorList} }, Cmd.none
+        set (popupDialogData_ >-> verilogErrors_) errorList model, Cmd.none
     | SetPopupDialogInt int ->
-        { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
+        set (popupDialogData_ >-> int_) int model, Cmd.none
     | SetPopupDialogInt2 int ->
-        { model with PopupDialogData = {model.PopupDialogData with Int2 = int} }, Cmd.none
+        set (popupDialogData_ >-> int2_) int model, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData =
                         match data with
@@ -776,21 +790,21 @@ let update (msg : Msg) oldModel =
                         | n, SecondInt, optText -> {model.PopupDialogData with Int2 = n}
         }, Cmd.none
     | SetPopupDialogMemorySetup m ->
-        { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
+        set (popupDialogData_ >-> memorySetup_) m model, Cmd.none
     | SetPopupMemoryEditorData m ->
-        { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
+        set (popupDialogData_ >-> memoryEditorData_) m model, Cmd.none
     | SetPopupProgress progOpt ->
-        { model with PopupDialogData = {model.PopupDialogData with Progress = progOpt} }, Cmd.none
+        set (popupDialogData_ >-> progress_) progOpt model, Cmd.none
     | UpdatePopupProgress updateFn ->
         { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
     | SetPopupConstraintTypeSel ct ->
-        { model with PopupDialogData = {model.PopupDialogData with ConstraintTypeSel = ct}}, Cmd.none
+        set (popupDialogData_ >-> constraintTypeSel_) ct model, Cmd.none
     | SetPopupConstraintIOSel io ->
-        { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
+        set (popupDialogData_ >-> constraintIOSel_) io model, Cmd.none
     | SetPopupConstraintErrorMsg msg ->
-        { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
+        set (popupDialogData_ >-> constraintErrorMsg_) msg model, Cmd.none
     | SetPopupNewConstraint con ->
-        { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
+        set (popupDialogData_ >-> newConstraint_) con model, Cmd.none
     | TogglePopupAlgebraInput (io,sd) ->
         let (_,_,w) = io
         let oldLst =
@@ -802,39 +816,42 @@ let update (msg : Msg) oldModel =
             match ConstraintReduceView.validateAlgebraInput io zero sd with
             | Ok _ ->
                 let newLst = List.except [io] oldLst
-                {model with 
-                    PopupDialogData = {
-                    model.PopupDialogData with 
-                        AlgebraInputs = Some newLst
-                        AlgebraError = None}}, Cmd.none
+                model
+                |> map popupDialogData_ (
+                    set algebraInputs_ (Some newLst) >> 
+                    set algebraError_ None
+                ), Cmd.none
+                
             | Error err ->
                 let newLst = List.except [io] oldLst
-                {model with 
-                    PopupDialogData = {
-                    model.PopupDialogData with 
-                        AlgebraInputs = Some newLst
-                        AlgebraError = Some err}}, Cmd.none
+                model
+                |> map popupDialogData_ (
+                    set algebraInputs_ (Some newLst) >> 
+                    set algebraError_ (Some err)
+                ), Cmd.none
+
         else // Values -> Algebra
             let alg = IAlg <| SingleTerm io
             match ConstraintReduceView.validateAlgebraInput io alg sd with
             | Ok _ ->
                 let newLst = io::oldLst
-                {model with 
-                    PopupDialogData = {
-                    model.PopupDialogData with 
-                        AlgebraInputs = Some newLst
-                        AlgebraError = None}}, Cmd.none
+                model
+                |> map popupDialogData_ (
+                    set algebraInputs_ (Some newLst) >> 
+                    set algebraError_ None
+                ), Cmd.none
             | Error err ->
                 let newLst = io::oldLst
-                {model with 
-                    PopupDialogData = {
-                    model.PopupDialogData with 
-                        AlgebraInputs = Some newLst
-                        AlgebraError = Some err}}, Cmd.none
+                model
+                |> map popupDialogData_ (
+                    set algebraInputs_ (Some newLst) >> 
+                    set algebraError_ (Some err)
+                ), Cmd.none
+
     | SetPopupAlgebraInputs opt ->
-        {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = opt}}, Cmd.none
+        set (popupDialogData_ >-> algebraInputs_) opt model, Cmd.none
     | SetPopupAlgebraError opt ->
-        {model with PopupDialogData = {model.PopupDialogData with AlgebraError = opt}}, Cmd.none
+        set (popupDialogData_ >-> algebraError_) opt model, Cmd.none
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model
     | SetSelectedComponentMemoryLocation (addr,data) ->

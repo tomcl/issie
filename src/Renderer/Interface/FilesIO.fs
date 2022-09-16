@@ -19,6 +19,8 @@ open EEExtensions
 open Fable.SimpleJson
 open JSHelpers
 
+[<Emit("process.cwd()")>]
+let getCWD (u:unit): string = jsNative
 
 // [<Emit("__static")>]
 // let staticDir() :string = jsNative
@@ -384,17 +386,13 @@ let writeMemDefns (fPath: string) (mem: Memory1) =
     with
         | e -> Error $"Error writing file '{fPath}': {e.Message}"
 
+/// Return data for memory if it is linked to a ram.
+/// Return mem data if it is unlinked
+/// Error if the read fails ot the file parse fails.
 let initialiseMem (mem: Memory1) (projectPath:string) =
+
     let memResult =
         match mem.Init with
-        | UnsignedMultiplier
-        | SignedMultiplier ->                  
-            makeFixedROM mem.AddressWidth mem.WordWidth mem
-
-        | ToFile name ->
-            let fPath = pathJoin [| projectPath; name + ".ram"|]
-            writeMemDefns fPath mem
-            |> Result.map ( fun _ -> mem.Data)
 
         | FromFile name ->
             let fPath = pathJoin [| projectPath; name + ".ram"|]
@@ -402,8 +400,8 @@ let initialiseMem (mem: Memory1) (projectPath:string) =
 
         | FromData ->
             Ok mem.Data
-        | ToFileBadName s ->
-            failwithf "What? Can't have a bad file name when initialising memory"
+
+        | _ -> Error $"Unsupported legacy memory type '{mem.Init}'"
        
     memResult
     |> Result.map (fun data -> {mem with Data = data})

@@ -56,6 +56,7 @@ let shortDisplayMsg (msg:Msg) =
     | UpdateWSModel _ -> None
     | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM ws}"
     | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"
+    | GenerateCurrentWaveforms -> Some $"Generate Current Waveforms"
     | RefreshWaveSim ws -> Some "RefreshWaveSim"
     | SetWaveSheetSelectionOpen _
     | SetWaveComponentSelectionOpen _-> Some "SetWaveComponentSelectionOpen"
@@ -139,7 +140,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetTopMenu _ 
     | ReloadSelectedComponent _ 
     | SetDragMode _ 
-    /// Set width of right-hand pane when tab is WaveSimulator or TruthTable
+    // Set width of right-hand pane when tab is WaveSimulator or TruthTable
     | SetViewerWidth _ 
     | MenuAction _ 
     | DiagramMouseEvent
@@ -152,13 +153,17 @@ let shortDisplayMsg (msg:Msg) =
     | DoNothing
     | StartUICmd _
     | FinishUICmd
+    | ChangeBuildTabVisibility
     | ReadUserData _
     | SetUserData _
-    | ExecCmd _
-    | ExecFuncInMessage _
-    | ExecFuncAsynch _
-    | ExecCmdAsynch _
-    | SendSeqMsgAsynch _ -> None
+    | ChangeBuildTabVisibility
+    | SetThemeUserData _ -> None
+    | ExecCmd _ -> Some "ExecCmd"
+    | ExecFuncInMessage _ -> Some "ExecFuncInMessage"
+    | ExecFuncAsynch _ -> Some "ExecFuncAsync"
+    | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
+    | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
+
 
 
 

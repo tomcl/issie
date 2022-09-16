@@ -118,49 +118,85 @@ let getInitSource (mem: Memory1) =
     | UnsignedMultiplier ->
         $"Dout = (unsigned) addr({a-1}:{a/2}) * addr({a/2-1}:0)"
     | FromData ->
-        "See Memory Viewer"
+        "Memory Viewer/Editor"
     | FromFile name | ToFile name | ToFileBadName name ->
         $"From '{name}.ram' file"
    
 
-let private makeMemoryInfo descr mem compId cType model dispatch =
-    let projectPath = (Option.get model.CurrentProj).ProjectPath
-    div [] [
-        str descr
-        br []; br []
-        str <| sprintf "Address width: %d bit(s)" mem.AddressWidth
-        br []
-        str <| sprintf "Number of elements: %d" (1UL <<< mem.AddressWidth)
-        br []
-        str <| sprintf "Word width: %d bit(s)" mem.WordWidth
-        br []
-        str <| sprintf "%sData: %s"  
-                (match cType with 
-                 | RAM1 _ | AsyncRAM1 _ -> "Initial "
-                 | ROM1 _ | AsyncROM1 _ -> ""
-                 | _ -> failwithf $"What - wrong component type ({cType} here")
-                (getInitSource mem)
-        br []
-        //makeSourceMenu model (Option.get model.CurrentProj) mem dispatch
-        br []; br []
-        Button.button [
-            Button.Color IsPrimary
-            Button.OnClick (fun _ -> openMemoryEditor mem compId model dispatch)
-        ] [str "View/Edit memory content"]
-        br []; br [];
-        Button.button [
-            Button.Color IsPrimary
-            Button.OnClick (fun _ -> 
-                FilesIO.openWriteDialogAndWriteMemory mem projectPath
-                |> (function
-                        | None -> ()
-                        | Some path ->
-                            let note = successPropertiesNotification $"Memory content written to '{path}'"
-                            dispatch <| SetPropertiesNotification note)
-                )
-        ] [str "Write content to file"]
+let getDialogMemorySetup (mem: Memory1) =
+    mem.AddressWidth,mem.WordWidth,mem.Init, match mem.Init with | FromFile n -> Some n | _ -> None
 
-    ]
+let private makeMemoryInfo descr mem compId cType model dispatch =
+    let setup = getDialogMemorySetup mem
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let mem1 = match cType with | Memory mem -> mem | _ -> failwithf "What? makememoryinfo called with non-memory"
+    let reloadMemoryContent mem compId model dispatch =
+        () // *** To be implemented
+    let printMemorySource() =
+        str <| sprintf "%sData Source: %s"  
+                (match cType with 
+                | RAM1 _ | AsyncRAM1 _ -> "Initial "
+                | ROM1 _ | AsyncROM1 _ -> ""
+                | _ -> failwithf $"What - wrong component type ({cType}) here")
+                (getInitSource mem1)
+
+    dispatch <| SetPopupDialogMemorySetup (Some setup)
+    let projectPath = (Option.get model.CurrentProj).ProjectPath
+    match setup with
+    | (_,_,mem,_) ->
+        div [] [
+            str descr
+            br []; br []
+            str <| sprintf "Address width: %d bit(s)" mem1.AddressWidth
+            br []
+            str <| sprintf "Number of elements: %d" (1UL <<< mem1.AddressWidth)
+            br []
+            str <| sprintf "Word width: %d bit(s)" mem1.WordWidth
+            br []
+
+            //makeSourceMenu model (Option.get model.CurrentProj) mem dispatch
+            br []; br []
+        
+            div [] [
+                Button.button [
+                    Button.Color IsPrimary
+                    Button.OnClick (fun _ -> openMemoryEditor mem1 compId model dispatch)
+                ] [str "View/Edit memory content"]
+                br []; 
+                br [];
+
+                Button.button [
+                    Button.Color IsPrimary
+                    Button.OnClick (fun _ -> 
+                        FilesIO.openWriteDialogAndWriteMemory mem1 projectPath
+                        |> (function
+                                | None -> ()
+                                | Some path ->
+                                    let note = successPropertiesNotification $"Memory content written to '{path}'"
+                                    dispatch <| SetPropertiesNotification note))
+                ] [str "Write content to file"]
+
+                (memPropsInfoButton dispatch)
+                br []; 
+                br [];
+
+                (printMemorySource())
+                   
+                br []
+                (makePopupButton
+                    "Memory Initial Data Source"
+                    (makeSourceMenu 
+                        model.CurrentProj 
+                        (model.Sheet.UpdateMemory sheetDispatch) 
+                        compId 
+                        dispatch)
+                    "Change Memory data source"
+                    dispatch )
+                ]
+            ]   
+
+
+    
 
 let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactElement = 
     

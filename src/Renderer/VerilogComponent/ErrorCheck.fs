@@ -622,11 +622,18 @@ let checkWiresAndAssignments
             | None -> failwithf "Can't happen! PortMap and PortSizeMap should have the same keys"
         | _ -> 
             let message = sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name
-            let extraMessages = 
+            let extraMessagesMain = 
                 [|
                     {Text=(sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name);Copy=false;Replace=NoReplace}
-                    {Text=(sprintf "output %s;" lhs.Primary.Name);Copy=true;Replace=IODeclaration}
                 |]
+
+            let possibleAddition =
+                match ast.Module.Type with
+                |"module_new" -> [||]
+                |_ -> [|{Text=(sprintf "output %s;" lhs.Primary.Name);Copy=true;Replace=IODeclaration}|]
+
+            let extraMessages = Array.append extraMessagesMain possibleAddition
+
             List.append 
                 localErrors 
                 (createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name)
@@ -661,11 +668,18 @@ let checkWiresAndAssignments
                     match List.isEmpty closeVariables with
                     |true ->
                         let message = sprintf "Variable '%s' is not declared as input or wire" name
-                        let extraMessages = 
+                        let extraMessagesMain = 
                             [|
                                 {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false;Replace=NoReplace}
-                                {Text=(sprintf "input %s;|wire %s = 1'b0;" name name);Copy=true;Replace=IODeclaration}
                             |]
+
+                        let possibleAddition =
+                            match ast.Module.Type with
+                            |"module_new" -> [||]
+                            |_ -> [|{Text=(sprintf "input %s;|wire %s = 1'b0;" name name);Copy=true;Replace=IODeclaration}|]
+
+                        let extraMessages = Array.append extraMessagesMain possibleAddition
+                        
                         createErrorMessage linesLocations currLocation message extraMessages name
                     |false ->
                         let message = sprintf "Variable '%s' is not declared as input or wire" name
@@ -864,6 +878,31 @@ let checkWiresAndAssignments
     List.append errorList localErrors
 
 
+let checkNonCombKeywords 
+    (ast:VerilogInput) 
+    (linesLocations: int list) 
+    (errorList: ErrorInfo list) 
+        : ErrorInfo list =
+
+    let localErrors =
+        ast.Module.ModuleItems.ItemList
+        |> Array.toList
+        |> List.filter( fun item -> item.Type = "NO-COMB" || item.Type = "NO-CASE" || item.Type = "WIRE-DECL" )
+        |> List.map (fun item -> item.Type,item.ItemType, item.Location)
+        |> List.collect (fun (tp,keyW,loc) ->
+            let message = 
+                match tp with
+                |"NO-COMB" -> "Non-Combinational logic is not supported"
+                |"NO-CASE" -> "Case statement is not supported"
+                |"WIRE-DECL" -> "Assign directly a value to the wire \n 'wire {name} = {value};'"
+                |_ -> "Non-Combinational logic is not supported"
+            let extraMessages = 
+                [|{Text=message; Copy=false;Replace=NoReplace}|]
+            createErrorMessage linesLocations loc message extraMessages keyW
+        
+        )
+
+    List.append errorList localErrors
 
 /////////////////////////////
 
@@ -1029,4 +1068,5 @@ let getSemanticErrors ast linesLocations (origin:CodeEditorOpen) (project:Projec
     |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
     |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputSizeMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap //checks 1-by-1 all assignments (wires & output ports)
     |> checkAllOutputsAssigned ast portMap portSizeMap linesLocations //checks whether all output ports have been assined a value
+    |> checkNonCombKeywords ast linesLocations
     |> List.distinct // filter out possible double Errors

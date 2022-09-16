@@ -9,7 +9,7 @@ open Helpers
 open NumberHelpers
 
 type VMode = ForSynthesis | ForSimulation
-
+type CompilationProfile = Release | Debug
 
 /// take FullName and convert it into a verilog compatible form
 /// this is not 1-1, so outputs may not be unique, that is OK
@@ -264,6 +264,7 @@ let getInstantiatedModules (fs: FastSimulation) =
             | ROM1 mem -> [| makeRomModule name mem |]
             | AsyncROM1 mem -> [| makeAsyncRomModule name mem |]
             | _ -> [||])
+    |> Array.append [|"`include \"cores/osdvu/uart.v\""|]
 
 let removeHybridComps (fa: FastComponent array) =
     Array.filter (fun fc -> not (isHybridComponent fc.FType)) fa
@@ -398,9 +399,9 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         else makeBits w (uint64 0)
 
     match fc.FType with
-    | Viewer _ -> ""
     | Input1 _ when fc.AccessPath = [] 
         -> failwithf "What? cannot call getVerilogComponent to find code for global Input"
+    | Viewer _
     | Output _
     | Viewer _
     | IOLabel _
@@ -541,7 +542,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let msbBits = outW 1
 
         $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
-        + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
+        + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{lsbBits}];\n"
     | AsyncROM1 mem -> sprintf $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0});\n"
     | ROM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, clk);\n"
     | RAM1 mem | AsyncRAM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
@@ -551,7 +552,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         failwithf $"Invalid legacy component type '{fc.FType}'"
 
 /// return the header of the main verilog module with hardware inputs and outputs in header.
-let getMainHeader (vType:VMode) (fs: FastSimulation) =
+let getMainHeader (vType:VMode) (profile: CompilationProfile) (fs: FastSimulation) =
     Array.append
         fs.FGlobalInputComps
         (Array.filter (fun fc -> isOutput fc.FType && fc.AccessPath = []) fs.FOrderedComps)
@@ -560,17 +561,24 @@ let getMainHeader (vType:VMode) (fs: FastSimulation) =
             match fc.FType, fc.AccessPath with
             | Output _, [] -> // NB - inputs are assigned zero in synthesis and not included in module header
                 [| fc.VerilogOutputName[0] |]
-            | Input1 _, [] when vType = ForSynthesis -> [| fc.VerilogOutputName[0] |]
+            | Input _, [] when vType = ForSynthesis -> [| fc.VerilogOutputName[0] |]
             | _ -> [||])
-    |> Array.append (match vType with | ForSynthesis -> [|"clk"|] | ForSimulation -> [||])
+    |> Array.append (
+        match vType with
+        | ForSynthesis -> match profile with | Release -> [|"clk"|] | Debug -> [|"debug_clk"; "RS232_Rx_TTL"; "RS232_Tx_TTL"|]
+        | ForSimulation -> [||])
     |> String.concat ",\n\t"
     |> (fun header -> 
-            let clock = match vType with ForSimulation -> "" | ForSynthesis -> "input clk;"
+            let clock =
+                match (vType, profile) with
+                | (ForSimulation, _) -> ""
+                | (ForSynthesis, Release) -> "input clk;"
+                | (ForSynthesis, Debug) -> "input debug_clk;\ninput RS232_Rx_TTL;\noutput RS232_Tx_TTL;"
             $"module main (\n\t{header});\n{clock}")
     |> fun s -> [| s |]
 
 /// return the wire and reg definitions needed to make the verilog design work.
-let getMainSignalDefinitions (vType: VMode) (fs: FastSimulation) =
+let getMainSignalDefinitions (vType: VMode) (profile: CompilationProfile) (fs: FastSimulation) =
     fs.FComps
     |> mapValues
     |> Array.filter (fun fc -> fc.Active)
@@ -579,8 +587,10 @@ let getMainSignalDefinitions (vType: VMode) (fs: FastSimulation) =
             fc.Outputs
             |> Array.mapi (fun i _ -> fastOutputDefinition vType fc (OutputPortNumber i)))
     |> Array.sort
-    |> Array.append (match vType with | ForSimulation -> [| "reg clk;\n" |] | ForSynthesis -> [||])
-    
+    |> Array.append (match (vType, profile) with
+                     | (ForSimulation, _) -> [| "reg clk;\n" |]
+                     | (ForSynthesis, Release) -> [||]
+                     | (ForSynthesis, Debug) -> [| "wire clk;\n" |])
 
 /// get the module definitions (one per RAM instance) that define RAMs used
 /// TODO: make output more compact by using multiple instances of one module where possible.
@@ -672,21 +682,128 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
         """ |]
 
 
+let getDebugController (profile: CompilationProfile) (fs: FastSimulation) =
+    let padWithZeros (a: string array) =
+        (Array.toList a, List.replicate 8 "1'b0")
+        ||> List.append
+        |> List.take 8
+        |> List.toArray
+
+    let comps =
+        fs.FOrderedComps
+        |> Array.filter (fun fc -> match fc.FType with | Viewer _ -> true | _ -> false)
+        |> Array.map (fun fc -> getVPortOut fc (OutputPortNumber 0), Array.get fc.OutputWidth 0)
+        |> Array.collect (function 
+            | (_, None) -> [||]
+            | (name, Some width) -> [0 .. width - 1] |> List.toArray |> Array.map (fun i -> $"{name}[{i}]"))
+        //|> Array.map (fun (name, index) -> $"{name}[{index}]")
+    
+    
+    
+    let comps =
+        comps
+        |> Array.chunkBySize 8
+        |> Array.map padWithZeros
+        |> Array.mapi (fun i s -> 
+            let i32 = (int32 i)
+            let hexString = i32.ToString("x2");
+            $"    \"{hexString}\": tx_byte <= {{ {s} }};")
+    
+    //printfn "comps: %A"
+    let comps = 
+        Array.append comps [|"    default: tx_byte <= 8'hFF;"|]
+        |> String.concat "\n"
+
+    // TODO: Add RS232_Rx_TTL and RS232_Tx_TTL to the IO header
+    match profile with
+    | Release -> [||]
+    | Debug ->
+        [| $"""
+wire RS232_Rx_TTL;
+wire RS232_Tx_TTL;
+wire reset = 0;
+reg transmit = 0;
+reg [7:0] tx_byte = 0;
+wire received;
+wire [7:0] rx_byte;
+wire is_receiving;
+wire is_transmitting;
+wire recv_error;
+reg [3:0] num_received = 0;
+reg [31:0] received_bytes = 0;
+uart #(.baud_rate(9600), .sys_clk_freq(12000000))
+uart0(
+    .clk(debug_clk),
+    .rst(reset),
+    .rx(RS232_Rx_TTL),
+    .tx(RS232_Tx_TTL),
+    .transmit(transmit),
+    .tx_byte(tx_byte),
+    .received(received),
+    .rx_byte(rx_byte),
+    .is_receiving(is_receiving),
+    .is_transmitting(is_transmitting),
+    .recv_error(recv_error),
+);
+reg single_step = 0;
+reg is_running = 0;
+reg clk_is_active = 0;
+assign clk = debug_clk & clk_is_active;
+always @ (negedge debug_clk) begin
+    clk_is_active <= 0;
+    if (single_step)
+        clk_is_active <= 1;
+    if (is_running)
+        clk_is_active <= 1;
+end
+always @ (posedge debug_clk) begin
+    transmit <= 0;
+    single_step <= 0;
+    if (received) begin
+        num_received <= num_received + 1;
+        received_bytes <= {{ received_bytes [23:0], rx_byte }};
+    end
+    if (num_received == 4'd1) begin
+        if (received_bytes[7:0] == 8'h53/*S*/) begin
+            num_received <= 4'h0;
+            single_step <= 1;
+        end
+    if (received_bytes[7:0] == 8'h43/*C*/) begin
+            num_received <= 4'h0;
+            is_running <= 1;
+        end
+        if (received_bytes[7:0] == 8'h50/*P*/) begin
+            num_received <= 4'h0;
+            is_running <= 0;
+        end
+    end else if (num_received == 4'd3) begin
+        if (received_bytes[23:16] == 8'h52/*R*/) begin // Read value of internal registers/wires
+            num_received <= 4'h0;
+            transmit <= 1;
+            case (received_bytes[15:0])
+            {comps}
+            endcase
+        end
+    end
+end
+""" |]
+
 /// Outputs a string which contains a single verilog file with the hardware in verilog form.
 /// The top-level simulation moudle is called main - other modules may be included for RAM & ROM
 /// this can be called any time after after buildFastSimulation has created the initial FastSimulation
 /// data structure.
 /// To simulate this you would need to set up clk as a clock input, and provide stimulus for other inputs if
 /// there are any.
-let getVerilog (vType: VMode) (fs: FastSimulation) =
+let getVerilog (vType: VMode) (fs: FastSimulation) (profile: CompilationProfile) =
     // make sure we have Ok names to use for output
     writeVerilogNames fs
 
     [| getInstantiatedModules fs
-       getMainHeader vType fs
-       getMainSignalDefinitions vType fs
+       getMainHeader vType profile fs
+       getMainSignalDefinitions vType profile fs
        getMainHardware fs
        getInitialSimulationBlock vType fs
+       getDebugController profile fs
        [| "endmodule\n" |] |]
     |> Array.map (String.concat "")
     |> String.concat "\n"

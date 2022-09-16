@@ -177,7 +177,7 @@ let getSymbolColour compType clocked (theme:ThemeType) =
     | Colourful ->
         match compType with
         | Register _ | RegisterE _ 
-        | ROM1 _ |AsyncROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 
+        | ROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 
         | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ -> "lightblue"
         | Custom _ when clocked
             -> "lightblue"  //for clocked components
@@ -733,9 +733,9 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
     let compType = sym.Component.Type
     if isMuxSel sym side then
         match compType with
-        | Mux2 | Demux2 -> sideOffset 10.
-        | Mux4 | Demux4 -> sideOffset 10.
-        | Mux8 | Demux8 -> sideOffset 10.
+        | Mux2 | Demux2 -> sideOffset 9.
+        | Mux4 | Demux4 -> sideOffset 9.5
+        | Mux8 | Demux8 -> sideOffset 9.5
         | _ -> {X=0.; Y= 0.}
     else    
         {X = 0.; Y = 0.}

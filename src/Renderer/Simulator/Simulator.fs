@@ -195,7 +195,7 @@ let rec prepareSimulation
                 try
                     match FastRun.buildFastSimulation simulationArraySize diagramName  graph with
                     | Ok fs -> 
-                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
+                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs   
                         Ok {
                             FastSim = fs                           
                             Graph = graph // NB graph is now not initialised with data

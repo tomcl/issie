@@ -4,26 +4,32 @@ title: "Home"
 
 carousels:
   - images:
-    - [image: img/catalogue.gif, 
+    - [image: img/catalogue.png, 
       description: "ISSIE has an extensive and library of schematic components available in the 'Catalogue' menu. Components include low-level gates, flipflops, and multiplexers, as well as larger blocks: RAMs, ROMs, n-bit registers and adders. Viewer components are used to (optionally) view simulation waveforms of nodes on sub-sheets. Wire label components allow any number of nodes on one design sheet to be connected without visible wires. More complex functions can quickly be constructed as sub-sheets and then used as any other component (found under \"THIS PROJECT\")", 
         title: "Component Library"]
+    - [image: img/wireRouting.gif, 
+        description: "ISSIE schematic component ports are connected using drag-and-drop: each connection represents a wire or bus. ISSIE has two methods of routing wires: <b>auto-routing</b> and <b>manual-routing</b>. 
+        <br><br>
+        Wires will all start out as auto-routed, which means that the wire’s path is created automatically by the program. This path will update when moving any connected components. ISSIE also allows for manual routing, where the user may manipulate segments of the wire as desired to make the circuit more readable. Much care has been put into a user interface for routing which <i>just works</i> quickly with no learning curve.", 
+        title: "Wire Routing"]
     - [image: img/canvasCustomisation.gif, 
         description: "The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. <b>Specifically:</b> <br><br> (a) Rotate, flip and Move all symbols <br> (b) Change and move around the symbols' labels <br> (c) Manually route wires as you like <br> (d) Auto-align elements <br> (e) Select the wire type you desire (radiussed, jump or modern wires)", 
         title: "Canvas Customization"]
-    - [image: img/routing.gif, 
-        description: "ISSIE schematic component ports are connected using drag-and-drop: each connection represents a wire or bus. ISSIE has two methods of routing wires: <b>auto-routing</b> and <b>manual-routing</b>. 
-        <br><br>
-        Wires will all start out as auto-routed, which means that the wire’s path is created automatically by the program. This path will update when moving any connected components. ISSIE also allows for manual routing, where the user may manipulate segments of the wire as desired to make the circuit more readable. Much care has been put into a user interface for routing which *just works* quickly with no learning curve.", 
-        title: "Wire Routing"]
-    - [image: img/stepSimulation.gif, 
+    - [image: img/verilogComp.png, 
+        description: "TODO", 
+        title: "Verilog Component"]
+    - [image: img/stepSim.gif, 
         description: "Step Simulation allows the user to 'step' or cycle through each clock tick, and view the current design sheet's Output and Viewer component information. It also allows users to view how the state changes in stateful components such as RAM.", 
         title: "Step Simulation"]
-    - [image: img/waveSimulation.gif, 
+    - [image: img/waveSim.gif, 
         description: "Waveform Simulation allows the user to see the values in each selected set of connected wires (net) over time as a waveform. The waveform simulator allows users to move waveforms up/down in the list to make the simulation more readable. Users may cycle through the simulator using the arrows to directly go to a specific clock cycle. Alternatively there is a scrollbar for the Waveform simulator that will automatically lengthen the simulation once the end is reached. The values in the waveform simulator can be viewed in various formats: binary, hexadecimal, unsigned decimal and signed decimal. The Waveform Simulator also features a draggable sidebar to partition screen space dynamically between waveforms and circuit.
         <br><br>
 
         Waveform Simulation also allows for the simulation and contents viewing of memory components such as RAM.", 
         title: "Waveform Simulation"]
+    - [image: img/truthTable.png, 
+        description: "TODO", 
+        title: "Truth Table"]
     - [image: img/verilogOutput.png, 
         description: "Users may convert their ISSIE schematic design into a Verilog file using the \"Write design as Verilog\" option found in the header bar of the application. This allows great flexibility as ISSIE designs may be used in more complex design tools and other programs that use Verilog; allowing ISSIE to be used as a top-level design that can be further developed if needed. Verilog output for simulation or synthesis is documented as part of the Verilog write process, this includes links to a <a href=\"http://bygone.clairexen.net/yosys/download.html\">YoSys</a> workflow for synthesis on FPGAs. Imperial College users can download a pre-installed VM for this workflow, the VHDL output is standalone and should work with other synthesis methods", 
         title: "Verilog Output"]

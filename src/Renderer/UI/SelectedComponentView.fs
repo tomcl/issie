@@ -809,10 +809,19 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             | 0 -> 
                 None 
             | _ -> 
+                let currSymbol = model.Sheet.Wire.Symbol.Symbols[compId]
                 let symbols = model.Sheet.Wire.Symbol.Symbols |> Map.toList |> List.filter (fun (i,s) -> i <> compId) |> List.map snd
-                match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) symbols with
-                |true -> Some "!bad-label!" //such name cannot occur as symbols will be filtered out in the beginning and characters converted to upper
-                |false -> Some chars
+                //let allWireLabel = symbols |> List.filter(fun s -> s.Component.Type = IOLabel)
+                match currSymbol.Component.Type with
+                |IOLabel ->
+                    let allSymbolsNotWireLabel = symbols |> List.filter(fun s -> s.Component.Type <> IOLabel)
+                    match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) allSymbolsNotWireLabel with
+                    |true -> Some "!bad-label!" //such name cannot occur as symbols will be filtered out in the beginning and characters converted to upper
+                    |false -> Some chars
+                |_ ->
+                    match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) symbols with
+                    |true -> Some "!bad-label!" //such name cannot occur as symbols will be filtered out in the beginning and characters converted to upper
+                    |false -> Some chars
             
             )
     match model.Sheet.SelectedComponents with
@@ -821,14 +830,15 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase
+            
             let label' = Option.defaultValue "" (formatLabelText comp.Label compId) // No formatting atm
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
             let required = 
                 match comp.Type with 
                 | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
-            let isBad = model.PopupDialogData.BadLabel
-            textFormField required "Component Name" label' isBad (fun text ->
+            let isBad = false//model.PopupDialogData.BadLabel
+            textFormField required "Component Name (Unique)" label' isBad (fun text ->
                 // TODO: removed formatLabel for now
                 //setComponentLabel model sheetDispatch comp (formatLabel comp text)
                 match formatLabelText text compId with

@@ -26,6 +26,8 @@ open NumberHelpers
 open DiagramStyle
 open UpdateHelpers
 open Optics
+open Optic
+
 open Operators
 
 //---------------------------------------------------------------------------------------------//
@@ -265,8 +267,12 @@ let findChange (model : Model) : bool =
 let resetDialogIfSelectionHasChanged newModel oldModel =
     let newSelected = newModel.Sheet.SelectedComponents
     if newSelected.Length = 1 && newSelected <> oldModel.Sheet.SelectedComponents then
-        Optic.set (popupDialogData_ >-> text_) None newModel
-        |> Optic.set (popupDialogData_ >-> int_) None
+        newModel
+        |> map popupDialogData_ (
+            set text_ None >>
+            set int_ None
+        )
+
 
     else newModel
 
@@ -740,8 +746,9 @@ let update (msg : Msg) oldModel =
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project ->
-        Optic.set currentProj_ (Some project) model
-        |> Optic.set (popupDialogData_ >-> projectPath_) project.ProjectPath, Cmd.none
+        model
+        |> set currentProj_ (Some project) 
+        |> set (popupDialogData_ >-> projectPath_) project.ProjectPath, Cmd.none
     | UpdateProject update ->
         CustomCompPorts.updateProjectFiles true update model, Cmd.none
     | UpdateProjectWithoutSyncing update -> 
@@ -765,17 +772,17 @@ let update (msg : Msg) oldModel =
                         VerilogErrors = [];
                     }}, Cmd.none
     | SetPopupDialogText text ->
-        Optic.set (popupDialogData_ >-> text_) text model, Cmd.none
+        set (popupDialogData_ >-> text_) text model, Cmd.none
     | SetPopupDialogBadLabel isBad ->
-        Optic.set (popupDialogData_ >-> badLabel_) isBad model, Cmd.none
+        set (popupDialogData_ >-> badLabel_) isBad model, Cmd.none
     | SetPopupDialogCode code ->
-        Optic.set (popupDialogData_ >-> verilogCode_) code model, Cmd.none
+        set (popupDialogData_ >-> verilogCode_) code model, Cmd.none
     | SetPopupDialogVerilogErrors errorList ->
-        Optic.set (popupDialogData_ >-> verilogErrors_) errorList model, Cmd.none
+        set (popupDialogData_ >-> verilogErrors_) errorList model, Cmd.none
     | SetPopupDialogInt int ->
-        Optic.set (popupDialogData_ >-> int_) int model, Cmd.none
+        set (popupDialogData_ >-> int_) int model, Cmd.none
     | SetPopupDialogInt2 int ->
-        Optic.set (popupDialogData_ >-> int2_) int model, Cmd.none
+        set (popupDialogData_ >-> int2_) int model, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData =
                         match data with
@@ -783,21 +790,21 @@ let update (msg : Msg) oldModel =
                         | n, SecondInt, optText -> {model.PopupDialogData with Int2 = n}
         }, Cmd.none
     | SetPopupDialogMemorySetup m ->
-        Optic.set (popupDialogData_ >-> memorySetup_) m model, Cmd.none
+        set (popupDialogData_ >-> memorySetup_) m model, Cmd.none
     | SetPopupMemoryEditorData m ->
-        Optic.set (popupDialogData_ >-> memoryEditorData_) m model, Cmd.none
+        set (popupDialogData_ >-> memoryEditorData_) m model, Cmd.none
     | SetPopupProgress progOpt ->
-        Optic.set (popupDialogData_ >-> progress_) progOpt model, Cmd.none
+        set (popupDialogData_ >-> progress_) progOpt model, Cmd.none
     | UpdatePopupProgress updateFn ->
         { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
     | SetPopupConstraintTypeSel ct ->
-        Optic.set (popupDialogData_ >-> constraintTypeSel_) ct model, Cmd.none
+        set (popupDialogData_ >-> constraintTypeSel_) ct model, Cmd.none
     | SetPopupConstraintIOSel io ->
-        Optic.set (popupDialogData_ >-> constraintIOSel_) io model, Cmd.none
+        set (popupDialogData_ >-> constraintIOSel_) io model, Cmd.none
     | SetPopupConstraintErrorMsg msg ->
-        Optic.set (popupDialogData_ >-> constraintErrorMsg_) msg model, Cmd.none
+        set (popupDialogData_ >-> constraintErrorMsg_) msg model, Cmd.none
     | SetPopupNewConstraint con ->
-        Optic.set (popupDialogData_ >-> newConstraint_) con model, Cmd.none
+        set (popupDialogData_ >-> newConstraint_) con model, Cmd.none
     | TogglePopupAlgebraInput (io,sd) ->
         let (_,_,w) = io
         let oldLst =
@@ -809,28 +816,42 @@ let update (msg : Msg) oldModel =
             match ConstraintReduceView.validateAlgebraInput io zero sd with
             | Ok _ ->
                 let newLst = List.except [io] oldLst
-                Optic.set (popupDialogData_ >-> algebraInputs_) (Some newLst) model
-                |> Optic.set (popupDialogData_ >-> algebraError_) None, Cmd.none
+                model
+                |> map popupDialogData_ (
+                    set algebraInputs_ (Some newLst) >> 
+                    set algebraError_ None
+                ), Cmd.none
+                
             | Error err ->
                 let newLst = List.except [io] oldLst
-                Optic.set (popupDialogData_ >-> algebraInputs_) (Some newLst) model
-                |> Optic.set (popupDialogData_ >-> algebraError_) (Some err), Cmd.none
+                model
+                |> map popupDialogData_ (
+                    set algebraInputs_ (Some newLst) >> 
+                    set algebraError_ (Some err)
+                ), Cmd.none
 
         else // Values -> Algebra
             let alg = IAlg <| SingleTerm io
             match ConstraintReduceView.validateAlgebraInput io alg sd with
             | Ok _ ->
                 let newLst = io::oldLst
-                Optic.set (popupDialogData_ >-> algebraInputs_) (Some newLst) model
-                |> Optic.set (popupDialogData_ >-> algebraError_) None, Cmd.none
+                model
+                |> map popupDialogData_ (
+                    set algebraInputs_ (Some newLst) >> 
+                    set algebraError_ None
+                ), Cmd.none
             | Error err ->
                 let newLst = io::oldLst
-                Optic.set (popupDialogData_ >-> algebraInputs_) (Some newLst) model
-                |> Optic.set (popupDialogData_ >-> algebraError_) (Some err), Cmd.none
+                model
+                |> map popupDialogData_ (
+                    set algebraInputs_ (Some newLst) >> 
+                    set algebraError_ (Some err)
+                ), Cmd.none
+
     | SetPopupAlgebraInputs opt ->
-        Optic.set (popupDialogData_ >-> algebraInputs_) opt model, Cmd.none
+        set (popupDialogData_ >-> algebraInputs_) opt model, Cmd.none
     | SetPopupAlgebraError opt ->
-        Optic.set (popupDialogData_ >-> algebraError_) opt model, Cmd.none
+        set (popupDialogData_ >-> algebraError_) opt model, Cmd.none
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model
     | SetSelectedComponentMemoryLocation (addr,data) ->

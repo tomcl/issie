@@ -650,7 +650,14 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                 searchBar wsModel dispatch
                 selectWaves wsModel [] dispatch
             ]
-            Modal.Card.foot [] []
+            Modal.Card.foot [Props [Style [Display DisplayOptions.InlineBlock; Float FloatOptions.Right]]]
+                [
+                    Button.button [
+                        Button.OnClick endModal; 
+                        Button.Color IsSuccess; 
+                        Button.Props [Style [Display DisplayOptions.InlineBlock; Float FloatOptions.Right]]
+                        ] [str "Done"]
+                ]
         ]
     ]
 

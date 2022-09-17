@@ -50,7 +50,8 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
                         printfn "writing %s" proj.ProjectPath
                         try 
-                            FilesIO.writeFile path (Verilog.getVerilog vType sim.FastSim)
+                            let code = (Verilog.getVerilog vType sim.FastSim Verilog.CompilationProfile.Release)
+                            FilesIO.writeFile path code
                         with
                         | e -> 
                             printfn $"Error in Verilog output: {e.Message}"
@@ -101,7 +102,7 @@ let InputDefaultsEqualInputs fs (model:Model) =
     |> Map.values
     |> Seq.forall (fun (cid, currentValue) -> 
             match currentValue with
-            | Data fd -> 
+            | Data fd when Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) -> 
                 let newDefault = int (convertFastDataToInt fd)
                 let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
                 match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
@@ -125,7 +126,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     |> Map.values
     |> Seq.iter (fun (cid, currentValue) -> 
             match currentValue with
-            | Data fd -> 
+            | Data fd  -> 
                 let newDefault = convertFastDataToInt fd
                 SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
                 |> Optic.map DrawModelType.SheetT.symbol_ 

@@ -5,8 +5,9 @@
 - The content of each page is in its markdown (.md) file:
   1. [index.md](index.markdown) (Home Page)
   2. [userGuide.md](userGuide.md)
-  3. [devInfo.md](devInfo.md)
-  4. [contact.md](contact.md)
+  3. [verilogComp.md](verilogComp.md)
+  4. [coolFeatures.md](coolFeatures.md)
+  5. [contact.md](contact.md)
 
 - By changing the markdown and pushing to github the website will update automatically
   
@@ -24,18 +25,17 @@
   {:.no_toc}
   ``` 
 
-- The content of `Key Features` in the Home Page is built using the [module.html](_includes/module.html) in the `_includes` folder
+- The content of `Key Features` in the Home Page is built using the [carousel.html](_includes/carousel.html) in the `_includes` directory
   - You can add a new feature using the following syntax:
   ```
-  {% include module.html 
-      image_path="path/to/image.png" 
-      
-      title="{YOUR TITLE}"
-      
-      description="{YOUR DESCRIPTION}" 
-  %}
+  - [image: "path/to/image.png", 
+        description: "{YOUR DESCRIPTION}", 
+        title: "{YOUR TITLE}"]
   ```
-  - See existing code in [index.md](index.markdown) for how to use this include.  
+  - See existing code in the **header** of [index.md](index.markdown) for how to use this include.  
+
+- The ISSIE description (What is ISSIE in the home page) is in the [description.html](_includes/description.html) in the `_includes` directory and is the only section written in pure HTML in order to be included in the home page before key features. 
+
 
 ## Blog
 
@@ -62,5 +62,5 @@
 
 ## Layouts
 
-- The 4 layouts used: `default.html` (for home page), `page.html` (for other pages), `blog.html` and `post.html` are all in the [_layouts](_layouts/) folder.
+- The 4 layouts used: `home.html` (for home page), `page.html` (for other pages), `blog.html` and `post.html` are all in the [_layouts](_layouts/) folder.
 - Images used in layouts are in the [images](assets/images/) folder

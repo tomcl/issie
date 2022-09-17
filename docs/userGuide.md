@@ -53,7 +53,7 @@ Now make the appropriate wiring to connect all the components by clicking on one
 
 Your design should look like this:
 
-![](../img/userGuide/firstDesign.gif)
+![](../img/userGuideNew/firstDesign.gif)
 
 
 ### Simulation
@@ -69,7 +69,7 @@ Click the `Simulation` tab which is located on the top-right corner and then `St
    
 and check that the output is correct based on the truth table of the AND gate.
 
-![](../img/userGuide/firstDesignSim.gif)
+![](../img/userGuideNew/firstDesignSim.gif)
 
 
 **Well Done!** You just completed your first ISSIE design.  
@@ -88,7 +88,7 @@ Time to increase the complexity of our design and see how we can exploit the fea
 - Add a new 1-bit output `RESULT`   
 - Make all necessary connections to achieve a diagram like the one bellow:
 
-![](../img/userGuide/features1.png)
+![](../img/userGuideNew/features1.png)
 
 Again, **simulate the design** and check the output remains correct as you change the values of the 4 inputs
 
@@ -106,7 +106,7 @@ You can view the shortcuts for all these modifications by clicking on the `edit`
 
 **Let's now look at our improved schematic:**
 
-![](../img/userGuide/features2.gif)
+![](../img/userGuideNew/features2.gif)
 
 
 ### Summary
@@ -138,7 +138,7 @@ Steps:
 4. Using 3 `SplitWire` components (`BUSES` => `SplitWire`) separate the 4-bit ROM output to 4 1-bit wires. (see image below)
 5. Make the appropriate connections to achieve the schematic below
 
-![](../img/userGuide/custom.png)
+![](../img/userGuideNew/custom.png)
 
 ### Improving the design sheet
 {:.no_toc}
@@ -147,7 +147,7 @@ It's time to use another cool feature of Issie: Moving ports in custom component
 
 Let's look how it works in the gif below:
 
-![](../img/userGuide/custom2.gif)
+![](../img/userGuideNew/custom2.gif)
 
 
 ### ROM Initialisation
@@ -170,52 +170,39 @@ Simulate your design! Change the value of the addressor input and see whether yo
 ### Creating a closed loop design
 {:.no_toc}
 
-Let's now make our top-level design a closed-loop one using a custom addressor which will increment every clock cycle. Now, using the waveform simulator we will be able to view the output of our circuit for all memory locations.
+Let's now make our top-level design a closed-loop one using a custom addressor which will increment every clock cycle. Now, using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a `Counter` component which starting from 0, it increments by one every clock cycle.
 
-To create an addressor which increments every clock cycle we will need:
-- One 4-bit Register (`FLIP FLOPS AND REGISTER` => `Register`)
-  - **NOTE:** All clocked components are implicitly connected to the global clock
-- One 4-bit Adder (`ARITHMETIC` => `N bits adder`)
-- Two Constants (`INPUT/OUTPUT` => `Constant`):
-  - 0b0001
-  - 0b0
-- Two wire labels (`INPUT/OUTPUT` => `Wire Label`)
-  - One for `Cout` of adder
-  - One for `result` 
-  - **NOTE:** Labels are necessary to prevent an unused output from giving an error
+Add a `Counter` from the Catalogue (`FLIP FLOPS AND REGISTERS`). Now select the component and click on `Properties`. You can select to remove the `load` and `enable` ports and give them the default functionality (which is what we want in this case): enable=1; load=0;
 
 Create a schematic like the one below:
 
-![](../img/userGuide/waveform.png)
+![](../img/userGuideNew/waveform.png)
 
 ### Simulating your design
 {:.no_toc}
 
-As soon as you connect everything correctly you should see the `Waveforms >>` button changing to green. You can now simulate your design.
+As soon as you connect everything correctly, You can simulate your design. Click on `Simulations` and then `Wave Simulation`.
 
-- Click the `Waveforms >>` button
+- Click the `Start Simulation` button
+- Click `Select Waves`
 - Select:
   - `AROM1.Dout[3:0]`
   - `REG1.Dout[3:0]`
   - `RESULT: DECODER1.RESULT`
-- Click `View`
+- Click `Done`
 - Change the data to either `hex` or `bin` to make them more readable
 - Check that the waveform simulator output matches your previous (Step Simulation) results 
 
-![](../img/userGuide/waveform1.png)
+![](../img/userGuideNew/waveform1.png)
 
 
 ### Changing your design
 {:.no_toc}
 
-<br>
-**!!! IMPORTANT NOTE:** Before you do anything else, you **MUST** close the waveform simulator. <br> This is done by clicking `Edit list...` and then `Close` **!!!**
+Now add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator simply by clicking the `refresh` button which will be enabled as soon as it detects a change in the schematic. 
 
-<br>
 
-Now add an extra register between your adder and the ROM address (or make any other change you want) and check that the simulation has the expected output.
-
-![](../img/userGuide/waveform2.png)
+![](../img/userGuideNew/waveform2.png)
 
 ## Truth Table
 

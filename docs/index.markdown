@@ -12,11 +12,13 @@ carousels:
         <br><br>
         Wires will all start out as auto-routed, which means that the wire’s path is created automatically by the program. This path will update when moving any connected components. ISSIE also allows for manual routing, where the user may manipulate segments of the wire as desired to make the circuit more readable. Much care has been put into a user interface for routing which <i>just works</i> quickly with no learning curve.", 
         title: "Wire Routing"]
-    - [image: img/canvasCustomisation.gif, 
+    - [image: img/UserGuideNew/features2.gif, 
         description: "The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. <b>Specifically:</b> <br><br> (a) Rotate, flip and Move all symbols <br> (b) Change and move around the symbols' labels <br> (c) Manually route wires as you like <br> (d) Auto-align elements <br> (e) Select the wire type you desire (radiussed, jump or modern wires)", 
         title: "Canvas Customization"]
     - [image: img/verilogComp.png, 
-        description: "TODO", 
+        description: "ISSIE allows users to create combinational components by defining their logic in Verilog. Such component can be used as a Custom Component in all designs.
+        <br> <br>
+        For more information see the <a href=\"/issie/verilog-comp/\">Verilog Component page</a>", 
         title: "Verilog Component"]
     - [image: img/stepSim.gif, 
         description: "Step Simulation allows the user to 'step' or cycle through each clock tick, and view the current design sheet's Output and Viewer component information. It also allows users to view how the state changes in stateful components such as RAM.", 
@@ -28,7 +30,9 @@ carousels:
         Waveform Simulation also allows for the simulation and contents viewing of memory components such as RAM.", 
         title: "Waveform Simulation"]
     - [image: img/truthTable.png, 
-        description: "TODO", 
+        description: "ISSIE allows users to view the truth table for a selected circuit of combinational logic. This can be either the full truth table or a reduced one by denoting all Don't Cares with 'X's. 
+        <br> <br>
+        Furthermore, users can set any number of inputs as algebra. The resultant truth table will show outputs as a function of the inputs.", 
         title: "Truth Table"]
     - [image: img/verilogOutput.png, 
         description: "Users may convert their ISSIE schematic design into a Verilog file using the \"Write design as Verilog\" option found in the header bar of the application. This allows great flexibility as ISSIE designs may be used in more complex design tools and other programs that use Verilog; allowing ISSIE to be used as a top-level design that can be further developed if needed. Verilog output for simulation or synthesis is documented as part of the Verilog write process, this includes links to a <a href=\"http://bygone.clairexen.net/yosys/download.html\">YoSys</a> workflow for synthesis on FPGAs. Imperial College users can download a pre-installed VM for this workflow, the VHDL output is standalone and should work with other synthesis methods", 

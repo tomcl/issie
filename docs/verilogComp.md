@@ -6,12 +6,20 @@ permalink: /verilog-comp/
 
 
 # ISSIE Verilog Component
+{:.no_toc}
+
+### Contents
+{:.no_toc}
+
+- TOC
+{:toc}
 
 ### Syntax
 
 Both old and new style syntax are supported.
 
 #### Old style example
+{:.no_toc}
 
 ```verilog
 module decoder(instr,carry,negative,jump,mux1_sel,mux2_sel);
@@ -29,6 +37,7 @@ endmodule
 ```
 
 #### New style example
+{:.no_toc}
 
 ```verilog
 module decoder(

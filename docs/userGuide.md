@@ -206,11 +206,35 @@ Now add an extra register between the counter and the ROM address (or make any o
 
 ## Truth Table
 
-CONT.
+One of ISSIE's features is the ability to view the truth table for a combinational circuit. 
+
+- Click on `Simulations` and then `Truth Table`
+- Select the `DECODER` component
+- Click on `Generate Truth Table` button on the 'Truth Table for selected logic' section
+- Click on `Remove Redundancies`
+- Thuth table should look like this:
+
+![](../img/userGuideNew/truthTable1.png)
+
+
+You can also select your inputs to be algebraic values to get an expression for each of your outputs.
+
+- Click on `Back to full table`
+- Click on `Algebra`
+- Select the inputs you want to be algebraic values
+- Truth table should now look like this:
+
+![](../img/userGuideNew/truthTable2.png)
 
 ## Verilog Component
 
-CONT. link to verilog component page.
+Last but not least, ISSIE allows you to create combinational custom components by defining the logic in Verilog. Click on `Verilog` -> `New Verilog Component` (Catalogue) and write the logic of your decoder in Verilog.
+
+![](../img/userGuideNew/verilog1.png)
+
+- Click `Save`
+- Replace the previous Decoder with the new one (found under `Verilog` section in the Catalogue)
+- Simulate again your design. Everything should be the same as before.
 
 ## Now what?
 

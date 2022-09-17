@@ -362,7 +362,11 @@ let fastOutputDefinition (vType:VMode) (fc: FastComponent) (opn: OutputPortNumbe
         | ForSynthesis -> $"input {vDef};\n"
         | ForSimulation -> $"reg {vDef} = {getZeros n};\n"
     | Register n, _
-    | RegisterE n, _ -> $"reg {vDef} = {getZeros n};\n"
+    | RegisterE n, _ 
+    | Counter n, _ 
+    | CounterNoEnable n, _
+    | CounterNoLoad n, _
+    | CounterNoEnableLoad n, _ -> $"reg {vDef} = {getZeros n};\n"
     | _ -> $"wire {vDef};\n"
 
 /// Translates from a component to its Verilog description
@@ -440,22 +444,22 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         + $"assign %s{outs 1} = %s{ins 1} ? %s{ins 0} : {makeBits w (uint64 0)};\n"
     | Demux4 ->
         let w = outW 0
-        
-        $"assign %s{outs 0} = %s{demuxOutput (outs 0) (ins 1) w};\n"
-        + $"assign %s{outs 1} = %s{demuxOutput (outs 1) (ins 1) w};\n"
-        + $"assign %s{outs 2} = %s{demuxOutput (outs 2) (ins 1) w};\n"
-        + $"assign %s{outs 3} = %s{demuxOutput (outs 3) (ins 1) w};\n"
+
+        $"assign %s{outs 0} = (%s{ins 1} == 2'b00) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 1} = (%s{ins 1} == 2'b01) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 2} = (%s{ins 1} == 2'b10) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 3} = (%s{ins 1} == 2'b11) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
     | Demux8 ->
         let w = outW 0
         
-        $"assign %s{outs 0} = %s{demuxOutput (outs 0) (ins 1) w};\n"
-        + $"assign %s{outs 1} = %s{demuxOutput (outs 1) (ins 1) w};\n"
-        + $"assign %s{outs 2} = %s{demuxOutput (outs 2) (ins 1) w};\n"
-        + $"assign %s{outs 3} = %s{demuxOutput (outs 3) (ins 1) w};\n"
-        + $"assign %s{outs 4} = %s{demuxOutput (outs 4) (ins 1) w};\n"
-        + $"assign %s{outs 5} = %s{demuxOutput (outs 5) (ins 1) w};\n"
-        + $"assign %s{outs 6} = %s{demuxOutput (outs 6) (ins 1) w};\n"
-        + $"assign %s{outs 7} = %s{demuxOutput (outs 7) (ins 1) w};\n"
+        $"assign %s{outs 0} = (%s{ins 1} == 3'b000) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 1} = (%s{ins 1} == 3'b001) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 2} = (%s{ins 1} == 3'b010) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 3} = (%s{ins 1} == 3'b011) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 4} = (%s{ins 1} == 3'b100) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 5} = (%s{ins 1} == 3'b101) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 6} = (%s{ins 1} == 3'b110) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 7} = (%s{ins 1} == 3'b111) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
     | NbitsAdder n ->
         let cin = ins 0
         let a = ins 1
@@ -508,30 +512,10 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         // $"assign {out} = {a} << {n});\n"
         $"assign {out} = {a} ? {n}'b{result1} : {n}'b0;\n"
     | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
-    | Mux4 -> 
-        let outputBit = 
-            match ins 4 with
-            | "0" -> ins 0 
-            | "1" -> ins 1 
-            | "2" -> ins 2
-            | "3" -> ins 3
-            | _ -> failwithf "Cannot happen"
-
-        $"assign %s{outs 0} = %s{outputBit};\n"
+    | Mux4 -> $"assign %s{outs 0} = %s{ins 4}[1] ? (%s{ins 4}[0] ? %s{ins 3} : %s{ins 2}) : (%s{ins 4}[0] ? %s{ins 1} : %s{ins 0})  ;\n"
+        
     | Mux8 -> 
-        let outputBit = 
-            match ins 8 with
-            | "0" -> ins 0 
-            | "1" -> ins 1 
-            | "2" -> ins 2
-            | "3" -> ins 3
-            | "4" -> ins 4 
-            | "5" -> ins 5 
-            | "6" -> ins 6
-            | "7" -> ins 7
-            | _ -> failwithf "Cannot happen"
-
-        $"assign %s{outs 0} = %s{outputBit};\n"
+        $"assign %s{outs 0} = %s{ins 8}[2] ? (%s{ins 8}[1] ? (%s{ins 8}[0] ? %s{ins 7} : %s{ins 6}) : (%s{ins 8}[0] ? %s{ins 5} : %s{ins 4})) : (%s{ins 8}[1] ? (%s{ins 8}[0] ? %s{ins 3} : %s{ins 2}) : (%s{ins 8}[0] ? %s{ins 1} : %s{ins 0}))  ;\n"
     | BusSelection (outW, lsb) ->
         let sel = sprintf "[%d:%d]" (outW + lsb - 1) lsb
         $"assign {outs 0} = {ins 0}{sel};\n"
@@ -620,7 +604,7 @@ let getMainHardware (fs: FastSimulation) =
 
 /// make a simple testbench which displays module outputs for the first 30 clock cycles
 let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
-
+    
     let inDefs =
         fs.FGlobalInputComps
         |> Array.map
@@ -683,6 +667,7 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
 
 
 let getDebugController (profile: CompilationProfile) (fs: FastSimulation) =
+    
     let padWithZeros (a: string array) =
         (Array.toList a, List.replicate 8 "1'b0")
         ||> List.append
@@ -797,7 +782,7 @@ end
 let getVerilog (vType: VMode) (fs: FastSimulation) (profile: CompilationProfile) =
     // make sure we have Ok names to use for output
     writeVerilogNames fs
-
+    
     [| getInstantiatedModules fs
        getMainHeader vType profile fs
        getMainSignalDefinitions vType profile fs

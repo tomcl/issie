@@ -109,15 +109,34 @@ let viewBuild model dispatch =
                             ]
                             [ str "Stop building" ]
                     else
+                        Label.label [] [ str "Device Selection" ]
+                        Label.label [ ]
+                            [Select.select []
+                            [ select [(OnChange(fun option -> 
+                                printfn "Value is: %s" option.Value
+                                Sheet (SheetT.Msg.SetDebugDevice option.Value) |> dispatch  ))]
+                                
+                                ([option [Value "";Selected true;Disabled true] [str ("Select Device")]] @ [option [Value "IceStick"] [str "IceStick"]] @ [option [Value "IssieStick-v0.1"] [str "IssieStick v0.1"] ])
+                                ]
+                            ]
+                        br []
+                        let isDisabled =
+                            match model.Sheet.DebugDevice with
+                            |None -> true
+                            |_ -> false
+
                         Button.button
                             [ 
                                 Button.Color IsSuccess;
+                                Button.Disabled isDisabled
                                 Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model Verilog.Release dispatch);
+                                
                             ]
                             [ str "Build and upload" ]
                         Button.button
                             [ 
                                 Button.Color IsSuccess;
+                                Button.Disabled isDisabled
                                 Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model Verilog.Debug dispatch);
                             ]
                             [ str "Build and Debug" ]

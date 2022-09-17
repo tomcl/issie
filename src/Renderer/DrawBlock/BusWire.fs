@@ -872,7 +872,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
         )
     
     TimeHelpers.instrumentInterval "WirePrepareProps" rStart ()
-    let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
+    let symbols = SymbolView.view model.Symbol (Symbol >> dispatch)
     let wires =
         model.Wires
         |> Map.toList 

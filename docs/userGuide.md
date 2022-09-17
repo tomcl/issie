@@ -53,7 +53,7 @@ Now make the appropriate wiring to connect all the components by clicking on one
 
 Your design should look like this:
 
-![](../img/userGuideNew/firstDesign.gif)
+![](../img/userGuide/firstDesign.gif)
 
 
 ### Simulation
@@ -69,7 +69,7 @@ Click the `Simulation` tab which is located on the top-right corner and then `St
    
 and check that the output is correct based on the truth table of the AND gate.
 
-![](../img/userGuideNew/firstDesignSim.gif)
+![](../img/userGuide/firstDesignSim.gif)
 
 
 **Well Done!** You just completed your first ISSIE design.  
@@ -88,7 +88,7 @@ Time to increase the complexity of our design and see how we can exploit the fea
 - Add a new 1-bit output `RESULT`   
 - Make all necessary connections to achieve a diagram like the one bellow:
 
-![](../img/userGuideNew/features1.png)
+![](../img/userGuide/features1.png)
 
 Again, **simulate the design** and check the output remains correct as you change the values of the 4 inputs
 
@@ -106,7 +106,7 @@ You can view the shortcuts for all these modifications by clicking on the `edit`
 
 **Let's now look at our improved schematic:**
 
-![](../img/userGuideNew/features2.gif)
+![](../img/userGuide/features2.gif)
 
 
 ### Summary
@@ -138,7 +138,7 @@ Steps:
 4. Using 3 `SplitWire` components (`BUSES` => `SplitWire`) separate the 4-bit ROM output to 4 1-bit wires. (see image below)
 5. Make the appropriate connections to achieve the schematic below
 
-![](../img/userGuideNew/custom.png)
+![](../img/userGuide/custom.png)
 
 ### Improving the design sheet
 {:.no_toc}
@@ -147,7 +147,7 @@ It's time to use another cool feature of Issie: Moving ports in custom component
 
 Let's look how it works in the gif below:
 
-![](../img/userGuideNew/custom2.gif)
+![](../img/userGuide/custom2.gif)
 
 
 ### ROM Initialisation
@@ -176,7 +176,7 @@ Add a `Counter` from the Catalogue (`FLIP FLOPS AND REGISTERS`). Now select the 
 
 Create a schematic like the one below:
 
-![](../img/userGuideNew/waveform.png)
+![](../img/userGuide/waveform.png)
 
 ### Simulating your design
 {:.no_toc}
@@ -193,7 +193,7 @@ As soon as you connect everything correctly, You can simulate your design. Click
 - Change the data to either `hex` or `bin` to make them more readable
 - Check that the waveform simulator output matches your previous (Step Simulation) results 
 
-![](../img/userGuideNew/waveform1.png)
+![](../img/userGuide/waveform1.png)
 
 
 ### Changing your design
@@ -202,7 +202,7 @@ As soon as you connect everything correctly, You can simulate your design. Click
 Now add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator simply by clicking the `refresh` button which will be enabled as soon as it detects a change in the schematic. 
 
 
-![](../img/userGuideNew/waveform2.png)
+![](../img/userGuide/waveform2.png)
 
 ## Truth Table
 
@@ -214,7 +214,7 @@ One of ISSIE's features is the ability to view the truth table for a combination
 - Click on `Remove Redundancies`
 - Thuth table should look like this:
 
-![](../img/userGuideNew/truthTable1.png)
+![](../img/userGuide/truthTable1.png)
 
 
 You can also select your inputs to be algebraic values to get an expression for each of your outputs.
@@ -224,13 +224,13 @@ You can also select your inputs to be algebraic values to get an expression for 
 - Select the inputs you want to be algebraic values
 - Truth table should now look like this:
 
-![](../img/userGuideNew/truthTable2.png)
+![](../img/userGuide/truthTable2.png)
 
 ## Verilog Component
 
 Last but not least, ISSIE allows you to create combinational custom components by defining the logic in Verilog. Click on `Verilog` -> `New Verilog Component` (Catalogue) and write the logic of your decoder in Verilog.
 
-![](../img/userGuideNew/verilog1.png)
+![](../img/userGuide/verilog1.png)
 
 - Click `Save`
 - Replace the previous Decoder with the new one (found under `Verilog` section in the Catalogue)

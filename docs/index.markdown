@@ -12,10 +12,10 @@ carousels:
         <br><br>
         Wires will all start out as auto-routed, which means that the wire’s path is created automatically by the program. This path will update when moving any connected components. ISSIE also allows for manual routing, where the user may manipulate segments of the wire as desired to make the circuit more readable. Much care has been put into a user interface for routing which <i>just works</i> quickly with no learning curve.", 
         title: "Wire Routing"]
-    - [image: img/homePage/UserGuideNew/features2.gif, 
+    - [image: img/userGuide/features2.gif, 
         description: "The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. <b>Specifically:</b> <br><br> (a) Rotate, flip and Move all symbols <br> (b) Change and move around the symbols' labels <br> (c) Manually route wires as you like <br> (d) Auto-align elements <br> (e) Select the wire type you desire (radiussed, jump or modern wires)", 
         title: "Canvas Customization"]
-    - [image: img/homePage/verilogComp.png, 
+    - [image: img/homePage/verilogComp.PNG, 
         description: "ISSIE allows users to create combinational components by defining their logic in Verilog. Such component can be used as a Custom Component in all designs.
         <br> <br>
         For more information see the <a href=\"/issie/verilog-comp/\">Verilog Component page</a>", 

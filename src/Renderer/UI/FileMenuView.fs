@@ -975,6 +975,40 @@ let getInfoButton (name:string) (project:Project) : ReactElement =
     | None ->
         null
 
+
+let getLockButton (name:string) (isSubSheet:bool) (project:Project) (model:Model) dispatch : ReactElement =
+    match JSHelpers.debugLevel <> 0 with
+    |true -> 
+        let ldc = List.find (fun ldc -> ldc.Name = name) project.LoadedComponents 
+        let buttonText =
+            match ldc.Form with
+            |Some ProtectedTopLevel |Some ProtectedSubSheet -> "Unlock"
+            |_ -> "lock"
+        let lockUnlock currState =
+            match currState with
+            |Some User ->
+                if isSubSheet then Some ProtectedSubSheet else Some ProtectedTopLevel
+            |_ -> Some User 
+        Level.item []
+            [ Button.button
+                [ 
+                    Button.Size IsSmall
+                    Button.IsOutlined
+                    Button.Color IsPrimary
+                    Button.OnClick(fun _ ->
+                        let ldc' = {ldc with Form = (lockUnlock ldc.Form)}
+                        let updatedLdcs = updateLdCompsWithCompOpt (Some ldc') project.LoadedComponents
+                        let p' = {project with LoadedComponents = updatedLdcs}
+                        let cs = ldc'.CanvasState
+                        let sheetInfo = {Form = ldc'.Form; Description = ldc'.Description} 
+                        let savedState = cs, getSavedWave model,(Some sheetInfo)
+                        saveStateToFile project.ProjectPath name savedState
+                        |> displayAlertOnError dispatch
+                        dispatch <| SetProject p'
+                        )] [ str buttonText ] 
+            ]
+    |false -> null 
+
 let addVerticalScrollBars r =
     // dealwith case where Canvas does not exist
     let (el :Browser.Types.HTMLElement option) = unbox (Browser.Dom.document.getElementById "Canvas")
@@ -1065,7 +1099,8 @@ let viewTopMenu model dispatch =
                                                 dispatch <| ExecFuncInMessage(removeFileInProject name project,dispatch)
                                                 dispatch ClosePopup
                                         confirmationPopup title body buttonText buttonAction dispatch) ]
-                                    [ str "delete" ] ] ] ] ]
+                                    [ str "delete" ] ] 
+                          (getLockButton name isSubSheet project model dispatch)] ] ]
 
     let fileTab model =
         match model.CurrentProj with
@@ -1092,7 +1127,11 @@ let viewTopMenu model dispatch =
 
             let projectFiles = 
                 project.LoadedComponents 
-                |> List.filter (fun comp -> comp.Form = Some User)
+                |> List.filter (fun comp -> 
+                    match JSHelpers.debugLevel <> 0 with
+                    |true -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel || comp.Form = Some ProtectedSubSheet)
+                    |false -> (comp.Form = Some User)
+                )
                 |> List.map (fun comp -> 
                     let tree = sTrees[comp.Name]
                     makeFileLine (isSubSheet tree.Node) comp.Name project model , tree)

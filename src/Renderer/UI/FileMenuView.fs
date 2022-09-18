@@ -185,6 +185,7 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
             }
 
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+
             JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
             if finishUI then FinishUICmd else DoNothing

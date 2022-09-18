@@ -642,7 +642,7 @@ let renderRadialWireSVG
     
     let dist1 = euclideanDistance seg1Start seg1End
     let dist2 = euclideanDistance seg2Start seg2End
-    let rad = System.Math.Floor(min Constants.cornerRadius (max 0.0 (min dist1 dist2)))
+    let rad = System.Math.Floor(min Constants.cornerRadius (max 0.0 (min (dist1/2.) (dist2/2.))))
     let makeCommandString xStart yStart rad sweepflag xEnd yEnd : string =
         $"L {xStart} {yStart} A {rad} {rad}, 45, 0, {sweepflag}, {xEnd} {yEnd}" 
 

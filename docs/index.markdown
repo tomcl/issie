@@ -5,8 +5,8 @@ title: "Home"
 carousels:
   - images:
     - [image: img/homePage/catalogue.png, 
-      description: "ISSIE has an extensive and library of schematic components available in the 'Catalogue' menu. Components include low-level gates, flipflops, and multiplexers, as well as larger blocks: RAMs, ROMs, n-bit registers and adders. Viewer components are used to (optionally) view simulation waveforms of nodes on sub-sheets. Wire label components allow any number of nodes on one design sheet to be connected without visible wires. More complex functions can quickly be constructed as sub-sheets and then used as any other component (found under \"THIS PROJECT\")", 
-        title: "Component Library"]
+      description: "ISSIE has an extensive library of schematic components available in the 'Catalogue' menu. Components include low-level gates, flipflops, and multiplexers, as well as larger blocks: RAMs, ROMs, configurable n-bit registers, counters and adders. Viewer components are used to (optionally) view simulation waveforms of nodes on sub-sheets. Wire label components allow any number of nodes on one design sheet to be connected without visible wires. More complex functions can quickly be constructed as sub-sheets and then used as a 'custom component' (found under 'THIS PROJECT'). Custom components can have shape and I/O positions altered at any time via an intuitive and fast drag and drop GUI", 
+        title: "Hierarcical Design with Schematic Components"]
     - [image: img/homePage/wireRouting.gif, 
         description: "ISSIE schematic component ports are connected using drag-and-drop: each connection represents a wire or bus. ISSIE has two methods of routing wires: <b>auto-routing</b> and <b>manual-routing</b>. 
         <br><br>
@@ -24,7 +24,7 @@ carousels:
         description: "Step Simulation allows the user to 'step' or cycle through each clock tick, and view the current design sheet's Output and Viewer component information. It also allows users to view how the state changes in stateful components such as RAM.", 
         title: "Step Simulation"]
     - [image: img/homePage/waveSim.gif, 
-        description: "Waveform Simulation allows the user to see the values in each selected set of connected wires (net) over time as a waveform. The waveform simulator allows users to move waveforms up/down in the list to make the simulation more readable. Users may cycle through the simulator using the arrows to directly go to a specific clock cycle. Alternatively there is a scrollbar for the Waveform simulator that will automatically lengthen the simulation once the end is reached. The values in the waveform simulator can be viewed in various formats: binary, hexadecimal, unsigned decimal and signed decimal. The Waveform Simulator also features a draggable sidebar to partition screen space dynamically between waveforms and circuit.
+        description: "Waveform Simulation allows the user to see the values in each selected set of connected wires (net) over time as a waveform. The waveform simulator uses a drag-and-drop GUI to delete or reorder waveforms, and a separate project explorer window to add them. Hovering on a waveform name highlights its component and all connected busses on its design sheet. Any design sheet may be viewed or edited and the simulation refreshed to see changes immediately. The values in the waveform simulator can be viewed in various formats: binary, hexadecimal, unsigned decimal and signed decimal. The Waveform Simulator uses a draggable sidebar to partition screen space dynamically between waveforms and circuit.
         <br><br>
 
         Waveform Simulation also allows for the simulation and contents viewing of memory components such as RAM.", 

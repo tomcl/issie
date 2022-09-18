@@ -740,8 +740,8 @@ let viewTruthTable canvasState model dispatch =
                 let truncation =
                     Notification.notification [Notification.Color IsWarning; Notification.IsLight] [
                         str "Due to a large number of input combinations, caused by inputs that are
-                            too big or too numerous, the truth table has been truncated. Please use
-                            more restrictive input constraints, or set wider inputs as algebra."
+                            too wide or too numerous, the truth table has been truncated. Please use
+                            more restrictive input constraints, or set wider inputs as algebraic variables."
                     ]
                 div [] [
                     if table.IsTruncated then

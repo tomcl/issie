@@ -921,14 +921,14 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                         [
                             str "View clocked logic waveforms by selecting waves. "
                             str "Select RAMs or ROMs to view contents during the simulation. "
-                            str "View or change any sheet with simulation running. "
+                            str "View or change any sheet with the simulation running. "
                             str "After design changes use "
                             refreshSvg "black" "12px"
                             str " to update waveforms."
                         ] else
                         [
                             str "Use 'Start Simulation' button to simulate current sheet."
-                            str "Drag grey divider to change width of Viewer."
+                            str "Drag the grey divider to change the Viewer width."
                         ])
                 ]
 
@@ -1010,7 +1010,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
                     simError e               
                 | _,NonSequential ->
                     div [ errorMessageStyle ]
-                        [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms" ]
+                        [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms." ]
                 | _,Empty | _,Ended | None,_ | Some "", _-> notRunning
                 | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning              
                 | _,NoProject ->

@@ -51,6 +51,7 @@
   - Add the content of the post below the header
   - Check [this file](_posts/2021-07-04-Issie-v2-1-0.md) for reference  
   - Let Pagination do its magic
+  - **WARNING:** If your date and time refer to the future, the post will not appear on the Blog page!
 - To change number of posts per page in the main blog page:
   - Change `paginate: 3 ` to the number you like in [_config.yml](_config.yml)
 

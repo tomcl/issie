@@ -23,6 +23,9 @@ open FilesIO
 open CatalogueView
 open FileMenuView
 
+module Constants =
+    let labelUniqueMess = "Components must have a unique label within one sheet"
+
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -44,7 +47,7 @@ let private textFormField isRequired name defaultValue isBad onChange =
             Input.OnChange (getTextEventValue >> onChange)
         ]
         br []
-        span [Style [FontStyle "Italic"; Color "Red"]; Hidden (not isBad)] [str "This label already exists"]
+        span [Style [FontStyle "Italic"; Color "Red"]; Hidden (isBad = None)] [str <| Option.defaultValue "" isBad]
     ]
 
 let private textFormFieldSimple name defaultValue onChange =
@@ -147,11 +150,11 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
         div [] [
             str descr
             br []; br []
-            str <| sprintf "Address width: %d bit(s)" mem1.AddressWidth
+            bSpan $"Address width: {mem1.AddressWidth} bit(s)" 
             br []
-            str <| sprintf "Number of elements: %d" (1UL <<< mem1.AddressWidth)
+            bSpan $"Number of elements: {1UL <<< mem1.AddressWidth}" 
             br []
-            str <| sprintf "Word width: %d bit(s)" mem1.WordWidth
+            bSpan $"Word width: {mem1.WordWidth}bit(s)" 
             br []
 
             //makeSourceMenu model (Option.get model.CurrentProj) mem dispatch
@@ -162,8 +165,11 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
                     Button.Color IsPrimary
                     Button.OnClick (fun _ -> openMemoryEditor mem1 compId model dispatch)
                 ] [str "View/Edit memory content"]
-                br []; 
-                br [];
+                (memPropsInfoButton dispatch)
+                br []
+                hr []
+                PopupView.makeH "Advanced"
+                br []
 
                 Button.button [
                     Button.Color IsPrimary
@@ -174,9 +180,9 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
                                 | Some path ->
                                     let note = successPropertiesNotification $"Memory content written to '{path}'"
                                     dispatch <| SetPropertiesNotification note))
-                ] [str "Write content to file"]
+                ] [str "Export memory initial data to file"]
 
-                (memPropsInfoButton dispatch)
+                
                 br []; 
                 br [];
 
@@ -190,9 +196,10 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
                         (model.Sheet.UpdateMemory sheetDispatch) 
                         compId 
                         dispatch)
-                    "Change Memory data source"
+                    "Change Memory Data Source"
                     dispatch )
-                ]
+                hr []
+                ]                
             ]   
 
 
@@ -783,7 +790,16 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
     | _ -> div [] []
 
 
+
+
+
 let viewSelectedComponent (model: ModelType.Model) dispatch =
+
+    let checkIfLabelIsUnique chars (symbols: SymbolT.Symbol list)  =
+        match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) symbols with
+        |true -> Error Constants.labelUniqueMess
+        |false -> Ok chars
+
     let allowNoLabel =
         let symbols = model.Sheet.Wire.Symbol.Symbols
         match model.Sheet.SelectedComponents with
@@ -792,37 +808,35 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             | Some {Component ={Type=MergeWires | SplitWire _ | BusSelection _}} -> true
             | _ -> false
         | _ -> false
+
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
+
+    /// return an OK label text, or an error message
     let formatLabelText (txt: string) compId =
         txt.ToUpper()
-        |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true 
-                                | '.' -> true 
-                                | '_' -> true 
-                                | _ -> false)
-        |> Seq.skipWhile (System.Char.IsLetter >> not)
-        |> Seq.map string
-        |> String.concat ""
         |> (fun chars -> 
+            let symbols = model.Sheet.Wire.Symbol.Symbols |> Map.toList |> List.filter (fun (i,s) -> i <> compId) |> List.map snd
+            let badChars = 
+                chars 
+                |> Seq.filter (System.Char.IsLetterOrDigit >> not) 
+                |> Seq.map string |> String.concat ""
             match String.length chars with 
             | 0 when allowNoLabel -> 
-                Some ""
+                Ok ""
             | 0 -> 
-                None 
+                Error "Empty label is not allowed for this component"
+            | _ when not (System.Char.IsLetter chars[0]) ->
+                Error "Labels must start with a character"
+            | _ when badChars <> "" ->
+                Error $"Labels can only contain letters and digits, not '{badChars}'"
             | _ -> 
                 let currSymbol = model.Sheet.Wire.Symbol.Symbols[compId]
-                let symbols = model.Sheet.Wire.Symbol.Symbols |> Map.toList |> List.filter (fun (i,s) -> i <> compId) |> List.map snd
-                //let allWireLabel = symbols |> List.filter(fun s -> s.Component.Type = IOLabel)
                 match currSymbol.Component.Type with
                 |IOLabel ->
                     let allSymbolsNotWireLabel = symbols |> List.filter(fun s -> s.Component.Type <> IOLabel)
-                    match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) allSymbolsNotWireLabel with
-                    |true -> Some "!bad-label!" //such name cannot occur as symbols will be filtered out in the beginning and characters converted to upper
-                    |false -> Some chars
+                    checkIfLabelIsUnique chars allSymbolsNotWireLabel
                 |_ ->
-                    match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) symbols with
-                    |true -> Some "!bad-label!" //such name cannot occur as symbols will be filtered out in the beginning and characters converted to upper
-                    |false -> Some chars
-            
+                    checkIfLabelIsUnique chars symbols           
             )
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
@@ -830,26 +844,34 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase
-            
-            let label' = Option.defaultValue "" (formatLabelText comp.Label compId) // No formatting atm
+            let defaultText = 
+                match model.PopupDialogData.Text with
+                | None -> comp.Label
+                | Some text -> text
+            let label' = formatLabelText defaultText compId // No formatting atm
+            let labelText = match label' with Ok s -> s | Error e -> defaultText
             readOnlyFormField "Description" <| makeDescription comp model dispatch
-            makeExtraInfo model comp label' dispatch
+            makeExtraInfo model comp labelText  dispatch
             let required = 
                 match comp.Type with 
                 | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
-            let isBad = false//model.PopupDialogData.BadLabel
-            textFormField required "Component Name (Unique)" label' isBad (fun text ->
-                // TODO: removed formatLabel for now
-                //setComponentLabel model sheetDispatch comp (formatLabel comp text)
+            let isBad = 
+                if model.PopupDialogData.BadLabel then 
+                    match label' with 
+                    | Ok _ -> None
+                    | Error msg -> Some msg
+                else    None
+
+            //printfn $"{comp.Label}:{label'} - {isBad} - {label'}"
+            textFormField required "Component Name (Unique)" defaultText isBad (fun text ->
                 match formatLabelText text compId with
-                | Some "!bad-label!" ->
+                | Error errorMess ->
                     dispatch <| SetPopupDialogBadLabel (true)
-                | Some label -> 
+                    dispatch <| SetPopupDialogText (Some text)
+                | Ok label -> 
                     setComponentLabel model sheetDispatch comp label
                     dispatch <| SetPopupDialogText (Some label)
                     dispatch <| SetPopupDialogBadLabel (false)
-                | None -> ()
-                //updateNames model (fun _ _ -> model.WaveSim.Ports) |> StartWaveSim |> dispatch
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )
         ]    

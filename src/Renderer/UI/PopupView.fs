@@ -1026,7 +1026,7 @@ let memPropsInfoButton dispatch =
     let bullet s = li [] [str s]
     let info = 
         ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
-            bullet "RAMs and ROMs need to have initial data contents defined. For ROMs this never chamges. For RAMs the initial data \
+            bullet "RAMs and ROMs need to have initial data contents defined. For ROMs this never changes. For RAMs the initial data \
                     is reset for clock cycle 0 whenever a simulation is started."  
             bullet "The default initial data is all 0s. Initial data is stored with the design sheet and  may be viewed or \
                     modified with the memory editor from poperties. The editor can change locations numberd higehr than 15 by entering a \

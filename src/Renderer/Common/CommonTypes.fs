@@ -122,7 +122,8 @@ module CommonTypes
     type CCForm =
         |User
         |Library
-        |Protected of string
+        |ProtectedTopLevel
+        |ProtectedSubSheet
         |Verilog of string
 
 

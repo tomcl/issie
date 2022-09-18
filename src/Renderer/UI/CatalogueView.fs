@@ -68,7 +68,11 @@ let private makeCustomList styles model dispatch =
         // Do no show the open component in the catalogue.
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        |> List.filter (fun comp -> comp.Form = Some User)
+        |> List.filter (fun comp -> 
+            match JSHelpers.debugLevel <> 0 with
+            |true -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel || comp.Form = Some ProtectedSubSheet)
+            |false -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel)
+        )
         |> List.map (makeCustom styles model dispatch)
 
 let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)  =

@@ -141,7 +141,7 @@ let viewSimSubTab canvasState model dispatch =
         ]
     | TruthTable ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Truth Table" ]
+            Heading.h4 [] [ str "Truth Tables" ]
             TruthTableView.viewTruthTable canvasState model dispatch
         ]
     | WaveSim -> 
@@ -177,7 +177,7 @@ let private  viewRightTab canvasState model dispatch =
 
                     (Tabs.tab // truth table tab to display truth table for combinational logic
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
-                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Table"] ])
+                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Tables"] ])
 
                     (Tabs.tab // wavesim tab
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]

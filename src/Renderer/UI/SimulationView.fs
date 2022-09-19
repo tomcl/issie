@@ -103,7 +103,7 @@ let InputDefaultsEqualInputs fs (model:Model) =
     |> Seq.forall (fun (cid, currentValue) -> 
             match currentValue with
             | Data fd when Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) -> 
-                let newDefault = int (convertFastDataToInt fd)
+                let newDefault = int (convertFastDataToInt32 fd)
                 let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
                 match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
             | _ -> true)
@@ -127,7 +127,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     |> Seq.iter (fun (cid, currentValue) -> 
             match currentValue with
             | Data fd  -> 
-                let newDefault = convertFastDataToInt fd
+                let newDefault = convertFastDataToInt32 fd
                 SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
                 |> Optic.map DrawModelType.SheetT.symbol_ 
                 |> Optic.map ModelType.sheet_

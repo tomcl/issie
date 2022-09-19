@@ -70,6 +70,11 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         | InputPortNumber 0 -> ".P"
         | _ -> ".Q"
 
+    | Shift _ ->
+        match port with
+        |InputPortNumber 0 -> ".IN"
+        |_ -> ".Shifter"
+    
     | DFFE | RegisterE _ ->
         match port with
         | InputPortNumber 0 -> ".D"
@@ -117,9 +122,9 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
         | NbitsXor w | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  
-        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w->
+        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w ->
             bitLimsString (w - 1, 0)
-
+        | Shift(w,m,tp) -> bitLimsString (w - 1, 0)
         // TODO: Find the right parameters for RAMs and ROMs.
         | ROM1 _ | AsyncROM1 _ | RAM1 _ | AsyncRAM1 _ ->
             ""
@@ -143,7 +148,7 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
 /// Appended to comp.Label
 let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : string =
     match compType with
-    | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | NbitsXor _ | NbitsNot _  | NbitSpreader _ | NbitsAnd _ | NbitsOr _ ->
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | NbitsXor _ | NbitsNot _  | NbitSpreader _ | NbitsAnd _ | NbitsOr _ |Shift _->
         ".OUT"
     | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel ->
         ""
@@ -186,6 +191,7 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
         | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w | Counter w |CounterNoEnable w |CounterNoLoad w |CounterNoEnableLoad w->
             bitLimsString (w - 1, 0)
 
+        | Shift (w,m,tp) -> bitLimsString (w - 1, 0)
         | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem ->
             bitLimsString (mem.WordWidth - 1, 0)
 

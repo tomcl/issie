@@ -699,6 +699,19 @@ let extendSimulation timeOut (ws:WaveSimModel) =
     printfn $"Extending simulation to {stepsNeeded} cycles"
     FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
+/// returns true if any memory component in fs linked to a .ram file is outofdate because of the .ram file changing
+let checkIfMemoryCompsOutOfDate (p: Project) (fs:FastSimulation) = 
+    fs.ComponentsById
+    |> Map.exists (fun sheet m ->
+        m
+        |> Map.exists (fun cid comp ->
+            match comp.Type with
+            | Memory ({Init=FromFile fName} as mem) -> 
+                match FilesIO.initialiseMem mem p.ProjectPath with
+                | Ok mem' -> mem' <> mem
+                | Error _ -> false
+            | _ -> true))
+
 
         
     

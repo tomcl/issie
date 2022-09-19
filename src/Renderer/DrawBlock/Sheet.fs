@@ -15,7 +15,8 @@ open Optics
 open Operators
 
 
-
+/// Keep track of HTML "Canvas" element used by Draw Blcok to read and write HTML scroll info.
+/// Set in view function from react hook.
 let mutable canvasDiv:Types.Element option = None
 
 //-------------------------------------------------------------------------------------------------//

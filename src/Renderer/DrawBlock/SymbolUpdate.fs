@@ -403,12 +403,15 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
 
 /// Given a model, a symbol id and a new label changes the label of the symbol to the new label and returns the updated model.
 let inline changeLabel (model: Model) sId newLabel=
-    let oldSym = model.Symbols[sId]
-    let newComp = {oldSym.Component with Label = newLabel}
-    let newSym = 
-        { oldSym with Component = newComp; LabelHasDefaultPos = true}
-        |> calcLabelBoundingBox
-    set (symbolOf_ sId) newSym model
+    match Map.tryFind sId model.Symbols with
+    | None ->
+        model // do nothing if symbol has been deleted
+    | Some oldSym ->
+        let newComp = {oldSym.Component with Label = newLabel}
+        let newSym = 
+            { oldSym with Component = newComp; LabelHasDefaultPos = true}
+            |> calcLabelBoundingBox
+        set (symbolOf_ sId) newSym model
 
 
 /// Given a model, a component id list and a color, updates the color of the specified symbols and returns the updated model.

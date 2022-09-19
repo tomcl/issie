@@ -44,7 +44,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
             | Some _ ->
                 () // do nothing if in middle of I/O operation
             | None ->
-                prepareSimulation 2 proj.OpenFileName (state) proj.LoadedComponents
+                startCircuitSimulation 2 proj.OpenFileName (state) proj.LoadedComponents
                 |> (function 
                     | Ok sim -> 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
@@ -103,7 +103,7 @@ let InputDefaultsEqualInputs fs (model:Model) =
     |> Seq.forall (fun (cid, currentValue) -> 
             match currentValue with
             | Data fd when Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) -> 
-                let newDefault = int (convertFastDataToInt fd)
+                let newDefault = int (convertFastDataToInt32 fd)
                 let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
                 match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
             | _ -> true)
@@ -127,7 +127,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     |> Seq.iter (fun (cid, currentValue) -> 
             match currentValue with
             | Data fd  -> 
-                let newDefault = convertFastDataToInt fd
+                let newDefault = convertFastDataToInt32 fd
                 SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
                 |> Optic.map DrawModelType.SheetT.symbol_ 
                 |> Optic.map ModelType.sheet_
@@ -182,14 +182,7 @@ let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=
             
 
 /// Start up a simulation, doing all necessary checks and generating simulation errors
-/// if necesary. The code to do this is quite long so results are memoized. this is complicated because
-/// we want the comparison (in the case nothing has chnaged) to be fast.
-/// 1. If the current sheet changes we redo the simulation. 
-/// 2. While current sheet does not change we assume the other sheets
-/// ( and so subsheet content) cannot change. 
-/// 3. Therefore we need only compare current sheet canvasState with its
-/// initial value. This is compared using extractReducedState to make a copy that has geometry info removed 
-/// from components and connections.
+/// if necesary. The code to do this is quite long so results are memoized. 
 let prepareSimulationMemoized
         (simulationArraySize: int)
         (openFileName: string)
@@ -212,7 +205,7 @@ let prepareSimulationMemoized
     else
         printfn "New simulation"
         let name, state, ldcs = getStateAndDependencies diagramName ldcs
-        let simResult = prepareSimulation simulationArraySize diagramName state ldcs 
+        let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs 
         simCache <- {
             Name = diagramName
             StoredState = ldcs
@@ -220,15 +213,23 @@ let prepareSimulationMemoized
             }
         simResult, canvasState
    
+let makeDummySimulationError msg = {
+        Msg = msg
+        InDependency = None
+        ConnectionsAffected = []
+        ComponentsAffected = []
+    }
+
 
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails.
 /// Note that simulation is only redone if current canvas changes.
-let makeSimData (simulatedSheet: string option) (simulationArraySize: int) canvasState model =
+let simulateModel (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
     let start = TimeHelpers.getTimeMs()
-    match canvasState, model.CurrentProj with
-    | _, None -> None
+    match openSheetCanvasState, model.CurrentProj with
+    | _, None -> 
+        Error (makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!"), openSheetCanvasState
     | canvasState, Some project ->
         let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
         let otherComponents = 
@@ -236,7 +237,6 @@ let makeSimData (simulatedSheet: string option) (simulationArraySize: int) canva
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (canvasState, otherComponents)
         ||> prepareSimulationMemoized simulationArraySize project.OpenFileName simSheet 
-        |> Some
         |> TimeHelpers.instrumentInterval "MakeSimData" start
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
@@ -646,36 +646,28 @@ let viewSimulation canvasState model dispatch =
     printf "Viewing Simulation"
     // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
-        match canvasState, model.CurrentProj with
-        | _, None -> failwith "what? Cannot start a simulation without a project"
-        | canvasState, Some project ->
-            let otherComponents =
-                project.LoadedComponents
-                |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-            simCache <- simCacheInit ()
-            (canvasState, otherComponents)
-            ||> prepareSimulationMemoized Constants.maxArraySize project.OpenFileName project.OpenFileName
-            |> function
-               | Ok (simData), state -> 
+        simCache <- simCacheInit ()
+        simulateModel None Constants.maxArraySize canvasState model
+        |> function
+            | Ok (simData), state -> 
                 if simData.FastSim.ClockTick = 0 then 
                     setFastSimInputsToDefault simData.FastSim
                 Ok simData
-               | Error simError, state ->
-                  printfn $"ERROR:{simError}"
-                  setSimErrorFeedback simError model dispatch
-                  Error simError
-            |> StartSimulation
-            |> dispatch
+            | Error simError, state ->
+                printfn $"ERROR:{simError}"
+                setSimErrorFeedback simError model dispatch
+                Error simError
+        |> StartSimulation
+        |> dispatch
 
     match model.CurrentStepSimulationStep with
     | None ->
-        let simRes = makeSimData None Constants.maxArraySize canvasState model
-        let isSync = match simRes with | Some( Ok {IsSynchronous=true},_) | _ -> false
+        let simRes = simulateModel None Constants.maxArraySize canvasState model
+        let isSync = match simRes with | Ok {IsSynchronous=true},_ -> true | _ -> false
         let buttonColor, buttonText = 
             match simRes with
-            | None -> IColor.IsWhite, ""
-            | Some (Ok _, _) -> IsSuccess, "Start Simulation"
-            | Some (Error _, _) -> IsWarning, "See Problems"
+            | Ok _, _ -> IsSuccess, "Start Simulation"
+            | Error _, _ -> IsWarning, "See Problems"
         div [] [
             str "Simulate simple logic using this tab."
             br []

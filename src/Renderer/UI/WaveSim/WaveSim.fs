@@ -877,12 +877,12 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-    match SimulationView.makeSimData model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + 1)  canvasState model with
-    | None ->
-        dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
-    | Some (Error e, _) ->
+    match SimulationView.simulateModel model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + 1)  canvasState model with
+    //| None ->
+    //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
+    | (Error e, _) ->
         dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
-    | Some (Ok simData, canvState) ->
+    | (Ok simData, canvState) ->
         if simData.IsSynchronous then
             SimulationView.setFastSimInputsToDefault simData.FastSim
             let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }

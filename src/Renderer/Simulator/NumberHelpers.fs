@@ -155,16 +155,24 @@ let convertFastDataToInt64 (d:FastData) =
         if d.Width > 64 then
             failwithf $"Can't convert a {d.Width} width bigint to int64"
         uint64 n
-
+/// convert to a bigint - always works. Bits < width will be correct.
 let convertFastDataToBigint (d:FastData) =
     match d.Dat with
     | Word n -> bigint n
     | BigWord n -> n
 
+/// convert to int with an exception if data is too large
 let convertFastDataToInt (d:FastData) =
     match d.Dat with
     | Word n -> n
     | BigWord _ -> failwithf $"Can't convert {d.Dat} to integer" 
+
+/// Lossy conversion of bigint to int32 without exceptions
+/// TODO: chnage this - and all dependencies with 32 bit int - to int64
+let convertFastDataToInt32 (d:FastData) =
+    match d.Dat with
+    | Word n -> int32 n
+    | BigWord n -> int32 (n &&& bigint 0xffffffff)
 
 let convertFastDataToWireData bits =
     bits |> convertFastDataToInt64 |> int64 |> convertIntToWireData bits.Width

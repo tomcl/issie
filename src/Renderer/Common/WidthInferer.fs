@@ -92,7 +92,11 @@ let private makeWidthInferErrorAtLeast atLeast actual connectionsAffected = Erro
     Msg = sprintf "Wrong wire width. Target port expects a signal with at least %d bits, but source port produces a %d-bit signal." atLeast actual
     ConnectionsAffected = connectionsAffected
 }
-    
+ 
+let private makeWidthInferErrorMax max actual connectionsAffected = Error {
+    Msg = sprintf "Wrong wire width. Target port expects a signal with maximum %d bits, but source port produces a %d-bit signal." max actual
+    ConnectionsAffected = connectionsAffected
+}
 
 /// Add to the map the extra (virtual) connections formed from each set of similarlky named bus labels.
 /// each unconnected bus label input is virtually connected to the (single) connection
@@ -311,6 +315,7 @@ let private calculateOutputPortsWidth
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
         | [Some n; _] when n <> inputWidth -> makeWidthInferErrorEqual inputWidth n [getConnectionIdForPort 0]
         | [_; Some n] when n <> shifterWidth-> makeWidthInferErrorEqual shifterWidth n [getConnectionIdForPort 1]
+        | [_; Some n] when n > 32 -> makeWidthInferErrorMax 32 n [getConnectionIdForPort 1]
         | [_; _] -> okOutMap
         | x -> failwithf "what? Impossible case (%A) in calculateOutputPortsWidth for: %A" x comp.Type
     | NbitsAdder numberOfBits ->

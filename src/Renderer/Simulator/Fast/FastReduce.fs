@@ -2,6 +2,7 @@
 open CommonTypes
 open SimulatorTypes
 open NumberHelpers
+open System
 open Helpers
 
 //------------------------------------------------------------------------------//
@@ -754,7 +755,79 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             }
             // Algebra at bit spreader is not supported
             raise (AlgebraNotImplemented err)
+                
+    | Shift (inWidth,shiftWidth,tp) ->
+        let rec to_binary(value: uint32)=
+            if value < 2u then
+                value.ToString()
+            else
+                let divisor = value/2u
+                let remainder = (value % 2u).ToString()
+                to_binary(divisor) + remainder
+        let rec to_binary64(value: uint64)=
+            if value < 2uL then
+                value.ToString()
+            else
+                let divisor = value/2uL
+                let remainder = (value % 2uL).ToString()
+                to_binary64(divisor) + remainder
 
+
+        match ins 0, ins 1 with
+        | Data A, Data B ->
+            let out =
+                let w = A.Width
+                match A.Dat, B.Dat with
+                | BigWord a, Word b ->
+                    let maskBigint = bigIntMask w
+                    let maskInt = (1ul <<< w) - 1ul
+                    let a' = a &&& maskBigint
+                    let b' = b &&& maskInt
+                    match tp with
+                    |LSL -> BigWord (a' <<< (int32 b')) 
+                    |LSR -> BigWord (a' >>> (int32 b'))
+                    |ASR when w >64 -> BigWord (a' >>> (int32 b'))  //ASR can't work properly for width>64 as there is no way of checking MSB. It will be an LSR
+                    |ASR -> 
+                        let aStr = to_binary64 (uint64 a')
+                        if aStr[0] = '1' && String.length aStr = w then
+                            let aStrOnes = ("",[1..(64-w)]) ||> List.fold (fun s v -> s+"1")
+                            let aStr64 = aStrOnes+aStr
+                            let a'' = Convert.ToInt64(aStr64,2)
+                            Word (uint32 (a'' >>> (int32 b)))
+                        else
+                            let a'' = Convert.ToInt64(aStr,2)
+                            Word (uint32 (a'' >>> (int32 b)))
+                | Word a, Word b ->
+                    let a' = a
+                    let b' = b
+                    printfn "a is %i" a'
+                    match tp with
+                    |LSL -> Word (a' <<< (int32 b'))
+                    |LSR -> Word (a' >>> (int32 b'))
+                    |ASR ->
+                        let aStr = to_binary a'
+                        if aStr[0] = '1' && String.length aStr = w then
+                            let aStrOnes = ("",[1..(32-w)]) ||> List.fold (fun s v -> s+"1")
+                            let aStr32 = aStrOnes+aStr
+                            let a'' = Convert.ToInt32(aStr32,2)
+                            Word (uint32 (a'' >>> (int32 b)))
+                        else
+                            let a'' = Convert.ToInt32(aStr,2)
+                            Word (uint32 (a'' >>> (int32 b)))
+
+                | a, b -> 
+                    failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
+            put0 <| Data {A with Dat = out}
+        |_,_ -> 
+            let err = {
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    input ports of a SHIFT component. Only values can be passed to this port."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            // Algebra at bit spreader is not supported
+            raise (AlgebraNotImplemented err)
     | Decode4 ->
         //let select, data = ins 0, ins 1
         match ins 0, ins 1 with

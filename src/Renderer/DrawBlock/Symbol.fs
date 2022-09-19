@@ -608,7 +608,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     |NbitsAdderNoCin (n) -> (  2 , 2, 3.*gS  , 4.*gS)
     | NbitsAdderNoCout (n)-> (  3 , 1, 3.*gS  , 4.*gS)
     | NbitsAdderNoCinCout (n) -> (  2 , 1, 3.*gS  , 4.*gS)
-    | Shift _ -> (  3 , 1, 3.*gS  , 4.*gS)
+    | Shift _ -> (  2 , 1, 3.*gS  , 4.*gS)
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 
 /// make a completely new component

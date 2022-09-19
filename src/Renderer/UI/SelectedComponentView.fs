@@ -834,12 +834,19 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
 
     /// return an OK label text, or an error message
     let formatLabelText (txt: string) compId =
+        let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
+        let allowedDotPos =
+            match comp.Type with
+            | Custom {Name = name} -> name.Length
+            | _ -> -1
         txt.ToUpper()
         |> (fun chars -> 
             let symbols = model.Sheet.Wire.Symbol.Symbols |> Map.toList |> List.filter (fun (i,s) -> i <> compId) |> List.map snd
             let badChars = 
                 chars 
-                |> Seq.filter (System.Char.IsLetterOrDigit >> not) 
+                |> Seq.indexed
+                |> Seq.filter (fun (i,ch) -> not (System.Char.IsLetterOrDigit ch) && (ch <> '.'  || i <> allowedDotPos))
+                |> Seq.map snd
                 |> Seq.map string |> String.concat ""
             match String.length chars with 
             | 0 when allowNoLabel -> 
@@ -848,6 +855,10 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 Error "Empty label is not allowed for this component"
             | _ when not (System.Char.IsLetter chars[0]) ->
                 Error "Labels must start with a character"
+            | _ when badChars.Contains "." && allowedDotPos > 0 ->
+                Error $"Custom Component labels can only contain a '.' immediately after the name"
+            | _ when badChars.Contains "."  ->
+                Error $"Labels of normal components can only contain letters and digits, not '.'"
             | _ when badChars <> "" ->
                 Error $"Labels can only contain letters and digits, not '{badChars}'"
             | _ -> 

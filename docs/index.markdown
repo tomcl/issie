@@ -4,7 +4,7 @@ title: "Home"
 
 carousels:
   - images:
-    - [image: img/homePage/catalogue.png, 
+    - [image: img/homePage/keyFeatures.gif, 
       description: "ISSIE has an extensive library of schematic components available in the 'Catalogue' menu. Components include low-level gates, flipflops, and multiplexers, as well as larger blocks: RAMs, ROMs, configurable n-bit registers, counters and adders. Viewer components are used to (optionally) view simulation waveforms of nodes on sub-sheets. Wire label components allow any number of nodes on one design sheet to be connected without visible wires. More complex functions can quickly be constructed as sub-sheets and then used as a 'custom component' (found under 'THIS PROJECT'). Custom components can have shape and I/O positions altered at any time via an intuitive and fast drag and drop GUI", 
         title: "Hierarcical Design with Schematic Components"]
     - [image: img/homePage/wireRouting.gif, 

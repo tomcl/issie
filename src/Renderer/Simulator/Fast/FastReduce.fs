@@ -816,7 +816,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                             Word (uint32 (a'' >>> (int32 b)))
 
                 | a, b -> 
-                    failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
+                    failwithf $"Inconsistent inputs to Shift {comp.FullName} A={a},{A}; B={b},{B}"
             put0 <| Data {A with Dat = out}
         |_,_ -> 
             let err = {

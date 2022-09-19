@@ -1065,12 +1065,11 @@ let fileEntryBox files fName dialog dispatch =
         ]
 
 let makeSourceMenu 
-        (projOpt: Project option)
+        (model: Model)
         (updateMem: ComponentId -> (Memory1 -> Memory1) -> Unit)
         (cid: ComponentId)
         (dispatch: Msg -> Unit)
         (dialog: PopupDialogData) =
-
     match dialog.MemorySetup with
     | None ->
         printfn "Error: can't find memory setup in dialog data"

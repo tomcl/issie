@@ -866,6 +866,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
 /// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
 let refreshButtonAction canvasState model dispatch = fun _ ->
+    let model = MemoryEditorView.updateAllMemoryComps model
     let wsSheet = 
         match model.WaveSimSheet with
         | None -> Option.get (getCurrFile model)

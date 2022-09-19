@@ -192,7 +192,7 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
                 (makePopupButton
                     "Memory Initial Data Source"
                     (makeSourceMenu 
-                        model.CurrentProj 
+                        model
                         (model.Sheet.UpdateMemory sheetDispatch) 
                         compId 
                         dispatch)

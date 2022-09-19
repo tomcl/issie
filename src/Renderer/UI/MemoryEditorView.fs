@@ -38,15 +38,15 @@ let memory1_ =
                 | typ -> typ))
 
 
-/// Updates FromData memories from linked files in all LoadedComponents EXCEPT that of the open sheet
-/// For the open sheet the update must be on the draw blok component
+/// Updates FromData memories from linked files in all LoadedComponents INCLUDING that of the open sheet
+/// For the open sheet the update must also be made be on the draw blok component
 let updateLoadedComponentMemory (memUpdate: Memory1 -> Memory1) =
     let compUpdate = Optic.map memory1_ memUpdate
     let updateProject (p: Project) =
         let updateSheetComponents (f: Component -> Component) =
             Optic.map componentsState_ (List.map f) 
         p.LoadedComponents
-        |> List.map (fun ldc -> if ldc.Name = p.OpenFileName then ldc else updateSheetComponents compUpdate ldc)
+        |> List.map (updateSheetComponents compUpdate)
         |> (fun ldcs -> Optic.set (loadedComponents_) ldcs p)
     Optic.map project_ (updateProject)
 
@@ -74,7 +74,8 @@ let updateAllMemoryComps (model: Model) =
         model
         |> updateDrawBlockMemoryComps (updateMemory p) p
         |> (updateLoadedComponentMemory (updateMemory p))
-    
+
+
     
 
 let private popupExtraStyle = [ Width "65%"; Height "80%" ]
@@ -349,6 +350,7 @@ let private makeEditor memory compId model dispatch =
 
 /// Open a popup to view and edit the content of a memory.
 let openMemoryEditor memory compId model dispatch : unit =
+    let model = updateAllMemoryComps model // update memories in current model
     // Build editor.
     let title = "Memory editor"
     let body = makeEditor memory compId model dispatch

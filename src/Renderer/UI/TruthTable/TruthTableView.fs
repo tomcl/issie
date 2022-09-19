@@ -465,7 +465,7 @@ let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> 
                 | Some e -> Some (Error e, (correctComps,correctConns))
                 | None ->
                     let sim =
-                        prepareSimulation
+                        startCircuitSimulation
                             2
                             project.OpenFileName 
                             (correctComps,correctConns) 
@@ -654,24 +654,23 @@ let viewTruthTable canvasState model dispatch =
 
     match model.CurrentTruthTable with
     | None ->
-        let wholeSimRes = SimulationView.makeSimData None 2 canvasState model
+        let wholeSimRes = SimulationView.simulateModel None 2 canvasState model
         let wholeButton =
             match wholeSimRes with
-            | None -> div [] []
-            | Some (Error simError,_) ->
+            | Error simError,_ ->
                 Button.button
                     [
                         Button.Color IColor.IsWarning
                         Button.OnClick (fun _ ->
                             SimulationView.setSimErrorFeedback simError model dispatch
-                            GenerateTruthTable wholeSimRes |> dispatch)
+                            GenerateTruthTable (Some wholeSimRes) |> dispatch)
                     ] [str "See Problems"]
-            | Some (Ok sd,_) ->
+            | Ok sd,_ ->
                 if sd.IsSynchronous = false then
                     Button.button
                         [
                             Button.Color IColor.IsSuccess
-                            Button.OnClick (fun _ -> GenerateTruthTable wholeSimRes |> dispatch)
+                            Button.OnClick (fun _ -> GenerateTruthTable (Some wholeSimRes) |> dispatch)
                         ] [str "Generate Truth Table"]
                 else
                     Button.button

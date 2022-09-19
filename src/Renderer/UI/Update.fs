@@ -344,6 +344,7 @@ let update (msg : Msg) oldModel =
         | None ->
             msg, Cmd.none
     // main message dispatch match expression
+    let model = updateAllMemoryCompsIfNeeded model
     match testMsg with
     | StartUICmd uiCmd ->
         //printfn $"starting UI command '{uiCmd}"

@@ -646,6 +646,7 @@ let viewSimulation canvasState model dispatch =
     printf "Viewing Simulation"
     // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
+        let model = MemoryEditorView.updateAllMemoryComps model
         simCache <- simCacheInit ()
         simulateModel None Constants.maxArraySize canvasState model
         |> function

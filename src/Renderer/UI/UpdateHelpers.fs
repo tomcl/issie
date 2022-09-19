@@ -25,6 +25,9 @@ open Helpers
 open NumberHelpers
 open DiagramStyle
 
+module Constants =
+    let memoryUpdateCheckTime = 300.
+
 
 ///Used to filter specific mouse messages based on mouse data.
 let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
@@ -203,7 +206,16 @@ let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
         Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
     model,cmdL
 
+let mutable lastMemoryUpdateCheck = 0.
 
+let updateAllMemoryCompsIfNeeded (model:Model) =
+    let time = TimeHelpers.getTimeMs()
+    if time - lastMemoryUpdateCheck > Constants.memoryUpdateCheckTime && (WaveSimHelpers.getWSModel model).State = Success then
+        printfn "checking update of memories"
+        lastMemoryUpdateCheck <- time
+        MemoryEditorView.updateAllMemoryComps model
+    else
+        model
 
     
     

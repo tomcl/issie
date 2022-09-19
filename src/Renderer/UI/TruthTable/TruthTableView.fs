@@ -181,6 +181,16 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         else
                             hostComponent.InputPorts.Head
                     getPortWidth' otherPort pw (run+1)
+            | Custom c ->
+                let indexInput = List.tryFindIndex (fun (p:Port) -> p.Id = port.Id) hostComponent.InputPorts
+                let indexOutput = List.tryFindIndex (fun (p:Port) -> p.Id = port.Id) hostComponent.OutputPorts
+                match (indexInput,indexOutput) with
+                |(Some i,None) ->
+                    c.InputLabels[i] |> snd |> Some
+                |(None, Some o) ->
+                    c.OutputLabels[o] |> snd |> Some
+                |_ -> None
+                //let s = List.tryFind ()
             | _ -> None
 
     /// Find the width of a port. First try using WidthInferrer, and if that fails then
@@ -217,21 +227,23 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         | None,_ -> failwithf "what? no PortNumber. A connection port was probably passed to inferIOLabel"
         | Some pn, PortType.Input ->
             match Symbol.portNames hostComponent.Type with
-            | ([]) -> hostComponent.Label + "_IN" + (string pn)
+            | ([]) when List.length hostComponent.InputPorts > 1 -> hostComponent.Label + "_IN" + (string pn)
+            | ([]) -> hostComponent.Label + ".IN" 
             | lst ->
                 if pn >= lst.Length then
                     failwithf "what? input PortNumber is greater than number of input port names on component"
                 else
-                    hostComponent.Label + "_" + lst[pn]
+                    lst[pn] //hostComponent.Label + "." + lst[pn]
         | Some pn, PortType.Output ->
             match Symbol.portNames hostComponent.Type with
-            | ([]) -> hostComponent.Label + "_OUT" + (string pn)
+            | ([]) when List.length hostComponent.OutputPorts > 1 -> hostComponent.Label + "_OUT" + (string pn)
+            | ([]) -> hostComponent.Label + "_OUT" 
             | lst ->
                 if pn >= lst.Length then
                     failwithf "what? output PortNumber is greater than number of output port names on component"
                 else
                     let offset = hostComponent.InputPorts.Length
-                    hostComponent.Label + "_" + lst[offset+pn]
+                    lst[offset+pn]//hostComponent.Label + "." + lst[offset+pn]
 
     // Check for cases where a component has two connections connected to its output port,
     // with both of these connection selected, but not the components on the other side of
@@ -283,104 +295,142 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     })
             acc @ extraInputConns @ extraOutputConns)
 
+    let getUniqueNamesMap (acc:Result<Component,SimulationError> list) =
+        let allLabels =
+            acc
+            |> List.collect (fun res ->
+                match res with
+                | Ok comp -> [comp.Label]
+                | Error e -> []
+            )
+        let shortLabels =
+            allLabels
+            |> List.map (fun s ->
+                let index = s.IndexOf(".")
+                let len = String.length s
+                match index with
+                |(-1) -> s
+                |_ -> s[(index+1)..(len-1)] |> string
+            )
+
+        if List.length shortLabels = List.length (List.distinct shortLabels) then
+            List.zip allLabels shortLabels |> Map.ofList
+        else 
+            List.zip allLabels allLabels |> Map.ofList
+    
     // Find any dangling connections and add an IO component to the side not
     // connected to any components.
     let addExtraIOs (comps: Component list,conns: Connection list) =
         let compsOk : Result<Component,SimulationError> list = List.map (fun c -> Ok c) comps
-        (compsOk,conns)
-        ||> List.mapFold (fun acc con ->
-            // Source and target ports of connection are not on any selected components.
-            // This is an invalid selection.
-            if  not (isPortInComponents con.Source comps) && not (isPortInComponents con.Target comps) then
-                let error = {
-                    Msg = "Selected logic includes a wire connected to no components."
-                    InDependency = None
-                    ComponentsAffected = []
-                    ConnectionsAffected = [ConnectionId(con.Id)]}
-                Error error,acc
-            // Source port is not in components, so try add an Input Component
-            else if not (isPortInComponents con.Source comps) then
-                match getPortWidth con.Target with
-                | Ok (Some pw) ->
-                    let newId = JSHelpers.uuid()
-                    let newLabel = inferIOLabel con.Target
-                    let newPort = {
-                        Id = JSHelpers.uuid()
-                        PortNumber = Some 0
-                        PortType = PortType.Output
-                        HostId = newId}
-                    let extraInput = {
-                        Id = newId
-                        Type = Input1 (pw,None)
-                        Label = newLabel
-                        InputPorts = []
-                        OutputPorts = [newPort]
-                        X = 0
-                        Y = 0
-                        H = 0
-                        W = 0
-                        SymbolInfo = None}
-                    Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
-                | Ok (None) ->
+        let result = 
+            (compsOk,conns)
+            ||> List.mapFold (fun acc con ->
+                // Source and target ports of connection are not on any selected components.
+                // This is an invalid selection.
+                if  not (isPortInComponents con.Source comps) && not (isPortInComponents con.Target comps) then
                     let error = {
-                        Msg = "Could not infer the width for an input into the selected logic."
+                        Msg = "Selected logic includes a wire connected to no components."
                         InDependency = None
-                        ComponentsAffected = [ComponentId(con.Target.HostId)]
-                        ConnectionsAffected = []
-                    }
-                    Ok con, acc @ [Error error]
-                | Error e ->
-                    let error = {
-                        Msg = e.Msg
-                        InDependency = None
-                        ConnectionsAffected = e.ConnectionsAffected
                         ComponentsAffected = []
-                    }
-                    Ok con, acc @ [Error error]
-            // Target port is not in components, so try add an Output Component
-            else if not (isPortInComponents con.Target comps) then
-                match getPortWidth con.Source with
-                | Ok (Some pw) ->
-                    let newId = JSHelpers.uuid()
-                    let newLabel = inferIOLabel con.Source
-                    //outputCount <- outputCount + 1
-                    let newPort = {
-                        Id = JSHelpers.uuid()
-                        PortNumber = Some 0
-                        PortType = PortType.Input
-                        HostId = newId}
-                    let extraOutput = {
-                        Id = newId
-                        Type = Output(pw)
-                        Label = newLabel
-                        InputPorts = [newPort]
-                        OutputPorts = []
-                        X = 0
-                        Y = 0
-                        H = 0
-                        W = 0
-                        SymbolInfo = None}
-                    Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
-                | Ok (None) ->
-                    let error = {
-                        Msg = "Could not infer the width for an output produced by the selected logic."
-                        InDependency = None
-                        ComponentsAffected = [ComponentId(con.Source.HostId)]
-                        ConnectionsAffected = []
-                    }
-                    Ok con, acc @ [Error error]
-                | Error e ->
-                    let error = {
-                        Msg = e.Msg
-                        InDependency = None
-                        ConnectionsAffected = e.ConnectionsAffected
-                        ComponentsAffected = []
-                    }
-                    Ok con, acc @ [Error error]
-            // Otherwise, everything is ok for this connection, no action needed.
-            else
-                Ok con,acc)
-        |> (fun (a,b) -> (b,a))
+                        ConnectionsAffected = [ConnectionId(con.Id)]}
+                    Error error,acc
+                // Source port is not in components, so try add an Input Component
+                else if not (isPortInComponents con.Source comps) then
+                    match getPortWidth con.Target with
+                    | Ok (Some pw) ->
+                        let newId = JSHelpers.uuid()
+                        let newLabel = inferIOLabel con.Target
+                        let newPort = {
+                            Id = JSHelpers.uuid()
+                            PortNumber = Some 0
+                            PortType = PortType.Output
+                            HostId = newId}
+                        let extraInput = {
+                            Id = newId
+                            Type = Input1 (pw,None)
+                            Label = newLabel
+                            InputPorts = []
+                            OutputPorts = [newPort]
+                            X = 0
+                            Y = 0
+                            H = 0
+                            W = 0
+                            SymbolInfo = None}
+                        Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
+                    | Ok (None) ->
+                        let error = {
+                            Msg = "Could not infer the width for an input into the selected logic."
+                            InDependency = None
+                            ComponentsAffected = [ComponentId(con.Target.HostId)]
+                            ConnectionsAffected = []
+                        }
+                        Ok con, acc @ [Error error]
+                    | Error e ->
+                        let error = {
+                            Msg = e.Msg
+                            InDependency = None
+                            ConnectionsAffected = e.ConnectionsAffected
+                            ComponentsAffected = []
+                        }
+                        Ok con, acc @ [Error error]
+                // Target port is not in components, so try add an Output Component
+                else if not (isPortInComponents con.Target comps) then
+                    match getPortWidth con.Source with
+                    | Ok (Some pw) ->
+                        let newId = JSHelpers.uuid()
+                        let newLabel = inferIOLabel con.Source
+                        //outputCount <- outputCount + 1
+                        let newPort = {
+                            Id = JSHelpers.uuid()
+                            PortNumber = Some 0
+                            PortType = PortType.Input
+                            HostId = newId}
+                        let extraOutput = {
+                            Id = newId
+                            Type = Output(pw)
+                            Label = newLabel
+                            InputPorts = [newPort]
+                            OutputPorts = []
+                            X = 0
+                            Y = 0
+                            H = 0
+                            W = 0
+                            SymbolInfo = None}
+                        Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
+                    | Ok (None) ->
+                        let error = {
+                            Msg = "Could not infer the width for an output produced by the selected logic."
+                            InDependency = None
+                            ComponentsAffected = [ComponentId(con.Source.HostId)]
+                            ConnectionsAffected = []
+                        }
+                        Ok con, acc @ [Error error]
+                    | Error e ->
+                        let error = {
+                            Msg = e.Msg
+                            InDependency = None
+                            ConnectionsAffected = e.ConnectionsAffected
+                            ComponentsAffected = []
+                        }
+                        Ok con, acc @ [Error error]
+                // Otherwise, everything is ok for this connection, no action needed.
+                else
+                    Ok con,acc)
+            |> (fun (a,b) -> (b,a))
+        
+        let resComps = fst result
+        let resConns = snd result
+        let uniqueNamesMap = getUniqueNamesMap (fst result)
+        
+        let resCompsFixedNames =
+            resComps
+            |> List.map (fun res ->
+                match res with
+                |Ok comp -> Ok {comp with Label = uniqueNamesMap[comp.Label]}
+                |Error e -> Error e
+            )
+        
+        (resCompsFixedNames,resConns)
 
     // If canvas correction completed successfully, return the corrected canvas.
     // Otherwise, return the first error which stopped successful canvas correction.
@@ -560,13 +610,13 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (c
     let cellStyle =
         match Map.tryFind cell.IO styleInfo with
         | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-        | Some s -> Style <| (FontWeight "bold")::s
+        | Some s -> Style <| (FontWeight "bold")::(s@[BorderBottom "3px solid black"])
     match cell.IO with
     | SimIO (_,label,_) ->
         let headingText = string label
         div [cellStyle] 
             [
-                makeElementLine [makeColumnMoveArrows cell.IO (str headingText) dispatch] 
+               makeElementLine [(str headingText)] //[makeColumnMoveArrows cell.IO (str headingText) dispatch] 
                     [makeSortingArrows cell.IO sortInfo dispatch]
             ] 
     | Viewer ((label,fullName), width) ->
@@ -574,7 +624,7 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (c
             label |> string |> str
             |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
         div [cellStyle] [
-            makeElementLine [makeColumnMoveArrows cell.IO headingEl dispatch] 
+            makeElementLine [headingEl]  //[makeColumnMoveArrows cell.IO headingEl dispatch] 
                 [makeSortingArrows cell.IO sortInfo dispatch]
             ]
 
@@ -621,6 +671,7 @@ let viewTruthTableError simError =
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
         error
     ]
+
 
 let viewTruthTableData (table: TruthTable) model dispatch =
     match model.TTGridCache with

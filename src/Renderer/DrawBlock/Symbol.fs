@@ -286,6 +286,7 @@ let getPrefix (compType:ComponentType) =
     | Demux2 -> "DM"
     | Demux4 -> "DM"
     | Demux8 -> "DM"
+    | Shift _ -> "SHIFT"
     | NbitsAdder _ | NbitsAdderNoCin _
     | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ 
         -> "ADD"
@@ -339,6 +340,7 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | NbitsOr (x)->   nBitsGateTitle "OR" x
     | NbitsAnd (x)->   nBitsGateTitle "AND" x
     | NbitsNot (x)->  nBitsGateTitle "NOT" x
+    | Shift (n,_,_) -> busTitleAndBits "Shift" n
     | Custom x -> x.Name.ToUpper()
     | _ -> ""
 
@@ -369,6 +371,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | Demux8 -> (["DATA"; "SEL"]@["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
     | NbitsXor _ | NbitsAnd _ -> (["P"; "Q"]@ ["OUT"])
     | NbitsNot _ -> (["IN"]@["OUT"])
+    | Shift _ -> (["IN" ; "SHIFTER"]@["OUT"])
     | Custom x -> (List.map fst x.InputLabels)@ (List.map fst x.OutputLabels)
     | _ -> ([]@[])
    // |Demux8 -> (["IN"; "SEL"],["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
@@ -605,6 +608,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     |NbitsAdderNoCin (n) -> (  2 , 2, 3.*gS  , 4.*gS)
     | NbitsAdderNoCout (n)-> (  3 , 1, 3.*gS  , 4.*gS)
     | NbitsAdderNoCinCout (n) -> (  2 , 1, 3.*gS  , 4.*gS)
+    | Shift _ -> (  3 , 1, 3.*gS  , 4.*gS)
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 
 /// make a completely new component

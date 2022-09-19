@@ -534,7 +534,14 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | Input _
     | AsyncROM _ | RAM _ | ROM _ ->
         failwithf $"Invalid legacy component type '{fc.FType}'"
-
+    | Shift (n,m,tp) ->
+        let input = ins 0
+        let shifter = ins 1
+        let output = outs 0
+        match tp with
+        |LSL -> $"assign %s{output} = %s{input} << %s{shifter};\n"
+        |LSR -> $"assign %s{output} = %s{input} >> %s{shifter};\n"
+        |ASR -> $"assign %s{output} = %s{input} >>> %s{shifter};\n"
 /// return the header of the main verilog module with hardware inputs and outputs in header.
 let getMainHeader (vType:VMode) (profile: CompilationProfile) (fs: FastSimulation) =
     Array.append

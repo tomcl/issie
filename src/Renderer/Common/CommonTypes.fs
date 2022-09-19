@@ -180,6 +180,11 @@ module CommonTypes
     Data : Map<int64,int64>  
     } 
 
+    type ShiftComponentType =
+        |LSL
+        |LSR
+        |ASR
+    
     // Types instantiating objects in the Digital extension.
     type ComponentType =
         // Legacy component: to be deleted
@@ -206,6 +211,7 @@ module CommonTypes
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
+        | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
 
 
     /// Active pattern which matches 2-input gate component types.

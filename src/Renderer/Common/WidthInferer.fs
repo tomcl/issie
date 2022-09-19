@@ -303,6 +303,16 @@ let private calculateOutputPortsWidth
         | [_; Some n] when n <> 3 -> makeWidthInferErrorEqual 3 n [getConnectionIdForPort 1]
         | [_; _] -> Ok Map.empty // Keep on waiting.
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Shift (inputWidth,shifterWidth,shiftType) ->
+        assertInputsSize inputConnectionsWidth 2 comp
+        let okOutMap =
+            let out = Map.empty.Add (getOutputPortId comp 0, inputWidth)
+            Ok out
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [Some n; _] when n <> inputWidth -> makeWidthInferErrorEqual inputWidth n [getConnectionIdForPort 0]
+        | [_; Some n] when n <> shifterWidth-> makeWidthInferErrorEqual shifterWidth n [getConnectionIdForPort 1]
+        | [_; _] -> okOutMap
+        | x -> failwithf "what? Impossible case (%A) in calculateOutputPortsWidth for: %A" x comp.Type
     | NbitsAdder numberOfBits ->
         assertInputsSize inputConnectionsWidth 3 comp
         let okOutMap =

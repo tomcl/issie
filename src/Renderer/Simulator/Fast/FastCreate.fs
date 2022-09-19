@@ -108,7 +108,7 @@ let getPortNumbers (sc: SimulationComponent) =
             3,2
         | NbitsAdderNoCin _ ->
             2,2
-        | NbitsAdderNoCinCout _ ->
+        | NbitsAdderNoCinCout _ |Shift _ ->
             2,1
         | AsyncRAM1 _
         | RAM1 _ -> 
@@ -176,6 +176,8 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Custom _ -> ()
     | DFF
     | DFFE -> putW0 1
+    | Shift (n,_,_) ->
+        putW0 n
     | Decode4 ->
         putW0 1
         putW1 1

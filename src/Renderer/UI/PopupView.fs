@@ -824,8 +824,11 @@ let viewInfoPopup dispatch =
              The waveform viewer was created \
              by Edoardo Santi (EEE 3rd year) during Summer UROP work. The new schematic editor \
              was written as 2021 coursework by HLP students in EEE, \
-             and particularly Team 4. The new editor was integrated and the application enhanced \
-             by Jo Merrick (EIE 3rd year) for her BEng final year project."
+             and particularly Team 4. The new editor was integrated \
+             by Jo Merrick (EIE 3rd year) for her BEng final year project. \
+             In Spring 2022 the HLP class implemenbted a draw blokc with component rotation and muhc better routing. \
+             In Summer 2022 Jason Zheng rewrote the waveform simulator, Aditya Despande wrote the truth table generator, \
+             and Archontis Pantelopoulos spent all Summer writing the Verilog entry block and making many improvements."
         br []; br [] 
         makeH "Technology"
         Text.span [] [
@@ -1026,18 +1029,18 @@ let memPropsInfoButton dispatch =
     let bullet s = li [] [str s]
     let info = 
         ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
-            bullet "RAMs and ROMs need to have initial data contents defined. For ROMs this never changes. For RAMs the initial data \
-                    is reset for clock cycle 0 whenever a simulation is started."  
+            bullet "RAMs and ROMs need to have initial data contents defined. For RAMs the fixed initial data \
+                    is reset for clock cycle 0 whenever a simulation is started, the RAM data can change during simulation."  
             bullet "The default initial data is all 0s. Initial data is stored with the design sheet and  may be viewed or \
-                    modified with the memory editor from poperties. The editor can change locations numberd higehr than 15 by entering a \
+                    modified with the memory editor from properties. The editor can change locations numbered higher than 15 by entering a \
                     number in the 'first location displayed' box."
-            bullet "During the step or waveform viewer simulation RAM data can be viewed, but not manually changed. RAM data may change as the result of writes. \
+            bullet "During the Step or Waveform Viewer simulation RAM data can be viewed, but not manually changed. RAM data may change as the result of writes. \
                     These changes don't affect the initial data."
             bullet "When using external tools like an assembler it is useful to enter RAM or ROM initial data from a text file. Memory data can be \
                     written to a file with extension '.ram'. If a '.ram' file is placed in the project directory a RAM or ROM component can be linked to the \
-                    file permananetly by selecting it from the properties page."
-            bullet "Linked memories can have initial data updated to latest file contents, if they change, from a button on properties. Update is automatic
-                    when a new simulation is started."
+                    file, or unlinked, by selecting it from the properties page."
+            bullet "Linked memories will have initial data updated to latest file contents, if they change. Update is automatic
+                    when a new simulation is started and otherwise will happen if needed when the Issie screen refreshes."
         ]
     makeInfoPopupButton title info dispatch
 
@@ -1070,6 +1073,7 @@ let makeSourceMenu
         (cid: ComponentId)
         (dispatch: Msg -> Unit)
         (dialog: PopupDialogData) =
+    let projOpt = model.CurrentProj
     match dialog.MemorySetup with
     | None ->
         printfn "Error: can't find memory setup in dialog data"

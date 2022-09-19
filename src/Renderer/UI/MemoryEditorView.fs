@@ -17,9 +17,65 @@ open CommonTypes
 open ModelType
 open PopupView
 open Notifications
-
+open DrawModelType
 open Sheet.SheetInterface
 
+open Optics
+open Optics.Operators
+open CommonTypes
+
+let project_ = currentProj_ >-> Optics.Option.value_
+
+
+
+let memory1_ = 
+    Prism.create 
+        (fun (a:Component) -> match a.Type with | Memory mem -> Some mem | _ -> None)
+        (fun (mem:Memory1) -> 
+            Optic.map type_ (fun typ -> 
+                match typ with 
+                | RAM1 _ -> RAM1 mem 
+                | AsyncRAM1 _ -> AsyncRAM1 mem 
+                | ROM1 _ -> ROM1 mem
+                | AsyncROM1 _ -> AsyncROM1 mem
+                | x -> x))
+
+
+
+let updateLoadedComponentMemory (memUpdate: Memory1 -> Memory1) =
+    let compUpdate = Optic.map memory1_ memUpdate
+    let updateProject (p: Project) =
+        let updateSheetComponents (f: Component -> Component) =
+            Optic.map componentsState_ (List.map f) 
+        p.LoadedComponents
+        |> List.map (fun ldc -> if ldc.Name = p.OpenFileName then ldc else updateSheetComponents compUpdate ldc)
+        |> (fun ldcs -> Optic.set (loadedComponents_) ldcs p)
+    Optic.map project_ (updateProject)
+
+/// update all FromData memories in project to equal memory file contents.
+/// Silently do not update components where the file reading fails
+let updateMemory (p: Project) (mem: Memory1) =
+    match mem.Init with
+    | FromFile fName ->
+        FilesIO.initialiseMem mem p.ProjectPath
+        |> function | Ok mem -> mem | Error e -> mem
+    | _ -> mem // no change
+
+let updateDrawBlockMemoryComps  (memUpdate: Memory1 -> Memory1) (p: Project) =
+    let updateSymbol = (Optic.map (SymbolT.component_ >-> memory1_) (updateMemory p))
+    Optic.map 
+        (sheet_ >->  SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_)
+        (Map.map (fun _  -> updateSymbol))
+    
+let updateAllMemoryComps (model: Model) =
+    match model.CurrentProj with 
+    | None -> model
+    | Some p ->
+        model
+        |> updateDrawBlockMemoryComps (updateMemory p) p
+        |> (updateLoadedComponentMemory (updateMemory p))
+    
+    
 
 let private popupExtraStyle = [ Width "65%"; Height "80%" ]
 let private headerHeight = 60;

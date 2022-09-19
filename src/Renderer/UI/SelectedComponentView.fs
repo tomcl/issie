@@ -36,11 +36,29 @@ let private readOnlyFormField name body =
 
 
 
-let private textFormField isRequired name defaultValue isBad onChange =
+let private textFormField isRequired name defaultValue isBad onChange onDeleteAtEnd =
+    let onDelete (ev: Browser.Types.KeyboardEvent) =
+        if ev.key = "Delete" then  
+            let textEl: Browser.Types.HTMLInputElement = unbox (Browser.Dom.document.getElementById "labelInputElement")
+            let length = textEl.value.Length
+            let start = textEl.selectionStart
+            if length = start then
+                // Delete pressed at end of input box should go to draw block as
+                // a single component DELETE action - since that was probably wanted.
+                // NB it will only happen if just one component is highlighted
+                onDeleteAtEnd()
+            
     Field.div [] [
         Label.label [] [ str name ]
         Input.text [
-            Input.Props [ OnPaste preventDefault; SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
+            Input.Props [ 
+                Id "labelInputElement"; 
+                OnPaste preventDefault; 
+                SpellCheck false; 
+                Name name; 
+                AutoFocus true; 
+                Style [ Width "200px"]; 
+                OnKeyDown onDelete]
             Input.DefaultValue defaultValue
             Input.CustomClass "www"
             Input.Placeholder (if isRequired then "Name (required)" else "Name (optional)")
@@ -866,17 +884,25 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 else    None
 
             //printfn $"{comp.Label}:{label'} - {isBad} - {label'}"
-            textFormField required "Component Name (Unique)" defaultText isBad (fun text ->
-                match formatLabelText text compId with
-                | Error errorMess ->
-                    dispatch <| SetPopupDialogBadLabel (true)
-                    dispatch <| SetPopupDialogText (Some text)
-                | Ok label -> 
-                    setComponentLabel model sheetDispatch comp label
-                    dispatch <| SetPopupDialogText (Some label)
-                    dispatch <| SetPopupDialogBadLabel (false)
-                dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
-                )
+            textFormField 
+                required 
+                "Component Name" 
+                defaultText 
+                isBad 
+                (fun text -> // onChange
+                    match formatLabelText text compId with
+                    | Error errorMess ->
+                        dispatch <| SetPopupDialogBadLabel (true)
+                        dispatch <| SetPopupDialogText (Some text)
+                    | Ok label -> 
+                        setComponentLabel model sheetDispatch comp label
+                        dispatch <| SetPopupDialogText (Some label)
+                        dispatch <| SetPopupDialogBadLabel (false)
+                    dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component
+                ( fun () -> // onDeleteAtEndOfBox
+                    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+                    let dispatchKey = SheetT.KeyPress >> sheetDispatch
+                    dispatchKey SheetT.KeyboardMsg.DEL)
         ]    
     | _ -> 
         match model.CurrentProj with

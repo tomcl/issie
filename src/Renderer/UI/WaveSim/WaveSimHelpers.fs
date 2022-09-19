@@ -343,6 +343,8 @@ let getCompDetails fs wave =
             failwithf "Bus select, MergeWires, SplitWire should not appear"
         | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
             failwithf "Legacy component types should not appear"
+        | Shift _ ->
+            "Error: Shift is an internal component that should not appear", false
     match oneLine with
     | true -> $"{label}{portBits wave.Width} {descr}"
     | false -> $"{label} {descr}"
@@ -358,7 +360,7 @@ let getCompGroup fs wave =
         Buses
     | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
         MuxDemux
-    | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _->
+    | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _ ->
         Arithmetic
     | Custom _ -> CustomComp
     | DFF | DFFE | Register _ | RegisterE _ |Counter _ |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
@@ -369,6 +371,8 @@ let getCompGroup fs wave =
         failwithf "Bus select, MergeWires, SplitWire should not appear"
     | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
         failwithf "Legacy component types should not appear"
+    | Shift _ ->
+        failwithf "Shift is an internal-only component which should never appear on the canvas"
 
 
 /// Name for summary field in details element.

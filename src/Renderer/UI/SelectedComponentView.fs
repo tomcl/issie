@@ -747,6 +747,9 @@ let private makeDescription (comp:Component) model dispatch =
             location addressed by the current cycle addres.
             The component is implicitly connected to the global clock."
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
+    | Shift _ -> 
+        div [] [str "Issie Internal Error: This is an internal component and should never appear selected to view properties"]
+        
 
 let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
     match comp.Type with

@@ -233,6 +233,15 @@ module CommonTypes
         | AsyncROM1 mem -> Some mem
         | _ -> None
 
+    let (|MemoryAndType|_|) (typ:ComponentType) =
+        match typ with
+        | RAM1 mem -> Some(RAM1, mem)
+        | AsyncRAM1 mem -> Some(AsyncRAM1,mem)
+        | ROM1 mem -> Some(ROM1, mem)
+        | AsyncROM1 mem -> Some(AsyncROM1, mem)
+        | _ -> None
+
+
     // --------------- Types needed for symbol ---------------- //
     /// Represents the rotation of a symbol in degrees, Degree0 is the default symbol rotation.
     /// Angle is anticlockwise
@@ -597,6 +606,11 @@ module CommonTypes
         Description: string option
     }
 
+    open Optics.Operators
+
+    let canvasState_ = Lens.create (fun a -> a.CanvasState) (fun s a -> {a with CanvasState = s})
+    let componentsState_ = canvasState_ >-> Optics.fst_
+
     /// Returns true if a component is clocked
     let rec isClocked (visitedSheets: string list) (ldcs: LoadedComponent list) (comp: Component) =
         match comp.Type with
@@ -632,6 +646,23 @@ module CommonTypes
         /// componnets have one-one correspondence with files
         LoadedComponents : LoadedComponent list
         }
+
+        
+
+    let loadedComponents_ = Lens.create (fun a -> a.LoadedComponents) (fun s a -> {a with LoadedComponents = s})
+
+    let openLoadedComponent_ = 
+        Lens.create 
+            (fun a -> List.find (fun lc -> lc.Name = a.OpenFileName) a.LoadedComponents) 
+            (fun lc' a -> {a with LoadedComponents = List.map (fun lc -> if lc.Name = a.OpenFileName then lc' else lc) a.LoadedComponents})
+
+    let openFileName_ = Lens.create (fun a -> a.OpenFileName) (fun s a -> {a with OpenFileName = s})
+
+    let loadedComponentOf_ (name:string) = 
+        Lens.create 
+            (fun a -> List.find (fun lc -> lc.Name = name) a.LoadedComponents) 
+            (fun lc' a -> {a with LoadedComponents = List.map (fun lc -> if lc.Name = name then lc' else lc) a.LoadedComponents})
+
 
     /// Value set to None if the connection width could not be inferred.
     type ConnectionsWidth = Map<ConnectionId, int option>

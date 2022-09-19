@@ -36,8 +36,6 @@
     <Compile Include="Simulator\Fast\FastReduce.fs" />
     <Compile Include="Simulator\Fast\FastRun.fs" />
     <Compile Include="Simulator\Builder.fs" />
-    <Compile Include="Simulator\TruthTable\TruthTableReduce.fs" />
-    <Compile Include="Simulator\TruthTable\TruthTableCreate.fs" />
     <Compile Include="Simulator\Verilog.fs" />
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />
@@ -79,10 +77,12 @@
     <Compile Include="UI/FileMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/SimulationView.fs" />
-    <Compile Include="UI\ConstraintReduceView.fs" />
-    <Compile Include="UI\TruthTableView.fs" />
-    <Compile Include="UI/CatalogueView.fs" />
+    <Compile Include="UI\TruthTable\TruthTableReduce.fs" />
+    <Compile Include="UI\TruthTable\TruthTableCreate.fs" />
+    <Compile Include="UI\TruthTable\ConstraintReduceView.fs" />
+    <Compile Include="UI\TruthTable\TruthTableView.fs" />
     <Compile Include="UI/BuildView.fs" />
+    <Compile Include="UI/CatalogueView.fs" />
     <Compile Include="UI/SelectedComponentView.fs" />
     <!-- <Compile Include="UI/WaveSim/WaveformSimulationView.fs" /> -->
     <Compile Include="UI/WaveSim/WaveSimHelpers.fs" />

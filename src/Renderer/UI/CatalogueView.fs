@@ -384,7 +384,17 @@ let parseBusCompareValue wMax w cText =
     else
         match NumberHelpers.strToIntCheckWidth w cText with
         | Ok n ->
-            busCompareValueMessage w (uint32 n), Some (BusCompare1 (w,(uint32 n),cText))
+            let n' =
+                if n >= 0 then n |> uint32
+                else
+                    let mask = 
+                        if w = 32 then 
+                            0xffffffffu
+                        else 
+                            (1u <<< w) - 1u
+                    let uVal = (uint32 n) &&& mask
+                    uVal
+            busCompareValueMessage w (uint32 n), Some (BusCompare1 (w,(n'),cText))
         | Error msg ->
             twoErrorLines msg "", None
 
@@ -453,7 +463,16 @@ let private createBusComparePopup (model:Model) dispatch =
             let text = Option.defaultValue "" dialogData.Text
             let constant = 
                 match NumberHelpers.strToIntCheckWidth width text with
-                | Ok n -> n |> uint32
+                | Ok n -> 
+                    if n >= 0 then n |> uint32
+                    else
+                        let mask = 
+                            if width = 32 then 
+                                0xffffffffu
+                            else 
+                                (1u <<< width) - 1u
+                        let uVal = (uint32 n) &&& mask
+                        uVal
                 | Error _ -> 0u // should never happen?
             let text' = if text = "" then "0" else text
             createCompStdLabel (BusCompare1(width,constant,text')) model dispatch

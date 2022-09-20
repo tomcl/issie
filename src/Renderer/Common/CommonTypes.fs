@@ -191,6 +191,7 @@ module CommonTypes
         | Input of BusWidth: int
         | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
         | BusCompare of BusWidth: int * CompareValue: uint32
+        | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant of Width: int * ConstValue: int64 
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string

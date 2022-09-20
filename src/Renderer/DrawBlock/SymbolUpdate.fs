@@ -857,6 +857,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newsymbol = changeConstantf model compId newVal newText
         (replaceSymbol model newsymbol compId), Cmd.none
     
+    | ChangeBusCompare (compId, newVal, newText) -> 
+        let newsymbol = changeBusComparef model compId newVal newText
+        (replaceSymbol model newsymbol compId), Cmd.none
+
     | ResetModel -> 
         { model with Symbols = Map.empty; Ports = Map.empty; }, Cmd.none
     

@@ -304,7 +304,7 @@ let getPrefix (compType:ComponentType) =
     | Custom c ->
         c.Name.ToUpper() + (if c.Name |> Seq.last |> System.Char.IsDigit then "." else "")
     | Constant1 _ -> "C"
-    | BusCompare _ -> "EQ"
+    | BusCompare _ |BusCompare1 _ -> "EQ"
     | Decode4 -> "DEC"
     | Counter _ |CounterNoEnable _
     | CounterNoLoad _ |CounterNoEnableLoad _ -> "CNT"
@@ -589,7 +589,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Demux4 -> ( 2  , 4, 8. * gS ,  2.*gS) 
     | Demux8 -> ( 2  , 8, 16.*gS ,  2.*gS) 
     | BusSelection (a, b) -> (  1 , 1, gS/2.,  2.*gS) 
-    | BusCompare (a, b) -> ( 1 , 1, gS ,  2.*gS) 
+    | BusCompare _ | BusCompare1 _ -> ( 1 , 1, gS ,  2.*gS) 
     | DFF -> (  1 , 1, 2.5*gS, 2.5*gS) 
     | DFFE -> ( 2  , 1, 2.5*gS  , 2.5*gS) 
     | Register (a) -> ( 1 , 1, 2.*gS, 4.*gS )

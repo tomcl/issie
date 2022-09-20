@@ -485,6 +485,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | BusCompare( w, _) -> "Bus width", w
+        | BusCompare1( w,_, _) -> "Bus width", w
         | Constant1(w, _,_) -> "Number of bits in the wire", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title "60px" width 1 (
@@ -562,7 +563,7 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
             match comp.Type with | Constant1( w,_,txt) -> w,txt | _ -> failwithf "What? impossible" 
         let w = Option.defaultValue wComp model.PopupDialogData.Int
         let cText = Option.defaultValue txtComp model.PopupDialogData.Text
-        let reactMsg, compTOpt = CatalogueView.parseConstant w cText
+        let reactMsg, compTOpt = CatalogueView.parseConstant 64 w cText
         match compTOpt with
         | None -> ()
         | Some (Constant1(w,cVal,cText) as compT) ->
@@ -587,12 +588,45 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
                 
             ]              
 
+/// Create react to chnage constant properties
+let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch: Msg -> Unit): ReactElement =
+        let symbolDispatch msg = dispatch <| msgToS msg
+        let wComp, txtComp =
+            match comp.Type with | BusCompare1( w,_,txt) -> w,txt | _ -> failwithf "What? impossible1" 
+        let w = Option.defaultValue wComp model.PopupDialogData.Int
+        let cText = Option.defaultValue txtComp model.PopupDialogData.Text
+        let reactMsg, compTOpt = CatalogueView.parseBusCompareValue 32 w cText
+        match compTOpt with
+        | None -> ()
+        | Some (BusCompare1(w,cVal,cText) as compT) ->
+            if compT <> comp.Type then
+                model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
+                symbolDispatch <| SymbolT.ChangeBusCompare (ComponentId comp.Id, cVal, cText)
+                dispatch (ReloadSelectedComponent w)
+                dispatch ClosePropertiesNotification
+        | _ -> failwithf "What? impossible"
+
+        div [] [
+                makeNumberOfBitsField model comp text dispatch
+                br []
+                reactMsg
+                br []
+                textFormFieldSimple 
+                    "Enter bus compare value in decimal, hex, or binary:" 
+                    cText 
+                    (fun txt -> 
+                        printfn $"Setting {txt}"
+                        dispatch <| SetPopupDialogText (Some txt))
+                
+            ] 
+
 let private makeLsbBitNumberField model (comp:Component) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let lsbPos, infoText =
         match comp.Type with 
         | BusSelection(width,lsb) -> uint32 lsb, "Least Significant Bit number selected: lsb"
         | BusCompare(width,cVal) -> cVal, "Compare with"
+        | BusCompare1(width,cVal,text) -> cVal, "Compare with"
         | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
 
     match comp.Type with
@@ -633,7 +667,7 @@ let private makeDescription (comp:Component) model dispatch =
     | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | Viewer _ -> str "Viewer."
-    | BusCompare _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified. This will display in hex on the design sheet, and decimal in this dialog. Busses of greater than 32 bits are not supported"
+    | BusCompare _ | BusCompare1 _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified. This will display in hex on the design sheet. Busses of greater than 32 bits are not supported"
     | BusSelection _ -> div [] [
                 str "Bus Selection."
                 br []
@@ -821,6 +855,8 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             makeLsbBitNumberField model comp dispatch
             ]
 
+    |BusCompare1 _ ->
+        makeBusCompareDialog model comp text dispatch
     | Constant1 _ ->         
              makeConstantDialog model comp text dispatch
     | _ -> div [] []

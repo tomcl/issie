@@ -520,6 +520,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let sel = sprintf "[%d:%d]" (outW + lsb - 1) lsb
         $"assign {outs 0} = {ins 0}{sel};\n"
     | BusCompare (w, c) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
+    | BusCompare1 (w, c, _) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
     | MergeWires -> $"assign {outs 0} = {{ {ins 0},{ins 1} }};\n"  
     | SplitWire _ ->
         let lsbBits = outW 0

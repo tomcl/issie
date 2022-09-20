@@ -352,15 +352,39 @@ let private constantValueMessage w (cVal:int64) =
     let line2 = $"Hex value: %s{hVal}"
     span [] [str line1; br [] ; str line2; br [] ]
 
+/// two line message giving constant value
+let private busCompareValueMessage w (cVal:uint32) =
+    let mask = 
+        if w = 32 then 
+            0xffffffffu
+        else 
+            (1u <<< w) - 1u
+    let uVal = cVal &&& mask
+    let sVal = ((int32 uVal) <<< 32 - w) >>> 32 - w
+    let hVal = NumberHelpers.hex(int uVal)
+    let line1 = $"Decimal value: %d{uVal} (%d{sVal} signed)"
+    let line2 = $"Hex value: %s{hVal}"
+    span [] [str line1; br [] ; str line2; br [] ]
+
 /// check constant parameters and return two react lines with
 /// error message or value details
-let parseConstant w cText =
-    if w < 1 || w > 64 then
-            twoErrorLines $"Constant width must be in the range 1..64" "", None
+let parseConstant wMax w cText =
+    if w < 1 || w > wMax then
+            twoErrorLines $"Constant width must be in the range 1..{wMax}" "", None
     else
         match NumberHelpers.strToIntCheckWidth w cText with
         | Ok n ->
             constantValueMessage w n, Some (Constant1 (w,n,cText))
+        | Error msg ->
+            twoErrorLines msg "", None
+
+let parseBusCompareValue wMax w cText =
+    if w < 1 || w > wMax then
+            twoErrorLines $"Bus Compare width must be in the range 1..{wMax}" "", None
+    else
+        match NumberHelpers.strToIntCheckWidth w cText with
+        | Ok n ->
+            busCompareValueMessage w (uint32 n), Some (BusCompare1 (w,(uint32 n),cText))
         | Error msg ->
             twoErrorLines msg "", None
 
@@ -371,7 +395,7 @@ let private createConstantPopup model dispatch =
         fun _ -> str "How many bits has the wire carrying the constant?"
     let intDefault = 1
     let parseConstantDialog dialog =
-        parseConstant 
+        parseConstant 64
             (Option.defaultValue intDefault dialog.Int)
             (Option.defaultValue "" dialog.Text)
     let beforeText = (fun d -> div [] [d |> parseConstantDialog |> fst; br [] ])
@@ -414,25 +438,27 @@ let private createBusSelectPopup model dispatch =
 
 let private createBusComparePopup (model:Model) dispatch =
     let title = sprintf "Add Bus Compare node" 
-    let beforeInt2 =
-        fun _ -> str "What is the decimal value to compare the input with?"
     let beforeInt =
         fun _ -> str "How many bits width is the input bus?"
-    let intDefault = model.LastUsedDialogWidth
-    let intDefault2 = 0L
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, int64 intDefault2) "120px" dispatch
+    let intDefault = 1
+    let parseBusCompDialog dialog =
+        parseBusCompareValue 32 (Option.defaultValue intDefault dialog.Int) (Option.defaultValue "" dialog.Text)
+    let beforeText = (fun d -> div [] [d |> parseBusCompDialog |> fst; br [] ])
+    let placeholder = "Value: decimal, 0x... hex, 0b... binary"   
+    let body = dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let width = getInt dialogData
-            let cVal = getInt2 dialogData
-            createCompStdLabel (BusCompare(width, uint32 cVal)) model dispatch
+            let text = Option.defaultValue "" dialogData.Text
+            let constant = 
+                match NumberHelpers.strToIntCheckWidth width text with
+                | Ok n -> n |> uint32
+                | Error _ -> 0u // should never happen?
+            let text' = if text = "" then "0" else text
+            createCompStdLabel (BusCompare1(width,constant,text')) model dispatch
             dispatch ClosePopup
-    let isDisabled =
-        fun (dialogData : PopupDialogData) -> 
-            let w = getInt dialogData
-            let cVal = getInt2 dialogData |> uint32
-            w > 32 || w < 1 || cVal > (1u <<< w) - 1u
+    let isDisabled = parseBusCompDialog >> snd >> Option.isNone
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createRegisterPopup regType (model:Model) dispatch =

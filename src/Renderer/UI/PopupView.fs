@@ -1154,10 +1154,11 @@ let makeSourceMenu
             match mem with
             | _ when existingFiles.Length > 0 ->
                 modalMessageWithRamFiles, noFileItem :: List.map menuItem existingFiles
-            | FromData ->
-                modalMessageNoRamFiles, [noFileItem]
             | FromFile s -> 
                 modalMessageBadFileLink s, [noFileItem]
+            | _ ->
+                modalMessageNoRamFiles, [noFileItem]
+
 
         div [] [
             Label.label [] [str msg]

@@ -564,6 +564,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let output = Json.parseAs<ParserOutput> parsedCodeNearley
                 let result = Option.get output.Result
                 let fixedAST = fix result
+                printfn "fixed %A" fixedAST
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
 
                 let cs = SheetCreator.createSheet parsedAST

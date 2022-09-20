@@ -188,6 +188,7 @@ module SymbolT =
         | ChangeInputValue of compId: ComponentId * newVal: int
         | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
         | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
+        | ChangeBusCompare of compId: ComponentId * NewBits:uint32 * NewText:string
         | ChangeReversedInputs of compId: ComponentId
         | ChangeAdderComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType

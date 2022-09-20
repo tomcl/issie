@@ -312,6 +312,27 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {(getAlgExpWidth exp)}")
 #endif
             put0 <| Alg (ComparisonExp(exp,Equals,compareVal))
+    | BusCompare1 (width, compareVal, dialogText) ->
+        //printfn "Reducing compare %A" comp.SimComponent.Label
+        match (ins 0) with
+        | Data bits ->
+#if ASSERTS
+            assertThat
+                (bits.Width = width)
+                ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {bits.Width}")
+#endif
+            let inputNum = convertFastDataToBigint bits
+            let outNum : FData =
+                if inputNum = (bigint compareVal) then 1u else 0u
+                |> packBit
+            put0 outNum
+        | Alg exp ->
+#if ASSERTS
+            assertThat
+                ((getAlgExpWidth exp) = width)
+                ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {(getAlgExpWidth exp)}")
+#endif
+            put0 <| Alg (ComparisonExp(exp,Equals,compareVal))
     | And -> getBinaryGateReducer bitAnd algAnd
     | Or -> getBinaryGateReducer bitOr algOr
     | Xor -> getBinaryGateReducer bitXor algXor

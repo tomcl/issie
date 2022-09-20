@@ -41,6 +41,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | SplitWire _ -> SplitWire newBits
         | BusSelection (_,b) -> BusSelection (newBits,b)
         | BusCompare (_,b) -> BusCompare (newBits,b)
+        | BusCompare1 (_,v,t) -> BusCompare1 (newBits,v,t) 
         | Constant1 (_,b,txt) -> Constant1 (newBits,b,txt)
         | c -> c
         
@@ -81,6 +82,15 @@ let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (c
     
     set (component_ >-> type_) newcompotype symbol
 
+/// Updates the value of a busCompare1 component and returns the updated symbol
+let changeBusComparef (symModel:Model) (compId:ComponentId) (constantVal:uint32) (constantText: string) =
+    let symbol = Map.find compId symModel.Symbols
+    let newcompotype = 
+        match symbol.Component.Type with
+        | BusCompare1 (w, _, _) -> BusCompare1 (w, constantVal,constantText)
+        | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
+    
+    set (component_ >-> type_) newcompotype symbol
 
 let changeReversedInputs (symModel: Model) (compId: ComponentId) =
     let symbol = Map.find compId symModel.Symbols

@@ -113,6 +113,7 @@ BITWISE_AND
 
 LOGICAL_SHIFT
     -> ADDITIVE _ SHIFT_OPERATOR _ UNSIGNED_REDUCTED {%function(d) {return {Type: "SHIFT", Operator:d[2][0], Head: d[0], Tail: d[4]};} %}
+    | ADDITIVE _ SHIFT_OPERATOR _ LOGICAL_SHIFT {%function(d) {return {Type: "SHIFT", Operator:d[2][0], Head: d[0], Tail: d[4]};} %}
     | ADDITIVE {% id %}
 
 ADDITIVE
@@ -139,7 +140,7 @@ LIST_OF_UNARIES
 
 #### Used for unsigned numbers (only in logical/arithmetic shifts)
 UNSIGNED_REDUCTED 
-    -> UNSIGNED_UNARY {%function(d) {return {Type: "unary", Unary: d[0]};} %}
+    -> UNSIGNED_UNARY {%function(d) {return {Type: "unary_unsigned", Unary: d[0]};} %}
 
 UNSIGNED_UNARY
     -> U_NUMBER {%function(d) {return {Type: "number", Primary: null, Number: d[0], Expression: null};} %}

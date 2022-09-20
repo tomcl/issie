@@ -415,8 +415,14 @@ let RHSUnaryAnalysis
             {Name="[conditional]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=Some u2;Elements=[result]}
         
         | "SHIFT" ->
-            let u1 = (findSizeOfExpression (Option.get tree.Head))
-            {Name="[shift]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=None;Elements=[]}
+            match (Option.get tree.Tail).Type with
+            |"unary_unsigned" ->
+                let u1 = (findSizeOfExpression (Option.get tree.Head))
+                {Name="[shift]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=None;Elements=[]}
+            |_ ->
+                let u1 = (findSizeOfExpression (Option.get tree.Head))
+                let u2 = (findSizeOfExpression (Option.get tree.Tail))
+                {Name="[shift]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=Some u2;Elements=[]}
 
         | "reduction" when (Option.get tree.Unary).Type = "parenthesis" ->
             let result = findSizeOfExpression (Option.get (Option.get tree.Unary).Expression)

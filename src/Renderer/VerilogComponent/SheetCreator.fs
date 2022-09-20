@@ -86,7 +86,7 @@ let createComponent (compType:ComponentType) (name:string) : Component =
             -> 1,1
         |Output _ |Viewer _ 
             -> 1,0 
-        |NbitsAnd _ |NbitsOr _ |NbitsXor _
+        |NbitsAnd _ |NbitsOr _ |NbitsXor _ |Shift _
         |And |Or |MergeWires
             -> 2,1
         |Mux2 
@@ -356,8 +356,10 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap =
             let topComp = buildExpressionComponent expr c1.OutWidth
             let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
             joinCircuits [c2;c1;c3] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
-        | "SHIFT" ->
+        | "SHIFT" when (Option.get expr.Tail).Type = "unary_unsigned" ->
             buildShiftCircuit expr
+        | "SHIFT" ->
+            buildVariableShiftCircuit expr
         | "reduction" ->
             buildReductionAndLogicalCircuit expr "reduction"
         | "logical_AND" | "logical_OR" ->
@@ -439,6 +441,20 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap =
         (c1,c2)
 
 
+    and buildVariableShiftCircuit (expr:ExpressionT) =
+        let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) 
+        let (c2:Circuit) = buildExpressionCircuit (Option.get expr.Tail) 
+        
+        let shiftType = 
+            match (Option.get expr.Operator) with
+            | "<<" -> LSL
+            | ">>>" -> ASR
+            | _ -> LSR
+
+        let topComp = createComponent (Shift (c1.OutWidth,c2.OutWidth,shiftType)) "SHIFT"
+        let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
+        joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
+    
     and buildShiftCircuit (expr:ExpressionT) = 
         let operator = (Option.get expr.Operator)
         let tail = Option.get expr.Tail

@@ -201,7 +201,12 @@ let private calculateOutputPortsWidth
         | [Some n] when n <> width -> makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
         | [None] | [Some _ ] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-
+    | BusCompare1(width, compareVal, dialogTextValue) ->
+        assertInputsSize inputConnectionsWidth 1 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
+        | [Some n] when n <> width -> makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
+        | [None] | [Some _ ] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type    
     | Not ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with

@@ -76,6 +76,7 @@ let getPortNumbers (sc: SimulationComponent) =
         | Viewer _ 
         | BusSelection _
         | BusCompare _
+        | BusCompare1 _ 
         | Not
         | DFF
         | Register _
@@ -168,7 +169,7 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Nand
     | Nor
     | Xnor
-    | BusCompare _ -> putW0 1
+    | BusCompare _ | BusCompare1 _ -> putW0 1
     | AsyncROM1 mem
     | ROM1 mem
     | RAM1 mem

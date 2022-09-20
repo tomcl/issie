@@ -238,7 +238,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H-0.3*W};{X=W;Y=0.3*W}|]
             | BusSelection _ -> 
                 [|{X=0;Y=H/2.}; {X=W;Y=H/2.}|]
-            | BusCompare _ -> 
+            | BusCompare _ |BusCompare1 _-> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*0.6;Y=H};{X=W*0.8;Y=H*0.7};{X=W;Y=H*0.7};{X=W;Y =H*0.3};{X=W*0.8;Y=H*0.3};{X=W*0.6;Y=0}|]
             | Not | Nand | Nor | Xnor -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
@@ -332,7 +332,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                 | _ -> "start",0.,-5.
             let fontSize = if dialogVal.Length < 2 then "14px" else "12px"
             addText {X = w/2. + xOffset; Y = h/1.5 + yOffset}  dialogVal align "normal" fontSize
-        | BusCompare (_,y) -> 
+        | BusCompare (_,y) |BusCompare1 (_,y,_) -> 
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
         // legacy component type: to be deleted
         | Input x

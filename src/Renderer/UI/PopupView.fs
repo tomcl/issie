@@ -1138,7 +1138,7 @@ let makeSourceMenu
         let modalContents =
             div [] [
                 str "Use this menu to change how the memory initial data is sourced. "
-                str "You can link data to the contents of an external file, or unlink it. "
+                str "You can link data to the contents of an external file in your project folder, or unlink it. "
                 str "Unlinked data can be edited from the properties panel."
                 br []; br []
                 Menu.menu []

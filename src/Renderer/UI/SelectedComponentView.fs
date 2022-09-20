@@ -131,17 +131,23 @@ let private int64FormFieldNoMin name (defaultValue:int64) (currentText:string op
     ]
 
 
-let getInitSource (mem: Memory1) =
+let getInitSource (mem: Memory1) (model:Model)=
     let a = mem.AddressWidth
+    let path = match model.CurrentProj with | Some p -> p.ProjectPath | None -> ""
     match mem.Init with
     | SignedMultiplier -> 
-        $"Dout = (signed) addr({a-1}:{a/2}) * addr({a/2-1}:0)"
+        Ok $"Dout = (signed) addr({a-1}:{a/2}) * addr({a/2-1}:0)"
     | UnsignedMultiplier ->
-        $"Dout = (unsigned) addr({a-1}:{a/2}) * addr({a/2-1}:0)"
+        Ok $"Dout = (unsigned) addr({a-1}:{a/2}) * addr({a/2-1}:0)"
     | FromData ->
-        "Memory Viewer/Editor"
+        Ok "Memory Viewer/Editor"
     | FromFile name | ToFile name | ToFileBadName name ->
-        $"From '{name}.ram' file"
+        if FilesIO.fileExistsWithExtn ".ram" path name then 
+            match initialiseMem mem path with
+            | Ok _ -> Ok $"From '{name}.ram' file"
+            | Error s -> Error $"From '{name}.ram' file. WARNING - this file exists but has a read error: 's'"
+        else
+            Error $"From '{name}.ram' file in folder '{path}'. WARNING - this file does not exist"
    
 
 let getDialogMemorySetup (mem: Memory1) =
@@ -154,12 +160,23 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
     let reloadMemoryContent mem compId model dispatch =
         () // *** To be implemented
     let printMemorySource() =
-        str <| sprintf "%sData Source: %s"  
-                (match cType with 
-                | RAM1 _ | AsyncRAM1 _ -> "Initial "
-                | ROM1 _ | AsyncROM1 _ -> ""
-                | _ -> failwithf $"What - wrong component type ({cType}) here")
-                (getInitSource mem1)
+        let isError, msgEnd =
+            match getInitSource mem1 model with Error txt -> true, txt | Ok txt -> false, txt
+        let msgStart =
+            match cType with 
+            | RAM1 _ | AsyncRAM1 _ -> "Initial "
+            | ROM1 _ | AsyncROM1 _ -> ""
+            | _ -> failwithf $"What - wrong component type ({cType}) here"
+        let msg = sprintf $"{msgStart}Data Source: {msgEnd}"  
+        if isError then 
+            Fulma.Label.label [Label.Size IsSmall; Label.Modifiers [Modifier.TextColor IsDanger]] [str msg]
+        else
+            Fulma.Label.label [] [str msg]
+ 
+
+
+
+                
 
     dispatch <| SetPopupDialogMemorySetup (Some setup)
     let projectPath = (Option.get model.CurrentProj).ProjectPath
@@ -176,7 +193,7 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
             br []
 
             //makeSourceMenu model (Option.get model.CurrentProj) mem dispatch
-            br []; br []
+            br [];
         
             div [] [
                 Button.button [
@@ -186,8 +203,6 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
                 (memPropsInfoButton dispatch)
                 br []
                 hr []
-                PopupView.makeH "Advanced"
-                br []
 
                 Button.button [
                     Button.Color IsPrimary
@@ -206,7 +221,7 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
 
                 (printMemorySource())
                    
-                br []
+                
                 (makePopupButton
                     "Memory Initial Data Source"
                     (makeSourceMenu 

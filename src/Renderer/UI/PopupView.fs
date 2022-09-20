@@ -1066,7 +1066,7 @@ let fileEntryBox files fName dialog dispatch =
                     let newKey = if inputValidate newName then ToFile newName else ToFileBadName newName
                     dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2, newKey,None) ) ) )
         ]
-
+/// Make a poup with menu to view and select a memory data source
 let makeSourceMenu 
         (model: Model)
         (updateMem: ComponentId -> (Memory1 -> Memory1) -> Unit)
@@ -1135,22 +1135,38 @@ let makeSourceMenu
                 [ Menu.Item.IsActive (mem = FromData)
                   Menu.Item.OnClick (fun _ -> onSelect FromData) ] (printSource true FromData)
 
-        let modalContents =
-            div [] [
-                str "Use this menu to change how the memory initial data is sourced. "
-                str "You can link data to the contents of an external file in your project folder, or unlink it. "
-                str "Unlinked data can be edited from the properties panel."
-                br []; br []
-                Menu.menu []
-                    [ Menu.list [] (noFileItem :: List.map menuItem existingFiles) ]
+        let modalMessageWithRamFiles =
+                "Use this menu to change how the memory initial data is sourced. \
+                You can link data to the contents of an external file in your project folder, or unlink it. \
+                Unlinked data can be edited from the properties panel."
+
+        let modalMessageNoRamFiles =
+                "You cannot now link this file because your project directory has no .ram files. \
+                Add a .ram file (with data in the format you can see if you write a memory) to your \
+                project directory, then return to this menu to link it."
+
+        let modalMessageBadFileLink s =
+                "You have linked this component to file '{s}' which does not exist or is badly formatted. \
+                Please either correct the file or remove the link."
         
-            ]
+
+        let msg, menu =
+            match mem with
+            | _ when existingFiles.Length > 0 ->
+                modalMessageWithRamFiles, noFileItem :: List.map menuItem existingFiles
+            | FromData ->
+                modalMessageNoRamFiles, [noFileItem]
+            | FromFile s -> 
+                modalMessageBadFileLink s, [noFileItem]
+
+        div [] [
+            Label.label [] [str msg]
+            br []; br []
+            Menu.menu []
+                [ Menu.list [] menu ]
         
-        match mem with
-        | _ when existingFiles.Length > 0 ->
-            modalContents
-        | _ ->
-            str "To link this memory to external file data, add a .ram file to the project directory"
+        ]
+       
 
 let makePopupButton (title: string) (menu: PopupDialogData -> ReactElement) (buttonLegend: string) dispatch =
 

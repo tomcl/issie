@@ -356,7 +356,7 @@ let getCompGroup fs wave =
         InputOutput
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         Gates
-    | BusCompare _ ->
+    | BusCompare _ | BusCompare1 _->
         Buses
     | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
         MuxDemux

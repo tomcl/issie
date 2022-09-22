@@ -740,6 +740,8 @@ let cancelSpinner (model:Model) =
 /// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
 /// a constant. To get the estimate some initila execution must be completed (1 clock cycle and one waveform).
 let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
+    let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
+        wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
     // use given (more uptodate) wsModel
     let model = updateWSModel (fun _ -> wsModel) model
     let start = TimeHelpers.getTimeMs ()
@@ -748,7 +750,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         model, Elmish.Cmd.none
     else
     // starting runSimulation
-        //printfn "Starting refresh"
+        printfn "Starting refresh"
         let lastCycleNeeded = wsModel.StartCycle + wsModel.ShownCycles+1
         //printfn $"Running fs: {fs.ClockTick} --> {lastCycleNeeded}"
 
@@ -793,6 +795,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 | falae ->
                     
                 printfn $"Similationuptodate: {simulationIsUptodate}"
+                // need to use isSameWave here becasue sarray index may have changed
                 let wavesToBeMade =
                     allWaves
                     |> Map.filter (fun wi wave ->
@@ -800,11 +803,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         // Regenerate waveforms whenever they have changed
                         let hasChanged = not <| waveformIsUptodate wsModel wave
                         //if List.contains index ws.SelectedWaves then 
-                        List.contains wi wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
-                    |> Map.toList
-                   
-                    //|> (fun lst -> lst |> List.iter (fun (wi,wave) -> 
-                        //printfn $"wave={wi.SimArrayIndex},{wi.PortNumber},{wi.PortType},{wave.ViewerDisplayName}"); lst)
+                        List.exists (fun wi' -> isSameWave wi wi') wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
+                    |> Map.toList                   
                     |> List.map fst
 
                 let model, allWaves, spinnerPayload, numToDo =
@@ -837,8 +837,13 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     |> List.sortBy (fun fc -> fc.FullName)
 
                 let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
+                let allWaveA = Map.keys allWaves |> Seq.toArray
+                // arrayIndex may have changed, so we have to use new arrayIndex
+                // if we cannot find it, then the selected wave no longer exists and is dropped
+                let selectedWaves = 
+                    wsModel.SelectedWaves
+                    |> List.collect (fun wi -> match Array.tryFind (isSameWave wi) allWaveA with Some w -> [w] | None -> [])
 
-                let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
                 let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
 
                 let ws =  

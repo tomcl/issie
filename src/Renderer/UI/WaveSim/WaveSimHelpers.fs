@@ -310,7 +310,7 @@ let getCompDetails fs wave =
             let gateType = $"{fc.FType}".ToUpper()
             $"{gateType} gate", false
         | BusCompare (width,v) -> $"Bus Compare ='{v}'", false
-
+        | BusCompare1(width,v,s)-> $"Bus Compare ='{s}'", false
         | Mux2 -> "2 input multiplexer", false
         | Mux4 -> "4 input multiplexer", false
         | Mux8 -> "8 input multiplexer", false

@@ -112,7 +112,7 @@ let private createInputPopup typeStr (compType: int * int option -> ComponentTyp
     let beforeDefaultValue = fun _ -> str <| sprintf "If the input is undriven, what should the default value be?"
     let intDefault = model.LastUsedDialogWidth
     let body =
-        dialogPopupBodyTextAndTwoInts (beforeText, placeholder) (beforeInt, beforeDefaultValue) (intDefault, 0) dispatch
+        dialogPopupBodyTextAndTwoInts 1 (beforeText, placeholder) (beforeInt, beforeDefaultValue) (intDefault, 0) dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->

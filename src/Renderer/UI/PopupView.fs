@@ -441,7 +441,8 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
         ]
 
 /// Create the body of a dialog Popup with text and two ints.
-let dialogPopupBodyTextAndTwoInts (beforeText, textPlaceholder) (beforeInt1,beforeInt2) (intDefault1,intDefault2) dispatch =
+/// focus: which of the boxes has initial focus (= 1,2,3)
+let dialogPopupBodyTextAndTwoInts (focus: int) (beforeText, textPlaceholder) (beforeInt1,beforeInt2) (intDefault1,intDefault2) dispatch =
 
     let setPopupTwoInts (whichInt:IntMode, optText) =
         fun (n:int64) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
@@ -454,7 +455,7 @@ let dialogPopupBodyTextAndTwoInts (beforeText, textPlaceholder) (beforeInt1,befo
             beforeText dialogData
             br []
             Input.text [
-                Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck false]
+                Input.Props [OnPaste preventDefault; AutoFocus (focus = 1); SpellCheck false]
                 Input.Placeholder textPlaceholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
@@ -462,7 +463,7 @@ let dialogPopupBodyTextAndTwoInts (beforeText, textPlaceholder) (beforeInt1,befo
             beforeInt1 dialogData
             br []
             Input.number [
-                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus (focus = 2)]
                 Input.DefaultValue <| sprintf "%d" intDefault1
                 Input.OnChange (getIntEventValue >> int64 >> setPopupTwoInts (FirstInt,None))
             ]
@@ -470,7 +471,7 @@ let dialogPopupBodyTextAndTwoInts (beforeText, textPlaceholder) (beforeInt1,befo
             beforeInt2 dialogData
             br []
             Input.text [
-                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus (focus = 3)]
                 Input.DefaultValue <| sprintf "%d" intDefault2
                 Input.OnChange (fun ev ->
                     let text = getTextEventValue ev
@@ -822,13 +823,13 @@ let viewInfoPopup dispatch =
         makeH "Acknowledgments"
         str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. \
              The waveform viewer was created \
-             by Edoardo Santi (EEE 3rd year) during Summer UROP work. The new schematic editor \
+             by Edoardo Santi (EEE 3rd year) during Summer UROP work. The new F# schematic editor \
              was written as 2021 coursework by HLP students in EEE, \
              and particularly Team 4. The new editor was integrated \
              by Jo Merrick (EIE 3rd year) for her BEng final year project. \
-             In Spring 2022 the HLP class implemenbted a draw blokc with component rotation and muhc better routing. \
+             In Spring 2022 the HLP class implemented a draw block with component rotation and much better routing. \
              In Summer 2022 Jason Zheng rewrote the waveform simulator, Aditya Despande wrote the truth table generator, \
-             and Archontis Pantelopoulos spent all Summer writing the Verilog entry block and making many improvements."
+             and Archontis Pantelopoulos spent all Summer on a UROP writing the Verilog entry block and making many improvements."
         br []; br [] 
         makeH "Technology"
         Text.span [] [
@@ -843,25 +844,84 @@ let viewInfoPopup dispatch =
         ]
 
     let intro = div [] [
-        str "Issie designs are made of one or more sheets. Each sheet contains components and Input and Output Connectors. \
-        If you have a single sheet that is your complete design. Otherwise any \
-        sheet can include as a single component the hardware defined in another sheet by adding a 'custom component' \
-        from the My Project section of the Catalog. \
-        Multiple copies of other sheets can be added in this way. \
+        str "Issie designs are hierarchical, made of one main sheet and optional subsheets. Include the hardware defined on one sheet in another
+        by adding a 'custom component' from the 'My Project' section of the Catalog. \
         Top-level sheets which are not used as subsheets are bolded on the sheet menu." 
         br []; br []
-        str "Issie has two types of simulation: The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
-        the top 'Waveforms >>' button works with clocked circuits and displays waveforms. Use whichever works for you." 
+        str "Issie supports step simulation for all circuits, and waveform simulation to view the waveforms of clocked circuits.
+        Use whichever works for you." 
         br []; br [];
         str "In Issie all clocked components use the same clock signal Clk. \
         Clk connections are not shown: all Clk ports are
         automatically connected together. In the waveform display active clock edges, 1 per clock cycle, are indicated \
-        by vertical lines through the waveforms. The clock waveform has two edges for each clock cycle and is not shown."
+        by vertical lines through the waveforms."
         br []  ; br [];  
         button 
             [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"] 
             [ str "See the Issie Github Repo for more information"]
         br [] ; br [] ]
+
+    let tips = div [] [
+        Table.table [] [
+                tbody [] [
+                    tr [] [
+                        td [] [str "Ctrl-W"]
+                        td [] [str "Use Ctrl-W to fit the current sheet to the window so you can see all the components"]
+                    ]
+                    tr [] [
+                        td [] [str "Sheet descriptions"]
+                        td [] [str "Add short descriptions to your design sheets"]
+                    ]
+                    tr [] [
+                        td [] [str "Copy, Paste"]; 
+                        td [] [str "Use copy and one or more Pastes (keys or on-screen buttons) to make duplicate \
+                                    components with the same name and increasing numbers. Copy multiple items onto the same sheet or a new sheet"]
+                    ]
+                    tr [] [
+                        td [] [str "Undo, Redo"]; 
+                        td [] [str "From onscren buttons or keys - use them, they work well!"]
+                    ]
+
+                    tr [] [
+                        td [] [str "Ctrl-drag"]; 
+                        td [] [str "Ctrl-drag ports on custom components to a new poistion on any side. Change the component height, width in properties if it is the wrong size."]
+                    ]
+                    tr [] [
+                        td [] [str "2-MUX properties"]; 
+                        td [] [str "Swap 0/1 inputs in properties if this makes a neater diagram"]
+                    ]
+                    tr [] [
+                        td [] [str "Counters, Adders"]; 
+                        td [] [str "Hide inputs/outputs you do not need from properties"]
+                    ]
+                    tr [] [
+                        td [] [str "Set Default input values"]; 
+                        td [] [str "Set the input values you want in the step simulator and 'click set default inputs', or set individually in input properties. \
+                                    This will remember the values for both step simulator and waveform viewer"]
+                    ]
+                    tr [] [
+                        td [] [str "Use properties"]; 
+                        td [] [str "Use properties to change labels, bus widths, etc of all components."]
+                                    
+                    ]
+                    tr [] [
+                        td [] [str "Use radix for constant values"]; 
+                        td [] [str "Enter constant values for constants and bus comparators in the radix which \
+                                    makes most sense - they will dispaly as you have entered it."]
+                    ]
+                    tr [] [
+                        td [] [str "Position labels, rotate and flip components"]; 
+                        td [] [str "Drag or rotate (key) labels, reposition, rotate or flip components, drag wires, as needed to get a neat schematic. \
+                                    You can select and reposition multiple components"]
+                    ]
+
+
+
+
+                ]
+            ]
+        ]
+    
 
     let bugReport = 
         let oTextList txtL = Content.content [] [Content.Ol.ol [] (List.map (fun txt -> li [] [str txt]) txtL)]
@@ -905,8 +965,13 @@ let viewInfoPopup dispatch =
             li [] [tSpan "Zoom circuit to fit screen: " ; keyOf2  "Ctrl" "W"]
             li [] [tSpan "Scroll (mouse): " ; keyOf2 "Shift" "Left-Click"; bSpan " on canvas and drag"]
             li [] [tSpan "Scroll (touch-pad): " ; bSpan "Two-finger scrolling on touchpad"]
-            li [] [tSpan "Scroll (touch-screen): " ; bSpan "One-finger drag on screen"]
-        ] ]
+            li [] [tSpan "Scroll (touch-screen): " ; bSpan "One-finger drag on screen"; rule]
+            li [] [tSpan "Rotate symbol (clockwise/anticlockwise): "; keyOf2 "Ctrl" "Right/Left Arrow"]
+            li [] [tSpan "Flip symbol (vertical/horizontal): "; keyOf2 "Ctrl" "Up/Down Arrow";rule]
+            li [] [tSpan "Align symbols: "; keyOf3 "Ctrl" "Shift" "A"]
+            li [] [tSpan "Distribute symbols: "; keyOf3 "Ctrl" "Shift" "D"]
+            li [] [tSpan "Rotate label: "; keyOf3 "Ctrl" "Shift" "Right arrow"]
+         ] ]
     let body (dialogData:PopupDialogData) =
         
         let tab = dialogData.Int
@@ -918,26 +983,30 @@ let viewInfoPopup dispatch =
                 [ Tabs.tab [ Tabs.Tab.IsActive (tab = Some 0) ]
                     [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 0)) ]
                     [ str "About Issie" ] ]
-                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 2) ]
-                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 2)) ]
-                    [ str "Introduction" ] ]  
                   Tabs.tab [ Tabs.Tab.IsActive (tab = Some 1) ]
                     [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 1)) ]
-                    [ str "Keyboard Shortcuts" ] ]
+                    [ str "Introduction" ] ] 
+                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 2) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 2)) ]
+                    [ str "Tips & Features" ] ]  
                   Tabs.tab [ Tabs.Tab.IsActive (tab = Some 3) ]
                     [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 3)) ]
+                    [ str "Keyboard Shortcuts" ] ]
+                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 4) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 4)) ]
                     [ str "Bug Reports" ] ] ]
 
             match tab with
             | Some 0 -> about
-            | Some 1 -> keys
-            | Some 2 -> intro
-            | Some 3 -> bugReport
+            | Some 1 -> intro
+            | Some 2 -> tips
+            | Some 3 -> keys
+            | Some 4 -> bugReport
             | _ -> dispatch <| SetPopupDialogInt (Some 0)
         ]
 
     let foot _ = div [] []
-    dynamicClosablePopup title body foot [Width 800] dispatch
+    dynamicClosablePopup title body foot [Width 900] dispatch
 
 let viewWaveInfoPopup dispatch =
     let makeH h =

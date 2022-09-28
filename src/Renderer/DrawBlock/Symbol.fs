@@ -183,7 +183,9 @@ let getSymbolColour compType clocked (theme:ThemeType) =
             -> "lightblue"  //for clocked components
         |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
             -> "#E8D0A9"  //dark orange: for IO
-        | _ -> "rgba(255,255,0,0.15)" //lightyellow: for combinational components
+        | SplitWire _ | MergeWires _ | BusSelection _ | NbitSpreader _ | IOLabel ->
+            "rgb(120,120,120)"
+        | _ -> "rgba(255,255,217,1)" //lightyellow: for combinational components
 
 
 
@@ -551,6 +553,7 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                         float (portLabels[Bottom].Length + 1) * bottomLength
                     ] |> List.max |> (*) 1.1
                 let w = maxW
+                printfn "MaxW = {maxW}"
                 let scaledW = max w (float Constants.gridSize * 4.) //Ensures a minimum width if the labels are very small
                 let scaledH = max h (float Constants.gridSize*2.)
                 {sym with

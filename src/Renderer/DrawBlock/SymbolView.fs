@@ -348,7 +348,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
 
     let outlineColour, strokeWidth =
         match comp.Type with
-        | SplitWire _ | MergeWires -> outlineColor colour, "2.0"
+        | SplitWire _ | MergeWires -> outlineColor colour, "4.0"
         |NbitSpreader _ -> outlineColor colour, "4.0"
         | IOLabel -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"

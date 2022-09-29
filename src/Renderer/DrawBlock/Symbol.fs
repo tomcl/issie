@@ -20,7 +20,7 @@ module Constants =
     let mergeSplitTextSize = "12px"
     let busSelectTextSize = "12px"
     let portTextSize = "12px"
-    let portTextCharWidth = 7.
+    let portTextCharWidth = 8.
     let portTextWeight = "bold"
     let customPortSpacing = 40.
     let portPosEdgeGap = 0.7
@@ -527,8 +527,9 @@ let makeMapsConsistent (portIdMap: Map<string,string>) (sym: Symbol) =
 /// leaves other symbols unchanged
 let autoScaleHAndW (sym:Symbol) : Symbol =
     //height same as before, just take max of left and right
+        printfn "autoscaling..."
         match sym.Component.Type with
-        | Custom comp ->
+        | Custom ct ->
                 let portIdMap = getCustomPortIdMap sym.Component
                 let portMaps = makeMapsConsistent portIdMap sym
                 let convertIdsToLbls currMap edge idList =
@@ -537,23 +538,30 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                 let portLabels = 
                     (Map.empty, portMaps.Order) ||> Map.fold convertIdsToLbls
                 let h = float Constants.gridSize + Constants.customPortSpacing * float (max portLabels[Left].Length portLabels[Right].Length)
-
-                let maxLeftLength = customStringToLength portLabels[Left] 
-                let maxRightLength = customStringToLength portLabels[Right]
+                let getHorizontalSpace side =
+                    let labs = portLabels[side]
+                    match labs.Length % 2 with
+                    | 0 -> 0. // no space needed because we have even number of connections
+                    | _ -> // odd number
+                        labs[labs.Length / 2]
+                        |> fun s -> customStringToLength [s]
+                        
+                let leftSpace = getHorizontalSpace Left
+                let rightSpace = getHorizontalSpace Right
 
                 //need to check the sum of the lengths of top and bottom
                 let topLength = customStringToLength portLabels[Top] 
                 let bottomLength = customStringToLength portLabels[Bottom]
-                let labelLength = customStringToLength [sym.Component.Label]
+                let labelLength = customStringToLength [ct.Name]
                 //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
                 let maxW = 
                     [
-                        (maxLeftLength + maxRightLength + labelLength*1.6)
+                        (2.0*(max leftSpace rightSpace) + labelLength*1.333 + 10.) // 1.6 should be a constant - ratio of sizes - TODO. Also 10.
                         float (portLabels[Top].Length + 1) * topLength
                         float (portLabels[Bottom].Length + 1) * bottomLength
                     ] |> List.max |> (*) 1.1
                 let w = maxW
-                printfn "MaxW = {maxW}"
+                printfn $"MaxW = {maxW}"
                 let scaledW = max w (float Constants.gridSize * 4.) //Ensures a minimum width if the labels are very small
                 let scaledH = max h (float Constants.gridSize*2.)
                 {sym with

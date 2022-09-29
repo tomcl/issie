@@ -402,6 +402,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         let rhsPortNum = getNum Edge.Right
         let offset:XYPos = 
             match lhsPortNum % 2, rhsPortNum % 2, symbol.Component.Type with
+            | _, _, Custom _ -> {X=0;Y=0}
             | _, _, Not -> {X=0;Y=0}
             | _, _, IsBinaryGate -> {X=0;Y=0}
             | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 0.5 else -3.)}

@@ -356,8 +356,7 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
                 oldSymbol
                 |> set movingPort_ (Some {|PortId = portId; CurrPos = pos|}) 
                 |> set movingPortTarget_ target
-                |> set (appearance_ >-> showPorts_) (ShowOneTouching port)
-            
+                |> set (appearance_ >-> showPorts_) (ShowOneTouching port)            
             
             set (symbolOf_ symId) newSymbol model, Cmd.none
     

@@ -889,7 +889,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let port = model.Ports[portId]
         let symId = ComponentId port.HostId
         let oldSymbol = model.Symbols[symId]
-        let newSymbol = {(updatePortPos oldSymbol pos portId) with MovingPortTarget = None}
+        let newSymbol = 
+            {(updatePortPos oldSymbol pos portId) with MovingPortTarget = None}
+            |> autoScaleHAndW
         set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols

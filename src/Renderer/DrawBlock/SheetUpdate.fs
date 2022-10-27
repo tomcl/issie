@@ -485,6 +485,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 |Some "IssieStick-v0.1", Verilog.Debug -> 
                     $"{include_path}/issiestick-0.1_debug.pcf", "--hx4k", "tq144"
                 
+                |Some "IssieStick-v1.0", Verilog.Release -> 
+                    $"{include_path}/issiestick-1.0.pcf", "--hx8k", "bg121"
+                
+                |Some "IssieStick-v1.0", Verilog.Debug -> 
+                    $"{include_path}/issiestick-1.0_debug.pcf", "--hx8k", "bg121"
+                
                 |_,_ -> failwithf "Undefined device used in compilation!"
             
             let (prog, args) = 

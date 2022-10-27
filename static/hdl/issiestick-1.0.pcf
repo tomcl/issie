@@ -1,0 +1,67 @@
+# IssieStick V1.0 placement constraints file
+
+#Status LED
+set_io LEDR E11
+set_io LEDG C11
+set_io LEDB B11
+
+# FTDI Port B UART
+set_io DCDn K4
+set_io DSRn L3
+set_io DTRn J5
+set_io CTSn K5
+set_io RTSn K3
+set_io RS232_Tx_TTL L4
+set_io RS232_Rx_TTL L2
+
+# SPI
+set_io SPI_SCK 70
+set_io SPI_SI 68
+set_io SPI_SO 67
+set_io SPI_SS_B 71
+
+# Configuration pins
+set_io CB0 L8
+set_io CB1 H9
+set_io MOSI K9
+set_io MISO J9
+set_io SCK L10
+set_io SS K10
+set_io CDONE K8
+set_io CRESET_B L9
+set_io PWREN K11
+set_io SUSPEND K6
+
+# 12 MHz clock
+set_io clk L5
+
+#Push buttons
+set_io PB[0] B3
+set_io PB[1] A1
+set_io PB[2] B4
+set_io PB[3] A3
+set_io PB[4] A2
+
+#LED matrix
+set_io LEDCOLEN[0] C3
+set_io LEDCOLEN[1] B2
+set_io LEDCOLEN[2] B1
+set_io LEDCOLEN[3] C2
+set_io LEDCOLEN[4] D2
+set_io LEDCOLEN[5] D3
+set_io LEDCOLEN[6] E2
+set_io LEDCOLEN[7] D1
+set_io LEDCOLEN[8] G2
+set_io LEDCOLEN[9] H1
+set_io LEDCOLEN[10] H2
+set_io LEDCOLEN[11] G3
+set_io LEDCOLEN[12] H3
+set_io LEDCOLEN[13] J2
+set_io LEDCOLEN[14] K1
+set_io LEDCOLEN[15] K2
+set_io LEDLAT E1
+set_io LEDBLK E3
+set_io LEDSDO[0] C1
+set_io LEDSDO[1] F2
+set_io LEDSDO[2] J1
+set_io LEDSCLK F1

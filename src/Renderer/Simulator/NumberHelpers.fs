@@ -135,7 +135,7 @@ let convertInt64ToFastData (width:int) (n:int64) =
             let mask = bigIntMask width
             BigWord (bigint n' &&& mask) 
         else 
-            let mask = (1u <<< width) - 1u
+            let mask = if width = 32 then 0xFFFFFFFFu else (1u <<< width) - 1u
             Word (uint32 n' &&& mask)
     {Dat=dat; Width = width}
 

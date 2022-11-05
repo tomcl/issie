@@ -61,7 +61,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
 
     | NbitsAdder _ |NbitsAdderNoCout _ ->
         match port with
-        | InputPortNumber 0 -> ".Cin"
+        | InputPortNumber 0 -> ".CIN"
         | InputPortNumber 1 -> ".P"
         | _ -> ".Q"
 

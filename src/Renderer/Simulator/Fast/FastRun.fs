@@ -389,48 +389,52 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 /// TimeOut if not None is the cutoff time after which the simulation terminates execution unfinished.
 /// Use fs.ClockTick to determine whether simulation has completed.
 /// returns speed, in clock cycles per ms, or None if complete
-let runFastSimulation (timeOut: float option)(numberOfSteps: int) (fs: FastSimulation) : float option =
+let runFastSimulation (timeOut: float option)(lastStepNeeded: int) (fs: FastSimulation) : float option =
         if fs.MaxArraySize = 0 then
             failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
         //printfn $"running sim steps={numberOfSteps}, arraySize = {fs.MaxArraySize}, maxstepnum={fs.MaxStepNum}"
         let simStartTime = getTimeMs()
-        let stepsToDo = float (numberOfSteps - fs.ClockTick)
+        let stepsToDo = float (lastStepNeeded - fs.ClockTick)
         let numComponents = float fs.FComps.Count
-        if numberOfSteps > fs.MaxStepNum then
-            if fs.MaxStepNum < fs.MaxArraySize then
-                let newMaxNum =
-                    min
-                        fs.MaxArraySize
-                        (numberOfSteps + max 50 (int (float numberOfSteps * 1.5)))
+        if stepsToDo <= 0 then
+            None // do nothing
+        else
+            if lastStepNeeded > fs.MaxStepNum then
+                if fs.MaxStepNum < fs.MaxArraySize then
+                    let newMaxNum =
+                        min
+                            fs.MaxArraySize
+                            (lastStepNeeded + max 50 (int (float lastStepNeeded * 1.5)))
 
-                //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps" 
-                extendFastSimulation newMaxNum fs
+                    //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps" 
+                    extendFastSimulation newMaxNum fs
 
-        let doSimulation() =
-            let lastTick = fs.ClockTick + 1
-            let startTick = fs.ClockTick
-            let mutable time = simStartTime
-            let startOfTestStep = getTimeMs()
-            if fs.ClockTick < lastTick then stepSimulation fs
-            let oneStepTime = max (getTimeMs() - startOfTestStep) 0.5
-            // work out a number of steps we can safely execute without impacting response
-            // we run as many as possible to reduce time checking overhead. Maybe this is not needed.
-            let stepsBeforeCheck = int (100.0 / oneStepTime) + 1
-            while fs.ClockTick < numberOfSteps  &&
-                  (match timeOut with | None -> true | Some incr ->  time < simStartTime + incr) do
-                stepSimulation fs
-                if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
-                    time <- getTimeMs()
-            if fs.ClockTick >= numberOfSteps then
-                None
-            else
-                Some ( float (fs.ClockTick - startTick)/ (time - simStartTime))
+            let doSimulation() =
+                let lastTick = fs.ClockTick + 1
+                let startTick = fs.ClockTick
+                let mutable time = simStartTime
+                let startOfTestStep = getTimeMs()
+                if fs.ClockTick < lastTick then stepSimulation fs
+                let oneStepTime = max (getTimeMs() - startOfTestStep) 0.5
+                // work out a number of steps we can safely execute without impacting response
+                // we run as many as possible to reduce time checking overhead. Maybe this is not needed.
+                let stepsBeforeCheck = int (100.0 / oneStepTime) + 1
+                while fs.ClockTick < lastStepNeeded  &&
+                      (match timeOut with | None -> true | Some incr ->  time < simStartTime + incr) do
+                    stepSimulation fs
+                    if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
+                        time <- getTimeMs()
+                if fs.ClockTick >= lastStepNeeded then
+                    None
+                else
+                    Some ( float (fs.ClockTick - startTick)/ (time - simStartTime))
                 
-        doSimulation()
+            doSimulation()
         
             
                    
 /// Run a fast simulation for a given number of steps building it from the graph
+(*
 let runSimulationZeroInputs 
         (timeOut: float option)
         (simulationArraySize: int) 
@@ -443,6 +447,7 @@ let runSimulationZeroInputs
     |> Result.map (runFastSimulation timeOut steps)
     |> ignore
     fsResult
+*)
 
 /// Look up a simulation (not a FastSimulation) component or return None.
 let rec findSimulationComponentOpt ((cid, ap): ComponentId * ComponentId list) (graph: SimulationGraph) =

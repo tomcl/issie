@@ -706,7 +706,7 @@ let makeWaveformsWithTimeOut
     let start = TimeHelpers.getTimeMs()
     let allWaves, numberDone, timeToDo =
         ((allWaves, 0, None), wavesToBeMade)
-        ||> List.fold (fun (all,n, timeOpt) wi ->
+        ||> List.fold (fun (all,n, _) wi ->
                 match timeOut, TimeHelpers.getTimeMs() - start with
                 | Some timeOut, timeSoFar when timeOut < timeSoFar ->
                     all, n, Some timeSoFar
@@ -735,10 +735,10 @@ let cancelSpinner (model:Model) =
 /// Note that after design change simulation muts be redonne externally, and function called with
 /// newSimulation = true.
 /// First extend simulation, if needed, with timeout and callback from Spinner if needed.
-/// Then remake any waveforms which have chnaged and not yte been remade. Again if needed with
+/// Then remake any waveforms which have changed and not yet been remade. Again if needed with
 /// timeOut and callback from Spinner.
 /// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
-/// a constant. To get the estimate some initila execution must be completed (1 clock cycle and one waveform).
+/// a constant. To get the estimate some initial execution must be completed (1 clock cycle and one waveform).
 let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
     let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
         wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
@@ -750,9 +750,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         model, Elmish.Cmd.none
     else
     // starting runSimulation
-        printfn "Starting refresh"
-        let lastCycleNeeded = wsModel.StartCycle + wsModel.ShownCycles+1
-        //printfn $"Running fs: {fs.ClockTick} --> {lastCycleNeeded}"
+        //printfn "Starting refresh"
+        let lastCycleNeeded = wsModel.StartCycle + wsModel.ShownCycles + 1
 
         FastRun.runFastSimulation (Some Constants.initSimulationTime) lastCycleNeeded fs
         |> (fun speedOpt ->
@@ -763,12 +762,12 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 // long simulation, set spinner on and dispatch another refresh 
                 let spinnerFunc = fun model -> fst (refreshWaveSim newSimulation wsModel model)
                 let model = model |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
-                printfn "ending refresh with continuation..."
+                //printfn "ending refresh with continuation..."
                 model, Elmish.Cmd.none
                 |> TimeHelpers.instrumentInterval "refreshWaveSim" start
             | _ ->
                 if speedOpt <> None then 
-                    printfn "Force running simulation"
+                    //printfn "Force running simulation"
                     // force simulation to finish now
                     FastRun.runFastSimulation None lastCycleNeeded fs |> ignore                
                 // simulation has finished so can generate waves
@@ -883,7 +882,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-    match SimulationView.simulateModel model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + 1)  canvasState model with
+    match SimulationView.simulateModel model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + WaveSimHelpers.Constants.maxStepsOverflow)  canvasState model with
     //| None ->
     //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
     | (Error e, _) ->

@@ -236,6 +236,13 @@ module String =
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 [<RequireQualifiedAccess>]
 module List =
+
+    [<CompiledName("pairWithPreviousOrSelf")>]
+    let pairWithPreviousOrSelf list =
+        match list with
+        | [] -> [] 
+        | first :: rest -> (first,first) :: List.pairwise list
+
     [<CompiledName("ToString")>]
     let toString (chars: char list) =  chars |> Seq.ofList |> System.String.Concat
 

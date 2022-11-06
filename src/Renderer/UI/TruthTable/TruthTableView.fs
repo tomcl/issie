@@ -575,7 +575,10 @@ let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
                     (io,MRight) |> MoveColumn |> dispatch)
             ]
             [str ">"]
-    makeElementLine [leftArrow; headingEl; rightArrow] []
+    div [] [
+            makeElementLine [leftArrow] [rightArrow] 
+            headingEl
+        ]
 
 let private makeMenuGroup openDefault title menuList =
     details [Open openDefault] [
@@ -607,10 +610,11 @@ let viewOutputHider table hidden dispatch =
         div [] (preamble::toggleRows)
 
 let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (cell: TruthTableCell) =
+    let addMoveArrows el = makeColumnMoveArrows cell.IO el dispatch
     let cellStyle =
         match Map.tryFind cell.IO styleInfo with
         | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-        | Some s -> Style <| (FontWeight "bold")::(s@[BorderBottom "3px solid black"])
+        | Some s -> Style <| (FontWeight "bold")::(s @ [BorderBottom "3px solid black"])
     match cell.IO with
     | SimIO (_,label,_) ->
         let headingText = string label
@@ -618,6 +622,7 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (c
             [
                makeElementLine [(str headingText)] //[makeColumnMoveArrows cell.IO (str headingText) dispatch] 
                     [makeSortingArrows cell.IO sortInfo dispatch]
+               |> addMoveArrows
             ] 
     | Viewer ((label,fullName), width) ->
         let headingEl =
@@ -626,6 +631,7 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (c
         div [cellStyle] [
             makeElementLine [headingEl]  //[makeColumnMoveArrows cell.IO headingEl dispatch] 
                 [makeSortingArrows cell.IO sortInfo dispatch]
+            |> addMoveArrows
             ]
 
 let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =

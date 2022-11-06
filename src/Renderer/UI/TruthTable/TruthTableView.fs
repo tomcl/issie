@@ -102,11 +102,31 @@ let partitionResults results =
         | (Error e)::tl -> filter tl success (error @ [e])
     filter results [] []
 
+/// Fills in internal connections between any two selected components.
+/// This makes a contiguous circuit. This allows truth tables to be selected via comnponents only.
+let addInternalConnections 
+    ((comps, conns): CanvasState) 
+    ((wholeCanvasComps,wholeCanvasConns): CanvasState) =
+    let circuitPorts =
+        comps
+        |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts)
+        |> List.map (fun port -> port.Id)
+    let shouldAdd conn =
+        not (List.contains conn conns) &&
+        List.contains conn.Source.Id circuitPorts &&
+        List.contains conn.Target.Id circuitPorts
+
+    let addedConns =
+        wholeCanvasConns
+        |> List.filter shouldAdd
+    comps, (addedConns @ conns)
+
+    
 /// Corrects the Selected Canvas State by adding extra connections and IOs to components
 /// not connected to anything. On success returns a new, corrected CanvasState compatible
 /// with Step Simulator. On failure returns SimulationError.
 let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
-    let components,connections = selectedCanvasState
+    let components,connections = addInternalConnections selectedCanvasState wholeCanvasState
 
     // Dummy ports for temporary use within function. Connections/Components with these
     // ports should never be in the CanvasState returned by this function!

@@ -102,11 +102,31 @@ let partitionResults results =
         | (Error e)::tl -> filter tl success (error @ [e])
     filter results [] []
 
+/// Fills in internal connections between any two selected components.
+/// This makes a contiguous circuit. This allows truth tables to be selected via comnponents only.
+let addInternalConnections 
+    ((comps, conns): CanvasState) 
+    ((wholeCanvasComps,wholeCanvasConns): CanvasState) =
+    let circuitPorts =
+        comps
+        |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts)
+        |> List.map (fun port -> port.Id)
+    let shouldAdd conn =
+        not (List.contains conn conns) &&
+        List.contains conn.Source.Id circuitPorts &&
+        List.contains conn.Target.Id circuitPorts
+
+    let addedConns =
+        wholeCanvasConns
+        |> List.filter shouldAdd
+    comps, (addedConns @ conns)
+
+    
 /// Corrects the Selected Canvas State by adding extra connections and IOs to components
 /// not connected to anything. On success returns a new, corrected CanvasState compatible
 /// with Step Simulator. On failure returns SimulationError.
 let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
-    let components,connections = selectedCanvasState
+    let components,connections = addInternalConnections selectedCanvasState wholeCanvasState
 
     // Dummy ports for temporary use within function. Connections/Components with these
     // ports should never be in the CanvasState returned by this function!
@@ -575,7 +595,10 @@ let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
                     (io,MRight) |> MoveColumn |> dispatch)
             ]
             [str ">"]
-    makeElementLine [leftArrow; headingEl; rightArrow] []
+    div [] [
+            makeElementLine [leftArrow] [rightArrow] 
+            headingEl
+        ]
 
 let private makeMenuGroup openDefault title menuList =
     details [Open openDefault] [
@@ -607,10 +630,11 @@ let viewOutputHider table hidden dispatch =
         div [] (preamble::toggleRows)
 
 let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (cell: TruthTableCell) =
+    let addMoveArrows el = makeColumnMoveArrows cell.IO el dispatch
     let cellStyle =
         match Map.tryFind cell.IO styleInfo with
         | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-        | Some s -> Style <| (FontWeight "bold")::(s@[BorderBottom "3px solid black"])
+        | Some s -> Style <| (FontWeight "bold")::(s @ [BorderBottom "3px solid black"])
     match cell.IO with
     | SimIO (_,label,_) ->
         let headingText = string label
@@ -618,6 +642,7 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (c
             [
                makeElementLine [(str headingText)] //[makeColumnMoveArrows cell.IO (str headingText) dispatch] 
                     [makeSortingArrows cell.IO sortInfo dispatch]
+               |> addMoveArrows
             ] 
     | Viewer ((label,fullName), width) ->
         let headingEl =
@@ -626,6 +651,7 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (c
         div [cellStyle] [
             makeElementLine [headingEl]  //[makeColumnMoveArrows cell.IO headingEl dispatch] 
                 [makeSortingArrows cell.IO sortInfo dispatch]
+            |> addMoveArrows
             ]
 
 let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =

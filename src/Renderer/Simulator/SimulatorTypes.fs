@@ -643,7 +643,7 @@ exception AlgebraNotImplemented of SimulationError
 
 // Types that can be passed to and retrieved from the Fast Simulation
 type FSInterface =
-    | IData of WireData
+    | IData of FastData
     | IAlg of FastAlgExp
 
 //------------------------------------------------------------------------------//
@@ -752,7 +752,7 @@ let appendBIBits ((bits1:BitInt,width1:int)) ((bits2:BitInt, width2:int)) =
 
 let bigIntMaskA =
     [|1..128|]
-    |> Array.map ( fun width -> (bigint 1 <<< width) - bigint 1)
+    |> Array.map ( fun width -> (bigint 1 <<< (width - 1)) - bigint 1)
 
 let bigIntBitMaskA =
     [|0..128|]
@@ -760,7 +760,7 @@ let bigIntBitMaskA =
     
     
 let bigIntMask width =
-    if width <= 128 then bigIntMaskA[width] else (bigint 1 <<< width) - bigint 1
+    if width <= 128 then bigIntMaskA[width] else (bigint 1 <<< (width - 1)) - bigint 1
 
 let bigIntBitMask pos =
     if pos <= 128 then bigIntBitMaskA[pos] else (bigint 1 <<< pos)   
@@ -832,6 +832,7 @@ let rec b2s (b:bigint) =
 /// be compatible with fast implementation of boolean logic.
 let getBits (msb: int) (lsb: int) (f: FastData) =
     let outW = msb - lsb + 1
+    let outWMask32 = if outW = 32 then 0xFFFFFFFFu else ((1u <<< outW - 1) - 1u)
 #if ASSERTS
     Helpers.assertThat
         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
@@ -839,15 +840,16 @@ let getBits (msb: int) (lsb: int) (f: FastData) =
 #endif
     match f.Dat with
     | Word x ->
-        let bits = (x >>> lsb) &&& ((1u <<< (msb - lsb + 1)) - 1u)
+        let bits = (x >>> lsb) &&& outWMask32
         {Dat = Word bits; Width = outW}
     | BigWord x ->
-        let mask = bigIntMask (msb - lsb + 1)
+        let mask = bigIntMask outW
         let bits = (x >>> lsb) &&& mask
         //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
         let dat =
             if outW <= 32 then
-                Word ((uint32 bits) &&& (1u <<< outW) - 1u)
+                if bits < 0I || bits >= (1I <<< 32) then printf $"""HELP! weird bits = {bits.ToString("X")}"""
+                Word ((uint32 bits) &&& outWMask32)
             else
                 BigWord (bits &&& bigIntMask outW)
         { Dat = dat; Width = outW}
@@ -874,12 +876,16 @@ type FData = | Data of FastData | Alg of FastAlgExp
     member this.Width =
         match this with
         | Data d -> d.Width
-        | Alg exp -> getAlgExpWidth exp
+        | Alg exp -> 
+            getAlgExpWidth exp
     member this.fdToString =
         match this with
-        | Data {Dat=Word w; Width=_} -> string w
-        | Data {Dat=BigWord w; Width=_} -> string w
-        | Alg exp ->  expToString exp
+        | Data {Dat=Word w; Width=_} -> 
+            string w
+        | Data {Dat=BigWord w; Width= _} -> 
+            w.ToString()
+        | Alg exp ->  
+            expToString exp
     member this.toExp =
         match this with
         | Alg exp -> exp
@@ -892,7 +898,8 @@ type FData = | Data of FastData | Alg of FastAlgExp
         match this with
         | Data {Width =w} when w > 64 -> failwithf "Help! Can't convert numbers wider than 64 bits to int64."
         | Data {Dat = Word w} -> int64 (uint64 w)
-        | Data {Dat = BigWord w} -> int64 w
+        | Data {Dat = BigWord w} -> int64(uint64 w)
+         
         | _ -> failwithf "Can't convert Alg style FData to int64"
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs

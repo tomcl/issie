@@ -41,9 +41,9 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
     // Create text react elements for each gap
     |> Array.map (fun gap ->
         let waveValue =
-            let wd = waveValues[gap.Start]
-            valToPaddedString wd.Width  wsModel.Radix wd.toInt64
-  
+            match waveValues[gap.Start] with
+            | Data fastDat -> fastDataToPaddedString 34 wsModel.Radix fastDat
+            | Alg _ -> "Error - algebraic data!"
 
         /// Amount of whitespace between two Change transitions minus the crosshatch
         let availableWidth = (float gap.Length * (singleWaveWidth wsModel)) - 2. * Constants.nonBinaryTransLen

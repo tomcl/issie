@@ -124,7 +124,7 @@ let simulateInputCombination
     |> List.map (fun cell ->
         match cell.IO, cell.Data with
         | SimIO (cid,_,_), Bits wd ->
-            (cid,IData wd)
+            (cid,IData (convertWireDataToFastData wd))
         | SimIO io, Algebra exp ->
             let (cid,_,_) = io
             (cid,IAlg (SingleTerm io))
@@ -138,13 +138,13 @@ let simulateInputCombination
         ||> FastRun.extractFastSimulationIOs
         |> List.map (fun (comp,out) -> 
             match out with
-            | IData wd -> {IO = SimIO comp; Data = Bits wd}
+            | IData wd -> {IO = SimIO comp; Data = Bits (convertFastDataToWireData wd)}
             | IAlg exp -> {IO = SimIO comp; Data = Algebra (expToString exp)})
     let viewerRow =
         FastRun.extractViewers simData
         |> List.map (fun ((l,f),w,fs) ->
             match fs with
-            | IData wd -> {IO = Viewer ((l,f),w); Data = Bits wd}
+            | IData wd -> {IO = Viewer ((l,f),w); Data = Bits (convertFastDataToWireData wd)}
             | IAlg exp -> {IO = Viewer ((l,f),w); Data = Algebra (expToString exp)})
     outputRow @ viewerRow
 

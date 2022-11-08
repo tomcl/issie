@@ -751,7 +751,7 @@ let appendBIBits ((bits1:BitInt,width1:int)) ((bits2:BitInt, width2:int)) =
             bits1[n])
 
 let bigIntMaskA =
-    [|1..128|]
+    [|0..128|]
     |> Array.map ( fun width -> (1I <<< width) - 1I)
 
 let bigIntBitMaskA =
@@ -848,7 +848,7 @@ let getBits (msb: int) (lsb: int) (f: FastData) =
         //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
         let dat =
             if outW <= 32 then
-                if bits < 0I || bits >= (1I <<< 32) then printf $"""HELP! weird bits = {bits.ToString("X")}"""
+                if bits < 0I || bits >= (1I <<< 32) then printf $"""HELP! weird bits = {bits.ToString("X")} mask = {mask} msb,lsb = ({msb},{lsb})"""
                 Word ((uint32 bits) &&& outWMask32)
             else
                 BigWord (bits &&& bigIntMask outW)

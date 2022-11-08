@@ -36,7 +36,6 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
                 Length = i2 - i1
             }
         )
-
     gaps
     // Create text react elements for each gap
     |> Array.map (fun gap ->
@@ -46,9 +45,10 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
             | Alg _ -> "Error - algebraic data!"
 
         /// Amount of whitespace between two Change transitions minus the crosshatch
-        let availableWidth = (float gap.Length * (singleWaveWidth wsModel)) - 2. * Constants.nonBinaryTransLen
+        let cycleWidth = singleWaveWidth wsModel
+        let availableWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
         /// Required width to display one value
-        let requiredWidth = DrawHelpers.getTextWidthInPixels (waveValue, Constants.valueOnWaveText)
+        let requiredWidth = 1.1 * DrawHelpers.getTextWidthInPixels (waveValue, Constants.valueOnWaveText)
         /// Width of text plus whitespace between a repeat
         let widthWithPadding = 2. * requiredWidth + Constants.valueOnWavePadding
 
@@ -56,14 +56,21 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
         if availableWidth < requiredWidth then
             []
         else
-            let valueText i =
-                text (valueOnWaveProps wsModel i gap.Start widthWithPadding)
-                    [ str waveValue ]
 
             /// Calculate how many times the value can be shown in the space available
-            let repeats = int <| availableWidth / widthWithPadding
+            let repeats =
+                availableWidth / widthWithPadding
+                |> System.Math.Floor
+                |> int
+                |> max 1
 
-            [ 0 .. repeats ]
+            let repeatSpace = (availableWidth - float repeats * requiredWidth) / ((float repeats + 1.) * cycleWidth)
+
+            let valueText i =
+                text (valueOnWaveProps wsModel i (float gap.Start + repeatSpace) widthWithPadding)
+                    [ str waveValue ]
+
+            [ 0 .. repeats - 1]
             |> List.map valueText
     )
     |> List.concat

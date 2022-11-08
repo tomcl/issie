@@ -37,7 +37,7 @@ module Constants =
     /// Text used to display vlaues on non-binary waves
     let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
     /// Whitespace padding between repeated values displayed on non-binary waves.
-    let valueOnWavePadding = 150.0
+    let valueOnWavePadding = 75.0
 
     /// Border between columns and headers of waveform viewer.
     let borderProperties = "2px solid rgb(219,219,219)"
@@ -253,7 +253,7 @@ let zoomInSVG =
 
 /// Props for displaying values on non-binary waves
 let valueOnWaveProps m i start width : IProp list = [
-    X (float start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
+    X (start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
     Y (0.6 * Constants.viewBoxHeight)
     Style [
         FontSize Constants.fontSizeValueOnWave

@@ -22,7 +22,7 @@ module Constants =
     /// max estimated time to run simulation and not need a spinner (in ms)
     let maxSimulationTimeWithoutSpinner = 200.
     /// The horizontal length of a transition cross-hatch for non-binary waveforms
-    let nonBinaryTransLen : float = 8.
+    let nonBinaryTransLen : float = 4.
 
     /// The height of the viewbox used for a wave's SVG. This is the same as the height
     /// of a label in the name and value columns.

@@ -57,6 +57,10 @@ let addZeros (width:int) (pFun:int -> string) (n: int) =
     let extra = min 64 (max 0 (((width - (s.Length - 2))*bits + (2<<<bits - 1)) / bits))
     s[0..1] + String.replicate extra "0" + s[2..]
 
+
+
+    
+
 let hex64 (num : int64) = "0x" + num.ToString("X")
 let fillHex64 width = addZeros64 width hex64
 
@@ -76,6 +80,66 @@ let fillBin width = addZeros width bin
 /// Convert a bit to string.
 let bitToString (bit : Bit) : string =
     match bit with Zero -> "0" | One -> "1"
+
+let big8 = 256I
+let big16 = 65536I
+let big32 = 1I <<< 32
+let big64 = 1I <<< 64
+
+
+/// print a bignum according to a radix.
+/// if 
+let rec bigValToPaddedString (width: int) (radix: NumberBase)  (x: System.Numerics.BigInteger) =
+    if x < 0I then
+        $"Bignm {x} is negative"
+    elif width < 1 then
+        $"Error: {width} is not a valid bignum width"
+    elif x >= (1I <<< width) then
+            bigValToPaddedString width radix (x % (1I <<< width))
+    else
+        match radix with
+        | SDec -> 
+            if x >= (1I <<< width - 1)
+            then
+                "-" + ((1I <<< width) - x).ToString()
+            else
+                x.ToString()
+        | Dec -> 
+            x.ToString()
+        | Bin
+        | Hex ->
+            if width <= 64 then
+                (match radix with 
+                 | Bin -> fillBin64 
+                 | Hex -> fillHex64 
+                 | _ -> failwithf "Can't happen") width (int64 (uint64 x))
+            elif radix = Bin then
+                "Can't display binary format > 64 bits"
+            else
+                bigValToPaddedString  (width - 64) radix (x / (1I <<< 64)) +
+                $"%016X{uint64(x % (1I <<< 64))}"
+            
+let rec bigValToString (radix: NumberBase) (x: System.Numerics.BigInteger) =
+    if x < 0I then
+        $"Bignum {x} is negative"
+    else
+        match radix with
+        | Dec 
+        | SDec -> /// can't know if sign is negative in this case
+            x.ToString()
+        | Bin 
+        | Hex ->
+            if x <= (1I <<< 64) then
+                (match radix with 
+                        | Bin -> bin64 
+                        | Hex -> hex64 
+                        | _ -> failwithf "Can't happen") (int64 (uint64 x))
+            elif radix = Bin then
+                "Can't display binary format > 64 bits"
+            else
+                bigValToString radix (x / (1I <<< 64)) +
+                $"%16X{uint64(x % 1I <<< 64)}"
+            
 
 /// Convert int64 to string according to provided radix
 let valToString (radix: NumberBase) (value: int64) : string =
@@ -99,6 +163,12 @@ let valToPaddedString (width: int) (radix: NumberBase) (value: int64) : string =
 let private padToWidth width (bits : WireData) : WireData =
     if bits.Length > width then List.truncate width bits
     else bits @ List.replicate (width - bits.Length) Zero
+
+let fastDataToPaddedString maxChars radix  (fd: FastData) =
+    match fd.Dat with
+    | Word w -> valToPaddedString fd.Width radix (int64 w)
+    | BigWord big -> bigValToPaddedString fd.Width radix big
+    |> (fun s -> if s.Length > maxChars then $"This width is too large to display as {radix}" else s)
 
 /// Convert an int into a Bit list with the provided width. The Least
 /// Significant Bits are the one with low index (e.g. LSB is at position 0, MSB
@@ -132,8 +202,7 @@ let convertInt64ToFastData (width:int) (n:int64) =
     let n' = uint64 n
     let dat = 
         if width > 32 then 
-            let mask = bigIntMask width
-            BigWord (bigint n' &&& mask) 
+            BigWord (bigint n' % (1I <<< width))
         else 
             let mask = if width = 32 then 0xFFFFFFFFu else (1u <<< width) - 1u
             Word (uint32 n' &&& mask)
@@ -148,13 +217,15 @@ let convertIntToFastData (width:int) (n:uint32) =
 let convertBigintToFastData (width:int) (b:bigint) =
         {Dat = BigWord b; Width = width}
 
+/// convert to 64 bits - if too large take LS 64 bits
 let convertFastDataToInt64 (d:FastData) =
     match d.Dat with
     | Word n -> uint64 n
-    | BigWord n -> 
+    | BigWord b -> 
         if d.Width > 64 then
-            failwithf $"Can't convert a {d.Width} width bigint to int64"
-        uint64 n
+            b % (1I <<< 64)
+        else b
+        |> uint64
 /// convert to a bigint - always works. Bits < width will be correct.
 let convertFastDataToBigint (d:FastData) =
     match d.Dat with
@@ -174,8 +245,40 @@ let convertFastDataToInt32 (d:FastData) =
     | Word n -> int32 n
     | BigWord n -> int32 (n &&& bigint 0xffffffff)
 
-let convertFastDataToWireData bits =
-    bits |> convertFastDataToInt64 |> int64 |> convertIntToWireData bits.Width
+let rec convertFastDataToWireData (fastDat: FastData) =
+    let big64ToWire width big = 
+        big
+        |> uint64
+        |> int64
+        |> convertIntToWireData width
+    let rec bigToWire width b =   
+        if b < 0I then 
+            printfn $"Warning - invalid BigWord FastData case {b} < 0"
+            []
+        elif width <= 64 then    
+            big64ToWire width b
+        else
+            let lsBits = b % (1I <<< 64)
+            big64ToWire 64 lsBits @ bigToWire (width - 64) (b / (1I <<< 64))
+    match fastDat.Dat with
+    | Word w ->
+        convertIntToWireData fastDat.Width (int64 w)       
+    | BigWord b ->
+        bigToWire fastDat.Width b
+
+let convertWireDataToFastData (wd: WireData) =
+    if wd.Length <= 32 then
+        {Dat = Word (uint32 (uint64 (convertWireDataToInt wd))) ; Width = wd.Length}
+    else
+        List.indexed wd
+        |> List.map (fun (i, bit) -> match bit with | Zero ->  0I  | One -> (1I <<< i))
+        |> List.sum
+        |> (fun big -> {Dat = BigWord big; Width = wd.Length})
+
+            
+            
+        
+        
 
 let emptyFastData = {Width=0; Dat=Word 0u}
 

@@ -32,6 +32,7 @@ open Optics.Operators
 
 module Constants =
     let maxArraySize = 550
+    let boxMaxChars = 34
 
 /// save verilog file
 /// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
@@ -81,8 +82,8 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
     |> Map.toList
     |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
         match w,defaultVal with
-        | _, Some defaultVal -> cid, convertIntToWireData w (int64 defaultVal)
-        | _, None -> cid, convertIntToWireData w 0L)
+        | _, Some defaultVal -> cid, convertInt64ToFastData w (int64 defaultVal)
+        | _, None -> cid, convertIntToFastData w 0u)
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
 let InputDefaultsEqualInputs fs (model:Model) =
@@ -269,25 +270,22 @@ let private viewSimulationInputs
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), inputVals) =
         let valueHandle =
             match inputVals with
-            | IData [] -> failwith "what? Empty wireData while creating a line in simulation inputs."
-            | IData [bit] ->
+            | IData {Dat = (Word bit); Width =1} ->
                 // For simple bits, just have a Zero/One button.
                 Button.button [
                     Button.Props [ simulationBitStyle ]
                     //Button.Color IsPrimary
-                    (match bit with Zero -> Button.Color Color.IsGreyLighter | One -> Button.Color IsPrimary)
+                    (match bit with 0u -> Button.Color Color.IsGreyLighter | _ -> Button.Color IsPrimary)
                     Button.IsHovered false
                     Button.OnClick (fun _ ->
-                        let newBit = match bit with
-                                     | Zero -> One
-                                     | One -> Zero
+                        let newBit = 1u - bit
                         let graph = simulationGraph
-                        FastRun.changeInput (ComponentId inputId) (IData [newBit]) simulationData.ClockTickNumber simulationData.FastSim
+                        FastRun.changeInput (ComponentId inputId) (IData {Dat = Word newBit; Width = 1}) simulationData.ClockTickNumber simulationData.FastSim
                         dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                     )
-                ] [ str <| bitToString bit ]
+                ] [ str <| bitToString (match bit with 0u -> Zero | _ -> One)]
             | IData bits ->
-                let defValue = viewNum numberBase <| convertWireDataToInt bits
+                let defValue = fastDataToPaddedString  Constants.boxMaxChars numberBase bits
                 Input.text [
                     Input.Key (numberBase.ToString())
                     Input.DefaultValue defValue
@@ -299,7 +297,7 @@ let private viewSimulationInputs
                                 let note = errorPropsNotification err
                                 dispatch  <| SetSimulationNotification note
                             | Ok num ->
-                                let bits = convertIntToWireData width num
+                                let bits = convertInt64ToFastData width num
                                 // Close simulation notifications.
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
@@ -322,9 +320,8 @@ let private staticBitButton bit =
         Button.Disabled true
     ] [ str <| bitToString bit ]
 
-let private staticNumberBox numBase bits =
-    let width = List.length bits
-    let value = viewFilledNum width numBase <| convertWireDataToInt bits
+let private staticNumberBox maxChars numBase (bits: FastData) =
+    let value = fastDataToPaddedString maxChars numBase bits
     Input.text [
         Input.IsReadOnly true
         Input.Value value
@@ -335,9 +332,8 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * FSInterf
     let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), inputVals) =
         let valueHandle =
             match inputVals with
-            | IData [] -> failwith "what? Empty wireData while creating a line in simulation output."
-            | IData [bit] -> staticBitButton bit
-            | IData bits -> staticNumberBox numBase bits
+            | IData {Dat = Word b; Width = 1} -> staticBitButton (match b with 0u -> Zero | _ -> One)
+            | IData bits -> staticNumberBox Constants.boxMaxChars numBase bits
             | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
@@ -346,9 +342,8 @@ let private viewViewers numBase (simViewers : ((string*string) * int * FSInterfa
     let makeViewerOutputLine ((label,fullName), width, inputVals) =
         let valueHandle =
             match inputVals with
-            | IData [] -> failwith "what? Empty wireData while creating a line in simulation output."
-            | IData[bit] -> staticBitButton bit
-            | IData bits -> staticNumberBox numBase bits
+            | IData {Dat = Word b; Width = 1} -> staticBitButton (match b with 0u -> Zero | _ -> One)
+            | IData bits -> staticNumberBox Constants.boxMaxChars numBase bits
             | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         let addToolTip tip react = 
             div [ 
@@ -372,7 +367,7 @@ let private viewStatefulComponents step comps numBase model dispatch =
             [ splittedLine (str label) (staticBitButton bit) ]
         | RegisterState bits ->
             let label = sprintf "Register: %s (%d bits)" label bits.Width
-            [ splittedLine (str label) (staticNumberBox numBase (bits |> convertFastDataToWireData)) ]
+            [ splittedLine (str label) (staticNumberBox Constants.boxMaxChars numBase bits) ]
         | RamState mem ->
             let label = sprintf "RAM: %s" <| label
             let initialMem compType = match compType with RAM1 m | AsyncRAM1 m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType

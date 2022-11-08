@@ -333,7 +333,7 @@ let changeInput (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: Fa
     //printfn "wd=%A" wd
     let fd = 
         match input with
-        | IData wd -> (wd |> wireToFast |> Data)
+        | IData fd -> Data fd
         | IAlg exp -> Alg exp
     setSimulationInput cid fd step fastSim
     //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
@@ -349,7 +349,7 @@ let changeInputBatch
     |> List.iter (fun (cid,input) ->
         let fd = 
             match input with
-            | IData wd -> (wd |> wireToFast |> Data)
+            | IData fd -> Data fd
             | IAlg exp -> Alg exp
         setSimulationInput cid fd step fastSim)
     runCombinationalLogic step fastSim
@@ -487,7 +487,7 @@ let rec extractFastSimulationOutput
             if d.Width=0 then 
                 failwithf $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
             else
-                d |> fastToWire |> IData
+                d |> IData
         | Some (Alg exp) ->
             let evaluated = evalExp exp
             IAlg evaluated

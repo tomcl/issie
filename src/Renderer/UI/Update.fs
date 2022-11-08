@@ -813,7 +813,7 @@ let update (msg : Msg) oldModel =
             | Some l -> l
             | None -> failwithf  "what? PopupDialogData.AlgebraInputs is None when trying to toggle"
         if List.contains io oldLst then // Algebra -> Values
-            let zero = IData <| convertIntToWireData w 0
+            let zero = IData <| convertIntToFastData w 0u
             match ConstraintReduceView.validateAlgebraInput io zero sd with
             | Ok _ ->
                 let newLst = List.except [io] oldLst

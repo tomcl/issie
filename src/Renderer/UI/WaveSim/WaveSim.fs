@@ -42,7 +42,7 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
     |> Array.map (fun gap ->
         let waveValue =
             match waveValues[gap.Start] with
-            | Data fastDat -> fastDataToPaddedString 34 wsModel.Radix fastDat
+            | Data fastDat -> fastDataToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix fastDat
             | Alg _ -> "Error - algebraic data!"
 
         /// Amount of whitespace between two Change transitions minus the crosshatch
@@ -441,11 +441,11 @@ let namesColumn model wsModel dispatch : ReactElement =
 /// rows, rather than many rows of three columns.
 let valueRows (wsModel: WaveSimModel) =
     selectedWaves wsModel
-    |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycle wave, wave.Width)
-    |> List.map (fun (busVal, width) ->
-        match width with
-        | 1 -> $" {busVal}" 
-        | _ -> valToString wsModel.Radix busVal)
+    |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycle wave wave.Width)
+    |> List.map (fun fd ->
+        match fd.Width, fd.Dat with
+        | 1, Word b -> $" {b}" 
+        | _ -> fastDataToPaddedString WaveSimHelpers.Constants.valueColumnMaxChars wsModel.Radix fd)
     |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
 
 /// Create column of waveform values

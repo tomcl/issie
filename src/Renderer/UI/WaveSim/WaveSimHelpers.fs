@@ -66,6 +66,9 @@ module Constants =
 
     let infoSignUnicode = "\U0001F6C8"
 
+    let waveLegendMaxChars = 34
+    let valueColumnMaxChars = 16
+
 
 //-----------------------------List & Map utilities to deal with exceptions------------------------------------------//
 
@@ -165,16 +168,16 @@ let pointsToString (points: XYPos array) : string =
     ) "" points
 
 /// Retrieve value of wave at given clock cycle as an int.
-let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
+let getWaveValue (currClkCycle: int) (wave: Wave) (width: int) : FastData =
     Array.tryItem currClkCycle wave.WaveValues.Step
     |> function
-        | Some (Data fData) ->
-            convertFastDataToInt64 fData |> int64
+        | Some (Data fData) -> 
+            fData            
         | _ ->
             // TODO: Find better default value here
             // TODO: Should probably make it so that you can't call this function in the first place.
             printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
-            0
+            {Dat = Word 0u; Width = width}
 
 /// Make left and right x-coordinates for a clock cycle.
 let makeXCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) =

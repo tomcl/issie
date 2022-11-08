@@ -752,7 +752,7 @@ let appendBIBits ((bits1:BitInt,width1:int)) ((bits2:BitInt, width2:int)) =
 
 let bigIntMaskA =
     [|1..128|]
-    |> Array.map ( fun width -> (bigint 1 <<< (width - 1)) - bigint 1)
+    |> Array.map ( fun width -> (1I <<< width) - 1I)
 
 let bigIntBitMaskA =
     [|0..128|]
@@ -760,10 +760,10 @@ let bigIntBitMaskA =
     
     
 let bigIntMask width =
-    if width <= 128 then bigIntMaskA[width] else (bigint 1 <<< (width - 1)) - bigint 1
+    if width <= 128 then bigIntMaskA[width] else (1I <<< width) - 1I
 
 let bigIntBitMask pos =
-    if pos <= 128 then bigIntBitMaskA[pos] else (bigint 1 <<< pos)   
+    if pos <= 128 then bigIntBitMaskA[pos] else (1I <<< pos)   
 
 let fastBit (n: uint32) =
 #if ASSERTS
@@ -832,7 +832,7 @@ let rec b2s (b:bigint) =
 /// be compatible with fast implementation of boolean logic.
 let getBits (msb: int) (lsb: int) (f: FastData) =
     let outW = msb - lsb + 1
-    let outWMask32 = if outW = 32 then 0xFFFFFFFFu else ((1u <<< outW - 1) - 1u)
+    let outWMask32 = if outW = 32 then 0xFFFFFFFFu else ((1u <<< outW) - 1u)
 #if ASSERTS
     Helpers.assertThat
         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)

@@ -113,11 +113,11 @@ let rec bigValToPaddedString (width: int) (radix: NumberBase)  (x: System.Numeri
                  | Bin -> fillBin64 
                  | Hex -> fillHex64 
                  | _ -> failwithf "Can't happen") width (int64 (uint64 x))
-            elif radix = Bin then
-                "Can't display binary format > 64 bits"
             else
                 bigValToPaddedString  (width - 64) radix (x / (1I <<< 64)) +
-                $"%016X{uint64(x % (1I <<< 64))}"
+                (match radix with
+                 | Hex -> $"%016X{uint64(x % (1I <<< 64))}"
+                 | _   -> (fillBin64 64 (int64 (uint64 (x % (1I <<< 64)))))[2..65])
             
 let rec bigValToString (radix: NumberBase) (x: System.Numerics.BigInteger) =
     if x < 0I then
@@ -165,10 +165,42 @@ let private padToWidth width (bits : WireData) : WireData =
     else bits @ List.replicate (width - bits.Length) Zero
 
 let fastDataToPaddedString maxChars radix  (fd: FastData) =
+    let getPrefixAndDigits (s:string) =
+        match s.Length, s.[0], s.[1] with
+        | n, '-', _ ->
+            "-", s[1..n-1]
+        | n, '0', 'b' 
+        | n, '0', 'x' ->
+            s.[1..1], s[2..n-1]
+        | _ -> 
+            "",s
+    let stripLeadingZeros s =
+        let rec strip index (s:string) =
+            if index < s.Length - 1 && s[index] = '0' then
+                strip (index+1) s
+            else
+                s[index..s.Length-1]
+        let pre, digits = getPrefixAndDigits s
+        pre, strip 0 digits
     match fd.Dat with
     | Word w -> valToPaddedString fd.Width radix (int64 w)
     | BigWord big -> bigValToPaddedString fd.Width radix big
-    |> (fun s -> if s.Length > maxChars then $"This width is too large to display as {radix}" else s)
+    |> (fun s ->
+        match s.Length < maxChars with
+        | true -> s // no change needed
+        | false ->
+            let pre, digits = stripLeadingZeros s
+            let n = digits.Length
+            let pre' = (match radix with | Dec | SDec -> "" | _ -> $"{fd.Width}'") + pre
+            if pre'.Length + digits.Length <= maxChars then
+                // stripping leading zeros makes length ok
+                pre' + digits
+            else
+                // truncate MS digits replacing by '..'
+                pre' + ".." + digits[n + 2 + pre'.Length - maxChars..n - 1])
+
+
+            
 
 /// Convert an int into a Bit list with the provided width. The Least
 /// Significant Bits are the one with low index (e.g. LSB is at position 0, MSB

@@ -366,25 +366,28 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             | BusSelection _ | IOLabel -> Constants.thinComponentLabelOffsetDistance
             | _ -> Constants.componentLabelOffsetDistance
 
-        // uncomment this to display label bounding box corners for testing new fonts etc.
-        (*let dimW = {X=box.W;Y=0.}
-        let dimH = {X=0.;Y=box.H}
-        let corners = 
-            [box.TopLeft; box.TopLeft+dimW; box.TopLeft+dimH; box.TopLeft+dimW+dimH]
-            |> List.map (fun c -> 
-                let c' = c - symbol.Pos
-                makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})*)
+
         let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
         let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
-        match colour with
-        | "lightgreen" ->
+        match Constants.testShowLabelBoundingBoxes, colour with
+        | false, "lightgreen" ->
             let x,y = pos.X - margin*0.8, pos.Y - margin*0.8
             let w,h = box.W - margin*0.4, box.H - margin * 0.4
             let polyStyle = {defaultPolygon with Fill = "lightgreen"; StrokeWidth = "0"}
             let poly = makePolygon $"{x},{y} {x+w},{y} {x+w},{y+h} {x},{y+h}" polyStyle 
             [ poly ; text ]
-        | _ ->
-            [text] // add ;corners (uncommenting corners) for box corner display
+        | false, _ ->           
+            [text]
+        | true, _ ->
+            // Display label bounding box corners for testing new fonts etc.
+            let dimW = {X=box.W;Y=0.}
+            let dimH = {X=0.;Y=box.H}
+            let corners = 
+                [box.TopLeft; box.TopLeft+dimW; box.TopLeft+dimH; box.TopLeft+dimW+dimH]
+                |> List.map (fun c -> 
+                    let c' = c - symbol.Pos
+                    makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
+            text :: corners
 
 
 

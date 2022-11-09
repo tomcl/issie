@@ -27,6 +27,7 @@ module Constants =
     let gatePortPosEdgeGap = 0.3
     let legendVertOffset = 5.
     let legendLineSpacingInPixels = 16.
+    let testShowLabelBoundingBoxes = false
 
     /// How large are component labels
     let labelFontSizeInPixels:float = 16 // otehr parameters scale correctly with this
@@ -37,7 +38,7 @@ module Constants =
         {defaultText with 
             TextAnchor = "start"; 
             FontSize = $"%.0f{labelFontSizeInPixels}px"; 
-            FontFamily = "helvetica"; 
+            FontFamily = "Times"; 
             FontWeight="600"}
 
     /// Style used by bus select bit legends
@@ -49,8 +50,10 @@ module Constants =
             FontWeight="600"}
 
     /// Offset between label position and symbol. This is also used as a margin for the label bounding box.
-    let componentLabelOffsetDistance: float = 7. // offset from symbol outline, otehr parameters scale correctly
-    let thinComponentLabelOffsetDistance: float = 3.
+    let componentLabelOffsetDistance: float =  // offset from symbol outline, otehr parameters scale correctly
+        if testShowLabelBoundingBoxes then 0. else 7.
+    let thinComponentLabelOffsetDistance: float = 
+        if testShowLabelBoundingBoxes then 0. else 3.
     
     /// Height of label text - used to determine where to print labels
     let componentLabelHeight: float = labelFontSizeInPixels

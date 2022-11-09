@@ -188,9 +188,9 @@ type Wave = {
     ViewerDisplayName: string
     CompLabel: string
     PortLabel: string
+    /// width of the waveform's bus
     Width: int
-    /// TODO: Consider changing to a map keyed by clock cycle.
-    /// List indexed by clock cycle to show value of wave.
+    /// Array indexed by clock cycle to show value of wave.
     WaveValues: StepArray<FData>
     /// SVG of waveform
     SVG: ReactElement option

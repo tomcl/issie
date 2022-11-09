@@ -44,6 +44,8 @@ module Constants =
 
     /// Padding between name label/value label and waveform column.
     let labelPadding = 3
+    /// Color for cursor and values column
+    let cursorColor = "Lavender"
 
 
 
@@ -404,6 +406,7 @@ let namesColumnStyle (ws:WaveSimModel) = Style (
     (waveSimColumn) @ [
         MinWidth (calcNamesColWidth ws)
         Float FloatOptions.Left
+        BackgroundColor Constants.cursorColor
         BorderRight Constants.borderProperties
         GridColumnStart 1
         OverflowX OverflowOptions.Clip
@@ -424,6 +427,8 @@ let valuesColumnStyle = Style (
         Float FloatOptions.Left
         BorderLeft Constants.borderProperties
         OverflowX OverflowOptions.Auto
+        BackgroundColor Constants.cursorColor
+        Opacity 1.0
         GridColumnStart 3
     ])
 
@@ -542,7 +547,7 @@ let clkCycleHighlightSVG m dispatch =
         ]
         SVGAttr.Height (string ((count + 1) * Constants.rowHeight) + "px")
         SVGAttr.Width (viewBoxWidth m)
-        SVGAttr.Fill "rgb(230,230,230)"
+        SVGAttr.Fill Constants.cursorColor
         SVGAttr.Opacity 0.4
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
         Id "ClkCycleHighlight"

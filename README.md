@@ -216,7 +216,7 @@ for each directory that might have the files with bad permissions. Typically you
       xcode-select --install
       ```
 
-  2. Install brew
+  2. Install [Homebrew](https://brew.sh), a package manager for macOS.
 
       ```bash
       /bin/bash -c "$(curl -fsSL https://raw.githubusercontent. com/Homebrew/install/HEAD/install.sh)"
@@ -224,23 +224,24 @@ for each directory that might have the files with bad permissions. Typically you
       # echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zprofile
       ```
 
-  3. Install asdf
+  3. Install [asdf](https://asdf-vm.com), a version manager.
 
       ```bash
       brew install asdf
       ```
 
-  4. Install dotnet x86_64
+  4. Install [Rosetta 2](https://support.apple.com/en-gb/HT211861), an application compatibility layer, and x86_64 `dotnet`
 
       ```bash
-      asdf plugin-add dotnet
-
-      # Install rsetta
+      # Install Rosetta 2
       softwareupdate --install-rosetta
 
       # Switch to a x86_64 shell, you can replace zsh with the shell you use.
       # Without this line, native version of dotnet will be installed
       /usr/bin/arch -x86_64 /usr/bin/env zsh --login
+
+      # Install x86_64 dotnet
+      asdf plugin-add dotnet
       asdf install dotnet 6.0.403
       asdf global dotnet 6.0.403
 
@@ -250,12 +251,6 @@ for each directory that might have the files with bad permissions. Typically you
       # Verify dotnet version
       dotnet --info
       ```
-
-  Software used in the above code block:
-
-  * [Homebrew](https://brew.sh), a package manager for macOS.
-  * [asdf](https://asdf-vm.com), a version manager.
-  * [Rosetta 2](https://support.apple.com/en-gb/HT211861), an application compatibility layer allowing Intel applications to run on Apple silicon Macs.
 
 ### Under the hood for developers
 

@@ -196,15 +196,61 @@ NB - in parallel with the above compilation, Issie code will always compile with
 A clean build will work equally well on macos, however things are more likely to go wrong if you have previously installed conflicting packages:
 
 * Legacy versions of `dotnet` - can if needed be removed [as here](https://stackoverflow.com/questions/44089518/how-can-i-uninstall-dotnet-core-from-macos-sierra):
-  ```
+
+  ```bash
   curl -O https://raw.githubusercontent.com/dotnet/sdk/main/scripts/obtain/uninstall/dotnet-uninstall-pkgs.sh
   chmod u+x dotnet-uninstall-pkgs.sh
   sudo ./dotnet-uninstall-pkgs.sh
   ```
+
 * Root permissions in dev files. For dev to work smoothly you need every configuration file to be installed under your own username, so you have r/w access. This will break if you ever find yourself using `sudo` to root install software, or if you have done this some time in the past. In that case you can temporarily get round issues by using `sudo` to run the development (or the generated app) with admin privileges. This is the wrong thing to do. Instead you should use
-   * ``chown -R `whoami` dir``
+  * ``chown -R `whoami` dir``
 for each directory that might have the files with bad permissions. Typically your dev directory `.` and `/usr/local`.
 * Uninstalling and reinstalling latest dotnet is helpful if dotnet has been installed wrong.
+* For Apple silicon Mac users, please use `x86_64` version of `dotnet` to build/run Issie. There is a known [issue](https://github.com/fsprojects/FAKE/issues/2626) of running `dotnet fake build` with `dotnet` arm64 on Apple silicon.
+
+  Steps to install/use x86_64 `dotnet` on Apple silicon:
+  1. Install build essentials
+
+      ```bash
+      xcode-select --install
+      ```
+
+  2. Install [Homebrew](https://brew.sh), a package manager for macOS.
+
+      ```bash
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent. com/Homebrew/install/HEAD/install.sh)"
+      # follow "Next steps" instruction in the result of last command, something likes
+      # echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zprofile
+      ```
+
+  3. Install [asdf](https://asdf-vm.com), a version manager.
+
+      ```bash
+      brew install asdf
+      ```
+
+  4. Install [Rosetta 2](https://support.apple.com/en-gb/HT211861), an application compatibility layer, and x86_64 `dotnet`
+
+      ```bash
+      # Install Rosetta 2
+      softwareupdate --install-rosetta
+
+      # Switch to a x86_64 shell, you can replace zsh with the shell you use.
+      # Without this line, native version of dotnet will be installed
+      /usr/bin/arch -x86_64 /usr/bin/env zsh --login
+
+      # Install x86_64 dotnet
+      asdf plugin-add dotnet
+      asdf install dotnet 6.0.403
+      asdf global dotnet 6.0.403
+
+      # Exit x86_64 shell
+      exit
+
+      # Verify dotnet version
+      dotnet --info
+      ```
 
 ### Under the hood for developers
 

@@ -110,7 +110,7 @@ let canvasWidthContext = testCanvas.getContext_2d()
 /// note  that many fonts get converted to some standard serif or non-serif font.
 /// note that accuracy varies with font weight (normal = 400 usually more accurate than bold = 600).
 /// To test this, switch on Constants.testShowLabelBounding Boxes in symbol.fs
-let getTextWidthInPixels(txt:string, font:Text) =
+let getTextWidthInPixels (font:Text) (txt:string) =
    canvasWidthContext.font <- String.concat " " ["10px"; font.FontWeight; font.FontFamily]; // e.g. "16px bold sans-serif";
    let sizeInPx = float ((font.FontSize.ToLower()).Replace("px",""))
    let textMetrics = canvasWidthContext.measureText(txt)

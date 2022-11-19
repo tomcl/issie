@@ -421,9 +421,9 @@ let namesColumnProps (ws:WaveSimModel): IHTMLProp list = [
 ]
 
 /// Style properties for values column
-let valuesColumnStyle = Style (
+let valuesColumnStyle (colWidth:int) = Style (
     (waveSimColumn) @ [
-        MinWidth Constants.valuesColWidth
+        MinWidth colWidth
         Float FloatOptions.Left
         BorderLeft Constants.borderProperties
         OverflowX OverflowOptions.Auto
@@ -431,6 +431,8 @@ let valuesColumnStyle = Style (
         Opacity 1.0
         GridColumnStart 3
     ])
+
+
 
 /// Style for waveforms column
 let waveformColumnStyle = Style [

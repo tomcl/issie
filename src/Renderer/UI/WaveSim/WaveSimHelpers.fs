@@ -67,7 +67,7 @@ module Constants =
     let infoSignUnicode = "\U0001F6C8"
 
     let waveLegendMaxChars = 34
-    let valueColumnMaxChars = 16
+    let valueColumnMaxChars = 34
 
 
 //-----------------------------List & Map utilities to deal with exceptions------------------------------------------//

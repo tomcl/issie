@@ -48,7 +48,7 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
         let cycleWidth = singleWaveWidth wsModel
         let availableWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
         /// Required width to display one value
-        let requiredWidth = 1.1 * DrawHelpers.getTextWidthInPixels (waveValue, Constants.valueOnWaveText)
+        let requiredWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
         /// Width of text plus whitespace between a repeat
         let widthWithPadding = 2. * requiredWidth + Constants.valueOnWavePadding
 
@@ -446,21 +446,34 @@ let namesColumn model wsModel dispatch : ReactElement =
 /// and waveRows, as the order of the waves matters here. This is
 /// because the wave viewer is comprised of three columns of many
 /// rows, rather than many rows of three columns.
+/// Return required width of values column in pixels, and list of cloumn react elements.
 let valueRows (wsModel: WaveSimModel) =
-    selectedWaves wsModel
+    let selWaves = selectedWaves wsModel
+    let maxValueBusWidth: int =
+        selWaves
+        |> List.map (fun wave -> wave.Width)
+        |> (fun lis -> 0 :: lis)
+        |> List.max
+    let valueColWidth =
+        let sampleVal = fastDataToPaddedString 10000 wsModel.Radix {Dat=BigWord 0I; Width=maxValueBusWidth}
+        sampleVal[0..min sampleVal.Length Constants.valueColumnMaxChars]
+        |> DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText
+        |> (fun x -> int x + 2)
+    selWaves   
     |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycle wave wave.Width)
     |> List.map (fun fd ->
         match fd.Width, fd.Dat with
         | 1, Word b -> $" {b}" 
         | _ -> fastDataToPaddedString WaveSimHelpers.Constants.valueColumnMaxChars wsModel.Radix fd)
     |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
+    |> (fun rows -> valueColWidth, rows)
 
 /// Create column of waveform values
 let private valuesColumn wsModel : ReactElement =
     let start = TimeHelpers.getTimeMs ()
-    let rows = valueRows wsModel
+    let width, rows = valueRows wsModel
 
-    div [ valuesColumnStyle ]
+    div [ valuesColumnStyle width]
         (List.concat [ topRow; rows ])
     |> TimeHelpers.instrumentInterval "valuesColumn" start
 

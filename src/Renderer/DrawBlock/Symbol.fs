@@ -233,7 +233,7 @@ let calcLabelBoundingBox (sym: Symbol) =
         | _ -> Constants.componentLabelOffsetDistance
     let labH = Constants.componentLabelHeight //height of label text
     //let labW = getMonospaceWidth textStyle.FontSize comp.Label
-    let labW = getTextWidthInPixels(comp.Label,textStyle)// width of label text
+    let labW = getTextWidthInPixels textStyle comp.Label// width of label text
     let boxTopLeft =
         match labelRotation with 
         | Degree0 -> {X = centre.X - labW/2. - margin; Y = comp.Y - labH - 2.*margin }

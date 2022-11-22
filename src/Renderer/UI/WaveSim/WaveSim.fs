@@ -65,7 +65,6 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
                 |> max 1
 
             let repeatSpace = (availableWidth - float repeats * requiredWidth) / ((float repeats + 1.) * cycleWidth)
-
             let valueText i =
                 text (valueOnWaveProps wsModel i (float gap.Start + repeatSpace) widthWithPadding)
                     [ str waveValue ]
@@ -448,23 +447,14 @@ let namesColumn model wsModel dispatch : ReactElement =
 /// rows, rather than many rows of three columns.
 /// Return required width of values column in pixels, and list of cloumn react elements.
 let valueRows (wsModel: WaveSimModel) =
-    let selWaves = selectedWaves wsModel
-    let maxValueBusWidth: int =
-        selWaves
-        |> List.map (fun wave -> wave.Width)
-        |> (fun lis -> 0 :: lis)
-        |> List.max
-    let valueColWidth =
-        let sampleVal = fastDataToPaddedString 10000 wsModel.Radix {Dat=BigWord 0I; Width=maxValueBusWidth}
-        sampleVal[0..min sampleVal.Length Constants.valueColumnMaxChars]
-        |> DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText
-        |> (fun x -> int x + 2)
-    selWaves   
+    let valueColWidth, valueColNumChars =
+        valuesColumnSize wsModel
+    selectedWaves wsModel
     |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycle wave wave.Width)
     |> List.map (fun fd ->
         match fd.Width, fd.Dat with
         | 1, Word b -> $" {b}" 
-        | _ -> fastDataToPaddedString WaveSimHelpers.Constants.valueColumnMaxChars wsModel.Radix fd)
+        | _ -> fastDataToPaddedString valueColNumChars wsModel.Radix fd)
     |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
     |> (fun rows -> valueColWidth, rows)
 

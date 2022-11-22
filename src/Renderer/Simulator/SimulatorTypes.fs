@@ -758,10 +758,11 @@ let bigIntBitMaskA =
     [|0..128|]
     |> Array.map ( fun width -> (bigint 1 <<< width))
     
-    
+/// all bits with numbers < width = 1    
 let bigIntMask width =
     if width <= 128 then bigIntMaskA[width] else (1I <<< width) - 1I
 
+/// single bit 1 (2 ** pos)
 let bigIntBitMask pos =
     if pos <= 128 then bigIntBitMaskA[pos] else (1I <<< pos)   
 

@@ -66,8 +66,9 @@ module Constants =
 
     let infoSignUnicode = "\U0001F6C8"
 
-    let waveLegendMaxChars = 34
-    let valueColumnMaxChars = 34
+    let waveLegendMaxChars = 35
+    let valueColumnMaxChars = 35
+
 
 
 //-----------------------------List & Map utilities to deal with exceptions------------------------------------------//
@@ -159,7 +160,10 @@ let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
 /// List of selected waves (of type Wave)
-let selectedWaves (wsModel: WaveSimModel) : Wave list = List.map (fun index -> wsModel.AllWaves[index]) wsModel.SelectedWaves
+let selectedWaves (wsModel: WaveSimModel) : Wave list = 
+    wsModel.SelectedWaves
+    |> List.map (fun wi -> Map.tryFind wi wsModel.AllWaves |> Option.toList)
+    |> List.concat
 
 /// Convert XYPos list to string
 let pointsToString (points: XYPos array) : string =

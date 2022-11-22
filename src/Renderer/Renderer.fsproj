@@ -21,32 +21,49 @@
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
 
-	  <!-- UART -->
+    <!-- UART -->
     <Compile Include="UartFiles\BuildUartHelpers.fs" />
 
-	  <!-- simulator -->
-    <Compile Include="Simulator\SimulatorTypes.fs" />
-    <Compile Include="Simulator\TruthTableTypes.fs" />
-    <Compile Include="Simulator\NumberHelpers.fs" />
-    <Compile Include="Simulator\SynchronousUtils.fs" />
-    <Compile Include="Simulator\Extractor.fs" />
-    <Compile Include="Simulator\CanvasStateAnalyser.fs" />
-    <Compile Include="Simulator\SimulationGraphAnalyser.fs" />
-    <Compile Include="Simulator\Fast\FastCreate.fs" />
-    <Compile Include="Simulator\Fast\FastReduce.fs" />
-    <Compile Include="Simulator\Fast\FastRun.fs" />
-    <Compile Include="Simulator\Builder.fs" />
-    <Compile Include="Simulator\Verilog.fs" />
-    <Compile Include="Simulator\Runner.fs" />
-    <Compile Include="Simulator\DependencyMerger.fs" />
-    <Compile Include="Simulator\Simulator.fs" />
+    <!-- simulator -->
+    <!-- <Compile Include="Simulator\SimulatorTypes.fs" /> -->
+    <!-- <Compile Include="Simulator\TruthTableTypes.fs" /> -->
+    <!-- <Compile Include="Simulator\NumberHelpers.fs" /> -->
+    <!-- <Compile Include="Simulator\SynchronousUtils.fs" /> -->
+    <!-- <Compile Include="Simulator\Extractor.fs" /> -->
+    <!-- <Compile Include="Simulator\CanvasStateAnalyser.fs" /> -->
+    <!-- <Compile Include="Simulator\SimulationGraphAnalyser.fs" /> -->
+    <!-- <Compile Include="Simulator\Fast\FastCreate.fs" /> -->
+    <!-- <Compile Include="Simulator\Fast\FastReduce.fs" /> -->
+    <!-- <Compile Include="Simulator\Fast\FastRun.fs" /> -->
+    <!-- <Compile Include="Simulator\Builder.fs" /> -->
+    <!-- <Compile Include="Simulator\Verilog.fs" /> -->
+    <!-- <Compile Include="Simulator\Runner.fs" /> -->
+    <!-- <Compile Include="Simulator\DependencyMerger.fs" /> -->
+    <!-- <Compile Include="Simulator\Simulator.fs" /> -->
+
+    <!-- new simulator -->
+    <Compile Include="NewSimulator/SimulatorTypes.fs" />
+    <Compile Include="NewSimulator/TruthTableTypes.fs" />
+    <Compile Include="NewSimulator/NumberHelpers.fs" />
+    <Compile Include="NewSimulator/SynchronousUtils.fs" />
+    <Compile Include="NewSimulator/Extractor.fs" />
+    <Compile Include="NewSimulator/CanvasStateAnalyser.fs" />
+    <Compile Include="NewSimulator/SimulationGraphAnalyser.fs" />
+    <Compile Include="NewSimulator/Fast/FastCreate.fs" />
+    <Compile Include="NewSimulator/Fast/FastReduce.fs" />
+    <Compile Include="NewSimulator/Fast/FastRun.fs" />
+    <Compile Include="NewSimulator/Builder.fs" />
+    <Compile Include="NewSimulator/Verilog.fs" />
+    <Compile Include="NewSimulator/Runner.fs" />
+    <Compile Include="NewSimulator/DependencyMerger.fs" />
+    <Compile Include="NewSimulator/Simulator.fs" />
 
     <!-- Verilog Component -->
     <Compile Include="VerilogComponent\VerilogTypes.fs" />
-    <Compile Include="VerilogComponent\SheetCreator.fs" />    
+    <Compile Include="VerilogComponent\SheetCreator.fs" />
     <Compile Include="VerilogComponent\NearleyBindings.fs" />
     <Compile Include="VerilogComponent\ErrorCheck.fs" />
-    <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />   
+    <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />
 
     <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
@@ -57,15 +74,15 @@
     <Compile Include="DrawBlock\PopupDrawingView.fs" />
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
-	<Compile Include="DrawBlock\SymbolView.fs" />
-	<Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
-	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
+    <Compile Include="DrawBlock\SymbolView.fs" />
+    <Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
+    <Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
-	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
+    <Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
     <Compile Include="DrawBlock\BusWireUpdate.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />
-	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
+    <Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />
@@ -94,7 +111,7 @@
     <Compile Include="UI\Update.fs" />
     <Compile Include="Renderer.fs" />
   </ItemGroup>
-  
+
   <!-- Dependencies -->
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

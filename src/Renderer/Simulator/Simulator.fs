@@ -4,15 +4,15 @@
     This module collects all the APIs required for a simulation. 
 *)
 
-module Simulator
+module OldSimulator
 
 open CommonTypes
 open SimulatorTypes
-open SynchronousUtils
-open SimulationBuilder
-open SimulationRunner
-open DependencyMerger
-open SimulationGraphAnalyser
+open OldSynchronousUtils
+open OldSimulationBuilder
+open OldSimulationRunner
+open OldDependencyMerger
+open OldSimulationGraphAnalyser
 
 // Simulating a circuit has four phases (not precisely in order of execution):
 // 1. Building a simulation graph made of SimulationComponents.
@@ -193,7 +193,7 @@ let rec startCircuitSimulation
             | Some err -> Error err
             | None -> 
                 try
-                    match FastRun.buildFastSimulation simulationArraySize diagramName  graph with
+                    match OldFastRun.buildFastSimulation simulationArraySize diagramName  graph with
                     | Ok fs -> 
                         let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs   
                         Ok {

@@ -4,7 +4,7 @@
     Collection of functions that help to detect and deal with synchronous logic.
 *)
 
-module SynchronousUtils
+module OldSynchronousUtils
 
 open CommonTypes
 open SimulatorTypes

@@ -1,12 +1,12 @@
-﻿module Verilog
+﻿module OldVerilog
 
 open CommonTypes
 open SimulatorTypes
-open SynchronousUtils
+open OldSynchronousUtils
 open EEExtensions
-open FastRun
+open OldFastRun
 open Helpers
-open NumberHelpers
+open OldNumberHelpers
 
 type VMode = ForSynthesis | ForSimulation
 type CompilationProfile = Release | Debug

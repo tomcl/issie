@@ -5,7 +5,7 @@
     representations.
 *)
 
-module NumberHelpers
+module OldNumberHelpers
 open CommonTypes
 open Helpers
 open SimulatorTypes

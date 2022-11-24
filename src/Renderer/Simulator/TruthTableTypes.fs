@@ -5,7 +5,7 @@
 //*)
 //
 
-module TruthTableTypes
+module OldTruthTableTypes
 
 open SimulatorTypes
 

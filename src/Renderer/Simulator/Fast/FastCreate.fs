@@ -1,9 +1,9 @@
-﻿module FastCreate
+﻿module OldFastCreate
 open CommonTypes
 open TimeHelpers
 open SimulatorTypes
-open SynchronousUtils
-open NumberHelpers
+open OldSynchronousUtils
+open OldNumberHelpers
 
 
 //------------------------------------------------------------------------------//
@@ -451,6 +451,7 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
          } 
 
     let addStepArray pn index stepA=
+        let index = index - 1
         f.Drivers[index] <- Some <|
             Option.defaultValue {Index=index; DriverData = stepA; DriverWidth = 0} f.Drivers[index]
         let addWidth w optDriver  = Option.map (fun d -> {d with DriverWidth = w}) optDriver

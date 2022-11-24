@@ -1,7 +1,7 @@
-﻿module FastReduce
+﻿module OldFastReduce
 open CommonTypes
 open SimulatorTypes
-open NumberHelpers
+open OldNumberHelpers
 open System
 open Helpers
 

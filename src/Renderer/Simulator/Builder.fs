@@ -6,13 +6,13 @@
     the graph is correct (and can be built in the first place).
 *)
 
-module SimulationBuilder
+module OldSimulationBuilder
 
 open Helpers
-open NumberHelpers
+open OldNumberHelpers
 open CommonTypes
 open SimulatorTypes
-open CanvasStateAnalyser
+open OldCanvasStateAnalyser
 
 /// Assert that the FData only contain a single bit, and return such bit.
 let inline extractBit (fd_: FData) : uint32 =

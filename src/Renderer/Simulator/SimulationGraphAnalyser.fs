@@ -6,11 +6,11 @@
     - Combinatorial logic can have no loops.
 *)
 
-module SimulationGraphAnalyser
+module OldSimulationGraphAnalyser
 
 open CommonTypes
 open SimulatorTypes
-open SynchronousUtils
+open OldSynchronousUtils
 
 type private DfsType =
     // No cycle detected in the subtree. Return the new visited set and keep

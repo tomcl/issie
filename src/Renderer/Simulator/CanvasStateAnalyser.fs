@@ -5,7 +5,7 @@
     CanvasState and SimulationGraph.
 *)
 
-module CanvasStateAnalyser
+module OldCanvasStateAnalyser
 
 open CommonTypes
 open SimulatorTypes

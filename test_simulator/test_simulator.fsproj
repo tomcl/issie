@@ -7,6 +7,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- <Compile Include="..\src\Renderer\Simulator\SimulatorTypes.fs" /> -->
+    <Compile Include="..\src\Renderer\Simulator\TruthTableTypes.fs" />
+    <Compile Include="..\src\Renderer\Simulator\NumberHelpers.fs" />
+    <Compile Include="..\src\Renderer\Simulator\SynchronousUtils.fs" />
+    <Compile Include="..\src\Renderer\Simulator\Extractor.fs" />
+    <Compile Include="..\src\Renderer\Simulator\CanvasStateAnalyser.fs" />
+    <Compile Include="..\src\Renderer\Simulator\SimulationGraphAnalyser.fs" />
+    <Compile Include="..\src\Renderer\Simulator\Fast\FastCreate.fs" />
+    <Compile Include="..\src\Renderer\Simulator\Fast\FastReduce.fs" />
+    <Compile Include="..\src\Renderer\Simulator\Fast\FastRun.fs" />
+    <Compile Include="..\src\Renderer\Simulator\Builder.fs" />
+    <Compile Include="..\src\Renderer\Simulator\Verilog.fs" />
+    <Compile Include="..\src\Renderer\Simulator\Runner.fs" />
+    <Compile Include="..\src\Renderer\Simulator\DependencyMerger.fs" />
+    <Compile Include="..\src\Renderer\Simulator\Simulator.fs" />
+
     <Compile Include="Sample.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>

@@ -645,6 +645,7 @@ let setSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
 
 let viewSimulation canvasState model dispatch =
     printf "Viewing Simulation"
+    printfn "canvasState: %A" canvasState
     // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
         let model = MemoryEditorView.updateAllMemoryComps model

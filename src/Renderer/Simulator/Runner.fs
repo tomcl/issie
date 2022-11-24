@@ -5,12 +5,12 @@
     effectively allowing to run it.
 *)
 
-module SimulationRunner
+module OldSimulationRunner
 
 open CommonTypes
 open Helpers
 open SimulatorTypes
-open SynchronousUtils
+open OldSynchronousUtils
 
 let mutable simTrace = None //Some ["adder40";"4bitbusmux20";"dff430"]
 

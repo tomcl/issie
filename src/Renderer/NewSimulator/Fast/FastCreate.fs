@@ -208,17 +208,20 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
 let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
+    printfn "createFastComponent => stepArratIndex: %d" stepArrayIndex
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
         [| 0 .. inPortNum - 1 |]
         |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
+    printfn "createFastComponent => ins => stepArratIndex: %d, len(ins): %d" stepArrayIndex ins.Length
 
     let outs =
         [| 0 .. outPortNum - 1 |]
         |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
+    printfn "createFastComponent => outs => stepArratIndex: %d, len(outs): %d" stepArrayIndex outs.Length
 
     let inps =
         let dat =
@@ -451,12 +454,16 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
          } 
 
     let addStepArray pn index stepA=
+        let index = index - 1
+        printfn "Index: %A, len(Drivers) = %d" index f.Drivers.Length
         f.Drivers[index] <- Some <|
             Option.defaultValue {Index=index; DriverData = stepA; DriverWidth = 0} f.Drivers[index]
         let addWidth w optDriver  = Option.map (fun d -> {d with DriverWidth = w}) optDriver
         fc.OutputWidth[pn] |> Option.iter (fun w -> f.Drivers[index] <- addWidth w f.Drivers[index])
     
     let ioLabelIsActive fc = f.FIOActive[ComponentLabel fc.FLabel, snd fc.fId].fId <> fc.fId
+
+    printfn "PortType: %A" pType
 
     match pType with
     | PortType.Output -> fc.Outputs
@@ -475,6 +482,7 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
             | IOLabel, _ when  ioLabelIsActive fc -> 
                 false, false
             | _ -> true, true
+        printfn "\tindex: %d" index
         if pType = PortType.Output && addDriver then
             addStepArray pn index stepA
         if addWave then 

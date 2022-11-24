@@ -5,12 +5,12 @@
     dependencies of a SimulationGraph.
 *)
 
-module DependencyMerger
+module OldDependencyMerger
 
 open CommonTypes
 open SimulatorTypes
-open SimulationRunner
-open SimulationBuilder
+open OldSimulationRunner
+open OldSimulationBuilder
 open Helpers
 
 /// Map a dependency name to its simulation graph.

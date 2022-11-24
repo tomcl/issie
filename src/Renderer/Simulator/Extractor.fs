@@ -1,4 +1,4 @@
-module Extractor
+module OldExtractor
 open CommonTypes
 open Fable.Core
 

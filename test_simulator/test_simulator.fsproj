@@ -23,6 +23,7 @@
     <Compile Include="..\src\Renderer\Simulator\DependencyMerger.fs" />
     <Compile Include="..\src\Renderer\Simulator\Simulator.fs" />
 
+    <Compile Include="CanvasStates.fs" />
     <Compile Include="Sample.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>

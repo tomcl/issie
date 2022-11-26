@@ -934,11 +934,11 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                 div [] 
                     (if model.WaveSimSheet <> None then 
                         [
-                            str "View clocked logic waveforms by selecting waves. "
-                            str "Select RAMs or ROMs to view contents during the simulation. "
+                            str "Use 'Select Waves' to select and add clocked logic waveforms. "
+                            str "Use 'Select RAM' to view RAM or ROM contents during the simulation. "
                             str "View or change any sheet with the simulation running. "
                             str "After design changes use "
-                            refreshSvg "black" "12px"
+                            refreshSvg "green" "12px"
                             str " to update waveforms."
                         ] else
                         [

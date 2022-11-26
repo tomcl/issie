@@ -214,8 +214,7 @@ let fastDataToPaddedString maxChars radix  (fd: FastData) =
             match displayRadix, signBit <> 0u with   
             | SDec, true -> int64 (int32 w) - (1L <<< fd.Width) 
             | _ -> int64 (uint64 w)
-        let paddedW = valToPaddedString fd.Width displayRadix signExtendedW
-        paddedW
+        valToPaddedString fd.Width displayRadix signExtendedW
     | BigWord big -> bigValToPaddedString fd.Width displayRadix big
     |> (fun s ->
         match s.Length < maxChars with

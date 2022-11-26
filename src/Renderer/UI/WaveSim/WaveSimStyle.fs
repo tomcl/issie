@@ -699,6 +699,8 @@ let refreshSvg (color:string) (height:string)=
                 14.31-32 32-32S496 30.31 496 48z"
                 Style [
                     Fill color
+                    Stroke color
+                    StrokeWidth "5px"
                 ]
             ] []
         ]

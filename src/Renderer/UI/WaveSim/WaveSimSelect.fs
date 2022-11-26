@@ -406,7 +406,7 @@ let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
                     Float FloatOptions.Left
                 ]
             ]
-            Input.Option.Placeholder "Viewer Name"
+            Input.Option.Placeholder "Search string"
             Input.Option.OnChange (fun c ->
                 dispatch <| UpdateWSModel (fun ws -> {wsModel with SearchString = c.Value.ToUpper()})
             )

@@ -208,7 +208,12 @@ let fastDataToPaddedString maxChars radix  (fd: FastData) =
         | Bin when fd.Width > Constants.maxBinaryDisplayWidth -> Hex
         | r -> r
     match fd.Dat with
-    | Word w -> valToPaddedString fd.Width displayRadix (int64 w)
+    | Word w -> 
+        let signBit = w &&& (1u <<< (fd.Width - 1))
+        let signExtendedW = if (signBit = 0u)  then int64 w else int64 (int32 w) - (1L <<< fd.Width) 
+        let paddedW = valToPaddedString fd.Width displayRadix signExtendedW
+        printf $"width= {fd.Width} signExtendedW={signExtendedW}   paddedW = {paddedW}"
+        paddedW
     | BigWord big -> bigValToPaddedString fd.Width displayRadix big
     |> (fun s ->
         match s.Length < maxChars with

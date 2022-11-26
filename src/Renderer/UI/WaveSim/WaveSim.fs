@@ -487,14 +487,17 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
     /// and valueRows, as the order of the waves matters here. This is
     /// because the wave viewer is comprised of three columns of many
     /// rows, rather than many rows of three columns.
+    let waves = selectedWaves wsModel
+    if List.exists (fun wave -> wave.SVG = None) waves then
+        dispatch <| GenerateCurrentWaveforms
     let waveRows : ReactElement list =
-        selectedWaves wsModel
+        waves
         |> List.map (fun wave ->
             match wave.SVG with
             | Some waveform ->
                 waveform
             | None ->
-                div [] []
+                div [] [] // the GenerateCurrentWaveforms message will soon update this
         )
 
     div [ waveformColumnStyle ]
@@ -942,7 +945,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                             str " to update waveforms."
                         ] else
                         [
-                            str "Use 'Start Simulation' button to simulate current sheet."
+                            str "Use 'Start Simulation' button to simulate the current sheet. "
                             str "Drag the grey divider to change the Viewer width."
                         ])
                 ]

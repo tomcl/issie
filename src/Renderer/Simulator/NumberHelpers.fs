@@ -111,7 +111,9 @@ let big64 = 1I <<< 64
 /// print a bignum according to a radix.
 /// if 
 let rec bigValToPaddedString (width: int) (radix: NumberBase)  (x: System.Numerics.BigInteger) =
-    if x < 0I then
+    if width = 0 then
+        "0" // width = 0 is possible, and must not break this
+    elif x < 0I then
         $"Bignm {x} is negative"
     elif width < 1 then
         $"Error: {width} is not a valid bignum width"
@@ -195,6 +197,8 @@ let fastDataToPaddedString maxChars radix  (fd: FastData) =
             s.[1..1], s[2..n-1]
         | _ -> 
             "",s
+
+
     let stripLeadingZeros s =
         let rec strip index (s:string) =
             if index < s.Length - 1 && (s[index] = '0' || s[index] = ',') then
@@ -203,6 +207,7 @@ let fastDataToPaddedString maxChars radix  (fd: FastData) =
                 s[index..s.Length-1]
         let pre, digits = getPrefixAndDigits s
         pre, strip 0 digits
+        
     let displayRadix = 
         match radix with
         | Bin when fd.Width > Constants.maxBinaryDisplayWidth -> Hex
@@ -215,6 +220,7 @@ let fastDataToPaddedString maxChars radix  (fd: FastData) =
             | SDec, true -> int64 (int32 w) - (1L <<< fd.Width) 
             | _ -> int64 (uint64 w)
         valToPaddedString fd.Width displayRadix signExtendedW
+ 
     | BigWord big -> bigValToPaddedString fd.Width displayRadix big
     |> (fun s ->
         match s.Length < maxChars with
@@ -229,6 +235,7 @@ let fastDataToPaddedString maxChars radix  (fd: FastData) =
             else
                 // truncate MS digits replacing by '..'
                 pre' + ".." + digits[n + 2 + pre'.Length - maxChars..n - 1])
+
 
 
             

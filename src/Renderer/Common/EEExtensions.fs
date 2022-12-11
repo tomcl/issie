@@ -42,6 +42,10 @@ module FableReplacements =
 [<RequireQualifiedAccess>]
 module Char =
 
+    [<CompiledName("IsLetterOrDigitOrUnderscore")>]
+    let inline IsLetterOrDigitOrUnderscore(ch: char): bool = 
+        System.Char.IsLetterOrDigit ch || ch = '_'
+
     [<CompiledName("ToInt")>]
     let inline toInt(ch: char): int = 
         match ch with
@@ -163,6 +167,12 @@ module String =
     [<CompiledName("StartsWith")>]
     let startsWith (value:string) (str:string) = 
         str.StartsWith(value, DefaultComparison)
+
+    /// Return true if str starts with a letter
+    [<CompiledName("StartsWithLetter")>]
+    let startsWithLetter (str:string) = 
+        str <> "" && System.Char.IsLetter str[0]
+
 
     /// Return substring of str at startIndex of length chars
     /// Throw ArgumentOutOfRange exception if any part of

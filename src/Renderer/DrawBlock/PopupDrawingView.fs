@@ -67,7 +67,7 @@ let openInBrowser url =
 let extractLabelBase (text:string) : string =
     text.ToUpper()
     |> Seq.takeWhile (fun ch -> ch <> '(')
-    |> Seq.filter (fun ch -> System.Char.IsLetterOrDigit ch || ch = '_')
+    |> Seq.filter Char.IsLetterOrDigitOrUnderscore
     |> Seq.map (fun ch -> ch.ToString())
     |> String.concat ""
 

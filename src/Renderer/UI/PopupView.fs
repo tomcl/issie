@@ -42,7 +42,7 @@ module PopupView
 
 
 //====================================================================//
-
+open EEExtensions
 open Fulma
 open Fulma.Extensions.Wikiki
 open VerilogTypes
@@ -137,7 +137,7 @@ let openInBrowser url =
 let extractLabelBase (text:string) : string =
     text.ToUpper()
     |> Seq.takeWhile (fun ch -> ch <> '(')
-    |> Seq.filter (fun ch -> System.Char.IsLetterOrDigit ch || ch = '_')
+    |> Seq.filter Char.IsLetterOrDigitOrUnderscore
     |> Seq.map (fun ch -> ch.ToString())
     |> String.concat ""
 
@@ -307,9 +307,7 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
     fun (dialogData : PopupDialogData) ->
         let goodLabel =
                 getText dialogData
-                |> Seq.toList
-                |> List.tryHead
-                |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
+                |> (fun s -> String.startsWithLetter s || s = "")
         div [] [
             before dialogData
             Input.text [
@@ -343,9 +341,7 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
         let linesNo = code |> String.filter (fun ch->ch='\n') |> String.length
         let goodLabel =
                 (Option.defaultValue "" moduleName)
-                |> Seq.toList
-                |> List.tryHead
-                |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
+                |> (fun s -> String.startsWithLetter s || s = "")
         
         let renderCERSC =
             ofType<CodeEditorReactStatefulComponent,_,_> {CurrentCode=code; ReplaceCode=codeToAdd; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
@@ -487,9 +483,7 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
     fun (dialogData : PopupDialogData) ->
         let goodLabel =
                 getText dialogData
-                |> Seq.toList
-                |> List.tryHead
-                |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
+                |> (fun s -> String.startsWithLetter s || s = "")
         div [] [
             beforeText dialogData
             Input.text [
@@ -1118,8 +1112,8 @@ let fileEntryBox files fName dialog dispatch =
     let inputValidate text =
         (text = "" || 
         List.exists ((=) text) files || 
-        not (Seq.forall System.Char.IsLetterOrDigit (text)) || 
-        not (System.Char.IsLetter (char text[0])))
+        not <| Seq.forall Char.IsLetterOrDigitOrUnderscore text || 
+        not <| String.startsWithLetter text)
         |> not
     let n1,n2, _,_ = getMemorySetup dialog 1
 

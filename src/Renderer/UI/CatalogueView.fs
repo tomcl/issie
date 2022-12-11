@@ -5,7 +5,7 @@
 *)
 
 module CatalogueView
-
+open EEExtensions
 open VerilogTypes
 open Fulma
 open Fulma.Extensions.Wikiki
@@ -127,9 +127,7 @@ let private createInputPopup typeStr (compType: int * int option -> ComponentTyp
         fun (dialogData : PopupDialogData) ->
             let notGoodLabel =
                 getText dialogData
-                |> Seq.toList
-                |> List.tryHead
-                |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
+                |> (fun s -> s = "" || not (String.startsWithLetter s))
             (getInt dialogData < 1) || notGoodLabel
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
@@ -158,9 +156,7 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
         fun (dialogData : PopupDialogData) ->
             let notGoodLabel =
                 getText dialogData
-                |> Seq.toList
-                |> List.tryHead
-                |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
+                |> (fun s -> s = "" || not (String.startsWithLetter s))
             (getInt dialogData < 1) || notGoodLabel
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 

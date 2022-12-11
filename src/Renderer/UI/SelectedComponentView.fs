@@ -5,7 +5,7 @@
 *)
 
 module SelectedComponentView
-
+open EEExtensions
 open VerilogTypes
 open Fulma
 open Fable.React
@@ -896,7 +896,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             let badChars = 
                 chars 
                 |> Seq.indexed
-                |> Seq.filter (fun (i,ch) -> not (System.Char.IsLetterOrDigit ch) && (ch <> '.'  || i <> allowedDotPos))
+                |> Seq.filter (fun (i,ch) -> not (Char.IsLetterOrDigitOrUnderscore ch) && (ch <> '.'  || i <> allowedDotPos))
                 |> Seq.map snd
                 |> Seq.map string |> String.concat ""
             match String.length chars with 
@@ -904,12 +904,12 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 Ok ""
             | 0 -> 
                 Error "Empty label is not allowed for this component"
-            | _ when not (System.Char.IsLetter chars[0]) ->
+            | _ when not (String.startsWithLetter chars) ->
                 Error "Labels must start with a character"
             | _ when badChars.Contains "." && allowedDotPos > 0 ->
                 Error $"Custom Component labels can only contain a '.' immediately after the name"
             | _ when badChars.Contains "."  ->
-                Error $"Labels of normal components can only contain letters and digits, not '.'"
+                Error $"Labels of normal components can only contain letters and digits and underscores, not '.'"
             | _ when badChars <> "" ->
                 Error $"Labels can only contain letters and digits, not '{badChars}'"
             | _ -> 

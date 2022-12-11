@@ -5,7 +5,7 @@
 *)
 
 module FileMenuView
-
+open EEExtensions
 open Fulma
 open Fable.React
 open Fable.React.Props
@@ -509,7 +509,7 @@ let maybeWarning dialogText project =
         redText "The sheet name cannot start or end with a space."
     elif String.exists ((=) '.') dialogText then
         redText "The sheet name cannot contain a file suffix."
-    elif not <| String.forall (fun c -> Char.IsLetterOrDigit c || c = ' ' || c = '_') dialogText then
+    elif not <| String.forall (fun c -> Char.IsLetterOrDigitOrUnderscore c || c = ' ') dialogText then
         redText "The sheet name must contain only letters, digits, spaces or underscores"
     elif ((dialogText |> Seq.tryItem 0) |> Option.map Char.IsDigit) = Some true then
         redText "The name must not start with a digit"

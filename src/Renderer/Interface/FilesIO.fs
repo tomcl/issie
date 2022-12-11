@@ -54,7 +54,7 @@ let baseNameWithoutExtension =
 
 let fileNameIsBad name = 
     name 
-    |> Seq.filter (fun ch -> not (ch = ' ' || System.Char.IsLetter ch || System.Char.IsDigit ch))
+    |> Seq.filter (fun ch -> not (ch = ' ' || Char.IsLetterOrDigitOrUnderscore ch))
     |> Seq.isEmpty
     |> not
 
@@ -288,7 +288,7 @@ let rec askForNewProjectPath (defaultPath:string option) : string option =
 
     
 let tryCreateFolder (path : string) =
-    if Seq.exists (fun (ch:char) -> (not (System.Char.IsLetterOrDigit ch || ch = '_'))) (baseName path) then 
+    if Seq.exists (Char.IsLetterOrDigitOrUnderscore >> not) (baseName path) then 
         Result.Error <| "File or project names must contain only letters, digits, or underscores"
     else
         try

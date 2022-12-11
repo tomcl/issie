@@ -22,7 +22,7 @@ let verilogNameConvert (maxChars:int) (s: string) =
         |> function
         | h :: _ -> h
         | [] -> "x"
-        |> Seq.map (function | ch when System.Char.IsLetterOrDigit ch || ch = '_' -> string ch | _ -> "")
+        |> Seq.map (function | ch when Char.IsLetterOrDigitOrUnderscore ch -> string ch | _ -> "")
         |> Seq.truncate maxChars
         |> String.concat ""
 

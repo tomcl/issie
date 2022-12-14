@@ -147,6 +147,8 @@ download and run the latest prebuilt binary for your platform (Windows or Macos)
 
 Issie installs and runs without making system changes - all of its code is inside the directory you download. You can delete this and replace it by a later version of Issie. Each design sheet is stored in a similarly named file under the porject directory. The subdirectory `backup` there contains a large numbers of backup snapshots for design recovery. These are not needed for Issie operation so you can delete them - or even the whole `backup` directory, if you wish.
 
+Issie binaries will not run (in some cases) from a networked file location (found on many cluster machines). If you have this problem navigate to the top-level directory containing the Issie binaries in a command window and type `issie.exe --no-sandbox`. See https://github.com/tomcl/issie/issues/125 for details.
+
 ## Getting Started as Developer
 
 If you want to get started as a developer, follow these steps.

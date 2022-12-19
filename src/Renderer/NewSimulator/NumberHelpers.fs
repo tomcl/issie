@@ -10,6 +10,9 @@ open CommonTypes
 open Helpers
 open SimulatorTypes
 
+module Constants =
+    let maxBinaryDisplayWidth = 32
+
 /// Convert an hex string into a binary string.
 let private hexToBin (hStr : string) : string =
     let rec convert h =
@@ -37,31 +40,49 @@ let private hexToBin (hStr : string) : string =
             | c -> failwithf "Invalid char %c while converting hex %s to binary" c hStr
         firstDigit + (convert chars')
 
-let addZeros64 (width:int) (pFun:int64 -> string) (n: int64) =
-    let s = pFun n
-    let bits = 
-        match s[1] with
+/// Format a hex or bin printed string adding commas every 4 digits.
+/// If pad with 0s up to width bits.
+/// if width = 0 work ok with no padding
+let addCommasAndZeros (width: int) (printedChars:string) =
+    let divCeiling n divisor = (n - 1 + divisor) / divisor
+    let nonZeroDigits = printedChars[2..printedChars.Length-1]
+    let numDigits = nonZeroDigits.Length
+    let bitsPerDigit = 
+        match printedChars[1] with
         | 'x' -> 4
         | 'b' -> 1
-        | _ -> failwithf "Wrong use of addZeros64: s = %s" s
-    let extra = min 64 (max 0 ((width - (s.Length - 2)*bits) / bits))
-    s[0..1] + String.replicate extra "0" + s[2..]
+        | r -> failwithf "Wrong use of addZeros: radix Char = %c" r
+    let extraZerosNum = 
+        (width - numDigits*bitsPerDigit)
+        |> max 0
+        |> fun n -> divCeiling n bitsPerDigit
+        |> min 64
+    let digits = String.replicate extraZerosNum "0" + nonZeroDigits
+    let num4Chunks = divCeiling digits.Length 4
+    let commaSeparatedDigits =
+        match num4Chunks with
+        | 1 -> 
+            digits // no ',' added
+        | _ ->
+            digits
+            |> Seq.rev
+            |> Seq.chunkBySize 4
+            |> Seq.rev
+            |> Seq.map (Seq.rev >> System.String.Concat)
+            |> String.concat ","
+    printedChars[0..1] + commaSeparatedDigits
+
+let addZeros64 (width:int) (pFun:int64 -> string) (n: int64) =
+    pFun n
+    |> addCommasAndZeros width
+
 
 let addZeros (width:int) (pFun:int -> string) (n: int) =
-    let s = pFun n
-    let bits = 
-        match s[1] with
-        | 'x' -> 4
-        | 'b' -> 1
-        | _ -> failwithf "Wrong use of addZeros: s = %s" s
-    let extra = min 64 (max 0 (((width - (s.Length - 2))*bits + (2<<<bits - 1)) / bits))
-    s[0..1] + String.replicate extra "0" + s[2..]
-
-
-
-    
+    pFun n
+    |> addCommasAndZeros width
 
 let hex64 (num : int64) = "0x" + num.ToString("X")
+    
 let fillHex64 width = addZeros64 width hex64
 
 let bin64 (num : int64) = "0b" + (hexToBin <| num.ToString("X"))
@@ -90,7 +111,9 @@ let big64 = 1I <<< 64
 /// print a bignum according to a radix.
 /// if 
 let rec bigValToPaddedString (width: int) (radix: NumberBase)  (x: System.Numerics.BigInteger) =
-    if x < 0I then
+    if width = 0 then
+        "0" // width = 0 is possible, and must not break this
+    elif x < 0I then
         $"Bignm {x} is negative"
     elif width < 1 then
         $"Error: {width} is not a valid bignum width"
@@ -114,9 +137,9 @@ let rec bigValToPaddedString (width: int) (radix: NumberBase)  (x: System.Numeri
                  | Hex -> fillHex64 
                  | _ -> failwithf "Can't happen") width (int64 (uint64 x))
             else
-                bigValToPaddedString  (width - 64) radix (x / (1I <<< 64)) +
+                bigValToPaddedString  (width - 64) radix (x / (1I <<< 64)) + "," +
                 (match radix with
-                 | Hex -> $"%016X{uint64(x % (1I <<< 64))}"
+                 | Hex -> (fillHex64 64 (int64 (uint64 (x % (1I <<< 64)))))[2..65]
                  | _   -> (fillBin64 64 (int64 (uint64 (x % (1I <<< 64)))))[2..65])
             
 let rec bigValToString (radix: NumberBase) (x: System.Numerics.BigInteger) =
@@ -131,13 +154,13 @@ let rec bigValToString (radix: NumberBase) (x: System.Numerics.BigInteger) =
         | Hex ->
             if x <= (1I <<< 64) then
                 (match radix with 
-                        | Bin -> bin64 
-                        | Hex -> hex64 
+                        | Bin -> bin64 >> addCommasAndZeros 0
+                        | Hex -> hex64 >> addCommasAndZeros 0
                         | _ -> failwithf "Can't happen") (int64 (uint64 x))
             elif radix = Bin then
                 "Can't display binary format > 64 bits"
             else
-                bigValToString radix (x / (1I <<< 64)) +
+                bigValToString radix (x / (1I <<< 64)) + "," +
                 $"%16X{uint64(x % 1I <<< 64)}"
             
 
@@ -145,8 +168,8 @@ let rec bigValToString (radix: NumberBase) (x: System.Numerics.BigInteger) =
 let valToString (radix: NumberBase) (value: int64) : string =
     match radix with
     | Dec -> dec64 value
-    | Bin -> bin64 value
-    | Hex -> hex64 value
+    | Bin -> bin64 value |> addCommasAndZeros 0
+    | Hex -> hex64 value |> addCommasAndZeros 0
     | SDec -> sDec64 value
 
 /// Convert int64 to string according to radix.
@@ -155,7 +178,7 @@ let valToString (radix: NumberBase) (value: int64) : string =
 let valToPaddedString (width: int) (radix: NumberBase) (value: int64) : string =
     match radix with
     | Dec -> dec64 value
-    | Bin when width <= 8 -> fillBin64 width value
+    | Bin -> fillBin64 width value
     | Hex | Bin -> fillHex64 width value
     | SDec -> sDec64 value
 
@@ -174,30 +197,45 @@ let fastDataToPaddedString maxChars radix  (fd: FastData) =
             s.[1..1], s[2..n-1]
         | _ -> 
             "",s
+
+
     let stripLeadingZeros s =
         let rec strip index (s:string) =
-            if index < s.Length - 1 && s[index] = '0' then
+            if index < s.Length - 1 && (s[index] = '0' || s[index] = ',') then
                 strip (index+1) s
             else
                 s[index..s.Length-1]
         let pre, digits = getPrefixAndDigits s
         pre, strip 0 digits
+        
+    let displayRadix = 
+        match radix with
+        | Bin when fd.Width > Constants.maxBinaryDisplayWidth -> Hex
+        | r -> r
     match fd.Dat with
-    | Word w -> valToPaddedString fd.Width radix (int64 w)
-    | BigWord big -> bigValToPaddedString fd.Width radix big
+    | Word w -> 
+        let signBit = w &&& (1u <<< (fd.Width - 1))
+        let signExtendedW =
+            match displayRadix, signBit <> 0u with   
+            | SDec, true -> int64 (int32 w) - (1L <<< fd.Width) 
+            | _ -> int64 (uint64 w)
+        valToPaddedString fd.Width displayRadix signExtendedW
+ 
+    | BigWord big -> bigValToPaddedString fd.Width displayRadix big
     |> (fun s ->
         match s.Length < maxChars with
         | true -> s // no change needed
         | false ->
             let pre, digits = stripLeadingZeros s
             let n = digits.Length
-            let pre' = (match radix with | Dec | SDec -> "" | _ -> $"{fd.Width}'") + pre
+            let pre' = (match displayRadix with | Dec | SDec -> "" | _ -> $"{fd.Width}'") + pre
             if pre'.Length + digits.Length <= maxChars then
                 // stripping leading zeros makes length ok
                 pre' + digits
             else
                 // truncate MS digits replacing by '..'
                 pre' + ".." + digits[n + 2 + pre'.Length - maxChars..n - 1])
+
 
 
             

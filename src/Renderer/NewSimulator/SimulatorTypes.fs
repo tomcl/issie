@@ -917,9 +917,11 @@ type FastComponent = {
     State: StepArray<SimulationComponentState> option
     mutable Active: bool
     OutputWidth: int option array
-    InputLinks: StepArray<FData> array
+    InputLinksFData: StepArray<FData> array
+    InputLinks: StepArray<FastData> array
     InputDrivers: (FComponentId * OutputPortNumber) option array
-    Outputs: StepArray<FData> array
+    OutputsFData: StepArray<FData> array
+    Outputs: StepArray<FastData> array
     SimComponent: SimulationComponent
     AccessPath: ComponentId list
     FullName: string
@@ -935,10 +937,12 @@ type FastComponent = {
 
     } with
 
+    member inline this.GetInputFData (epoch) (InputPortNumber n) = this.InputLinksFData[n].Step[epoch]
     member inline this.GetInput (epoch) (InputPortNumber n) = this.InputLinks[n].Step[epoch]
     member this.ShortId =
         let (ComponentId sid,ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
+    member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat = this.OutputsFData[n].Step[epoch] <- dat
     member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs[n].Step[epoch] <- dat
     member inline this.Id = this.SimComponent.Id
     member inline this.SubSheet = this.SheetName[0..this.SheetName.Length-2] 
@@ -1124,11 +1128,15 @@ let mapKeys (map:Map<'a,'b>) = Map.keys map |> Array.ofSeq
 let mapValues (map:Map<'a,'b>) = Map.values map |> Array.ofSeq
 let mapItems (map:Map<'a,'b>) = Map.toArray map
 
-let getFastOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
+let getFDataOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    match fc.Outputs[n].Step[0] with
+    match fc.OutputsFData[n].Step[0] with
     | Data fd -> fd.Width
     | Alg exp -> getAlgExpWidth exp
+
+let getFastDataOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
+    let (OutputPortNumber n) = opn
+    fc.Outputs[n].Step[0].Width
 
 let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPort: OutputPortNumber) =
     match driverComp.Type with

@@ -588,13 +588,10 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
     /// Write is always 1 cycle after WEN=1 and address.
     /// Read is 1 (0) cycles after address for sync (asynch) memories.
     let addReadWrite (fc:FastComponent) (step:int) (mem: Map<int64,int64>) =
-        let getFData (fd: FData) =
+        let getFastData (fd: FastData) =
             match fd with
-            | Data {Dat= Word w} -> int64 w
-            | Data {Dat=BigWord bw} -> int64 bw
-            | _ -> 
-                printfn $"Help! Can'd find data from {fd}"
-                int64 <| -1
+            | {Dat= Word w} -> int64 w
+            | {Dat=BigWord bw} -> int64 bw
 
         let readStep =
             match fc.FType with
@@ -609,19 +606,19 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             | 0,ROM1 _ | 0, RAM1 _ -> None
             | _ -> 
                 addrSteps readStep
-                |> getFData
+                |> getFastData
                 |> Some
         let writeOpt =
             match step, fc.FType with
             | _, ROM1 _ 
             | _, AsyncROM1 _
             | 0, _ -> None
-            | _, RAM1 _ | _, AsyncRAM1 _ when getFData fc.InputLinks[2].Step[step-1] = 1L -> 
+            | _, RAM1 _ | _, AsyncRAM1 _ when getFastData fc.InputLinks[2].Step[step-1] = 1L -> 
                 addrSteps (step-1)
                 |> Some
             | _ ->  
                 None
-            |> Option.map getFData
+            |> Option.map getFastData
 
         /// Mark addr in memory map as being rType
         /// if addr does not exist - create it

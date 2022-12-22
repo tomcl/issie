@@ -1,6 +1,6 @@
 [*.fs]
 indent_size=4
-max_line_length=120
+max_line_length=100
 end_of_line=lf
 insert_final_newline=true
 trim_trailing_whitespace = true
@@ -28,7 +28,7 @@ fsharp_max_array_or_list_width=80
 fsharp_max_array_or_list_number_of_items=1
 fsharp_array_or_list_multiline_formatter=character_width
 fsharp_max_value_binding_width=80
-fsharp_max_function_binding_width=80
+fsharp_max_function_binding_width=40
 fsharp_max_dot_get_expression_width=80
 fsharp_multiline_block_brackets_on_same_column=false
 fsharp_newline_between_type_definition_and_members=false

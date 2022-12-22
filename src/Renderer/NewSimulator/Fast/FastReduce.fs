@@ -1851,8 +1851,8 @@ let fastReduceFastData (maxArraySize: int) (numStep: int) (isClockedReduction: b
     | SplitWire topWireWidth ->
         let bits = ins 0
 #if ASSERTS
-        assertThat (fd.Width >= topWireWidth + 1)
-        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width
+        assertThat (bits.Width >= topWireWidth + 1)
+        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) bits.Width
 #endif
         let bits0, bits1 =
                 let bits1 = getBits (bits.Width - 1) topWireWidth bits
@@ -1919,8 +1919,8 @@ let fastReduceFastData (maxArraySize: int) (numStep: int) (isClockedReduction: b
         //let bits, enable = insOld 0, insOld 1
         let bits, load = insOld 0, insOld 1
 #if ASSERTS
-            assertThat (bits.Width = width)
-            <| sprintf "Counter received data with wrong width: expected %d but got %A" width bits.Width
+        assertThat (bits.Width = width)
+        <| sprintf "Counter received data with wrong width: expected %d but got %A" width bits.Width
 #endif
         if (extractBit load 1 = 0u) then
             let lastOut = (getLastCycleOut 0)

@@ -951,6 +951,12 @@ type FastComponent = {
 type Driver = {
     Index: int //index of this driver in the array, also
     DriverWidth: int
+    DriverData: StepArray<FastData>
+}
+
+type DriverFData = {
+    Index: int //index of this driver in the array, also
+    DriverWidth: int
     DriverData: StepArray<FData>
 }
 
@@ -1013,6 +1019,7 @@ type FastSimulation = {
     NumStepArrays: int
     // Each driver represents one output with its data
     Drivers: Driver option array
+    DriversFData: DriverFData option array
     // Each wave index represents one component port with associated driver and data
     WaveIndex: WaveIndexT array
     /// Connections on simulated sheets indexed by directly connected port. Each connection appears twice.

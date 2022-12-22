@@ -17,7 +17,7 @@ open WaveSimSelect
 
 /// Generates SVG to display values on non-binary waveforms when there is enough space.
 /// TODO: Fix this so it does not generate all 500 cycles.
-let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinaryTransition array) : ReactElement list =
+let displayValuesOnWave wsModel (waveValues: FastData array) (transitions: NonBinaryTransition array) : ReactElement list =
     /// Find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
@@ -39,10 +39,7 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
     gaps
     // Create text react elements for each gap
     |> Array.map (fun gap ->
-        let waveValue =
-            match waveValues[gap.Start] with
-            | Data fastDat -> fastDataToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix fastDat
-            | Alg _ -> "Error - algebraic data!"
+        let waveValue = fastDataToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix waveValues[gap.Start]
 
         /// Amount of whitespace between two Change transitions minus the crosshatch
         let cycleWidth = singleWaveWidth wsModel

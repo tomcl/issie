@@ -43,6 +43,7 @@ let emptyFastSimulation diagramName =
       G = emptyGather 
       NumStepArrays = 0 // this will be overwritten by createInitFastCompPhase
       Drivers = Array.empty
+      DriversFData = Array.empty
       WaveIndex = Array.empty
       ConnectionsByPort = Map.empty
       ComponentsById = Map.empty
@@ -213,6 +214,73 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
         [| 0 .. inPortNum - 1 |]
+        |> Array.map (fun n -> Array.create maxArraySize emptyFastData)
+        |> Array.map makeStepArray
+    printfn "createFastComponent => ins => stepArratIndex: %d, len(ins): %d" stepArrayIndex ins.Length
+
+    let outs =
+        [| 0 .. outPortNum - 1 |]
+        |> Array.map (fun n -> Array.create maxArraySize emptyFastData)
+        |> Array.map makeStepArray
+    printfn "createFastComponent => outs => stepArratIndex: %d, len(outs): %d" stepArrayIndex outs.Length
+
+    let inps =
+        let dat =
+            match accessPath, sComp.Type with
+            // top-level input needs special inputs because they can't be calculated
+            | [], Input1 (width, defaultVal) -> List.replicate width Zero
+            | _ -> []
+
+        [| 0 .. inPortNum - 1 |]
+        |> Array.map (fun i -> (Array.create maxArraySize dat))
+
+    let state =
+        if couldBeSynchronousComponent sComp.Type then
+            Some(Array.create (maxArraySize-1) NoState)
+        else
+            None
+
+    let fId = getFid sComp.Id accessPath
+
+    let reduceIfHybrid sc ipn =
+        if isHybridComponent sc.Type then
+            [0..ipn]
+            |> List.sumBy (fun ipn -> 
+                getHybridComponentAsyncOuts sc.Type (InputPortNumber ipn)
+                |> function | None | Some [] -> 0 | Some _ -> 1)
+        else ipn
+
+    { OutputWidth = getOutputWidths sComp (Array.create outPortNum None)
+      State = Option.map makeStepArray state
+      SimComponent = sComp
+      fId = fId
+      cId = sComp.Id
+      FType = sComp.Type
+      AccessPath = accessPath
+      SheetName = []
+      Touched = false
+      DrivenComponents = []
+      NumMissingInputValues = reduceIfHybrid sComp inPortNum
+      InputLinks = ins
+      InputLinksFData = [||]
+      InputDrivers = Array.create inPortNum None
+      Outputs = outs
+      OutputsFData = [||]
+      FullName = ""
+      FLabel = extractLabel sComp.Label
+      VerilogOutputName = Array.create outPortNum ""
+      VerilogComponentName = ""
+      Active =
+          match sComp.Type with
+          | IOLabel _ -> false
+          | _ -> true }
+
+let createFastComponentFData (maxArraySize: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
+    printfn "createFastComponent => stepArratIndex: %d" stepArrayIndex
+    let inPortNum, outPortNum = getPortNumbers sComp
+    // dummy arrays wil be replaced by real ones when components are linked after being created
+    let ins =
+        [| 0 .. inPortNum - 1 |]
         |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
     printfn "createFastComponent => ins => stepArratIndex: %d, len(ins): %d" stepArrayIndex ins.Length
@@ -260,9 +328,11 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
       Touched = false
       DrivenComponents = []
       NumMissingInputValues = reduceIfHybrid sComp inPortNum
-      InputLinks = ins
+      InputLinks = [||]
+      InputLinksFData = ins
       InputDrivers = Array.create inPortNum None
-      Outputs = outs
+      Outputs = [||]
+      OutputsFData = outs
       FullName = ""
       FLabel = extractLabel sComp.Label
       VerilogOutputName = Array.create outPortNum ""
@@ -303,7 +373,43 @@ let extendFastComponent (numSteps: int) (fc: FastComponent) =
         | _ -> ()
 
         [| 0 .. outPortNum - 1 |]
-        |> Array.iter (fun n -> extendArray fc.Outputs[n] (Data emptyFastData))
+        |> Array.iter (fun n -> extendArray fc.Outputs[n] emptyFastData)
+
+        Option.iter
+            (fun (stateArr: StepArray<SimulationComponentState>) ->
+                extendArray stateArr stateArr.Step[oldNumSteps - 1])
+            fc.State
+
+let extendFastComponentFData (numSteps: int) (fc: FastComponent) =
+    let oldNumSteps = fc.Outputs[0].Step.Length
+
+
+    if numSteps + 1 <= oldNumSteps   then
+        () // done
+    else
+        let extendArray (arr: StepArray<'T>) (dat: 'T) =
+            let oldArr = arr.Step
+            let a =
+                Array.init
+                    (numSteps + 1)
+                    (fun i ->
+                        if i < Array.length oldArr then
+                            oldArr[i]
+                        else
+                            dat)
+
+            arr.Step <- a
+
+        let inPortNum, outPortNum = getPortNumbers fc.SimComponent
+
+        // Input inputs at top level are a special case not mapped to outputs.
+        // They must be separately extended.
+        match fc.FType, fc.AccessPath with
+        | Input1 _, [] -> extendArray fc.InputLinksFData[0] fc.InputLinksFData[0].Step[oldNumSteps - 1]
+        | _ -> ()
+
+        [| 0 .. outPortNum - 1 |]
+        |> Array.iter (fun n -> extendArray fc.OutputsFData[n] (Data emptyFastData))
 
         Option.iter
             (fun (stateArr: StepArray<SimulationComponentState>) ->
@@ -453,12 +559,12 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
              PortNumber = pn
          } 
 
-    let addStepArray pn index stepA=
+    let addStepArray pn index (stepA:StepArray<FastData>) =
         let index = index - 1
         printfn "Index: %A, len(Drivers) = %d" index f.Drivers.Length
         f.Drivers[index] <- Some <|
             Option.defaultValue {Index=index; DriverData = stepA; DriverWidth = 0} f.Drivers[index]
-        let addWidth w optDriver  = Option.map (fun d -> {d with DriverWidth = w}) optDriver
+        let addWidth w (optDriver:option<Driver>)  = Option.map (fun (d:Driver) -> {d with DriverWidth = w}) optDriver
         fc.OutputWidth[pn] |> Option.iter (fun w -> f.Drivers[index] <- addWidth w f.Drivers[index])
     
     let ioLabelIsActive fc = f.FIOActive[ComponentLabel fc.FLabel, snd fc.fId].fId <> fc.fId
@@ -468,7 +574,7 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
     match pType with
     | PortType.Output -> fc.Outputs
     | PortType.Input -> fc.InputLinks
-    |> Array.mapi (fun pn stepA ->
+    |> Array.mapi (fun pn (stepA:StepArray<FastData>) ->
         let index = stepA.Index
         let addDriver, addWave =
             match fc.FType, pType with
@@ -501,7 +607,62 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
         else
             [||])
 
+let addComponentWaveDriversFData (f:FastSimulation) (fc: FastComponent) (pType: PortType)=
+    let makeWaveIndex index pn pType arr =
+         {
+             SimArrayIndex = index
+             Id = fc.fId
+             PortType = pType
+             PortNumber = pn
+         } 
 
+    let addStepArray pn index (stepA: StepArray<FData>) =
+        let index = index - 1
+        printfn "Index: %A, len(Drivers) = %d" index f.Drivers.Length
+        f.DriversFData[index] <- Some <|
+            Option.defaultValue {Index=index; DriverData = stepA; DriverWidth = 0} f.DriversFData[index]
+        let addWidth w optDriver  = Option.map (fun (d:DriverFData) -> {d with DriverWidth = w}) optDriver
+        fc.OutputWidth[pn] |> Option.iter (fun w -> f.DriversFData[index] <- addWidth w f.DriversFData[index])
+    
+    let ioLabelIsActive fc = f.FIOActive[ComponentLabel fc.FLabel, snd fc.fId].fId <> fc.fId
+
+    printfn "PortType: %A" pType
+
+    match pType with
+    | PortType.Output -> fc.OutputsFData
+    | PortType.Input -> fc.InputLinksFData
+    |> Array.mapi (fun pn stepA ->
+        let index = stepA.Index
+        let addDriver, addWave =
+            match fc.FType, pType with
+            | IOLabel, PortType.Input 
+            | Input1 _, PortType.Input
+            | Viewer _, PortType.Input
+            | Output _, PortType.Input -> 
+                false, false
+            | Constant1 _, _ -> // special case because constant output drivers are needed!
+                true, false
+            | IOLabel, _ when  ioLabelIsActive fc -> 
+                false, false
+            | _ -> true, true
+        printfn "\tindex: %d" index
+        if pType = PortType.Output && addDriver then
+            addStepArray pn index stepA
+        if addWave then 
+            match fc.FType with
+            | SplitWire _
+            | BusSelection _
+            | MergeWires 
+            | Constant1 _ -> 
+                [||]
+            | Output _ when fc.SubSheet <> [] ->
+                [||]
+            | Input1 _ when fc.SubSheet <> [] ->
+                [||]
+            | _ ->
+                [|makeWaveIndex index pn pType stepA|]
+        else
+            [||])
 
 /// Called after the fs.Drivers array is created.
 /// waveComps must contain all components that can be viewed in the wave simulation.
@@ -595,10 +756,10 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
         let fc = createFastComponent numSteps comp ap
         let fc = { fc with FullName = g.getFullName fid; SheetName = g.getSheetName fid}
 
-        let outs : StepArray<FData> array =
+        let outs : StepArray<FastData> array =
             (if isOutput comp.Type then
                  let outs =
-                     [| Array.create (numSteps) (Data emptyFastData) |> makeStepArray |]
+                     [| Array.create (numSteps) emptyFastData |> makeStepArray |]
 
                  outs
              else
@@ -625,6 +786,57 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
 
 
     instrumentTime "createInitFastCompPhase" start
+    { f with
+          FComps = comps
+          FCustomComps = customComps
+          MaxStepNum = 0
+          MaxArraySize = simulationArraySize
+          FSComps = g.AllComps
+          FCustomOutputCompLookup = customOutLookup 
+          NumStepArrays = stepArrayIndex
+          Drivers = Array.empty
+    }
+
+let rec createInitFastCompPhaseFData (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
+    let numSteps = simulationArraySize
+    stepArrayIndex <- -1
+    let start = getTimeMs()
+    printfn $"Creating init fast comp phase of sim with {numSteps} array size"
+    let makeFastComp fid =
+        let comp, ap = g.AllComps[fid]
+        let fc = createFastComponent numSteps comp ap
+        let fc = { fc with FullName = g.getFullName fid; SheetName = g.getSheetName fid}
+
+        let outs : StepArray<FData> array =
+            (if isOutput comp.Type then
+                 let outs =
+                     [| Array.create (numSteps) (Data emptyFastData) |> makeStepArray |]
+
+                 outs
+             else
+                 fc.OutputsFData)
+
+        //printfn "***Making %A with %d outs" comp.Type outs.Length
+        { fc with OutputsFData = outs }
+
+    let comps, customComps : Map<FComponentId, FastComponent> * Map<FComponentId, FastComponent>=
+        ((Map.empty, Map.empty), g.AllComps)
+        ||> Map.fold
+                (fun (m,mc) cid (comp, ap) ->
+                    if isCustom comp.Type then
+                        m, Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) mc
+                    else
+                        Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) m, mc)
+
+
+    let customOutLookup =
+        g.CustomOutputCompLinks
+        |> Map.toList
+        |> List.map (fun (a, b) -> b, a)
+        |> Map.ofList
+
+
+    instrumentTime "createInitFastCompPhaseFData" start
     { f with
           FComps = comps
           FCustomComps = customComps

@@ -175,7 +175,7 @@ let pointsToString (points: XYPos array) : string =
 let getWaveValue (currClkCycle: int) (wave: Wave) (width: int) : FastData =
     Array.tryItem currClkCycle wave.WaveValues.Step
     |> function
-        | Some (Data fData) -> 
+        | Some fData -> 
             fData            
         | _ ->
             // TODO: Find better default value here
@@ -237,11 +237,10 @@ let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (
 
 /// Determine transitions for each clock cycle of a binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.
-let calculateBinaryTransitions (waveValues: FData array) : BinaryTransition array =
+let calculateBinaryTransitions (waveValues: FastData array) : BinaryTransition array =
     let getBit = function 
-        | Data {Dat = Word bit} -> int32 bit 
-        | Data {Dat = BigWord bit} -> int32 bit
-        | x -> failwithf $"Malformed data: expecting single bit, not {x}"
+        | {Dat = Word bit} -> int32 bit 
+        | {Dat = BigWord bit} -> int32 bit
     Array.append [|waveValues[0]|] waveValues
     |> Array.pairwise
     |> Array.map (fun (x,y) ->       
@@ -256,11 +255,10 @@ let calculateBinaryTransitions (waveValues: FData array) : BinaryTransition arra
 
 /// Determine transitions for each clock cycle of a non-binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.
-let calculateNonBinaryTransitions (waveValues: FData array) : NonBinaryTransition array =
-    let notWaveformValue = Alg (AppendExp [])
+let calculateNonBinaryTransitions (waveValues: FastData array) : NonBinaryTransition array =
     // TODO: See if this will break if the clock cycle isn't 0.
     // Concat [[]] so first clock cycle always starts with Change
-    Array.append [|notWaveformValue|]  waveValues
+    Array.append [| emptyFastData |] waveValues
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
         if x = y then

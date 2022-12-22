@@ -191,7 +191,7 @@ type Wave = {
     /// width of the waveform's bus
     Width: int
     /// Array indexed by clock cycle to show value of wave.
-    WaveValues: StepArray<FData>
+    WaveValues: StepArray<FastData>
     /// SVG of waveform
     SVG: ReactElement option
 }

@@ -24,37 +24,49 @@ type private DependencyMap = Map<string, SimulationGraph>
 type private DependencyGraph = Map<string, string list>
 
 /// Get the name of all the dependency in a CanvasState.
-let private getComponentDependencies (state : CanvasState) : string list =
+let private getComponentDependencies (state: CanvasState) : string list =
     let components, _ = state
     components
-    |> List.filter (fun comp -> match comp.Type with | Custom _ -> true | _ -> false)
-    |> List.map (fun comp -> match comp.Type with | Custom c -> c.Name | _ -> failwith "what? Impossible, getComponentDependency")
+    |> List.filter (fun comp ->
+        match comp.Type with
+        | Custom _ -> true
+        | _ -> false)
+    |> List.map (fun comp ->
+        match comp.Type with
+        | Custom c -> c.Name
+        | _ -> failwith "what? Impossible, getComponentDependency")
 
 /// Try to get the canvasState for a dependency, or return error if none could
 /// be found.
 let private getDependencyState
-        (name : string)
-        (dependencies : LoadedComponent list)
-        : Result<CanvasState, SimulationError> =
+    (name: string)
+    (dependencies: LoadedComponent list)
+    : Result<CanvasState, SimulationError>
+    =
     dependencies
     |> List.tryFind (fun dep -> dep.Name = name)
-    |> function | Some dep -> Ok dep.CanvasState
-                | None -> Error {
-                    Msg = sprintf "Could not resolve dependency: \"%s\". Make sure a dependency with such name exists in the current project." name
-                    InDependency = None
-                    ComponentsAffected = []
-                    ConnectionsAffected = []
-                }
+    |> function
+        | Some dep -> Ok dep.CanvasState
+        | None ->
+            Error
+                { Msg =
+                    sprintf
+                        "Could not resolve dependency: \"%s\". Make sure a dependency with such name exists in the current project."
+                        name
+                  InDependency = None
+                  ComponentsAffected = []
+                  ConnectionsAffected = [] }
 
 /// Try to build a dependencyGraph for the dependencies, or return an error
 /// if there are unknown unresolved dependencies.
 let rec private buildDependencyGraph
-        (componentName : string)
-        (state : CanvasState)
-        (dependencies : LoadedComponent list)
-        (dependencyGraph : DependencyGraph)
-        : Result<DependencyGraph, SimulationError> =
-    let rec iterateChildren children (dependencyGraph : DependencyGraph) =
+    (componentName: string)
+    (state: CanvasState)
+    (dependencies: LoadedComponent list)
+    (dependencyGraph: DependencyGraph)
+    : Result<DependencyGraph, SimulationError>
+    =
+    let rec iterateChildren children (dependencyGraph: DependencyGraph) =
         match children with
         | [] -> Ok dependencyGraph
         | child :: children' ->
@@ -63,16 +75,15 @@ let rec private buildDependencyGraph
             | Some _ -> iterateChildren children' dependencyGraph
             | None ->
                 match getDependencyState child dependencies with
-                | Error err -> Error {err with InDependency = Some componentName}
+                | Error err -> Error { err with InDependency = Some componentName }
                 | Ok childState ->
                     // Recur over child.
-                    match buildDependencyGraph child childState
-                                               dependencies dependencyGraph with
+                    match buildDependencyGraph child childState dependencies dependencyGraph with
                     | Error err -> Error err
                     | Ok dependencyGraph -> iterateChildren children' dependencyGraph
     // We basically perform a dfs.
     let children = getComponentDependencies state
-    let dependencyGraph = dependencyGraph.Add (componentName, children)
+    let dependencyGraph = dependencyGraph.Add(componentName, children)
     iterateChildren children dependencyGraph
 
 // Note: this cycle detection algorithm is similar to the one used in the
@@ -93,11 +104,12 @@ type private DfsType =
     | Cycle of string list
 
 let rec private checkDependencyCycle
-        (currNode : string)
-        (depGraph : DependencyGraph)
-        (visited : Set<string>)
-        (currStack : Set<string>)
-        : DfsType =
+    (currNode: string)
+    (depGraph: DependencyGraph)
+    (visited: Set<string>)
+    (currStack: Set<string>)
+    : DfsType
+    =
     let rec exploreChildren visited currStack children : DfsType =
         match children with
         | [] -> NoCycle visited
@@ -106,17 +118,16 @@ let rec private checkDependencyCycle
             | NoCycle visited ->
                 // Keep on exploring other children.
                 exploreChildren visited currStack children'
-            | Backtracking (cycle, cycleEnd) ->
+            | Backtracking(cycle, cycleEnd) ->
                 match cycleEnd = currNode with
-                | true -> Cycle (currNode :: cycle)
-                | false -> Backtracking (currNode :: cycle, cycleEnd)
-            | Cycle cycle ->
-                Cycle cycle
+                | true -> Cycle(currNode :: cycle)
+                | false -> Backtracking(currNode :: cycle, cycleEnd)
+            | Cycle cycle -> Cycle cycle
 
     match currStack.Contains currNode, visited.Contains currNode with
     | true, true ->
         // Already visited in this subtree: cycle detected.
-        Backtracking ([currNode], currNode)
+        Backtracking([ currNode ], currNode)
     | false, true ->
         // Already visited, and this node is part of no cycles.
         NoCycle visited
@@ -134,25 +145,38 @@ let rec private checkDependencyCycle
 
 /// Validate and get simulation graph for all loaded dependencies.
 let private buildDependencyMap
-        (loadedDependencies : LoadedComponent list)
-        : Result<DependencyMap, SimulationError> =
+    (loadedDependencies: LoadedComponent list)
+    : Result<DependencyMap, SimulationError>
+    =
     let dependenciesRes =
         loadedDependencies
-        |> List.map (fun dep -> dep.Name, runCanvasStateChecksAndBuildGraph dep.CanvasState loadedDependencies)
+        |> List.map (fun dep ->
+            dep.Name, runCanvasStateChecksAndBuildGraph dep.CanvasState loadedDependencies)
     // Check if any dependency has given an error.
-    let hasError (name, res) = match res with | Error _ -> true | Ok _ -> false
-    let extractOk (name, res) = match res with | Ok d -> name, d | Error e -> failwithf "what? Dependency %s expected to be Ok, but has error %A" name e
+    let hasError (name, res) =
+        match res with
+        | Error _ -> true
+        | Ok _ -> false
+    let extractOk (name, res) =
+        match res with
+        | Ok d -> name, d
+        | Error e -> failwithf "what? Dependency %s expected to be Ok, but has error %A" name e
     match List.tryFind hasError dependenciesRes with
-    | Some (name, Error err) ->
+    | Some(name, Error err) ->
         // Augument error saying that it happened in a dependency, so no
         // irrelevant affected components or connections will be highlighted.
-        Error { err with InDependency = Some name;
-                         ComponentsAffected = [];
-                         ConnectionsAffected = [] }
+        Error
+            { err with
+                InDependency = Some name
+                ComponentsAffected = []
+                ConnectionsAffected = [] }
     | None ->
         // All dependencies are Ok.
         // Create a map from their name to their simulation graph.
-        dependenciesRes |> List.map extractOk |> Map.ofList |> Ok
+        dependenciesRes
+        |> List.map extractOk
+        |> Map.ofList
+        |> Ok
     | _ -> failwith "what? Impossible case in buildDependencyMap"
 
 /// Check if there are:
@@ -163,20 +187,24 @@ let private buildDependencyMap
 /// Checks are only performed on the dependencies directly required by the
 /// CanvasState passed.
 let private checkDependenciesAndBuildMap
-        (currDiagramName : string)
-        (state : CanvasState)
-        (dependencies : LoadedComponent list)
-        : Result<DependencyMap, SimulationError> =
-    let rec prettyPrintCycle (cycle : string list) =
+    (currDiagramName: string)
+    (state: CanvasState)
+    (dependencies: LoadedComponent list)
+    : Result<DependencyMap, SimulationError>
+    =
+    let rec prettyPrintCycle (cycle: string list) =
         match cycle with
         | [] -> ""
-        | [name] -> "\"" + name + "\""
-        | name :: cycle' -> "\"" + name + "\" --> " + (prettyPrintCycle cycle')
+        | [ name ] -> "\"" + name + "\""
+        | name :: cycle' ->
+            "\""
+            + name
+            + "\" --> "
+            + (prettyPrintCycle cycle')
     match buildDependencyGraph currDiagramName state dependencies Map.empty with
     | Error err -> Error err
     | Ok dependencyGraph ->
-        match checkDependencyCycle currDiagramName dependencyGraph
-                                   Set.empty Set.empty with
+        match checkDependencyCycle currDiagramName dependencyGraph Set.empty Set.empty with
         | Backtracking _ -> // Impossible.
             failwith "what? checkDependencyCycle finished while Backtracking"
         | Cycle cycle ->
@@ -184,13 +212,13 @@ let private checkDependenciesAndBuildMap
             assertThat (cycle.Length >= 2)
             <| sprintf "Cycle must have at least 2 dependencies: %A" cycle
 #endif
-            Error {
-                Msg = sprintf "Found a cycle in dependencies: %s."
-                      <| prettyPrintCycle cycle
-                InDependency = None
-                ComponentsAffected = []
-                ConnectionsAffected = []
-            }
+            Error
+                { Msg =
+                    sprintf "Found a cycle in dependencies: %s."
+                    <| prettyPrintCycle cycle
+                  InDependency = None
+                  ComponentsAffected = []
+                  ConnectionsAffected = [] }
         | NoCycle depsUsed ->
             // Build dependency map for these dependencies.
             dependencies
@@ -203,13 +231,13 @@ let private checkDependenciesAndBuildMap
 
 /// Convert the label of a port on a custom componetnt to its port number.
 /// Assumes that all labels are unique, otherwise it is undefined behaviour.
-let private labelToPortNumber label (labels : string list) =
+let private labelToPortNumber label (labels: string list) =
     match List.tryFindIndex ((=) label) labels with
     | None -> failwithf "what? Label %s not present in %A" label labels
     | Some pNumber -> pNumber
 
 /// Convert the portNumber of a custom componetnt to its port lablel.
-let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string list) =
+let private portNumberToLabel (InputPortNumber pNumber) (inputLabels: string list) =
 #if ASSERTS
     assertThat (inputLabels.Length > pNumber) "portNumberToLabel"
 #endif
@@ -218,17 +246,24 @@ let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string li
 /// Extract simulation input values as map.
 let private extractInputValuesAsMap graph graphInputs inputLabels : Map<InputPortNumber, WireData> =
     extractIncompleteSimulationIOs graphInputs graph
-    |> List.map (
-        fun ((_, ComponentLabel compLabel, _), wireData) ->
-            InputPortNumber <| labelToPortNumber compLabel inputLabels, wireData)
+    |> List.map (fun ((_, ComponentLabel compLabel, _), wireData) ->
+        InputPortNumber
+        <| labelToPortNumber compLabel inputLabels,
+        wireData)
     |> Map.ofList
 
 /// Extract simulation output values as map.
-let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<OutputPortNumber, WireData> =
+let private extractOutputValuesAsMap
+    graph
+    graphOutputs
+    outputLabels
+    : Map<OutputPortNumber, WireData>
+    =
     extractSimulationIOs graphOutputs graph
-    |> List.map (
-        fun ((_, ComponentLabel label, _), wireData) ->
-            OutputPortNumber <| labelToPortNumber label outputLabels, wireData)
+    |> List.map (fun ((_, ComponentLabel label, _), wireData) ->
+        OutputPortNumber
+        <| labelToPortNumber label outputLabels,
+        wireData)
     |> Map.ofList
 
 /// Check that the outputs of a custom component have the same keys every time.
@@ -236,13 +271,15 @@ let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<Outpu
 /// this function provides an extra guarantee that can probably be removed if
 /// performance is a concern.
 let private assertConsistentCustomOutputs
-        (outputs : Map<OutputPortNumber, WireData>)
-        (oldOutputs : Map<OutputPortNumber, WireData>) =
+    (outputs: Map<OutputPortNumber, WireData>)
+    (oldOutputs: Map<OutputPortNumber, WireData>)
+    =
 #if ASSERTS
-    outputs |> Map.map (fun pNumber _ ->
+    outputs
+    |> Map.map (fun pNumber _ ->
         assertThat (Option.isSome <| oldOutputs.TryFind pNumber)
-        <| sprintf "assertConsistentCustomOutputs, old %A, new %A" oldOutputs outputs
-    ) |> ignore
+        <| sprintf "assertConsistentCustomOutputs, old %A, new %A" oldOutputs outputs)
+    |> ignore
 #else
     ()
 #endif
@@ -252,20 +289,22 @@ let private assertConsistentCustomOutputs
 /// is good for performance as so the Input and Output nodes don't have to be
 /// searched every time.
 let private makeCustomReducer
-        (custom : CustomComponentType)
-        (graphInputs : SimulationIO list)
-        (graphOutputs : SimulationIO list)
-        : ReducerInput -> ReducerOutput =
-        failwithf "Custom rducer should never be called"
+    (custom: CustomComponentType)
+    (graphInputs: SimulationIO list)
+    (graphOutputs: SimulationIO list)
+    : ReducerInput -> ReducerOutput
+    =
+    failwithf "Custom rducer should never be called"
 
 /// Recursively merge the simulationGraph with its dependencies (a dependecy can
 /// have its own dependencies).
 /// This function assumes there are no circular dependencies, otherwise it will
 /// never terminate.
 let rec private merger
-        (currGraph : SimulationGraph)
-        (dependencyMap : DependencyMap)
-        : SimulationGraph =
+    (currGraph: SimulationGraph)
+    (dependencyMap: DependencyMap)
+    : SimulationGraph
+    =
     // For each custom component, replace the Reducer with one that:
     // - when receiving an (InputPortNumber * Bit) entry (i.e. a new input),
     //   maps the InputPortNumber to the its label.
@@ -284,18 +323,15 @@ let rec private merger
         | Custom custom ->
             let dependencyGraph =
                 match dependencyMap.TryFind custom.Name with
-                | None -> failwithf "what? Could not find dependency %s in dependencyMap" custom.Name
+                | None ->
+                    failwithf "what? Could not find dependency %s in dependencyMap" custom.Name
                 | Some dependencyGraph -> dependencyGraph
             let dependencyGraph = merger dependencyGraph dependencyMap
             // Augment the custom component with the initial
             // CustomSimulationGraph and the Custom reducer (that allows to use
             // and update the CustomSimulationGraph).
-            let graphInputs, graphOutputs =
-                getSimulationIOsFromGraph dependencyGraph
-            let newComp = {
-                comp with
-                    CustomSimulationGraph = Some dependencyGraph
-            }
+            let graphInputs, graphOutputs = getSimulationIOsFromGraph dependencyGraph
+            let newComp = { comp with CustomSimulationGraph = Some dependencyGraph }
             currGraph.Add(compId, newComp)
         | _ -> currGraph // Ignore non-custom components.
     )
@@ -306,11 +342,12 @@ let rec private merger
 /// For example, if the graph of an ALU refers to custom component such as
 /// adders, replace them with the actual simulation graph for the adders.
 let mergeDependencies
-        (currDiagramName : string)
-        (graph : SimulationGraph)
-        (state : CanvasState)
-        (loadedDependencies : LoadedComponent list)
-        : Result<SimulationGraph, SimulationError> =
+    (currDiagramName: string)
+    (graph: SimulationGraph)
+    (state: CanvasState)
+    (loadedDependencies: LoadedComponent list)
+    : Result<SimulationGraph, SimulationError>
+    =
     match checkDependenciesAndBuildMap currDiagramName state loadedDependencies with
     | Error e -> Error e
     | Ok dependencyMap ->

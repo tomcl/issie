@@ -134,7 +134,7 @@ let inline private algXnor exp1 exp2 = algXor exp1 exp2 |> algNot
 /// Outputs and inputs are both contained as time sequences in arrays. This function will calculate
 /// simStep outputs from (previously calculated) simStep outputs and clocked (simStep-1) outputs.
 /// Memory has state separate from simStep-1 output, for this the state is recalculated.
-let fastReduce
+let fastReduceFData
     (maxArraySize: int)
     (numStep: int)
     (isClockedReduction: bool)
@@ -144,7 +144,7 @@ let fastReduce
     let componentType = comp.FType
 
     //printfn "Reducing %A...%A %A (step %d) clocked=%A"  comp.FType comp.ShortId comp.FullName numStep isClockedReduction
-    let n = comp.InputLinks.Length
+    let n = comp.InputLinksFData.Length
 
     let simStep = numStep % maxArraySize
     let simStepOld =
@@ -1473,7 +1473,7 @@ let fastReduce
             //printfn $"reading {data} from addr={address} with state = {RamState mem}"
             put0 <| Data data
 
-let fastReduceFastData
+let fastReduce
     (maxArraySize: int)
     (numStep: int)
     (isClockedReduction: bool)

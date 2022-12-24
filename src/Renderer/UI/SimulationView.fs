@@ -257,7 +257,37 @@ let prepareSimulationMemoized
             StoredResult = simResult
             }
         simResult, canvasState
-   
+
+let prepareSimulationMemoizedFData
+        (simulationArraySize: int)
+        (openFileName: string)
+        (diagramName : string)
+        (canvasState : CanvasState)
+        (loadedDependencies : LoadedComponent list)
+        : Result<SimulationData, SimulationError> * CanvasState =
+    //printfn $"Diagram{diagramName}, open={openFileName}, deps = {loadedDependencies |> List.map (fun dp -> dp.Name)}"
+    let storedArraySize =
+        match simCache.StoredResult with
+        | Ok sd -> sd.FastSim.MaxArraySize
+        | _ -> 0
+    let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
+    let isSame = 
+            storedArraySize = simulationArraySize &&
+            diagramName = simCache.Name &&
+            cacheIsEqual simCache ldcs
+    if  isSame then
+        simCache.StoredResult, canvasState
+    else
+        printfn "New simulation"
+        let name, state, ldcs = getStateAndDependencies diagramName ldcs
+        let simResult = startCircuitSimulationFData simulationArraySize diagramName state ldcs 
+        simCache <- {
+            Name = diagramName
+            StoredState = ldcs
+            StoredResult = simResult
+            }
+        simResult, canvasState
+
 let makeDummySimulationError msg = {
         Msg = msg
         InDependency = None
@@ -282,6 +312,20 @@ let simulateModel (simulatedSheet: string option) (simulationArraySize: int) ope
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (canvasState, otherComponents)
         ||> prepareSimulationMemoized simulationArraySize project.OpenFileName simSheet 
+        |> TimeHelpers.instrumentInterval "MakeSimData" start
+
+let simulateModelFData (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
+    let start = TimeHelpers.getTimeMs()
+    match openSheetCanvasState, model.CurrentProj with
+    | _, None -> 
+        Error (makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!"), openSheetCanvasState
+    | canvasState, Some project ->
+        let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
+        let otherComponents = 
+            project.LoadedComponents 
+            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        (canvasState, otherComponents)
+        ||> prepareSimulationMemoizedFData simulationArraySize project.OpenFileName simSheet 
         |> TimeHelpers.instrumentInterval "MakeSimData" start
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
@@ -309,7 +353,6 @@ let private viewSimulationInputs
         (simulationData : SimulationData)
         (inputs : (SimulationIO * FSInterface) list)
         dispatch =
-
     let simulationGraph = simulationData.Graph
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), inputVals) =
         let valueHandle =

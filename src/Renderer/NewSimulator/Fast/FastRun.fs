@@ -238,7 +238,7 @@ let private orderCombinationalComponentsFData
                 readyToReduce <- fc' :: readyToReduce)
 
     let init fc =
-        fastReduce 0 0 false fc
+        fastReduceFData 0 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -254,12 +254,12 @@ let private orderCombinationalComponentsFData
                 0
             |> uint32
         //printfn "Init input..."
-        fc.InputLinks[0].Step
+        fc.InputLinksFData[0].Step
         |> Array.iteri (fun i _ ->
             fc.InputLinksFData[0].Step[ i ] <-
                 Data(convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) 0u))
         //printfn "Initialised input: %A" fc.InputLinks
-        fastReduce fs.MaxArraySize 0 false fc
+        fastReduceFData fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -320,7 +320,7 @@ let private orderCombinationalComponentsFData
 
         readyL
         |> List.iter (fun fc ->
-            fastReduce fs.MaxArraySize 0 false fc // this is always a combinational reduction
+            fastReduceFData fs.MaxArraySize 0 false fc // this is always a combinational reduction
             orderedComps <- fc :: orderedComps
             fc.Touched <- true
             propagateEval fc)
@@ -407,6 +407,79 @@ let checkAndValidate (fs: FastSimulation) =
                 | n, None -> fc.OutputWidth[ i ] <- Some n
                 | _ -> () // Ok in this case
             ))
+        instrumentTime "checkAndValidate" start
+        Ok fs
+
+let checkAndValidateFData (fs: FastSimulation) =
+    let start = getTimeMs ()
+    let activeComps =
+        fs.FComps
+        |> mapValues
+        |> Array.filter (fun fc -> fc.Active)
+
+    let inSimulationComps =
+        [| Array.filter (fun fc -> not (isHybridComponent fc.FType)) fs.FClockedComps
+           fs.FGlobalInputComps
+           fs.FOrderedComps |]
+        |> Array.concat
+
+    if (activeComps.Length <> inSimulationComps.Length) then
+        printf
+            "Validation problem: %d active components, %d components in simulation"
+            activeComps.Length
+            inSimulationComps.Length
+
+        inSimulationComps
+        |> Array.iter (fun fc -> printfn "Simulation: %s\n" (printComp fs 0 fc))
+
+        fs.FComps
+        |> Map.iter (fun fid fc -> printfn "FComps: %s\n" (printComp fs 0 fc))
+
+        let possibleCycleComps =
+            Set(
+                List.ofArray activeComps
+                |> List.map (fun fc -> fc.SimComponent.Id)
+            )
+            - Set(
+                List.ofArray inSimulationComps
+                |> List.map (fun fc -> fc.SimComponent.Id)
+            )
+            |> Set.toList
+
+        Error
+            { Msg =
+                sprintf
+                    $"Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
+                    This cycle detection is not precise, the components in red comprise this cycle and all components driven only from it"
+              InDependency = None
+              ComponentsAffected = possibleCycleComps
+              ConnectionsAffected = [] }
+
+    // check and add (if necessary) output widths
+    else
+        activeComps
+        |> Array.iter (fun fc ->
+            fc.OutputWidth
+            |> Array.iteri (fun i opn ->
+                let data = fc.OutputsFData[i].Step[0]
+
+                match data.Width, fc.OutputWidth[i] with
+                | n, Some m when n <> m ->
+                    failwithf
+                        "Inconsistent simulation data %A data found on signal output width %d from %s:%d"
+                        data
+                        m
+                        fc.FullName
+                        i
+                | 0, _ ->
+                    failwithf
+                        "Unexpected output data %A found on initialised component %s:%d"
+                        data
+                        fc.FullName
+                        i
+                | n, None -> fc.OutputWidth[ i ] <- Some n
+                | _ -> () // Ok in this case
+            ))
 
         instrumentTime "checkAndValidate" start
         Ok fs
@@ -469,14 +542,14 @@ let buildFastSimulationFData
 
     let fs =
         emptyFastSimulation diagramName
-        |> createInitFastCompPhase simulationArraySize gather
-        |> linkFastComponents gather
+        |> createInitFastCompPhaseFData simulationArraySize gather
+        |> linkFastComponentsFData gather
 
     gather
     |> createFastArrays fs
     |> orderCombinationalComponentsFData simulationArraySize
-    |> checkAndValidate
-    |> Result.map addWavesToFastSimulation
+    |> checkAndValidateFData
+// |> Result.map addWavesToFastSimulation
 
 //---------------------------------------------------------------------------------------------------//
 //--------------------------------Code To Run The Simulation & Extract Results-----------------------//
@@ -521,10 +594,23 @@ let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
     fastSim.FOrderedComps
     |> Array.iter (fastReduce fastSim.MaxArraySize (step % fastSim.MaxArraySize) false)
 
+let private runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
+    fastSim.FOrderedComps
+    |> Array.iter (fastReduceFData fastSim.MaxArraySize (step % fastSim.MaxArraySize) false)
+
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)
 let changeInput (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: FastSimulation) =
-    //printfn "wd=%A" wd
+    let fd =
+        match input with
+        | IData fd -> fd
+        | IAlg _ -> failwithf "Algebraic inputs not supported."
+
+    setSimulationInput cid fd step fastSim
+    //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
+    runCombinationalLogic step fastSim
+
+let changeInputFData (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: FastSimulation) =
     let fd =
         match input with
         | IData fd -> Data fd
@@ -532,7 +618,7 @@ let changeInput (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: Fa
 
     setSimulationInputFData cid fd step fastSim
     //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
-    runCombinationalLogic step fastSim
+    runCombinationalLogicFData step fastSim
 
 /// Change multiple inputs in one batch before re-running the simulation
 let changeInputBatch
@@ -540,7 +626,6 @@ let changeInputBatch
     (fastSim: FastSimulation)
     (changes: (ComponentId * FSInterface) list)
     =
-
     changes
     |> List.iter (fun (cid, input) ->
         let fd =
@@ -550,7 +635,7 @@ let changeInputBatch
 
         setSimulationInputFData cid fd step fastSim)
 
-    runCombinationalLogic step fastSim
+    runCombinationalLogicFData step fastSim
 
 let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
     fastSim.FClockedComps
@@ -821,6 +906,25 @@ let extractFastSimulationIOs
     |> List.map (fun ((cid, label, width) as io) ->
         let out =
             extractFastSimulationOutput
+                fs
+                simulationData.ClockTickNumber
+                (cid, [])
+                (OutputPortNumber 0)
+        //printfn $"Extrcating: {io} --- {wd}"
+        io, out)
+
+let extractFastSimulationIOsFData
+    (simIOs: SimulationIO list)
+    (simulationData: SimulationData)
+    : (SimulationIO * FSInterface) list
+    =
+    let fs = simulationData.FastSim
+    let inputs = simulationData.Inputs
+
+    simIOs
+    |> List.map (fun ((cid, label, width) as io) ->
+        let out =
+            extractFastSimulationOutputFData
                 fs
                 simulationData.ClockTickNumber
                 (cid, [])

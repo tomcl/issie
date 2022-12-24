@@ -40,21 +40,19 @@ type CellData =
 
 type CellIO =
     | SimIO of SimulationIO
-    | Viewer of (string*string)*int
-    with
+    | Viewer of (string * string) * int
     member this.getLabel =
         match this with
-        | SimIO (_,l,_) -> string l
-        | Viewer ((l,_),_) -> l
+        | SimIO (_, l, _) -> string l
+        | Viewer ((l, _), _) -> l
     member this.getWidth =
         match this with
-        | SimIO (_,_,w) -> w
-        | Viewer ((_,_),w) -> w
+        | SimIO (_, _, w) -> w
+        | Viewer ((_, _), w) -> w
 
-type TruthTableCell = {
-    IO: CellIO
-    Data: CellData
-    } with
+type TruthTableCell =
+    { IO: CellIO
+      Data: CellData }
     member this.IsBits =
         match this.Data with
         | Bits _ -> true
@@ -71,35 +69,43 @@ type TruthTableCell = {
 type TruthTableRow = TruthTableCell list
 
 // Identifiers for Map Type
-type MapToUse = | Table | HiddenCol | Filtered | DCReduced
+type MapToUse =
+    | Table
+    | HiddenCol
+    | Filtered
+    | DCReduced
 
-type SortType = | Ascending | Descending
+type SortType =
+    | Ascending
+    | Descending
 
 // Direction to move a TT Column in
-type MoveDirection = | MLeft | MRight
+type MoveDirection =
+    | MLeft
+    | MRight
 
 // Actual Truth Table Data Structure
-type TruthTable = {
-    // Actual Table: Mapping from Input row to Output row
-    TableMap: Map<TruthTableRow,TruthTableRow>
-    // Truth Table filtered by Output Constraints
-    FilteredMap: Map<TruthTableRow,TruthTableRow>
-    // Truth Table reduced with Don't Cares on Inputs
-    DCMap: Map<TruthTableRow,TruthTableRow> option
-    // List Representation of table to which sorting is applied
-    SortedListRep: TruthTableRow list
-    // If the Truth Table has been truncated
-    IsTruncated: bool
-    // Maximum rows the truth table could have with current input constraints
-    MaxRowsWithConstraints: int
-    // True if the truth table has reduntant rows, and can therefore be DC Reduced
-    HasRedundancies: bool
-    // Simulation Data for the Truth Table's own Simulation
-    // Used when re-generating the Truth Table on change in input constraints
-    TableSimData: SimulationData
-    // Ordered List of all IOs in the order they originally were
-    IOOrder: CellIO list
-    } with
+type TruthTable =
+    {
+      // Actual Table: Mapping from Input row to Output row
+      TableMap: Map<TruthTableRow, TruthTableRow>
+      // Truth Table filtered by Output Constraints
+      FilteredMap: Map<TruthTableRow, TruthTableRow>
+      // Truth Table reduced with Don't Cares on Inputs
+      DCMap: Map<TruthTableRow, TruthTableRow> option
+      // List Representation of table to which sorting is applied
+      SortedListRep: TruthTableRow list
+      // If the Truth Table has been truncated
+      IsTruncated: bool
+      // Maximum rows the truth table could have with current input constraints
+      MaxRowsWithConstraints: int
+      // True if the truth table has reduntant rows, and can therefore be DC Reduced
+      HasRedundancies: bool
+      // Simulation Data for the Truth Table's own Simulation
+      // Used when re-generating the Truth Table on change in input constraints
+      TableSimData: SimulationData
+      // Ordered List of all IOs in the order they originally were
+      IOOrder: CellIO list }
     member this.Inputs =
         this.TableMap
         |> Map.toList
@@ -109,92 +115,79 @@ type TruthTable = {
 
 /// Returns true if a row contains a Don't Care (X)
 let rowContainsDC (row: TruthTableRow) =
-    row
-    |> List.exists (fun cell -> cell.IsDC)
+    row |> List.exists (fun cell -> cell.IsDC)
 
 /// Returns true if a row contains algebra
 let rowContainsAlgebra (row: TruthTableRow) =
-    row
-    |> List.exists (fun cell -> cell.IsAlgebra)
-     
+    row |> List.exists (fun cell -> cell.IsAlgebra)
+
 //-------------------------------------------------------------------------------------//
 //-----------------------------Constraint Types----------------------------------------//
 //-------------------------------------------------------------------------------------//
 
 // A numerical constraint set contains Equality and Inequality Constraints
-type ConstraintSet = {
-    Equalities: EqualityConstraint list
-    Inequalities: InequalityConstraint list
-} with
+type ConstraintSet =
+    { Equalities: EqualityConstraint list
+      Inequalities: InequalityConstraint list }
     // Returns true if the ConstraintSet is empty
     member this.isEmpty =
         match this.Equalities, this.Inequalities with
-        | [],[] -> true
-        | _,_ -> false
+        | [], [] -> true
+        | _, _ -> false
 // IO = Value
-and EqualityConstraint = {
-    IO: CellIO
-    Value: int
-}
+and EqualityConstraint = { IO: CellIO; Value: int }
 // LowerBound < IO < UpperBound
-and InequalityConstraint = {
-    LowerBound: int
-    IO: CellIO
-    UpperBound: int
-    Range: int
-}
+and InequalityConstraint = { LowerBound: int; IO: CellIO; UpperBound: int; Range: int }
 
 type Constraint =
     | Equality of EqualityConstraint
     | Inequality of InequalityConstraint
 
-type ConstraintType = Equ | Ineq
+type ConstraintType =
+    | Equ
+    | Ineq
 
 let isEqu c =
     match c with
     | Equ -> true
     | _ -> false
 
-let emptyConstraintSet = {
-    Equalities = []
-    Inequalities = []
-}
+let emptyConstraintSet = { Equalities = []; Inequalities = [] }
 
 let makeInequalityConstraint lower io upper =
     let range = upper - lower + 1
-    {
-        LowerBound = lower
-        IO = io
-        UpperBound = upper
-        Range = range
-    }
+    { LowerBound = lower; IO = io; UpperBound = upper; Range = range }
 
 let orderConstraints set =
     let ordered =
         set.Inequalities
         |> List.sortByDescending (fun c -> c.Range)
-    {set with Inequalities = ordered}
+    { set with Inequalities = ordered }
 
 // Data structure containing information about an input used when calculating Truth Table LHS.
 // RowCount for an input refers to the number of unique values it contributes to the table
-type TableInput = {
-    // SimulationIO associated with the input
-    IO: SimulationIO
-    // Is the Input algebraic (or numeric)
-    IsAlgebra: bool
-    // Number of possible unique input values, based on width of input
-    MaxRowCount: int
-    // Number of possible unique input values after applying input constraints
-    ConstrainedRowCount: int
-    // Number of possible unique input values that will fit in the Truth Table after truncation
-    AllowedRowCount: int
-    // Constraints on the input
-    Constraints: ConstraintSet
-}
+type TableInput =
+    {
+      // SimulationIO associated with the input
+      IO: SimulationIO
+      // Is the Input algebraic (or numeric)
+      IsAlgebra: bool
+      // Number of possible unique input values, based on width of input
+      MaxRowCount: int
+      // Number of possible unique input values after applying input constraints
+      ConstrainedRowCount: int
+      // Number of possible unique input values that will fit in the Truth Table after truncation
+      AllowedRowCount: int
+      // Constraints on the input
+      Constraints: ConstraintSet }
 
 /// Create a TableInput data structure from a SimulationIO using application state
-let initTableInput (simIO:SimulationIO) (allConstraints: ConstraintSet) (algebraIOs: SimulationIO list) =
-    let (_,_,w) = simIO
+let initTableInput
+    (simIO: SimulationIO)
+    (allConstraints: ConstraintSet)
+    (algebraIOs: SimulationIO list)
+    =
+    let (_, _, w) = simIO
     let specificEqualities =
         allConstraints.Equalities
         |> List.filter (fun con -> con.IO = SimIO simIO)
@@ -202,12 +195,9 @@ let initTableInput (simIO:SimulationIO) (allConstraints: ConstraintSet) (algebra
         allConstraints.Inequalities
         |> List.filter (fun con -> con.IO = SimIO simIO)
     let isAlg = List.contains simIO algebraIOs
-    {
-        IO = simIO
-        IsAlgebra = isAlg
-        MaxRowCount = int (2.0**w)
-        ConstrainedRowCount = 0
-        AllowedRowCount = 0
-        Constraints = { Equalities = specificEqualities
-                        Inequalities = specificInequalities}
-    }
+    { IO = simIO
+      IsAlgebra = isAlg
+      MaxRowCount = int (2.0 ** w)
+      ConstrainedRowCount = 0
+      AllowedRowCount = 0
+      Constraints = { Equalities = specificEqualities; Inequalities = specificInequalities } }

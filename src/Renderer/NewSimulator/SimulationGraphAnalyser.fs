@@ -28,13 +28,14 @@ type private DfsType =
 /// visited and currStack also keep track of the port being explored as it makes
 /// a difference (only) in the custom components.
 let rec private dfs
-        (currNodeId : ComponentId)
-        (inputPortNumber : InputPortNumber)
-        (graph : SimulationGraph)
-        (visited : Set<ComponentId * InputPortNumber option>)
-        (currStack : Set<ComponentId * InputPortNumber option>)
-        getCombOuts
-        : DfsType =
+    (currNodeId: ComponentId)
+    (inputPortNumber: InputPortNumber)
+    (graph: SimulationGraph)
+    (visited: Set<ComponentId * InputPortNumber option>)
+    (currStack: Set<ComponentId * InputPortNumber option>)
+    getCombOuts
+    : DfsType
+    =
     let rec exploreChildren visited currStack children : DfsType =
         match children with
         | [] -> NoCycle visited
@@ -43,12 +44,11 @@ let rec private dfs
             | NoCycle visited ->
                 // Keep on exploring other children.
                 exploreChildren visited currStack children'
-            | Backtracking (cycle, cycleEnd) ->
+            | Backtracking(cycle, cycleEnd) ->
                 match cycleEnd = currNodeId with
                 | true -> Cycle cycle
-                | false -> Backtracking (currNodeId :: cycle, cycleEnd)
-            | Cycle cycle ->
-                Cycle cycle
+                | false -> Backtracking(currNodeId :: cycle, cycleEnd)
+            | Cycle cycle -> Cycle cycle
 
     let currNode = getNodeOrFail graph currNodeId
     // Ignore the info about port number unless node is custom node.
@@ -63,7 +63,7 @@ let rec private dfs
     match currStack.Contains curr, visited.Contains curr with
     | true, true ->
         // Already visited in this subtree: cycle detected.
-        Backtracking ([currNodeId], currNodeId)
+        Backtracking([ currNodeId ], currNodeId)
     | false, true ->
         // Already visited, and this node is part of no cycles.
         NoCycle visited
@@ -84,18 +84,22 @@ let rec private dfs
 
 /// Calculate which connections are involved in a cycle.
 let private calculateConnectionsAffected
-        (connections : Connection list) 
-        (cycle : ComponentId list)
-        : ConnectionId list =
+    (connections: Connection list)
+    (cycle: ComponentId list)
+    : ConnectionId list
+    =
     let rec findConnection (connections: Connection list) (compIdFrom, compIdTo) : ConnectionId =
         match connections with
         | [] -> failwithf "what? Could not find connection among %A and %A" compIdFrom compIdTo
         | conn :: connections' ->
-            match ComponentId conn.Source.HostId = compIdFrom,
-                  ComponentId conn.Target.HostId = compIdTo with
+            match
+                ComponentId conn.Source.HostId = compIdFrom,
+                ComponentId conn.Target.HostId = compIdTo
+            with
             | true, true -> ConnectionId conn.Id
             | _ -> findConnection connections' (compIdFrom, compIdTo)
-    if cycle.Length < 2 then failwithf "what? Cycle with length less than 2: %A" cycle
+    if cycle.Length < 2 then
+        failwithf "what? Cycle with length less than 2: %A" cycle
     // Find a connection among all pairs.
     cycle
     |> List.mapi (fun i compId -> (compId, cycle[(i + 1) % cycle.Length]))
@@ -105,11 +109,12 @@ let private calculateConnectionsAffected
 /// If connections are passed, a possible error message will contain the
 /// connections affected.
 let private checkCombinatorialCycle
-        (graph : SimulationGraph)
-        (connectionsOpt : (Connection list) option)
-        (inDependency : string option)
-        getCombOuts
-        : SimulationError option =
+    (graph: SimulationGraph)
+    (connectionsOpt: (Connection list) option)
+    (inDependency: string option)
+    getCombOuts
+    : SimulationError option
+    =
     let rec checkGraphForest nodeIdsAndPNums visited =
         match nodeIdsAndPNums with
         | [] -> None
@@ -120,30 +125,33 @@ let private checkCombinatorialCycle
                 let connectionsAffected =
                     match connectionsOpt with
                     | None -> []
-                    | Some conns -> 
+                    | Some conns ->
                         try
                             calculateConnectionsAffected conns cycle
-                        with
-                            | e -> []
-                Some {
-                    Msg = "Cycle detected in combinatorial logic."
-                    InDependency = inDependency
-                    ComponentsAffected = cycle
-                    ConnectionsAffected = connectionsAffected
-                }
-            | Backtracking (c, ce) -> failwithf "what? Dfs should never terminate while backtracking: %A" (c, ce)
+                        with e ->
+                            []
+                Some
+                    { Msg = "Cycle detected in combinatorial logic."
+                      InDependency = inDependency
+                      ComponentsAffected = cycle
+                      ConnectionsAffected = connectionsAffected }
+            | Backtracking(c, ce) ->
+                failwithf "what? Dfs should never terminate while backtracking: %A" (c, ce)
 
     let visited = Set.empty
-    let allIdsAndPNums = graph |> Map.toList |> List.collect (fun (id, comp) ->
-        match comp.Type with
-        | Custom custom ->
-            // Explore ever input port of a custom component.
-            custom.InputLabels |> List.mapi (fun i _ -> id, InputPortNumber i)
-        | _ ->
-            // The input port number does not matter for non custom components,
-            // it will be ignored in the dfs.
-            [id, InputPortNumber 0]
-    )
+    let allIdsAndPNums =
+        graph
+        |> Map.toList
+        |> List.collect (fun (id, comp) ->
+            match comp.Type with
+            | Custom custom ->
+                // Explore ever input port of a custom component.
+                custom.InputLabels
+                |> List.mapi (fun i _ -> id, InputPortNumber i)
+            | _ ->
+                // The input port number does not matter for non custom components,
+                // it will be ignored in the dfs.
+                [ id, InputPortNumber 0 ])
     checkGraphForest allIdsAndPNums visited
 
 /// Recursively make sure that there are no combinatorial loops in any of the
@@ -151,25 +159,24 @@ let private checkCombinatorialCycle
 /// Keep track of the alreadyChecked graphs in order to waste time uselessly as
 /// the same component may be used multiple times.
 let rec private recursivelyCheckCombinatorialCycles
-        (currGraph : SimulationGraph)
-        (connectionsOpt : (Connection list) option)
-        (dependencyName : string)
-        (alreadyChecked : Set<string>)
-        getCombOuts
-        : Result<Set<string>, SimulationError> =
+    (currGraph: SimulationGraph)
+    (connectionsOpt: (Connection list) option)
+    (dependencyName: string)
+    (alreadyChecked: Set<string>)
+    getCombOuts
+    : Result<Set<string>, SimulationError>
+    =
     let rec iterateChildren
-            (alreadyChecked : Set<string>)
-            (children : (ComponentId * SimulationComponent) list) =
+        (alreadyChecked: Set<string>)
+        (children: (ComponentId * SimulationComponent) list)
+        =
         match children with
         | [] -> Ok alreadyChecked
         | (_, child) :: children' ->
             let childGraph = Option.get child.CustomSimulationGraph
             let childName = getCustomName child.Type
-            recursivelyCheckCombinatorialCycles
-                childGraph None childName alreadyChecked getCombOuts
-            |> Result.bind (fun alreadyChecked ->
-                iterateChildren alreadyChecked children'
-            )
+            recursivelyCheckCombinatorialCycles childGraph None childName alreadyChecked getCombOuts
+            |> Result.bind (fun alreadyChecked -> iterateChildren alreadyChecked children')
 
     match alreadyChecked.Contains dependencyName with
     | true -> Ok alreadyChecked // Already checked.
@@ -186,32 +193,33 @@ let rec private recursivelyCheckCombinatorialCycles
             // connectionsOpt is populated only for the intial call to this
             // function. In such case, we are not in a dependency, otherwise we
             // are.
-            let inDependency = match connectionsOpt with
-                               | None -> Some dependencyName
-                               | Some _ -> None 
-            checkCombinatorialCycle currGraph connectionsOpt
-                                    inDependency getCombOuts
+            let inDependency =
+                match connectionsOpt with
+                | None -> Some dependencyName
+                | Some _ -> None
+            checkCombinatorialCycle currGraph connectionsOpt inDependency getCombOuts
             |> function
-            | None -> Ok alreadyChecked
-            | Some err -> Error err
-        )
+                | None -> Ok alreadyChecked
+                | Some err -> Error err)
 
 /// Analyse a SimulationGraph and return any error (or None).
 /// The SimulationGraph should be fully merged with its dependency, so this
 /// function has to be called after the dependency merger has finished.
 /// This function assumes that there are no cyclic dependencies.
 let analyseSimulationGraph
-        (diagramName : string)
-        (graph : SimulationGraph)
-        (connections : Connection list)
-        : SimulationError option =
+    (diagramName: string)
+    (graph: SimulationGraph)
+    (connections: Connection list)
+    : SimulationError option
+    =
     match calculateCustomComponentsCombinatorialPaths diagramName graph with
     | None ->
         // It was not possible to infer combinatorial paths for custom
         // components, probably due to a cyclic dependency.
         // The dependency merger should have already errored if there were such
         // problems.
-        failwithf "what? calculateCustomComponentsCombinatorialPaths returned None whithin analyseSimulationGraph. This should never happen"
+        failwithf
+            "what? calculateCustomComponentsCombinatorialPaths returned None whithin analyseSimulationGraph. This should never happen"
     | Some cccp ->
         // cccp: custom components combinatorial paths.
         // This is a map that lists all of the combinatorial paths from inputs
@@ -219,8 +227,12 @@ let analyseSimulationGraph
         // The getCombinatorialOutputs function uses cccp to determine the
         // combinatorial children of a node.
         let getCombOuts = getCombinatorialOutputs cccp
-        recursivelyCheckCombinatorialCycles graph (Some connections) diagramName
-                                            Set.empty getCombOuts
+        recursivelyCheckCombinatorialCycles
+            graph
+            (Some connections)
+            diagramName
+            Set.empty
+            getCombOuts
         |> function
-        | Ok _ -> None
-        | Error err -> Some err
+            | Ok _ -> None
+            | Error err -> Some err

@@ -92,7 +92,7 @@
     "css-loader": "^6",
     "del": "^5",
     "dotenv": "^16",
-    "electron": "^18",
+    "electron": "^22",
     "electron-builder": "^23",
     "electron-builder-notarize": "^1",
     "electron-notarize": "^1",

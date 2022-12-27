@@ -317,7 +317,8 @@ let private createNbitSpreaderPopup (model:Model) dispatch =
 let private createSplitWirePopup model dispatch =
     let title = sprintf "Add SplitWire node" 
     let beforeInt =
-        fun _ -> str "How many bits should go to the top (LSB) wire? The remaining bits will go to the bottom (MSB) wire."
+        fun _ -> str "How many bits should go to the top (LSB) wire? The remaining bits will go to the bottom (MSB) wire. \
+                      Use Edit -> Flip Vertically after placing component to swap top and bottom"
     let intDefault = 1
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
@@ -797,21 +798,29 @@ let viewCatalogue model dispatch =
                         "Input / Output"
                         [ catTip1 "Input"  (fun _ -> createInputPopup "input" Input1 model dispatch) "Input connection to current sheet: one or more bits"
                           catTip1 "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
-                          catTip1 "Viewer" (fun _ -> createIOPopup true "viewer" Viewer model dispatch) "Viewer to expose value in simulation: works in subsheets"
-                          catTip1 "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \
-                                                                                            e.g. 0 or 1 to drive an unused input"
+                          catTip1 "Viewer" (fun _ -> createIOPopup true "viewer" Viewer model dispatch) "Viewer to expose value in step simulation: works in subsheets. \
+                                                                                                         Can also be used to terminate an unused output."
+                          catTip1 "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value of specified width, \
+                                                                                            e.g. 0 or 1, to drive an input. Values can be written \
+                                                                                            in hex, decimal, or binary."
                           catTip1 "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \
-                                                                                                                         together wires or busses"]
+                                                                                                                         together wires within a sheet. Each set of labels \
+                                                                                                                         muts have exactly one driving input. \
+                                                                                                                         A label can also be used to terminate an unused output"]
                     makeMenuGroup
                         "Buses"
-                        [ catTip1 "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewire when you want to \
-                                                                                       join the bits of a two busses to make a wider bus"
+                        [ catTip1 "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewires when you want to \
+                                                                                       join the bits of a two busses to make a wider bus. \
+                                                                                       Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
+                                                                                       after placing component to change this."
                           catTip1 "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
-                                                                                             bits of a bus into two sets"
+                                                                                             bits of a bus into two sets. \
+                                                                                             Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
+                                                                                             after placing component to change this."
                           catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or \
                                                                                                 more selected bits of its input"
                           catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \
-                                                                                                 matches a constant value" 
+                                                                                                 matches a constant value as written in decimal, hex, or binary." 
                           catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "1-to-N bits spreader"]
                     makeMenuGroup
                         "Gates"

@@ -480,8 +480,9 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let title, width =
         match comp.Type with
         | Input1 (w, _) | Output w | NbitsAdder w  | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
-        | NbitsXor w | NbitsAnd w | NbitsOr w |NbitsNot w |NbitSpreader w 
+        | NbitsXor w | NbitsAnd w | NbitsOr w |NbitsNot w 
         | Register w | RegisterE w |Counter w |CounterNoEnable w |CounterNoEnableLoad w |CounterNoLoad w | Viewer w -> "Number of bits", w
+        | NbitSpreader w -> "Width of output bus", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | BusCompare( w, _) -> "Bus width", w
@@ -667,15 +668,17 @@ let private makeDescription (comp:Component) model dispatch =
     | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | Viewer _ -> str "Viewer."
-    | BusCompare _ | BusCompare1 _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified. This will display in hex on the design sheet. Busses of greater than 32 bits are not supported"
+    | BusCompare _ | BusCompare1 _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified. \
+                                           This will display in hex on the design sheet. Busses of greater than 32 bits are not supported"
     | BusSelection _ -> div [] [
                 str "Bus Selection."
                 br []
-                str "The output is the subrange [width+lsb-1..lsb] of the input bits. If width = 1 this selects one bit. Error if the input has less than width + lsb bits."
+                str "The output is the subrange [width+lsb-1..lsb] of the input bits. If width = 1 this selects one bit. \
+                     Error if the input has less than width + lsb bits."
                 br []
                 br []
                 str "Note that the output bit(s) are numbered from 0 even if the input range has LS bit number > 0. \
-                     The input bits connected are displayed in the schematic symbol"
+                     The input range selected for output is displayed in brackets on the symbol."
         ]
     | IOLabel -> div [] [
         str "Label on Wire or Bus. Labels with the same name connect wires. Each label has input on left and output on right. \
@@ -703,8 +706,10 @@ let private makeDescription (comp:Component) model dispatch =
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
     | Demux4 -> div [] [ str "Demultiplexer with one input and four outputs." ]
     | Demux8 -> div [] [ str "Demultiplexer with one input and eight outputs." ]
-    | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
-    | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m."]
+    | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m. \
+                                  The bit numbers of the whole and each branch are shown when the component is connected." ]
+    | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m. \
+                                   The bit numbers of the whole and each branch are shown when the component is connected."]
     | NbitsAdder numberOfBits 
     | NbitsAdderNoCin numberOfBits 
     | NbitsAdderNoCout numberOfBits 
@@ -714,7 +719,8 @@ let private makeDescription (comp:Component) model dispatch =
     | NbitsAnd numberOfBits  -> div [] [ str <| sprintf "%d AND gates with %d outputs." numberOfBits numberOfBits]
     | NbitsOr numberOfBits  -> div [] [ str <| sprintf "%d OR gates with %d outputs." numberOfBits numberOfBits]
     | NbitsNot numberOfBits  -> div [] [ str <| sprintf "%d NOT gates with %d outputs." numberOfBits numberOfBits]
-    | NbitSpreader numberOfBits  -> div [] [ str <| sprintf "One input Bit Spreader with one %d-bit output." numberOfBits]
+    | NbitSpreader numberOfBits  -> div [] [ str <| sprintf "Bus Spreader: every bit in the %d-bit output wire is the same as the 1-bit input. \
+                                                            Used to implement sign extension and shift operations." numberOfBits]
     | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]
     | Custom custom ->
         let styledSpan styles txt = span [Style styles] [str <| txt]

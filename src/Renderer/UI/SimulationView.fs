@@ -525,8 +525,14 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
 
 
 let private viewSimulationData (step: int) (simData : SimulationData) model dispatch =
+    let viewerWidthList =
+        FastRun.extractViewers simData
+        |> List.map (fun (_, width, _) -> width)
+    let outputWidthList =
+        simData.Outputs 
+        |> List.map (fun (_,_,w) -> w)       
     let hasMultiBitOutputs =
-        simData.Outputs |> List.filter (fun (_,_,w) -> w > 1) |> List.isEmpty |> not
+        (List.append outputWidthList viewerWidthList)|> List.map ((>) 1) |> List.isEmpty |> not
     let maybeBaseSelector =
         match hasMultiBitOutputs with
         | false -> div [] []

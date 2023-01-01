@@ -162,9 +162,13 @@ let formatLabel (comp:Component) (text:string) =
 let setComponentLabel model (sheetDispatch) (comp:Component) (text:string) =
     // let label = formatLabel comp text
     let label = text.ToUpper() // TODO
-
     model.Sheet.ChangeLabel sheetDispatch (ComponentId comp.Id) label
-    //model.Diagram.EditComponentLabel comp.Id label
+    match comp.Type with
+    | IOLabel ->
+        // need to redo bus width inference after IoLabel component change because this cabn alter circuit correctness
+        let busWireDispatch bMsg = sheetDispatch (DrawModelType.SheetT.Msg.Wire bMsg)
+        busWireDispatch DrawModelType.BusWireT.Msg.BusWidths
+    | _ -> ()
 
 
 

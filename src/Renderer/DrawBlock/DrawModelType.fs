@@ -80,12 +80,18 @@ module SymbolT =
     
     type AppearanceT =
         {
+            // During various operations the ports on a symbol (input, output, or both types)
+            // are highlighted as circles. This D.U. controls that.
             ShowPorts: ShowPorts
+            // appears not to be used now.
             HighlightLabel: bool
+            /// symbol color is determined by symbol selected / not selected, or if there are errors.
             Colour: string
+            /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
         }
 
+    /// This defines the colors used in teh drawblack, and therfore also the symbol color.
     type ThemeType =
         |White
         |Light
@@ -98,41 +104,73 @@ module SymbolT =
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
 
 
-    /// Represents a symbol, that contains a component and all the other information needed to render
+    /// Represents a symbol, that contains a component and all the other information needed to render it
     type Symbol =
         {
             /// Coordinates of the symbol's top left corner
+            /// on component save/restore this is also X,Y on Component type.
             Pos: XYPos
         
-            /// Width of the input port 0
+            /// Width of the wires connected to input ports 0 & 1
+            /// This is needed on the symbol only for  bus splitter and bus merge symbols
+            /// These display the bit numbers of their connections.
+            /// wire widths are calulated by width inference so these values are transient and
+            /// need not be stored.
             InWidth0: int option
-
-            /// Width of the output port 1
             InWidth1: int option
 
+            /// the following fields define the position and size of the component label.
+            /// labels will rotate when the symbol is rotated.
+            /// labels can be manually adjusted, if not position is as default (for given rotation)
             LabelBoundingBox: BoundingBox
             LabelHasDefaultPos: bool
             LabelRotation: Rotation option
         
-
+            /// this filed contains transient information that alters the appearance of the symbol
             Appearance: AppearanceT
 
-            Id : ComponentId       
-            Component : Component                 
+            /// This, for convenience, is a copy of the component Id string, used as Id for symbol
+            /// Thus symbol Id = component Id.
+            /// It is unique within one design sheet.
+            Id : ComponentId  
 
+            /// This is the electrical component.
+            /// When the component is loaded into draw block the position is kept as Pos field in symbol
+            /// However H & W remain important, as the height and width of the symbol. This is anomalous.
+            /// It would make sure sense for all geometric info to be in fields on the symbol.
+            /// However X,Y,H,W are used (to some extent) in non-draw-block Issie code.
+            /// NB HScale, VScale modify H,
+            Component : Component  
+            
+            /// transient field to show if ports are being dragged in teh UI.
             Moving: bool
+            /// determines whetehr the symbol or its contents (it it is a custom component) contain any clo9cked logic.
+            /// used to display a clokc symbol
             IsClocked: bool
+            /// determines whether symbol is rorated (in 90 degree increments) or flipped (reflected).
             STransform: STransform
             ReversedInputPorts: bool option
 
+            /// These maps contain the order (on and edge), and the symbol edge, of each port.
+            /// Edge positions are known from the component XYPos and H (height), W (width).
+            /// Ports are located as fixed equidistant positions along each component edge dependent on number of ports.
+            /// Therefore port position can be calculated from these maps and XYPos, H, W.
             PortMaps : PortMaps
 
+            /// HScale & VScale modify default W (width)  and H (height) respectively if not None. They are changed by symbol property box.
+            /// Horizontal symbol dimension = HScale*W etc
+            /// They are currently used only on Custom Components and will not work on other omponents.
             HScale : float option
+            /// HScale & VScale modify W and H respectively if not None.
+            /// Vertical symbol dimension = VScale*H etc
+            /// They are currently used only on Custom Components and will not work on other omponents.
+
             VScale : float option
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
+            /// dynamic info used in port move operation.
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
-
+            /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
 
         }

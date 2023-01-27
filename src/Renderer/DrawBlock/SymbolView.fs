@@ -281,7 +281,6 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             match rotatePoints [|pos|] {X=W/2.;Y=H/2.} transform with 
             | [|pos'|]-> pos' 
             | _ -> failwithf "What? Can't happen"
-
         match comp.Type with
         | MergeWires -> 
             let lo, hi = 
@@ -421,19 +420,22 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | _ -> "14px"
 
     // Put everything together 
-    (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
-    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
-    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addLegendText 
-                        (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) 
-                        "middle" 
-                        "bold" 
-                        (legendFontSize comp.Type))
-    |> List.append (addComponentLabel comp transform labelcolour)
-    |> List.append (additions)
-    |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+    match Hlp23Tick3.drawSymbolHook symbol theme with
+    | Some rendered -> rendered
+    | None ->
+        (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
+        |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
+        |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+        |> List.append (addLegendText 
+                            (legendOffset w h symbol) 
+                            (getComponentLegend comp.Type transform.Rotation) 
+                            "middle" 
+                            "bold" 
+                            (legendFontSize comp.Type))
+        |> List.append (addComponentLabel comp transform labelcolour)
+        |> List.append (additions)
+        |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
+        |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
 
 
 

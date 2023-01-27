@@ -28,6 +28,7 @@ open Symbol
 /// This is needed because HLPTick3 is earlier in the F# compile order than Buswire so
 /// the functions cannot be called directly.
 /// Add functions as needed.
+/// NB these helpers are not needed to do Tick3
 type Tick3BusWireHelpers = {
     AutoRoute: BusWireT.Model -> Wire -> Wire
     ReverseWire: Wire -> Wire
@@ -41,7 +42,8 @@ type Tick3BusWireHelpers = {
 /// drawsymbol contains lots of example code showing how they can be used.
 /// The returned value is a list of SVG objects (reactElement list) that will be
 /// displayed on screen.
-//  for Tick 3 see the Tick 3 powerpoint for what you need to do.
+//  for Tick 3 see the Tick 3 Powerpoint for what you need to do.
+//  the house picture, and its dependence on the two parameters, will be assessed via interview.
 let drawSymbolHook 
         (symbol:Symbol) 
         (theme:ThemeType) 
@@ -56,9 +58,12 @@ let drawSymbolHook
 /// The return value must be a (possibly modified) copy of wire.
 
 // For tick 3 modify the updated wires (in some cases) somehow. 
-// e.g. if they are 3 segment and some standard orientation change where the middle
-// segment is on screen so it is 1/3 of the way between the two conmponents instead of 1/2.
+// e.g. if they have 3 visual segments and have a standard (you decide what) orientation change where the middle
+// segment is on screen so it is 1/3 of the way between the two components instead of 1/2.
 // do something more creative or useful if you like.
+// This part of Tick will pass if you can demo one wire changing as you move a symbol in some way different from
+// Issie: the change need not work on all quadrants (where it is not implemented the wire should default to
+// Issie standard.
 let updateWireHook 
         (model: BusWireT.Model) 
         (wire: Wire) 
@@ -83,11 +88,7 @@ let updateWireHook
 /// changing the values of busWireModel.Wires which
 /// is a Map<ConnectionId , Wire> and contains all wires
 /// keyed by their wire Id (type ConnectionId)
-/// For tick 3 - make this print out some info on which wires are being routed,
-/// e.g. a lits of wired with how many segments each wire has.
-/// NB - to print out wire ids take the first 6 characters etc 
-/// from the v long wire id string as an id. 
-/// (there may be an Issie function somewhere that does this).
+/// No change required for Tick 3 
 let smartAutoRouteWires
         (wireIds: ConnectionId list) 
         (tick3Helpers: Tick3BusWireHelpers)

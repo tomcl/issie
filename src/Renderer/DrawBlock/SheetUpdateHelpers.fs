@@ -514,16 +514,24 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         // Reset Movement State in Model
         match model.ErrorComponents with
         | [] ->
+            let tick3Helpers: Hlp23Tick3.Tick3BusWireHelpers = 
+                {
+                    AutoRoute = BusWireUpdateHelpers.autoroute
+                    ReverseWire = BusWireUpdateHelpers.reverseWire
+                }
             let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
-            {model with
-                // BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol
-                Action = Idle
-                SnapSymbols = emptySnap
-                SnapSegments = emptySnap
-                UndoList = appendUndoList model.UndoList newModel
-                RedoList = []
-                AutomaticScrolling = false },
-            wireCmd (BusWireT.MakeJumps movingWires)
+            model
+            |> Hlp23Tick3.smartAutoRouteWires movingWires tick3Helpers
+            |> (fun model -> {
+                model with
+                    // BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol
+                    Action = Idle
+                    SnapSymbols = emptySnap
+                    SnapSegments = emptySnap
+                    UndoList = appendUndoList model.UndoList newModel
+                    RedoList = []
+                    AutomaticScrolling = false },
+                                wireCmd (BusWireT.MakeJumps movingWires))
         | _ ->
             let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
             {model with

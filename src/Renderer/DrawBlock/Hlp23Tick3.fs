@@ -23,6 +23,11 @@ open DrawHelpers
 // the file containing symbol subfunctions etc
 open Symbol
 
+/// submodule for constant definitions used in this module
+module Constants =
+    let xxx = 111 // sample constant definition (with bad name) delete and replace
+                  // your constants. Delete this comment as well!
+
 /// Record containing BusWire helper functions that might be needed by updateWireHook
 /// functions are fed in at the updatewireHook function call in BusWireUpdate.
 /// This is needed because HLPTick3 is earlier in the F# compile order than Buswire so

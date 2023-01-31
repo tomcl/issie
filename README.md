@@ -231,6 +231,12 @@ for each directory that might have the files with bad permissions. Typically you
       ```bash
       brew install asdf
       ```
+      
+      After installation, you need to add asdf.sh to your rc file. Find the instruction match your system [here](https://asdf-vm.com/guide/getting-started.html#_3-install-asdf). For example, if your are using zsh, which is the default shell in latest macOS
+      
+      ```zsh
+      echo -e "\n. $(brew --prefix asdf)/libexec/asdf.sh" >> ${ZDOTDIR:-~}/.zshrc
+      ```
 
   4. Install [Rosetta 2](https://support.apple.com/en-gb/HT211861), an application compatibility layer, and x86_64 `dotnet`
 

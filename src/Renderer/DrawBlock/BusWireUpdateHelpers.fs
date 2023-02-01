@@ -337,7 +337,7 @@ let coalesceInWire (wId: ConnectionId) (model:Model) =
     Optic.set (wireOf_ wId >-> segments_) newSegments model
 
 
-/// Returns a wwireOf_aining the updated list of segments after a segment is moved by 
+/// Returns a wire containing the updated list of segments after a segment is moved by 
 /// a specified distance. The moved segment is tagged as manual so that it is no longer auto-routed.
 /// Throws an error if the index of the segment being moved is not a valid movable segment index.
 let moveSegment (model:Model) (seg:Segment) (distance:float) = 

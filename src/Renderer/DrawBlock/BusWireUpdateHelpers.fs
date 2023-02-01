@@ -611,6 +611,12 @@ let reverseWire (wire: Wire) =
 /// Reverse indicates if the wire should be processed in reverse, 
 /// used when an input port (end of wire) is moved.
 let updateWire (model : Model) (wire : Wire) (reverse : bool) =
+    let tick3Helpers: Hlp23Tick3.Tick3BusWireHelpers = 
+        {
+            AutoRoute = autoroute
+            ReverseWire = reverseWire
+        }
+
     let newPort = 
         match reverse with
         | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort
@@ -621,6 +627,10 @@ let updateWire (model : Model) (wire : Wire) (reverse : bool) =
     else 
         partialAutoroute model wire newPort false
     |> Option.defaultValue (autoroute model wire)
+    |> (fun wire ->
+        Hlp23Tick3.updateWireHook model wire tick3Helpers
+        |> Option.defaultValue  wire)
+
 
 //--------------------------------------------------------------------------------//
 

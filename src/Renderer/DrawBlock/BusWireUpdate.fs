@@ -370,20 +370,10 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             |> Map.toList
 
         let newWires =
-            let tick3Helpers: Tick3BusWireHelpers = 
-                    {
-                        AutoRoute = autoroute
-                        ReverseWire = reverseWire
-                    }
             (model.Wires, wiresToReroute)
             ||> List.fold (fun wires (wid, wire) ->
                 let routeInputEndOfWire = rerouteInputEnd wire
-                let wire' = 
-                    match Hlp23Tick3.updateWireHook model wire routeInputEndOfWire tick3Helpers with
-                    | Some updatedWire -> updatedWire
-                    | None -> 
-                        updateWire model wire routeInputEndOfWire
-                Map.add wid wire' wires)
+                Map.add wid wire wires)
 
         {model with Wires = newWires}, Cmd.none
 

@@ -53,6 +53,7 @@ let drawSymbolHook
         (symbol:Symbol) 
         (theme:ThemeType) 
         : ReactElement list option =
+    //printfn "Symbolhook"
     None
 
 /// Return Some newWire to replace updateWire by your own code defined here.
@@ -72,9 +73,9 @@ let drawSymbolHook
 let updateWireHook 
         (model: BusWireT.Model) 
         (wire: Wire) 
-        (routeInputEnd:bool) 
         (tick3Helpers: Tick3BusWireHelpers)
         : Wire option =
+    //printfn "Wirehook!"
     None
 
 //---------------------------------------------------------------------//

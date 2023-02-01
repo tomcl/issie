@@ -37,6 +37,7 @@ module Constants =
 type Tick3BusWireHelpers = {
     AutoRoute: BusWireT.Model -> Wire -> Wire
     ReverseWire: Wire -> Wire
+    MoveSegment: Model -> Segment -> float -> Wire
     }
 
 
@@ -82,7 +83,7 @@ let updateWireHook
     let segmentInfo =
         wire.Segments
         |> List.map (fun (seg:Segment) -> seg.Length,seg.Mode)
-    //printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}"
+    printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}"
     None
 
 //---------------------------------------------------------------------//

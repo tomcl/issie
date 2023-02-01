@@ -615,6 +615,7 @@ let updateWire (model : Model) (wire : Wire) (reverse : bool) =
         {
             AutoRoute = autoroute
             ReverseWire = reverseWire
+            MoveSegment = moveSegment
         }
 
     let newPort = 

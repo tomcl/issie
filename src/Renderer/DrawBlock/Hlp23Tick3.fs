@@ -53,7 +53,11 @@ let drawSymbolHook
         (symbol:Symbol) 
         (theme:ThemeType) 
         : ReactElement list option =
-    //printfn "Symbolhook"
+    // replace the code below by your own code
+    match symbol.Component.Type with
+    | Constant1 (width,constValue, _) ->
+        printfn $"CONSTANT: width={width} ConstVale={constValue}"
+    | _ -> printfn "Symbol Hook"
     None
 
 /// Return Some newWire to replace updateWire by your own code defined here.
@@ -75,7 +79,10 @@ let updateWireHook
         (wire: Wire) 
         (tick3Helpers: Tick3BusWireHelpers)
         : Wire option =
-    //printfn "Wirehook!"
+    let segmentInfo =
+        wire.Segments
+        |> List.map (fun (seg:Segment) -> seg.Length,seg.Mode)
+    //printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}"
     None
 
 //---------------------------------------------------------------------//

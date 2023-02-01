@@ -518,6 +518,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 {
                     AutoRoute = BusWireUpdateHelpers.autoroute
                     ReverseWire = BusWireUpdateHelpers.reverseWire
+                    MoveSegment = BusWireUpdateHelpers.moveSegment
                 }
             let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
             model

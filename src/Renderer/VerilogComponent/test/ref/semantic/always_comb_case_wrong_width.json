@@ -1,0 +1,20 @@
+[
+    {
+        "Line": 10,
+        "Col": 13,
+        "Length": 5,
+        "Message": "Width of case value does not match \n the given case expression",
+        "ExtraErrors": [
+            {
+                "Text": "Width of case expression (2 bits wide) does not match width of this case item (3 bits wide).",
+                "Copy": false,
+                "Replace": "NoReplace"
+            },
+            {
+                "Text": "2'b00",
+                "Copy": true,
+                "Replace": "3'b00"
+            }
+        ]
+    }
+]

@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "clr",
+            "Width": 1,
+            "Values": [0,0,0,1,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0]
+        },
+        {
+            "Label": "up_down",
+            "Width": 1,
+            "Values": [1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,0,1,1,0]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "q",
+            "Width": 4
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "counter"
+}

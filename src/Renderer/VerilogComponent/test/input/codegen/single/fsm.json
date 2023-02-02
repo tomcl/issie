@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "reset",
+            "Width": 1,
+            "Values": [0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0]
+        },
+        {
+            "Label": "datain",
+            "Width": 1,
+            "Values": [1,1,1,0,1,1,1,0,1,1,1,0,0,1,1,1,0,1,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "dataout",
+            "Width": 1
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "jfsmMealyWithOverlap"
+}

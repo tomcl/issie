@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "enable",
+            "Width": 1,
+            "Values": [0,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1]
+        },
+        {
+            "Label": "encoder_in",
+            "Width": 16,
+            "Values": [1, 2, 32768, 4, 16384, 8, 8192, 16, 4096, 32, 2048, 64, 1024, 128, 512, 256, 3, 64, 4096, 5000]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "binary_out",
+            "Width": 4
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "encoder_using_case"
+}

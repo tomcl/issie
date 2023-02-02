@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "t",
+            "Width": 1,
+            "Values": [0,1,0,1,1,1,1,0,0,1,0,1,0,1]
+        },
+        {
+            "Label": "i",
+            "Width": 1,
+            "Values": [1,0,0,1,0,1,1,0,0,1,1,1,1,0]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "o",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "three_st"
+}

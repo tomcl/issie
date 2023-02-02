@@ -246,7 +246,7 @@ let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactEle
             |Some proj -> {proj with WorkingFileName = Some (custom.Name)}
             |None -> failwithf "Can't happen!"
         let model'= {model with CurrentProj = Some project'} 
-        createVerilogPopup model false (Some code) (Some name) (UpdateVerilogFile name)
+        createVerilogPopup model true (Some code) (Some name) (UpdateVerilogFile name)
     
     match model.CurrentProj with
     | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"

@@ -1,0 +1,26 @@
+{
+    "Inputs": [
+        {
+            "Label": "a",
+            "Width": 8,
+            "Values": [12,34,127,0,100,105,75,64,87,93,51,13,25,37]
+        },
+        {
+            "Label": "b",
+            "Width": 8,
+            "Values": [0,40,5,100,35,72,84,91,101,111,117,34,41,45]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "sum",
+            "Width": 8
+        },
+        {
+            "Label": "co",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "adder"
+}

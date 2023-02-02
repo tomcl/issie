@@ -1,0 +1,1 @@
+[{"Line":6,"Col":21,"Length":3,"Message":"Variable 'clk' is not defined as an input port.","ExtraErrors":[{"Text":"To use always_ff blocks, please make sure to include 'clk' in the port list.","Copy":false,"Replace":"NoReplace"},{"Text":"input bit clk;","Copy":true,"Replace":"IODeclaration"}]}]

@@ -1,0 +1,21 @@
+{
+    "Inputs": [
+        {
+            "Label": "DIN",
+            "Width": 4,
+            "Values": [7,15,3,1,0,5,2,8,10,13]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "DOUT",
+            "Width": 5
+        },
+        {
+            "Label": "parity",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "jparityGenerator"
+}

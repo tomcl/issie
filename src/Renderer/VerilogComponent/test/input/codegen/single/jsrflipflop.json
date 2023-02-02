@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "rst",
+            "Width": 1,
+            "Values": [0,0,0,0,1,0,0,0,1,1]
+        },
+        {
+            "Label": "sr",
+            "Width": 2,
+            "Values": [0,1,2,0,3,3,1,2,3,0]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "q",
+            "Width": 1
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "jsrflipflop"
+}

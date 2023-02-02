@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "d",
+            "Width": 1,
+            "Values": [1,0,1,1,1,0,0,0,0,1,0,1,0,0,1]
+        },
+        {
+            "Label": "ce",
+            "Width": 1,
+            "Values": [0,1,1,1,1,1,1,1,1,0,0,0,1,1,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "q",
+            "Width": 1
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "flop"
+}

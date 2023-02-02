@@ -1,0 +1,30 @@
+{
+    "Inputs": [
+        {
+            "Label": "A",
+            "Width": 4,
+            "Values": [7,2,3,1,0,1]
+        },
+        {
+            "Label": "B",
+            "Width": 4,
+            "Values": [0,1,3,5,4,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "AEQB",
+            "Width": 1
+        },
+        {
+            "Label": "AGTB",
+            "Width": 1
+        },
+        {
+            "Label": "ALTB",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "jmagnitudeComparator"
+}

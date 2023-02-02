@@ -1,0 +1,17 @@
+{
+    "Inputs": [
+        {
+            "Label": "reset",
+            "Width": 1,
+            "Values": [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        }
+    ],
+    "Outputs": [
+        {
+        "Label": "OUTPUT",
+        "Width": 3
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "jarbitraryCounter"
+}

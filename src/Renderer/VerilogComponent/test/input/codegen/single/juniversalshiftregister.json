@@ -1,0 +1,27 @@
+{
+    "Inputs": [
+        {
+            "Label": "reset",
+            "Width": 1,
+            "Values": [0,0,0,0,0,1,0,0,0,0]
+        },
+        {
+            "Label": "MODE",
+            "Width": 2,
+            "Values": [3,1,1,1,1,1,3,1,1,1]
+        },
+        {
+            "Label": "DATAIN",
+            "Width": 4,
+            "Values": [10,1,3,1,0,1,5,3,4,5]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "DATAOUT",
+            "Width": 4
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "juniversalShiftRegister"
+}

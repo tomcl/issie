@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "a",
+            "Width": 8,
+            "Values": [1,2,4,5,3,12,15,50,45,120,80,85,91,95,102,107]
+        },
+        {
+            "Label": "b",
+            "Width": 8,
+            "Values": [0,1,123,124,127,100,40,40,10,13,25,37,72,10,13]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "cmp",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "compar"
+}

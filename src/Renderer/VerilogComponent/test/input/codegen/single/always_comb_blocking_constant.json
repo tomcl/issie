@@ -1,0 +1,24 @@
+{
+    "Inputs": 
+    [
+        {
+            "Label": "in",
+            "Width": 1,
+            "Values": [0,0,0,1,1,1]
+        }
+    ], 
+    "Outputs": 
+    [
+        {
+            "Label": "out",
+            "Width": 4
+        },
+        {
+            "Label": "out2",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "always_comb_blocking_constant"
+
+}

@@ -1,0 +1,15 @@
+[
+    {
+        "Line": 11,
+        "Col": 23,
+        "Length": 2,
+        "Message": "Wrong width of variable: 'in'",
+        "ExtraErrors": [
+            {
+                "Text": "Variable: 'in' is defined as in[1:0] \nTherefore, in[5] is invalid",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

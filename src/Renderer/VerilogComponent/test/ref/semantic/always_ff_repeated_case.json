@@ -1,0 +1,15 @@
+[
+    {
+        "Line": 16,
+        "Col": 13,
+        "Length": 5,
+        "Message": "Duplicate case value",
+        "ExtraErrors": [
+            {
+                "Text": "The following case value is duplicated: 2'b00, see line 12. Please make sure there are no repeated case values.",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

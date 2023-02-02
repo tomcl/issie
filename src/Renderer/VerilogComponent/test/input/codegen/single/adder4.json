@@ -1,0 +1,43 @@
+{
+    "Inputs": [
+        {
+            "Label": "reset",
+            "Width": 1,
+            "Values": [0,1,0,0,0,0,0,0,0,0,0,0,0,1,0]
+        },
+        {
+            "Label": "a",
+            "Width": 1,
+            "Values": [1,0,1,1,0,0,1,0,1,0,1,1,0,1,0]
+        },
+        {
+            "Label": "b",
+            "Width": 1,
+            "Values": [1,0,0,0,0,1,0,0,1,1,0,0,0,1,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "sum",
+            "Width": 1
+        },
+        {
+            "Label": "carry",
+            "Width": 1
+        },
+        {
+            "Label": "so",
+            "Width": 4
+        },
+        {
+            "Label": "count",
+            "Width": 3
+        },
+        {
+            "Label": "cout",
+            "Width": 1
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "jserialaddlab"
+}

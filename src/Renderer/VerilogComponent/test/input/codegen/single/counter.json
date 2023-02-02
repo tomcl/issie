@@ -1,0 +1,17 @@
+{
+    "Inputs": [
+        {
+            "Label": "reset",
+            "Width": 1,
+            "Values": [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "count",
+            "Width": 4
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "synchronouscounter"
+}

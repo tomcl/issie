@@ -575,15 +575,16 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 match writeFile path code with
                 | Ok _ -> ()
                 | Error _ -> failwithf "Writing verilog file FAILED"
-                
+
                 let parsedCodeNearley = parseFromFile(code)
+                printfn $"{parsedCodeNearley}"
                 let output = Json.parseAs<ParserOutput> parsedCodeNearley
                 let result = Option.get output.Result
                 let fixedAST = fix result
                 printfn "fixed %A" fixedAST
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
 
-                let cs = SheetCreator.createSheet parsedAST
+                let cs = SheetCreator.createSheet parsedAST project
                 let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {Form = Some (Verilog name);Description=None})
 
                 match writeFile path2 toSaveCanvasState with
@@ -616,7 +617,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let result = Option.get output.Result
                 let fixedAST = fix result
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
-                let newCS = SheetCreator.createSheet parsedAST
+                let newCS = SheetCreator.createSheet parsedAST project
 
                 dispatch (StartUICmd SaveSheet)               
                 updateVerilogFileActionWithModelUpdate newCS name model dispatch |> ignore
@@ -644,7 +645,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                         let dataUpdated = {dialogData with VerilogErrors = errorList; VerilogCode=Some code}
                         let showErrors' = 
                             match List.isEmpty errorList with
-                            | true -> false
+                            | true -> showExtraErrors
                             | false -> showExtraErrors 
                         createVerilogPopup {model with PopupDialogData = dataUpdated } showErrors' None (Some moduleName) origin dispatch
                 else
@@ -656,7 +657,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
 
     let addButton =
         fun (dialogData : PopupDialogData) ->
-            fun (suggestion,replaceType,line) -> 
+            fun (suggestion,replaceType,line, col) -> 
                 
                 let findLastIOAndAssignment (oldCode:string) =
                     let isSmallerThan x y = y <= x
@@ -684,8 +685,12 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                     let prevIndexA = List.findIndexBack (fun x -> isSmallerThan lastAssignmentLocation x) linesIndex                    
                     
                     (prevIndexIO,prevIndexA)
-                
-                
+                let replaceSubstringAtLocation (originalString: string) (replacement: string) (startIndex: int) (length: int) =
+                    let prefix = originalString.[..(startIndex-1)]
+                    let suffix = originalString.[(startIndex+length)..]
+                    prefix + replacement + suffix
+
+                // need to update the variable at the specific location
                 let putToCorrectPlace (oldCode:string) suggestion replaceType line =
                     let sepCode = oldCode.Split([|"\n"|],StringSplitOptions.RemoveEmptyEntries)
                     let linesList = Seq.toList sepCode
@@ -700,7 +705,8 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                             |1 -> linesList[v-1]
                             |_ -> s+"\n"+linesList[v-1]
                         )
-                        let fixedLine = linesList[line-1].Replace(error,suggestion)
+                        let fixedLine = replaceSubstringAtLocation linesList[line-1] suggestion (col-1) error.Length
+                        printfn $"fixed: {fixedLine}"
                         let fixedError = 
                             match line with
                             |1 -> fixedLine
@@ -878,7 +884,7 @@ let viewCatalogue model dispatch =
                         "Write combinational logic in Verilog and use it as a Custom Component. 
                          To edit/delete a verilog component add it in a sheet and click on 'properties'"
                         (List.append 
-                            [menuItem styles "New Verilog Component" (fun _ -> createVerilogPopup model false None None NewVerilogFile dispatch) ]
+                            [menuItem styles "New Verilog Component" (fun _ -> createVerilogPopup model true None None NewVerilogFile dispatch) ]
                             (makeVerilogList styles model dispatch))
                           
                 ]

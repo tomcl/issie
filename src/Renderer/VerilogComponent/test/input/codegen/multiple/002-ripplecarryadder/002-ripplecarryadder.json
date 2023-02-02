@@ -1,0 +1,31 @@
+{
+    "Inputs": [
+        {
+            "Label": "A",
+            "Width": 4,
+            "Values": [0,12,14,9,7,5,10,11,3,4]
+        },
+        {
+            "Label": "B",
+            "Width": 4,
+            "Values": [1,0,10,3,4,2,10,15,2,4]
+        },
+        {
+            "Label": "carryin",
+            "Width": 1,
+            "Values": [0,0,0,1,1,1,0,1,0,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "Y",
+            "Width": 4
+        },
+        {
+            "Label": "carryout",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "jripplecarryadder"
+}

@@ -1,0 +1,31 @@
+{
+    "Inputs": [
+        {
+            "Label": "reset",
+            "Width": 1,
+            "Values": [0,1,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        },
+        {
+            "Label": "load",
+            "Width": 1,
+            "Values": [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        },
+        {
+            "Label": "enable",
+            "Width": 1,
+            "Values": [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "count_out",
+            "Width": 4
+        },
+        {
+            "Label": "count",
+            "Width": 4
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "counter4bit"
+}

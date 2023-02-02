@@ -1,0 +1,31 @@
+{
+    "Inputs": [
+        {
+            "Label": "a",
+            "Width": 4,
+            "Values": [1,0,1,3,4,5,6,7,8,9,10,11,12,13,14,15]
+        },
+        {
+            "Label": "b",
+            "Width": 4,
+            "Values": [13,0,1,2,3,12,15,7,5,6,4,3,2,8,10,11]
+        },
+        {
+            "Label": "cin",
+            "Width": 1,
+            "Values": [0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "sum",
+            "Width": 4
+        },
+        {
+            "Label": "cout",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "fulladder"
+}

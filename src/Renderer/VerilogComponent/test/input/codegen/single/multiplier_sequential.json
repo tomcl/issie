@@ -1,0 +1,36 @@
+{
+    "Inputs": [
+        {
+            "Label": "in_a",
+            "Width": 8,
+            "Values": [3,6,12,40,23,54,29,58]
+        },
+        {
+            "Label": "in_b",
+            "Width": 8,
+            "Values": [1,0,128,98,103,256,31,5]
+        },
+        {
+            "Label": "load",
+            "Width": 1,
+            "Values": [0,1,1,1,1,1,1,1]
+        },
+        {
+            "Label": "reset",
+            "Width": 1,
+            "Values": [1,0,0,0,0,0,0,0]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "out_valid",
+            "Width": 1
+        },
+        {
+            "Label": "out_prod",
+            "Width": 16
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "seqmult"
+}

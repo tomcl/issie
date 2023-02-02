@@ -1,0 +1,17 @@
+{
+    "Inputs": [
+        {
+            "Label": "sel",
+            "Width": 3,
+            "Values": [0,1,2,3,4,5,6,7,6,5]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "res",
+            "Width": 8
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "mux"
+}

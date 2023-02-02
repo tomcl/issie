@@ -1,0 +1,15 @@
+[
+    {
+        "Line": 12,
+        "Col": 5,
+        "Length": 10,
+        "Message": "Variable written to after it is read",
+        "ExtraErrors": [
+            {
+                "Text": "The following variables are read and then updated: binary_out This creates undefined behaviour in an always_comb block, please make sure to not update a variable after it is read.",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

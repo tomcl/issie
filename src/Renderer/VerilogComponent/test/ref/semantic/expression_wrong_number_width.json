@@ -1,0 +1,38 @@
+[
+    {
+        "Line": 10,
+        "Col": 9,
+        "Length": 4,
+        "Message": "Width of case value does not match \n the given case expression",
+        "ExtraErrors": [
+            {
+                "Text": "Width of case expression (1 bits wide) does not match width of this case item (0 bits wide).",
+                "Copy": false,
+                "Replace": "NoReplace"
+            },
+            {
+                "Text": "1'b1",
+                "Copy": true,
+                "Replace": "0'b1"
+            }
+        ]
+    },
+    {
+        "Line": 10,
+        "Col": 9,
+        "Length": 3,
+        "Message": "Number can't be 0 bits wide",
+        "ExtraErrors": [
+            {
+                "Text": "Number can't be 0 bits wide",
+                "Copy": false,
+                "Replace": "NoReplace"
+            },
+            {
+                "Text": "The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

@@ -1,0 +1,20 @@
+[
+    {
+        "Line": 7,
+        "Col": 9,
+        "Length": 10,
+        "Message": "Out of bounds index for variable 'binary_out'",
+        "ExtraErrors": [
+            {
+                "Text": "Variable: 'binary_out' is defined as binary_out[1:0] \nTherefore, binary_out[4] is invalid",
+                "Copy": false,
+                "Replace": "NoReplace"
+            },
+            {
+                "Text": "assign binary_out = 0;",
+                "Copy": true,
+                "Replace": "Assignment"
+            }
+        ]
+    }
+]

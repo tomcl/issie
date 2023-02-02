@@ -2,6 +2,66 @@
 const nearley = require("nearley");
 const verilogGrammar = require("./VerilogGrammar.js");
 
+function getTokenValue(token) {
+    const operators = ['nand','nor','sll','srl','sra','xor_xnor','gte','lte','lor','land','eq','neq','question','or','and','not','lt','gt','plus','minus','lnot', 'mult'];
+    if(operators.includes(token)){
+        return "{OPERATOR}";
+    }
+    else switch(token) {
+        case('t_if'):
+            return "'if'";
+        case('t_else'):
+            return "'else'";
+        case('t_case'):
+            return "'case'";
+        case('t_endcase'):
+            return "'endcase'";
+        case('t_default'):
+            return "'default'";
+        case('hexBase'):
+        case('binaryBase'):
+        case('decimalBase'):
+            return '{NUMBER BASE}';
+        case('lparen'):
+            return "'('";
+        case('rparen'):
+            return "')'";
+        case('lbracket'):
+            return "'['";
+        case('rbracket'):
+            return "']'";
+        case('lbrace'):
+            return "'{'";
+        case('rbrace'):
+            return "'}'";
+        case ('semicolon'):
+            return "';'";
+        case ('colon'):
+            return "':'";
+        case ('comma'):
+            return "','";
+        case ('at'):
+            return "'@'";
+        case ('op_assign'):
+            return "'='";
+        case ('IDENTIFIER'):
+            return '{IDENTIFIER}';
+        case ('binary'):
+        case('unsigned_number'):
+        case('all_numeric'):
+            return '{NUMBER};';
+        case('ws'):
+            return "' '";
+        case('dot'):
+            return "'.'";
+        default:
+            return "'" + token + "'";
+            
+        
+    }
+
+}
+
 // calls the nearley parser
 // if parser fails it returns the error message provided by the nearley parser in a simple form
 export function parseFromFile(source) {
@@ -9,19 +69,29 @@ export function parseFromFile(source) {
         const parser = new nearley.Parser(nearley.Grammar.fromCompiled(verilogGrammar));
         const sourceTrimmed = source.replace(/\s+$/g, '');
         const sourceTrimmedComments = sourceTrimmed.replace(/\/\/.*$/gm,' '); //\/\*[\s\S]*?\*\/|([^\\:]|^)
-        // console.log(sourceTrimmedComments);
+        //console.log(sourceTrimmedComments);
         parser.feed(sourceTrimmedComments);
         let results = parser.results;
+
         
-        let lines = sourceTrimmedComments.split(/\n/); 
+        let lines = sourceTrimmedComments.split('\n');
+        if(!results.length){
+            //console.log("Unexpected end of input")
+            let jsonobj = {Line: parseInt(lines.length), Col: parseInt(0), Length: 2, Message: `Unexpected end of input. Missing endmodule?`};
+            return JSON.stringify({Result: null, NewLinesIndex: null, Error: JSON.stringify(jsonobj)});
+        }
+
         let linesIndex = [0];
         let count=0;
         for(let i=0;i<lines.length-1;i++){
             linesIndex.push(lines[i].length+1+count);
             count = lines[i].length+1+count;
         }
-        linesIndex.push(sourceTrimmedComments.length)  
+        linesIndex.push(sourceTrimmedComments.length) 
         const ast = results[0];
+        //console.log(results.length);
+        //console.log(JSON.stringify(ast)); 
+        //console.log(JSON.stringify(results[1]));
         return JSON.stringify({Result: JSON.stringify(ast), Error: null, NewLinesIndex: linesIndex});
     }
     catch(e) {
@@ -29,75 +99,33 @@ export function parseFromFile(source) {
         let token = e.token;
         let message = e.message;
         let lineCol = message.match(/[0-9]+/g)
-        let expected = message.match(/(?<=A ).*(?= based on:)/g).map(s => s.replace(/\s+token/i,''));
-        
+        let expected = message.match(/(?<=A ).*(?= based on:)/g).map(s => s.replace(/\s+token/i,'')); // this sometimes throws an exception, when there is an extra char at the end
+        //console.log(message);
         let table = message.substring(message.indexOf(".") + 1);
         //let expectedKeywords = table.match(/assign|input|output|wire|parameter|endmodule/g);
         //let unique = expectedKeywords.filter((v, i, a) => a.indexOf(v) === i);
-
-        let checkForChars = false;
-        let checkForEqual=false;
-        let checkForKeyword=false
         for (let i = 0; i < expected.length; i++) {
-            switch (expected[i]) {
-                case '")"':
-                    expected.splice(i,1)
-                    expected.unshift('")"')
-                    break;
-                case 'character matching /[\\s]/':
-                    expected.splice(i,1)
-                    i--;
-                    break;
-                case 'character matching /[a-zA-Z]/':
-                    expected[i] = '{VARIABLE}'
-                    break;
-                case 'character matching /[0-9]/':
-                    expected[i] = '{NUMBER}'
-                    break;
-                case 'character matching /[a-zA-Z_0-9]/':
-                    expected[i] = '{More characters}';
-                    checkForKeyword=true;
-                    break;
-                case '"="':
-                    checkForEqual=1;
-                default:
-                    let char = expected[i][1]
-                    
-                    // if character (except b,h,d) most likely comes from beginning of line (i.e. missing assign,wire,output...)
-                    if(char.toUpperCase() != char.toLowerCase()){
-                        if(char != 'b' && char != 'h' && char != 'd'){
-                            expected.splice(i,1)
-                            i--;
-                            checkForChars=true;
-                        }
-                    }
-                    break;
-            }
-        }
-        if(checkForChars){
-            expected.unshift('assign', 'wire', 'endmodule');  //,'input','output'
-        }
-        if(checkForEqual){
-            expected = ['"="']
-        }
-        
-        if(checkForKeyword &&(expected.length==1)){
-            expected = ['{More characters}\nIs the previous variable a keyword?']
+            expected[i] = getTokenValue(expected[i]);
         }
 
-        // console.log(expected);
+        //console.log(expected);
 
-        let newMessage = `Unexpected ${token.type} token "${token.value}" `+
-        `at line ${lineCol[0]} col ${lineCol[1]}.`;
-        if (expected && expected.length) newMessage += `\nExpected: ${[...new Set(expected)]}`;  
         if (token.value == '\n'){
             token.value = '\''+'newline'+'\'';
         }
-        else if(token.value == ';'){
-            token.value = '"'+token.value+'".';
-        }
-        else{token.value = '"'+token.value+'"'}
-        let jsonobj = {Line: parseInt(lineCol[0]), Col: parseInt(lineCol[1]), Length: 2, Message: `Unexpected token ${token.value}  `+`\nExpected: ${[...new Set(expected)]}`}
+        // else if (token.type == 'EVERYTHING')
+        //     console.log(token);
+
+        let newMessage = `Unexpected token "${token.value}" `+
+        `at line ${lineCol[0]} col ${lineCol[1]}.`;
+        let expected_ = new Set(expected);
+        //console.log(expected_.size);
+        if(expected_.size > 1)
+            expected_.delete("' '");
+        
+        let extraMsg = ""
+        if(expected_.has("';'")) extraMsg = "\nIs the previous line missing a semicolon?"
+        let jsonobj = {Line: parseInt(lineCol[0]), Col: parseInt(lineCol[1]), Length: 2, Message: `${newMessage}  `+`\nExpected: ${[...expected_].join(', ')}`+extraMsg};
         return JSON.stringify({Result: null, NewLinesIndex: null, Error: JSON.stringify(jsonobj)});
     }
 }
@@ -128,7 +156,7 @@ export function parseFromFile(source) {
 
 export function fix(json_data) {
     var obj = JSON.parse(json_data);
-
+    //console.log(obj.Module.EndLocation);
     if (obj.Module.Type == "module_old") {
 
         ////////  fix port list  ////////  
@@ -146,7 +174,7 @@ export function fix(json_data) {
             ports.push(port_list.Head.Port.Name);
             loc.push(port_list.Location)
         } catch (e) {
-            // console.log(e.message);
+            console.log(e.message);
         }
 
         obj.Module.PortList = ports
@@ -206,7 +234,7 @@ export function fix(json_data) {
 
         try {
             for (let i = 0; i < io_list.length; i++) {
-                if ((io_list[i].ItemType == "input_decl") | (io_list[i].ItemType == "output_decl")) {
+                if ((io_list[i].ItemType == "input_decl") | (io_list[i].ItemType == "output_decl" )) {
                     let variables = io_list[i].IODecl.Variables;
                     while (variables.Tail != null) {
                         temp_var.push(variables.Head.Name);
@@ -246,7 +274,14 @@ export function fix(json_data) {
 
         // delete IOItems element from JSON obj as it doesn't exist in the old-grammar case
         delete obj.Module["IOItems"];
-
+        //console.log(JSON.stringify(obj));
         return JSON.stringify(obj);
     }
 }
+
+// module.exports = {
+//   parseFromFile,
+//   fix
+// }
+
+// export {parseFromFile, fix}

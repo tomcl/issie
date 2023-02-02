@@ -1,0 +1,27 @@
+{
+    "Inputs": [
+        {
+            "Label": "din_0",
+            "Width": 1,
+            "Values": [0,0,0,0,1,1,1,1]
+        },
+        {
+            "Label": "din_1",
+            "Width": 1,
+            "Values": [0,0,1,1,0,0,1,1]
+        },
+        {
+            "Label": "sel",
+            "Width": 1,
+            "Values": [0,1,0,1,0,1,0,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "mux_out",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "mux_using_case"
+}

@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "en",
+            "Width": 1,
+            "Values": [0,1,1,1,0,1,1,1,1,1] 
+        },
+        {
+            "Label": "in",
+            "Width": 4,
+            "Values": [2,1,0,1,2,3,4,5,6,7]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "out",
+            "Width": 16
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "decoder"
+}

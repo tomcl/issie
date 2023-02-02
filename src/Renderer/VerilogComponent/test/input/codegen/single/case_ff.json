@@ -1,0 +1,17 @@
+{
+   "Inputs": [
+    {
+        "Label": "in",
+        "Width": 2,
+        "Values": [1,2,3,0,1,3]
+    }
+    ],
+    "Outputs": [
+        {
+            "Label": "out",
+            "Width": 2
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "case_comb"
+}

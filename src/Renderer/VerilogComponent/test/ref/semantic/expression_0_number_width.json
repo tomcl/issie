@@ -1,0 +1,20 @@
+[
+    {
+        "Line": 9,
+        "Col": 13,
+        "Length": 3,
+        "Message": "Number can't be 0 bits wide",
+        "ExtraErrors": [
+            {
+                "Text": "Number can't be 0 bits wide",
+                "Copy": false,
+                "Replace": "NoReplace"
+            },
+            {
+                "Text": "The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

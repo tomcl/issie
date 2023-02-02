@@ -1,0 +1,17 @@
+{
+    "Inputs": [
+        {
+            "Label": "in",
+            "Width": 2,
+            "Values": [0,1,2,3]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "out",
+            "Width": 2
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "if_comb_expression"
+}

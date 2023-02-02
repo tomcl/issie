@@ -1,0 +1,15 @@
+[
+    {
+        "Line": 8,
+        "Col": 6,
+        "Length": 11,
+        "Message": "Some ports or variables might not always be assigned to",
+        "ExtraErrors": [
+            {
+                "Text": "The following variables might be undefined as they are not assigned to in every branch of conditional statements or case statements in the always_comb block: binary_out",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

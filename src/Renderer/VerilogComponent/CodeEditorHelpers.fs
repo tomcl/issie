@@ -44,7 +44,7 @@ let getErrorDiv errorList : ReactElement =
     let getUnderLineElement marginLeft _line message = 
         [
             span [Style [Display DisplayOptions.InlineBlock; MarginLeft marginLeft; PointerEvents "stroke"]] []
-            span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str (_line)] 
+            span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"; ]] [str (_line)] 
             span [Class "hide"] [str message]                                //204 
         ]
 
@@ -108,18 +108,17 @@ let getErrorDiv errorList : ReactElement =
 
 
 let getSyntaxErrorInfo error = 
-    if (String.exists (fun ch -> ch = ';') error.Message && not (String.exists (fun ch->ch='.') error.Message))
-        then {error with ExtraErrors = Some [|{Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false;Replace=NoReplace}|]}
-    elif (String.exists (fun ch -> ch = '\'') error.Message)
-        then {error with ExtraErrors = Some [|{Text= "Numbers must be of format: <size>'<radix><value>\n  e.g. 16'h3fa5;"; Copy= false;Replace=NoReplace}|]}
-    else {error with ExtraErrors = Some [|{Text= error.Message; Copy= false;Replace=NoReplace}|]}
+    // if (String.exists (fun ch -> ch = ';') error.Message)
+    //     then {error with ExtraErrors = Some [|{Text=error.Message; Copy=false; Replace=NoReplace}; {Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false;Replace=NoReplace}|]}
+    // else 
+    {error with ExtraErrors = Some [|{Text= error.Message; Copy= false;Replace=NoReplace}|]}
 
 
 let getErrorTable (errorList: ErrorInfo list) addButton =
-    
+    //printfn "Generating error table"
 
 
-    let getSuggestionLine suggestions replaceType line = 
+    let getSuggestionLine suggestions replaceType line col= 
         let buttons = 
             suggestions
             |> Seq.toList
@@ -128,7 +127,7 @@ let getErrorTable (errorList: ErrorInfo list) addButton =
                     span [Style [WhiteSpace WhiteSpaceOptions.Pre]] [str "    "]
                     Button.button [
                         Button.OnClick (fun _ -> 
-                            addButton (suggestion,replaceType,line)
+                            addButton (suggestion,replaceType,line, col)
                         )
                         Button.Option.Size ISize.IsSmall
                         ] [str suggestion]
@@ -146,7 +145,7 @@ let getErrorTable (errorList: ErrorInfo list) addButton =
         
 
     
-    let getErrorTableLine index (extraMessage:ExtraErrorInfo) line : ReactElement list =
+    let getErrorTableLine index (extraMessage:ExtraErrorInfo) line col : ReactElement list =
         let copyable = extraMessage.Copy
         let text = extraMessage.Text
         let showLine = if index=0 then "  Line "+(string line) else ""
@@ -155,7 +154,7 @@ let getErrorTable (errorList: ErrorInfo list) addButton =
             [
                 tr [] [
                     td [Style [Color "Black"; VerticalAlign "Middle"; WhiteSpace WhiteSpaceOptions.Pre]] [str showLine]
-                    getSuggestionLine suggestions extraMessage.Replace line
+                    getSuggestionLine suggestions extraMessage.Replace line col
                 ]
             ]
         else
@@ -176,7 +175,7 @@ let getErrorTable (errorList: ErrorInfo list) addButton =
                 (Option.get error.ExtraErrors)
                 |> Array.toList
                 |> List.indexed
-                |> List.collect (fun (index,mess) -> getErrorTableLine index mess line)
+                |> List.collect (fun (index,mess) -> getErrorTableLine index mess line error.Col)
             
             tbody [] tLine
     
@@ -198,9 +197,20 @@ let getErrorTable (errorList: ErrorInfo list) addButton =
 
     
     let tableLines =
-        errorList
-        |> List.sortBy (fun err -> err.Line)
-        |> List.collect (fun err -> [getErrorTableLines err])
+        match List.length errorList with
+        | 0 ->
+            let tLine=
+                [
+                    tr [] [
+                        td [Style [Color "Black"; VerticalAlign "Middle"; WhiteSpace WhiteSpaceOptions.Pre]] [str " "]
+                        td [Style [Color "Black"; WhiteSpace WhiteSpaceOptions.PreWrap]] [str "No errors"]
+                    ]
+                ]
+            [tbody [] tLine]
+        | _ ->
+            errorList
+            |> List.sortBy (fun err -> err.Line)
+            |> List.collect (fun err -> [getErrorTableLines err])
     
     let tableChildren = List.append tableFormat tableLines
     if List.length tableLines <> 0 then 
@@ -249,12 +259,12 @@ let infoHoverableElement =
         "\tTHIS IS AN EXAMPLE OF A VALID VERILOG FILE
 ----------------------------------------------------------
 module decoder(
-\tinput [15:0] instr,
-\tinput n,z,c,
-\toutput mux1sel,jump,
-\toutput [2:0] aluF
+\tinput bit [15:0] instr,
+\tinput bit n,z,c,
+\toutput bit mux1sel,jump,
+\toutput bit [2:0] aluF
 );
-\twire cond = n|z|c;
+\tbit cond = n|z|c;
 \tassign mux1sel = instr[15]&cond | instr[14];
 \tassign j = instr[8]&(n|c);
 \tassign aluF = intr[10:8];

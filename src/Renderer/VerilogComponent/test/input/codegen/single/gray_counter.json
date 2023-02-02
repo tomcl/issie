@@ -1,0 +1,23 @@
+{
+    "Inputs":
+    [
+        {
+            "Label": "rst",
+            "Width": 1,
+            "Values": [0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0]
+        },
+        {
+            "Label": "enable",
+            "Width": 1,
+            "Values": [1,0,1,1,1,1,1,1,1,1,0,0,1,1,1,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "out",
+            "Width": 8
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "gray_counter"
+}

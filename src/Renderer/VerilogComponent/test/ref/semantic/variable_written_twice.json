@@ -1,0 +1,15 @@
+[
+    {
+        "Line": 10,
+        "Col": 5,
+        "Length": 3,
+        "Message": "Variable assigned to multiple times",
+        "ExtraErrors": [
+            {
+                "Text": "The following variables are assigned to multiple times: [out]. This creates undefined behaviour in an always_ff block, make sure to only update a variable at most once in an always_ff block",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

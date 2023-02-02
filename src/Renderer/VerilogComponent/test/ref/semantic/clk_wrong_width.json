@@ -1,0 +1,1 @@
+[{"Line":6,"Col":17,"Length":3,"Message":"'clk' must have width 1","ExtraErrors":[{"Text":"'clk' represents the clock signal, which must have width 1, here it has width 3","Copy":false,"Replace":"NoReplace"}]}]

@@ -1,0 +1,15 @@
+[
+    {
+        "Line": 22,
+        "Col": 1,
+        "Length": 9,
+        "Message": "Some ports or variables are driven by multiple always blocks or continuous assignments.",
+        "ExtraErrors": [
+            {
+                "Text": "The following variables are driven by multiple always blocks or continuous assignments: binary_out.  Please make sure that every port is driven by at most one always block or continuous assignment.",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

@@ -1,0 +1,15 @@
+[
+    {
+        "Line": 9,
+        "Col": 19,
+        "Length": 3,
+        "Message": "Illegal use of 'clk'",
+        "ExtraErrors": [
+            {
+                "Text": "'clk' represents the clock signal, make sure to only use it as 'always_ff @(posedge clk)'",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

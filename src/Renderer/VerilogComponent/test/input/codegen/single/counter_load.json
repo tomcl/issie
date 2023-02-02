@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "load",
+            "Width": 1,
+            "Values": [0,1,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0]
+        },
+        {
+            "Label": "d",
+            "Width": 4,
+            "Values": [0,1,2,3,4,5,6,7,15,14,13,12,11,10,9,8,7,6,5]
+        }        
+    ],
+    "Outputs": [
+        {
+            "Label": "q",
+            "Width": 4
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "counter"
+}

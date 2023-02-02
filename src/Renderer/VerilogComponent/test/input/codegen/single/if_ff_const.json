@@ -1,0 +1,18 @@
+{ 
+    "Inputs": 
+    [
+        {
+            "Label": "in",
+            "Width": 2,
+            "Values": [0,3,1,2]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "out",
+            "Width": 2
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "if_ff_const"
+}

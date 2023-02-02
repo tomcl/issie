@@ -1,0 +1,27 @@
+{
+    "Inputs": [
+        {
+            "Label": "a",
+            "Width": 1,
+            "Values": [0,0,1,1]
+        },
+        {
+            "Label": "b",
+            "Width": 1,
+            "Values": [0,1,1,0]
+        }
+
+    ],
+    "Outputs": [
+        {
+            "Label": "yOR",
+            "Width": 1
+        },
+        {
+            "Label": "yAND",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "jbasicgates"
+}

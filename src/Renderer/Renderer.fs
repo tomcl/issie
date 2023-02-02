@@ -16,8 +16,10 @@ open ElectronAPI
 open ModelType
 open Fable.SimpleJson
 open JSHelpers
-open Sheet.SheetInterface
+open Sheet.SheetInterface 
 open DrawModelType
+
+open TestParser
 
 importSideEffects "./scss/main.css"
 
@@ -145,6 +147,28 @@ let fileMenu (dispatch) =
             displayPerformance 100 4000000)
         makeCondItem (JSHelpers.debugLevel <> 0) "Force Exception" None  (fun ev -> failwithf "User exception from menus")
         makeCondItem (JSHelpers.debugLevel <> 0) "Call update" None  (fun ev -> failwithf "User exception from menus")
+        makeMenu false "Verilog" [
+            makeCondItem (JSHelpers.debugLevel <> 0) "Run Verilog tests" None  (fun _ ->
+                runCompilerTests ()
+                printfn "Compiler tests done"
+                )
+            makeCondItem (JSHelpers.debugLevel <> 0) "Run Verilog performance tests" None  (fun _ ->
+                runPerformanceTests ()
+                printfn "Performance tests done"
+                )
+            makeCondItem (JSHelpers.debugLevel <> 0) "Generate driver modules" None  (fun _ ->
+                genDriverFiles ()
+                //printfn "Compiler tests done"
+                )
+            makeCondItem (JSHelpers.debugLevel <> 0) "Icarus compile testcases" None  (fun _ ->
+                icarusCompileTestCases ()
+                //printfn "Compile don"
+                )
+            makeCondItem (JSHelpers.debugLevel <> 0) "Icarus run testcases" None  (fun _ ->
+                icarusRunTestCases ()
+                //printfn "Compiler tests done"
+                )
+        ]
      ]
 
 

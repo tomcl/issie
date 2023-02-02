@@ -1,0 +1,31 @@
+{
+    "Inputs": [
+        {
+            "Label": "a",
+            "Width": 1,
+            "Values": [0,0,0,0,1,1,1,1]
+        },
+        {
+            "Label": "b",
+            "Width": 1,
+            "Values": [0,1,0,1,0,1,0,1]
+        },
+        {
+            "Label": "cin",
+            "Width": 1,
+            "Values": [0,0,1,1,0,0,1,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "sum",
+            "Width": 1
+        },
+        {
+            "Label": "cout",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "fa"
+}

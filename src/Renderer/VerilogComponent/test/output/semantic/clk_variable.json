@@ -1,0 +1,1 @@
+[{"Line":5,"Col":5,"Length":3,"Message":"Variable cannot be called 'clk'","ExtraErrors":[{"Text":"'clk' is reserved for the clock signal, please rename the variable","Copy":false,"Replace":"NoReplace"}]}]

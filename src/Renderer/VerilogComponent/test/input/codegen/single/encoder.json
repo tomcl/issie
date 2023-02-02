@@ -1,0 +1,17 @@
+{
+    "Inputs": [
+        {
+            "Label": "sel",
+            "Width": 8,
+            "Values": [0,1,2,4,8,16,32,64,128,3,5,10,48,129,80,132]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "code",
+            "Width": 3
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "priority_encoder"
+}

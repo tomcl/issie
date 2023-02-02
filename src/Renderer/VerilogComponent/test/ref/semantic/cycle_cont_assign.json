@@ -1,0 +1,15 @@
+[
+    {
+        "Line": 9,
+        "Col": 1,
+        "Length": 9,
+        "Message": "The following variables form a dependency cycle: [i[0]; j[0]; i[0]]",
+        "ExtraErrors": [
+            {
+                "Text": "The following variables form a cycle: [i[0]; j[0]; i[0]]",
+                "Copy": false,
+                "Replace": "NoReplace"
+            }
+        ]
+    }
+]

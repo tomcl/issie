@@ -1,0 +1,34 @@
+{
+    "Inputs": [
+        {
+            "Label": "f",
+            "Width": 1,
+            "Values": [1,0,1,1,1,1,1,1,1,1,0,0,0,1,1]
+        },
+        {
+            "Label": "sel",
+            "Width": 2,
+            "Values": [2,1,0,1,2,3,2,3,1,0,1,2,3,3,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "a",
+            "Width": 1
+        },
+        {
+            "Label": "b",
+            "Width": 1
+        },
+        {
+            "Label": "c",
+            "Width": 1
+        },
+        {
+            "Label": "d",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "demux"
+}

@@ -1,0 +1,20 @@
+[
+    {
+        "Line": 14,
+        "Col": 32,
+        "Length": 1,
+        "Message": "Blocking assignment in always_ff block",
+        "ExtraErrors": [
+            {
+                "Text": "Blocking assignment in a clocked always block is not supported.\nPlease use nonblocking assignments in clocked always blocks",
+                "Copy": false,
+                "Replace": "NoReplace"
+            },
+            {
+                "Text": "<=",
+                "Copy": true,
+                "Replace": "="
+            }
+        ]
+    }
+]

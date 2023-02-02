@@ -342,16 +342,18 @@ let dialogPopupBodyOnlyTextWithDefaultValue before placeholder currDescr dispatc
 let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors codeToAdd compileButton addButton dispatch =
     fun (dialogData : PopupDialogData) ->
         let code = getCode dialogData
-        let linesNo = code |> String.filter (fun ch->ch='\n') |> String.length
+        let linesNo = 
+            match code,codeToAdd with
+            | "", Some c -> c |> String.filter (fun ch->ch='\n') |> String.length
+            | _ -> code |> String.filter (fun ch->ch='\n') |> String.length
         let goodLabel =
                 (Option.defaultValue "" moduleName)
                 |> (fun s -> String.startsWithLetter s || s = "")
         
         let renderCERSC =
             ofType<CodeEditorReactStatefulComponent,_,_> {CurrentCode=code; ReplaceCode=codeToAdd; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
-        
-        let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true 
 
+        let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true 
         let i = getHeight
         let editorheigth = ((float i)/2.9 |> int |> string)  + "px"
         let tableHeigth = ((float i)/1.9 |> int |> string)  + "px"

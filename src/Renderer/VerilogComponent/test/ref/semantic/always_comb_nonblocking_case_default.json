@@ -1,0 +1,20 @@
+[
+  {
+    "Line": 10,
+    "Col": 32,
+    "Length": 2,
+    "Message": "Nonblocking assignment in always_comb block",
+    "ExtraErrors": [
+      {
+        "Text": "Nonblocking assignment in a combinational always block is not supported.\nPlease use blocking assignments in combinational always blocks",
+        "Copy": false,
+        "Replace": "NoReplace"
+      },
+      {
+        "Text": "=",
+        "Copy": true,
+        "Replace": "<="
+      }
+    ]
+  }
+]

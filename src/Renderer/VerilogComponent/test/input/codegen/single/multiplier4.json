@@ -1,0 +1,36 @@
+{
+    "Inputs": [
+        {
+            "Label": "ar",
+            "Width": 16,
+            "Values": [1,5,210,3000,43,256,7654,23]
+        },
+        {
+            "Label": "ai",
+            "Width": 16,
+            "Values": [1,5,210,300,43,256,764,23]
+        },
+        {
+            "Label": "br",
+            "Width": 18,
+            "Values": [1,5,210,3000,43,256,7654,0]
+        },
+        {
+            "Label": "bi",
+            "Width": 18,
+            "Values": [1,5,210,1000,43,256,7654,0]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "pr",
+            "Width": 35
+        },
+        {
+            "Label": "pi",
+            "Width": 35
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "cmult"
+}

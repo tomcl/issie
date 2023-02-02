@@ -1,0 +1,22 @@
+{
+    "Inputs": [
+        {
+            "Label": "en",
+            "Width": 1,
+            "Values": [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        },
+        {
+            "Label": "addr",
+            "Width": 4,
+            "Values": [0,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "data",
+            "Width": 4
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "rominfr"
+}

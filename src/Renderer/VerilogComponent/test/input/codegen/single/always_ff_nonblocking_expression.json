@@ -1,0 +1,23 @@
+{
+    "Inputs":
+    [
+        {
+            "Label": "in1",
+            "Width": 2,
+            "Values": [3,1,2,1,0,3]
+        },
+        {
+            "Label": "in2",
+            "Width": 3,
+            "Values": [0,2,4,7,5,3]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "out",
+            "Width": 5
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "always_ff_nonblocking_expression"
+}

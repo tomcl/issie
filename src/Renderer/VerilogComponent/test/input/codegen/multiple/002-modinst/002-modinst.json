@@ -1,0 +1,27 @@
+{
+    "Inputs": [
+        {
+            "Label": "A",
+            "Width": 1,
+            "Values": [0,0,0,0,1,1,1,1]
+        },
+        {
+            "Label": "B",
+            "Width": 1,
+            "Values": [0,0,1,1,0,0,1,1]
+        },
+        {
+            "Label": "C",
+            "Width": 1,
+            "Values": [0,1,0,1,0,1,0,1]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "O",
+            "Width": 1
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "top"
+}

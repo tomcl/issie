@@ -23,10 +23,65 @@ open DrawHelpers
 // the file containing symbol subfunctions etc
 open Symbol
 
+type gridDimensions = {MaxX: float; MaxY: float; NumRepeats: int}
+
+// parametrise 1D array of windows
+// two such will parametrise a grid
+type WindowDimensions = {
+    Num: int // number of objects
+    Fill: float // %age of space taken up by objects
+    Size: float // Overall size
+    }
+
+type HouseDimensions = {
+    HouseSize: XYPos
+    DoorSize: XYPos
+    DoorFill: float
+    }
+
+type Grid = {
+    XDim: WindowDimensions
+    YDim: WindowDimensions
+    }
+
+let checkHouseDimensions (hd: HouseDimensions) =
+    hd.DoorSize.X < hd.HouseSize.X && hd.DoorSize.Y + hd.DoorFill < hd.HouseSize.Y
+
+let getWindowGrid (hd: HouseDimensions) (nY: int) (nX:int) =
+    failwithf ""
+
+let calcWinSize (dim: WindowDimensions) =
+    dim.Size * dim.Fill / float dim.Num
+
+let drawRectangle (stroke: int) (size: XYPos) (centre: XYPos) 
+        : ReactElement list =
+    failwithf ""
+
+let makeWindow (x: float) (y:float) (centre: XYPos) 
+        : ReactElement list =
+    drawRectangle 2 {X=x ;Y=y} centre
+
+
+let makeArray  (orientation: Orientation) (centre: float) (item: XYPos -> ReactElement list) 
+        : XYPos -> ReactElement list =
+    failwithf ""
+
+
+let Windows (pos: XYPos) (grid: Grid) =
+    makeWindow (calcWinSize grid.XDim) (calcWinSize grid.YDim)
+    |> makeArray Orientation.Horizontal pos.X
+    |> makeArray Orientation.Vertical pos.Y
+
+let house (size: XYPos) (centre: XYPos) (numX: int) (numY: int)=
+    failwithf ""
+
 /// submodule for constant definitions used in this module
 module Constants =
     let xxx = 111 // sample constant definition (with bad name) delete and replace
                   // your constants. Delete this comment as well!
+
+
+
 
 /// Record containing BusWire helper functions that might be needed by updateWireHook
 /// functions are fed in at the updatewireHook function call in BusWireUpdate.

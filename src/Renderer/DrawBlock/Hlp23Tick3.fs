@@ -138,8 +138,17 @@ let updateWireHook
     let segmentInfo =
         wire.Segments
         |> List.map (fun (seg:Segment) -> seg.Length,seg.Mode)
-    printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}"
-    None
+    //printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}"
+    let a,b = wire.Segments[2].Length, wire.Segments[4].Length
+    let adj = -((a/(a+b)) - 0.25)*(a+b)
+    //let wire' = tick3Helpers.MoveSegment model wire.Segments[3] adj
+
+    let segments' = 
+        wire.Segments
+        |> List.updateAt 2 {wire.Segments[2] with Length = a+adj}
+        |> List.updateAt 4 {wire.Segments[2] with Length = a-adj}
+        
+    Some { wire with Segments = segments'}
 
 //---------------------------------------------------------------------//
 //-------included here because it will be used in project work---------//

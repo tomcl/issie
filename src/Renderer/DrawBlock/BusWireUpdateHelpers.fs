@@ -606,21 +606,7 @@ let reverseWire (wire: Wire) =
         InitialOrientation = wire.EndOrientation
     }
 
-/// Returns a re-routed wire from the given model.
-/// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
-/// Reverse indicates if the wire should be processed in reverse, 
-/// used when an input port (end of wire) is moved.
-let updateWire (model : Model) (wire : Wire) (reverse : bool) =
-    let newPort = 
-        match reverse with
-        | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort
-        | false -> Symbol.getOutputPortLocation None model.Symbol wire.OutputPort
-    if reverse then
-        partialAutoroute model (reverseWire wire) newPort true
-        |> Option.map reverseWire
-    else 
-        partialAutoroute model wire newPort false
-    |> Option.defaultValue (autoroute model wire)
+
 
 //--------------------------------------------------------------------------------//
 
@@ -871,45 +857,4 @@ let resetWireSegmentJumps (wireList : list<ConnectionId>) (model : Model) : Mode
     resetJumps model
     |> TimeHelpers.instrumentInterval "ResetJumps" startT
 
-/// Re-routes the wires in the model based on a list of components that have been altered.
-/// If the wire input and output ports are both in the list of moved components, 
-/// it does not re-route wire but instead translates it.
-/// Keeps manual wires manual (up to a point).
-/// Otherwise it will auto-route wires connected to components that have moved
-let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
-    let wires = filterWiresByCompMoved model compIdList
-
-    let newWires =
-        model.Wires
-        |> Map.toList
-        |> List.map (fun (cId, wire) -> 
-            if List.contains cId wires.Both //Translate wires that are connected to moving components on both sides
-            then (cId, moveWire wire diff)
-            elif List.contains cId wires.Inputs //Only route wires connected to ports that moved for efficiency
-            then (cId, updateWire model wire true)
-            elif List.contains cId wires.Outputs
-            then (cId, updateWire model wire false)
-            else (cId, wire))
-        |> Map.ofList
-
-    { model with Wires = newWires }
-
-let updateSymbolWires (model: Model) (compId: ComponentId) =
-    let wires = filterWiresByCompMoved model [compId]
-    
-    let newWires =
-        model.Wires
-        |> Map.toList
-        |> List.map (fun (cId, wire) ->
-            if List.contains cId wires.Both then // Update wires that are connected on both sides
-                cId, (
-                    updateWire model wire true 
-                    |> fun wire -> updateWire model wire false)
-            elif List.contains cId wires.Inputs then 
-                cId, updateWire model wire true
-            elif List.contains cId wires.Outputs then
-                cId, updateWire model wire false
-            else cId, wire)
-        |> Map.ofList
-    { model with Wires = newWires }

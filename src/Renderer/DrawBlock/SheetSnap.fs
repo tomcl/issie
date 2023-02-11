@@ -118,6 +118,27 @@ let symbolMatch (symbol: SymbolT.Symbol) =
     | otherCompType -> 
         otherCompType
 
+//----------------------------------------------------------------------------------------//
+//--------------------------MAIN SNAP DATA DEFINITIONS------------------------------------//
+//----------------------------------------------------------------------------------------//
+
+(*
+    HLP23 - this module is assumed controlled by the SmartSnap team student: 
+    functions from other members MUST be documented by "HLP23: AUTHOR" XML 
+    comment as in SmartHelpers.
+
+    HLP23 - the Smart Snap part of the individual work should update these definitions and
+    (if needed, advanced) also update the functions in the next section taht implement snaps.
+    Helper functions can be added to the snap helper section above, or to SmartHelpers if they
+    might be of use to others.
+
+    HLP23 - Much of the challenge here is understanding the (well written) existing code. 
+    One way to make progress is to leave this code as-is and pipeline its result into your 
+    own function which modifies the calculated snap data - adding or deleting snaps.
+
+    HLP23 - optionally you could go through all the snap code and and improve it - e.g.
+    rewrite using optics.
+*)
 
 /// Extracts static snap data used to control a symbol snapping when being moved.
 /// Called at start of a symbol drag.
@@ -242,6 +263,10 @@ let getNewSegmentSnapInfo
         SnapX = snapInDirection BusWireT.Vertical
         SnapY = snapInDirection BusWireT.Horizontal        
     }
+
+//-----------------------------------------------------------------------------------------------//
+//-------------------------------------Snap Functions--------------------------------------------//
+//-----------------------------------------------------------------------------------------------//
 
 /// The main snap function which is called every update that drags a symbol or segment.
 /// This function porocesses one coordinate (X or Y) and therefore is called twice.

@@ -68,6 +68,7 @@
 	<Compile Include="DrawBlock\SmartChannel.fs" />
 	<Compile Include="DrawBlock\SmartPortOrder.fs" />
 	<Compile Include="DrawBlock\SmartSizeSymbol.fs" />
+	<Compile Include="DrawBlock\SmartRotate.fs" />
     <Compile Include="DrawBlock\BusWireUpdate.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />
     <Compile Include="DrawBlock\SheetSnap.fs" />

@@ -28,42 +28,53 @@ open Operators
 
 
 // helper function for finding matching symbol in model for given port ids on wire - current issue is finding the symbol with the matching input port id
-// let findSymbol (model: Model) (wire: Wire) : Symbol option = 
-//     let inputPort = string wire.InputPort
-//     // let symbol = model.Symbol.Symbols |> Map.tryFind (fun k v ->
-//     //     v.PortMaps.Orientation |> Map.tryFind inputPort |> Option.isSome
-//     // )
-//     // symbol
-//     // printfn "Not implemented yet"
-//     // let componentId = Map.tryFind inputPort model.Symbol.Symbols.Orientation
-//     // let symbol = componentId |> Option.bind (fun id -> Map.tryFind id model.Symbol.Symbols)
-//     // symbol
-//     let symbol = model.Symbol.Symbols |> Map.tryFind (fun (_,sym) ->
-//         sym.PortMaps.Orientation |> Map.tryFind inputPort |> Option.isSome
-//     )
-//     symbol
+let findSymbol (model: Model) (wire: Wire) : Symbol option = 
+    
+    let inputPort = string wire.InputPort
+    
+    let symbolValues =
+        model.Symbol.Symbols
+        |> Map.toList
+        |> List.map snd
+
+    let symbolsWithPortId =
+        symbolValues
+        |> List.filter (fun symbol ->
+            symbol.PortMaps.Orientation.ContainsKey(inputPort))
+        |> List.tryHead
+            
+    symbolsWithPortId
+
      
 
 /// helper function that routes a wire from input port to output port around the symbol, rather than through it
-let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol) : Wire = 
+/// Latest issue: WIRE HAS NO SEGMENTS
+let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire = 
+    let segmentInfo =
+        wire.Segments
+        |> List.map (fun (seg:Segment) -> seg.Length,seg.Mode)
+    printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}"
 
-    // let segmentInfo =
-    //         wire.Segments
-    //         |> List.map (fun (seg:Segment) -> seg.Length,seg.Mode)
-    //     printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}"
-    
+    let symbolFound = symbol |> Option.get
     let newWires = 
-        let hugLength = symbol.Component.H + 5.0
-        let newFirstSegment: Segment = { wire.Segments[2] with Length =  hugLength}
+        let hugLength = symbolFound.Component.H 
+        let nullSegment: Segment = { wire.Segments[0] with Length =  hugLength}
+        let newFirstSegment: Segment = { new wire.Segments[2] with Length =  hugLength}
         let newThirdSegment: Segment = { wire.Segments[4] with Length =  hugLength}
-        let newWires: Wire = { wire with Segments = [wire.Segments[0]; wire.Segments[1]; newFirstSegment; wire.Segments[3]; newThirdSegment; wire.Segments[5]; wire.Segments[6]]}
+        let newWires: Wire = { wire with Segments = [nullSegment; nullSegment; newFirstSegment; wire.Segments[3]; newThirdSegment; nullSegment; nullSegment]}
         newWires 
 
     newWires
-
+    
+    // wire
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire): Wire = 
     // routeAroundSymbol model wire model
-    autoroute model wire
+    let symbol = findSymbol model wire
+    printfn "Symbol found: %A" symbol
+
+    routeAroundSymbol model wire symbol
+
+    // autoroute model wire

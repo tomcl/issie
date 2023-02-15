@@ -171,6 +171,10 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
+        makeMenu false "Symbol Style" [
+            makeItem "New (Sqaured)" None (fun ev -> printfn "Old style activated")
+            makeItem "Old (Curved) " None (fun ev -> printfn "Back to new style")
+        ]
         makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         makeMenu false "Theme" [
             makeItem "Grayscale" None (fun ev -> 

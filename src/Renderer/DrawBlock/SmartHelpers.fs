@@ -102,3 +102,12 @@ let updateModelWires
     |> Optic.map wires_ (fun wireMap  ->
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
+
+/// HLP23: OMAR
+/// returns a list of corner coordinates of a symbol: [upper, lower, left, right]
+let symbolBox (symbol: Symbol) : list<float*float> = 
+    let topLeft = float symbol.Pos.X, float symbol.Pos.Y
+    let topRight = (fst topLeft) + symbol.Component.W, snd topLeft
+    let bottomLeft = (fst topLeft), (snd topLeft) + symbol.Component.H 
+    let bottomRight = fst topRight, snd bottomLeft
+    [topLeft; topRight; bottomLeft; bottomRight]

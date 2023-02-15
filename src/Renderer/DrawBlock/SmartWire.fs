@@ -40,6 +40,23 @@ let findSymbol (model: Model) (wire: Wire) : Symbol option =
         |> List.tryHead
     symbolsWithPortId
 
+// helper function for finding if wire is connected from and to the same symbol
+let isSelfConnected (model: Model) (wire: Wire) : bool = 
+    let inputPort = string wire.InputPort
+    let outputPort = string wire.OutputPort
+    let symbolValues =
+        model.Symbol.Symbols
+        |> Map.toList
+        |> List.map snd
+    let symbolsWithPortId =
+        symbolValues
+        |> List.filter (fun symbol ->
+            symbol.PortMaps.Orientation.ContainsKey(inputPort) && symbol.PortMaps.Orientation.ContainsKey(outputPort))
+        |> List.tryHead
+    match symbolsWithPortId with
+        | Some symbol -> true
+        | None -> false
+
 
 // returns the height needed to hug the symbol, if needed
 let huggingDistance (wire: Wire) (symbol: Symbol) : float = 
@@ -80,4 +97,9 @@ let smartAutoroute (model: Model) (wire: Wire): Wire =
     // printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={autoWire.Segments}"
     // printfn "%s" $"hugging distance={huggingDistance autoWire (symbol |> Option.get)}"
     // printfn "%s" $"WIRE START POS={wire.StartPos.Y}"
-    routeAroundSymbol model autoWire symbol
+    
+    let selfConnected = isSelfConnected model wire
+    match selfConnected with
+        | true -> routeAroundSymbol model autoWire symbol 
+        | false -> autoWire
+    

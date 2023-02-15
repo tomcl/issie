@@ -11,8 +11,6 @@ open SmartHelpers
 open Optics
 open Operators
 
-// HLP23: OMAR
-
 
 (* HLP23
 
@@ -71,6 +69,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
         | 0.0 -> wire
         | _ -> newWires
     
+
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire): Wire =     

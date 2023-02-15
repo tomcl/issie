@@ -73,17 +73,17 @@ let huggingDistance (wire: Wire) (symbol: Symbol) : float =
 /// helper function that routes a wire from input port to output port around the symbol, rather than through it
 let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire = 
     let symbolFound = symbol |> Option.get
-    let hugLength = (huggingDistance wire symbolFound) + 5.0
+    let hugLength = (huggingDistance wire symbolFound) + 15.0
     let newWires = 
         let newOutputSegment: Segment = {wire.Segments[2] with Length =  wire.Segments[2].Length - 7.0}
         let newInputSegment: Segment = {wire.Segments[6] with Length =  wire.Segments[6].Length + 7.0}
         let newFirstSegment: Segment = {wire.Segments[3] with Length =  wire.Segments[3].Length + hugLength}
         let newMiddleSegment: Segment = {wire.Segments[4] with Length =  wire.Segments[4].Length + 5.0}
         let newThirdSegment: Segment = {wire.Segments[5] with Length =  wire.Segments[5].Length - hugLength}
-        let newWires: Wire = {wire with Segments = [wire.Segments[0]; wire.Segments[1]; newOutputSegment; newFirstSegment;  newMiddleSegment; newThirdSegment; newInputSegment; wire.Segments[7]]}
-        newWires 
+        let newRoute: Wire = {wire with Segments = [wire.Segments[0]; wire.Segments[1]; newOutputSegment; newFirstSegment;  newMiddleSegment; newThirdSegment; newInputSegment; wire.Segments[7]]}
+        newRoute 
     match hugLength with
-        | 0.0 -> wire
+        | 15.0 -> wire
         | _ -> newWires
     
 
@@ -97,7 +97,7 @@ let smartAutoroute (model: Model) (wire: Wire): Wire =
     // printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={autoWire.Segments}"
     // printfn "%s" $"hugging distance={huggingDistance autoWire (symbol |> Option.get)}"
     // printfn "%s" $"WIRE START POS={wire.StartPos.Y}"
-    
+
     let selfConnected = isSelfConnected model wire
     match selfConnected with
         | true -> routeAroundSymbol model autoWire symbol 

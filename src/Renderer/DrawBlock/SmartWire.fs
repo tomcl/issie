@@ -139,26 +139,26 @@ let rec tryShiftHorizontalSeg (model: Model) (intersectedBoxes: BoundingBox list
         // Change segments index 1,3,5. Leave rest as is
         let newSegments =
             wire.Segments[..0]
-            @ [ { wire.Segments[1] with Length = firstVerticalSegLength + if firstVerticalSegLength <0. then -buffer else buffer } ]
+            @ [ { wire.Segments[1] with Length = firstVerticalSegLength } ]
               @ wire.Segments[2..2]
                 @ [ { wire.Segments[3] with Length = 0 } ]
                   @ wire.Segments[4..4]
-                    @ [ { wire.Segments[5] with Length = secondVerticalSegLength  + if secondVerticalSegLength <0. then buffer else -buffer } ]
+                    @ [ { wire.Segments[5] with Length = secondVerticalSegLength } ]
                       @ wire.Segments[6..]
 
         { wire with Segments = newSegments }
 
     let tryShiftUpWire =
         let topBound = intersectedBoxes |> List.map (fun box -> box.TopLeft.Y) |> List.min
-        let firstVerticalSegLength = topBound - currentStartYPos
-        let secondVerticalSegLength = currentEndYPos - topBound
+        let firstVerticalSegLength = topBound - buffer - currentStartYPos
+        let secondVerticalSegLength = currentEndYPos - (topBound - buffer)
         generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength
 
     let tryShiftDownWire =
         let bottomBound =
             intersectedBoxes |> List.map (fun box -> box.TopLeft.Y + box.H) |> List.max
-        let firstVerticalSegLength = bottomBound - currentStartYPos
-        let secondVerticalSegLength = currentEndYPos - bottomBound
+        let firstVerticalSegLength = bottomBound + buffer - currentStartYPos
+        let secondVerticalSegLength = currentEndYPos - (bottomBound + buffer)
         generateLongHorizontalWire -firstVerticalSegLength -secondVerticalSegLength
 
     let upShiftedWireIntersections = findWireSymbolIntersections model tryShiftUpWire

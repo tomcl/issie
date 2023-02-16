@@ -49,82 +49,76 @@ let getAllSymbolBoundingBoxes (model: Model) : BoundingBox list =
 
     componentIDs |> List.map (getSymbolBoundingBox model)
 
-
-/// Checks if a wire intersects any symbol or not. Returns number of symbols intersected by wire
-let checkWireIntersectSymbols (model: Model) (wireVertices: XYPos list) : int =
+/// Checks if a wire intersects any symbol or not
+/// Returns list of bounding boxes of symbols intersected by wire
+let findWireSymbolIntersections (model: Model) (wire: Wire): BoundingBox list =
     let allSymbolBoundingBoxes = getAllSymbolBoundingBoxes model
-    // printfn "num of symbols: %A" allSymbolBoundingBoxes.Length
 
-    let segVertices = List.pairwise wireVertices[2..wireVertices.Length - 3] // do not consider the nubs
-    // printfn "num of segments: %A" segVertices.Length
+    let wireVertices = segmentsToIssieVertices wire.Segments wire |> List.map(fun (x, y, _) -> { X = x; Y = y })
+
+    let segVertices = List.pairwise wireVertices[1..wireVertices.Length - 2] // do not consider the nubs
 
     let numBoxesIntersectedBySegment startPos endPos =
         allSymbolBoundingBoxes
         |> List.mapi (fun i boundingBox ->
             match segmentIntersectsBoundingBox boundingBox startPos endPos with
             | Some _ -> 
-                printfn "Segment index %A" i 
-                1 // segment intersects bounding box
-            | None -> 0 // no intersection
+                Some boundingBox // segment intersects bounding box
+            | None -> None // no intersection
         )
-        |> List.sum
+        |> List.distinct
+        |> List.filter(fun x -> x <> None)
+        |> List.map(Option.get)
 
     segVertices
-    |> List.map (fun (startPos, endPos) -> numBoxesIntersectedBySegment startPos endPos)
-    |> List.sum
+    |> List.collect (fun (startPos, endPos) -> numBoxesIntersectedBySegment startPos endPos)
+    |> List.distinct
 
-/// An improved version of makeInitialSegmentsList which takes into account intersection with symbols
-/// Given the coordinates of two port locations that correspond
-/// to the endpoints of a wire, as well as the orientation of the final port
-/// this function returns a list of Segment(s).
-let makeSmartInitialSegmentsList
-    (hostId: ConnectionId)
-    (startPos: XYPos)
-    (endPos: XYPos)
-    (portOrientation: Edge)
-    (model: Model)
-    : list<Segment> =
-    let wireVertices = makeInitialWireVerticesList startPos endPos portOrientation
+/// Try shifting vertical seg to either - buffer or + buffer of intersected bounding boxes
+/// For general case where all 3 symbols are not aligned
+let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wire:Wire): Wire = 
+    // TODO: only perform this function if segment length is 7
+    let buffer = 10.
+    let leftBound = intersectedBoxes |> List.map(fun box -> box.TopLeft.X) |> List.min
+    
+    let wireVertices = segmentsToIssieVertices wire.Segments wire |> List.map(fun (x, y, _) -> { X = x; Y = y })
+    let currentVerticalSegXPos = wireVertices[4].X
 
-    let numIntersections = checkWireIntersectSymbols model wireVertices
-    printfn "num of intersections %A" numIntersections |> ignore
+    let shiftVerticalSeg amountToShift =
+        let prevSeg = wire.Segments[2]
+        let nextSeg = wire.Segments[4]
+        let newPrevSeg = { prevSeg with Length = prevSeg.Length + amountToShift }
+        let newNextSeg = { nextSeg with Length = nextSeg.Length - amountToShift }
+        let newSegments = 
+            wire.Segments[..1] @ [newPrevSeg] @ wire.Segments[3..3] @ [newNextSeg] @ wire.Segments[5..]
+        {wire with Segments=newSegments}
 
-    wireVertices |> xyVerticesToSegments hostId
+    let tryShiftLeftWire = 
+        let amountToShift = currentVerticalSegXPos - leftBound + buffer
+        shiftVerticalSeg -amountToShift
+
+    // Check if new left-shifted wire results in another intersection
+    // If yes, try shifting to right bound instead
+    match findWireSymbolIntersections model tryShiftLeftWire with
+    | [] -> tryShiftLeftWire
+    | _ -> 
+        let rightBound = intersectedBoxes |> List.map(fun box -> box.TopLeft.X + box.W) |> List.max
+        let amountToShift = rightBound - currentVerticalSegXPos + buffer
+        shiftVerticalSeg amountToShift
+
+// /// For case where all 3 symbols are aligned in y direction
+// /// Try generating 5 segment wire
+// let tryShiftHorizontalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wire:Wire): Wire =
+
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
-    let segmentInfo =
-        wire.Segments |> List.map (fun (seg: Segment) -> seg.Length, seg.Mode)
 
-    // printfn
-    //     "%s"
-    //     $"Wire: Number of Segments={wire.Segments.Length} \nInitial Orientation={wire.InitialOrientation}\nSegments={segmentInfo}\nWidth={wire.Width}"
-    // |> ignore
-    // printfn "%A" wire.Segments.Length |> ignore
-    let destPos, startPos =
-        Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
+    let initialWire = autoroute model wire
 
-    let destEdge = Symbol.getInputPortOrientation model.Symbol wire.InputPort
+    let intersectedBoxes = findWireSymbolIntersections model initialWire
 
-    let startEdge = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort
-
-    let startPort = genPortInfo startEdge startPos
-    let destPort = genPortInfo destEdge destPos
-
-    // Normalise the routing problem to reduce the number of cases in makeInitialSegmentsList
-    let normStart, normEnd = rotateStartDest CommonTypes.Right (startPort, destPort)
-
-    let initialSegments =
-        makeSmartInitialSegmentsList wire.WId normStart.Position normEnd.Position normEnd.Edge model
-
-    let segments =
-        {| edge = CommonTypes.Right
-           segments = initialSegments |}
-        |> rotateSegments startEdge // Rotate the segments back to original orientation
-        |> (fun wire -> wire.segments)
-
-    { wire with
-        Segments = segments
-        InitialOrientation = getOrientationOfEdge startEdge
-        StartPos = startPos }
+    match intersectedBoxes.Length with
+    | 0 -> initialWire
+    | _ -> tryShiftVerticalSeg model intersectedBoxes initialWire

@@ -86,7 +86,33 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
         | 15.0 -> wire
         | _ -> newWires
     
+let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : Wire = 
+    let inputPort = string wire.InputPort
+    let outputPort = string wire.OutputPort
+    let portPos = symbol.PortMaps.Orientation |> Map.find inputPort
+    let wireLength =  wire.Segments[4].Length
+    let wireLabels = 
+        let inputLabel = {Label = inputPort; Position = wire.StartPos; Orientation = wire.InitialOrientation}
+        let outputLabel = {Label = outputPort; Position = wire.EndPos; Orientation = wire.InitialOrientation}
+        [inputLabel; outputLabel]
+    let newWire = {wire with WireLabels = wireLabels}
+    newWire
 
+/// helper function that replaces long wire with wire labels at input port and output port
+let replaceLongWire (model: Model) (wire: Wire) (symbol: Symbol) : Wire = 
+    let wireLength =  wire.Segments[4].Length
+    let inputPort = string wire.InputPort
+    let outputPort = string wire.OutputPort
+    let portPos = symbol.PortMaps.Orientation |> Map.find inputPort
+    match wireLength with
+        | length when length < -200.0 -> 
+            // replace wire with wire labels at input port and output port
+
+
+        | _ -> wire
+
+            
+    
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire): Wire =     
@@ -94,7 +120,7 @@ let smartAutoroute (model: Model) (wire: Wire): Wire =
     // printfn "Symbol found: %A" symbol
     let autoWire = autoroute model wire
 
-    // printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={autoWire.Segments}"
+    printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={autoWire.Segments}"
     // printfn "%s" $"hugging distance={huggingDistance autoWire (symbol |> Option.get)}"
     // printfn "%s" $"WIRE START POS={wire.StartPos.Y}"
 

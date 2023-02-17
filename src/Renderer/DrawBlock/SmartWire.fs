@@ -27,6 +27,7 @@ open Operators
 
 module Constants =
     let buffer = 10.
+    let maxCallsToShiftHorizontalSeg = 10
 
 //------------------------------------------------------------------------//
 //--------------------------Shifting Vertical Segment---------------------//
@@ -226,5 +227,5 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
         // initialWire
 
         tryShiftVerticalSeg model intersectedBoxes initialWire
-        |> Option.orElse (tryShiftHorizontalSeg model intersectedBoxes initialWire 10)
+        |> Option.orElse (tryShiftHorizontalSeg model intersectedBoxes initialWire Constants.maxCallsToShiftHorizontalSeg)
         |> Option.defaultValue initialWire

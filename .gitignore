@@ -246,3 +246,4 @@ docsrc/tools/FSharp.Formatting.svclog
 *.fs.js
 *.fs.js.map
 
+/global.json

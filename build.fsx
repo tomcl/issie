@@ -22,6 +22,8 @@ Target.create "CleanDev" (fun _ ->
     ++ "src/**/obj"
     ++ "dist*"
     ++ ".fable*"
+    ++ "src/Renderer/fable_modules"
+    ++ "src/Main/fable_modules"
   printfn "Cleaning directories: %A" dirsToClean
   Shell.cleanDirs dirsToClean
   printfn "Clean complete."

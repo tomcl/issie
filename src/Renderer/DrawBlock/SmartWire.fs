@@ -144,7 +144,7 @@ type BoundingBoxAboveOrBelow =
 let isBoundingBoxAboveOrBelowPos
     (intersectedBoxes: BoundingBox list)
     (pos: XYPos)
-    : BoundingBoxAboveOrBelow * BoundingBoxAboveOrBelow =
+    : float * float =
 
     let isBoxAboveOrBelowPos (pos: XYPos) (box: BoundingBox) : BoundingBoxAboveOrBelow option =
         if pos.X > box.TopLeft.X && pos.X < box.TopLeft.X + box.W then
@@ -163,84 +163,80 @@ let isBoundingBoxAboveOrBelowPos
 
     let largestDistanceAbove =
         if verticalDistances.Length = 0 then
-            Above 0.
+            0.
         else
             verticalDistances
-            |> List.maxBy (fun x ->
-                match x with
-                | Above d -> d
-                | Below _ -> 0.)
+            |> List.map(fun x -> match x with | Above d -> d | Below _ -> 0.)
+            |> List.max
 
     let largestDistanceBelow =
         if verticalDistances.Length = 0 then
-            Below 0.
+            0.
         else
             verticalDistances
-            |> List.maxBy (fun x ->
-                match x with
-                | Above _ -> 0.
-                | Below d -> d)
+            |> List.map(fun x -> match x with | Above _ -> 0. | Below d -> d)
+            |> List.max
 
     largestDistanceAbove, largestDistanceBelow
 
 
 /// For case where all 3 symbols are aligned in y direction
-let rec tryShiftHorizontalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wire: Wire) : Wire option =
-    let currentStartPos, currentEndPos = getStartAndEndWirePos wire
+let rec tryShiftHorizontalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wire: Wire) (callsLeft: int) : Wire option =
+    if callsLeft = 0 then
+        None
+    else
+        let currentStartPos, currentEndPos = getStartAndEndWirePos wire
 
-    let generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength =
-        // Change segments index 1,3,5. Leave rest as is
-        let newSegments =
-            wire.Segments[..0]
-            @ [ { wire.Segments[1] with Length = firstVerticalSegLength } ]
-              @ wire.Segments[2..2]
-                @ [ { wire.Segments[3] with Length = 0 } ]
-                  @ wire.Segments[4..4]
-                    @ [ { wire.Segments[5] with Length = secondVerticalSegLength } ]
-                      @ wire.Segments[6..]
+        let generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength =
+            // Change segments index 1,3,5. Leave rest as is
+            let newSegments =
+                wire.Segments[..0]
+                @ [ { wire.Segments[1] with Length = firstVerticalSegLength } ]
+                @ wire.Segments[2..2]
+                    @ [ { wire.Segments[3] with Length = 0 } ]
+                    @ wire.Segments[4..4]
+                        @ [ { wire.Segments[5] with Length = secondVerticalSegLength } ]
+                        @ wire.Segments[6..]
 
-        { wire with Segments = newSegments }
+            { wire with Segments = newSegments }
 
-    let tryShiftUpWire =
-        let topBound = intersectedBoxes |> List.map (fun box -> box.TopLeft.Y) |> List.min
-        let firstVerticalSegLength = topBound - buffer - currentStartPos.Y
-        let secondVerticalSegLength = currentEndPos.Y - (topBound - buffer)
-        generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength
+        let tryShiftUpWire =
+            let topBound = intersectedBoxes |> List.map (fun box -> box.TopLeft.Y) |> List.min
+            let firstVerticalSegLength = topBound - buffer - currentStartPos.Y
+            let secondVerticalSegLength = currentEndPos.Y - (topBound - buffer)
+            generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength
 
-    let tryShiftDownWire =
-        let bottomBound =
-            intersectedBoxes |> List.map (fun box -> box.TopLeft.Y + box.H) |> List.max
+        let tryShiftDownWire =
+            let bottomBound =
+                intersectedBoxes |> List.map (fun box -> box.TopLeft.Y + box.H) |> List.max
 
-        let firstVerticalSegLength = bottomBound + buffer - currentStartPos.Y
-        let secondVerticalSegLength = currentEndPos.Y - (bottomBound + buffer)
-        generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength
+            let firstVerticalSegLength = bottomBound + buffer - currentStartPos.Y
+            let secondVerticalSegLength = currentEndPos.Y - (bottomBound + buffer)
+            generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength
 
-    let upShiftedWireIntersections = findWireSymbolIntersections model tryShiftUpWire
+        let upShiftedWireIntersections = findWireSymbolIntersections model tryShiftUpWire
 
-    let downShiftedWireIntersections =
-        findWireSymbolIntersections model tryShiftDownWire
+        let downShiftedWireIntersections =
+            findWireSymbolIntersections model tryShiftDownWire
 
-    // Check which newly generated wire has no intersections, return that
-    match upShiftedWireIntersections, downShiftedWireIntersections with
-    | [], _ -> Some tryShiftUpWire
-    | _, [] -> Some tryShiftDownWire
-    | _, _ ->
-        printfn "tryShiftHorizontalSeg failed to find route"
+        // Check which newly generated wire has no intersections, return that
+        match upShiftedWireIntersections, downShiftedWireIntersections with
+        | [], _ -> Some tryShiftUpWire
+        | _, [] -> Some tryShiftDownWire
+        | _, _ ->
+            printfn "tryShiftHorizontalSeg failed to find route"
 
-        let (Above distanceAboveFromStart, Below distanceBelowFromStart) =
-            isBoundingBoxAboveOrBelowPos intersectedBoxes currentStartPos
+            let (distanceAboveFromStart,distanceBelowFromStart) =
+                isBoundingBoxAboveOrBelowPos intersectedBoxes currentStartPos
 
-        let (Above distanceAboveFromEnd, Below distanceBelowFromEnd) =
-            isBoundingBoxAboveOrBelowPos intersectedBoxes currentEndPos
+            let (distanceAboveFromEnd, distanceBelowFromEnd) =
+                isBoundingBoxAboveOrBelowPos intersectedBoxes currentEndPos
 
-        match max distanceAboveFromStart distanceAboveFromEnd, max distanceBelowFromStart distanceBelowFromEnd with
-        | distanceFromAbove, distanceFromBelow when distanceFromAbove > distanceFromBelow ->
-            tryShiftHorizontalSeg model downShiftedWireIntersections tryShiftDownWire
-        | distanceFromAbove, distanceFromBelow (*when distanceFromAbove <= distanceFromBelow*)  ->
-            tryShiftHorizontalSeg model upShiftedWireIntersections tryShiftUpWire
-
-// None
-
+            match max distanceAboveFromStart distanceAboveFromEnd, max distanceBelowFromStart distanceBelowFromEnd with
+            | distanceFromAbove, distanceFromBelow when distanceFromAbove > distanceFromBelow ->
+                tryShiftHorizontalSeg model downShiftedWireIntersections tryShiftDownWire (callsLeft-1)
+            | distanceFromAbove, distanceFromBelow (*when distanceFromAbove <= distanceFromBelow*)  ->
+                tryShiftHorizontalSeg model upShiftedWireIntersections tryShiftUpWire (callsLeft-1)
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
@@ -251,9 +247,15 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
     let intersectedBoxes = findWireSymbolIntersections model initialWire
 
     match intersectedBoxes.Length, wire.InitialOrientation with
-    | 0, _ -> initialWire
     | _, initialOrientation when initialOrientation = Vertical -> initialWire
-    | _ ->
+    | 0, _ -> initialWire
+    | _, initialOrientation ->
+        // TODO: Ask about this very very strange bug... - Only breaks for port 3 of MUX4
+        // printfn "Called"
+        // printfn "%A" initialWire.InitialOrientation
+        // printfn "%A" (initialOrientation = Vertical)
+        // initialWire
+
         tryShiftVerticalSeg model intersectedBoxes initialWire
-        |> Option.orElse (tryShiftHorizontalSeg model intersectedBoxes initialWire)
+        |> Option.orElse (tryShiftHorizontalSeg model intersectedBoxes initialWire 10)
         |> Option.defaultValue initialWire

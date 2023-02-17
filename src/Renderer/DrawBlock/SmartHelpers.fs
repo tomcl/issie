@@ -102,3 +102,67 @@ let updateModelWires
     |> Optic.map wires_ (fun wireMap  ->
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
+
+/// Returns a list of the bounding boxes of all symbols in current sheet
+/// HLP23: Jian Fu Eng
+let getAllSymbolBoundingBoxes (model: Model) : BoundingBox list =
+    let componentIDs = model.Symbol.Symbols.Keys |> List.ofSeq
+
+    /// Takes in componentId and returns the bounding box of the corresponding symbol
+    let getSymbolBoundingBox (model: Model) (componentId: ComponentId) : BoundingBox =
+        let symbol = model.Symbol.Symbols[componentId]
+
+        let symbolHeight =
+            match symbol.VScale with
+            | Some vScale -> symbol.Component.H * vScale
+            | None -> symbol.Component.H
+
+        let symbolWidth =
+            match symbol.HScale with
+            | Some hScale -> symbol.Component.W * hScale
+            | None -> symbol.Component.W
+
+        { H = symbolHeight
+          W = symbolWidth
+          TopLeft = symbol.Pos }
+
+    componentIDs |> List.map (getSymbolBoundingBox model)
+
+/// Checks if a wire intersects any symbol or not
+/// Returns list of bounding boxes of symbols intersected by wire
+/// HLP23: Jian Fu Eng
+let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
+    let allSymbolBoundingBoxes = getAllSymbolBoundingBoxes model
+
+    let wireVertices =
+        segmentsToIssieVertices wire.Segments wire
+        |> List.map (fun (x, y, _) -> { X = x; Y = y })
+
+    let segVertices = List.pairwise wireVertices[1 .. wireVertices.Length - 2] // do not consider the nubs
+
+    let numBoxesIntersectedBySegment startPos endPos =
+        allSymbolBoundingBoxes
+        |> List.mapi (fun i boundingBox ->
+            match segmentIntersectsBoundingBox boundingBox startPos endPos with
+            | Some _ -> Some boundingBox // segment intersects bounding box
+            | None -> None // no intersection
+        )
+        |> List.distinct
+        |> List.filter (fun x -> x <> None)
+        |> List.map (Option.get)
+
+    segVertices
+    |> List.collect (fun (startPos, endPos) -> numBoxesIntersectedBySegment startPos endPos)
+    |> List.distinct
+
+/// Get the start and end positions of a wire
+/// HLP23: Jian Fu Eng
+let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
+    let wireVertices =
+        segmentsToIssieVertices wire.Segments wire
+        |> List.map (fun (x, y, _) -> { X = x; Y = y })
+
+    let currentStartPos = wireVertices.Head
+    let currentEndPos = wireVertices[wireVertices.Length - 2]
+
+    currentStartPos, currentEndPos

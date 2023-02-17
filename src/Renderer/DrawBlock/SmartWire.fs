@@ -120,20 +120,73 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
     match leftShiftedWireIntersections, rightShiftedWireIntersections with
     | [], _ -> Some tryShiftLeftWire
     | _, [] -> Some tryShiftRightWire
-    | _, _ -> 
+    | _, _ ->
         printfn "tryShiftVerticalSeg failed to find route"
         None
 
-
-/// For case where all 3 symbols are aligned in y direction
-let rec tryShiftHorizontalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wire: Wire) : Wire option =
+let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
     let wireVertices =
         segmentsToIssieVertices wire.Segments wire
         |> List.map (fun (x, y, _) -> { X = x; Y = y })
 
-    let currentStartYPos = wireVertices.Head.Y
-    let currentEndYPos = wireVertices[wireVertices.Length - 2].Y
+    let currentStartPos = wireVertices.Head
+    let currentEndPos = wireVertices[wireVertices.Length - 2]
 
+    currentStartPos, currentEndPos
+
+type BoundingBoxAboveOrBelow =
+    | Above of float
+    | Below of float
+
+/// Check if any bounding box is directly above or below startPos and endPos
+/// If yes, returns a tuple of form
+/// distance between pos and the furthest box above, distance between pos and the furthest box below
+let isBoundingBoxAboveOrBelowPos
+    (intersectedBoxes: BoundingBox list)
+    (pos: XYPos)
+    : BoundingBoxAboveOrBelow * BoundingBoxAboveOrBelow =
+
+    let isBoxAboveOrBelowPos (pos: XYPos) (box: BoundingBox) : BoundingBoxAboveOrBelow option =
+        if pos.X > box.TopLeft.X && pos.X < box.TopLeft.X + box.W then
+            if pos.Y > box.TopLeft.Y then
+                Above(pos.Y - box.TopLeft.Y) |> Some
+            else
+                Below(box.TopLeft.Y - pos.Y + box.H) |> Some
+        else
+            None
+
+    let verticalDistances =
+        intersectedBoxes
+        |> List.map (isBoxAboveOrBelowPos pos)
+        |> List.filter (fun x -> x <> None)
+        |> List.map (Option.get)
+
+    let largestDistanceAbove =
+        if verticalDistances.Length = 0 then
+            Above 0.
+        else
+            verticalDistances
+            |> List.maxBy (fun x ->
+                match x with
+                | Above d -> d
+                | Below _ -> 0.)
+
+    let largestDistanceBelow =
+        if verticalDistances.Length = 0 then
+            Below 0.
+        else
+            verticalDistances
+            |> List.maxBy (fun x ->
+                match x with
+                | Above _ -> 0.
+                | Below d -> d)
+
+    largestDistanceAbove, largestDistanceBelow
+
+
+/// For case where all 3 symbols are aligned in y direction
+let rec tryShiftHorizontalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wire: Wire) : Wire option =
+    let currentStartPos, currentEndPos = getStartAndEndWirePos wire
 
     let generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength =
         // Change segments index 1,3,5. Leave rest as is
@@ -150,16 +203,17 @@ let rec tryShiftHorizontalSeg (model: Model) (intersectedBoxes: BoundingBox list
 
     let tryShiftUpWire =
         let topBound = intersectedBoxes |> List.map (fun box -> box.TopLeft.Y) |> List.min
-        let firstVerticalSegLength = topBound - buffer - currentStartYPos
-        let secondVerticalSegLength = currentEndYPos - (topBound - buffer)
+        let firstVerticalSegLength = topBound - buffer - currentStartPos.Y
+        let secondVerticalSegLength = currentEndPos.Y - (topBound - buffer)
         generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength
 
     let tryShiftDownWire =
         let bottomBound =
             intersectedBoxes |> List.map (fun box -> box.TopLeft.Y + box.H) |> List.max
-        let firstVerticalSegLength = bottomBound + buffer - currentStartYPos
-        let secondVerticalSegLength = currentEndYPos - (bottomBound + buffer)
-        generateLongHorizontalWire -firstVerticalSegLength -secondVerticalSegLength
+
+        let firstVerticalSegLength = bottomBound + buffer - currentStartPos.Y
+        let secondVerticalSegLength = currentEndPos.Y - (bottomBound + buffer)
+        generateLongHorizontalWire firstVerticalSegLength secondVerticalSegLength
 
     let upShiftedWireIntersections = findWireSymbolIntersections model tryShiftUpWire
 
@@ -170,10 +224,22 @@ let rec tryShiftHorizontalSeg (model: Model) (intersectedBoxes: BoundingBox list
     match upShiftedWireIntersections, downShiftedWireIntersections with
     | [], _ -> Some tryShiftUpWire
     | _, [] -> Some tryShiftDownWire
-    | _, _ -> 
+    | _, _ ->
         printfn "tryShiftHorizontalSeg failed to find route"
-        // tryShiftHorizontalSeg model upShiftedWireIntersections tryShiftUpWire
-        None
+
+        let (Above distanceAboveFromStart, Below distanceBelowFromStart) =
+            isBoundingBoxAboveOrBelowPos intersectedBoxes currentStartPos
+
+        let (Above distanceAboveFromEnd, Below distanceBelowFromEnd) =
+            isBoundingBoxAboveOrBelowPos intersectedBoxes currentEndPos
+
+        match max distanceAboveFromStart distanceAboveFromEnd, max distanceBelowFromStart distanceBelowFromEnd with
+        | distanceFromAbove, distanceFromBelow when distanceFromAbove > distanceFromBelow ->
+            tryShiftHorizontalSeg model downShiftedWireIntersections tryShiftDownWire
+        | distanceFromAbove, distanceFromBelow (*when distanceFromAbove <= distanceFromBelow*)  ->
+            tryShiftHorizontalSeg model upShiftedWireIntersections tryShiftUpWire
+
+// None
 
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
@@ -184,8 +250,9 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
 
     let intersectedBoxes = findWireSymbolIntersections model initialWire
 
-    match intersectedBoxes.Length with
-    | 0 -> initialWire
+    match intersectedBoxes.Length, wire.InitialOrientation with
+    | 0, _ -> initialWire
+    | _, initialOrientation when initialOrientation = Vertical -> initialWire
     | _ ->
         tryShiftVerticalSeg model intersectedBoxes initialWire
         |> Option.orElse (tryShiftHorizontalSeg model intersectedBoxes initialWire)

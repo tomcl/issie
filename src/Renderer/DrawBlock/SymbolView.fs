@@ -177,15 +177,23 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> flipIfNecessary
     |> relativeToTopLeft
 
-let rotatePoints2 (point:XYPos) (centre:XYPos) (transform:STransform) = 
+let rotatePoints2 (point:XYPos) (centre:XYPos) (transform:STransform) rotation = 
     // let offset = {X = centre.Y; Y = centre.X}
     let relativeToCentre = (fun x->x - centre)
     let rotateAboutCentre (pointIn:XYPos) = 
-        match transform.Rotation with
-        | Degree0   -> {X = -pointIn.Y ; Y = pointIn.X}
-        | Degree270 -> {X = -pointIn.Y ; Y = pointIn.X}
-        | Degree180 -> {X = -pointIn.Y ; Y = pointIn.X}
-        | Degree90  -> {X = -pointIn.Y ; Y = pointIn.X}
+        match rotation with 
+        | RotateClockwise ->
+            match transform.Rotation with
+            | Degree0   -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree270 -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree180 -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree90  -> {X = -pointIn.Y ; Y = pointIn.X}
+        | RotateAntiClockwise ->
+            match transform.Rotation with
+            | Degree0   -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree270 -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree180 -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree90  -> {X = pointIn.Y ; Y = -pointIn.X}
     let relativeToTopLeft = (fun x->x + centre)
     let flipIfNecessary pts =
         if not transform.flipped then pts

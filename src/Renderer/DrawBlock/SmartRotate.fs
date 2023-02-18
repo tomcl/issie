@@ -59,7 +59,7 @@ let rotateSymbol2 (rotation: RotationType) (sym: Symbol) (newPos:XYPos) : Symbol
       | _ ->
 
           let h,w = getRotatedHAndW sym
-
+          printfn "rot: %A" rotation
           let newPos2 = adjustPosForRotation2 rotation h w newPos  
 
           let newComponent = { sym.Component with X = newPos2.X; Y = newPos2.Y}
@@ -82,6 +82,7 @@ let rotateSymbol2 (rotation: RotationType) (sym: Symbol) (newPos:XYPos) : Symbol
 let rotateSelectedSymbols (compList:ComponentId list) (model:SymbolT.Model) rotation = 
 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
     let origPos = List.map (fun x -> x.Pos) SelectedSymbols
     printfn "origPos: %A" origPos
     //Find the maximum and minimum x and y values of the selected components
@@ -96,16 +97,22 @@ let rotateSelectedSymbols (compList:ComponentId list) (model:SymbolT.Model) rota
     //Find the center of the selected components
     let centerX = (maxX.Pos.X+(snd (getRotatedHAndW maxX)) + minX.Pos.X) / 2.
     let centerY = (maxY.Pos.Y+ (fst (getRotatedHAndW minY))  + minY.Pos.Y) / 2.
-
     let center = {X = centerX; Y = centerY}
     printfn "center: %A" center
 
-    let newPos = List.map (fun x -> (rotatePoints2 x.Pos center x.STransform)) SelectedSymbols
-    printfn "newPos: %A" newPos
+    //Find rotated Pos of each selected component
+    let rotateTopLeft = List.map (fun x -> (rotatePoints2 x.Pos center x.STransform rotation)) SelectedSymbols
+    printfn "newPos: %A" rotateTopLeft
 
-    let newSymbols = List.map2 (fun x y -> rotateSymbol2 rotation x y) SelectedSymbols newPos
+    //Get the new symbols
+    let newSymbols = List.map2 (fun x y -> rotateSymbol2 rotation x y) SelectedSymbols rotateTopLeft
 
-    {model with Symbols = Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)}
+    //return model with block of rotated selected symbols, and unselected symbols
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}
+    
     
     
 

@@ -605,11 +605,11 @@ let adjustPosForRotation2
         (w:float)
         (pos: XYPos)
          : XYPos =
-    // let posOffset =
-    //     match rotation with
-    //     | RotateClockwise -> { X = (float)w - (float) h ;Y = (float) h/2.0 - (float)w/2.0 }
-    //     | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-    pos - {X=(float)h ;Y=0}
+    let posOffset =
+        match rotation with
+        | RotateClockwise -> {X=(float)h ;Y=0}
+        | RotateAntiClockwise -> { X = 0 ;Y = (float)w }
+    pos - posOffset
 
 
 /// Takes a symbol in and returns the same symbol rotated left or right

@@ -1,9 +1,11 @@
 ﻿module SmartHelpers
+
 open CommonTypes
 open DrawHelpers
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
+open Symbol
 open BusWire
 open BusWireUpdateHelpers
 
@@ -49,17 +51,15 @@ HOW TO USE THIS MODULE.
 //  details. Note that Optics are probably a little bit slower than F# record update (factor of 2)
 //  however in this case it does not matter because the time taken is << the Map update time.
 /// HLP23: AUTHOR Clarke
-let updateModelSymbols 
-    (model: BusWireT.Model) 
-    (symbols: Symbol list)
-        : BusWireT.Model =
+let updateModelSymbols (model: BusWireT.Model) (symbols: Symbol list) : BusWireT.Model =
     // HLP23: note on fold implementation. symMap is both argument and result of the
     // fold function => sequential set of updates. In thsi case much more efficient than Map.map
     // over all symbols.
     // HLP23 - see also similar updateModelWires
     let symbols' =
-        (model.Symbol.Symbols,symbols)
+        (model.Symbol.Symbols, symbols)
         ||> List.fold (fun symMap symToAdd -> Map.add symToAdd.Id symToAdd symMap)
+
     Optic.set (symbol_ >-> symbols_) symbols' model
 
 /// Update BusWire model with given wires. Can also be used to add new wires.
@@ -71,66 +71,63 @@ let updateModelSymbols
 //  details. Note that Optics are probably a little bit slower than F# record update (factor of 2)
 //  however in this case it does not matter because the time taken is << the Map update time.
 /// HLP23: AUTHOR Clarke
-let updateModelWires 
-    (model: BusWireT.Model) 
-    (wiresToAdd: Wire list)
-        : BusWireT.Model =
+let updateModelWires (model: BusWireT.Model) (wiresToAdd: Wire list) : BusWireT.Model =
     //
     // HLP23: note on fold implementation. In this (typical) example Map is
-    // sequentially updated by the fold. A common and difficult to see coding mistake is to use the 
-    // original wireMap (argument of Optic map function) not the updated one (wireMap argument of 
-    // List.map folder) in the fold function! That is not possible here because both have the same 
-    // name so the inner bound updated wireMap is always what is used in the folder function. 
+    // sequentially updated by the fold. A common and difficult to see coding mistake is to use the
+    // original wireMap (argument of Optic map function) not the updated one (wireMap argument of
+    // List.map folder) in the fold function! That is not possible here because both have the same
+    // name so the inner bound updated wireMap is always what is used in the folder function.
     // This is good practice, and if you have ever debugged this type of mistake you will know it
     // is very necessary!
 
-    // HLP23: note on this use of Optics.map in a pipeline. It is more "functional" than the 
-    // equivalent implementation using a let definition and Optics.set. Is it clearer? Or less clear? 
-    // Standard logic says we should prefer the pipeline if the name of the let definition adds 
-    // nothing which is the case here. I have given you both ways of using Optics here so you can 
-    // compare the two implementations and decide. NB - you are NOT required to use Optics in your 
+    // HLP23: note on this use of Optics.map in a pipeline. It is more "functional" than the
+    // equivalent implementation using a let definition and Optics.set. Is it clearer? Or less clear?
+    // Standard logic says we should prefer the pipeline if the name of the let definition adds
+    // nothing which is the case here. I have given you both ways of using Optics here so you can
+    // compare the two implementations and decide. NB - you are NOT required to use Optics in your
     // own code.
     //
-    // HLP23: Note how multiple updates to different parts of the model can be neatly pipelined 
+    // HLP23: Note how multiple updates to different parts of the model can be neatly pipelined
     // like this using a separate Optic.map or Optic.set for each.
     //
     // HLP23: note that if the operation here was larger or part of some pipeline the
-    // 2nd argument to Optic.map - which defines the model change - could be given a name and 
+    // 2nd argument to Optic.map - which defines the model change - could be given a name and
     // turned into a local function making the Optic.map line like:
     // |> Optic.map wires_ myNameForThisWireMapUpdate
     model
-    |> Optic.map wires_ (fun wireMap  ->
-        (wireMap,wiresToAdd)
+    |> Optic.map wires_ (fun wireMap ->
+        (wireMap, wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
-/// Returns a list of the bounding boxes of all symbols in current sheet
-/// HLP23: Jian Fu Eng
+/// Takes in ComponentId and returns the bounding box of the corresponding symbol
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
+let getSymbolBoundingBox (model: Model) (componentId: ComponentId) : BoundingBox =
+    let symbol = model.Symbol.Symbols[componentId]
+
+    let symbolHeight =
+        match symbol.VScale with
+        | Some vScale -> symbol.Component.H * vScale
+        | None -> symbol.Component.H
+
+    let symbolWidth =
+        match symbol.HScale with
+        | Some hScale -> symbol.Component.W * hScale
+        | None -> symbol.Component.W
+
+    { H = symbolHeight
+      W = symbolWidth
+      TopLeft = symbol.Pos }
+
+/// Returns a list of the bounding boxes of all symbols in current sheet.
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
 let getAllSymbolBoundingBoxes (model: Model) : BoundingBox list =
     let componentIDs = model.Symbol.Symbols.Keys |> List.ofSeq
-
-    /// Takes in componentId and returns the bounding box of the corresponding symbol
-    let getSymbolBoundingBox (model: Model) (componentId: ComponentId) : BoundingBox =
-        let symbol = model.Symbol.Symbols[componentId]
-
-        let symbolHeight =
-            match symbol.VScale with
-            | Some vScale -> symbol.Component.H * vScale
-            | None -> symbol.Component.H
-
-        let symbolWidth =
-            match symbol.HScale with
-            | Some hScale -> symbol.Component.W * hScale
-            | None -> symbol.Component.W
-
-        { H = symbolHeight
-          W = symbolWidth
-          TopLeft = symbol.Pos }
-
     componentIDs |> List.map (getSymbolBoundingBox model)
 
-/// Checks if a wire intersects any symbol or not
-/// Returns list of bounding boxes of symbols intersected by wire
-/// HLP23: Jian Fu Eng
+/// Checks if a wire intersects any symbol or not.
+/// Returns list of bounding boxes of symbols intersected by wire.
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
 let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
     let allSymbolBoundingBoxes = getAllSymbolBoundingBoxes model
 
@@ -155,8 +152,8 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
     |> List.collect (fun (startPos, endPos) -> numBoxesIntersectedBySegment startPos endPos)
     |> List.distinct
 
-/// Get the start and end positions of a wire
-/// HLP23: Jian Fu Eng
+/// Get the start and end positions of a wire.
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
 let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
     let wireVertices =
         segmentsToIssieVertices wire.Segments wire
@@ -166,3 +163,27 @@ let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
     let currentEndPos = wireVertices[wireVertices.Length - 2]
 
     currentStartPos, currentEndPos
+
+/// Checks if a port is part of a Symbol.
+/// HLP23: AUTHOR dgs119
+let isPortInSymbol (portId: string) (symbol: Symbol) : bool =
+    symbol.PortMaps.Orientation |> Map.containsKey portId
+
+/// Checks if wire is connected to two given symbols. Neglects self connections.
+/// HLP23: AUTHOR dgs119
+let isConnBtwnSyms (wire: Wire) (symbolA: Symbol) (symbolB: Symbol) : bool =
+    let inId, outId =
+        getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
+
+    match inId, outId with
+    | inId, outId when (isPortInSymbol inId symbolA) && (isPortInSymbol outId symbolB) -> true
+    | inId, outId when (isPortInSymbol inId symbolB) && (isPortInSymbol outId symbolA) -> true
+    | _ -> false
+
+/// Gets wires connected between symbols.
+/// HLP23: AUTHOR dgs119
+let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : List<Wire> =
+    wModel.Wires
+    |> Map.filter (fun _ wire -> isConnBtwnSyms wire symbolA symbolB)
+    |> Map.toList
+    |> List.map snd

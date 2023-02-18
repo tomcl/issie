@@ -16,6 +16,7 @@ open Optic
 open Operators
 open System
 
+
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
 let rec extractIOPrefix (str : string) (charLst: char list) =
     let len = String.length str
@@ -597,6 +598,18 @@ let adjustPosForRotation
         | RotateClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
         | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
     pos + posOffset
+
+let adjustPosForRotation2 
+        (rotation:RotationType) 
+        (h: float)
+        (w:float)
+        (pos: XYPos)
+         : XYPos =
+    // let posOffset =
+    //     match rotation with
+    //     | RotateClockwise -> { X = (float)w - (float) h ;Y = (float) h/2.0 - (float)w/2.0 }
+    //     | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+    pos - {X=(float)h ;Y=0}
 
 
 /// Takes a symbol in and returns the same symbol rotated left or right

@@ -23,7 +23,9 @@ open Node
 
 module node = Node.Api
 
-importReadUart
+importReadUart 
+
+open SmartRotate
 
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
@@ -335,14 +337,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | RotateLabels ->
         rotateSelectedLabelsClockwise model
-    
+
     | Rotate rotation ->
-        model,
-        Cmd.batch [
-            symbolCmd (SymbolT.RotateLeft(model.SelectedComponents, rotation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
-            Cmd.ofMsg SheetT.UpdateBoundingBoxes
-        ]
+        // model,
+        // Cmd.batch [
+        //     symbolCmd (SymbolT.RotateLeft(model.SelectedComponents, rotation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+        //     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+        //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
+        // ]
+        {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateSelectedSymbols model.SelectedComponents model.Wire.Symbol rotation)}}, Cmd.none
 
     | Flip orientation ->
         model,

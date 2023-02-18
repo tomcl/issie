@@ -9,6 +9,9 @@ open DrawModelType.BusWireT
 open Symbol
 open Optics
 open Operators
+open SymbolView
+
+open SymbolUpdate
 
 (*
     HLP23: this is a placeholder module for some work that can be done in the individual or team phase
@@ -42,3 +45,71 @@ open Operators
     Those interested can ask me for details.
 *)
 
+let rotateSymbol2 (rotation: RotationType) (sym: Symbol) (newPos:XYPos) : Symbol =
+      // update comp w h
+      match sym.Component.Type with
+      | Custom _->
+          let portMaps = rotatePortInfo rotation sym.PortMaps
+          let getHW (sym:Symbol) = {X=sym.Component.W;Y=sym.Component.H}
+          let sym' =
+              {sym with PortMaps = portMaps}
+              |> autoScaleHAndW
+          {sym' with Pos = sym.Pos + (getHW sym - getHW sym') * 0.5}
+          
+      | _ ->
+
+          let h,w = getRotatedHAndW sym
+
+          let newPos2 = adjustPosForRotation2 rotation h w newPos  
+
+          let newComponent = { sym.Component with X = newPos2.X; Y = newPos2.Y}
+
+          let newSTransform = 
+              match sym.STransform.flipped with
+              | true -> 
+                  {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
+              | false -> 
+                  {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
+          printfn "newPos2 : {%A}" newPos2
+          { sym with 
+              Pos = newPos2;
+              PortMaps = rotatePortInfo rotation sym.PortMaps
+              STransform =newSTransform 
+              LabelHasDefaultPos = true
+              Component = newComponent
+          } |> calcLabelBoundingBox 
+
+let rotateSelectedSymbols (compList:ComponentId list) (model:SymbolT.Model) rotation = 
+
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let origPos = List.map (fun x -> x.Pos) SelectedSymbols
+    printfn "origPos: %A" origPos
+    //Find the maximum and minimum x and y values of the selected components
+    let maxX = List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) SelectedSymbols
+    let minX = List.minBy (fun (x:Symbol) -> x.Pos.X) SelectedSymbols
+    let maxY = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) SelectedSymbols
+    let minY = List.minBy (fun (x:Symbol) -> x.Pos.Y) SelectedSymbols
+    printfn "maxX: %A" (maxX.Pos.X + (snd (getRotatedHAndW maxX)))
+    printfn "minX: %A" minX.Pos.X
+    printfn "maxY: %A" (maxY.Pos.Y + (fst (getRotatedHAndW minY)))
+    printfn "minY: %A" (minY.Pos.Y)
+    //Find the center of the selected components
+    let centerX = (maxX.Pos.X+(snd (getRotatedHAndW maxX)) + minX.Pos.X) / 2.
+    let centerY = (maxY.Pos.Y+ (fst (getRotatedHAndW minY))  + minY.Pos.Y) / 2.
+
+    let center = {X = centerX; Y = centerY}
+    printfn "center: %A" center
+
+    let newPos = List.map (fun x -> (rotatePoints2 x.Pos center x.STransform)) SelectedSymbols
+    printfn "newPos: %A" newPos
+
+    let newSymbols = List.map2 (fun x y -> rotateSymbol2 rotation x y) SelectedSymbols newPos
+
+    {model with Symbols = Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)}
+    
+    
+
+    
+
+
+   

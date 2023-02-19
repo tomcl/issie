@@ -65,6 +65,7 @@ let updateModelSymbols
 /// Update BusWire model with given wires. Can also be used to add new wires.
 /// This uses a fold on the Map to add wires which makes it fast in the case that the number
 /// of wires added is small.
+
 //  Performance scales as O(M*log2(N)) - M = number of wires added, N = number of existing
 //  wires. Changing large maps is relatively expensive hence the care here.
 //  This function uses best practice for nested record update with Optics. See Wiki for
@@ -127,3 +128,30 @@ let portPositions (symbol: Symbol) (edge: Edge): list<float*float> =
         | Bottom -> [x + w/numberPorts, y + h; x + w/numberPorts, y + h/numberPorts]
         | Left -> [x, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
         | Right -> [x + w, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
+
+
+/// HLP23: Author Indraneel
+/// Finds all the InterConnecting Wires between 2 symbols given WireModel and the 2 symbols
+let findInterconnectingWires (wModel: BusWireT.Model)
+    (symbolToOrder: Symbol) 
+    (otherSymbol: Symbol) =
+
+    let sModel = wModel.Symbol
+
+    let wires =
+        wModel.Wires
+        |> Map.toList
+        |> List.map snd
+    
+    
+    wires
+    |> List.filter (fun value ->
+
+        let outputPortHost = sModel.Ports[string value.OutputPort].HostId
+        let inputPortHost = sModel.Ports[string value.InputPort].HostId
+
+        let outputHostMatches = (outputPortHost = otherSymbol.Component.Id)
+        let inputHostMatches = (inputPortHost = symbolToOrder.Component.Id)
+
+        outputHostMatches && inputHostMatches
+        )

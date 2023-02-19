@@ -206,6 +206,20 @@ let movePortToBottom (portMaps: PortMaps) index =
     let newPortOrientation =
         portMaps.Orientation |> Map.add portId Bottom
     {Order=newPortOrder; Orientation=newPortOrientation}
+    
+let movePortToTop (portMaps: PortMaps) index =
+    let leftPorts = portMaps.Order[Left]
+    let portId = leftPorts |> List.item index //get id of sel
+
+    let newBottomPorts = [portId]
+    let newLeftPorts = portMaps.Order[Left] |> List.removeAt index
+    let newPortOrder =
+        portMaps.Order
+        |> Map.add Top newBottomPorts
+        |> Map.add Left newLeftPorts
+    let newPortOrientation =
+        portMaps.Orientation |> Map.add portId Top
+    {Order=newPortOrder; Orientation=newPortOrientation}
 
 
 /// Work out a label bounding box from symbol, return symbol with box added.
@@ -389,7 +403,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
 let movePortsToCorrectEdgeForComponentType (ct: ComponentType) (portMaps: PortMaps): PortMaps =
     match ct with //need to put some ports to different edges
     | Mux2  -> //need to remove select port from left and move to bottom
-        movePortToBottom portMaps 2
+        movePortToTop portMaps 2
     | Mux4 -> //need to remove select port from left and move to right
         movePortToBottom portMaps 4
     | Mux8 ->
@@ -654,14 +668,14 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
         }
     let props = getComponentProperties compType label           
     makeComponent' props label
-
-
+  
 
 /// Function to generate a new symbol
 let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
+    printf "The component Label %A" comp.Label
     let transform = {Rotation= Degree0; flipped= false}
 
     { 
@@ -683,7 +697,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       Moving = false
       PortMaps = initPortOrientation comp
       STransform = transform
-      ReversedInputPorts = Some false
+      ReversedInputPorts = Some true
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
       MovingPortTarget = None
@@ -692,6 +706,11 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     }
     |> autoScaleHAndW
     |> calcLabelBoundingBox
+    
+    
+let updatePorts (model: Model) (sym: Symbol) =
+    sym.ReversedInputPorts = Some true
+    
 
 // Function to add ports to port model     
 let addToPortModel (model: Model) (sym: Symbol) =

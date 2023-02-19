@@ -362,7 +362,7 @@ let inline selectSymbols model compList =
             sym
             |> map appearance_ (
                 set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> 
-                set opacity_ 1.0 
+                set opacity_ 1.0
             )
         )
 

@@ -122,7 +122,9 @@ let private createPolygon points colour opacity =
 
 let createCurvedShape points colour opacity strokeWidth (comp:Component)=
     let points = (radius, h1, d1, h2, d2)
-    [makePartArcAttr radius h1 d1 h2 d2]
+    let attr = makePartArcAttr radius h1 d1 h2 d2
+    let parameters = {Stroke = "Black"; StrokeWidth = "0.1px"; StrokeDashArray = ; StrokeLinecap = ; Fill = "Blue" ;}
+    
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 

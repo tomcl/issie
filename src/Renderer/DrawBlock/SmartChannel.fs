@@ -53,10 +53,16 @@ let getWiresInChannel (channel: BoundingBox) (wires: Wire list): ConnectionId li
     let listToTup (l: (float * float) list): XYPos * XYPos =
         {X = fst l[0]; Y = snd l[0]}, {X = fst l[1]; Y = snd l[1]}
     
+    let is7Seg (wire: Wire): bool =
+        wire.Segments.Length = 7
+    
     let wireCoordList =
-        List.map (fun w -> (segmentsToIssieVertices w.Segments w)[3..4], w.WId) wires
+        List.filter is7Seg wires
+        |> List.map (fun w -> (segmentsToIssieVertices w.Segments w)[3..4], w.WId)
         |> List.map (fun (verts, wid) ->
             List.map (fun (x, y, _) -> (x, y) ) verts |> listToTup, wid )
+    
+    
     
     let bottomRight =
         { channel.TopLeft with X = channel.TopLeft.X + channel.W; Y = channel.TopLeft.Y + channel.H }
@@ -70,6 +76,7 @@ let smartChannelRoute
         (channel: BoundingBox) 
         (model:Model) 
             :Model =
+    // channel.TopLeft is actually channel.TopRight
     let tl = {channel.TopLeft with X = channel.TopLeft.X - channel.W}
     let _channel = {channel with TopLeft = tl}
 

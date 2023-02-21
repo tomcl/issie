@@ -187,3 +187,18 @@ let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol)
     |> Map.filter (fun _ wire -> isConnBtwnSyms wire symbolA symbolB)
     |> Map.toList
     |> List.map snd
+
+/// Gets port info from wires that are connected to two given symbols.
+/// HLP23: AUTHOR dgs119
+let getPortsBtwnSyms (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
+    let ports =
+        getConnBtwnSyms model symToOrder otherSym
+        |> List.map (fun wire ->
+            [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
+              getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
+        |> List.concat
+
+    let fiterPortInfoBySym (symbol: Symbol) =
+        ports |> List.filter (fun port -> ComponentId port.HostId = symbol.Id)
+
+    (fiterPortInfoBySym symToOrder, fiterPortInfoBySym otherSym)

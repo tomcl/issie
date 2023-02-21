@@ -258,7 +258,19 @@ module CommonTypes
     type STransform = {Rotation: Rotation; flipped: bool}
     
     /// Represents the sides of a component
-    type Edge = | Top | Bottom | Left | Right
+    type Edge =
+        | Top
+        | Bottom
+        | Left
+        | Right
+
+        member this.Opposite =
+            match this with
+            | Top -> Bottom
+            | Bottom -> Top
+            | Left -> Right
+            | _ -> Left
+
 
     type BoundingBox = {
         /// Top left corner of the bounding box

@@ -39,50 +39,79 @@ module Constants =
 /// The Wires going through the channel must be returned as an updated Wires map in model.
 // HLP23: need to update XML doc comments when this function is fully worked out.
 
+
+// Finds if two segments in 1D intersect
 let overlap1D ((a1, a2): float * float) ((b1, b2): float * float): bool =
     let a_min, a_max = min a1 a2, max a1 a2
     let b_min, b_max = min b1 b2, max b1 b2
     a_max >= b_min && b_max >= a_min
 
+// Finds if two boxes in 2D intersect
 let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos): bool =
     (overlap1D (a1.X, a2.X) (b1.X, b2.X)) &&
     (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
 
-let getWiresInChannel (channel: BoundingBox) (wires: Wire list): ConnectionId list =
+// Retrieves XYPos of every vertex in a wire
+let getWireSegmentsXY (wire: Wire) =
+    
+    let tupToXY (l: (float * float)): XYPos =
+        {X = fst l; Y = snd l}
+
+    segmentsToIssieVertices wire.Segments wire
+    |> List.map (fun (x, y, _) -> (x, y))
+    |> List.map tupToXY    
+
+// Retrieves all wireId's which intersect an arbitrary bounding box
+let getWiresInBox (box: BoundingBox) (model: Model): ConnectionId list =
+    
+    let wires = (List.ofSeq (Seq.cast model.Wires.Values))
     
     let listToTup (l: (float * float) list): XYPos * XYPos =
         {X = fst l[0]; Y = snd l[0]}, {X = fst l[1]; Y = snd l[1]}
     
     let is7Seg (wire: Wire): bool =
         wire.Segments.Length = 7
-    
+        
     let wireCoordList =
         List.filter is7Seg wires
-        |> List.map (fun w -> (segmentsToIssieVertices w.Segments w)[3..4], w.WId)
-        |> List.map (fun (verts, wid) ->
-            List.map (fun (x, y, _) -> (x, y) ) verts |> listToTup, wid )
-    
-    
+        |> List.map (fun w -> getWireSegmentsXY w, w.WId)
+        |> List.map (fun (posL, wid) -> (posL[3], posL[4]), wid)
     
     let bottomRight =
-        { channel.TopLeft with X = channel.TopLeft.X + channel.W; Y = channel.TopLeft.Y + channel.H }
+        { box.TopLeft with X = box.TopLeft.X + box.W; Y = box.TopLeft.Y + box.H }
     
-    List.filter (fun x -> overlap2D (channel.TopLeft, bottomRight) (fst x)) wireCoordList
+    List.filter (fun x -> overlap2D (box.TopLeft, bottomRight) (fst x)) wireCoordList
     |> List.map snd
 
 
+let extractWire (model: Model) (wId: ConnectionId): Wire = model.Wires[wId]
+
+// Code
 let smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 
-        (model:Model) 
-            :Model =
+        (model: Model) 
+            : Model =
+                
     // channel.TopLeft is actually channel.TopRight
     let tl = {channel.TopLeft with X = channel.TopLeft.X - channel.W}
     let _channel = {channel with TopLeft = tl}
 
+    let sortWiresByX (wireIds: ConnectionId list) =
+            
+        let wire3rdXs =
+            List.map (fun wid -> wid, extractWire model wid) wireIds
+            |> List.map (fun (wid, w) -> wid, getWireSegmentsXY w)
+            |> List.map (fun (wid, l) -> wid, l[3].X)
+            
+        List.sortBy snd wire3rdXs
+        |> List.map (fun (id, x) -> printfn $"id: {id}, x: {x}")
+
+
     let getWires =
-        getWiresInChannel _channel (List.ofSeq (Seq.cast model.Wires.Values))
-        |> printfn "Wires In Channel: %A"
+        getWiresInBox _channel model
+        |> fun x -> printfn "Wires In Channel: %A" x; x
+        |> sortWiresByX
         
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     model

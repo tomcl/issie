@@ -21,6 +21,42 @@ open Operators
     this purpose.
 *)
 
+let pipePrint x = 
+    printfn "%A" x
+    x
+
+let segmentsInBounds (bounds: BoundingBox) (model:Model) : Option<List<List<SegmentId>>> =
+    let isInBound (state:List<List<SegmentId>>) (key:ConnectionId)(wire : Wire) =
+        let cornerFolder ((pos : XYPos , pseg : Segment), orientation: Orientation) (seg : Segment) =
+            if orientation = Horizontal then (({pos with X = pos.X + seg.Length}, seg), Vertical)
+                                      else (({pos with Y = pos.Y + seg.Length}, seg), Horizontal)
+        let corners: ((XYPos * Segment) * Orientation) list = 
+            (((wire.StartPos, List.head wire.Segments),wire.InitialOrientation),wire.Segments) ||> List.scan cornerFolder
+            |> List.tail 
+        let folder (state : List<SegmentId>) ((pos: XYPos, seg:Segment) , orientation:Orientation) =
+            match orientation with 
+            | Horizontal -> match (bounds.TopLeft.X > pos.X, bounds.TopLeft.X - bounds.W < pos.X, (pos.Y < bounds.TopLeft.Y) <> (pos.Y - seg.Length < bounds.TopLeft.Y)) with
+                            | true,true,true -> state @ [seg.Index, seg.WireId]
+                            | _ -> state
+            | Vertical -> match (bounds.TopLeft.Y < pos.Y, bounds.TopLeft.Y + bounds.H > pos.Y, (pos.X < bounds.TopLeft.X) <> (pos.X - seg.Length < bounds.TopLeft.X)) with
+                            | true,true,true -> state @ [seg.Index, seg.WireId]
+                            | _ -> state
+        let lst = ([], corners) ||> List.fold folder 
+        match lst.Length with 
+        | 0 -> state
+        | _ -> lst :: state
+    let ret = ([],model.Wires) ||> Map.fold isInBound
+    if ret.Length = 0 then None
+                      else Some ret
+    
+        
+                          
+        
+        
+        
+
+
+
 ///
 /// HLP23: suggested initial smartChannel top-level function
 /// to be tested, it must be given a channel in through which to route wires nicely
@@ -41,4 +77,5 @@ let smartChannelRoute
             :Model =
     let tl = channel.TopLeft
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
+    segmentsInBounds channel model |> Option.isSome |> printfn "%A"
     model

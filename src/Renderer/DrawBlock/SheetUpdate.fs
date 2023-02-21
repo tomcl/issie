@@ -26,6 +26,7 @@ module node = Node.Api
 importReadUart 
 
 open SmartRotate
+open Symbol
 
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
@@ -345,7 +346,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
         //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
         // ]
-        {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateSelectedSymbols model.SelectedComponents model.Wire.Symbol rotation)}}, wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+
+        //for each value in the map model.Wire.Symbol.Symbols, print the Position
+
+        let rotmodel = 
+            {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateSelectedSymbols model.SelectedComponents model.Wire.Symbol rotation)}}
+          
+        let newBoxes = getBoundingBoxes rotmodel.Wire.Symbol
+
+        let newModel = {rotmodel with BoundingBoxes = newBoxes}
+
+        let errorComponents =
+            newModel.SelectedComponents
+            |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+        printfn $"ErrorComponents={errorComponents}"
+        
+        {newModel with ErrorComponents = errorComponents; Action = Rotating},
+        Cmd.batch [
+            symbolCmd (SymbolT.ErrorSymbols (errorComponents,rotmodel.SelectedComponents,false))
+            wireCmd (BusWireT.UpdateConnectedWires rotmodel.SelectedComponents)
+            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+        ]
 
     | Flip orientation ->
         model,

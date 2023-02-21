@@ -393,6 +393,7 @@ module SheetT =
         | MovingSymbols
         | MovingLabel
         | DragAndDrop
+        | Rotating
         | Panning of offset: XYPos // panning sheet using shift/drag, offset = (initials) ScreenScrollPos + (initial) ScreenPage
         | MovingWire of SegmentId // Sends mouse messages on to BusWire
         | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input

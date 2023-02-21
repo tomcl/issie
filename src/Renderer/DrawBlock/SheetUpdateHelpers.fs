@@ -263,6 +263,39 @@ let mDownUpdate
             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
                         wireCmd (BusWireT.SelectWires model.SelectedWires)
                         wireCmd (BusWireT.ResetJumps [])]
+
+    | Rotating ->
+        
+        match model.ErrorComponents with
+        | [] -> 
+
+            //let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
+            {model with
+                
+                Action = Idle
+                SnapSymbols = emptySnap
+                SnapSegments = emptySnap
+                UndoList = appendUndoList model.UndoList newModel
+                RedoList = []
+                AutomaticScrolling = false 
+            }, Cmd.none
+            //wireCmd (BusWireT.MakeJumps movingWires)
+
+        | _ ->
+
+            let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
+            {model with
+                BoundingBoxes = model.LastValidBoundingBoxes
+                Action = Idle
+                SnapSymbols = emptySnap
+                SnapSegments = emptySnap
+                AutomaticScrolling = false },
+            Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
+                        Cmd.ofMsg UpdateBoundingBoxes
+                        symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
+                        wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
+                        wireCmd (BusWireT.MakeJumps movingWires) ]
+            
     | _ ->
         match (mouseOn model mMsg.Pos) with
         | Canvas when mMsg.ShiftKeyDown ->
@@ -463,6 +496,7 @@ let mDragUpdate
         let sPos = initPos - mMsg.ScreenPage
         model, Cmd.ofMsg (Msg.UpdateScrollPos sPos)
     | Idle 
+    | Rotating
     | InitialisedCreateComponent _ 
     | Scrolling -> model, Cmd.none
     |> setDragCursor

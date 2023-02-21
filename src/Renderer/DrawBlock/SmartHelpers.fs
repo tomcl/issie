@@ -10,6 +10,9 @@ open BusWireUpdateHelpers
 open Optics
 open Operators
 
+open SymbolUpdate
+open Symbol
+
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -102,3 +105,75 @@ let updateModelWires
     |> Optic.map wires_ (fun wireMap  ->
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
+
+//Takes a point Pos, a centre Pos, a transform and a rotation type and returns the new point rotated
+//HLP23: AUTHOR Ismagilov
+let rotatePointAboutBlockCentre 
+            (point:XYPos) 
+            (centre:XYPos) 
+            (transform:STransform) 
+            (rotation:RotationType) = 
+    let relativeToCentre = (fun x->x - centre)
+    let rotateAboutCentre (pointIn:XYPos) = 
+        match rotation with 
+        | RotateClockwise ->
+            match transform.Rotation with
+            | Degree0   -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree270 -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree180 -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree90  -> {X = -pointIn.Y ; Y = pointIn.X}
+        | RotateAntiClockwise ->
+            match transform.Rotation with
+            | Degree0   -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree270 -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree180 -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree90  -> {X = pointIn.Y ; Y = -pointIn.X}
+    let relativeToTopLeft = (fun x->x + centre)
+
+    point
+    |> relativeToCentre
+    |> rotateAboutCentre
+    |> relativeToTopLeft
+
+//After performing a rotation, returns the new adjusted top left point of the rotated symbol
+//HLP23: AUTHOR Ismagilov
+let getTopLeftPos
+        (rotation:RotationType) 
+        (h: float)
+        (w:float)
+        (pos: XYPos)
+         : XYPos =
+    let posOffset =
+        match rotation with
+        | RotateClockwise -> {X=(float)h ;Y=0}
+        | RotateAntiClockwise -> { X = 0 ;Y = (float)w }
+    pos - posOffset
+
+//Returns the new symbol after rotated about block centre. Takes in the original top left point rotated.
+//HLP 23: AUTHOR Ismagilov
+let rotateSymbolInBlock 
+        (rotation: RotationType) 
+        (sym: Symbol) 
+        (newPos:XYPos) : Symbol =
+      
+    let h,w = getRotatedHAndW sym
+    printfn "rot: %A" rotation
+    let newPos2 = getTopLeftPos rotation h w newPos  
+
+    let newComponent = { sym.Component with X = newPos2.X; Y = newPos2.Y}
+
+    let newSTransform = 
+        match sym.STransform.flipped with
+        | true -> 
+            {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
+        | _-> 
+            {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
+    printfn "newPos2 : {%A}" newPos2
+
+    { sym with 
+        Pos = newPos2;
+        PortMaps = rotatePortInfo rotation sym.PortMaps
+        STransform =newSTransform 
+        LabelHasDefaultPos = true
+        Component = newComponent
+    } |> calcLabelBoundingBox 

@@ -62,6 +62,22 @@ let updateModelSymbols
         ||> List.fold (fun symMap symToAdd -> Map.add symToAdd.Id symToAdd symMap)
     Optic.set (symbol_ >-> symbols_) symbols' model
 
+
+//HLP23: AUTHOR Khoury
+let fourCorners 
+    (element: Symbol)
+        : List<float*float> =
+        let comp = element.Component
+        let H = float comp.H*(Option.defaultValue 1.0 element.VScale)
+        let W = float comp.W*(Option.defaultValue 1.0 element.HScale)
+        let topLeftCorner = (element.Pos.X,element.Pos.Y)
+        let topRightCorner = (element.Pos.X + W,element.Pos.Y)
+        let bottomLeftCorner = (element.Pos.X,element.Pos.Y + H)
+        let bottomRightCorner = (element.Pos.X + W,element.Pos.Y + H)
+        [topLeftCorner; topRightCorner; bottomLeftCorner; bottomRightCorner]
+
+    
+
 /// Update BusWire model with given wires. Can also be used to add new wires.
 /// This uses a fold on the Map to add wires which makes it fast in the case that the number
 /// of wires added is small.

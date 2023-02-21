@@ -34,12 +34,11 @@ let checkInputOutput
     (symbolToOrder : Symbol)
     (connectedPorts : (InputPortId*OutputPortId) list)
         :  (string*string) list =
-    if symbolToOrder.PortMaps.Orientation |> Map.containsKey ($"{fst connectedPorts[0]}") then
-        connectedPorts 
-        |> List.map (fun (x,y)-> ($"{y}",$"{x}"))
-    else 
-        connectedPorts 
-        |> List.map (fun (x,y)-> ($"{x}",$"{y}"))
+    connectedPorts
+    |> List.map (fun x  -> 
+                match symbolToOrder.PortMaps.Orientation |> Map.containsKey ($"{fst connectedPorts[0]}") with 
+                | true -> ($"{fst x}",$"{snd x}")
+                | false -> ($"{snd x}",$"{fst x}"))
 
 let reorderPorts 
     (list2 : string list)
@@ -54,14 +53,24 @@ let sortOrientation
     (symbolToOrder: Symbol)
     (otherSymbol: Symbol)
         : ((string*string*Edge*Edge) list)list =
+    let test = List.collect (fun (x, y) ->
+                match Map.tryFind x otherSymbol.PortMaps.Orientation, Map.tryFind y symbolToOrder.PortMaps.Orientation with
+                | Some e1, Some e2 -> [(e1, e2, x, y)]
+                | _ -> []
+                ) orderedPorts
+    test
+    |> List.groupBy (fun (e1, e2, _, _) -> e1, e2)
+    |> List.map (fun (_, group) -> List.map (fun (e1, e2, x, y) -> (x,y,e1,e2)) group)
+
+let groupByEdges list map mapi =
     List.collect (fun (x, y) ->
-        match Map.tryFind x otherSymbol.PortMaps.Orientation, Map.tryFind y symbolToOrder.PortMaps.Orientation with
+        match Map.tryFind x map, Map.tryFind y mapi with
         | Some e1, Some e2 ->
             [(e1, e2, x, y)]
         | _ -> []
-    ) orderedPorts
+    ) list
     |> List.groupBy (fun (e1, e2, _, _) -> e1, e2)
-    |> List.map (fun (_, group) -> List.map (fun (e1, e2, x, y) -> (x,y,e1,e2)) group)
+    |> List.map (fun (_, group) -> List.map (fun (e1, e2, x, y) -> (x, y,e1,e2)) group)
 
 let FindOtherOrientation 
     (list: (string*string*Edge*Edge) list)
@@ -90,7 +99,6 @@ let reOrderPorts
     (symbolToOrder: Symbol) 
     (otherSymbol: Symbol) 
         : BusWireT.Model =
-    printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
 
     let connectionIdList =

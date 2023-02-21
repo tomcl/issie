@@ -54,6 +54,7 @@ let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
         qLo <= qHi
 
     (intersect1D toX) && (intersect1D toY)
+    
 
 let findPerpendicularDistance (segStart:XYPos) (segEnd:XYPos) (point:XYPos) =
     match abs (segStart.X - segEnd.X) > abs (segStart.Y - segEnd.Y) with

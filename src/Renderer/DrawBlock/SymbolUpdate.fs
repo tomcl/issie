@@ -282,13 +282,6 @@ let getEquivalentCopiedPorts (model: Model) (copiedIds) (pastedIds) (InputPortId
     | [pastedInputPort], [pastedOutputPort] -> Some (pastedInputPort, pastedOutputPort) 
     | _ -> None // If either of source or target component of the wire was not copied then we discard the wire
 
-/// Creates and adds a symbol into model, returns the updated model and the component id
-let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
-    let newSym = createNewSymbol ldcs pos compType lbl model.Theme
-    let newPorts = addToPortModel model newSym
-    let newSymModel = Map.add newSym.Id newSym model.Symbols
-    { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
-
 
 //---------------------Helper functions for the upadte function------------------------------//
 
@@ -642,36 +635,6 @@ let flipSideHorizontal (edge: Edge) : Edge =
         |> rotateSide RotateClockwise
     | _ -> edge
 
-/// Takes in a symbol and returns the same symbol flipped
-let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
-    let portOrientation = 
-        sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
-
-    let flipPortList currPortOrder side =
-        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
-
-    let portOrder = 
-        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
-        |> Map.map (fun edge order -> List.rev order)       
-
-    let newSTransform = 
-        {flipped= not sym.STransform.flipped;
-        Rotation= sym.STransform.Rotation} 
-
-    { sym with
-        PortMaps = {Order=portOrder;Orientation=portOrientation}
-        STransform = newSTransform
-        LabelHasDefaultPos = true
-    }
-    |> calcLabelBoundingBox
-    |> (fun sym -> 
-        match orientation with
-        | FlipHorizontal -> sym
-        | FlipVertical -> 
-            sym
-            |> rotateSymbol RotateAntiClockwise
-            |> rotateSymbol RotateAntiClockwise)
-
 type Rectangle = {TopLeft: XYPos; BottomRight: XYPos}
 
 let inline getX (pos: XYPos) =
@@ -758,6 +721,50 @@ let storeLayoutInfoInComponent _ symbol =
 
 let checkSymbolIntegrity (sym: Symbol) =
     failwithf ""
+    
+        
+/// Takes in a symbol and returns the same symbol flipped
+let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
+    let portOrientation = 
+        sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
+
+    let flipPortList currPortOrder side =
+        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
+
+    let portOrder = 
+        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
+        |> Map.map (fun edge order -> List.rev order)       
+
+    let newSTransform = 
+        {flipped= not sym.STransform.flipped;
+        Rotation= sym.STransform.Rotation} 
+
+    { sym with
+        PortMaps = {Order=portOrder;Orientation=portOrientation}
+        STransform = newSTransform
+        LabelHasDefaultPos = true
+    }
+    |> calcLabelBoundingBox
+    |> (fun sym -> 
+        match orientation with
+        | FlipHorizontal -> sym
+        | FlipVertical -> 
+            sym
+            |> rotateSymbol RotateAntiClockwise
+            |> rotateSymbol RotateAntiClockwise)
+
+let foo sym =
+    printf "FLIPPED!"
+    flipSymbol FlipHorizontal sym
+/// Creates and adds a symbol into model, returns the updated model and the component id
+let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
+    let newSym = createNewSymbol ldcs pos compType lbl model.Theme
+    let newSym2 = match newSym.Component with
+                        | {Type = Mux2} -> foo newSym 
+                        | _ -> newSym
+    let newPorts = addToPortModel model newSym2
+    let newSymModel = Map.add newSym2.Id newSym model.Symbols
+    { model with Symbols = newSymModel; Ports = newPorts }, newSym2.Id
 
 
 /// Update function which displays symbols
@@ -902,6 +909,26 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> Map.map 
                 (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
+
+
+        
+(*let checkOverlap wire1 wire2 =
+    let intersect (a: float, b: float) (c: float, d: float) =
+        max a c <= min b d
+    let wire1Segs = wire1.Segments
+    let wire2Segs = wire2.Segments
+    let overlaps =
+        [ for s1 in wire1Segs do
+            for s2 in wire2Segs do
+                if s1.WireId <> s2.WireId then
+                    match s1.StartPos, s1.StartPos + s1.Length * s1.InitialOrientation, s2.StartPos, s2.StartPos + s2.Length * s2.InitialOrientation with
+                    | (p1, p2, p3, p4) when intersect (p1.X, p2.X) (p3.X, p4.X) && intersect (p1.Y, p2.Y) (p3.Y, p4.Y) ->
+                        true
+                    | _ -> false ]
+        |> List.exists id
+    if overlaps then flipSymbol*)
+
+
 
 
 

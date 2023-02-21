@@ -403,7 +403,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
 let movePortsToCorrectEdgeForComponentType (ct: ComponentType) (portMaps: PortMaps): PortMaps =
     match ct with //need to put some ports to different edges
     | Mux2  -> //need to remove select port from left and move to bottom
-        movePortToTop portMaps 2
+        movePortToBottom portMaps 2
     | Mux4 -> //need to remove select port from left and move to right
         movePortToBottom portMaps 4
     | Mux8 ->
@@ -502,6 +502,7 @@ let getCustomCompArgs (x:CustomComponentType) (label:string) =
 *)
 /// obtain map from port IDs to port names for Custom Component.
 /// for other components types this returns empty map
+
 let getCustomPortIdMap (comp: Component)  =
         let label = comp.Label
         match comp.Type with
@@ -677,7 +678,6 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     let comp = makeComponent pos comptype id label
     printf "The component Label %A" comp.Label
     let transform = {Rotation= Degree0; flipped= false}
-
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
@@ -697,7 +697,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       Moving = false
       PortMaps = initPortOrientation comp
       STransform = transform
-      ReversedInputPorts = Some true
+      ReversedInputPorts = Some false
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
       MovingPortTarget = None

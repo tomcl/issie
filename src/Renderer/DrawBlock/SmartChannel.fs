@@ -7,7 +7,7 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
-
+open SmartHelpers
 open Optics
 open Operators
 
@@ -26,13 +26,12 @@ let pipePrint x =
     x
 
 
-let segmentShifterHelper (model : Model) (segmentId : SegmentId) (shift : float) : Option<Model> =
+let segmentShifterHelper (model : Model) (segmentId : SegmentId) (shift : float) : Option<Wire> =
     let index, wireId = segmentId
     let wire = model.Wires[wireId]
     try
         let segments =  wire.Segments |> List.updateAt (index - 1) {wire.Segments[index - 1] with Length = wire.Segments[index - 1].Length + shift} |> List.updateAt (index + 1) {wire.Segments[index + 1] with Length = wire.Segments[index + 1].Length - shift}
-        let updatedWireMap = Map.remove wireId model.Wires |> Map.add wireId {wire with Segments = segments}
-        Some {model with Wires = updatedWireMap}
+        Some {wire with Segments = segments}
     with
     | e -> None
 
@@ -41,15 +40,14 @@ let replaceSegments (model : Model) (bounds : BoundingBox) (orientation : Orient
     match orientation with
     | Vertical ->   let increment = bounds.W / float(wireList.Length + 1)
                     let sortedLst = wireList |> List.map (fun x -> List.head x) |> List.sortBy (fun x -> (snd x).Y) 
-                    let folder (mdl : Model, counter: int) (next : SegmentId * XYPos) : Model*int = 
-                        let opt = segmentShifterHelper mdl (fst next) (bounds.TopLeft.X - bounds.W + (increment * float(counter)) - (snd next).X)
+                    let folder (lst : List<Wire>, counter: int) (next : SegmentId * XYPos) : List<Wire>*int = 
+                        let opt = segmentShifterHelper model (fst next) (bounds.TopLeft.X - bounds.W + (increment * float(counter)) - (snd next).X)
                         match opt with 
-                        | Some md -> md, (counter + 1) |> pipePrint
-                        | None -> mdl, (counter + 1)
-                    let newModel = ((model, 1), sortedLst) ||> List.fold folder
-                    fst newModel
-
-                    
+                        | Some wire -> (lst @ [wire]), (counter + 1) |> pipePrint
+                        | None -> lst, (counter + 1)
+                    (([], 1), sortedLst) ||> List.fold folder
+                    |> fst 
+                    |> updateModelWires model  
     | Horizontal -> model
                         
     

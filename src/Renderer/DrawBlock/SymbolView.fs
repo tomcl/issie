@@ -121,10 +121,10 @@ let private createPolygon points colour opacity =
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
 let createCurvedShape points colour opacity strokeWidth (comp:Component)=
-    let points = (radius, h1, d1, h2, d2)
+    let (radius, h1, d1, h2, d2)  = points
     let attr = makePartArcAttr radius h1 d1 h2 d2
-    let parameters = {Stroke = "Black"; StrokeWidth = "0.1px"; StrokeDashArray = ; StrokeLinecap = ; Fill = "Blue" ;}
-    
+    let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "square"; Fill = colour}
+    [makePathFromAttr attr parameters;]
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
@@ -466,8 +466,9 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-
+    //|> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+    
+    |> List.append (createCurvedShape (10.,12.,14.,16.,20.) colour opacity strokeWidth comp)
 
 
 //----------------------------------------------------------------------------------------//

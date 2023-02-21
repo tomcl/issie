@@ -36,9 +36,9 @@ let checkInputOutput
         :  (string*string) list =
     connectedPorts
     |> List.map (fun x  -> 
-                match symbolToOrder.PortMaps.Orientation |> Map.containsKey ($"{fst connectedPorts[0]}") with 
-                | true -> ($"{fst x}",$"{snd x}")
-                | false -> ($"{snd x}",$"{fst x}"))
+                match symbolToOrder.PortMaps.Orientation |> Map.containsKey ($"{fst x}") with 
+                | true -> ($"{snd x}",$"{fst x}")
+                | false -> ($"{fst x}",$"{snd x}"))
 
 let reorderPorts 
     (list2 : string list)
@@ -53,11 +53,15 @@ let sortOrientation
     (symbolToOrder: Symbol)
     (otherSymbol: Symbol)
         : ((string*string*Edge*Edge) list)list =
+    // printfn $"SmartPortOrder: orderedPorts {orderedPorts}"
     let test = List.collect (fun (x, y) ->
                 match Map.tryFind x otherSymbol.PortMaps.Orientation, Map.tryFind y symbolToOrder.PortMaps.Orientation with
                 | Some e1, Some e2 -> [(e1, e2, x, y)]
                 | _ -> []
                 ) orderedPorts
+    // printfn $"SmartPortOrder: test {test}"
+    // printfn $"OtherSymbol {otherSymbol.PortMaps.Orientation}"
+    // printfn $"SymbolToOrder {symbolToOrder.PortMaps.Orientation}"
     test
     |> List.groupBy (fun (e1, e2, _, _) -> e1, e2)
     |> List.map (fun (_, group) -> List.map (fun (e1, e2, x, y) -> (x,y,e1,e2)) group)
@@ -118,10 +122,11 @@ let reOrderPorts
         |> Map.toSeq
         |> Seq.map (fun (_, v) -> (v.InputPort, v.OutputPort))
         |> List.ofSeq
-    
+    printfn "connectedPorts: %A" connectedPorts
     let PortsToReorder = checkInputOutput symbolToOrder connectedPorts
-
+    printfn "PortsToReorder: %A" PortsToReorder
     let SortedOrientationPorts = sortOrientation PortsToReorder symbolToOrder otherSymbol
+    printfn "SortedOrientationPorts: %A" SortedOrientationPorts
     let ReorderedPorts = SortedOrientationPorts 
                         |> List.map (fun x -> reorderPorts  (otherSymbol.PortMaps.Order |> Map.find (FindOtherOrientation x) )x) 
 

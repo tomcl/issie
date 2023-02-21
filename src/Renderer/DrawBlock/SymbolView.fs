@@ -120,11 +120,24 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
-let createCurvedShape points colour opacity strokeWidth (comp:Component)=
+let createOldComp (comp:Component) = 
+    match comp.Type with
+    |And ->printfn("it's AND")
+           ""
+    |Or -> printfn("it's OR")
+           ""
+    |Xor ->printfn("it's XOR")
+           ""
+    |_ -> ""
+
+let createCurvedShape points colour strokeWidth (comp:Component)=
+    let _ = createOldComp comp
     let (radius, h1, d1, h2, d2)  = points
     let attr = makePartArcAttr radius h1 d1 h2 d2
-    let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "square"; Fill = colour}
-    [makeAnyPath {X = 10; Y = 10} attr parameters;]
+    let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
+    [makeAnyPath {X = 0; Y = comp.H} attr parameters;]
+
+
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
@@ -467,7 +480,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
     //|> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-    |> List.append (createCurvedShape (10.,12.,14.,16.,20.) colour opacity strokeWidth comp)
+    |> List.append (createCurvedShape (5.,-20.,-20.,20.,20.) colour strokeWidth comp)
 
 
 //----------------------------------------------------------------------------------------//

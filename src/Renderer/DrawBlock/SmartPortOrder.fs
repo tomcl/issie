@@ -177,7 +177,6 @@ let reorderPorts
     |> List.sortBy (fun (x,_) -> List.findIndex (fun s -> s = x) list2)
 
 
-
 let reOrderPorts 
     (wModel: BusWireT.Model) 
     (symbolToOrder: Symbol) 
@@ -236,15 +235,3 @@ let reOrderPorts
                              // function to this as a parameter (as was done in Tick3)
         Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
     }
-
-
-    // let wiresToOrder = [] // replace this with correct wires
-
-    // let symbol' = symbolToOrder // no change at the moment
-    // // HLP23: This could be cleaned up using Optics - see SmartHelpers for examples
-    // {wModel with 
-    //     Wires = wModel.Wires // no change for now, but probably this function should use update wires after reordering.
-    //                          // to make that happen the tyest function which calls this would need to provide an updateWire
-    //                          // function to this as a parameter (as was done in Tick3)
-    //     Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
-    // }

@@ -760,7 +760,7 @@ let foo sym =
 let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
     let newSym = createNewSymbol ldcs pos compType lbl model.Theme
     let newSym2 = match newSym.Component with
-                        | {Type = Mux2} -> foo newSym 
+                        | {Type = Mux2|Mux4|Mux8} -> foo newSym 
                         | _ -> newSym
     let newPorts = addToPortModel model newSym2
     let newSymModel = Map.add newSym2.Id newSym2 model.Symbols

@@ -755,7 +755,7 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
 
 let foo sym =
     printf "FLIPPED!"
-    flipSymbol FlipHorizontal sym
+    flipSymbol FlipVertical sym
 /// Creates and adds a symbol into model, returns the updated model and the component id
 let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
     let newSym = createNewSymbol ldcs pos compType lbl model.Theme
@@ -763,7 +763,7 @@ let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
                         | {Type = Mux2} -> foo newSym 
                         | _ -> newSym
     let newPorts = addToPortModel model newSym2
-    let newSymModel = Map.add newSym2.Id newSym model.Symbols
+    let newSymModel = Map.add newSym2.Id newSym2 model.Symbols
     { model with Symbols = newSymModel; Ports = newPorts }, newSym2.Id
 
 

@@ -289,62 +289,6 @@ let logSegmentsInModel (model: Model) (wireSegmentIdPairs: (int*ConnectionId) li
 //------------------------------------------------------------------------------//
 //----------------------------------Helper functions----------------------------//
 //------------------------------------------------------------------------------//
-//calculates the dot product
-let inline dotProduct (p1: XYPos) (p2: XYPos) : float = 
-    p1.X * p2.X + p1.Y * p2.Y
-//calculates the cross product of 2x1 vectors corrosponding to XYPos
-let inline crossProduct (p1: XYPos) (p2: XYPos) : float = 
-    p1.X * p2.Y - p1.Y * p2.X
-let computeVector (p1: XYPos) (p2: XYPos) : XYPos =
-        let p3 = {
-            X = p2.X - p1.X
-            Y = p2.Y - p1.Y
-        }
-        p3
-        
-//detects whether two wires intercept
-let wiresIntersect (wire1: Wire) (wire2: Wire) =
-    let segmentIntersects (seg1: Segment) (seg2: Segment) =
-        // Helper function to check if two line segments intersect
-        let linesIntersect (p1, p2) (p3, p4) =
-            let a = computeVector p1 p3
-            let b = computeVector p1 p4
-            let c = computeVector p1 p2
-            let d = computeVector p3 p4
-            let dot1 = dotProduct a d
-            let dot2 = dotProduct b d
-            let dot3 = dotProduct c d
-            let dot4 = dotProduct a b
-            let dot5 = dotProduct c b
-            let cross1 = crossProduct a d
-            let cross2 = crossProduct b d
-            if cross1 * cross2 > 0.0 || dot1 * dot2 > 0.0 then false
-            else if dot3 * dot4 > 0.0 || dot5 * dot2 > 0.0 then false
-            else true
-
-        // Check if two line segments intersect (currently this only checks for horizontal segments)
-        let p1 = wire1.StartPos
-        let p2 = wire2.StartPos
-        let p3 = {X = p1.X + seg1.Length
-                  Y = p1.Y}
-        let p4 = {X = p2.X + seg2.Length
-                  Y = p2.Y}
-        if linesIntersect (p1, p2) (p3, p4) then true
-        else false
-
-    // Check if any segments from wire1 and wire2 intersect
-    let rec checkSegments (seg1List: Segment list) (seg2List: Segment list) =
-        match seg1List with
-        | [] -> false
-        | seg1::rest1 ->
-            match seg2List with
-            | [] -> checkSegments rest1 wire2.Segments
-            | seg2::rest2 ->
-                if segmentIntersects seg1 seg2 then true
-                else checkSegments (seg1::rest1) rest2
-
-    checkSegments wire1.Segments wire2.Segments
-
 
 /// Returns true if a lies in the open interval (a,b). Endpoints are avoided by a tolerance parameter
 let inline inMiddleOf a x b = 

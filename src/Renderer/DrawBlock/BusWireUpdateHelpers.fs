@@ -589,6 +589,58 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
     |> Option.bind eligibleForPartialRouting
     |> Option.bind updateSegments
     |> Option.map (fun wire -> {wire with Segments = makeEndsDraggable wire.Segments})
+    
+let inline crossProduct (p1: XYPos) (p2: XYPos): float =
+    p1.X*p2.Y - p1.Y*p2.X
+let inline computeVector (p1: XYPos) (p2: XYPos) : XYPos =
+        let p3 = {
+            X = p2.X - p1.X
+            Y = p2.Y - p1.Y
+        }
+        p3
+     
+//detects whether two wires intercept
+let wireIntersect (wire1: Wire) (wire2: Wire) : bool =
+    let segmentIntersects (seg1: Segment) (seg2: Segment) =
+        // Helper function to check if two line segments intersect
+        let linesIntersect (p1, p2) (p3, p4) =
+            let a = computeVector p1 p3
+            let b = computeVector p1 p4
+            let c = computeVector p1 p2
+            let d = computeVector p3 p4
+            let dot1 = dotProduct a d
+            let dot2 = dotProduct b d
+            let dot3 = dotProduct c d
+            let dot4 = dotProduct a b
+            let dot5 = dotProduct c b
+            let cross1 = crossProduct a d
+            let cross2 = crossProduct b d
+            if cross1 * cross2 > 0.0 || dot1 * dot2 > 0.0 then false
+            else if dot3 * dot4 > 0.0 || dot5 * dot2 > 0.0 then false
+            else true
+
+        // Check if two line segments intersect (currently this only checks for horizontal segments)
+        let p1 = wire1.StartPos
+        let p2 = wire2.StartPos
+        let p3 = {X = p1.X + seg1.Length
+                  Y = p1.Y}
+        let p4 = {X = p2.X + seg2.Length
+                  Y = p2.Y}
+        if linesIntersect (p1, p2) (p3, p4) then true
+        else false
+
+    // Check if any segments from wire1 and wire2 intersect
+    let rec checkSegments (seg1List: Segment list) (seg2List: Segment list) =
+        match seg1List with
+        | [] -> false
+        | seg1::rest1 ->
+            match seg2List with
+            | [] -> checkSegments rest1 wire2.Segments
+            | seg2::rest2 ->
+                if segmentIntersects seg1 seg2 then true
+                else checkSegments (seg1::rest1) rest2
+
+    checkSegments wire1.Segments wire2.Segments
 
 //--------------------------------------------------------------------------------//
 //--------------------------------updateWire--------------------------------------//
@@ -606,12 +658,16 @@ let reverseWire (wire: Wire) =
         StartPos = wire.EndPos
         InitialOrientation = wire.EndOrientation
     }
-
 /// Returns a re-routed wire from the given model.
 /// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
 /// Reverse indicates if the wire should be processed in reverse, 
 /// used when an input port (end of wire) is moved.
 let updateWire (model : Model) (wire : Wire) (reverse : bool) =
+    let BusWireHelpers: SymbolUpdate.BusWireHelpers =
+        {
+        WireIntersect = wireIntersect
+        GetConnectedWireIds = getConnectedWireIds
+        }
     let newPort = 
         match reverse with
         | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort

@@ -753,18 +753,26 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
             |> rotateSymbol RotateAntiClockwise
             |> rotateSymbol RotateAntiClockwise)
 
-let foo sym =
+type BusWireHelpers = {
+    WireIntersect: BusWireT.Wire -> BusWireT.Wire -> bool
+    GetConnectedWireIds: DrawModelType.BusWireT.Model -> ComponentId list -> ConnectionId list
+}
+
+(*let foo (sym: Symbol) (model: Model)=
     printf "FLIPPED!"
-    flipSymbol FlipVertical sym
-/// Creates and adds a symbol into model, returns the updated model and the component id
+    let wireList = BusWireHelpers.GetConnectedWireIds model [sym]
+    match (BusWireHelpers.WireIntersect wireList[0] wireList[1]) with
+                                        | true -> flipSymbol FlipVertical sym
+                                        | false -> sym*)
+    
 let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
     let newSym = createNewSymbol ldcs pos compType lbl model.Theme
-    let newSym2 = match newSym.Component with
-                        | {Type = Mux2|Mux4|Mux8} -> foo newSym 
-                        | _ -> newSym
-    let newPorts = addToPortModel model newSym2
-    let newSymModel = Map.add newSym2.Id newSym2 model.Symbols
-    { model with Symbols = newSymModel; Ports = newPorts }, newSym2.Id
+    (*let newSym2 = match newSym.Component with
+                        | {Type = Mux2|Mux4|Mux8} -> foo newSym model
+                        | _ -> newSym*)
+    let newPorts = addToPortModel model newSym
+    let newSymModel = Map.add newSym.Id newSym model.Symbols
+    { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
 
 
 /// Update function which displays symbols
@@ -909,26 +917,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> Map.map 
                 (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
-
-
-        
-(*let checkOverlap wire1 wire2 =
-    let intersect (a: float, b: float) (c: float, d: float) =
-        max a c <= min b d
-    let wire1Segs = wire1.Segments
-    let wire2Segs = wire2.Segments
-    let overlaps =
-        [ for s1 in wire1Segs do
-            for s2 in wire2Segs do
-                if s1.WireId <> s2.WireId then
-                    match s1.StartPos, s1.StartPos + s1.Length * s1.InitialOrientation, s2.StartPos, s2.StartPos + s2.Length * s2.InitialOrientation with
-                    | (p1, p2, p3, p4) when intersect (p1.X, p2.X) (p3.X, p4.X) && intersect (p1.Y, p2.Y) (p3.Y, p4.Y) ->
-                        true
-                    | _ -> false ]
-        |> List.exists id
-    if overlaps then flipSymbol*)
-
-
 
 
 

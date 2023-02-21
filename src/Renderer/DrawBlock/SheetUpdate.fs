@@ -755,7 +755,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2}, Cmd.none
+                let helpers = 
+                    { SmartSizeSymbol.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
+                {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2 helpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none

@@ -61,14 +61,23 @@ let sortWireOrder (model : Model) (wireList: List<List<SegmentId * XYPos>> ) (or
             |> Option.Some  //  Removing the added segment array
         with
         | e -> None
-    //let edges =
-    //    let twoSegment = wireList 
-    //                      |> List.filter (fun element -> element.Length = 2)
+    let rightEdge =
+        let endLstSorter (element: SegmentId * XYPos) =
+            match orientation with
+            | Vertical  -> (snd element).Y
+            | Horizontal-> (snd element).X
+        wireList
+        |> List.filter (fun element -> element.Length = 4)
+        |> List.map (fun element -> element[0])
+        |> List.sortBy endLstSorter              
     middleList |> function
-        | Some lst -> lst
-        | None -> []
-                        
-
+        | Some lst -> lst @ rightEdge
+        | None -> rightEdge
+    //let leftEdge =
+    //    
+    //    wireList
+    //    |> List.filter (fun element -> element.Length = 3)
+    //    |> List.map (fun element -> element[2])
 
 
 let replaceSegments (model : Model) (bounds : BoundingBox) (orientation : Orientation) (wireList : List<List<SegmentId * XYPos>>): Model =
@@ -143,5 +152,5 @@ let smartChannelRoute
     let tl = channel.TopLeft
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     match segmentsInBounds channel model with
-        | Some (channelSeg: List<List<SegmentId * XYPos>>) -> channelSeg |> pipePrint |> replaceSegments model channel channelOrientation
+        | Some (channelSeg: List<List<SegmentId * XYPos>>) -> channelSeg |> replaceSegments model channel channelOrientation
         | None -> model

@@ -29,60 +29,74 @@ type Placment = First | Second
 
 
 let sortWireOrder (model : Model) (wireList: List<List<SegmentId * XYPos>> ) (orientation : Orientation) : List<SegmentId*XYPos> =
-    let middleList =
-        try
-            let oneSegment = wireList 
-                            |> List.filter (fun element -> element.Length = 1) 
-                            |> List.reduce (@)
-            let splitter (indexOffSet : int)  (((index:int, wireId : ConnectionId), pos : XYPos), segs:List<Segment>): Placment =
+    let advancedSorter (lstToSort: List<SegmentId *XYPos>) : Option<List<(SegmentId*XYPos)>> =
+        let splitter (indexOffSet : int)  (((index:int, wireId : ConnectionId), pos : XYPos), segs:List<Segment>): Placment =
                 match segs[index].Length with
                 | L when L >= 0 -> if segs[index + indexOffSet].Length > 0 then Second
                                                                         else First
                 | L when L < 0 -> if segs[index - indexOffSet].Length < 0 then Second
                                                                         else First
-            let innerSplitter (place : Placment) (payLoad: (((int * ConnectionId) * XYPos) * List<Segment>) list) : (Placment * (((int * ConnectionId) * XYPos) * List<Segment>) list) list = 
-                match place with
-                | First -> List.groupBy (splitter -1) payLoad |> (fun lst -> if fst lst[0] = Second then List.rev lst else lst)
-                | Second -> List.groupBy (splitter -1) payLoad |> (fun lst -> if fst lst[0] = First then List.rev lst else lst)
-            let sorter  (element : ((SegmentId * XYPos) * List<Segment>) ) =
-                match orientation with
-                | Vertical -> (snd (fst element)).Y
-                | Horizontal  -> (snd (fst element)).X
-            oneSegment 
-            |> List.map (fun ((index, wireId),pos) -> model.Wires[wireId].Segments)  
-            |> List.zip oneSegment   //Zipping the whole segment array next to the SegmentId*XYPos 
-            |> List.groupBy (splitter 1)    //Grouping them base wether they turn left/down or right/up after leaving the channel
-            |> (fun lst -> if fst lst[0] = Second then List.rev lst else lst)  //Making sure order is as intended after grouping
-            |> List.map (fun (place, element) -> innerSplitter place element) //Further grouping them based on whether they turn left/down or right/up before entering the channel
-            |> List.map (fun element -> List.map snd element |> List.map (fun x -> List.sortByDescending sorter x))  //Sorting each group by their height at the leaving end 
-            |> List.reduce (@) // |
-            |> List.reduce (@) // |-> Putting the groups right after each other
-            |> List.map fst 
-            |> Option.Some  //  Removing the added segment array
+        let innerSplitter (place : Placment) (payLoad: (((int * ConnectionId) * XYPos) * List<Segment>) list) : (Placment * (((int * ConnectionId) * XYPos) * List<Segment>) list) list = 
+            match place with
+            | First -> List.groupBy (splitter -1) payLoad |> (fun lst -> if fst lst[0] = Second then List.rev lst else lst)
+            | Second -> List.groupBy (splitter -1) payLoad |> (fun lst -> if fst lst[0] = First then List.rev lst else lst)
+        let sorter  (element : ((SegmentId * XYPos) * List<Segment>) ) =
+            match orientation with
+            | Vertical -> (snd (fst element)).Y
+            | Horizontal  -> (snd (fst element)).X
+        lstToSort 
+        |> List.map (fun ((index, wireId),pos) -> model.Wires[wireId].Segments)  
+        |> List.zip lstToSort   //Zipping the whole segment array next to the SegmentId*XYPos 
+        |> List.groupBy (splitter 1)    //Grouping them base wether they turn left/down or right/up after leaving the channel
+        |> (fun lst -> if fst lst[0] = Second then List.rev lst else lst)  //Making sure order is as intended after grouping
+        |> List.map (fun (place, element) -> innerSplitter place element) //Further grouping them based on whether they turn left/down or right/up before entering the channel
+        |> List.map (fun element -> List.map snd element |> List.map (fun x -> List.sortByDescending sorter x))  //Sorting each group by their height at the leaving end 
+        |> List.reduce (@)
+        |> List.map (List.map fst)  //  Removing the added segment array
+        |> List.reduce (@) // |-> Putting the groups right after each other
+        |> Option.Some  
+    let inputRight =
+        let inpLst =  wireList
+                    |> List.filter (fun element -> element.Length = 3)
+                    |> List.map (fun element -> model.Wires[snd(fst element[0])].Segments[3], snd element[2])
+        match orientation with
+        | Vertical -> inpLst |> List.map (fun (seg, pos) -> (seg.Index, seg.WireId), {pos with Y = pos.Y + seg.Length})
+        | Horizontal -> inpLst |> List.map (fun (seg, pos) -> (seg.Index, seg.WireId), {pos with X = pos.X + seg.Length}) 
+    let specialInput = 
+        wireList
+        |> List.filter (fun element -> element.Length = 4 && fst (fst element[0]) = 0)
+        |> List.map (fun element -> element[3])
+    let midlePart =
+        try
+            wireList 
+            |> List.filter (fun element -> element.Length = 1) 
+            |> List.reduce (@)
+            |> List.append inputRight
+            |> List.append specialInput
+            |> advancedSorter
         with
         | e -> None
+    
     let rightEdge =
         let endLstSorter (element: SegmentId * XYPos) =
             match orientation with
             | Vertical  -> (snd element).Y
             | Horizontal-> (snd element).X
         wireList
-        |> List.filter (fun element -> element.Length = 4)
+        |> List.filter (fun element -> element.Length = 4 && fst (fst element[0]) <> 0)
         |> List.map (fun element -> element[0])
+        |> pipePrint
         |> List.sortBy endLstSorter              
-    middleList |> function
+    midlePart |> function
         | Some lst -> lst @ rightEdge
         | None -> rightEdge
-    //let leftEdge =
-    //    
-    //    wireList
-    //    |> List.filter (fun element -> element.Length = 3)
-    //    |> List.map (fun element -> element[2])
+    
+        
 
 
 let replaceSegments (model : Model) (bounds : BoundingBox) (orientation : Orientation) (wireList : List<List<SegmentId * XYPos>>): Model =
     match orientation with
-    | Vertical ->   let sortedLst = sortWireOrder model wireList orientation |> pipePrint
+    | Vertical ->   let sortedLst = sortWireOrder model wireList orientation 
                     let folder (lst : List<Wire>, counter: int) (next : SegmentId * XYPos) : List<Wire>*int = 
                         segmentShifterHelper model (fst next) (bounds.TopLeft.X - bounds.W + (bounds.W / float(sortedLst.Length + 1) * float(counter)) - (snd next).X)
                         |> function
@@ -152,5 +166,5 @@ let smartChannelRoute
     let tl = channel.TopLeft
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     match segmentsInBounds channel model with
-        | Some (channelSeg: List<List<SegmentId * XYPos>>) -> channelSeg |> replaceSegments model channel channelOrientation
+        | Some (channelSeg: List<List<SegmentId * XYPos>>) -> channelSeg |> pipePrint |> replaceSegments model channel channelOrientation
         | None -> model

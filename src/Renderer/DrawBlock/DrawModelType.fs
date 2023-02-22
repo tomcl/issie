@@ -58,6 +58,14 @@ module SymbolT =
     /// Represents the orientation of a wire segment or symbol flip
     type FlipType =  FlipHorizontal | FlipVertical
     type RotationType = RotateClockwise | RotateAntiClockwise
+    type ScaleType = ScaleUp | ScaleDown
+
+    type BlockCorners = {
+        topLeft: XYPos
+        topRight: XYPos
+        bottomLeft: XYPos
+        bottomRight: XYPos
+    }
 
     /// Wraps around the input and output port id types
     type PortId = | InputId of InputPortId | OutputId of OutputPortId
@@ -372,7 +380,7 @@ module SheetT =
         Pos: XYPos
         Move: XYPos
         }
-
+    
     let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
     let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
 
@@ -393,7 +401,6 @@ module SheetT =
         | MovingSymbols
         | MovingLabel
         | DragAndDrop
-        | Rotating
         | Panning of offset: XYPos // panning sheet using shift/drag, offset = (initials) ScreenScrollPos + (initial) ScreenPage
         | MovingWire of SegmentId // Sends mouse messages on to BusWire
         | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
@@ -436,7 +443,7 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlU | CtrlI
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -530,6 +537,8 @@ module SheetT =
         | TestPortReorder
         | TestSmartChannel
         | TestPortPosition
+        //| TestScaleUp
+        | TestScaleDown
 
 
     type ReadLog = | ReadLog of int

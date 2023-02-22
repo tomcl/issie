@@ -177,3 +177,22 @@ let rotateSymbolInBlock
         LabelHasDefaultPos = true
         Component = newComponent
     } |> calcLabelBoundingBox 
+
+//Returns the 4 corners of a block of selected symbols, in the 'BlockCorners' type
+//HLP 23: AUTHOR Ismagilov
+let getBlockCorners 
+        (symbols:Symbol List) :BlockCorners = 
+
+    let maxXsym = (List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) symbols)
+    let maxX = maxXsym.Pos.X + (snd (getRotatedHAndW maxXsym))
+
+    let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
+
+    let maxYsym = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) symbols
+    let maxY = maxYsym.Pos.Y + (fst (getRotatedHAndW maxYsym))
+
+    let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
+
+    {topLeft = {X = minX; Y = minY}; topRight= {X = maxX; Y = minY}; bottomLeft = {X = minX; Y = maxY}; bottomRight = {X = maxX; Y = maxY}}
+
+

@@ -346,26 +346,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
         //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
         // ]
-
-        //for each value in the map model.Wire.Symbol.Symbols, print the Position
-
         let rotmodel = 
-            {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateSelectedSymbols model.SelectedComponents model.Wire.Symbol rotation)}}
-          
-        let newBoxes = getBoundingBoxes rotmodel.Wire.Symbol
+            {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}}
 
-        let newModel = {rotmodel with BoundingBoxes = newBoxes}
+        let newModel = {rotmodel with BoundingBoxes = getBoundingBoxes rotmodel.Wire.Symbol}
 
         let errorComponents =
             newModel.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
 
         printfn $"ErrorComponents={errorComponents}"
-        
-        {newModel with ErrorComponents = errorComponents; Action = Rotating},
+
+        let nextAction = 
+            match errorComponents with
+                | [] -> 
+                    Idle
+                | _ ->
+                    DragAndDrop
+
+        {newModel with ErrorComponents = errorComponents; Action = nextAction},
         Cmd.batch [
-            symbolCmd (SymbolT.ErrorSymbols (errorComponents,rotmodel.SelectedComponents,false))
-            wireCmd (BusWireT.UpdateConnectedWires rotmodel.SelectedComponents)
+            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
             Cmd.ofMsg SheetT.UpdateBoundingBoxes
         ]
 
@@ -802,6 +804,74 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   
+
+    | KeyPress CtrlU -> 
+        printfn "Scaling up"
+        match model.SelectedComponents.Length with
+        | n when n<2 -> model, Cmd.none
+        | _ ->  
+            let scalemodel = 
+                {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleUp)}}
+
+            let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
+
+            let errorComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+            printfn $"ErrorComponents={errorComponents}"
+
+            let nextAction = 
+                match errorComponents with
+                    | [] -> 
+                        Idle
+                        
+                    | _ ->
+                        DragAndDrop
+            {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+            Cmd.batch [
+                    symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                    wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                    Cmd.ofMsg SheetT.UpdateBoundingBoxes
+            ]
+
+    | KeyPress CtrlI -> 
+        printfn "Scaling down"
+        match model.SelectedComponents.Length with
+        | n when n<2 -> model, Cmd.none
+        | _ ->  
+            let scalemodel = 
+                {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleDown)}}
+
+            let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
+
+            let errorComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+            let errorSelectedComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
+
+            printfn $"ErrorComponents={errorComponents}"
+
+            let nextAction = 
+                match errorComponents with
+                    | [] -> 
+                        Idle
+                    | _ ->
+                        DragAndDrop
+
+            match errorSelectedComponents with
+                | [] ->
+                    {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+                    Cmd.batch [
+                            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                    ]
+                | _ -> model,Cmd.none
+
     
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none

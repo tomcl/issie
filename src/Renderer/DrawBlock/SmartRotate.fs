@@ -46,7 +46,7 @@ open SmartHelpers
     Those interested can ask me for details.
 *)
 
-let rotateSelectedSymbols (compList:ComponentId list) (model:SymbolT.Model) rotation = 
+let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) rotation = 
 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
@@ -55,18 +55,10 @@ let rotateSelectedSymbols (compList:ComponentId list) (model:SymbolT.Model) rota
     printfn "origPos: %A" origPos
 
     //Find the maximum and minimum x and y values of the selected components
-    let maxX = List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) SelectedSymbols
-    let minX = List.minBy (fun (x:Symbol) -> x.Pos.X) SelectedSymbols
-    let maxY = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) SelectedSymbols
-    let minY = List.minBy (fun (x:Symbol) -> x.Pos.Y) SelectedSymbols
-
-    printfn "maxX: %A" (maxX.Pos.X + (snd (getRotatedHAndW maxX)))
-    printfn "minX: %A" minX.Pos.X
-    printfn "maxY: %A" (maxY.Pos.Y + (fst (getRotatedHAndW minY)))
-    printfn "minY: %A" (minY.Pos.Y)
+    let corners = SmartHelpers.getBlockCorners SelectedSymbols
     //Find the center of the selected components
-    let centerX = (maxX.Pos.X+(snd (getRotatedHAndW maxX)) + minX.Pos.X) / 2.
-    let centerY = (maxY.Pos.Y+ (fst (getRotatedHAndW minY))  + minY.Pos.Y) / 2.
+    let centerX = (corners.topRight.X + corners.topLeft.X) / 2.
+    let centerY = (corners.topLeft.Y  + corners.bottomLeft.Y) / 2.
     let center = {X = centerX; Y = centerY}
     printfn "center: %A" center
 
@@ -80,8 +72,55 @@ let rotateSelectedSymbols (compList:ComponentId list) (model:SymbolT.Model) rota
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
+
+let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scaleType:ScaleType) = 
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+
+    let corners = SmartHelpers.getBlockCorners SelectedSymbols
+
+    let blockWidth = (corners.topRight.X - corners.topLeft.X)
+    let blockHeight = (corners.bottomRight.Y - corners.topRight.Y)
+
+    printfn "blockWidth: %A" blockWidth
+    printfn "blockHeight: %A" blockHeight
+
+    // For each symbol in selectedsymbols, find the proportion of the symbol that is in the x and y direction
+    // Then scale the symbol by the proportion of the symbol that is in the x and y 
     
+    let scaleSymbol (sym:Symbol) = 
+
+      let symCenter = getRotatedSymbolCentre sym
+      printfn "symCenter: %A" symCenter
+      let xProp, yProp = (symCenter.X - corners.topLeft.X) / blockWidth, (symCenter.Y - corners.topLeft.Y) / blockHeight
+      printfn "xProp: %A" xProp
+      printfn "yProp: %A" yProp
+      let newCenter =
+        match scaleType with
+          | ScaleUp ->
+            ((corners.topLeft.X-5.) + ((blockWidth+10.) * xProp), (corners.topLeft.Y-5.) + ((blockHeight+10.) * yProp))
+          | ScaleDown ->
+            ((corners.topLeft.X+5.) + ((blockWidth-10.) * xProp), (corners.topLeft.Y+5.) + ((blockHeight-10.) * yProp))
+
+      let h,w = getRotatedHAndW sym
+      let newPos = {X = (fst newCenter) - w/2.; Y= (snd newCenter) - h/2.}
+      let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
     
+      {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+      
+    let newSymbols = List.map scaleSymbol SelectedSymbols
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}
+
+
+    
+
+
+    
+  
+
     
 
     

@@ -25,16 +25,46 @@ let pipePrint x =
     printfn "%A" x
     x
 
+type Placment = First | Second
 
 
+let sortWireOrder (model : Model) (wireList: List<List<SegmentId * XYPos>> ) (orientation : Orientation) : List<SegmentId*XYPos> =
+    let oneSegment = wireList 
+                    |> List.filter (fun element -> element.Length = 1) 
+                    |> List.reduce (@)
+    let splitter (indexOffSet : int)  (((index:int, wireId : ConnectionId), pos : XYPos), segs:List<Segment>): Placment =
+        match segs[index].Length with
+        | L when L >= 0 -> if segs[index + indexOffSet].Length > 0 then Second
+                                                                  else First
+        | L when L < 0 -> if segs[index - indexOffSet].Length < 0 then Second
+                                                                  else First
+    let innerSplitter (place : Placment) (payLoad: (((int * ConnectionId) * XYPos) * List<Segment>) list) : (Placment * (((int * ConnectionId) * XYPos) * List<Segment>) list) list = 
+        match place with
+        | First -> List.groupBy (splitter -1) payLoad |> (fun lst -> if fst lst[0] = Second then List.rev lst else lst)
+        | Second -> List.groupBy (splitter -1) payLoad |> (fun lst -> if fst lst[0] = First then List.rev lst else lst)
+    let sorter  (element : ((SegmentId * XYPos) * List<Segment>) ) =
+        match orientation with
+        | Vertical -> (snd (fst element)).Y
+        | Horizontal  -> (snd (fst element)).X
+    oneSegment 
+    |> List.map (fun ((index, wireId),pos) -> model.Wires[wireId].Segments)  
+    |> List.zip oneSegment   //Zipping the whole segment array next to the SegmentId*XYPos 
+    |> List.groupBy (splitter 1)    //Grouping them base wether they turn left/down or right/up after leaving the channel
+    |> (fun lst -> if fst lst[0] = Second then List.rev lst else lst)  //Making sure order is as intended after grouping
+    |> List.map (fun (place, element) -> innerSplitter place element) //Further grouping them based on whether they turn left/down or right/up before entering the channel
+    |> List.map (fun element -> List.map snd element |> List.map (fun x -> List.sortByDescending sorter x))  //Sorting each group by their height at the leaving end 
+    |> List.reduce (@) // |
+    |> List.reduce (@) // |-> Putting the groups right after each other
+    |> List.map fst               //  Removing the added segment array
+                        
 
 
 
 let replaceSegments (model : Model) (bounds : BoundingBox) (orientation : Orientation) (wireList : List<List<SegmentId * XYPos>>): Model =
     match orientation with
-    | Vertical ->   let sortedLst = wireList |> List.map (fun x -> List.head x) |> List.sortBy (fun x -> (snd x).Y) 
+    | Vertical ->   let sortedLst = sortWireOrder model wireList orientation |> pipePrint
                     let folder (lst : List<Wire>, counter: int) (next : SegmentId * XYPos) : List<Wire>*int = 
-                        segmentShifterHelper model (fst next) (bounds.TopLeft.X - bounds.W + (bounds.W / float(wireList.Length + 1) * float(counter)) - (snd next).X)
+                        segmentShifterHelper model (fst next) (bounds.TopLeft.X - bounds.W + (bounds.W / float(sortedLst.Length + 1) * float(counter)) - (snd next).X)
                         |> function
                         | Some wire -> (lst @ [wire]), (counter + 1) 
                         | None -> lst, (counter + 1)

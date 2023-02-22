@@ -102,3 +102,23 @@ let updateModelWires
     |> Optic.map wires_ (fun wireMap  ->
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
+
+// Finds if two segments in 1D intersect
+let overlap1D ((a1, a2): float * float) ((b1, b2): float * float): bool =
+    let a_min, a_max = min a1 a2, max a1 a2
+    let b_min, b_max = min b1 b2, max b1 b2
+    a_max >= b_min && b_max >= a_min
+
+// Finds if two boxes in 2D intersect
+let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos): bool =
+    (overlap1D (a1.X, a2.X) (b1.X, b2.X)) &&
+    (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
+
+let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox): bool =
+    let bb1Coords =
+        { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
+        { X = bb1.TopLeft.X + bb1.W; Y = bb1.TopLeft.Y + bb1.H }
+    let bb2Coords =
+        { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
+        { X = bb2.TopLeft.X + bb2.W; Y = bb2.TopLeft.Y + bb2.H }    
+    overlap2D bb1Coords bb2Coords

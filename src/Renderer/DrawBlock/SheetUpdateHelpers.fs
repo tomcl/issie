@@ -11,6 +11,7 @@ open Sheet
 open SheetSnap
 open SheetDisplay
 open DrawHelpers
+open SmartHelpers
 open Browser
 
 
@@ -636,19 +637,27 @@ let validateTwoSelectedSymbols (model:Model) =
 /// However different testing may be needed, so who knows?
 /// Return the vertical channel between two bounding boxes, if they do not intersect and
 /// their vertical coordinates overlap.
-let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
+let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox * Orientation) option =
     if bb1.TopLeft.X > bb2.TopLeft.X then
         getChannel bb2 bb1
     else
-        if  bb1.TopLeft.X + bb1.W > bb2.TopLeft.X then
-            None // horizontal intersection
-        elif bb1.TopLeft.Y > bb2.TopLeft.Y + bb2.H || bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y then
+        if overlap2DBox bb1 bb2 then
+            None // boxes intersect, invalid channel
+        elif (bb1.TopLeft.Y > bb2.TopLeft.Y + bb2.H || bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y)
+             && bb2.TopLeft.X > bb1.TopLeft.X + bb1.W then
             None // symbols are not aligned vertically
-        else
-            let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
+        // Vertical Channel
+        elif bb2.TopLeft.X > bb1.TopLeft.X + bb1.W then
+            let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X 
             let union = boxUnion bb1 bb2
-            let topLeft = {Y=union.TopLeft.Y; X=x2}
-            Some {TopLeft = topLeft; H = union.H; W = x2 - x1}
+            let topLeft = { Y=union.TopLeft.Y; X=x1 }
+            Some ( { TopLeft = topLeft; H = union.H; W = x2 - x1 }, Vertical )
+        // Horizontal Channel
+        else
+            let y1, y2 = bb1.TopLeft.Y + bb1.H, bb2.TopLeft.Y
+            let union = boxUnion bb1 bb2
+            let topLeft = { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y + bb1.H }
+            Some ( { TopLeft = topLeft; H = y2 - y1; W = union.W }, Horizontal )
 
         
 

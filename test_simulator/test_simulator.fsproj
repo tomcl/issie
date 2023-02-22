@@ -22,11 +22,13 @@
     <Compile Include="..\src\Renderer\Simulator\DependencyMerger.fs" />
     <Compile Include="..\src\Renderer\Simulator\Simulator.fs" />
     <Compile Include="CanvasStates.fs" />
+    <Compile Include="FilesIONative.fs" />
     <Compile Include="Sample.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Expecto" Version="9.*" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.*" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
     <PackageReference Update="FSharp.Core" Version="6.*" />

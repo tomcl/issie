@@ -111,7 +111,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     let componentType = comp.FType
 
     //printfn "Reducing %A...%A %A (step %d) clocked=%A"  comp.FType comp.ShortId comp.FullName numStep isClockedReduction
-    let n = comp.InputLinks.Length
+    let n = comp.InputLinksFData.Length
 
     let simStep = numStep % maxArraySize 
     let simStepOld = if simStep = 0 then maxArraySize - 1 else simStep - 1
@@ -125,7 +125,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         assertThat (i < n) (sprintf "What? Invalid input port (%d:step%d) used by %s:%s (%A) reducer with %d Ins"
                                     i simStep comp.FullName comp.ShortId  componentType n)
 #endif
-        let fd = comp.InputLinks[i].Step[simStep]
+        let fd = comp.InputLinksFData[i].Step[simStep]
         fd
 
     /// get last cycle data from output i (for clocked components)
@@ -134,7 +134,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             match comp.OutputWidth[n], numStep with
             | None, _ -> failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
             | Some w, 0 -> if w < 33 then Data {Dat=Word 0u; Width = w} else Data {Dat =BigWord (bigint 0); Width = w}
-            | Some w, _ -> comp.Outputs[n].Step[simStepOld]
+            | Some w, _ -> comp.OutputsFData[n].Step[simStepOld]
         fd
 
     /// get last cycle data from output i for component
@@ -152,40 +152,40 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 #endif
 
         let fd =
-            comp.GetInput(simStepOld) (InputPortNumber i) 
+            comp.GetInputFData(simStepOld) (InputPortNumber i) 
         fd
 
     /// Write current step output data for output port 0
     let inline put0 fd =
-        comp.PutOutput(simStep) (OutputPortNumber 0) fd
+        comp.PutOutputFData(simStep) (OutputPortNumber 0) fd
 
     /// Write current step output data for output port 1
     let inline put1 fd =
-        comp.PutOutput(simStep) (OutputPortNumber 1) fd
+        comp.PutOutputFData(simStep) (OutputPortNumber 1) fd
 
     /// Write current step output data for output port 2
     let inline put2 fd =
-        comp.PutOutput(simStep) (OutputPortNumber 2) fd
+        comp.PutOutputFData(simStep) (OutputPortNumber 2) fd
     
     /// Write current step output data for output port 3
     let inline put3 fd =
-        comp.PutOutput(simStep) (OutputPortNumber 3) fd
+        comp.PutOutputFData(simStep) (OutputPortNumber 3) fd
     
     /// Write current step output data for output port 4
     let inline put4 fd =
-        comp.PutOutput(simStep) (OutputPortNumber 4) fd
+        comp.PutOutputFData(simStep) (OutputPortNumber 4) fd
     
     /// Write current step output data for output port 4
     let inline put5 fd =
-        comp.PutOutput(simStep) (OutputPortNumber 5) fd
+        comp.PutOutputFData(simStep) (OutputPortNumber 5) fd
     
     /// Write current step output data for output port 4
     let inline put6 fd =
-        comp.PutOutput(simStep) (OutputPortNumber 6) fd
+        comp.PutOutputFData(simStep) (OutputPortNumber 6) fd
 
     /// Write current step output data for output port 4
     let inline put7 fd =
-        comp.PutOutput(simStep) (OutputPortNumber 7) fd
+        comp.PutOutputFData(simStep) (OutputPortNumber 7) fd
 
     /// Write current State (used only for RAMs, DFFs and registers use previous cycle output as state)
     let inline putState state =

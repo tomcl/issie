@@ -53,7 +53,7 @@ let printComp (fs:FastSimulation) (step: int) (fc: FastComponent) =
           if fc.Touched then "T" else "U"
           if fc.Active then "Act" else "Inact"
           "    "
-          (fc.InputLinks
+          (fc.InputLinksFData
            |> Array.map (fun (arr: StepArray<FData>) -> arr.Step.Length > 0 && isValidData arr.Step[step])
            |> Array.map
                (function
@@ -116,16 +116,16 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 0
             |> uint32
         //printfn "Init input..."
-        fc.InputLinks[0].Step
+        fc.InputLinksFData[0].Step
         |> Array.iteri
-            (fun i _ -> fc.InputLinks[0].Step[i] <- Data (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) 0u))
+            (fun i _ -> fc.InputLinksFData[0].Step[i] <- Data (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) 0u))
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
 
     let initClockedOuts (fc: FastComponent) =
-        fc.Outputs
+        fc.OutputsFData
         |> Array.iteri
             (fun i vec ->
                 if not (isHybridComponent fc.FType) then 
@@ -205,6 +205,7 @@ let checkAndValidate (fs:FastSimulation) =
             fs.FGlobalInputComps
             fs.FOrderedComps
         |] |> Array.concat
+    printfn "Checking %d active components against %d components in simulation" activeComps.Length inSimulationComps.Length
     if (activeComps.Length <> inSimulationComps.Length) then
             printf "Validation problem: %d active components, %d components in simulation"
                    activeComps.Length
@@ -218,7 +219,7 @@ let checkAndValidate (fs:FastSimulation) =
                 Set (List.ofArray inSimulationComps |> List.map (fun fc -> fc.SimComponent.Id))
                 |> Set.toList
             Error {
-                Msg = sprintf $"Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
+                Msg = sprintf $"Issie (old simulator) has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
                     This cycle detection is not precise, the components in red comprise this cycle and all components driven only from it"
                 InDependency = None
                 ComponentsAffected = possibleCycleComps
@@ -231,7 +232,7 @@ let checkAndValidate (fs:FastSimulation) =
         |> Array.iter ( fun fc ->
             fc.OutputWidth
             |> Array.iteri ( fun i opn ->
-                let data = fc.Outputs[i].Step[0]
+                let data = fc.OutputsFData[i].Step[0]
                 match data.Width, fc.OutputWidth[i] with
                 | n, Some m when n <> m ->
                     failwithf "Inconsistent simulation data %A data found on signal output width %d from %s:%d" data m fc.FullName i
@@ -318,7 +319,7 @@ let private stepSimulation (fs: FastSimulation) =
 /// sets the mutable simulation data for a given input at a given time step
 let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fs: FastSimulation) =
     match Map.tryFind (cid, []) fs.FComps with
-    | Some fc -> fc.Outputs[0].Step[step % fs.MaxArraySize] <- fd
+    | Some fc -> fc.OutputsFData[0].Step[step % fs.MaxArraySize] <- fd
     | None -> failwithf "Can't find %A in FastSim" cid
 
 /// Re-evaluates the combinational logic for the given timestep - used if a combinational
@@ -369,7 +370,7 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | CounterNoEnable _
                 | CounterNoLoad _ 
                 | CounterNoEnableLoad _ -> 
-                    match fc.Outputs[0].Step[step % fastSim.MaxArraySize] with
+                    match fc.OutputsFData[0].Step[step % fastSim.MaxArraySize] with
                     | Data d ->
                         [| fc, RegisterState d |]
                     | _ -> failwithf "what? Algebra in stateful component"
@@ -481,7 +482,7 @@ let rec extractFastSimulationOutput
    match Map.tryFind (cid, ap) fs.FComps with
    | Some fc ->
         //printfn $"Extracting port {opn} from {fc.FullName} in step {step}"
-        match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].Step with
+        match Array.tryItem (step % fs.MaxArraySize) fc.OutputsFData[n].Step with
         | None -> failwithf $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
         | Some (Data d) -> 
             if d.Width=0 then 

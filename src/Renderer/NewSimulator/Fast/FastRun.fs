@@ -130,7 +130,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     let initInput (fc: FastComponent) =
         let inputVal: uint32 =
             match fc.FType with
-            | Input1 (w, defaultVal) ->
+            | Input1(w, defaultVal) ->
                 match defaultVal with
                 | Some defaultVal -> defaultVal
                 | None -> 0
@@ -159,7 +159,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
             | RAM1 mem, Some w
             | AsyncRAM1 mem, Some w ->
                 match fc.State with
-                | Some arr -> arr.Step[ 0 ] <- RamState mem
+                | Some arr -> arr.Step[0] <- RamState mem
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
                 let initD =
@@ -167,7 +167,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                     | Some n -> convertInt64ToFastData w n
                     | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
-                vec.Step[ 0 ] <- convertIntToFastData w 0u
+                vec.Step[0] <- convertIntToFastData w 0u
             | RAM1 _, _
             | AsyncRAM1 _, _ ->
                 failwithf
@@ -175,7 +175,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                     fc.FullName
                     i
                     fc.FType
-            | _, Some w -> vec.Step[ 0 ] <- convertIntToFastData w 0u
+            | _, Some w -> vec.Step[0] <- convertIntToFastData w 0u
             | _ -> failwithf "What? Can't find width for %s output %d" fc.FullName i)
 
     /// print function for debugging
@@ -245,7 +245,7 @@ let private orderCombinationalComponentsFData
     let initInput (fc: FastComponent) =
         let inputVal: uint32 =
             match fc.FType with
-            | Input1 (w, defaultVal) ->
+            | Input1(w, defaultVal) ->
                 match defaultVal with
                 | Some defaultVal -> defaultVal
                 | None -> 0
@@ -274,7 +274,7 @@ let private orderCombinationalComponentsFData
             | RAM1 mem, Some w
             | AsyncRAM1 mem, Some w ->
                 match fc.State with
-                | Some arr -> arr.Step[ 0 ] <- RamState mem
+                | Some arr -> arr.Step[0] <- RamState mem
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
                 let initD =
@@ -282,7 +282,7 @@ let private orderCombinationalComponentsFData
                     | Some n -> convertInt64ToFastData w n
                     | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
-                vec.Step[ 0 ] <- Data(convertIntToFastData w 0u)
+                vec.Step[0] <- Data(convertIntToFastData w 0u)
             | RAM1 _, _
             | AsyncRAM1 _, _ ->
                 failwithf
@@ -290,7 +290,7 @@ let private orderCombinationalComponentsFData
                     fc.FullName
                     i
                     fc.FType
-            | _, Some w -> vec.Step[ 0 ] <- Data(convertIntToFastData w 0u)
+            | _, Some w -> vec.Step[0] <- Data(convertIntToFastData w 0u)
             | _ -> failwithf "What? Can't find width for %s output %d" fc.FullName i)
 
     /// print function for debugging
@@ -338,6 +338,7 @@ let private orderCombinationalComponentsFData
 /// Check all the active FastComponents to ensure everything is valid
 /// Use data from initialisation to write any not-yet-written component output widths
 let checkAndValidate (fs: FastSimulation) =
+    printf "checkAndValidate in new simulator\n"
     let start = getTimeMs ()
     let activeComps =
         fs.FComps
@@ -404,13 +405,14 @@ let checkAndValidate (fs: FastSimulation) =
                         data
                         fc.FullName
                         i
-                | n, None -> fc.OutputWidth[ i ] <- Some n
+                | n, None -> fc.OutputWidth[i] <- Some n
                 | _ -> () // Ok in this case
             ))
         instrumentTime "checkAndValidate" start
         Ok fs
 
 let checkAndValidateFData (fs: FastSimulation) =
+    printf "checkAndValidateFData in new simulator"
     let start = getTimeMs ()
     let activeComps =
         fs.FComps
@@ -477,7 +479,7 @@ let checkAndValidateFData (fs: FastSimulation) =
                         data
                         fc.FullName
                         i
-                | n, None -> fc.OutputWidth[ i ] <- Some n
+                | n, None -> fc.OutputWidth[i] <- Some n
                 | _ -> () // Ok in this case
             ))
 
@@ -561,7 +563,7 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
         fastSim.FGlobalInputComps
         |> Array.iter (fun fc ->
             let vec = fc.Outputs[0]
-            vec.Step[ step ] <- vec.Step[step - 1])
+            vec.Step[step] <- vec.Step[step - 1])
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
@@ -835,7 +837,7 @@ let rec extractFastSimulationOutput
     | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with
-        | Some (cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
+        | Some(cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"
 
 let rec extractFastSimulationOutputFData
@@ -855,20 +857,20 @@ let rec extractFastSimulationOutputFData
         | None ->
             failwithf
                 $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
-        | Some (Data d) ->
+        | Some(Data d) ->
             if d.Width = 0 then
                 failwithf
                     $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
             else
                 d |> IData
-        | Some (Alg exp) ->
+        | Some(Alg exp) ->
             let evaluated = evalExp exp
             IAlg evaluated
 
     | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with
-        | Some (cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
+        | Some(cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"
 
 /// return state data from simulation

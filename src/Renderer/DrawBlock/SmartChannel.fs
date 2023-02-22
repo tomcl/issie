@@ -96,12 +96,26 @@ let smartChannelRoute
     let tl = {channel.TopLeft with X = channel.TopLeft.X - channel.W}
     let _channel = {channel with TopLeft = tl}
 
-    let sortWiresByX (wireIds: ConnectionId list) =
-        let wire3rdXs =
+    let sortWires (wireIds: ConnectionId list) =
+        
+        let wire23Pos =
             List.map (fun wid -> wid, extractWire model wid) wireIds
             |> List.map (fun (wid, w) -> wid, getWireSegmentsXY w)
-            |> List.map (fun (wid, l) -> wid, l[3].X)
-        List.sortBy snd wire3rdXs
+            |> List.map (fun (wid, l) -> wid, l[2..3])
+        
+        // let channelMid = tl.X + (channel.W / 2.0)
+        
+        // let separatedWires = wire23Pos |> List.partition (fun (_, pos) -> pos.X < channelMid)
+        // printfn "Separated wires %A" separatedWires
+        let sorted =
+            wire23Pos
+            |> List.sortByDescending (fun (_, pos) -> pos[0].Y) 
+            // ( (snd separatedWires) |> List.sortByDescending (fun (_, pos) -> pos.Y) )
+            |> List.map (fun (wid, pos) -> wid, pos[1].X)
+        printfn "Sorted wires %A" sorted
+
+        sorted
+        // List.sortBy snd wire3rdXs
         // |> List.map (fun (id, x) -> printfn $"id: {id}, x: {x}")
 
     let moveWires (model: Model) (sortedWires: (ConnectionId * float) list) =
@@ -138,7 +152,7 @@ let smartChannelRoute
     let sortedWires =
         getWiresInBox _channel model
         |> fun x -> printfn "Wires In Channel: %A" x; x
-        |> sortWiresByX
+        |> sortWires
     
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     

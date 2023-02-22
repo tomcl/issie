@@ -115,9 +115,9 @@ let getSymbolBoundingBox (model: Model) (componentId: ComponentId) : BoundingBox
         | Some hScale -> symbol.Component.W * hScale
         | None -> symbol.Component.W
 
-    { H = symbolHeight
-      W = symbolWidth
-      TopLeft = symbol.Pos }
+    match symbol.STransform.Rotation with
+    | Degree0 | Degree180 -> { H = symbolHeight; W = symbolWidth; TopLeft = symbol.Pos }
+    | _ -> { H = symbolWidth; W = symbolHeight; TopLeft = symbol.Pos }
 
 /// Returns a list of the bounding boxes of all symbols in current sheet.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)

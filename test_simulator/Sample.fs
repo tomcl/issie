@@ -7,14 +7,7 @@ open FastRun
 open FastCreate
 open FastReduce
 open CommonTypes
-open FilesIONative
-
-// step 1: load components from file
-// step 2: merge canvas state of loaded components into one
-
-// Random tests
-// create new project template using FileMenuView.newProject
-// add random components
+open TestCases
 
 let runNewSimulator
     (diagramName: string)
@@ -61,13 +54,8 @@ let simulatorTests =
         [ testCase "fake"
           <| fun _ ->
               let n = 2
-              let folderPath = "/home/yujie/fyp/testcases"
-              let sheetName, loadedComponents = FilesIONative.readProjectFromPath folderPath
-              let topSheet =
-                  loadedComponents
-                  |> List.find (fun ldc -> ldc.Name = sheetName)
-              let observed = runNewSimulator sheetName n topSheet.CanvasState loadedComponents
-              let expected = runOldSimulator sheetName n topSheet.CanvasState loadedComponents
+              let observed = runNewSimulator "" n TestCases.register []
+              let expected = runOldSimulator "" n TestCases.register []
               // printfn "observed: %A" observed
               // printfn "expected: %A" expected
               Expect.equal

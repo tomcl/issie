@@ -10,6 +10,7 @@ open BusWireUpdateHelpers
 open SmartWire
 open Optics
 open Operators
+open SmartWire
 
 //---------------------------------------------------------------------------------//
 //----------------------Helper functions that need SmartRoute etc------------------//
@@ -18,17 +19,27 @@ open Operators
 /// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
 /// Reverse indicates if the wire should be processed in reverse, 
 /// used when an input port (end of wire) is moved.
-let updateWire (model : Model) (wire : Wire) (reverse : bool) =
+let updateWire (model : Model) (wire : Wire) (reverse : bool) : Wire =
     let newPort = 
         match reverse with
         | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort
         | false -> Symbol.getOutputPortLocation None model.Symbol wire.OutputPort
-    if reverse then
-        partialAutoroute model (reverseWire wire) newPort true
-        |> Option.map reverseWire
-    else 
-        partialAutoroute model wire newPort false
-    |> Option.defaultValue (smartAutoroute model wire)
+    
+    let partial =
+        if reverse then
+            partialAutoroute model (reverseWire wire) newPort true
+            |> Option.map reverseWire
+        else 
+            partialAutoroute model wire newPort false
+    
+
+    let smartRoute = smartAutoroute model wire
+    let updateWire' = 
+        match smartRoute with
+        | WireT wire -> partial |> Option.defaultValue wire
+        | ModelT _ -> printfn "updateWire: smartRoute returned ModelT" ; wire
+    updateWire'
+
 /// Re-routes the wires in the model based on a list of components that have been altered.
 /// If the wire input and output ports are both in the list of moved components, 
 /// it does not re-route wire but instead translates it.
@@ -133,9 +144,12 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             }
             |> smartAutoroute model
         
-        let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ newWire.WId) newWire model)
-        
-        newModel, Cmd.ofMsg BusWidths
+        match newWire with
+        | WireT wire -> 
+            let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ wire.WId) wire model)
+            newModel, Cmd.ofMsg BusWidths
+        | ModelT model -> 
+            model, Cmd.ofMsg BusWidths
     
     | BusWidths ->
         // (1) Call Issie bus inference
@@ -480,6 +494,7 @@ let getClickedWire (wModel : Model) (pos : XYPos) (n : float) : ConnectionId Opt
 /// Updates the model to have new wires between pasted components
 let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list<ConnectionId>) =
     let oldCompIds = Symbol.getCopiedSymbols wModel.Symbol
+
     let pastedWires =
         let createNewWire (oldWire : Wire) : list<Wire> =
             let newId = ConnectionId(JSHelpers.uuid())
@@ -500,7 +515,11 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
                             Segments = segmentList;
                             StartPos = portOnePos;
                     }
-                    |> smartAutoroute wModel
+                    |>  smartAutoroute wModel
+                        |> function
+                            | WireT wire -> wire
+                            | ModelT _ -> failwith "Expected a WireT value."
+
                 ]
             | None -> []
 

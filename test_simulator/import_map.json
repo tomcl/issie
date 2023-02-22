@@ -1,0 +1,6 @@
+{
+    "imports": {
+        "fp-ts/lib/": "npm:/fp-ts/lib/",
+        "is-ts/lib/": "npm:/io-ts/lib/"
+    }
+}

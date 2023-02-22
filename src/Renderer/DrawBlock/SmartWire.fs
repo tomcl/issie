@@ -65,6 +65,7 @@ let findOutputSymbol (model: Model) (wire: Wire) : Symbol option =
         |> List.tryHead
     symbolsWithPortId
 
+
 // helper function for finding if wire is connected from and to the same symbol
 let isSelfConnected (model: Model) (wire: Wire) : bool = 
     let inputPort = string wire.InputPort
@@ -128,8 +129,6 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
     routing
 
 
-    
-
 let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutorouteResult = 
     let inputPort = wire.InputPort
     let outputPort = wire.OutputPort
@@ -183,7 +182,7 @@ let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutor
     let newModel = {model with Symbol = {model.Symbol with Symbols = Map.add inputLabel.Id inputLabel model.Symbol.Symbols}}
     let newModel2 = {newModel with Symbol = {newModel.Symbol with Symbols = Map.add outputLabel.Id outputLabel newModel.Symbol.Symbols}}
     ModelT newModel2
-    
+
 
     /// Creates and adds a symbol into model, returns the updated model and the component id
     // let addSymbol sym=
@@ -284,16 +283,17 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
             match newWireMap with
                 | ModelT newModel -> 
                     // generate wire labels
-                    ModelT (generateWireLabels newModel wire symbol)
+                    let foundsymbol = symbol |> Option.get
+                    generateWireLabels newModel wire foundsymbol // function is already type ModelT
                     // match newWireMap with
                     //     | ModelT newModel -> ModelT newModel
                     //     | _ -> ModelT newModel
                 | _ -> 
                     printfn "error" 
-                    ModelT newWireMap
+                    newWireMap
             
 
-        | _ -> WireT (routeAroundSymbol model autoWire (Some symbol))
+        | _ -> WireT (routeAroundSymbol model autoWire symbol)
 
 
 

@@ -84,8 +84,8 @@ Target.create "KillZombies" <| fun _ ->
 
 "CleanDev"
   ==> "DotnetRestore"
-  ==> "NpmInstall"
   ==> "Build"
+  ==> "NpmInstall"
 
 "NpmInstall"
   ==> "Dev"

@@ -102,3 +102,21 @@ let updateModelWires
     |> Optic.map wires_ (fun wireMap  ->
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
+
+
+
+//Helper function to shift a specified wire segment by the specified shift amount, currently it is not fool proof and is still work in progress
+//Notes intended usage: It is mainly implemented to shift the middle segments of a wire
+//Check whether it returns None -> It failed, or returns Some -> updated wire
+//Important to note that currently it does not check whether the shift will cause the wire to turn backwards
+//Author: Zsombor Klapper
+let segmentShifterHelper (model : Model) (segmentId : SegmentId) (shift : float) : Option<Wire> =
+    let index, wireId = segmentId
+    let wire = model.Wires[wireId]
+    try
+        let segments =  wire.Segments 
+                        |> List.updateAt (index - 1) {wire.Segments[index - 1] with Length = wire.Segments[index - 1].Length + shift} 
+                        |> List.updateAt (index + 1) {wire.Segments[index + 1] with Length = wire.Segments[index + 1].Length - shift}
+        Some {wire with Segments = segments}
+    with
+    | e -> None

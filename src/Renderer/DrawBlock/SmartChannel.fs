@@ -26,24 +26,17 @@ let pipePrint x =
     x
 
 
-let segmentShifterHelper (model : Model) (segmentId : SegmentId) (shift : float) : Option<Wire> =
-    let index, wireId = segmentId
-    let wire = model.Wires[wireId]
-    try
-        let segments =  wire.Segments |> List.updateAt (index - 1) {wire.Segments[index - 1] with Length = wire.Segments[index - 1].Length + shift} |> List.updateAt (index + 1) {wire.Segments[index + 1] with Length = wire.Segments[index + 1].Length - shift}
-        Some {wire with Segments = segments}
-    with
-    | e -> None
+
+
 
 
 let replaceSegments (model : Model) (bounds : BoundingBox) (orientation : Orientation) (wireList : List<List<SegmentId * XYPos>>): Model =
     match orientation with
-    | Vertical ->   let increment = bounds.W / float(wireList.Length + 1)
-                    let sortedLst = wireList |> List.map (fun x -> List.head x) |> List.sortBy (fun x -> (snd x).Y) 
+    | Vertical ->   let sortedLst = wireList |> List.map (fun x -> List.head x) |> List.sortBy (fun x -> (snd x).Y) 
                     let folder (lst : List<Wire>, counter: int) (next : SegmentId * XYPos) : List<Wire>*int = 
-                        let opt = segmentShifterHelper model (fst next) (bounds.TopLeft.X - bounds.W + (increment * float(counter)) - (snd next).X)
-                        match opt with 
-                        | Some wire -> (lst @ [wire]), (counter + 1) |> pipePrint
+                        segmentShifterHelper model (fst next) (bounds.TopLeft.X - bounds.W + (bounds.W / float(wireList.Length + 1) * float(counter)) - (snd next).X)
+                        |> function
+                        | Some wire -> (lst @ [wire]), (counter + 1) 
                         | None -> lst, (counter + 1)
                     (([], 1), sortedLst) ||> List.fold folder
                     |> fst 

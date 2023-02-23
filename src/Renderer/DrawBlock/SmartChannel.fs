@@ -25,125 +25,52 @@ let pipePrint x =
     printfn "%A" x
     x
 
-type Placment = First | Second
+
+ //getAbsoluteSegmentPos   
+let selectSegmentsIntersectingBoundingBox (bounds: BoundingBox) (wires: List<Wire>) : List<List<Segment>> =
+    let selectSegments (wire: Wire) =
+        ([],wire) ||>
+        foldOverSegs
+            (fun startPos endPos state seg -> state @ [segmentIntersectsBoundingBox bounds startPos endPos])
+        |> List.zip wire.Segments
+        |> List.filter (fun element -> Option.isSome (snd element))
+        |> List.map fst 
+    wires |> List.map selectSegments
 
 
-let sortWireOrder (model : Model) (wireList: List<List<SegmentId * XYPos>> ) (orientation : Orientation) : List<SegmentId*XYPos> =
-    let advancedSorter (lstToSort: List<SegmentId *XYPos>) : Option<List<(SegmentId*XYPos)>> =
-        let splitter (indexOffSet : int)  (((index:int, wireId : ConnectionId), pos : XYPos), segs:List<Segment>): Placment =
-                match segs[index].Length with
-                | L when L >= 0 -> if segs[index + indexOffSet].Length > 0 then Second
-                                                                        else First
-                | L when L < 0 -> if segs[index - indexOffSet].Length < 0 then Second
-                                                                        else First
-        let innerSplitter (place : Placment) (payLoad: (((int * ConnectionId) * XYPos) * List<Segment>) list) : (Placment * (((int * ConnectionId) * XYPos) * List<Segment>) list) list = 
-            match place with
-            | First -> List.groupBy (splitter -1) payLoad |> (fun lst -> if fst lst[0] = Second then List.rev lst else lst)
-            | Second -> List.groupBy (splitter -1) payLoad |> (fun lst -> if fst lst[0] = First then List.rev lst else lst)
-        let sorter  (element : ((SegmentId * XYPos) * List<Segment>) ) =
-            match orientation with
-            | Vertical -> (snd (fst element)).Y
-            | Horizontal  -> (snd (fst element)).X
-        lstToSort 
-        |> List.map (fun ((index, wireId),pos) -> model.Wires[wireId].Segments)  
-        |> List.zip lstToSort   //Zipping the whole segment array next to the SegmentId*XYPos 
-        |> List.groupBy (splitter 1)    //Grouping them base wether they turn left/down or right/up after leaving the channel
-        |> (fun lst -> if fst lst[0] = Second then List.rev lst else lst)  //Making sure order is as intended after grouping
-        |> List.map (fun (place, element) -> innerSplitter place element) //Further grouping them based on whether they turn left/down or right/up before entering the channel
-        |> List.map (fun element -> List.map snd element |> List.map (fun x -> List.sortByDescending sorter x))  //Sorting each group by their height at the leaving end 
-        |> List.reduce (@)
-        |> List.map (List.map fst)  //  Removing the added segment array
-        |> List.reduce (@) // |-> Putting the groups right after each other
-        |> Option.Some  
-    let inputRight =
-        let inpLst =  wireList
-                    |> List.filter (fun element -> element.Length = 3)
-                    |> List.map (fun element -> model.Wires[snd(fst element[0])].Segments[3], snd element[2])
+type ChannelRelation = PassThrough | Originates | Terminates | LivesIn
+
+let categoriseWireSegments (segList : List<List<Segment>>) =
+    let mapOverWireSegment (segments : List<Segment>) =
+        match segments.Length with
+        | 1 -> segments[0],PassThrough
+        | 4 when segments[0].Index = 0 -> segments[3], Originates
+        | 4 -> segments[0], Terminates
+        | 7 -> segments[0],LivesIn
+    segList |> List.map mapOverWireSegment
+
+let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<Segment*ChannelRelation>) =
+    let segList =
+        lst
+        |> List.map (fun (segment, orient) -> (segment, getAbsoluteSegmentPos model.Wires[segment.WireId] segment.Index), orient)
+    let PassThroughList = 
+        segList 
+        |> List.filter (fun element -> snd element = PassThrough) 
+        |> List.map fst
+        |> List.sortBy (fun element -> if orientation = Vertical then (snd (snd element)).Y else (snd (snd element)).X )
+    let OriginateList = segList |> List.filter (fun element -> snd element = Originates) |> List.map fst
+    let TerminatesList = segList |> List.filter (fun element -> snd element = Terminates) |> List.map fst
+    OriginateList @ PassThroughList @ TerminatesList
+    
+
+let createShiftedWires (orientation : Orientation) (model : Model) (bounds: BoundingBox) (segList : List<Segment*(XYPos*XYPos)>)  = 
+    let converterFolder (lst ,counter) (seg, (startPos:XYPos, endPos)) = 
         match orientation with
-        | Vertical -> inpLst |> List.map (fun (seg, pos) -> (seg.Index, seg.WireId), {pos with Y = pos.Y + seg.Length})
-        | Horizontal -> inpLst |> List.map (fun (seg, pos) -> (seg.Index, seg.WireId), {pos with X = pos.X + seg.Length}) 
-    let specialInput = 
-        wireList
-        |> List.filter (fun element -> element.Length = 4 && fst (fst element[0]) = 0)
-        |> List.map (fun element -> element[3])
-    let midlePart =
-        try
-            wireList 
-            |> List.filter (fun element -> element.Length = 1) 
-            |> List.reduce (@)
-            |> List.append inputRight
-            |> List.append specialInput
-            |> advancedSorter
-        with
-        | e -> None
-    
-    let rightEdge =
-        let endLstSorter (element: SegmentId * XYPos) =
-            match orientation with
-            | Vertical  -> (snd element).Y
-            | Horizontal-> (snd element).X
-        wireList
-        |> List.filter (fun element -> element.Length = 4 && fst (fst element[0]) <> 0)
-        |> List.map (fun element -> element[0])
-        |> pipePrint
-        |> List.sortBy endLstSorter              
-    midlePart |> function
-        | Some lst -> lst @ rightEdge
-        | None -> rightEdge
-    
-        
-
-
-let replaceSegments (model : Model) (bounds : BoundingBox) (orientation : Orientation) (wireList : List<List<SegmentId * XYPos>>): Model =
-    match orientation with
-    | Vertical ->   let sortedLst = sortWireOrder model wireList orientation 
-                    let folder (lst : List<Wire>, counter: int) (next : SegmentId * XYPos) : List<Wire>*int = 
-                        segmentShifterHelper model (fst next) (bounds.TopLeft.X - bounds.W + (bounds.W / float(sortedLst.Length + 1) * float(counter)) - (snd next).X)
-                        |> function
-                        | Some wire -> (lst @ [wire]), (counter + 1) 
-                        | None -> lst, (counter + 1)
-                    (([], 1), sortedLst) ||> List.fold folder
-                    |> fst 
-                    |> updateModelWires model  
-    | Horizontal -> model
-                        
-    
-    
-                
-
-let segmentsInBounds (bounds: BoundingBox) (model:Model) : Option<List<List<SegmentId * XYPos>>> =
-    let isInBound (state:List<List<SegmentId * XYPos>>) (key:ConnectionId)(wire : Wire) =
-        let cornerFolder ((pos : XYPos , pseg : Segment), orientation: Orientation) (seg : Segment) =
-            if orientation = Horizontal then (({pos with X = pos.X + seg.Length}, seg), Vertical)
-                                      else (({pos with Y = pos.Y + seg.Length}, seg), Horizontal)
-        let corners: ((XYPos * Segment) * Orientation) list = 
-            (((wire.StartPos, List.head wire.Segments),wire.InitialOrientation),wire.Segments) ||> List.scan cornerFolder
-            |> List.tail 
-        let folder (state : List<SegmentId * XYPos>) ((pos: XYPos, seg:Segment) , orientation:Orientation) =
-            match orientation with 
-            | Horizontal -> match (bounds.TopLeft.X > pos.X, bounds.TopLeft.X - bounds.W < pos.X, (pos.Y < bounds.TopLeft.Y) <> (pos.Y - seg.Length < bounds.TopLeft.Y)) with
-                            | true,true,true -> state @ [(seg.Index, seg.WireId), pos]
-                            | true, true, false-> if ((bounds.TopLeft.Y < pos.Y, bounds.TopLeft.Y + bounds.H > pos.Y) = (true, true)) then state @ [(seg.Index, seg.WireId), pos] else state
-                            | _ -> state
-            | Vertical -> match (bounds.TopLeft.Y < pos.Y, bounds.TopLeft.Y + bounds.H > pos.Y, (pos.X < bounds.TopLeft.X) <> (pos.X - seg.Length < bounds.TopLeft.X)) with
-                            | true, true, true -> state @ [(seg.Index, seg.WireId), pos]
-                            | true, true, false-> if ((bounds.TopLeft.X > pos.X, bounds.TopLeft.X - bounds.W < pos.X) = (true, true)) then state @ [(seg.Index, seg.WireId), pos] else state
-                            | _ -> state
-        let lst = ([], corners) ||> List.fold folder 
-        match lst.Length with 
-        | 0 -> state
-        | _ -> lst :: state
-    let ret = ([],model.Wires) ||> Map.fold isInBound
-    if ret.Length = 0 then None
-                      else Some ret
-    
-        
-                          
-        
-        
-        
-
-
+        | Vertical -> lst@[moveSegment model seg -(startPos.X - (bounds.TopLeft.X - bounds.W + counter *(bounds.W / float (segList.Length + 1))))], counter + 1.0
+        | Horizontal -> lst@[moveSegment model seg -(startPos.Y - (bounds.TopLeft.Y + counter *(bounds.H / float (segList.Length + 1))))], counter + 1.0
+    (([], 1.0), segList)||> List.fold converterFolder 
+    |> fst 
+     
 
 ///
 /// HLP23: suggested initial smartChannel top-level function
@@ -164,7 +91,13 @@ let smartChannelRoute
         (model:Model) 
             :Model =
     let tl = channel.TopLeft
+    let correctBounds = {channel with TopLeft = {channel.TopLeft with X = channel.TopLeft.X - channel.W}}
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
-    match segmentsInBounds channel model with
-        | Some (channelSeg: List<List<SegmentId * XYPos>>) -> channelSeg |> pipePrint |> replaceSegments model channel channelOrientation
-        | None -> model
+    model |> getWireList 
+    |> selectSegmentsIntersectingBoundingBox correctBounds 
+    |> categoriseWireSegments
+    |> generateChannelOrder channelOrientation model 
+    |> createShiftedWires channelOrientation model channel
+    |> updateModelWires model 
+    
+    

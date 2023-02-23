@@ -305,11 +305,12 @@ let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutor
                     else indexFinder t (index + 1)
         indexFinder ports 0
     
+    // let conn1 = createConnection outputPortSymbol.Component.OutputPorts[OutputPortIndex] inputLabelComp.InputPorts.[0]
+    // let conn2 = createConnection inputLabelComp.OutputPorts.[0] inputPortSymbol.Component.InputPorts.[InputPortIndex]
 
     let OutputPortIndex = getOutputPortIndex outputPort outputPortSymbol.Component.OutputPorts  // CHECK if outputPort (id) is correct one associated to component of outputPortSymbol
     let InputPortIndex = getInputPortIndex inputPort inputPortSymbol.Component.InputPorts       // CHECK if inputPort (id) is correct one associated to component of inputPortSymbol
-    // let conn1 = createConnection outputPortSymbol.Component.OutputPorts[OutputPortIndex] inputLabelComp.InputPorts.[0]
-    // let conn2 = createConnection inputLabelComp.OutputPorts.[0] inputPortSymbol.Component.InputPorts.[InputPortIndex]
+
     let resModel1 = createWire newModel2 outputPortSymbol inputLabel OutputPortIndex 0
     let resModel2 = createWire resModel1 outputLabel inputPortSymbol 0 InputPortIndex
     ModelT resModel2
@@ -378,3 +379,8 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
     // Change the output of autowire to return BusWire Model instead of Wire
     // Change the test code to use the new return of autowire 
 
+// TO IMPLEMENT:
+    // NET WIRE GROUPING
+    // DETERMINING IF WIRE SHOULD BE ADJUSTED OR REPLACED WITH WIRE LABELS
+        // DETERMINE, USING PORT POSITIONS AND WIRE LENGTH, A WIRE LENGTH ADJUSTMENT FOR VERTICAL AND HORIZONTAL WIRE SEGMENTS IF SYMBOLS BOUNDINH BOX ARE ALONG THE WIRE SEGMENTS
+            // Determined by which segment of the wire intersects with the symbol's bounding box

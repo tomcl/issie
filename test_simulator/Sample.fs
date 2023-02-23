@@ -9,6 +9,10 @@ open FastReduce
 open CommonTypes
 open TestCases
 
+let testcases2loadedComponents: LoadedComponent list =
+    canvasStates
+    |> List.map (fun (cs, name) -> Extractor.extractLoadedSimulatorComponent cs name)
+
 let runNewSimulator
     (diagramName: string)
     (simulationArraySize: int)
@@ -54,10 +58,9 @@ let simulatorTests =
         [ testCase "fake"
           <| fun _ ->
               let n = 2
-              let observed = runNewSimulator "" n TestCases.register []
-              let expected = runOldSimulator "" n TestCases.register []
-              // printfn "observed: %A" observed
-              // printfn "expected: %A" expected
+              let ldcs = testcases2loadedComponents
+              let observed = runNewSimulator "" n ldcs[0].CanvasState ldcs
+              let expected = runOldSimulator "" n ldcs[0].CanvasState ldcs
               Expect.equal
                   expected
                   observed

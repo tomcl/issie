@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
-import readline from "node:readline";
+import fs from "node:fs";
+import path from "node:path";
 
-const json2fs = (json) => {
+const json2Components = (json) => {
   let result = json;
   // remove all quotes except for uuid
   result = result.replaceAll(/"([\d\w-]{1,35})"/g, "$1");
   result = result.replaceAll(/,/g, ";");
   result = result.replaceAll(/:/g, " = ");
-  // add explicit list type
-  // result = result.replaceAll(/\[\]/g, "list []");
   // null -> None
   result = result.replaceAll(/null/g, "None");
 
@@ -48,6 +47,28 @@ const json2fs = (json) => {
     /(Left|Right|Top|Bottom) = (\[("[\d\w-]{36}";?\s*)*\])/g,
     "($1, $2)"
   );
+
+  return result;
+};
+
+const json2Connections = (json) => {
+  let result = json;
+  // remove all quotes except for uuid
+  result = result.replaceAll(/"([\d\w-]{1,35})"/g, "$1");
+  result = result.replaceAll(/,/g, ";");
+  result = result.replaceAll(/:/g, " = ");
+  // null -> None
+  result = result.replaceAll(/null/g, "None");
+
+  // wrap into Some
+  result = result.replaceAll(/PortNumber = (\d+)/g, "PortNumber = Some $1");
+
+  result = result.replaceAll(
+    /PortType = (Input|Output)/g,
+    "PortType = PortType.$1"
+  );
+
+  // convert to Tuple
   result = result.replaceAll(
     /\[(\d+.\d+);(\d+.\d+);(false|true)\];?/g,
     "$1, $2, $3;"
@@ -56,34 +77,23 @@ const json2fs = (json) => {
   return result;
 };
 
-const main = async () => {
-  let canvasState = "";
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false,
-  });
-
-  for await (const line of rl) {
-    canvasState += line;
-  }
-
+const json2CanvasState = (json) => {
   const parsedData =
-    JSON.parse(canvasState).NewCanvasWithFileWaveSheetInfoAndNewConns[0];
+    JSON.parse(json).NewCanvasWithFileWaveSheetInfoAndNewConns[0];
+
   // extract CanvasState from SavedInfo
-  const components = json2fs(JSON.stringify(parsedData[0]));
-  const connections = json2fs(JSON.stringify(parsedData[1]));
+  const components = json2Components(JSON.stringify(parsedData[0]));
+  const connections = json2Connections(JSON.stringify(parsedData[1]));
 
-  console.log(`module TestCases
+  return `(${components},${connections})`;
+};
 
-open CommonTypes
-open SimulatorTypes
-
-let register: CanvasState = (
-${components},
-${connections}
-)`);
+const main = async () => {
+  const filePath = process.argv[2];
+  const baseName = path.basename(filePath, path.extname(filePath));
+  const content = fs.readFileSync(filePath, "utf8");
+  const canvasState = json2CanvasState(content);
+  console.log(`(${canvasState}, "${baseName}")`);
 };
 
 main();

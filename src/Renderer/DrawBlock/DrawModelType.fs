@@ -60,12 +60,6 @@ module SymbolT =
     type RotationType = RotateClockwise | RotateAntiClockwise
     type ScaleType = ScaleUp | ScaleDown
 
-    type BlockCorners = {
-        topLeft: XYPos
-        topRight: XYPos
-        bottomLeft: XYPos
-        bottomRight: XYPos
-    }
 
     /// Wraps around the input and output port id types
     type PortId = | InputId of InputPortId | OutputId of OutputPortId

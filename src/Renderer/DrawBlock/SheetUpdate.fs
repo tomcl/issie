@@ -346,6 +346,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
         //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
         // ]
+
+        //HLP23: Author Ismagilov
         let rotmodel = 
             {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}}
 
@@ -372,12 +374,37 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         ]
 
     | Flip orientation ->
-        model,
+        // model,
+        // Cmd.batch [
+        //     symbolCmd (SymbolT.Flip(model.SelectedComponents,orientation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+        //     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+        //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
+        // ]
+        let flipmodel = 
+            {model with Wire = {model.Wire with Symbol = (SmartRotate.flipBlock model.SelectedComponents model.Wire.Symbol orientation)}}
+
+        let newModel = {flipmodel with BoundingBoxes = getBoundingBoxes flipmodel.Wire.Symbol}
+
+        let errorComponents =
+            newModel.SelectedComponents
+            |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+        printfn $"ErrorComponents={errorComponents}"
+
+        let nextAction = 
+            match errorComponents with
+                | [] -> 
+                    Idle
+                | _ ->
+                    DragAndDrop
+
+        {newModel with ErrorComponents = errorComponents; Action = nextAction},
         Cmd.batch [
-            symbolCmd (SymbolT.Flip(model.SelectedComponents,orientation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
             Cmd.ofMsg SheetT.UpdateBoundingBoxes
         ]
+
     | SaveSymbols ->
         model, symbolCmd SymbolT.SaveSymbols
 

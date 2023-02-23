@@ -13,6 +13,8 @@ open DrawModelType
 
 open Optics
 open Operators
+open System 
+
 
 
 (* HLP23
@@ -118,17 +120,115 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                     | 15.0 -> wire
                     | _ -> newWires
             | false -> autoWire
-    
-    // // new model with routing wire added to wire map
-    // let newModel: BusWireT.Model = 
-    //     let newWireMap = 
-    //         model.Wires
-    //         |> Map.add wire.WId routing
-    //     {model with Wires = newWireMap}
-    // newModel
     routing
 
 
+let genWireLabelName : string = 
+    let random = new Random()
+    let randomNumber = random.Next(1, 101)
+    let wireLabelName = "Wire" + string randomNumber
+    wireLabelName
+
+
+let wireLabelComponent (id: string) (name: string) : Component =
+    let inputPorts = createPortList PortType.Input 1 id
+    // printfn "input ports: %A" inputPorts
+    let outputPorts = createPortList PortType.Output 1 id
+    // printfn "output ports: %A" outputPorts
+    {
+        Id = id
+        Type = IOLabel
+        Label = name.ToUpper()
+        InputPorts = inputPorts 
+        OutputPorts = outputPorts
+        X = 0.
+        Y = 0.
+        H = 30.
+        W = 30.
+        SymbolInfo = None
+    }
+
+/// helper function for creating a wire between two symbols
+let createWire (model: Model) (sourceSymbol: Symbol) (targetSymbol: Symbol) (sourcePortIndex: int) (targetPortIndex: int): Model =  
+    let sourcePort: Port = sourceSymbol.Component.OutputPorts[sourcePortIndex]
+    let targetPort: Port = targetSymbol.Component.InputPorts[targetPortIndex]
+    let sourcePortId: string = sourcePort.Id
+    let targetPortId: string = targetPort.Id
+    let sourcePos = Symbol.getOutputPortLocation None model.Symbol (OutputPortId sourcePortId)
+    let targetPos = Symbol.getInputPortLocation None model.Symbol (InputPortId targetPortId)
+    let wireId: string = JSHelpers.uuid()
+    let wireId': ConnectionId = ConnectionId wireId
+    let color: HighLightColor = HighLightColor.Grey
+
+    // connection id - NEED TO ADD TO MAP? - CHECK
+    let connId = ConnectionId (JSHelpers.uuid())
+    // generate wire segments from sourcePos to targetPos
+    let segments = 
+        let outputSegment: Segment = 
+            {
+                Index = 0
+                Length = 10.
+                WireId = connId
+                IntersectOrJumpList = []
+                Draggable = false
+                Mode = RoutingMode.Manual
+            }
+        let inputSegment: Segment = 
+            {
+                Index = 1
+                Length = 10.
+                WireId = connId
+                IntersectOrJumpList = []
+                Draggable = false
+                Mode = RoutingMode.Manual
+            }
+        let firstSegment: Segment = 
+            {
+                Index = 2
+                Length = targetPos.X - sourcePos.X - 20.
+                WireId = connId
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Manual
+            }
+        let middleSegment: Segment = 
+            {
+                Index = 3
+                Length = targetPos.Y - sourcePos.Y
+                WireId = connId
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Manual
+            }
+        let thirdSegment: Segment = 
+            {
+                Index = 4
+                Length = targetPos.X - sourcePos.X - 20.
+                WireId = connId
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Manual
+            }
+        [outputSegment; inputSegment; firstSegment; middleSegment; thirdSegment]
+    let wire: Wire = 
+        {
+            WId = wireId'
+            InputPort = InputPortId targetPortId
+            OutputPort = OutputPortId sourcePortId
+            StartPos = sourcePos
+            Segments = segments
+            Color = color
+            Width = 5
+            InitialOrientation = Vertical
+        }
+    let newWireMap =
+        model.Wires
+        |> Map.add wireId' wire
+    let newModel: Model = {model with Wires = newWireMap}
+    newModel
+    
+
+/// helper function for creating wire labels at two symbols
 let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutorouteResult = 
     let inputPort = wire.InputPort
     let outputPort = wire.OutputPort
@@ -141,83 +241,85 @@ let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutor
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
     // create 2 wire label symbols to add to model
     let uuid: string = JSHelpers.uuid()
+    let wireName = genWireLabelName
+    let inputLabelComp = wireLabelComponent uuid wireName
     let inputLabel: Symbol = 
         let inputLabelPos = 
-            match inputPortEdge with
-                | Left -> {X = inputPortPos.X - 10.0; Y = inputPortPos.Y}
-                | Right -> {X = inputPortPos.X + 10.0; Y = inputPortPos.Y}
-                | _ -> {X = inputPortPos.X - 10.0; Y = inputPortPos.Y}
-        let inputLabelComp = createComponent IOLabel uuid
+            match outputPortEdge with
+                | Left -> {X = inputPortPos.X - 60.0; Y = inputPortPos.Y}
+                | Right -> {X = inputPortPos.X + 60.0; Y = inputPortPos.Y}
+                | _ -> {X = inputPortPos.X; Y = inputPortPos.Y}
+        printfn "input label pos: %A" inputPortEdge
+        
         {symbol with
-            Id = ComponentId (JSHelpers.uuid())
+            Id = ComponentId uuid
             Component = inputLabelComp
-            Pos = inputLabelPos
+            Pos = inputLabelPos 
             Appearance = 
                 {symbol.Appearance with
-                    ShowPorts = ShowNone
-                    // ShowOutputPorts = false 
+                    ShowPorts = ShowBoth
             }
         }
 
+    let uuid2: string = JSHelpers.uuid()
+    let outputLabelComp =  wireLabelComponent uuid2 wireName
     let outputLabel: Symbol = 
         let outputLabelPos = 
-            match outputPortEdge with
-                | Left -> {X = outputPortPos.X - 10.0; Y = outputPortPos.Y}
-                | Right -> {X = outputPortPos.X + 10.0; Y = outputPortPos.Y}
-                | _ -> {X = outputPortPos.X - 10.0; Y = outputPortPos.Y}
-        let outputLabelComp = createComponent IOLabel uuid
+            match inputPortEdge with
+                | Left -> {X = outputPortPos.X - 60.0; Y = outputPortPos.Y}
+                | Right -> {X = outputPortPos.X + 60.0; Y = outputPortPos.Y}
+                | _ -> {X = outputPortPos.X; Y = outputPortPos.Y}
+        printfn "output label pos: %A" outputPortEdge
 
         {symbol with
-            Id = ComponentId uuid
+            Id = ComponentId uuid2
             Component = outputLabelComp
             Pos = outputLabelPos
             Appearance = 
                 {symbol.Appearance with
-                    ShowPorts = ShowNone
-                    // ShowOutputPorts = false
+                    ShowPorts = ShowBoth
             }
         }
         // |> Symbol.autoScaleHAndW
-    // [inputLabel; outputLabel]
+ 
     let newModel = {model with Symbol = {model.Symbol with Symbols = Map.add inputLabel.Id inputLabel model.Symbol.Symbols}}
     let newModel2 = {newModel with Symbol = {newModel.Symbol with Symbols = Map.add outputLabel.Id outputLabel newModel.Symbol.Symbols}}
-    ModelT newModel2
+    
+    // create wires between ports and wire labels
 
+    let getOutputPortIndex (portId: OutputPortId) (ports: Port list) : int =
+        let rec indexFinder (ports: Port list) (index: int) : int =
+            match ports with
+                | [] -> -1
+                | h::t -> 
+                    if h.Id = (string portId) then index
+                    else indexFinder t (index + 1)
+        indexFinder ports 0
 
-    /// Creates and adds a symbol into model, returns the updated model and the component id
-    // let addSymbol sym=
-    //     // let newPorts = Symbol.addToPortModel model sym
-    //     let addPortsToModel currModel _ sym =
-    //         { currModel with Ports = Symbol.addToPortModel model sym }
-    //     let newModel = addPortsToModel model
-
-    //     let newSymModel = Map.add sym.Id sym newModel.Symbol.Symbols
-    //     newSymModel
+    let getInputPortIndex (portId: InputPortId) (ports: Port list) : int =
+        let rec indexFinder (ports: Port list) (index: int) : int =
+            match ports with
+                | [] -> -1
+                | h::t -> 
+                    if h.Id = (string portId) then index
+                    else indexFinder t (index + 1)
+        indexFinder ports 0
     
 
-    // let symbols = createSymb
-    // let updatedModel =
-    //     symbols
-    //     |> List.fold (fun model symbol -> addSymbol model symbol) model
-    // updatedModel
+    let OutputPortIndex = getOutputPortIndex outputPort outputPortSymbol.Component.OutputPorts  // CHECK if outputPort (id) is correct one associated to component of outputPortSymbol
+    let InputPortIndex = getInputPortIndex inputPort inputPortSymbol.Component.InputPorts       // CHECK if inputPort (id) is correct one associated to component of inputPortSymbol
+    // let conn1 = createConnection outputPortSymbol.Component.OutputPorts[OutputPortIndex] inputLabelComp.InputPorts.[0]
+    // let conn2 = createConnection inputLabelComp.OutputPorts.[0] inputPortSymbol.Component.InputPorts.[InputPortIndex]
+    let resModel1 = createWire newModel2 outputPortSymbol inputLabel OutputPortIndex 0
+    let resModel2 = createWire resModel1 outputLabel inputPortSymbol 0 InputPortIndex
+    ModelT resModel2
 
 
-
-
-
-
- 
-    //create wires
-    // let inputLabelWire = createWire inputLabel outputLabel inputLabelPos outputLabelPos
-    // let outputLabelWire = createWire outputLabel inputLabel outputLabelPos inputLabelPos
-    // call function to create wire labels at input port and output port
-    
-
+/// helper function that finds wire in model by connection id
 let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
     match model.Wires |> Map.toList |> List.tryFind (fun (_, wire) -> wire.Segments.[0].WireId = connId) with
     | Some (_, wire) -> Some wire
     | _ -> None
-
 
 
 /// helper function that deletes wire from model by filtering out the wire
@@ -234,33 +336,6 @@ let deleteWire (model: Model) (wire: Wire) : SmartAutorouteResult =
 
     printfn "updated model: %A" newWires
     ModelT model
-
-
-// /// helper function that replaces long wire with wire labels at input port and output port
-// let replaceLongWire (model: Model) (wire: Wire) (symbol: Symbol) : Model = 
-//     let wireLength =  wire.Segments[2].Length
-//     match wireLength with
-//         | length when length > 200.0 -> 
-//             // generateWireLabels model wire symbol
-//             // let newWire = {wire with Segments = []}
-//             // newWire
-//             deleteWire model wire
-
-//             // replace wire with wire labels at input port and output port
-//             // let newModel: Model = generateWireLabels model wire symbol
-//             // let inputLabel = newModel.Symbol.Symbols |> List.filter (fun x -> x.Component = IOLabel) |> List.head
-//             // let outputLabel = newModel.Symbol.Symbols |> List.filter (fun x -> x.Component = IOLabel) |> List.last
-//             // let inputLabelPos = inputLabel.Pos
-//             // let outputLabelPos = outputLabel.Pos
-//             // let inputLabelWire = createWire inputLabel outputLabel inputLabelPos outputLabelPos
-//             // let outputLabelWire = createWire outputLabel inputLabel outputLabelPos inputLabelPos
-//             // let newWires = [inputLabelWire; outputLabelWire]
-//             // let newModel = updateModelWires newModel newWires
-//             // let newWire = newModel.Wires |> List.filter (fun x -> x.InputPort = wire.InputPort && x.OutputPort = wire.OutputPort) |> List.head
-//             // newWire
-
-//         | _ -> model
-
             
     
 /// top-level function which replaces autoupdate and implements a smarter version of same
@@ -294,20 +369,6 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
             
 
         | _ -> WireT (routeAroundSymbol model autoWire symbol)
-
-
-
-    // printfn "Symbol found: %A" symbol
-    // printfn "%s" $"hugging distance={huggingDistance autoWire (symbol |> Option.get)}"
-    // printfn "%s" $"WIRE START POS={wire.StartPos.Y}"
-
-    // let selfConnected = isSelfConnected model wire
-    // match selfConnected with
-    //     | true -> routeAroundSymbol model autoWire symbol 
-    //     | false -> autoWire
-    
-    // let newModel = replaceLongWire model wire (symbol |> Option.get)
-
 
 
 // WIRE LABELS:

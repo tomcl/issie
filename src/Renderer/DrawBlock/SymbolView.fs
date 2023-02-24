@@ -120,24 +120,6 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
-let createOldComp (comp:Component) = 
-    match comp.Type with
-    |And ->printfn("it's AND")
-           ""
-    |Or -> printfn("it's OR")
-           ""
-    |Xor ->printfn("it's XOR")
-           ""
-    |_ -> ""
-
-let createCurvedShape points colour strokeWidth (comp:Component)=
-    let _ = createOldComp comp
-    let (radius, h1, d1, h2, d2)  = points
-    let attr = makePartArcAttr radius h1 d1 h2 d2
-    let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
-    [makeAnyPath {X = 0; Y = comp.H} attr parameters;]
-
-
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
@@ -167,6 +149,38 @@ let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Li
 /// Takes points, height and width of original shape and returns the points for it given a rotation / flipped status.
 /// Degree0 rotation has TopLeft = top left coordinate of the outline, which is a box of dimensions W X H.
 /// Rotation rotates the box about its centre point, keeping TopLeft fixed.
+
+let createOldComp (comp:Component) (parameters:Path) strokeWidth= 
+    match comp.Type with
+    |And -> let curveAttr = makePartArcAttr 5. -20. -20. 25. 20.
+            let line = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""}
+            let horizLineAttr = makeLineAttr 25 0
+            let vertLineAttr = makeLineAttr 0 comp.H
+            let length = 30
+            let fillSquare = makePolygon ($"0,0 {length},0 {length},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
+            [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
+            makeAnyPath {X = length; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
+            makeAnyPath {X = length; Y = comp.H} curveAttr parameters]
+
+    |Or ->  let attr = makePartArcAttr 5. -20. -2. 20. 20.
+            [makeAnyPath {X = 0; Y = comp.H} attr parameters]
+
+    |Xor -> let attr = makePartArcAttr 5. -20. -20. 20. 20.
+            [makeAnyPath {X = 0; Y = comp.H} attr parameters]
+
+    |_ ->   [makeAnyPath {X = 0; Y = comp.H} (makePartArcAttr 5. -20. -2. 20. 20.) parameters;]
+
+let createCurvedShape colour strokeWidth (comp:Component)=
+
+    let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
+    createOldComp comp parameters strokeWidth
+    
+    
+
+
+
+
+
 let rotatePoints (points) (centre:XYPos) (transform:STransform) = 
     let offset = 
             match transform.Rotation with
@@ -480,7 +494,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
     //|> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-    |> List.append (createCurvedShape (5.,-20.,-20.,20.,20.) colour strokeWidth comp)
+    |> List.append (createCurvedShape colour strokeWidth comp)
 
 
 //----------------------------------------------------------------------------------------//

@@ -38,7 +38,7 @@ let reSizeSymbol
 
     let wires = [] // replace this with correct wires
 
-    let symbol' = symbolToSize // no change at the moment
+    let symbol' = {symbolToSize with HScale = Some 0.5} // no change at the moment
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     {wModel with 
         Wires = wModel.Wires // no change for now, but probably this function should use update wires after resizing.

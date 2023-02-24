@@ -131,27 +131,26 @@ let portPositions (symbol: Symbol) (edge: Edge): list<float*float> =
 
 
 /// HLP23: Author Indraneel
-/// Finds all the InterConnecting Wires between 2 symbols given WireModel and the 2 symbols
-let findInterconnectingWires (wModel: BusWireT.Model)
-    (symbolToOrder: Symbol) 
-    (otherSymbol: Symbol) =
-
-    let sModel = wModel.Symbol
-
-    let wires =
-        wModel.Wires
-        |> Map.toList
-        |> List.map snd
-    
-    
-    wires
+/// Finds all the InterConnecting Wires between 2 symbols given WireModel.Wires and the 2 symbols
+/// and a flag to get either all interconnecting wires or just wires in the direction from otherSymbol->symbolToOrder
+let findInterconnectingWires (wireList:List<Wire>) (sModel)
+    (symbolToOrder:Symbol) 
+    (otherSymbol:Symbol) (getAllConnections:int) =
+        
+    wireList
     |> List.filter (fun value ->
 
-        let outputPortHost = sModel.Ports[string value.OutputPort].HostId
-        let inputPortHost = sModel.Ports[string value.InputPort].HostId
+        let inputPortHostId = string sModel.Ports[string value.InputPort].HostId
+        let outputPortHostId = string  sModel.Ports[string value.OutputPort].HostId
 
-        let outputHostMatches = (outputPortHost = otherSymbol.Component.Id)
-        let inputHostMatches = (inputPortHost = symbolToOrder.Component.Id)
+        let symbolToOrderId = string symbolToOrder.Id
+        let otherSymbolId = string otherSymbol.Id
+        
+        if (getAllConnections = 0) then
+            (inputPortHostId = symbolToOrderId) && (outputPortHostId = otherSymbolId)
+        else
+            if ((inputPortHostId = symbolToOrderId) && (outputPortHostId = otherSymbolId)) then true
+            elif ((inputPortHostId = otherSymbolId) && (outputPortHostId = symbolToOrderId)) then true
+            else false
 
-        outputHostMatches && inputHostMatches
         )

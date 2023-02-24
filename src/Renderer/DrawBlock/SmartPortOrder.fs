@@ -25,15 +25,11 @@ open Operators
 /// It should work out the interconnecting wires (wiresToOrder) from 
 /// the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has re-orderable ports).
+let updatePortMapList (sym:Symbol) (index:int) (portId:string) (edge:Edge) =
+    let PortMapOrder = sym.PortMaps.Order
 
-// let iterator key value sModel = 
-//     printfn "PortMaps.Order Control"
-
-//     value 
-//     |> List.iter( fun x -> printfn "%A" sModel.Ports[x])
-
-// symbolToOrder.PortMaps.Order |> Map.filter(fun key value -> key = Bottom)
-//                                 |> Map.iter (fun key value -> iterator key value sModel)
+    PortMapOrder[edge]
+    |> List.updateAt index portId
 
 
 let changePortOrder (wModel: BusWireT.Model)
@@ -42,39 +38,66 @@ let changePortOrder (wModel: BusWireT.Model)
     (interWires: list<Wire>) =
 
     let sModel = wModel.Symbol
-    let otherSymbolPorts = otherSymbol.Component.OutputPorts
-    let symbolToOrderPorts = symbolToOrder.Component.InputPorts
 
+    printfn " PortMaps.Order before: %A" symbolToOrder.PortMaps.Order[Bottom]
 
-    //get the wire and find the edge that it's on and then find the index of that input port
-    // do it for the outport port as well and check if the indexes match then they are straight if not then crossing
-
-    let crossing_wires = 
-        interWires
-        |> List.collect (fun value -> 
+    let updatedSymbol = 
+        (symbolToOrder, interWires)
+        ||> List.fold (fun symbol wire -> 
 
             //need to change port maps and .Port global map 
             // when permuting the order
             // do this for top and bottom
             // we may need to also factor in rotated symbols which change the orientation but stay the same on paper
 
-            let outputPortId = value.OutputPort // port id of wire exiting
-            let inputPortId = value.InputPort // port id of  wire entering
-
-            let outputSymbol = sModel.Ports[string outputPortId].HostId
-            let inputSymbol = sModel.Ports[string inputPortId].HostId
-
-            let outputSymbolPortMaps = sModel.Symbols[ComponentId outputSymbol].PortMaps
-            let inputSymbolPortMaps = sModel.Symbols[ComponentId inputSymbol].PortMaps
-
+            let outputPortId = wire.OutputPort // port id of wire exiting
+            let inputPortId = wire.InputPort // port id of  wire entering
+            
+            let outputSymbolRot = otherSymbol.STransform.Rotation  // TODO
+            let inputSymbolRot = symbolToOrder.STransform.Rotation // TODO
+            
             let outputEdge = getPortOrientation sModel  (OutputId outputPortId)
             let inputEdge = getPortOrientation sModel  (InputId inputPortId)
+
+            //printfn "Output:%A Input:%A" outputEdge inputEdge
+            //printfn " PortMaps.Order: %A" symbolToOrder.PortMaps.Order[inputEdge]
+
+            let outputPortIndex =
+                otherSymbol.PortMaps.Order[outputEdge] 
+                |> List.findIndex (fun elm -> elm = string outputPortId)
+
+            //printfn " Port Index:%A orderLength: %A" outputPortIndex symbolToOrder.PortMaps.Order[inputEdge].Length
+
+            printfn " Port Index before : %A \n %A" outputPortIndex symbolToOrder.PortMaps.Order[inputEdge].[outputPortIndex]
+
+            // returns new symbol
+            let newPortMapOrder =
+                match outputEdge, inputEdge with
+                | Top, Bottom | Bottom, Top ->
+
+                    let indexChange = symbolToOrder.PortMaps.Order[inputEdge].Length - outputPortIndex - 1
+                    let newPortMapList = updatePortMapList symbol indexChange (string inputPortId) inputEdge
+              
+                    printfn " Port Index after: %A \n %A" outputPortIndex newPortMapList[outputPortIndex]
+       
+                    let newOrder = 
+                        symbol.PortMaps.Order
+                            |> Map.add inputEdge newPortMapList
+
+                    //printfn " Port Index after2: %A" newOrder[inputEdge].[outputPortIndex]
+
+                    newOrder
             
-            printfn "%A %A" outputEdge inputEdge
-            []
+                | _, _ -> symbolToOrder.PortMaps.Order
+            
+
+            { symbol with PortMaps = { symbol.PortMaps with Order = newPortMapOrder } }
+            
             )
 
-    [1]
+    printfn " PortMaps.Order after: %A" updatedSymbol.PortMaps.Order[Bottom]
+
+    updatedSymbol
 
 
 /// Find all the InterConnecting Wires between 2 symbols given WireModel and the 2 symbols
@@ -101,13 +124,17 @@ let findInterconnectingWires (wireList:List<Wire>) (sModel)
         )
 
 
+type BusWireHelpers = {
+    updateWire: Model -> Wire -> bool -> Wire
+    updateSymbolWires: Model -> ComponentId -> Model
+    }
 
 let reOrderPorts 
     (wModel: BusWireT.Model) 
     (symbolToOrder: Symbol) 
     (otherSymbol: Symbol) 
+    (busWireHelper: BusWireHelpers)
         : BusWireT.Model =
-
 
     printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label} {symbolToOrder.Id }, Other:{otherSymbol.Component.Label}"
 
@@ -122,18 +149,19 @@ let reOrderPorts
     let allWires = findInterconnectingWires wireList sModel symbolToOrder otherSymbol 1
     let wiresToOrder = findInterconnectingWires allWires sModel symbolToOrder otherSymbol 0 
 
-    printfn "ALl length is %A" allWires.Length
     printfn "Wire length is %A" wiresToOrder.Length
 
-    //let ans = changePortOrder wModel symbolToOrder otherSymbol wiresToOrder
+    let symbol' = changePortOrder wModel symbolToOrder otherSymbol wiresToOrder
 
+    let newModel = 
+        {wModel with 
+            Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
+        }
 
-    let symbol' = symbolToOrder // no change at the moment
-    // HLP23: This could be cleaned up using Optics - see SmartHelpers for examples
-    {wModel with 
-        Wires = wModel.Wires // no change for now, but probably this function should use update wires after reordering.
-                             // to make that happen the tyest function which calls this would need to provide an updateWire
-                             // function to this as a parameter (as was done in Tick3)
-        Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
-    }
+    let wModel' = busWireHelper.updateSymbolWires newModel symbol'.Id
+
+    wModel'
+
+    
+
 

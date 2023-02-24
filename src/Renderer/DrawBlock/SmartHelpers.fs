@@ -65,6 +65,7 @@ let updateModelSymbols
 /// Update BusWire model with given wires. Can also be used to add new wires.
 /// This uses a fold on the Map to add wires which makes it fast in the case that the number
 /// of wires added is small.
+
 //  Performance scales as O(M*log2(N)) - M = number of wires added, N = number of existing
 //  wires. Changing large maps is relatively expensive hence the care here.
 //  This function uses best practice for nested record update with Optics. See Wiki for
@@ -127,3 +128,29 @@ let portPositions (symbol: Symbol) (edge: Edge): list<float*float> =
         | Bottom -> [x + w/numberPorts, y + h; x + w/numberPorts, y + h/numberPorts]
         | Left -> [x, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
         | Right -> [x + w, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
+
+
+/// HLP23: Author Indraneel
+/// Finds all the InterConnecting Wires between 2 symbols given WireModel.Wires and the 2 symbols
+/// and a flag to get either all interconnecting wires or just wires in the direction from otherSymbol->symbolToOrder
+let findInterconnectingWires (wireList:List<Wire>) (sModel)
+    (symbolToOrder:Symbol) 
+    (otherSymbol:Symbol) (getAllConnections:int) =
+        
+    wireList
+    |> List.filter (fun value ->
+
+        let inputPortHostId = string sModel.Ports[string value.InputPort].HostId
+        let outputPortHostId = string  sModel.Ports[string value.OutputPort].HostId
+
+        let symbolToOrderId = string symbolToOrder.Id
+        let otherSymbolId = string otherSymbol.Id
+        
+        if (getAllConnections = 0) then
+            (inputPortHostId = symbolToOrderId) && (outputPortHostId = otherSymbolId)
+        else
+            if ((inputPortHostId = symbolToOrderId) && (outputPortHostId = otherSymbolId)) then true
+            elif ((inputPortHostId = otherSymbolId) && (outputPortHostId = symbolToOrderId)) then true
+            else false
+
+        )

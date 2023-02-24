@@ -230,8 +230,10 @@ let private orderCombinationalComponentsFData
     let mutable orderedComps: FastComponent list = fs.FConstantComps |> Array.toList
 
     let propagateEval (fc: FastComponent) =
+        printfn "===== Propagate eval %d" fc.DrivenComponents.Length
         fc.DrivenComponents
         |> List.iter (fun fc' ->
+            printfn "====== %d" fc'.NumMissingInputValues
             fc'.NumMissingInputValues <- fc'.NumMissingInputValues - 1
 
             if canBeReduced fs 0 fc' then
@@ -412,7 +414,7 @@ let checkAndValidate (fs: FastSimulation) =
         Ok fs
 
 let checkAndValidateFData (fs: FastSimulation) =
-    printf "checkAndValidateFData in new simulator"
+    printfn "checkAndValidateFData in new simulator"
     let start = getTimeMs ()
     let activeComps =
         fs.FComps
@@ -426,7 +428,7 @@ let checkAndValidateFData (fs: FastSimulation) =
         |> Array.concat
 
     if (activeComps.Length <> inSimulationComps.Length) then
-        printf
+        printfn
             "Validation problem: %d active components, %d components in simulation"
             activeComps.Length
             inSimulationComps.Length
@@ -540,6 +542,7 @@ let buildFastSimulationFData
     (graph: SimulationGraph)
     : Result<FastSimulation, SimulationError>
     =
+    printfn "======== Building fast simulation"
     let gather = gatherSimulation graph
 
     let fs =
@@ -547,11 +550,12 @@ let buildFastSimulationFData
         |> createInitFastCompPhaseFData simulationArraySize gather
         |> linkFastComponentsFData gather
 
+    printfn "======== Building fast simulation"
     gather
     |> createFastArrays fs
     |> orderCombinationalComponentsFData simulationArraySize
     |> checkAndValidateFData
-// |> Result.map addWavesToFastSimulation
+    |> Result.map addWavesToFastSimulationFData
 
 //---------------------------------------------------------------------------------------------------//
 //--------------------------------Code To Run The Simulation & Extract Results-----------------------//

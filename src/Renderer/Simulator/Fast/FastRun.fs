@@ -40,6 +40,7 @@ let inline isComb (comp: FastComponent) =
 /// True if all conditions are fulfiled for the component to be in the next batch to be reduced.
 /// Used when ordering components.
 let inline canBeReduced (fs: FastSimulation) (step: int) (fc: FastComponent) =
+    printfn "======== NumMissingInputValues: %i" fc.NumMissingInputValues
     fc.NumMissingInputValues = 0
     && not fc.Touched
     && fc.Active
@@ -93,14 +94,16 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
 
 
     let propagateEval (fc:FastComponent) =
+        printfn "===== Propagate eval %d" fc.DrivenComponents.Length
         fc.DrivenComponents
         |> List.iter (fun fc' -> 
+            printfn "====== %d" fc'.NumMissingInputValues
             fc'.NumMissingInputValues <- fc'.NumMissingInputValues - 1
-            if canBeReduced fs 0 fc' then 
+            if canBeReduced fs 0 fc' then
                 readyToReduce <- fc' :: readyToReduce)
     
     let init fc = 
-        fastReduce 0 0 false fc
+        OldFastReduce.fastReduce 0 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -120,7 +123,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         |> Array.iteri
             (fun i _ -> fc.InputLinksFData[0].Step[i] <- Data (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) 0u))
         //printfn "Initialised input: %A" fc.InputLinks
-        fastReduce fs.MaxArraySize 0 false fc
+        OldFastReduce.fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -281,11 +284,13 @@ let buildFastSimulation
         (diagramName: string) 
         (graph: SimulationGraph) 
             : Result<FastSimulation,SimulationError> =
+    printfn "======== Building fast simulation"
     let gather = gatherSimulation graph
     let fs =  
         emptyFastSimulation diagramName
         |> createInitFastCompPhase simulationArraySize gather
         |> linkFastComponents gather
+    printfn "======== Building fast simulation"
     gather
     |> createFastArrays fs
     |> orderCombinationalComponents simulationArraySize
@@ -304,7 +309,7 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
         fastSim.FGlobalInputComps
         |> Array.iter
             (fun fc ->
-                let vec = fc.Outputs[0]
+                let vec = fc.OutputsFData[0]
                 vec.Step[step] <- vec.Step[step - 1])
 
 /// advance the simulation one step

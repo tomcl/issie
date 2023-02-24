@@ -19,6 +19,12 @@
       "commands": [
         "fable"
       ]
+    },
+    "fantomas": {
+      "version": "5.2.2",
+      "commands": [
+        "fantomas"
+      ]
     }
   }
 }

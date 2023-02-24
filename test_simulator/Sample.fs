@@ -19,6 +19,7 @@ let runNewSimulator
     (canvasState: CommonTypes.CanvasState)
     (loadedDependencies: CommonTypes.LoadedComponent list)
     =
+    printfn "===== running new simulator"
     // Build simulation graph.
     match
         Simulator.startCircuitSimulation
@@ -29,8 +30,22 @@ let runNewSimulator
     with
     | Error err -> Error err
     | Ok simData ->
-        printfn "new simData"
-        Ok simData.FastSim.Drivers
+        printfn "Drivers: %A" simData.FastSim.Drivers
+        let drivers =
+            simData.FastSim.Drivers
+            |> Array.map (fun driver ->
+                match driver with
+                | None -> None
+                | Some d ->
+                    Some
+                        { Index = d.Index
+                          DriverWidth = d.DriverWidth
+                          DriverData =
+                            { Index = d.DriverData.Index
+                              Step =
+                                d.DriverData.Step
+                                |> Array.map (fun data -> Data(data)) } })
+        Ok drivers
 
 let runOldSimulator
     (diagramName: string)
@@ -38,6 +53,7 @@ let runOldSimulator
     (canvasState: CommonTypes.CanvasState)
     (loadedDependencies: CommonTypes.LoadedComponent list)
     =
+    printfn "===== running old simulator"
     // Build simulation graph.
     match
         OldSimulator.startCircuitSimulation
@@ -48,8 +64,8 @@ let runOldSimulator
     with
     | Error err -> Error err
     | Ok simData ->
-        printfn "old simData"
-        Ok simData.FastSim.Drivers
+        printfn "DriversFData: %A" simData.FastSim.DriversFData
+        Ok simData.FastSim.DriversFData
 
 [<Tests>]
 let simulatorTests =

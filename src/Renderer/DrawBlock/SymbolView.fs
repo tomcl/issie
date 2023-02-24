@@ -153,8 +153,6 @@ let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Li
 let createOldComp (comp:Component) (parameters:Path) strokeWidth= 
     match comp.Type with
     |And -> let curveAttr = makePartArcAttr 5. -20. -20. 25. 20.
-            let line = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""}
-            let horizLineAttr = makeLineAttr 25 0
             let vertLineAttr = makeLineAttr 0 comp.H
             let length = 30
             let fillSquare = makePolygon ($"0,0 {length},0 {length},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
@@ -162,8 +160,10 @@ let createOldComp (comp:Component) (parameters:Path) strokeWidth=
             makeAnyPath {X = length; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
             makeAnyPath {X = length; Y = comp.H} curveAttr parameters]
 
-    |Or ->  let attr = makePartArcAttr 5. -20. -2. 20. 20.
-            [makeAnyPath {X = 0; Y = comp.H} attr parameters]
+    |Or ->  let topArcAttr =    makePartArcAttr 40. -20. 20. -50. 20.
+            let bottomArcAttr = makePartArcAttr 40. (20) -20. (comp.H) 60.
+            [makeAnyPath {X = 0; Y = 0} topArcAttr parameters;
+            makeAnyPath {X = 0; Y = comp.H} bottomArcAttr parameters]
 
     |Xor -> let attr = makePartArcAttr 5. -20. -20. 20. 20.
             [makeAnyPath {X = 0; Y = comp.H} attr parameters]

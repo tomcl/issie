@@ -98,7 +98,7 @@ let smartChannelRoute
             | Horizontal ->
                 wire23Pos
                 |> List.sortByDescending (fun (_: ConnectionId, pos: XYPos list) -> pos[0].X)
-                |> List.map (fun (wid, pos) -> wid, pos[1].X)
+                |> List.map (fun (wid, pos) -> wid, pos[1].Y)
                 
         sorted wire23Pos
 
@@ -119,7 +119,9 @@ let smartChannelRoute
             // shorten or lengthen seg 2 & 4
             let currentWire = extractWire model wid
             let currentSegments = currentWire.Segments
-            printfn "Current Seg Len %A" currentSegments
+            // printfn "Current Seg Len %A" currentSegments
+            // printfn "New pos %A, Old Pos %A" newPos oldPos
+            // printfn "Adjustment %A" (newPos - oldPos)
             let newWire =
                 {
                     extractWire model wid with

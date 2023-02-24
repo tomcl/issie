@@ -38,29 +38,80 @@ let selectSegmentsIntersectingBoundingBox (bounds: BoundingBox) (wires: List<Wir
     wires |> List.map selectSegments
 
 
-type ChannelRelation = PassThrough | Originates | Terminates | LivesIn
+type ChannelRelation = PassThrough | ZigZagCross | Originates | Terminates | StraightCross | HarryPotter | TooDifficult
 
-let categoriseWireSegments (segList : List<List<Segment>>) =
+let getMiddleSegment (model : Model) (seg:Segment) =
+    let wire = model.Wires[seg.WireId]
+    match wire.Segments.Length with
+    | 7 -> getSegmentFromId model (3, seg.WireId)
+    | 9 -> getSegmentFromId model (5, seg.WireId)
+
+let process7Segment (seg: Segment) =
+    match seg.Index with 
+    | 3 -> if seg.Length = 0 then Some (seg, StraightCross) else Some (seg, ZigZagCross)
+
+let categoriseWireSegments (model:Model ) (segList : List<List<Segment>>) =
     let mapOverWireSegment (segments : List<Segment>) =
         match segments.Length with
-        | 1 -> segments[0],PassThrough
-        | 4 when segments[0].Index = 0 -> segments[3], Originates
-        | 4 -> segments[0], Terminates
-        | 7 -> segments[0],LivesIn
-    segList |> List.map mapOverWireSegment
+        | 0 -> None
+        | 1 -> Some (segments[0],PassThrough)
+        | 3 -> if segments[1].Length <>0 then Some (segments[0], HarryPotter) else Some (segments[0], StraightCross)
+        | 4 when segments[0].Index = 0 -> Some (segments[3], Originates)
+        | 4 -> Some(segments[0], Terminates )
+        | 5 -> Some (getMiddleSegment model segments[0] ,ZigZagCross)
+        | 7 -> getMiddleSegment model segments[0] |> process7Segment
+        | _ -> Some (getMiddleSegment model segments[0], TooDifficult)
+    segList |> List.map mapOverWireSegment 
+    |> List.filter Option.isSome
+    |> List.map (fun option -> match option with Some value -> value)
+
+let createHarryPair (model : Model) (segment : Segment, posTuple) =
+    match segment.Length with 
+    | x when  x > 0.0 -> ((getSegmentFromId model (segment.Index - 1, segment.WireId),
+                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)),
+
+                            (getSegmentFromId model (segment.Index + 1, segment.WireId),
+                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index + 1)))
+
+    | x when x < 0.0 ->  ((getSegmentFromId model (segment.Index + 1, segment.WireId),
+                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index + 1)),
+
+                            (getSegmentFromId model (segment.Index - 1, segment.WireId), 
+                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)))
 
 let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<Segment*ChannelRelation>) =
     let segList =
         lst
         |> List.map (fun (segment, orient) -> (segment, getAbsoluteSegmentPos model.Wires[segment.WireId] segment.Index), orient)
+        |> List.filter (fun element -> snd element <> TooDifficult)
+    let leftHarry, rightHarry =
+        segList
+        |> List.filter (fun element -> snd element = HarryPotter)
+        |> List.map fst
+        |> List.map (createHarryPair model)
+        |> List.unzip
+    let ZiggZaggList =
+        segList
+        |> List.filter (fun element -> snd element = ZigZagCross)
+        |> List.map fst
+        |> List.sortByDescending (fun element -> if orientation = Vertical then (snd (snd element)).Y else (snd (snd element)).X )
     let PassThroughList = 
         segList 
         |> List.filter (fun element -> snd element = PassThrough) 
         |> List.map fst
+ //       |> List.append ZiggZaggList
         |> List.sortBy (fun element -> if orientation = Vertical then (snd (snd element)).Y else (snd (snd element)).X )
-    let OriginateList = segList |> List.filter (fun element -> snd element = Originates) |> List.map fst
-    let TerminatesList = segList |> List.filter (fun element -> snd element = Terminates) |> List.map fst
-    OriginateList @ PassThroughList @ TerminatesList
+    let OriginateList = 
+        segList 
+        |> List.filter (fun element -> snd element = Originates) 
+        |> List.map fst
+        |> List.sortBy (fun element -> if orientation = Vertical then (snd (snd element)).Y else (snd (snd element)).X )
+    let TerminatesList = 
+        segList 
+        |> List.filter (fun element -> snd element = Terminates) 
+        |> List.map fst
+        |> List.sortByDescending (fun element -> if orientation = Vertical then (snd (snd element)).Y else (snd (snd element)).X )
+    leftHarry @ OriginateList @ PassThroughList @ ZiggZaggList @ TerminatesList @ rightHarry
     
 
 let createShiftedWires (orientation : Orientation) (model : Model) (bounds: BoundingBox) (segList : List<Segment*(XYPos*XYPos)>)  = 
@@ -94,8 +145,10 @@ let smartChannelRoute
     let correctBounds = {channel with TopLeft = {channel.TopLeft with X = channel.TopLeft.X - channel.W}}
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     model |> getWireList 
-    |> selectSegmentsIntersectingBoundingBox correctBounds 
-    |> categoriseWireSegments
+    |> selectSegmentsIntersectingBoundingBox correctBounds
+    |> pipePrint 
+    |> categoriseWireSegments model
+    |> pipePrint
     |> generateChannelOrder channelOrientation model 
     |> createShiftedWires channelOrientation model channel
     |> updateModelWires model 

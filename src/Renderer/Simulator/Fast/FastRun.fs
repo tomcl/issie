@@ -405,15 +405,15 @@ let runFastSimulation (timeOut: float option)(lastStepNeeded: int) (fs: FastSimu
         if stepsToDo <= 0 then
             None // do nothing
         else
-            if lastStepNeeded > fs.MaxStepNum then
-                if fs.MaxStepNum < fs.MaxArraySize then
-                    let newMaxNum =
-                        min
-                            fs.MaxArraySize
-                            (lastStepNeeded + max 50 (int (float lastStepNeeded * 1.5)))
+            // if lastStepNeeded > fs.MaxStepNum then
+            //     if fs.MaxStepNum < fs.MaxArraySize then
+            //         let newMaxNum =
+            //             min
+            //                 fs.MaxArraySize
+            //                 (lastStepNeeded + max 50 (int (float lastStepNeeded * 1.5)))
 
-                    //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps" 
-                    extendFastSimulation newMaxNum fs
+            //         //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps" 
+            //         extendFastSimulation newMaxNum fs
 
             let doSimulation() =
                 let lastTick = fs.ClockTick + 1

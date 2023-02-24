@@ -571,7 +571,7 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
-    let index = (fs.ClockTick + 1) % fs.MaxArraySize
+    let index = (fs.ClockTick + 1) % fs.MaxArraySize // index of circular array
     propagateInputsFromLastStep index fs
     Array.iter (fastReduce fs.MaxArraySize index true) fs.FClockedComps
     Array.iter (fastReduce fs.MaxArraySize index false) fs.FOrderedComps
@@ -729,16 +729,17 @@ let runFastSimulation
     if stepsToDo <= 0 then
         None // do nothing
     else
-        if lastStepNeeded > fs.MaxStepNum then
-            if fs.MaxStepNum < fs.MaxArraySize then
-                let newMaxNum =
-                    min
-                        fs.MaxArraySize
-                        (lastStepNeeded
-                         + max 50 (int (float lastStepNeeded * 1.5)))
+        printfn "==================== lastStepNeeded: %d, fs.MaxStepNum: %d, fs.MaxArraySize: %d" lastStepNeeded fs.MaxStepNum fs.MaxArraySize
+        // if lastStepNeeded > fs.MaxStepNum then
+        //     if fs.MaxStepNum < fs.MaxArraySize then
+        //         let newMaxNum =
+        //             min
+        //                 fs.MaxArraySize
+        //                 (lastStepNeeded
+        //                  + max 50 (int (float lastStepNeeded * 1.5)))
 
-                //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps"
-                extendFastSimulation newMaxNum fs
+        //         //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps"
+        //         extendFastSimulation newMaxNum fs
 
         let doSimulation () =
             let lastTick = fs.ClockTick + 1

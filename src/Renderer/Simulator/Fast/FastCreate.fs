@@ -196,8 +196,8 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
 
     wa
 
-
-let mutable stepArrayIndex = -1
+let stepArrayIndexInitValue = 0
+let mutable stepArrayIndex = stepArrayIndexInitValue // NOTE: this value is reset to stepArrayIndexInitValue in createInitFastCompPhase
 let makeStepArray (arr: 'T array) : StepArray<'T> = 
     stepArrayIndex <- stepArrayIndex + 1
     { 
@@ -209,7 +209,7 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
 let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
-    printfn "createFastComponent => stepArratIndex: %d" stepArrayIndex
+    printfn "createFastComponent => stepArrayIndex: %d" stepArrayIndex
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
@@ -218,7 +218,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
         |> Array.map makeStepArray
 
     printfn
-        "createFastComponent => ins => stepArratIndex: %d, len(ins): %d"
+        "createFastComponent => ins => stepArrayIndex: %d, len(ins): %d"
         stepArrayIndex
         ins.Length
 
@@ -228,7 +228,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
         |> Array.map makeStepArray
 
     printfn
-        "createFastComponent => outs => stepArratIndex: %d, len(outs): %d"
+        "createFastComponent => outs => stepArrayIndex: %d, len(outs): %d"
         stepArrayIndex
         outs.Length
 
@@ -286,7 +286,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
 /// extends the simulation data arrays of the component to allow more steps
 /// No longer used now arrays are circular?
 let extendFastComponent (numSteps: int) (fc: FastComponent) =
-    let oldNumSteps = fc.OutputsFData[0].Step.Length
+    let oldNumSteps = fc.OutputsFData[0].Step.Length - 1
 
 
     if numSteps + 1 <= oldNumSteps   then
@@ -595,7 +595,7 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
 let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
     printfn $"Creating fast components with {simulationArraySize} steps"
     let numSteps = simulationArraySize
-    stepArrayIndex <- -1
+    stepArrayIndex <- stepArrayIndexInitValue
     let start = getTimeMs()
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]

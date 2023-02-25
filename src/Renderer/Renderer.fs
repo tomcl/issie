@@ -18,6 +18,7 @@ open Fable.SimpleJson
 open JSHelpers
 open Sheet.SheetInterface
 open DrawModelType
+open SymbolView
 
 importSideEffects "./scss/main.css"
 
@@ -172,8 +173,8 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
         makeMenu false "Symbol Style" [
-            makeItem "New (Sqaured)" None (fun ev -> printfn "Old style activated")
-            makeItem "Old (Curved) " None (fun ev -> printfn "Back to new style")
+            makeItem "New (Sqaured)" None (fun ev -> (changesymbolType false))
+            makeItem "Old (Curved) " None (fun ev -> (changesymbolType true))
         ]
         makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         makeMenu false "Theme" [

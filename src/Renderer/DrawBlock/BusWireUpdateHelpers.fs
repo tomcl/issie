@@ -1,5 +1,5 @@
 ﻿module BusWireUpdateHelpers
-
+open SymbolUpdate
 open CommonTypes
 open Elmish
 open DrawHelpers
@@ -134,7 +134,7 @@ let getWireList (model: Model) =
     |> List.map snd
 
 /// Returns the IDs of the wires in the model connected to a list of components given by compIds
-let getConnectedWires model compIds =
+let getConnectedWires (model: Model) compIds =
     let containsPorts wire =
         let inputPorts, outputPorts =
             Symbol.getPortLocations model.Symbol compIds
@@ -662,12 +662,11 @@ let reverseWire (wire: Wire) =
 /// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
 /// Reverse indicates if the wire should be processed in reverse, 
 /// used when an input port (end of wire) is moved.
-let updateWire (model : Model) (wire : Wire) (reverse : bool) =
-    let BusWireHelpers: SymbolUpdate.BusWireHelpers =
-        {
+let busWireHelpers: SymbolUpdate.BusWireHelpers = {
         WireIntersect = wireIntersect
-        GetConnectedWireIds = getConnectedWireIds
-        }
+        GetConnectedWires = getConnectedWires
+    }
+let updateWire (model : Model) (wire : Wire) (reverse : bool) =
     let newPort = 
         match reverse with
         | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort

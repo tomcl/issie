@@ -755,24 +755,25 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
 
 type BusWireHelpers = {
     WireIntersect: BusWireT.Wire -> BusWireT.Wire -> bool
-    GetConnectedWireIds: DrawModelType.BusWireT.Model -> ComponentId list -> ConnectionId list
+    GetConnectedWires: Model -> ComponentId list -> BusWireT.Wire list
 }
-
-(*let foo (sym: Symbol) (model: Model)=
+(*let foo (sym: Symbol) (model: Model) (busWireHelpers:BusWireHelpers) =
     printf "FLIPPED!"
-    let wireList = BusWireHelpers.GetConnectedWireIds model [sym]
-    match (BusWireHelpers.WireIntersect wireList[0] wireList[1]) with
-                                        | true -> flipSymbol FlipVertical sym
-                                        | false -> sym*)
-    
+    let wireList = busWireHelpers.GetConnectedWires model [sym.Id]
+    match busWireHelpers.WireIntersect wireList[0] wireList[1] with
+        | true -> flipSymbol FlipVertical sym
+        | false -> sym*)
+
 let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
     let newSym = createNewSymbol ldcs pos compType lbl model.Theme
-    (*let newSym2 = match newSym.Component with
-                        | {Type = Mux2|Mux4|Mux8} -> foo newSym model
-                        | _ -> newSym*)
+    (*let newSym2 =
+        match newSym.Component with
+        | {Type = Mux2|Mux4|Mux8} -> foo newSym model
+        | _ -> newSym*)
     let newPorts = addToPortModel model newSym
     let newSymModel = Map.add newSym.Id newSym model.Symbols
     { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
+
 
 
 /// Update function which displays symbols

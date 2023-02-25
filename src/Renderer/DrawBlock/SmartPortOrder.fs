@@ -1,4 +1,5 @@
 ﻿module SmartPortOrder
+open BusWireUpdateHelpers
 open Elmish
 open Fable.React.Props
 open CommonTypes
@@ -22,25 +23,28 @@ open Operators
 
 /// To test this, it must be given two symbols interconnected by wires. It then reorders the ports on
 /// symbolToOrder so that the connecting wires do not cross.
-/// Tt should work out the interconnecting wires (wiresToOrder) from 
+/// Tt should work out the interconnecting wires (wiresToOrder) from
 ////the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has re-orderable ports).
-let reOrderPorts 
-    (wModel: BusWireT.Model) 
-    (symbolToOrder: Symbol) 
-    (otherSymbol: Symbol) 
-        : BusWireT.Model =
+let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: Symbol) : BusWireT.Model =
     printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
-
-    let wiresToOrder = [] // replace this with correct wires
-
+    
+    let wiresToOrder1 = getConnectedWires wModel [symbolToOrder.Id] |> Set
+    let wiresToOrder2 = getConnectedWires wModel [otherSymbol.Id] |> Set
+    let wiresToOrder = Set.intersect wiresToOrder1 wiresToOrder2 |> Set.toList
+    
+    let portConnections = List.map (fun x -> (x.InputPort, x.OutputPort)) (wiresToOrder : Wire list)
+    let list1, list2 = List.unzip portConnections
+    
+    printfn $"Ports: {portConnections}"
+    
+    // replace this with correct wires
+    printfn $"Number of connected wires:{wiresToOrder.Length}"
     let symbol' = symbolToOrder // no change at the moment
     // HLP23: This could be cleaned up using Optics - see SmartHelpers for examples
-    {wModel with 
+    { wModel with
         Wires = wModel.Wires // no change for now, but probably this function should use update wires after reordering.
-                             // to make that happen the tyest function which calls this would need to provide an updateWire
-                             // function to this as a parameter (as was done in Tick3)
-        Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
-    }
-
+        // to make that happen the tyest function which calls this would need to provide an updateWire
+        // function to this as a parameter (as was done in Tick3)
+        Symbol = { sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols } }

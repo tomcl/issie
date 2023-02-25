@@ -357,6 +357,7 @@ let wireLabelComponent (id: string) (name: string) (portPos: XYPos): Component =
     // let newModel: Model = {model with Wires = newWireMap}
     // newModel
     
+
 // ------------------------------------------ UNCOMMENT ABOVE ----------------------------------------------------
 
 // these functions have ERRORS
@@ -464,6 +465,7 @@ let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutor
 
     // let conn1 = createConnection outputPortSymbol.Component.OutputPorts[OutputPortIndex] inputLabelComp.InputPorts.[0]
     // let conn2 = createConnection inputLabelComp.OutputPorts.[0] inputPortSymbol.Component.InputPorts.[InputPortIndex]
+
 
     // let OutputPortIndex = getOutputPortIndex outputPort outputPortSymbol.Component.OutputPorts  // CHECK if outputPort (id) is correct one associated to component of outputPortSymbol
     // let InputPortIndex = getInputPortIndex inputPort inputPortSymbol.Component.InputPorts       // CHECK if inputPort (id) is correct one associated to component of inputPortSymbol

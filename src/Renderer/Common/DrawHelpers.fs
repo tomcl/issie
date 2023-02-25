@@ -198,9 +198,9 @@ let makeLine (x1: 'a) (y1: 'b) (x2: 'c) (y2: 'd) (lineParameters: Line) =
             SVGAttr.StrokeDasharray lineParameters.StrokeDashArray
     ] []
 
-let makeBoomerang curveOneRange curveTwoRange =
-    $"M 0.0 0.0 C 0.0 0.0 {curveOneRange} {(curveOneRange/2.)} 0.0 {curveOneRange} 
-    C {curveTwoRange} {curveOneRange} {curveTwoRange}  0.0 0.0 0.0"
+let makeBoomerang curveOneWidth curveTwoWidth curveOneHeight curveTwoHeight=
+    $"M 0.0 0.0 C 0.0 0.0 {curveOneWidth} {curveOneHeight} 0.0 {curveTwoHeight} 
+    C {curveTwoWidth} {curveTwoHeight} {curveTwoWidth}  0.0 0.0 0.0"
 
 /// Makes path attributes for a horizontal upwards-pointing arc radius r
 let makeArcAttr r =

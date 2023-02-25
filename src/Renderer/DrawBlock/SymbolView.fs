@@ -160,7 +160,8 @@ let createOldComp (comp:Component) (parameters:Path) strokeWidth=
             makeAnyPath {X = length; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
             makeAnyPath {X = length; Y = comp.H} curveAttr parameters]
 
-    |Or ->  [makeAnyPath {X = 0; Y = 0} (makeBoomerang 50. 75.) parameters]
+    |Or ->  [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang 35. 60. 25. 50.) parameters]
+
     |Xor -> let attr = makePartArcAttr 5. -20. -20. 20. 20.
             [makeAnyPath {X = 0; Y = comp.H} attr parameters]
 

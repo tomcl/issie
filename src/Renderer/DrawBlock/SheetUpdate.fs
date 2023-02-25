@@ -25,7 +25,6 @@ module node = Node.Api
 
 importReadUart 
 
-open SmartRotate
 open Symbol
 
 /// Update Function
@@ -362,11 +361,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let nextAction = 
             match errorComponents with
                 | [] -> 
-                    Idle
+                    model.Action
                 | _ ->
                     DragAndDrop
 
-        {newModel with ErrorComponents = errorComponents; Action = nextAction},
+        {newModel with ErrorComponents = errorComponents; Action = nextAction;},
         Cmd.batch [
             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
             wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
@@ -394,7 +393,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let nextAction = 
             match errorComponents with
                 | [] -> 
-                    Idle
+                    newModel.Action
                 | _ ->
                     DragAndDrop
 

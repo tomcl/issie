@@ -213,7 +213,7 @@ let rotateSymbolInBlock
     let newSTransform = 
         match sym.STransform.flipped with
         | true -> 
-            {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
+            {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation}  
         | _-> 
             {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
     printfn "newTopLeft : {%A}" newTopLeft
@@ -268,11 +268,11 @@ let flipSymbolInBlock
         match flip with
         | FlipHorizontal -> sym
         | FlipVertical -> 
-            //let corners = getBlockCorners [sym]
-            //let blockCenter = getBlockCentre corners
+            let newblock = getBlock [sym]
+            let newblockCenter = newblock.Centre()
             sym
-            |> rotateSymbol RotateAntiClockwise 
-            |> rotateSymbol RotateAntiClockwise)
+            |> rotateSymbolInBlock RotateAntiClockwise newblockCenter 
+            |> rotateSymbolInBlock RotateAntiClockwise newblockCenter)
 
 //Returns the new symbol after scaled about block centre.
 //HLP 23: AUTHOR Ismagilov

@@ -48,10 +48,11 @@ open SmartHelpers
 *)
 
 (*Note: Author ISMAGILOV
-  SheetUpdate 'Rotate' msg in update function is replaced with this SmartRotate implentation of rotate.
+  SheetUpdate 'Rotate' and 'Flip' msg in update function is replaced with this Smart implentation of rotate and flip.
   Added 2 types in DrawModelType SymbolT Module: ScaleType and BlockCorners, which respectively:
       1) Distinguish the type of scaling the user does
       2) Returns a structure containing the top left and bottom right corners of a block of symbols
+  Added 2 keyboard messages in Renderer (CrtlU & CrtrlI) to scale the block of symbols up and down respectively.
 *)
 
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:RotationType) = 
@@ -100,14 +101,3 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
-
-
-    
-  
-
-    
-
-    
-
-
-   

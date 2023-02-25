@@ -80,6 +80,7 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
@@ -91,6 +92,8 @@ module SymbolT =
             Colour: string
             /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
+
+     
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -104,8 +107,7 @@ module SymbolT =
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
-
-
+ 
     /// Represents a symbol, that contains a component and all the other information needed to render it
     type Symbol =
         {
@@ -174,7 +176,6 @@ module SymbolT =
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
             /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
-
         }
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})

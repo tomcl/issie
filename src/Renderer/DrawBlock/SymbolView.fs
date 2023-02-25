@@ -150,14 +150,16 @@ let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Li
 /// Degree0 rotation has TopLeft = top left coordinate of the outline, which is a box of dimensions W X H.
 /// Rotation rotates the box about its centre point, keeping TopLeft fixed.
 
-let createOldComp (comp:Component) (parameters:Path) strokeWidth=
+let createComponet (comp:Component) strokeWidth points colour outlineColour opacity =
+    
+    let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
     let curveAttr = makePartArcAttr 5. -20. -20. 25. 20.
     let vertLineAttr = makeLineAttr 0 comp.H
     let andLength = 30.0
     let fillSquare = makePolygon ($"0,0 {andLength},0 {andLength},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
+    
     match comp.Type with
-    |And -> 
-            [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
+    |And -> [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
             makeAnyPath {X = andLength; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
             makeAnyPath {X = andLength; Y = comp.H} curveAttr parameters]
 
@@ -183,17 +185,7 @@ let createOldComp (comp:Component) (parameters:Path) strokeWidth=
              makeAnyPath {X= -15; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"};
              makeCircle (46) (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
 
-    |_ ->   [makeAnyPath {X = 0; Y = comp.H} (makePartArcAttr 5. -20. -2. 20. 20.) parameters;]
-
-let createCurvedShape colour strokeWidth (comp:Component)=
-
-    let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
-    createOldComp comp parameters strokeWidth
-    
-    
-
-
-
+    |_ ->   createBiColorPolygon points colour outlineColour opacity strokeWidth comp
 
 
 let rotatePoints (points) (centre:XYPos) (transform:STransform) = 
@@ -509,8 +501,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    //|> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-    |> List.append (createCurvedShape colour strokeWidth comp)
+    |> List.append (createComponet comp strokeWidth points colour outlineColour opacity)
 
 
 //----------------------------------------------------------------------------------------//

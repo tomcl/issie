@@ -114,7 +114,7 @@ let symbolBox (symbol: Symbol) : list<float*float> =
     [topLeft; topRight; bottomLeft; bottomRight]
 
 
-/// HLP23: Author Indraneel & OMAR
+/// HLP23: Author Omar & Indraneel
 /// given an input edge and symbol, return a list of all port positions for each edge on the symbol
 let portPositions (symbol: Symbol) (edge: Edge): list<float*float> = 
     let box = symbolBox symbol

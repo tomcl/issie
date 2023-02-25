@@ -160,11 +160,7 @@ let createOldComp (comp:Component) (parameters:Path) strokeWidth=
             makeAnyPath {X = length; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
             makeAnyPath {X = length; Y = comp.H} curveAttr parameters]
 
-    |Or ->  let topArcAttr =    makePartArcAttr 40. -20. 20. -50. 20.
-            let bottomArcAttr = makePartArcAttr 40. (20) -20. (comp.H) 60.
-            [makeAnyPath {X = 0; Y = 0} topArcAttr parameters;
-            makeAnyPath {X = 0; Y = comp.H} bottomArcAttr parameters]
-
+    |Or ->  [makeAnyPath {X = 0; Y = 0} (makeBoomerang 50. 75.) parameters]
     |Xor -> let attr = makePartArcAttr 5. -20. -20. 20. 20.
             [makeAnyPath {X = 0; Y = comp.H} attr parameters]
 
@@ -414,6 +410,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"
     
+
 
 
     /// to deal with the label

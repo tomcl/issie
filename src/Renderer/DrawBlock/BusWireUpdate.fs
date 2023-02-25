@@ -10,6 +10,8 @@ open BusWireUpdateHelpers
 open SmartWire
 open Optics
 open Operators
+
+// HLP23: AUTHOR Omar
 open SmartWire
 
 //---------------------------------------------------------------------------------//
@@ -32,7 +34,7 @@ let updateWire (model : Model) (wire : Wire) (reverse : bool) : Wire =
         else 
             partialAutoroute model wire newPort false
     
-
+    // HLP23: AUTHOR Omar
     let smartRoute = smartAutoroute model wire
     let updateWire' = 
         match smartRoute with
@@ -144,6 +146,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             }
             |> smartAutoroute model
         
+        // HLP23: AUTHOR Omar
         match newWire with
         | WireT wire -> 
             let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ wire.WId) wire model)
@@ -514,7 +517,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
                             OutputPort = OutputPortId newOutputPort;
                             Segments = segmentList;
                             StartPos = portOnePos;
-                    }
+                    } // HLP23: AUTHOR Omar
                     |>  smartAutoroute wModel
                         |> function
                             | WireT wire -> wire

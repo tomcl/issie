@@ -104,19 +104,11 @@ let updateModelWires
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
 
-
-//Helper function to shift a specified wire segment by the specified shift amount, currently it is not fool proof and is still work in progress
-//Notes intended usage: It is mainly implemented to shift the middle segments of a wire
-//Check whether it returns None -> It failed, or returns Some -> updated wire
-//Important to note that currently it does not check whether the shift will cause the wire to turn backwards
+//Function which returns the middle segment of a given wire based on one of it's segment 
 //Author: Zsombor Klapper
-let segmentShifterHelper (model : Model) (segmentId : SegmentId) (shift : float) : Option<Wire> =
-    let index, wireId = segmentId
+let getMiddleSegment (model : Model) (wireId:ConnectionId) =
     let wire = model.Wires[wireId]
-    try
-        let segments =  wire.Segments 
-                        |> List.updateAt (index - 1) {wire.Segments[index - 1] with Length = wire.Segments[index - 1].Length + shift} 
-                        |> List.updateAt (index + 1) {wire.Segments[index + 1] with Length = wire.Segments[index + 1].Length - shift}
-        Some {wire with Segments = segments}
-    with
-    | e -> None
+    match wire.Segments.Length with
+    | 7 -> getSegmentFromId model (3, wireId)
+    | 9 -> getSegmentFromId model (5, wireId)
+    | _ -> getSegmentFromId model (3, wireId)

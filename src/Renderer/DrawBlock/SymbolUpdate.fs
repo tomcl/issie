@@ -755,7 +755,7 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
 
 type BusWireHelpers = {
     WireIntersect: BusWireT.Wire -> BusWireT.Wire -> bool
-    GetConnectedWires: Model -> ComponentId list -> BusWireT.Wire list
+    GetConnectedWires: BusWireT.Model -> ComponentId list -> BusWireT.Wire list
 }
 (*let foo (sym: Symbol) (model: Model) (busWireHelpers:BusWireHelpers) =
     printf "FLIPPED!"

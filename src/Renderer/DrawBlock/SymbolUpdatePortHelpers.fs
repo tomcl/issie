@@ -236,13 +236,9 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
                 }
             autoScaleHAndW newSym
     | _ -> {sym with MovingPort = None;}
-
-
-/// Contains the code for the MovePort update msg
-let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
     
-    /// Get a port's position given the symbol, the side the port is on, the number of ports on that side and the index of the port on that side  
-    let getPortPosWithIndex (sym: Symbol) portsNumber side portIndex: XYPos =
+ /// Get a port's position given the symbol, the side the port is on, the number of ports on that side and the index of the port on that side  
+let getPortPosWithIndex (sym: Symbol) portsNumber side portIndex: XYPos =
         let index = float(portIndex)
         let gap = getPortPosEdgeGap sym.Component.Type 
         let topBottomGap = gap + 0.3 // extra space for clk symbol
@@ -263,6 +259,9 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
         | Top ->
             let xOffset = float w * (portDimension - index + topBottomGap)/(portDimension + 2.0*topBottomGap)
             baseOffset' + {X = xOffset; Y = 0.0 }
+/// Contains the code for the MovePort update msg
+
+let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
     
     /// Helper function to get the X or Y offset of the Moving Port target, when the target is on the same side the port was before 
     let findOffsetSameEdge (symbol:Symbol) edge =

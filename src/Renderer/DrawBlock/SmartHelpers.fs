@@ -76,6 +76,7 @@ let getPortXY (symbol: Symbol) (portId: PortId): XYPos =
     let H = symbol.Component.H
     let W = symbol.Component.W
     let portMap = symbol.PortMaps
+    let index = List.findIndex (fun x -> x = portId) 
     let symbolXY = symbol.Pos
     let xyPos = { X = 9.0; Y = 9.0 }
     xyPos

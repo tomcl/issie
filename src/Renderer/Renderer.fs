@@ -18,6 +18,7 @@ open Fable.SimpleJson
 open JSHelpers
 open Sheet.SheetInterface
 open DrawModelType
+open SymbolView
 
 importSideEffects "./scss/main.css"
 
@@ -184,6 +185,12 @@ let viewMenu dispatch =
             makeItem "Colourful" None (fun ev -> 
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
+            )
+            makeItem "New Symbols" None (fun ev -> 
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.NewSymbols) //HLP23: Shaanuka
+            )
+            makeItem "Old Symbols" None (fun ev -> 
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.OldSymbols)
             )
         ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))

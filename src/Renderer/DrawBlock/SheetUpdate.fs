@@ -741,10 +741,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // Test code called from Edit menu item
         // Validate the lits of selected symbols: it muts have just 2 for
         // the test to work.
+         /// HLP23: Indraneel
+         let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
+            {
+                updateWire = BusWireUpdate.updateWire
+                updateSymbolWires = BusWireUpdate.updateSymbolWires
+            }
+
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2}, Cmd.none
+                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 portOrderHelpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none

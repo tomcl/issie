@@ -6,6 +6,7 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
+open SymbolUpdate
 
 open Optics
 open Operators
@@ -62,21 +63,118 @@ let updateModelSymbols
         ||> List.fold (fun symMap symToAdd -> Map.add symToAdd.Id symToAdd symMap)
     Optic.set (symbol_ >-> symbols_) symbols' model
 
-
+//Helper function to GetSelectComponenet takes in a component type and returns a bool. 
+//It checks if the component is a component that contains a select port
 //HLP23: AUTHOR Khoury
-let fourCorners 
-    (element: Symbol)
-        : List<float*float> =
-        let comp = element.Component
-        let H = float comp.H*(Option.defaultValue 1.0 element.VScale)
-        let W = float comp.W*(Option.defaultValue 1.0 element.HScale)
-        let topLeftCorner = (element.Pos.X,element.Pos.Y)
-        let topRightCorner = (element.Pos.X + W,element.Pos.Y)
-        let bottomLeftCorner = (element.Pos.X,element.Pos.Y + H)
-        let bottomRightCorner = (element.Pos.X + W,element.Pos.Y + H)
-        [topLeftCorner; topRightCorner; bottomLeftCorner; bottomRightCorner]
+let CheckSelectComponent 
+    (InputType : ComponentType)
+        : bool =
+    match InputType with
+    | Mux2 -> true
+    | Mux4 -> true
+    | Mux8 -> true
+    | Demux2 -> true
+    | Demux4 -> true
+    | Demux8 -> true
+    | _ -> false
 
-    
+//Helper function to CheckforFlip takes a DrawModelType.SymbolT.Model, a BusWireT.Model, a list of wires, and a symbol and returns a triple of 
+//a symbol, a symbol, and a BusWireT.Model. 
+// It gets the length of teh select wire if the compenent is flipped and if it is not flipped. It returns the two length and the flipped component.
+//HLP23: AUTHOR Khoury
+let GetSelectWireLength
+    (sModel : DrawModelType.SymbolT.Model)
+    (wModel: BusWireT.Model)
+    (wireList: Wire list)
+    (inputsymbol : Symbol)
+        : float*float*Symbol=
+        let oldWires = List.map (autoroute wModel) wireList
+        let SelectPort = match List.isEmpty (inputsymbol.PortMaps.Order |> Map.find Bottom) with
+                                | true -> (inputsymbol.PortMaps.Order |> Map.find Top)[0]
+                                | false -> (inputsymbol.PortMaps.Order |> Map.find Bottom)[0]
+
+        let newSymbol =  flipSymbol FlipVertical inputsymbol
+        let oldSelectWire = oldWires |> List.filter (fun wire -> $"{wire.InputPort}" = SelectPort || $"{wire.OutputPort}" = SelectPort)
+        let NewModel = {wModel with Symbol = {sModel with Symbols = Map.add newSymbol.Id newSymbol sModel.Symbols}}
+        let newSelectWire = autoroute NewModel oldSelectWire[0]
+
+        let lengthOldSelect =(oldSelectWire[0].Segments) |>  List.fold (fun acc x -> acc + abs x.Length) 0.0 
+        let lengthNewSelect = (newSelectWire.Segments)  |> List.fold (fun acc x -> acc+ abs  x.Length) 0.0
+
+        lengthNewSelect, lengthOldSelect, newSymbol
+
+//Uses helper functions to get the lengths of the select wires in all cases. Checks which one is better and returns the best performing symbols and model.
+//HLP23: AUTHOR Khoury
+let CheckforFlip  
+    (sModel : DrawModelType.SymbolT.Model)
+    (wireList: Wire list)
+    (wModel: BusWireT.Model)
+    (symbolToOrder: Symbol)
+    (otherSymbol: Symbol)
+        : Symbol*Symbol*BusWireT.Model =
+
+    if CheckSelectComponent symbolToOrder.Component.Type then 
+        let lengthNewSelect, lengthOldSelect , newSymbol = GetSelectWireLength sModel wModel wireList symbolToOrder
+        if lengthNewSelect < lengthOldSelect then 
+            symbolToOrder, newSymbol, wModel
+        else 
+            symbolToOrder, otherSymbol, wModel
+    elif CheckSelectComponent otherSymbol.Component.Type then  
+        let lengthNewSelect, lengthOldSelect , newSymbol = GetSelectWireLength sModel wModel wireList otherSymbol
+        if lengthNewSelect < lengthOldSelect then 
+            symbolToOrder, newSymbol, wModel
+        else 
+            symbolToOrder, otherSymbol, wModel
+    else 
+        symbolToOrder, otherSymbol, wModel
+
+//Helper function to SortPorts takes in connected ports Ids (strings) and the Edges they are on in a quadruple list and a list of ports Ids (string)
+//It sorts the quadruple list by the first element of the quadruple which is the port Id of the otherSymbol with the same order as the list of ports Ids
+//HLP23: AUTHOR Khoury
+let sortPortsHelper 
+    (list2 : string list)
+    (list1 : (string*string*Edge*Edge) list) 
+        : (string*string*Edge*Edge) list=
+    list1
+    |> List.sortBy (fun (x,_,_,_) -> List.findIndex (fun s -> s = x) list2)
+
+//Helper function to SortPorts takes in a list of quadruple lists and returns an Edge
+//It gets the edge that the ports are connected to on the otherSymbol
+//HLP23: AUTHOR Khoury
+let OtherSymbolOrientation 
+    (list: (string*string*Edge*Edge) list)
+        : Edge =
+    list 
+    |> List.map (fun (_,_,x,_) -> x)
+    |> List.head
+
+
+// Uses helper functions to sort the ports in the correct order. It returns a list of quadruple lists. 
+//Each quadruple list contains the ports that are connected to the same edges on the otherSymbol and the symbolToOrder
+//HLP23: AUTHOR Khoury
+let SortPorts 
+    (connectedPorts:(InputPortId*OutputPortId)list)
+    (symbolToOrder: Symbol)
+    (otherSymbol: Symbol)
+        : ((string*string*Edge*Edge) list)list =
+
+    connectedPorts
+    //Put the Ports in correct order (Input, Output) depending on which is the symbolToOrder
+    |> List.map (fun x  -> 
+            match symbolToOrder.PortMaps.Orientation |> Map.containsKey ($"{fst x}") with 
+            | true -> ($"{snd x}",$"{fst x}")
+            | false -> ($"{fst x}",$"{snd x}"))
+    //Group the Ports by the matching edges
+    |>List.collect (fun (x, y) ->
+            match Map.tryFind x otherSymbol.PortMaps.Orientation, Map.tryFind y symbolToOrder.PortMaps.Orientation with
+            | Some e1, Some e2 -> [(e1, e2, x, y)]
+            | _ -> []
+            )
+    |> List.groupBy (fun (e1, e2, _, _) -> e1, e2)
+    |> List.map (fun (_, group) -> List.map (fun (e1, e2, x, y) -> (x,y,e1,e2)) group)
+    |> List.map (fun x -> 
+                                            sortPortsHelper  (otherSymbol.PortMaps.Order 
+                                            |> Map.find (OtherSymbolOrientation x))x)
 
 /// Update BusWire model with given wires. Can also be used to add new wires.
 /// This uses a fold on the Map to add wires which makes it fast in the case that the number

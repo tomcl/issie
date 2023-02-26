@@ -85,6 +85,15 @@ let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     else
         None
 
+/// Checks if a wire intersects a bounding box by checking if any of its segments intersect
+/// returns some of distance to wire, if wire does intersect
+let wireIntersectsBoundingBox (wire : Wire) (box : BoundingBox) =
+    let segmentIntersectsBox segStart segEnd state seg =
+        match state with
+        | Some x -> Some x
+        | None -> segmentIntersectsBoundingBox box segStart segEnd
+    
+    foldOverSegs segmentIntersectsBox None wire
 //--------------------------------------------------------------------------------//
 //---------------------------getClickedSegment-----------------------------------//
 

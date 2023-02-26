@@ -448,15 +448,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 //---------------------------------------------------------------------------------//        
 
 
-/// Checks if a wire intersects a bounding box by checking if any of its segments intersect
-/// returns some of distance to wire, if wire does intersect
-let wireIntersectsBoundingBox (wire : Wire) (box : BoundingBox) =
-    let segmentIntersectsBox segStart segEnd state seg =
-        match state with
-        | Some x -> Some x
-        | None -> segmentIntersectsBoundingBox box segStart segEnd
-    
-    foldOverSegs segmentIntersectsBox None wire
+
 
 /// Returns a list of wire IDs in the model that intersect the given selectBox
 /// the wires are sorted by closeness to the centre of the box.

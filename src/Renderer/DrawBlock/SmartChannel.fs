@@ -40,5 +40,75 @@ let smartChannelRoute
         (model:Model) 
             :Model =
     let tl = channel.TopLeft
-    printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
+    //printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
+
+    printfn "p"   
+    //must return a model with an updated Wires:Map<ConnectionId,Wire>
+    //determine which wires are inside the bounding box given?
+    let wireInChannelPredicate ConnId wire :bool = 
+        //is middle segment in bounding box?
+
+        //let midSegPos = getAbsoluteSegmentPos wire 3
+        //geta
+        //let midSeg = getAbsSegments wire [3]
+        //let segStartPos, segEndPos = fst midSegPos, snd midSegPos
+
+        //match segmentIntersectsBoundingBox channel segStartPos segEndPos with
+        //| None -> false
+        //| Some x -> true
+        match wireIntersectsBoundingBox wire channel with
+        | None -> false
+        | Some x -> true
+
+    let shiftWire wire adj = 
+            let a,b = wire.Segments[2].Length, wire.Segments[4].Length
+            wire.Segments
+            |> List.updateAt 2 {wire.Segments[2] with Length = a + adj}
+            |> List.updateAt 4 {wire.Segments[4] with Length = b - adj}
+            |> (fun x -> {wire with Segments = x})
+
+    let channelWiresList = 
+        Map.filter wireInChannelPredicate model.Wires
+        |> Map.toList
+        |> List.sortBy (fun (x,y) -> y)
+
+    let wireSpacing =
+        match channelOrientation with 
+        | Vertical -> 0.8*channel.W/(float channelWiresList.Length)
+        | Horizontal -> 0.8*channel.H/(float channelWiresList.Length)
+
+    //At this point we have the wires, and the spacing
+    //we need to shift the wires to the right positions now
+    //do i need absolute wires, how do i shift?
+
+    
+
+    let spacedWirePos = 
+        [1..channelWiresList.Length]
+        |> List.map (fun x -> tl.X  + float(x) * wireSpacing)
+
+    printfn $"{tl}"
+        
+    let shiftedWires = 
+        channelWiresList
+        |> List.map (fun (cid,wire) -> getAbsoluteSegmentPos wire 3) //gives absoulte pos of each mid wire segment
+        //|>List.map (fun x -> printf $"{x}  ")
+        |> List.map (fun x -> (fst x).X) //extract X coord of middle segment
+        |> List.map2 (fun autoPosX absPos  -> autoPosX - absPos) spacedWirePos //list of adjustments
+        //|> List.map (fun x -> printf $"{x}  ")
+        |> List.map2 (fun (cid,wire) adj -> (cid, shiftWire wire adj)) channelWiresList
+        |> Map.ofList
+        
+
+
+    //match channelOrientation with 
+    //    | Vertical -> 
+    //            let spacing = channel.W/(float channelWiresList.Length)
+    //            ()
+    //            //sort wires by
+    //    | Horizontal -> 
+    //            let spacing = channel.H/(float channelWires.Length)
+    //            ()
     model
+    {model with Wires = shiftedWires}
+    

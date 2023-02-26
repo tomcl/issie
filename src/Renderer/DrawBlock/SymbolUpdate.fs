@@ -893,6 +893,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             {(updatePortPos oldSymbol pos portId) with MovingPortTarget = None}
             |> autoScaleHAndW
         set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
+    
+    | ResizeSymbol (compId, pos) ->
+        printfn "Resizing"
+        printfn $"Corner: {pos}"
+        model, Cmd.none
+
+    | ResizeSymbolDone (compId, pos) ->
+        model, Cmd.none
+    
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none

@@ -232,7 +232,34 @@ let inline tryInsideLabelBox  (model: Model) (pos: XYPos) =
     Optic.get symbols_ model
     |> Map.tryPick (fun (sId:ComponentId) (sym:SymbolT.Symbol) ->
         if insideBox pos sym.LabelBoundingBox then Some sym else None)
+
+/// returns the symbol and position of the corner if pos is inside any one of the custom symbol's corners
+let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
+    let radius = 5.0
+    let margin = 2.5
     
+    let insideCircle (pos: XYPos) (circleLocation: XYPos) radius margin: bool =
+        let distance = ((pos.X - circleLocation.X) ** 2.0 + (pos.Y - circleLocation.Y) ** 2.0) ** 0.5
+        distance <= radius + margin
+
+    let getCustomSymCorners (sym: SymbolT.Symbol) =
+        let getScale = function | Some x -> x | _ -> 1.0 
+        match sym.Component.Type with
+        | CommonTypes.Custom _ -> 
+            let HScale = getScale sym.HScale
+            let VScale = getScale sym.VScale
+            [|{X=0.0;Y=0.0}; {X=sym.Component.W*HScale;Y=0.0}; {X=0.0;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=sym.Component.H*VScale};|]
+            |> Array.map ((+) sym.Pos)
+        | _ -> Array.empty
+
+    Optic.get symbols_ model
+    |> Map.tryPick (fun (sId:ComponentId) (sym:SymbolT.Symbol) ->        
+        getCustomSymCorners sym
+        |> Array.tryFind (fun c -> insideCircle pos c radius margin)
+        |> function
+            | Some p -> Some (sym, p)
+            | _ -> None
+    )
 
 /// return a BB equivalent to input but with (X,Y) = LH Top coord, (X+W,Y+H) = RH bottom coord
 /// note that LH Top is lower end of the two screen coordinates
@@ -518,6 +545,7 @@ let findNearbyComponents (model: Model) (pos: XYPos) (range: float)  =
 let mouseOnPort portList (pos: XYPos) (margin: float) =
     let radius = 5.0
 
+    // TODO: Abstract this out? Also used to detect corners
     let insidePortCircle (pos: XYPos) (portLocation: XYPos): bool =
         let distance = ((pos.X - portLocation.X) ** 2.0 + (pos.Y - portLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
@@ -544,16 +572,18 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
         match mouseOnPort outputPorts pos 2.5 with
         | Some (portId, portLoc) -> OutputPort (portId, portLoc)
         | None ->
-            match tryInsideLabelBox model pos with
-            | Some sym -> 
-                Label sym.Id
+            match tryInsideSymCorner model pos with
+            | Some (sym, cornerLoc) -> ComponentCorner (sym.Id, cornerLoc)
             | None ->
-                match BusWireUpdate.getClickedWire model.Wire pos (Constants.wireBoundingBoxSize/model.Zoom) with
-                | Some connId -> Connection connId
+                match tryInsideLabelBox model pos with
+                | Some sym -> Label sym.Id
                 | None ->
-                    match insideBoxMap model.BoundingBoxes pos with
-                    | Some compId -> Component compId
-                    | None -> Canvas
+                    match BusWireUpdate.getClickedWire model.Wire pos (Constants.wireBoundingBoxSize/model.Zoom) with
+                    | Some connId -> Connection connId
+                    | None ->
+                        match insideBoxMap model.BoundingBoxes pos with
+                        | Some compId -> Component compId
+                        | None -> Canvas
 
 
 let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =

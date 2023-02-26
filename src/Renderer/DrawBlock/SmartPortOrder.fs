@@ -105,24 +105,30 @@ let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Sy
             { Port = port
               Orientation = getPortOrientationFrmPortIdStr model.Symbol port.Id })
 
+    let zipToMap (values: 'a list) =
+        values |> List.zip [ symToOrder.Id; otherSym.Id ] |> Map.ofList
+
     let portBySym =
         let symToOrderPorts, otherSymPorts = getPortsBtwnSyms model symToOrder otherSym
 
-        [ symToOrderPorts; otherSymPorts ]
-        |> List.map getPortInfo
-        |> List.zip [ symToOrder.Id; otherSym.Id ]
-        |> Map.ofList
+        [ symToOrderPorts; otherSymPorts ] |> List.map getPortInfo |> zipToMap
 
     let domEdgeBySym =
         [ portBySym[symToOrder.Id]; portBySym[otherSym.Id] ]
         |> List.map getSymDominantEdge
-        |> List.zip [ symToOrder.Id; otherSym.Id ]
-        |> Map.ofList
+        |> zipToMap
 
     { Symbol = symToOrder
       OtherSymbol = otherSym
       Ports = portBySym
       DominantEdges = domEdgeBySym }
+
+/// Guard that ensures ports of non custom components are not reordered.
+/// Done by removing ports of symbol to order if its not a custom component.
+let rmvNonCustomCompPorts (reorderPair: SymbolReorderPair) =
+    match reorderPair.Symbol.Component.Type with
+    | Custom _ -> reorderPair
+    | _ -> { reorderPair with Ports = reorderPair.Ports |> Map.add reorderPair.Symbol.Id [] }
 
 /// Reorder's Symbol Ports such to minimize wire crossings.
 /// To minimize wire crossings ports of one symbol must be the reverse of ports on another symbol.
@@ -160,7 +166,9 @@ let getPortSwaps (reorderPair: SymbolReorderPair) =
 
 /// Swaps around portIds in symToOrder to minimize criss crossing of wires.
 /// Keys and values of swaps represents old ports and new ports respectively.
-let swapPortIds (symToOrder: Symbol) (swaps: Map<PortInfo, PortInfo>) =
+let swapPortIds (reorderPair: SymbolReorderPair) =
+
+    let swaps = getPortSwaps reorderPair
 
     let swapsPortIds =
         (Map.empty, swaps)
@@ -184,7 +192,7 @@ let swapPortIds (symToOrder: Symbol) (swaps: Map<PortInfo, PortInfo>) =
 
         Optic.set (portMaps_ >-> orientation_) newOrientation symbol
 
-    (updatePortMapOrder >> updatePortMapOrientation) symToOrder
+    (updatePortMapOrder >> updatePortMapOrientation) reorderPair.Symbol
 
 
 /// Reorders ports so interconnecting wires do not cross.
@@ -199,8 +207,8 @@ let reOrderPorts
 
     let model' =
         getSymReorderPair wModel symToOrder otherSym
-        |> getPortSwaps
-        |> swapPortIds symToOrder
+        |> rmvNonCustomCompPorts
+        |> swapPortIds
         |> List.singleton
         |> updateModelSymbols wModel
 

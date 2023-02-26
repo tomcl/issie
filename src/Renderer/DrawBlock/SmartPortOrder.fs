@@ -10,6 +10,7 @@ open DrawModelType.BusWireT
 open Symbol
 open Optics
 open Operators
+open SymbolUpdatePortHelpers
 
 (* 
     HLP23: This module will normally be used exclusively by team member doing the "smart port reorder" 
@@ -51,12 +52,13 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
             let outputPortNumber = symbolAPortMap.[outputId]
             (outputPortNumber, inputPortNumber)) stringPortConnections
 
-    
+    //let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string): Symbol
+    //let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
+    let updatedSymbol = updatePortPos symbolToOrder symbolToOrder.Pos (list2[0].ToString())
     printfn $"Ports: {PortNumberConnections}"
-    
     // replace this with correct wires
     printfn $"Number of wires to reorder:{wiresToOrder.Length}"
-    let symbol' = symbolToOrder // no change at the moment
+    let symbol' = updatedSymbol // no change at the moment
     // HLP23: This could be cleaned up using Optics - see SmartHelpers for examples
     { wModel with
         Wires = wModel.Wires // no change for now, but probably this function should use update wires after reordering.

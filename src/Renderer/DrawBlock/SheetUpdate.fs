@@ -778,7 +778,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         {model with Wire = SmartChannel.smartChannelRoute orient channel model.Wire}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
-                model, Cmd.none   
+                model, Cmd.none
+    | TestWireLabels ->
+        { model with Wire = SmartWireLabel.smartWireLabelRoute model.Wire model.SelectedWires }, Cmd.none
     
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none

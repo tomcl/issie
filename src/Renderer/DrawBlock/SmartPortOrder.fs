@@ -35,31 +35,30 @@ let updatePortMapList (sym:Symbol) (index:int) (portId:string) (edge:Edge) =
 
 let findMinIndex (symbol: Symbol) (portList) (edge: Edge) =
 
+    let portList' = 
+            portList
+            |> List.collect (fun id -> [symbol.PortMaps.Order[edge] |> List.findIndex (fun elm -> elm = id)])
+
     match edge with
     | Top | Right -> 
-        let portList' = 
-            portList
-            |> List.collect (fun id -> [symbol.PortMaps.Order[edge] |> List.findIndex (fun elm -> elm = id)])
         List.min portList'
-
     | Bottom | Left -> 
-        let portList' = 
-            portList
-            |> List.collect (fun id -> [symbol.PortMaps.Order[edge] |> List.findIndex (fun elm -> elm = id)])
         List.max portList'
 
 let findMaxIndex (symbol: Symbol) (portList) (edge: Edge) =
 
-    match edge with
-    | Top -> 
-        let portList' = 
+    let portList' = 
             portList
             |> List.collect (fun id -> [symbol.PortMaps.Order[edge] |> List.findIndex (fun elm -> elm = id)])
+
+    match edge with
+    | Top | Right -> 
         List.max portList'
-    
+    | Bottom ->
+        List.min portList'
     | _  -> 
         printfn "Not implemented maxIndex"
-        0 
+        99
 
 
 let findIndexShifted (interWires: list<Wire>) (symbolToOrder: Symbol) 
@@ -80,7 +79,7 @@ let findIndexShifted (interWires: list<Wire>) (symbolToOrder: Symbol)
     let inputLength = symbolToOrder.PortMaps.Order[inputEdge].Length - 1
 
     match inputEdge, outputEdge with
-    | Top, Bottom | Bottom, Top | Left, Right | Right, Left | Bottom, Bottom ->
+    | Top, Bottom | Bottom, Top | Left, Right | Right, Left ->
         if (inputLength = outputLength) then
             0
         elif inputLength > outputLength then
@@ -92,7 +91,7 @@ let findIndexShifted (interWires: list<Wire>) (symbolToOrder: Symbol)
             printfn "Diff else: %A" outputMinIndex
             outputMinIndex
     
-    | Top, Top ->
+    | Top, Top  ->
         if (inputLength = outputLength) then
             0
         elif inputLength > outputLength then
@@ -100,9 +99,34 @@ let findIndexShifted (interWires: list<Wire>) (symbolToOrder: Symbol)
             printfn "Difference input>output %A" -(inputLength - inputMaxIndex) 
             -(inputLength - inputMaxIndex)
         else
-            let outputMinIndex = findMaxIndex otherSymbol outputPortList outputEdge
+            let outputMaxIndex = findMaxIndex otherSymbol outputPortList outputEdge
+            printfn "Diff else: %A" outputMaxIndex
+            outputMaxIndex
+
+    | Bottom, Bottom ->
+        if (inputLength = outputLength) then
+                0
+            elif inputLength > outputLength then
+                let inputMinIndex = findMinIndex symbolToOrder inputPortList inputEdge
+                printfn "Difference input>output %A" -(inputLength - inputMinIndex) 
+                -(inputLength - inputMinIndex)
+            else
+                let outputMaxIndex = findMaxIndex otherSymbol outputPortList outputEdge
+                printfn "Diff else: %A" outputMaxIndex
+                outputMaxIndex
+
+    | Right, Right ->
+        if (inputLength = outputLength) then
+            0
+        elif inputLength > outputLength then
+            let inputMaxIndex = findMaxIndex symbolToOrder inputPortList inputEdge
+            printfn "Difference input>output %A" -(inputLength - inputMaxIndex) 
+            -(inputLength - inputMaxIndex)
+        else
+            let outputMinIndex = findMinIndex otherSymbol outputPortList outputEdge
             printfn "Diff else: %A" outputMinIndex
             outputMinIndex
+
 
     //For btm, btm we need to find min index.
     | _, _ ->
@@ -148,7 +172,7 @@ let changePortOrder (wModel: BusWireT.Model)
             // returns new symbol
             let newPortMapOrder =
                 match outputEdge, inputEdge with
-                | Top, Bottom | Bottom, Top | Left, Right | Right, Left | Top, Top | Bottom, Bottom->
+                | Top, Bottom | Bottom, Top | Left, Right | Right, Left | Top, Top | Bottom, Bottom | Right, Right ->
 
                     let remainder = findIndexShifted interWires symbolToOrder otherSymbol inputEdge outputEdge
                     let indexChange = symbolToOrder.PortMaps.Order[inputEdge].Length - (outputPortIndex) - 1 + remainder

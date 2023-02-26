@@ -654,11 +654,14 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox * Orientat
             Some ( { TopLeft = topLeft; H = union.H; W = x2 - x1 }, Vertical )
         // Horizontal Channel
         else
-            let y1, y2 = bb1.TopLeft.Y + bb1.H, bb2.TopLeft.Y
             let union = boxUnion bb1 bb2
-            let topLeft = { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y + bb1.H }
-            Some ( { TopLeft = topLeft; H = y2 - y1; W = union.W }, Horizontal )
-
-
-        
+            if bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y then // bb2 below bb1
+                let y1, y2 = bb1.TopLeft.Y + bb1.H, bb2.TopLeft.Y
+                let topLeft = { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y + bb1.H }
+                Some ( { TopLeft = topLeft; H = y2 - y1; W = union.W }, Horizontal )
+            else // bb2 above bb1
+                let y1, y2 = bb1.TopLeft.Y, bb2.TopLeft.Y + bb2.H
+                let topLeft = { X = union.TopLeft.X; Y = bb2.TopLeft.Y + bb2.H }
+                Some ( { TopLeft = topLeft; H = y1 - y2; W = union.W }, Horizontal )
+                
 

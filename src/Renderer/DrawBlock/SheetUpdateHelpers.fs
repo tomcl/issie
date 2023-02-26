@@ -659,5 +659,6 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox * Orientat
             let topLeft = { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y + bb1.H }
             Some ( { TopLeft = topLeft; H = y2 - y1; W = union.W }, Horizontal )
 
+
         
 

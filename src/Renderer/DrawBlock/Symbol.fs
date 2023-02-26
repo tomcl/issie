@@ -841,12 +841,15 @@ let inline getOutputPortIdStr (portId: OutputPortId) =
     match portId with
     | OutputPortId s -> s
 
-/// returns what side of the symbol the port is on
-let inline getPortOrientation (model: Model)  (portId: PortId) : Edge =
-    let portIdStr = getPortIdStr portId
+let inline getPortOrientationFrmPortIdStr (model: Model) (portIdStr: string) : Edge = 
     let port = model.Ports[portIdStr]
     let sId = ComponentId port.HostId
     model.Symbols[sId].PortMaps.Orientation[portIdStr]
+
+/// returns what side of the symbol the port is on
+let inline getPortOrientation (model: Model)  (portId: PortId) : Edge =
+    let portIdStr = getPortIdStr portId
+    getPortOrientationFrmPortIdStr model portIdStr
 
 let inline getInputPortOrientation (model: Model) (portId: InputPortId): Edge =
     getPortOrientation model (InputId portId)

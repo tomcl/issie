@@ -55,9 +55,6 @@ let getWiresInBox (box: BoundingBox) (model: Model): ConnectionId list =
     
     let wires = (List.ofSeq (Seq.cast model.Wires.Values))
     
-    // let listToTup (l: (float * float) list): XYPos * XYPos =
-    //     {X = fst l[0]; Y = snd l[0]}, {X = fst l[1]; Y = snd l[1]}
-    
     let is7Seg (wire: Wire): bool =
         wire.Segments.Length = 7
         
@@ -119,9 +116,6 @@ let smartChannelRoute
             // shorten or lengthen seg 2 & 4
             let currentWire = extractWire model wid
             let currentSegments = currentWire.Segments
-            // printfn "Current Seg Len %A" currentSegments
-            // printfn "New pos %A, Old Pos %A" newPos oldPos
-            // printfn "Adjustment %A" (newPos - oldPos)
             let newWire =
                 {
                     extractWire model wid with
@@ -140,7 +134,6 @@ let smartChannelRoute
     let sortedWires =
         getWiresInBox channel model
         |> sortWires
-        // |> fun x -> printfn "Wires In Channel: %A" x; x
     
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     

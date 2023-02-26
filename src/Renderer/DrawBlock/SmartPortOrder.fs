@@ -23,6 +23,22 @@ open Operators
     functions for this purpose.
 *)
 
+(*
+    HLP23: AUTHOR dgs119
+
+    Flow of the Smart Port Reordering Algorithm:
+    1) We first get SymbolReorderPair information. This includes the Symbol, OtherSymbol, Ports and their Dominant Edges.
+        - Dominant Edge: 
+            - The Direction a Symbol faces. It's an edge where a symbol has ports but no port on another edge.
+            - Otherwise its the edge with the most number of ports.
+    2) Depending on the dominant edge of a port, we unwrap both Symbol ports in opposite directions.
+        - For a Top Dominant Edge AntiClockwise ordering, we unwrap the ports from Right, Top, Left then Bottom Edge.
+        - If ports around a component are the reverse order of pins around another component, they can be wired without crosses.
+        - We force these connection pairs to avoid wire crosses.
+    3) Swap ports on the the symbol to order such that connection pairs in (2) is followed.
+        - Ports of non custom components are not reordered. 
+*)
+
 /// Holds data about External Helpers required.
 type ExternalSmartHelpers =
     { UpdateSymbolWires: Model -> ComponentId -> Model }

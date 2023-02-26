@@ -172,10 +172,6 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
-        makeMenu false "Symbol Style" [
-            makeItem "New (Sqaured)" None (fun ev -> (changesymbolType false))
-            makeItem "Old (Curved) " None (fun ev -> (changesymbolType true))
-        ]
         makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         makeMenu false "Theme" [
             makeItem "Grayscale" None (fun ev -> 
@@ -189,6 +185,12 @@ let viewMenu dispatch =
             makeItem "Colourful" None (fun ev -> 
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
+            )
+            makeItem "New Symbols" None (fun ev -> 
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.NewSymbols) //HLP23: Shaanuka
+            )
+            makeItem "Old Symbols" None (fun ev -> 
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.OldSymbols)
             )
         ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))

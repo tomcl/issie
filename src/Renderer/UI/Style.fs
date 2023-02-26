@@ -103,7 +103,8 @@ let canvasVisibleStyleList model =
         |DrawModelType.SymbolT.ThemeType.White -> BackgroundColor "white"
         |DrawModelType.SymbolT.ThemeType.Light -> BackgroundColor "rgba(255,255,0,0.1)"  //light yellow
         |DrawModelType.SymbolT.ThemeType.Colourful -> BackgroundColor "rgba(0,0,0,0.05)" //light gray
-    
+        |DrawModelType.SymbolT.ThemeType.NewSymbols -> BackgroundColor "rgba(0,0,0,0.05)" //HLP23: Shaanuka - For Smart Rendering
+        |DrawModelType.SymbolT.ThemeType.OldSymbols -> BackgroundColor "rgba(0,0,0,0.05)"
     let widthRightSec = rightSectionWidth model
     [
         Display DisplayOptions.Block

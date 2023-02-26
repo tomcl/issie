@@ -10,9 +10,6 @@ open DrawHelpers
 open DrawModelType.SymbolT
 open Symbol
 
-let mutable symbolTypeOld = false
-let changesymbolType inp = 
-    symbolTypeOld <- inp
 (*
     HLP23: This module will normally be used exclusively by team member doing the "smart rendering" part of the 
     individual coding. During group phase work how it is used is up to the
@@ -191,9 +188,9 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 /// Draw symbol (and its label) using theme for colors, returning a list of React components 
 /// implementing all of the text and shapes needed.
 
-let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity symbolTypeOld =
+let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) =
 
-    if symbolTypeOld = false then createBiColorPolygon points colour outlineColour opacity strokeWidth comp
+    if symbolType = NewSymbols then createBiColorPolygon points colour outlineColour opacity strokeWidth comp
 
     else
         let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
@@ -212,9 +209,10 @@ let drawComponet (comp:Component) strokeWidth points colour outlineColour opacit
                 makeAnyPath {X = andLength; Y = comp.H} curveAttr parameters;
                 makeCircle (andLength+ 26.0) (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
 
-        |Or ->  [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang 30. 60. 25. 50.) parameters]
+        |Or ->  //let comp.H = 10
+                [makeAnyPath {X = 0; Y = 0} (makeBoomerang -20.0 -7.0 30. 70. 25. 50.) parameters]
 
-        |Nor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang 30. 60. 25. 50.) parameters;
+        |Nor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 30. 60. 25. 50.) parameters;
                 makeCircle (46) (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
 
         |Not -> let edge = 28.0
@@ -222,10 +220,10 @@ let drawComponet (comp:Component) strokeWidth points colour outlineColour opacit
                 [makePolygon ($"0 {(height/2.0)} {edge} 0 0 {-height/2.0}") {defaultPolygon with Fill = parameters.Fill};
                 makeCircle (edge+4.0) 0 {defaultCircle with R = 4; Fill = parameters.Fill}]
 
-        |Xor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang 30. 60. 25. 50.) parameters; 
+        |Xor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 30. 60. 25. 50.) parameters; 
                 makeAnyPath {X= -15; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"}]
 
-        |Xnor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang 30. 60. 25. 50.) parameters; 
+        |Xnor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 30. 60. 25. 50.) parameters; 
                 makeAnyPath {X= -15; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"};
                 makeCircle (46) (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
 
@@ -507,7 +505,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (drawComponet comp strokeWidth points colour outlineColour opacity symbolTypeOld)
+    |> List.append (drawComponet comp strokeWidth points colour outlineColour opacity theme)
 
 
 //----------------------------------------------------------------------------------------//

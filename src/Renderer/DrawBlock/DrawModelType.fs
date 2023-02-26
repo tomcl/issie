@@ -96,6 +96,8 @@ module SymbolT =
         |White
         |Light
         |Colourful
+        |OldSymbols
+        |NewSymbols
 
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
@@ -200,6 +202,7 @@ module SymbolT =
         OutputPortsConnected: Map<OutputPortId, int>
 
         Theme: ThemeType
+
         }
 
     //----------------------------Message Type-----------------------------------//

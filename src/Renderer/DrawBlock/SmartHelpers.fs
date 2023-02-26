@@ -102,3 +102,13 @@ let updateModelWires
     |> Optic.map wires_ (fun wireMap  ->
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
+
+let getCustomSymCorners (sym: SymbolT.Symbol) =
+    let getScale = function | Some x -> x | _ -> 1.0 
+    match sym.Component.Type with
+    | CommonTypes.Custom _ -> 
+        let HScale = getScale sym.HScale
+        let VScale = getScale sym.VScale
+        [|{X=0.0;Y=0.0}; {X=0.0;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=0.0}|]
+        |> Array.map ((+) sym.Pos)
+    | _ -> Array.empty // should never match

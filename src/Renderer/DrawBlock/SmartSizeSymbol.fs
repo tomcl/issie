@@ -9,6 +9,7 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open Symbol
 open Optics
+open Optic
 open Operators
 open SmartHelpers
 
@@ -48,13 +49,6 @@ let reSizeSymbol
     let wires = [] // replace this with correct wires
 
     let symbol' = {symbolToSize with VScale=Some 2} // no change at the moment
-    // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
-    let model' = 
-        symbol'
-        |> List.singleton
-        |> updateModelSymbols wModel 
 
-
-    smartHelpers.UpdateSymbolWires model' symbolToSize.Id 
-
+    set (symbolOf_ symbolToSize.Id ) symbol' wModel
 

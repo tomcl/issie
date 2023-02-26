@@ -10,6 +10,7 @@ open DrawModelType
 open DrawModelType.SymbolT
 open Symbol
 open SymbolUpdatePortHelpers
+open SymbolUpdateResizeHelpers // HLP23 AUTHOR: BRYAN TAN
 open SymbolReplaceHelpers
 open Optics
 open Optic
@@ -458,6 +459,7 @@ let createSymbol ldcs theme prevSymbols comp =
                 Appearance = {
                     HighlightLabel = false
                     ShowPorts = ShowNone //do not show input ports initially
+                    ShowCorners = DontShow
                     // ShowOutputPorts = false //do not show output ports initially
                     Colour = getSymbolColour comp.Type clocked theme
                     Opacity = 1.0
@@ -894,12 +896,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> autoScaleHAndW
         set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     
-    | ResizeSymbol (compId, pos) ->
-        printfn "Resizing"
-        printfn $"Corner: {pos}"
-        model, Cmd.none
+    // HLP23 AUTHOR: BRYAN TAN
+    | ResizeSymbol (compId, fixedCornerLoc, pos) ->
+        let helpers = { SymbolUpdateResizeHelpers.ExternalHelpers.FlipSymbol = flipSymbol }
+        manualSymbolResize model compId fixedCornerLoc pos helpers
 
-    | ResizeSymbolDone (compId, pos) ->
+    | ResizeSymbolDone (compId, fixedCornerLoc, pos) ->
         model, Cmd.none
     
     | SaveSymbols -> // want to add this message later, currently not used

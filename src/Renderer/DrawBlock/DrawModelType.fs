@@ -78,11 +78,14 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+    // HLP23 AUTHOR: BRYAN TAN
+    type ShowCorners = | ShowAll | DontShow
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
             // are highlighted as circles. This D.U. controls that.
             ShowPorts: ShowPorts
+            ShowCorners: ShowCorners
             // appears not to be used now.
             HighlightLabel: bool
             /// symbol color is determined by symbol selected / not selected, or if there are errors.
@@ -240,8 +243,8 @@ module SymbolT =
         /// Taking the input and..
         | MovePort of portId: string * move: XYPos
         | MovePortDone of portId: string * move: XYPos
-        | ResizeSymbol of compId: ComponentId * corner: XYPos
-        | ResizeSymbolDone of compId: ComponentId * corner: XYPos
+        | ResizeSymbol of compId: ComponentId * corner: XYPos * move: XYPos
+        | ResizeSymbolDone of compId: ComponentId * corner: XYPos * move: XYPos
         | SaveSymbols
         | SetTheme of ThemeType
              //------------------------Sheet interface message----------------------------//
@@ -405,7 +408,7 @@ module SheetT =
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
-        | ResizingSymbol of CommonTypes.ComponentId
+        | ResizingSymbol of CommonTypes.ComponentId * XYPos
 
     type UndoAction =
         | MoveBackSymbol of CommonTypes.ComponentId List * XYPos

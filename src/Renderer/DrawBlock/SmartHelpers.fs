@@ -100,6 +100,31 @@ let updateModelWires (model: BusWireT.Model) (wiresToAdd: Wire list) : BusWireT.
         (wireMap, wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
+
+/// HLP23: Derek Lai
+// Returns true if two 1D line segments intersect
+let overlap1D ((a1, a2): float * float) ((b1, b2): float * float): bool =
+    let a_min, a_max = min a1 a2, max a1 a2
+    let b_min, b_max = min b1 b2, max b1 b2
+    a_max >= b_min && b_max >= a_min
+
+/// HLP23: Derek Lai
+// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
+let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos): bool =
+    (overlap1D (a1.X, a2.X) (b1.X, b2.X)) &&
+    (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
+
+/// HLP23: Derek Lai
+// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
+let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox): bool =
+    let bb1Coords =
+        { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
+        { X = bb1.TopLeft.X + bb1.W; Y = bb1.TopLeft.Y + bb1.H }
+    let bb2Coords =
+        { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
+        { X = bb2.TopLeft.X + bb2.W; Y = bb2.TopLeft.Y + bb2.H }    
+    overlap2D bb1Coords bb2Coords
+
 /// Takes in ComponentId and returns the bounding box of the corresponding symbol
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)
 let getSymbolBoundingBox (model: Model) (componentId: ComponentId) : BoundingBox =
@@ -202,3 +227,4 @@ let getPortsBtwnSyms (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Sym
         ports |> List.filter (fun port -> ComponentId port.HostId = symbol.Id)
 
     (fiterPortInfoBySym symToOrder, fiterPortInfoBySym otherSym)
+

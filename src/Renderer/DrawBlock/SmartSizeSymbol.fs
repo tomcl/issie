@@ -24,53 +24,57 @@ open Operators
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
 /// HLP23: It should work out the interconnecting wires (wires) from 
-////the two symbols, wModel.Wires and sModel.Ports
+/// the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
-/// HLP23: when this function is written replace teh XML comment by something suitable concisely
+/// HLP23: when this function is written replace the XML comment by something suitable concisely
 /// stating what it does.
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
-    (symbolToSize: Symbol) // care about hscale and vscale and portmaps which describe the ports for each edge and vice versa & component H + W
+    (symbolToSize: Symbol)
     (otherSymbol: Symbol) 
         : BusWireT.Model =
+    // Currently works on the assumption that symbolToSize is always on the receiving end of wires
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
     printfn "%A" sModel.Ports
     printfn "%A" wModel.Wires
-    printfn "%A" otherSymbol.Id
+    //printfn "%A" otherSymbol.Id // could use HostID to find which way the wires are going
 
-    let wires = wModel.Wires // line 193 and 325
+    let wires = wModel.Wires
     let ports = sModel.Ports
-    // sModel.Ports -> search for port ids from wires values
-
-    //let posFinder (wires: Map<ConnectionId,Wire>) (ports: Map<string, Port>) =
-        //let wireList = Map.toList wires
-        //let currWire = snd wireList[0]
-
-        //let startPos = currWire.StartPos
-
-        //let key = string currWire.InputPort
-        //let currPort = ports[key]
-        //let portNum = currPort.PortNumber
-        //let portHost = currPort.HostId
-
-        //startPos
     
-    let wireList = Map.toList wires
-    let currWire = snd wireList[0]
+    let wireList = (Map.toList wires) |> List.map (fun x -> snd x)
+    // picks out wires going from otherSymbol to symbolToSize
+    let connectedWires = SmartHelpers.findInterconnectingWires wireList sModel symbolToSize otherSymbol 0
 
-    let startPos = currWire.StartPos
+    // Port position testing:
+    //let testRes = wireList |> List.map (fun wire -> wire.StartPos)
+    //printfn "%A" testRes
+    //printfn "%A" otherSymbol.Pos.Y
+    //printfn "%A" otherSymbol.Component.H
 
+    let currWire = connectedWires[0] // need to extend this to all wires using Fold
     let key = string currWire.InputPort
     let currPort = ports[key]
-    let portNum = currPort.PortNumber
-    let portHost = currPort.HostId
+    let x = symbolToSize.Component.X
+    let y = symbolToSize.Component.Y
+    let h = symbolToSize.Component.H
 
-    //if portHost == symbolToSize.Id then
-    //    let endSymbol = symbolToSize
-    //else
-    //    let
+    let portEdge = symbolToSize.PortMaps.Orientation[key]
 
+    let portCount = float (symbolToSize.PortMaps.Order[portEdge] |> List.length)
+    let portNum = 
+        match currPort.PortNumber with
+        | None -> -1.0
+        | Some x -> float x
+
+    let startPos = currWire.StartPos.X, currWire.StartPos.Y
+    let endPos = x, y + (h * (portNum + 1.0))/(portCount + 1.0)
+
+    printfn "%A" startPos
+    printfn "%A" endPos
+    
+    // basic resizing
     let hScale = otherSymbol.Component.W / symbolToSize.Component.W
     let vScale = otherSymbol.Component.H / symbolToSize.Component.H
 

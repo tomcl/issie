@@ -188,48 +188,52 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 /// Draw symbol (and its label) using theme for colors, returning a list of React components 
 /// implementing all of the text and shapes needed.
 
-let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) =
+let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) 
+                  w h symbol transform legendFontSize legendOffset=
 
-    if symbolType = NewSymbols then createBiColorPolygon points colour outlineColour opacity strokeWidth comp
+    match symbolType with 
+    |NewSymbols ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+                    @(addLegendText (legendOffset w h symbol) 
+                    (getComponentLegend comp.Type transform.Rotation) "middle" "bold" (legendFontSize comp.Type))
 
-    else
-        let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
-        match comp.Type with
-        |And -> let curveAttr = makePartArcAttr 5. (-(comp.W/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
-                let vertLineAttr = makeLineAttr 0 comp.H
-                let fillSquare = makePolygon ($"0,0 {comp.W/2.},0 {comp.W/2.},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
-                [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
-                makeAnyPath {X = comp.W/2.; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
-                makeAnyPath {X = comp.W/2.; Y = comp.H} curveAttr parameters]
+    |_ ->   let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
+            
+            match comp.Type with
+            |And -> let curveAttr = makePartArcAttr 5. (-(comp.W/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
+                    let vertLineAttr = makeLineAttr 0 comp.H
+                    let fillSquare = makePolygon ($"0,0 {comp.W/2.},0 {comp.W/2.},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
+                    [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
+                    makeAnyPath {X = comp.W/2.; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
+                    makeAnyPath {X = comp.W/2.; Y = comp.H} curveAttr parameters]
 
-        |Nand ->let radius = 4.
-                let width = (comp.W/2.)-radius
-                let curveAttr = makePartArcAttr 5. (-(comp.W/2.)) (-(comp.W/2.)) (comp.H/2.) ((comp.W/2.))
-                let vertLineAttr = makeLineAttr 0 comp.H
-                let fillSquare = makePolygon ($"0,0 {width},0 {width},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
-                [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
-                makeAnyPath {X = width; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
-                makeAnyPath {X = width; Y = comp.H} curveAttr parameters;
-                makeCircle (width*2.+(2.*radius)) (comp.H/2.0) {defaultCircle with R = radius; Fill = parameters.Fill}]
+            |Nand ->let radius = 4.
+                    let width = (comp.W/2.)-radius
+                    let curveAttr = makePartArcAttr 5. (-(comp.W/2.)) (-(comp.W/2.)) (comp.H/2.) ((comp.W/2.))
+                    let vertLineAttr = makeLineAttr 0 comp.H
+                    let fillSquare = makePolygon ($"0,0 {width},0 {width},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
+                    [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
+                    makeAnyPath {X = width; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
+                    makeAnyPath {X = width; Y = comp.H} curveAttr parameters;
+                    makeCircle (width*2.+(2.*radius)) (comp.H/2.0) {defaultCircle with R = radius; Fill = parameters.Fill}]
 
-        |Or ->  [makeAnyPath {X = 0; Y = 0} (makeBoomerang -20.0 -7.0 30. 70. 25. 50.) parameters]
+            |Or ->  [makeAnyPath {X = 0; Y = 0} (makeBoomerang -20.0 -7.0 30. 70. 25. 50.) parameters]
 
-        |Nor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 25. 60. 25. 50.) parameters;
-                makeCircle 43 (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
+            |Nor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 25. 60. 25. 50.) parameters;
+                    makeCircle 43 (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
 
-        |Not -> let notRadius = 3.
-                let width = comp.W-(notRadius*2.)
-                [makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
-                makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}]
+            |Not -> let notRadius = 3.
+                    let width = comp.W-(notRadius*2.)
+                    [makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
+                    makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}]
 
-        |Xor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 30. 70. 25. 50.) parameters; 
-                makeAnyPath {X= -22; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"}]
+            |Xor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 30. 70. 25. 50.) parameters; 
+                    makeAnyPath {X= -22; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"}]
 
-        |Xnor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 25. 60. 25. 50.) parameters; 
-                makeAnyPath {X= -22; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"};
-                makeCircle (43) (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
+            |Xnor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 25. 60. 25. 50.) parameters; 
+                    makeAnyPath {X= -22; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"};
+                    makeCircle (43) (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
 
-        |_ ->   createBiColorPolygon points colour outlineColour opacity strokeWidth comp
+            |_ ->   createBiColorPolygon points colour outlineColour opacity strokeWidth comp
 
 let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let appear = symbol.Appearance
@@ -498,16 +502,10 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addLegendText 
-                        (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) 
-                        "middle" 
-                        "bold" 
-                        (legendFontSize comp.Type))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (drawComponet comp strokeWidth points colour outlineColour opacity theme)
+    |> List.append (drawComponet comp strokeWidth points colour outlineColour opacity theme w h symbol transform legendFontSize legendOffset)
 
 
 //----------------------------------------------------------------------------------------//

@@ -54,20 +54,27 @@ let getPortInfo (model: SymbolT.Model) (portId: PortId) =
 
 /// Finds the Dominant Edge of a Symbol given a subset of its ports.
 /// A dominant edge is defined as an edge where a symbol has a port but no port on its opposite edge.
-/// It's the direction a symbol faces.
+/// If no such edge exists, its an edge with the most number of ports.
+/// Dominant Edge is the direction a symbol faces.
 let getSymDominantEdge (symPorts: PortInfo list) =
     let edgeExists (edge: Edge) =
         symPorts |> List.exists (fun port -> port.Orientation = edge)
 
+    let modeEdge =
+        symPorts
+        |> List.countBy (fun port -> port.Orientation)
+        |> List.sortByDescending snd
+        |> List.head
+        |> fst
+
     match symPorts with
     | [] -> Left // Default to a Left Dominant Edge.
-    | hd :: _ ->
-        let port =
-            symPorts
-            |> List.tryFind (fun port -> not (edgeExists port.Orientation.Opposite))
-            |> Option.defaultValue hd
-
-        port.Orientation
+    | _ :: _ ->
+        symPorts
+        |> List.tryFind (fun port -> not (edgeExists port.Orientation.Opposite))
+        |> function
+            | Some port -> port.Orientation
+            | _ -> modeEdge // Otherwise get Mode Edge
 
 /// Unwrap a symbol's port in a Clockwise or AntiClockwise given a dominant edge.
 /// Eg. For a Top Dominant Edge AntiClockwise ordering, we order the ports from Right, Top, Left then Bottom Edge.
@@ -95,7 +102,6 @@ let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
     | Right -> unwrpByDirection 1
     | Bottom -> unwrpByDirection 2
     | Left -> unwrpByDirection 3
-
 
 /// Gets Symbol Reordering Information.
 let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =

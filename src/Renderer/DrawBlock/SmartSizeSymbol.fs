@@ -30,16 +30,28 @@ open Operators
 /// stating what it does.
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
-    (symbolToSize: Symbol) 
+    (symbolToSize: Symbol) // care about hscale and vscale and portmaps which describe the ports for each edge and vice versa & component H + W
     (otherSymbol: Symbol) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
+    let outPorts = Map.toList sModel.OutputPortsConnected
+    let inPorts = sModel.InputPortsConnected
+    printfn "%A" outPorts.Length
+    printfn "%A" (Set.count inPorts)
+    //printfn $"ReSizeSymbol: OutputPorts:{outPorts}, Other:{inPorts}"
 
-    let wires = [] // replace this with correct wires
+    let wires = wModel.Wires // line 193 and 325
+    // sModel.Ports -> search for port ids from wires values?
+    // alternatively match sModel.OutputPortsConnected to sModel.InputPortsConnected by indexing the map with every set element
+    
+    let hScale = otherSymbol.Component.W / symbolToSize.Component.W
+    let vScale = otherSymbol.Component.H / symbolToSize.Component.H
 
-    let symbol' = symbolToSize // no change at the moment
+    let symbol' = {symbolToSize with HScale = Some hScale; VScale = Some vScale}
+
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
+    // Add new wires to model & new symbols to model map
     {wModel with 
         Wires = wModel.Wires // no change for now, but probably this function should use update wires after resizing.
                              // to make that happen the test function which calls this would need to provide an updateWire

@@ -240,6 +240,8 @@ module SymbolT =
         /// Taking the input and..
         | MovePort of portId: string * move: XYPos
         | MovePortDone of portId: string * move: XYPos
+        | ResizeSymbol of compId: ComponentId * corner: XYPos
+        | ResizeSymbolDone of compId: ComponentId * corner: XYPos
         | SaveSymbols
         | SetTheme of ThemeType
              //------------------------Sheet interface message----------------------------//
@@ -383,6 +385,7 @@ module SheetT =
         | OutputPort of CommonTypes.OutputPortId * XYPos
         | Component of CommonTypes.ComponentId
         | Connection of CommonTypes.ConnectionId
+        | ComponentCorner of CommonTypes.ComponentId * XYPos
         | Canvas
 
     /// Keeps track of the current action that the user is doing
@@ -402,6 +405,7 @@ module SheetT =
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
+        | ResizingSymbol of CommonTypes.ComponentId
 
     type UndoAction =
         | MoveBackSymbol of CommonTypes.ComponentId List * XYPos

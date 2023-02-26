@@ -41,6 +41,8 @@ let reSizeSymbol
     (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
+    printfn $"Symbol XYPos: {symbolToSize.Pos}"
+    printfn $"Component XYPos: {symbolToSize.Component.X}, {symbolToSize.Component.Y}"
     let sModel = wModel.Symbol
 
     let wires = [] // replace this with correct wires

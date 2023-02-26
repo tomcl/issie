@@ -291,6 +291,13 @@ let mDownUpdate
                 {model with Action = MovingPort portIdstr}
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
 
+        | ComponentCorner (compId, cornerLoc) ->
+            if not model.CtrlKeyDown then
+                model, Cmd.none
+            else
+                {model with Action = ResizingSymbol compId}
+                , symbolCmd (SymbolT.ResizeSymbol (compId, mMsg.Pos))
+
         | Component compId ->
 
             let msg, action = DoNothing, InitialiseMoving compId
@@ -459,6 +466,8 @@ let mDragUpdate
 
     | MovingPort portId->
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
+    | ResizingSymbol compId ->
+        model, symbolCmd (SymbolT.ResizeSymbol (compId, mMsg.Pos))
     | Panning initPos->
         let sPos = initPos - mMsg.ScreenPage
         model, Cmd.ofMsg (Msg.UpdateScrollPos sPos)
@@ -560,6 +569,11 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             symbolCmd (SymbolT.MovePortDone (portId, mMsg.Pos))
             wireCmd (BusWireT.UpdateSymbolWires symbol);
             wireCmd (BusWireT.RerouteWire portId)]
+    | ResizingSymbol compId -> 
+        {model with Action = Idle},
+        Cmd.batch [
+            symbolCmd (SymbolT.ResizeSymbolDone (compId, mMsg.Pos))
+            wireCmd (BusWireT.UpdateSymbolWires compId);]
     | _ -> model, Cmd.none
 
 /// Mouse Move Update, looks for nearby components and looks if mouse is on a port

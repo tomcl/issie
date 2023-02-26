@@ -124,3 +124,20 @@ let reOrderPorts
         Wires = Map.ofList ListWires
         Symbol = newSmodel
     }
+
+
+
+
+
+
+let multipleReorderPorts 
+        (wModel: BusWireT.Model)
+        (symbols : Symbol list)
+        : BusWireT.Model =
+    let sModel = wModel.Symbol
+
+    printfn $"MultipleReorderPorts: Symbols:{symbols |> List.map (fun x -> x.Component.Type)}"
+
+    wModel
+
+        

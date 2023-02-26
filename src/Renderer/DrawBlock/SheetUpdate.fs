@@ -759,6 +759,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
+    
+    | KeyPress CtrlT ->
+        //Added test code to test multiple components
+        // Must select 2 or more componenets for it to work
+         validateMultipleSelectedSymbols model
+         |> function
+            | Some s -> 
+                {model with Wire = SmartPortOrder.multipleReorderPorts model.Wire s}, Cmd.none
+            | None -> 
+                printfn "Error: can't validate two or more symbols selected to reorder ports"
+                model, Cmd.none
+
     | TestSmartChannel ->
         // Test code called from Edit menu item
         // Validate the list of selected symbols: it muts have just two for

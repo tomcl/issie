@@ -67,9 +67,9 @@ let updateModelSymbols
 //It checks if the component is a component that contains a select port
 //HLP23: AUTHOR Khoury
 let CheckSelectComponent 
-    (InputType : ComponentType)
+    (inputType : ComponentType)
         : bool =
-    match InputType with
+    match inputType with
     | Mux2 -> true
     | Mux4 -> true
     | Mux8 -> true

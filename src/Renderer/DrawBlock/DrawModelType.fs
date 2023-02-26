@@ -435,7 +435,7 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlR
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlR | CtrlT
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -529,6 +529,7 @@ module SheetT =
         | TestPortReorder
         | TestSmartChannel
         | TestPortPosition
+        | TestPortReorder2
 
 
     type ReadLog = | ReadLog of int

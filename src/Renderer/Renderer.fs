@@ -237,6 +237,7 @@ let editMenu dispatch' =
                makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
                menuSeparator
                makeElmItem "TestPortReorder" "CmdOrCtrl+R" (fun () -> dispatch SheetT.KeyboardMsg.CtrlR)
+               makeElmItem "TestPortReorder2" "CmdOrCtrl+T" (fun () -> dispatch SheetT.KeyboardMsg.CtrlT)
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
 

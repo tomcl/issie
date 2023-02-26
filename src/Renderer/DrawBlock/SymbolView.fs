@@ -113,6 +113,12 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
         |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {defaultLine with Stroke="DodgerBlue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
         |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
 
+
+// TODO: a
+/// HLP23 AUTHOR: BRYAN TAN
+let drawCorners (showCorners: ShowCorners) (symb: Symbol) =
+    []
+
 //------------------------------------------------------------------------------------------------//
 //------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS------------------------------//
 //------------------------------------------------------------------------------------------------//
@@ -189,6 +195,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
     // let showOutputPorts = appear.ShowOutputPorts
+    let showCorners = appear.ShowCorners /// HLP23 AUTHOR: BRYAN TAN
     let opacity = appear.Opacity
     let comp = symbol.Component
     let h,w = getRotatedHAndW symbol
@@ -450,6 +457,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+    |> List.append (drawCorners showCorners symbol) // HLP23 AUTHOR: BRYAN TAN
     |> List.append (addLegendText 
                         (legendOffset w h symbol) 
                         (getComponentLegend comp.Type transform.Rotation) 

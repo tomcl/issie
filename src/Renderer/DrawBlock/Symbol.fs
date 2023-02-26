@@ -673,6 +673,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
           {
             HighlightLabel = false
             ShowPorts = ShowNone
+            ShowCorners = DontShow // HLP23 AUTHOR: BRYAN TAN
             Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
           }

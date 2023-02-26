@@ -59,6 +59,7 @@
     <Compile Include="DrawBlock\Symbol.fs" />
 	<Compile Include="DrawBlock\SymbolView.fs" />
 	<Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
+  <Compile Include="DrawBlock\SymbolUpdateResizeHelpers.fs" />
 	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />

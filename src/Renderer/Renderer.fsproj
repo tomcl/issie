@@ -65,6 +65,7 @@
 	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
 	<Compile Include="DrawBlock\SmartHelpers.fs" />
 	<Compile Include="DrawBlock\SmartWire.fs" />
+	<Compile Include="DrawBlock\SmartWireLabel.fs" />
 	<Compile Include="DrawBlock\SmartChannel.fs" />
 	<Compile Include="DrawBlock\SmartPortOrder.fs" />
 	<Compile Include="DrawBlock\SmartSizeSymbol.fs" />

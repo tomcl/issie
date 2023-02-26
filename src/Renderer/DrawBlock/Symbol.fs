@@ -177,7 +177,7 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
 let getSymbolColour compType clocked (theme:ThemeType) =
     match theme with
     | White | Light -> "lightgray"
-    | Colourful ->
+    | _ ->
         match compType with
         | Register _ | RegisterE _ 
         | ROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 

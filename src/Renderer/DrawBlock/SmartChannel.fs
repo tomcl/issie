@@ -4,6 +4,7 @@ open CommonTypes
 open Elmish
 open DrawHelpers
 open DrawModelType.SymbolT
+open DrawModelType.SheetT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
@@ -95,7 +96,7 @@ let categoriseUpdown (seg : Segment) =
     | x when x < 0 -> Up
 
 //Function to sort out the wires within any category based on travelling up or down
-let sortUpDown (orientation : Orientation) (segs : List<Segment*(XYPos*XYPos)>) =
+let sortUpDown (model : Model) (orientation : Orientation) (segs : List<Segment*(XYPos*XYPos)>) :  List<List<Segment*(XYPos*XYPos)>>=
     let categorisedList = 
         segs 
         |> List.groupBy (fun element -> categoriseUpdown (fst element))
@@ -104,11 +105,15 @@ let sortUpDown (orientation : Orientation) (segs : List<Segment*(XYPos*XYPos)>) 
         |> List.filter (fun element -> fst element = Up)
         |> List.collect snd
         |> List.sortBy (fun element -> if orientation = Vertical then (snd (snd element)).Y else (fst (snd element)).X )
+        |> List.groupBy (fun (seg, posTuple) -> model.Wires[seg.WireId].OutputPort)
+        |> List.map snd
     let downList =
         categorisedList 
         |> List.filter (fun element -> fst element = Down)
         |> List.collect snd
         |> List.sortByDescending (fun element -> if orientation = Vertical then (snd (snd element)).Y else (snd (snd element)).X )
+        |> List.groupBy (fun (seg, posTuple) -> model.Wires[seg.WireId].OutputPort)
+        |> List.map snd
     downList @ upLst
 
 //Specialised helper function to return the vertical segments of a HarryPotter wire
@@ -142,29 +147,29 @@ let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<
         segList
         |> List.filter (fun element -> snd element = ZigZagCross)
         |> List.map fst
-        |> sortUpDown orientation
+        |> sortUpDown model orientation
     let PassThroughList = 
         segList 
         |> List.filter (fun element -> snd element = PassThrough) 
         |> List.map fst
-        |> sortUpDown orientation
+        |> sortUpDown model orientation
     let OriginateList = 
         segList 
         |> List.filter (fun element -> snd element = Originates) 
         |> List.map fst
-        |> sortUpDown orientation
+        |> sortUpDown model orientation
     let TerminatesList = 
         segList 
         |> List.filter (fun element -> snd element = Terminates) 
         |> List.map fst
-        |> sortUpDown orientation
+        |> sortUpDown model orientation
     let LList =
         segList 
         |> List.filter (fun element -> snd element = LShape) 
         |> List.map fst
-        |> sortUpDown orientation
+        |> sortUpDown model orientation
     let TooDifficult = lst |> List.filter (fun element -> snd element = TooDifficult) |> List.map fst
-    (leftHarry|> sortUpDown orientation) @ OriginateList  @ PassThroughList @ LList @ ZiggZaggList  @ TerminatesList @ (rightHarry|> sortUpDown orientation), TooDifficult
+    (leftHarry|> sortUpDown model orientation) @ OriginateList  @ PassThroughList @ LList @ ZiggZaggList  @ TerminatesList @ (rightHarry|> sortUpDown model orientation), TooDifficult
     
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -194,17 +199,22 @@ let filterShiftedWires (lst : List<Wire* Segment>) =
         |> List.map fst
     unsafeList, safeList
 
-let createShiftedWires (orientation : Orientation) (model : Model) (bounds: BoundingBox) (segList : List<Segment*(XYPos*XYPos)>)  = 
-    let converterFolder (lst ,counter) (seg, (startPos:XYPos, endPos)) = 
+let createShiftedWires (orientation : Orientation) (model : Model) (bounds: BoundingBox) (segList : List<List<Segment*(XYPos*XYPos)>>)  = 
+    let innerSegFolder (increment : float ) (lst) (seg, (startPos:XYPos, endPos)) = 
         match orientation with
-        | Vertical -> lst@[moveSegment model seg -(startPos.X - (bounds.TopLeft.X - bounds.W + counter *(bounds.W / float (segList.Length + 1)))) , seg], counter + 1.0
-        | Horizontal -> lst@[moveSegment model seg -(startPos.Y - (bounds.TopLeft.Y + counter *(bounds.H / float (segList.Length + 1)))), seg], counter + 1.0
-    (([], 1.0), segList)||> List.fold converterFolder 
+        | Vertical -> lst@[moveSegment model seg -(startPos.X - (bounds.TopLeft.X - bounds.W + increment *(bounds.W / float (segList.Length + 1)))) , seg]
+        | Horizontal -> lst@[moveSegment model seg -(startPos.Y - (bounds.TopLeft.Y + increment *(bounds.H / float (segList.Length + 1)))), seg]
+    let outerSegFolder (stateLst, counter) (sgLst) =
+        let updatedList = (stateLst, sgLst) ||> List.fold (innerSegFolder counter)
+        updatedList, counter + 1.0 
+    (([], 1.0), segList)||> List.fold outerSegFolder 
     |> fst 
      
 let placeHolderForReplacement (wireList : List<Wire>) = 
     printfn "%A" "WIRES TO BE REPLACED: "
     wireList |> List.map (printfn "%A") |> ignore
+
+
 ///
 /// HLP23: suggested initial smartChannel top-level function
 /// to be tested, it must be given a channel in through which to route wires nicely
@@ -221,11 +231,15 @@ let placeHolderForReplacement (wireList : List<Wire>) =
 let smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 
-        (model:Model) 
-            :Model =
+        (fullModel: DrawModelType.SheetT.Model) 
+            : DrawModelType.SheetT.Model =
+
     let tl = channel.TopLeft
-    let correctBounds = {channel with TopLeft = {channel.TopLeft with X = channel.TopLeft.X - channel.W}}
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
+    let model = fullModel.Wire
+    
+    let correctBounds = {channel with TopLeft = {channel.TopLeft with X = channel.TopLeft.X - channel.W}}
+    
     let sortedWires, diffictulWires = 
         model 
         |> getWireList 
@@ -236,10 +250,14 @@ let smartChannelRoute
         sortedWires
         |> createShiftedWires channelOrientation model channel
         |> filterShiftedWires
-    moreDiffictultWires
-    |> List.append (diffictulWires |> List.map (fun element -> model.Wires[element.WireId]))
-    |> placeHolderForReplacement
-    wireListToModify
-    |> updateModelWires model 
+    //moreDiffictultWires
+    //|> List.append (diffictulWires |> List.map (fun element -> model.Wires[element.WireId]))
+    //|> placeHolderForReplacement
+    let updatedWireModel : DrawModelType.BusWireT.Model = 
+        wireListToModify
+        |> updateModelWires model 
+    {fullModel with Wire = updatedWireModel}
+
+
     
     

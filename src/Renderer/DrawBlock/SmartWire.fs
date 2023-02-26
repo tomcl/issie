@@ -31,13 +31,13 @@ open System
 *)
 
 
-// define a D.U. for the different return types of the smart autoroute function
+/// discriminated union for return type of the smart autoroute function
 type SmartAutorouteResult =
     | ModelT of Model
     | WireT of Wire
 
 
-// helper function for finding matching symbol in model for given port ids on wire - current issue is finding the symbol with the matching input port id
+/// finds matching symbol in model for given port ids on wire - CURRENT ISSUE is finding the symbol with the matching input port id
 let findInputSymbol (model: Model) (wire: Wire) : Symbol option = 
     let port = string wire.InputPort
     let symbolValues =
@@ -51,7 +51,7 @@ let findInputSymbol (model: Model) (wire: Wire) : Symbol option =
         |> List.tryHead
     symbolsWithPortId
 
-// helper function for finding matching symbol in model for given port ids on wire - current issue is finding the symbol with the matching input port id
+/// finds matching symbol in model for given port ids on wire - CURRENT ISSUE is finding the symbol with the matching input port id
 let findOutputSymbol (model: Model) (wire: Wire) : Symbol option = 
     let port = string wire.OutputPort
     let symbolValues =
@@ -66,7 +66,7 @@ let findOutputSymbol (model: Model) (wire: Wire) : Symbol option =
     symbolsWithPortId
 
 
-// helper function for finding if wire is connected from and to the same symbol
+/// determines if wire is connected from and to the same symbol
 let isSelfConnected (model: Model) (wire: Wire) : bool = 
     let inputPort = string wire.InputPort
     let outputPort = string wire.OutputPort
@@ -84,25 +84,22 @@ let isSelfConnected (model: Model) (wire: Wire) : bool =
         | None -> false
 
 
-/// returns the height needed to hug the symbol, if needed
-/// MAKE IT WORK FOR VERTICAL HUGGING CASES
-let huggingDistance (model: Model) (wire: Wire) (symbol: Symbol) : float = 
+/// calculates the height needed to hug the symbol
+let huggingDistance (model: Model) (wire: Wire) (symbol: Symbol) : float * float = 
     let inputPort = string wire.InputPort
     let portPos = symbol.PortMaps.Orientation |> Map.find inputPort
     let boundaryBox = symbolBox symbol
     let outputPortPos, inputPortPos =
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
 
-    let hugDistance = (snd boundaryBox[3]) - outputPortPos.Y
-    printfn "hug distance: %A" hugDistance
-    printfn "port position: %A" portPos
-    printfn "boundary box bottom: %A" (snd boundaryBox[3])
-    printfn "wire start position: %A" outputPortPos.Y
+    let hugDistance = 
+        // tuple for the left and right distance needed to hug the symbol
+        (snd boundaryBox[3]) - outputPortPos.Y, (snd boundaryBox[3]) - inputPortPos.Y 
 
     match portPos with
         | Left -> hugDistance
         | Right -> hugDistance
-        | _ -> 0.0
+        | _ -> 0.0, 0.0
 
 
 /// route wire connected across same symbol
@@ -114,49 +111,72 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
         symbolFound.PortMaps.Order[outputPortEdge] 
         |> List.findIndex (fun port -> port = string wire.OutputPort)
 
-    printfn "output port index: %A" outputPortIndex
     // make huglength dependent on the port index
-    let lengthAdjustment = (float outputPortIndex * 5.0)
+    let lengthAdjustment = float outputPortIndex * 5.0
+
+    printfn "output port index: %A" outputPortIndex
+
     let hugDist = huggingDistance model wire symbolFound
-    let hugLength = hugDist + lengthAdjustment    // need to find a way to remove the 20.0 offset - huglength function should be fixed
+    let leftHugLength = 10.0 + fst hugDist + lengthAdjustment   
+    let rightHugLength = 10.0 + snd hugDist + lengthAdjustment
     let seperation = 7.0 + lengthAdjustment
 
-    printfn "hug length with adjustments: %A" hugLength
+    // offset the input extension (wire.Segments[6]) based on the output port index 
+    let inputExtension = 
+        match outputPortIndex with
+            | l when l<2 -> -2.0
+            | 2 -> 0.0
+            | 3 -> 3.0
+            | 4 -> 5.0
+            | 5 -> 7.0
+            | 6 -> 10.0
+            | _ -> 12.0
 
     let newWires = 
-        let newOutputSegment: Segment = {wire.Segments[2] with Length =  wire.Segments[2].Length + (seperation)}
-        let newInputSegment: Segment = {wire.Segments[6] with Length =  wire.Segments[6].Length + (seperation)}
-        let newFirstSegment: Segment = {wire.Segments[3] with Length =  wire.Segments[3].Length + hugLength}
-        let newMiddleSegment: Segment = {wire.Segments[4] with Length =  wire.Segments[4].Length - (seperation * 2.)}
-        let newThirdSegment: Segment = {wire.Segments[5] with Length =  wire.Segments[5].Length - hugLength}
+        let newOutputSegment: Segment = {wire.Segments[2] with Length = wire.Segments[2].Length + (seperation)}
+        let newInputSegment: Segment = {wire.Segments[6] with Length = wire.Segments[6].Length + (seperation) - inputExtension}
+        let newFirstSegment: Segment = {wire.Segments[3] with Length = rightHugLength}
+        let newMiddleSegment: Segment = {wire.Segments[4] with Length = wire.Segments[4].Length - (seperation * 2.)}
+        let newThirdSegment: Segment = {wire.Segments[5] with Length = -leftHugLength}
         let newZeroSegment: Segment = {wire.Segments[0] with Length =  wire.Segments[0].Length + (seperation / 2.)}
         let newRoute: Wire = {wire with Segments = [newZeroSegment; wire.Segments[1]; newOutputSegment; newFirstSegment;  newMiddleSegment; newThirdSegment; newInputSegment; wire.Segments[7]]}
         newRoute 
-    // match hugDist with
-    //     | 0. -> wire     // TEST TO SEE IF THIS THRESHOLD IS SUFFICIENT
-    //     | _ -> newWires
+
     let inputPort = string wire.InputPort
     let portPos = symbolFound.PortMaps.Orientation |> Map.find inputPort
+
+    // FIND BETTER PLACE TO HAVE THE TWO FUNCTIONS BELOW
+    let boundaryBox = symbolBox symbolFound 
+    let outputPortPos, inputPortPos =
+        Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
+
     match portPos with
         | Left -> newWires
         | Right -> newWires
         | _ -> 
-            // only adjust two parts of the wire
+            let rightVertical = 
+                ((snd boundaryBox[3]) - inputPortPos.Y) + 10.0 + lengthAdjustment
+            let leftVertical = 
+                ((snd boundaryBox[3]) - outputPortPos.Y) + 8.0 + lengthAdjustment
+            let horizontalSeperation = 
+                match outputPortIndex with
+                    | 0 -> 10.5
+                    | 1 -> 11.0 + (float outputPortIndex * 7.0)
+                    | 2 -> 11.0 + (float outputPortIndex * 7.0)
+                    | _ -> 11.0 + (float outputPortIndex * 7.5)
             let newWires = 
-                let newSecondSegment: Segment = {wire.Segments[2] with Length =  wire.Segments[2].Length + lengthAdjustment}
-                let newThirdSegment: Segment = {wire.Segments[3] with Length =  wire.Segments[3].Length + lengthAdjustment}
-                let newFourthSegment: Segment = {wire.Segments[4] with Length =  wire.Segments[4].Length - lengthAdjustment}
-                let newSeventhSegment: Segment = {wire.Segments[7] with Length =  wire.Segments[7].Length - lengthAdjustment}
+                let newSecondSegment: Segment = {wire.Segments[2] with Length =  wire.Segments[2].Length + horizontalSeperation}
+                let newThirdSegment: Segment = {wire.Segments[3] with Length =  rightVertical} // vertical     wire.Segments[3].Length + lengthAdjustment
+                let newFourthSegment: Segment = {wire.Segments[4] with Length =  wire.Segments[4].Length - horizontalSeperation}
+                let newSeventhSegment: Segment = {wire.Segments[7] with Length =  -leftVertical} // vertical   wire.Segments[7].Length - lengthAdjustment  
                 let newRoute: Wire = {wire with Segments = [wire.Segments[0]; wire.Segments[1]; newSecondSegment; newThirdSegment;  newFourthSegment; wire.Segments[5]; wire.Segments[6]; newSeventhSegment]}
                 newRoute
             newWires
-    // wire
 
 
 
-/// helper function that routes a wire from input port to output port around the symbol, rather than through it
+/// routes a wire from input port to output port around the symbol, rather than through it
 let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire = 
-    // let autoWire = autoroute model wire         // CHECK IF NEEDED
     let selfConnected = isSelfConnected model wire
     let routing = 
         match selfConnected with
@@ -182,7 +202,6 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                                 let symbolBox = symbolBox symbol
                                 let symbolTopLeftPos = symbolBox[0]
                                 let symbolTopRightPos = symbolBox[1]
-                                let symbolBottomLeftPos = symbolBox[2]
                                 let symbolBottomRightPos = symbolBox[3]
                                 let symbolLeft = fst symbolTopLeftPos
                                 let symbolRight = fst symbolTopRightPos
@@ -196,22 +215,22 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                                 printfn "wire top left dims: %A" leftCornerPos
                                 printfn "wire end pos  dims: %A" wireEndpos
 
-                                let symbolInWay = // REDUCE LATER TO GROUP ALL INTERSECTION CASES TO AN ELSE CONDITION
+                                let symbolInWay = 
                                     if symbolLeft > wireLeft && symbolLeft < wireRight && symbolTop < wireTop && symbolBottom > wireTop then 
                                         printfn "symbol in way of right segment of wire"
                                         true
                                     elif symbolLeft > wire.StartPos.X && symbolLeft < (fst bottomLeftCornerPos) && symbolTop < (snd bottomLeftCornerPos) && symbolBottom > (snd bottomLeftCornerPos) then 
                                         printfn "symbol in way of left segment of wire"
                                         true
-                                    // case where symbol is along middle vertical wire segement - symbol goes through bottomLeftCornerPos and leftCornerPos:
-                                    elif symbolLeft < wireLeft && symbolRight > wireLeft && symbolTop > wireTop && symbolBottom < (snd bottomLeftCornerPos) then
+                                    elif symbolLeft < wireLeft && symbolRight > wireLeft && (symbolTop > wireTop || symbolBottom < (snd bottomLeftCornerPos)) then
+                                        // case where symbol is along middle vertical wire segement - symbol goes through bottomLeftCornerPos and leftCornerPos:
                                         printfn "symbol in way of middle segment of wire"
                                         true
                                     else false 
                                 
                                 symbolInWay)                        
-                            // |> List.tryHead
-                        // //iterate through the list of symbols in the way and adjust the wire segments accordingly and return the wire with the adjusted segments
+
+                        // iterate through the list of symbols in the way and adjust the wire segments accordingly and return the wire with the adjusted segments
                         let rec adjustWireSegments wire symbolList =
                             match symbolList with
                             | [] -> wire
@@ -245,7 +264,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                                         let newThirdSegment = { wire.Segments.[3] with Length = wire.Segments.[3].Length - 5. - (symbolBottom - snd bottomLeftCornerPos) }
                                         { wire with Segments = [ wire.Segments.[0]; newFirstSegment; wire.Segments.[2]; newThirdSegment; wire.Segments.[4]; wire.Segments.[5]; wire.Segments.[6] ] }
                                     
-                                    elif symbolLeft < wireLeft && symbolRight > wireLeft && symbolTop > wireTop && symbolBottom < (snd bottomLeftCornerPos) then
+                                    elif symbolLeft < wireLeft && symbolRight > wireLeft && (symbolTop > wireTop || symbolBottom < (snd bottomLeftCornerPos)) then
                                         printfn "symbol in way of middle segment of wire"
                                         let newSecondSegment = { wire.Segments.[2] with Length = wire.Segments.[2].Length + 5. + (symbolRight - wireRight) }
                                         let newFourthSegment = { wire.Segments.[4] with Length = wire.Segments.[4].Length - 5. - (symbolRight - wireRight) }
@@ -262,10 +281,8 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                         let newWire = adjustWireSegments wire symbolInWay
                         newWire
 
-
-
                     | _ -> wire
-                
+    
     routing
 
 
@@ -282,7 +299,7 @@ let wireLabelComponent (id: string) (name: string) (portPos: XYPos): Component =
     let outputPorts = createPortList PortType.Output 1 id
     // printfn "output ports: %A" outputPorts
     let portOrientationMap = inputPorts |> List.map (fun port -> port.Id, Left) |> Map.ofList |> Map.add (outputPorts |> List.head).Id Right      
-     // type: 'Map<Edge,string list>
+    // type: 'Map<Edge,string list>
     let portOrderMap = 
         let inputs =  [Left, inputPorts |> List.map (fun port -> port.Id)]
         let outputs = [Right, outputPorts |> List.map (fun port -> port.Id)]
@@ -426,7 +443,7 @@ let wireLabelComponent (id: string) (name: string) (portPos: XYPos): Component =
 //     indexFinder ports 0
 
 
-/// helper function for creating wire labels at two symbols
+/// creates wire labels near two symbols
 let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutorouteResult = 
     let inputPort = wire.InputPort
     let outputPort = wire.OutputPort
@@ -524,15 +541,15 @@ let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutor
     ModelT newModel2
 
 
-/// helper function that finds wire in model by connection id
+/// finds wire in model by connection id
 let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
     match model.Wires |> Map.toList |> List.tryFind (fun (_, wire) -> wire.Segments.[0].WireId = connId) with
     | Some (_, wire) -> Some wire
     | _ -> None
 
 
-/// helper function that deletes wire from model by filtering out the wire
-/// FIXME: Wire remains connected to input port when moving function away from threshold
+/// deletes wire from model by filtering out the wire - CHECK
+// FIXME: Wire remains connected to input port when moving function away from threshold
 let deleteWire (model: Model) (wire: Wire) : SmartAutorouteResult = 
     
     printfn "wire id: %A" wire.WId 
@@ -588,4 +605,4 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
     // Change the test code to use the new return of autowire 
 
 // TO IMPLEMENT:
-    // NET WIRE GROUPING
+    // WIRE LABLES WITH WIRE  CONNECTED TO PORTS

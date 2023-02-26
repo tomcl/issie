@@ -29,18 +29,33 @@ open Operators
 let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: Symbol) : BusWireT.Model =
     printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
-    
+    printfn $"Input ports:{symbolToOrder.Component.InputPorts}, Output ports:{symbolToOrder.Component.OutputPorts}"
     let wiresToOrder1 = getConnectedWires wModel [symbolToOrder.Id] |> Set
     let wiresToOrder2 = getConnectedWires wModel [otherSymbol.Id] |> Set
     let wiresToOrder = Set.intersect wiresToOrder1 wiresToOrder2 |> Set.toList
     
-    let portConnections = List.map (fun x -> (x.InputPort, x.OutputPort)) (wiresToOrder : Wire list)
+    let symbolAIn = otherSymbol.Component.InputPorts
+    let symbolAout = otherSymbol.Component.OutputPorts
+    let symbolBIn = symbolToOrder.Component.InputPorts
+    let symbolBOut = symbolToOrder.Component.OutputPorts
+    
+    let portConnections = List.map (fun x -> (x.OutputPort, x.InputPort)) (wiresToOrder : Wire list)
     let list1, list2 = List.unzip portConnections
     
-    printfn $"Ports: {portConnections}"
+    let symbolAPortMap = symbolAout |> List.map (fun port -> (port.Id, port.PortNumber)) |> Map.ofList
+    let symbolBPortMap = symbolBIn |> List.map (fun port -> (port.Id, port.PortNumber)) |> Map.ofList
+    let stringPortConnections = List.map (fun (outputId, inputId) -> (inputId.ToString(), outputId.ToString())) portConnections
+
+    let PortNumberConnections = List.map (fun (inputId, outputId) -> 
+            let inputPortNumber = symbolBPortMap.[inputId]
+            let outputPortNumber = symbolAPortMap.[outputId]
+            (outputPortNumber, inputPortNumber)) stringPortConnections
+
+    
+    printfn $"Ports: {PortNumberConnections}"
     
     // replace this with correct wires
-    printfn $"Number of connected wires:{wiresToOrder.Length}"
+    printfn $"Number of wires to reorder:{wiresToOrder.Length}"
     let symbol' = symbolToOrder // no change at the moment
     // HLP23: This could be cleaned up using Optics - see SmartHelpers for examples
     { wModel with

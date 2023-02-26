@@ -35,16 +35,42 @@ let reSizeSymbol
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
-    let outPorts = Map.toList sModel.OutputPortsConnected
-    let inPorts = sModel.InputPortsConnected
-    printfn "%A" outPorts.Length
-    printfn "%A" (Set.count inPorts)
-    //printfn $"ReSizeSymbol: OutputPorts:{outPorts}, Other:{inPorts}"
+    printfn "%A" sModel.Ports
+    printfn "%A" wModel.Wires
+    printfn "%A" otherSymbol.Id
 
     let wires = wModel.Wires // line 193 and 325
-    // sModel.Ports -> search for port ids from wires values?
-    // alternatively match sModel.OutputPortsConnected to sModel.InputPortsConnected by indexing the map with every set element
+    let ports = sModel.Ports
+    // sModel.Ports -> search for port ids from wires values
+
+    //let posFinder (wires: Map<ConnectionId,Wire>) (ports: Map<string, Port>) =
+        //let wireList = Map.toList wires
+        //let currWire = snd wireList[0]
+
+        //let startPos = currWire.StartPos
+
+        //let key = string currWire.InputPort
+        //let currPort = ports[key]
+        //let portNum = currPort.PortNumber
+        //let portHost = currPort.HostId
+
+        //startPos
     
+    let wireList = Map.toList wires
+    let currWire = snd wireList[0]
+
+    let startPos = currWire.StartPos
+
+    let key = string currWire.InputPort
+    let currPort = ports[key]
+    let portNum = currPort.PortNumber
+    let portHost = currPort.HostId
+
+    //if portHost == symbolToSize.Id then
+    //    let endSymbol = symbolToSize
+    //else
+    //    let
+
     let hScale = otherSymbol.Component.W / symbolToSize.Component.W
     let vScale = otherSymbol.Component.H / symbolToSize.Component.H
 

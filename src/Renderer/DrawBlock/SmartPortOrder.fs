@@ -46,14 +46,13 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
     let symbolAPortMap = symbolAout |> List.map (fun port -> (port.Id, port.PortNumber)) |> Map.ofList
     let symbolBPortMap = symbolBIn |> List.map (fun port -> (port.Id, port.PortNumber)) |> Map.ofList
     let stringPortConnections = List.map (fun (outputId, inputId) -> (inputId.ToString(), outputId.ToString())) portConnections
-
     let PortNumberConnections = List.map (fun (inputId, outputId) -> 
             let inputPortNumber = symbolBPortMap.[inputId]
             let outputPortNumber = symbolAPortMap.[outputId]
             (outputPortNumber, inputPortNumber)) stringPortConnections
 
     //let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string): Symbol
-    //let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
+    
     let updatedSymbol = updatePortPos symbolToOrder symbolToOrder.Pos (list2[0].ToString())
     printfn $"Ports: {PortNumberConnections}"
     // replace this with correct wires

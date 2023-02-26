@@ -1,4 +1,5 @@
-﻿module SmartHelpers
+﻿
+module SmartHelpers
 open CommonTypes
 open DrawHelpers
 open DrawModelType
@@ -71,6 +72,15 @@ let updateModelSymbols
 //  details. Note that Optics are probably a little bit slower than F# record update (factor of 2)
 //  however in this case it does not matter because the time taken is << the Map update time.
 /// HLP23: AUTHOR Clarke
+let getPortXY (symbol: Symbol) (portId: PortId): XYPos =
+    let H = symbol.Component.H
+    let W = symbol.Component.W
+    let portMap = symbol.PortMaps
+    let symbolXY = symbol.Pos
+    let xyPos = { X = 9.0; Y = 9.0 }
+    xyPos
+
+
 let updateModelWires 
     (model: BusWireT.Model) 
     (wiresToAdd: Wire list)

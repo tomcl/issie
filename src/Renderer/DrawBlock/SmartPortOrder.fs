@@ -63,30 +63,25 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
                 (outputPortNumber, inputPortNumber))
             stringPortConnections
     
+    printfn $"PortConnections:{PortNumberConnections}"
     let PortNumberConnections2 = List.map (fun (x,y) -> (x |> Option.defaultValue 0, y |> Option.defaultValue 0)) PortNumberConnections
-    
-    let xyPos =
-        { X = 1875.953189889666
-          Y = 1523.493459541926 }
-    
+    printfn $"PortConnections2:{PortNumberConnections2}"
+    let PortNumberConnections3 = List.sortBy fst PortNumberConnections2
+    printfn $"PortConnections3:{PortNumberConnections3}"
+    let PortNumberConnections4 = List.map snd PortNumberConnections3
+    printfn $"PortConnections4:{PortNumberConnections4}"
     (*let filterList (stringList: string list) (tupleList: (int * int) list) =
         let indexSet = Set.ofList [ for (_, second) in tupleList -> second ]
         List.filter (fun (_, index) -> Set.contains index indexSet) (List.indexed stringList)
         |> List.map fst*)
         
-    let reorderStringIntList (intList: (int* int) list) (stringIntList: (string * int) list) =
-        let orderSet = intList |> List.map snd |> Set.ofSeq
-        List.sortBy (fun (_, second) -> Seq.tryFindIndex ((=) second) orderSet |> Option.defaultValue Int32.MaxValue) stringIntList
-
-    let reorderPortList (idList: string List) (portConnections: (int*int) List): string List =
-        let idListIndex = List.mapi (fun i x -> (x,i)) idList
-        //let toBeReordered = filterList idList
-        let reorderedList = reorderStringIntList  portConnections idListIndex
-        //let originalPositionTable = List.mapi (fun i x -> (i,x)) idList |> Map.ofList
-        List.map (fun (first, _) -> first) reorderedList
+    let reorderList (strList: string list) (intList: int list) =
+        match strList.Length with
+                | 0 -> strList
+                | _ -> List.map (fun index -> strList.[index]) intList
         
-        
-    let updatedMapOrder = Map.map (fun _ L -> List.rev L) symbolToOrder.PortMaps.Order
+    let updatedMapOrder = Map.map (fun _ L -> reorderList L PortNumberConnections4) symbolToOrder.PortMaps.Order
+    printfn $"updatedMapOrder:{updatedMapOrder}"
     let updatedPortMaps = {symbolToOrder.PortMaps with Order = updatedMapOrder}
     let updatedSymbol = {symbolToOrder with PortMaps = updatedPortMaps}
     

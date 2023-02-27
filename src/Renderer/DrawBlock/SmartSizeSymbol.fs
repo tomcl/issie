@@ -34,11 +34,9 @@ let reSizeSymbol
     (otherSymbol: Symbol) 
         : BusWireT.Model =
     // Currently works on the assumption that symbolToSize is always on the receiving end of wires
+    // Also assumes parallel sides are vertical
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
-    printfn "%A" sModel.Ports
-    printfn "%A" wModel.Wires
-    //printfn "%A" otherSymbol.Id // could use HostID to find which way the wires are going
 
     let wires = wModel.Wires
     let ports = sModel.Ports
@@ -47,38 +45,31 @@ let reSizeSymbol
     // picks out wires going from otherSymbol to symbolToSize
     let connectedWires = SmartHelpers.findInterconnectingWires wireList sModel symbolToSize otherSymbol 0
 
-    // Port position testing:
-    //let testRes = wireList |> List.map (fun wire -> wire.StartPos)
-    //printfn "%A" testRes
-    //printfn "%A" otherSymbol.Pos.Y
-    //printfn "%A" otherSymbol.Component.H
+    let wireEndsFolder lst currWire =
+        let key = string currWire.InputPort
+        let currPort = ports[key]
+        let portOffset = getPortPos symbolToSize currPort
 
-    let currWire = connectedWires[0] // need to extend this to all wires using Fold
-    let key = string currWire.InputPort
-    let currPort = ports[key]
-    let x = symbolToSize.Component.X
-    let y = symbolToSize.Component.Y
-    let h = symbolToSize.Component.H
+        let startY = currWire.StartPos.Y
+        let endY = symbolToSize.Component.Y + portOffset.Y
 
-    let portEdge = symbolToSize.PortMaps.Orientation[key]
+        lst @ [endY - startY]
 
-    let portCount = float (symbolToSize.PortMaps.Order[portEdge] |> List.length)
-    let portNum = 
-        match currPort.PortNumber with
-        | None -> -1.0
-        | Some x -> float x
+    let diffList = ([], connectedWires) ||> List.fold wireEndsFolder
 
-    let startPos = currWire.StartPos.X, currWire.StartPos.Y
-    let endPos = x, y + (h * (portNum + 1.0))/(portCount + 1.0)
+    let idx = diffList |> List.findIndex (fun diff -> abs diff < 11.0) // rename?
+    let offset = diffList[idx]
 
-    printfn "%A" startPos
-    printfn "%A" endPos
+
+    printfn "%A" diffList
     
     // basic resizing
     let hScale = otherSymbol.Component.W / symbolToSize.Component.W
     let vScale = otherSymbol.Component.H / symbolToSize.Component.H
 
-    let symbol' = {symbolToSize with HScale = Some hScale; VScale = Some vScale}
+    let newPos = {symbolToSize.Pos with Y = symbolToSize.Pos.Y - offset}
+
+    let symbol' = {symbolToSize with Pos = newPos}
 
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     // Add new wires to model & new symbols to model map

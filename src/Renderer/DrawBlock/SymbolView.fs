@@ -418,10 +418,6 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                     makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
             text :: corners
 
-
-
- 
-            
     let labelcolour = outlineColor symbol.Appearance.Colour
     let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
         let pMap = symbol.PortMaps.Order
@@ -449,24 +445,31 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
-    let daPoints = [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
-    let rotateAnd (points:XYPos[]) transform =
-        match transform with 
-        | Degree0 -> points
-        | Degree90 -> [|{X=0;Y=H}; {X= -H/2.;Y=0;}; {X= H/2.;Y=0};{X=W;Y=H/2.};{X= W;Y=0};{X=0.;Y= 0.};{X=0;Y=H/2.}|]
+    let getCurvyShape (comp:Component) transform =
+        match comp.Type with 
+        | And ->
+            match transform.Rotation with 
+            | Degree0 -> match transform.flipped with
+                           | false -> [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
+                           | true -> [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X=W/2.;Y=0};{X= W/2.;Y=0};{X=0.;Y= H};{X= -W/2.;Y=0}|]
+            | Degree90 -> [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X=0;Y=H/2.};{X= 0;Y=H/2.};{X=W;Y= 0};{X=0;Y= -H/2.}|]
+            | Degree180 -> match transform.flipped with
+                           | true -> [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
+                           | false -> [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X=W/2.;Y=0};{X= W/2.;Y=0};{X=0.;Y= H};{X= -W/2.;Y=0}|]
+            | Degree270 -> [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X=0;Y= H/2.};{X= 0;Y= -H/2.};{X=W;Y= 0};{X=0;Y= H/2.}|]
         | _ -> [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
 
-    let andShape = (rotateAnd daPoints transform.Rotation)
+    let curvyShape = getCurvyShape comp transform
 
-    let shapemaker = 
+    let shapeMaker = 
         match style with
             | Distinctive -> 
                             match comp.Type with
                             | And ->
-                                ([makeAnyPath (andShape[0]) (makePartArcAttr (H/2.) (andShape[1].Y) (andShape[1].X) (andShape[2].Y) (andShape[2].X)) {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]) 
-                                |> List.append ([makeAnyPath andShape[3] ((makeLineAttr (andShape[4].X) andShape[4].Y)+(makeLineAttr andShape[5].X andShape[5].Y)+(makeLineAttr (andShape[6].X) andShape[6].Y)) {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]) 
+                                ([makeAnyPath (curvyShape[0]) (makePartArcAttr (H/2.) (curvyShape[1].Y) (curvyShape[1].X) (curvyShape[2].Y) (curvyShape[2].X)) {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]) 
+                                |> List.append ([makeAnyPath curvyShape[3] ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y)+(makeLineAttr curvyShape[5].X curvyShape[5].Y)+(makeLineAttr (curvyShape[6].X) curvyShape[6].Y)) {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]) 
                             | _ -> createBiColorPolygon points colour outlineColour opacity strokeWidth comp
-            | _ -> createBiColorPolygon points colour outlineColour opacity strokeWidth comp
+            | Rectangular -> createBiColorPolygon points colour outlineColour opacity strokeWidth comp
 
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
@@ -481,8 +484,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    // |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-    |> List.append (shapemaker)
+    |> List.append (shapeMaker)
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//
 //----------------------------------------------------------------------------------------//

@@ -170,6 +170,14 @@ type FastData =
         | Word n -> n
         | BigWord n when this.Width <= 32 -> uint32 n
         | _ -> failwithf $"GetQint32 Can't turn Alg into a uint32"
+    /// if given width <= 32 it will generate Word form FastData, otherwise BigWord.
+    static member inline MakeFastData (width: int) (data: bigint) =
+        match width with
+        | w when w <= 32 && data >= bigint 0 -> { Dat = Word(uint32 data); Width = w }
+        | w when w <= 32 && data < bigint 0 ->
+            let data = data % (bigint 2 ** w)
+            { Dat = Word(uint32 data); Width = w }
+        | w -> { Dat = BigWord data; Width = w }
 
 //-------------------------------------------------------------------------------------//
 //-----------------------------TT Algebra Types----------------------------------------//
@@ -937,7 +945,7 @@ type FastComponent =
       mutable VerilogOutputName: string array
       mutable VerilogComponentName: string
 
-     }
+    }
 
     member inline this.GetInputFData (epoch) (InputPortNumber n) =
         this.InputLinksFData[n].Step[epoch]
@@ -962,9 +970,7 @@ type DriverFData =
       DriverWidth: int
       DriverData: StepArray<FData> }
 
-type SheetPort =
-    { Sheet: string
-      PortOnComp: Port } // muts include port number (which ports on connections do not)
+type SheetPort = { Sheet: string; PortOnComp: Port } // muts include port number (which ports on connections do not)
 
 // The fast simulation components are similar to the issie components they are based on but with addition of arrays
 // for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the
@@ -1085,9 +1091,9 @@ and GatherData =
       // component Id can appear with different access paths if a sheet is instantiated more than once.
       // Each entry corresponds to a single FastComponent.
       // Note that Custom components are not included in this list.
-      AllComps: Map<ComponentId * ComponentId list, SimulationComponent * ComponentId list> // maps to component and its path in the graph
+      AllComps: Map<ComponentId * ComponentId list, SimulationComponent * ComponentId list>  // maps to component and its path in the graph
     // List of component Input components that are driven externally to simulation
-     }
+    }
 
     member this.getFullName(cid, ap) =
         List.map

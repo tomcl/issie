@@ -245,9 +245,9 @@ let fastReduceFData
         match comp.State with
         | None ->
             failwithf "Attempt to put state into component %s without state array" comp.FullName
-        | Some stateArr -> stateArr.Step[ simStep ] <- state
+        | Some stateArr -> stateArr.Step[simStep] <- state
 
-    let inline putW num w = comp.OutputWidth[ num ] <- Some w
+    let inline putW num w = comp.OutputWidth[num] <- Some w
 
     /// implement a binary combinational operation
     let inline getBinaryGateReducer
@@ -292,7 +292,7 @@ let fastReduceFData
     | RAM _
     | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
     | Input _ -> failwithf "Legacy Input component types should never occur"
-    | Input1 (width, _) ->
+    | Input1(width, _) ->
         if comp.Active then
             let bits = ins 0
             //printfn "Got input 0 = %A Links=<%A> len=%d" bits comp.InputLinks comp.InputLinks.Length
@@ -301,8 +301,8 @@ let fastReduceFData
             put0 bits
     //printfn "Finished!"
 
-    | Constant1 (width, cVal, _)
-    | Constant (width, cVal) -> put0 <| Data(convertInt64ToFastData width cVal)
+    | Constant1(width, cVal, _)
+    | Constant(width, cVal) -> put0 <| Data(convertInt64ToFastData width cVal)
     | Output width ->
         let bits = ins 0
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
@@ -325,7 +325,7 @@ let fastReduceFData
             let bit = extractBitFData (ins 0) 1
             put0 <| packBitFData (bitNot bit)
         | Alg exp -> put0 <| Alg(algNot exp)
-    | BusSelection (width, lsb) ->
+    | BusSelection(width, lsb) ->
         match (ins 0) with
         | Data bits ->
 #if ASSERTS
@@ -350,7 +350,7 @@ let fastReduceFData
             let newExp = UnaryExp(BitRangeOp(lsb, lsb + width - 1), exp)
             put0 <| Alg newExp
 
-    | BusCompare (width, compareVal) ->
+    | BusCompare(width, compareVal) ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
         match (ins 0) with
         | Data bits ->
@@ -377,7 +377,7 @@ let fastReduceFData
 #endif
             put0
             <| Alg(ComparisonExp(exp, Equals, compareVal))
-    | BusCompare1 (width, compareVal, dialogText) ->
+    | BusCompare1(width, compareVal, dialogText) ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
         match (ins 0) with
         | Data bits ->
@@ -916,7 +916,7 @@ let fastReduceFData
             // Algebra at bit spreader is not supported
             raise (AlgebraNotImplemented err)
 
-    | Shift (inWidth, shiftWidth, tp) ->
+    | Shift(inWidth, shiftWidth, tp) ->
         let rec to_binary (value: uint32) =
             if value < 2u then
                 value.ToString()
@@ -1065,16 +1065,16 @@ let fastReduceFData
 
             put0 <| Data outBits
             putW 0 outBits.Width
-        | Alg (AppendExp exps0), Alg (AppendExp exps1) ->
+        | Alg(AppendExp exps0), Alg(AppendExp exps1) ->
             let newExp = exps1 @ exps0 |> foldAppends |> AppendExp
             put0 <| Alg newExp
             putW 0 <| getAlgExpWidth newExp
-        | Alg (AppendExp exps0), fd1 ->
+        | Alg(AppendExp exps0), fd1 ->
             let exp1 = fd1.toExp
             let newExp = exp1 :: exps0 |> foldAppends |> AppendExp
             put0 <| Alg newExp
             putW 0 <| getAlgExpWidth newExp
-        | fd0, Alg (AppendExp exps1) ->
+        | fd0, Alg(AppendExp exps1) ->
             let exp0 = fd0.toExp
             let newExp = exps1 @ [ exp0 ] |> foldAppends |> AppendExp
             put0 <| Alg newExp
@@ -1104,13 +1104,13 @@ let fastReduceFData
             put0 <| Data bits0
             put1 <| Data bits1
             putW 1 bits1.Width
-        | Alg (UnaryExp (BitRangeOp (l, u), exp)) ->
+        | Alg(UnaryExp(BitRangeOp(l, u), exp)) ->
             let exp1 = UnaryExp(BitRangeOp(l + topWireWidth, u), exp)
             let exp0 = UnaryExp(BitRangeOp(l, l + topWireWidth - 1), exp)
             put0 <| Alg exp0
             put1 <| Alg exp1
             putW 1 (getAlgExpWidth exp1)
-        | Alg (UnaryExp (NotOp, exp)) ->
+        | Alg(UnaryExp(NotOp, exp)) ->
             let w = getAlgExpWidth (UnaryExp(NotOp, exp))
             let exp1 = UnaryExp(BitRangeOp(topWireWidth, w - 1), exp)
             let exp0 = UnaryExp(BitRangeOp(0, topWireWidth - 1), exp)
@@ -1222,7 +1222,7 @@ let fastReduceFData
                         (bigint 0)
                     else
                         n
-                let res = { Dat = BigWord n'; Width = bits.Width }
+                let res = FastData.MakeFastData bits.Width n'
                 put0 <| Data res
             elif
                 (extractBitFData (Data enable) 1 = 1u)
@@ -1260,7 +1260,7 @@ let fastReduceFData
                         (bigint 0)
                     else
                         n
-                let res = { Dat = BigWord n'; Width = bits.Width }
+                let res = FastData.MakeFastData bits.Width n'
                 put0 <| Data res
             else
                 put0 <| Data bits
@@ -1287,7 +1287,7 @@ let fastReduceFData
                         (bigint 0)
                     else
                         n
-                let res = { Dat = BigWord n'; Width = width }
+                let res = FastData.MakeFastData width n'
                 put0 <| Data res
             else
                 put0 (getLastCycleOut 0)
@@ -1309,7 +1309,7 @@ let fastReduceFData
                 (bigint 0)
             else
                 n
-        let res = { Dat = BigWord n'; Width = width }
+        let res = FastData.MakeFastData width n'
         put0 <| Data res
     | AsyncROM1 mem -> // Asynchronous ROM.
         let fd = ins 0
@@ -1584,9 +1584,9 @@ let fastReduce
         match comp.State with
         | None ->
             failwithf "Attempt to put state into component %s without state array" comp.FullName
-        | Some stateArr -> stateArr.Step[ simStep ] <- state
+        | Some stateArr -> stateArr.Step[simStep] <- state
 
-    let inline putW num w = comp.OutputWidth[ num ] <- Some w
+    let inline putW num w = comp.OutputWidth[num] <- Some w
 
     /// implement a binary combinational operation
     let inline getBinaryGateReducer
@@ -1622,7 +1622,7 @@ let fastReduce
     | RAM _
     | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
     | Input _ -> failwithf "Legacy Input component types should never occur"
-    | Input1 (width, _) ->
+    | Input1(width, _) ->
         if comp.Active then
             let bits = ins 0
             //printfn "Got input 0 = %A Links=<%A> len=%d" bits comp.InputLinks comp.InputLinks.Length
@@ -1631,8 +1631,8 @@ let fastReduce
             put0 bits
     //printfn "Finished!"
 
-    | Constant1 (width, cVal, _)
-    | Constant (width, cVal) -> put0 <| convertInt64ToFastData width cVal
+    | Constant1(width, cVal, _)
+    | Constant(width, cVal) -> put0 <| convertInt64ToFastData width cVal
     | Output width ->
         let bits = ins 0
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
@@ -1652,7 +1652,7 @@ let fastReduce
     | Not ->
         let bit = extractBit (ins 0) 1
         put0 <| packBit (bitNot bit)
-    | BusSelection (width, lsb) ->
+    | BusSelection(width, lsb) ->
         let bits = ins 0
 #if ASSERTS
         assertThat
@@ -1665,7 +1665,7 @@ let fastReduce
         let outBits = getBits (lsb + width - 1) lsb bits
         put0 outBits
 
-    | BusCompare (width, compareVal) ->
+    | BusCompare(width, compareVal) ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
         let bits = ins 0
 #if ASSERTS
@@ -1684,7 +1684,7 @@ let fastReduce
 
         put0 outNum
 
-    | BusCompare1 (width, compareVal, dialogText) ->
+    | BusCompare1(width, compareVal, dialogText) ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
         let bits = ins 0
 #if ASSERTS
@@ -2024,7 +2024,7 @@ let fastReduce
 
         put0 outDat
 
-    | Shift (inWidth, shiftWidth, tp) ->
+    | Shift(inWidth, shiftWidth, tp) ->
         let rec to_binary (value: uint32) =
             if value < 2u then
                 value.ToString()
@@ -2209,7 +2209,7 @@ let fastReduce
                     (bigint 0)
                 else
                     n
-            let res = { Dat = BigWord n'; Width = bits.Width }
+            let res = FastData.MakeFastData bits.Width n'
             put0 res
         elif
             (extractBit enable 1 = 1u)
@@ -2233,7 +2233,7 @@ let fastReduce
                     (bigint 0)
                 else
                     n
-            let res = { Dat = BigWord n'; Width = bits.Width }
+            let res = FastData.MakeFastData bits.Width n'
             put0 <| res
         else
             put0 <| bits
@@ -2250,7 +2250,7 @@ let fastReduce
                     (bigint 0)
                 else
                     n
-            let res = { Dat = BigWord n'; Width = width }
+            let res = FastData.MakeFastData width n'
             put0 <| res
         else
             put0 (getLastCycleOut 0)
@@ -2262,7 +2262,7 @@ let fastReduce
                 (bigint 0)
             else
                 n
-        let res = { Dat = BigWord n'; Width = width }
+        let res = FastData.MakeFastData width n'
         put0 res
     | AsyncROM1 mem -> // Asynchronous ROM.
         let fd = ins 0

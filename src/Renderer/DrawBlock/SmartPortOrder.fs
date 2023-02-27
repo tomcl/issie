@@ -76,13 +76,6 @@ let getSymDominantEdge (symPorts: PortInfo list) =
     let edgeExists (edge: Edge) =
         symPorts |> List.exists (fun port -> port.Orientation = edge)
 
-    let modeEdge =
-        symPorts
-        |> List.countBy (fun port -> port.Orientation)
-        |> List.sortByDescending snd
-        |> List.head
-        |> fst
-
     match symPorts with
     | [] -> Left // Default to a Left Dominant Edge.
     | _ :: _ ->
@@ -90,7 +83,12 @@ let getSymDominantEdge (symPorts: PortInfo list) =
         |> List.tryFind (fun port -> not (edgeExists port.Orientation.Opposite))
         |> function
             | Some port -> port.Orientation
-            | _ -> modeEdge // Otherwise get Mode Edge
+            | _ ->
+                symPorts // Otherwise get Mode Edge
+                |> List.countBy (fun port -> port.Orientation)
+                |> List.sortByDescending snd
+                |> List.head
+                |> fst
 
 /// Unwrap a symbol's port in a Clockwise or AntiClockwise given a dominant edge.
 /// Eg. For a Top Dominant Edge AntiClockwise ordering, we order the ports from Right, Top, Left then Bottom Edge.
@@ -119,6 +117,24 @@ let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
     | Bottom -> unwrpByDirection 2
     | Left -> unwrpByDirection 3
 
+/// Get Ports Between Symbols. Exclude connections from one output to multiple inputs.
+let getPortsForSwaps (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
+    let wires =
+        getConnBtwnSyms model symToOrder otherSym
+        |> List.groupBy (fun conn -> conn.OutputPort)
+        |> List.filter (fun (_, wires) -> List.length wires <= 1) // Guard
+        |> List.map snd
+        |> List.concat
+
+    let ports =
+        wires
+        |> List.map (fun wire ->
+            [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
+              getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
+        |> List.concat
+
+    (fiterPortBySym ports symToOrder, fiterPortBySym ports otherSym)
+
 /// Gets Symbol Reordering Information.
 let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
     let getPortInfo (ports: Port list) =
@@ -131,7 +147,7 @@ let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Sy
         values |> List.zip [ symToOrder.Id; otherSym.Id ] |> Map.ofList
 
     let portBySym =
-        let symToOrderPorts, otherSymPorts = getPortsBtwnSyms model symToOrder otherSym
+        let symToOrderPorts, otherSymPorts = getPortsForSwaps model symToOrder otherSym
 
         [ symToOrderPorts; otherSymPorts ] |> List.map getPortInfo |> zipToMap
 
@@ -235,3 +251,4 @@ let reOrderPorts
         |> updateModelSymbols wModel
 
     smartHelpers.UpdateSymbolWires model' symToOrder.Id
+// wModel

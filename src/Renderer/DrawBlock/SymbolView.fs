@@ -8,7 +8,11 @@ open Elmish
 open CommonTypes
 open DrawHelpers
 open DrawModelType.SymbolT
+open SymbolHelpers
 open Symbol
+
+// // HLP23 AUTHOR: BRYAN TAN
+// open SmartHelpers
 
 (*
     HLP23: This module will normally be used exclusively by team member doing the "smart rendering" part of the 
@@ -114,10 +118,15 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
         |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
 
 
-// TODO: a
 /// HLP23 AUTHOR: BRYAN TAN
-let drawCorners (showCorners: ShowCorners) (symb: Symbol) =
-    []
+/// Draw circles on the corners of custom components when manually resizing them
+let drawCorners (showCorners: ShowCorners) (symb: Symbol) =    
+    match showCorners with
+    | DontShow -> []
+    | ShowAll ->
+        getCustomSymCorners symb
+        |> Array.map (fun p -> makeCircle p.X p.Y cornerCircle)
+        |> Array.toList  
 
 //------------------------------------------------------------------------------------------------//
 //------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS------------------------------//
@@ -468,6 +477,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
     |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+    // |> 
 
 
 

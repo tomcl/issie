@@ -102,6 +102,7 @@ module SymbolT =
 
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
+    let showCorners_ = Lens.create (fun a -> a.ShowCorners) (fun s a -> {a with ShowCorners = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})

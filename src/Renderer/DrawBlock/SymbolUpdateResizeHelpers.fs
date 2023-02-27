@@ -34,6 +34,7 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
         |> flipIfNegative FlipHorizontal hScale
         |> flipIfNegative FlipVertical vScale
         |> (fun sym -> {sym with HScale=Some (abs hScale); VScale=Some (abs vScale)})
+        |> set (appearance_ >-> showCorners_) ShowAll
     
     printfn $"h:{symbol.Component.H}, w:{symbol.Component.W}"
     printfn $"hscale: {hScale}, vscale: {vScale}"

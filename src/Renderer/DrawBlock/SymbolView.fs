@@ -120,6 +120,11 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
+//Functions to create any straightline path, and any arc path
+//HLP23 Author: Ismagilov
+let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour = 
+    [makeAnyPath startingPoint pathAttr {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]
+
 let createPath (startingPoint: XYPos) (startingControlPoint: XYPos) (endingControlPoint: XYPos) (endingPoint: XYPos) =
     [makePath startingPoint startingControlPoint endingControlPoint endingPoint {defaultPath with Stroke = "Black"; StrokeWidth="5px"}]
 
@@ -445,42 +450,61 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
-    let getCurvyShape (comp:Component) transform =
-        match comp.Type with 
+    //Given the component, will give a list of XYPos used to draw the component
+    //HLP23 Author: Ismagilov
+    let getCurvyShape (comp:ComponentType) transform =
+        match comp with 
         | And ->
+            let zero' = [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
+            let ninety' = [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X=0;Y=H/2.};{X= 0;Y=H/2.};{X=W;Y= 0};{X=0;Y= -H/2.}|]
+            let oneEighty' = [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X=W/2.;Y=0};{X= W/2.;Y=0};{X=0.;Y= H};{X= -W/2.;Y=0}|]
+            let twoSeventy' = [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X=0;Y= H/2.};{X= 0;Y= -H/2.};{X=W;Y= 0};{X=0;Y= H/2.}|]
+
             match transform.Rotation with 
             | Degree0 -> match transform.flipped with
-                           | false -> [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
-                           | true -> [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X=W/2.;Y=0};{X= W/2.;Y=0};{X=0.;Y= H};{X= -W/2.;Y=0}|]
-            | Degree90 -> [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X=0;Y=H/2.};{X= 0;Y=H/2.};{X=W;Y= 0};{X=0;Y= -H/2.}|]
+                           | false -> zero'
+                           | true -> oneEighty'
+            | Degree90 -> ninety'
             | Degree180 -> match transform.flipped with
-                           | true -> [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
-                           | false -> [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X=W/2.;Y=0};{X= W/2.;Y=0};{X=0.;Y= H};{X= -W/2.;Y=0}|]
-            | Degree270 -> [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X=0;Y= H/2.};{X= 0;Y= -H/2.};{X=W;Y= 0};{X=0;Y= H/2.}|]
-        | _ -> [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
+                           | true -> zero'
+                           | false -> oneEighty'
+            | Degree270 -> twoSeventy'
+        | _ -> failwith "What? Shouldn't happen"
 
-    let curvyShape = getCurvyShape comp transform
 
+    //Creates the shape, depending on the style set by user
+    //HLP23 Author: Ismagilov
     let shapeMaker = 
         match style with
             | Distinctive -> 
                             match comp.Type with
                             | And ->
-                                ([makeAnyPath (curvyShape[0]) (makePartArcAttr (H/2.) (curvyShape[1].Y) (curvyShape[1].X) (curvyShape[2].Y) (curvyShape[2].X)) {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]) 
-                                |> List.append ([makeAnyPath curvyShape[3] ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y)+(makeLineAttr curvyShape[5].X curvyShape[5].Y)+(makeLineAttr (curvyShape[6].X) curvyShape[6].Y)) {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]) 
-                            | _ -> createBiColorPolygon points colour outlineColour opacity strokeWidth comp
-            | Rectangular -> createBiColorPolygon points colour outlineColour opacity strokeWidth comp
+                                let curvyShape = getCurvyShape And transform
+                                let arcAttr  = makePartArcAttr (H/2.) (curvyShape[1].Y) (curvyShape[1].X) (curvyShape[2].Y) (curvyShape[2].X)
+                                let lineAttr = ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y)+(makeLineAttr curvyShape[5].X curvyShape[5].Y)+(makeLineAttr (curvyShape[6].X) curvyShape[6].Y))
 
+                                (createAnyPath (curvyShape[0]) arcAttr  colour strokeWidth outlineColour) 
+                                |> List.append (createAnyPath curvyShape[3] lineAttr colour strokeWidth outlineColour)
+
+                            | _ -> (addLegendText 
+                                (legendOffset w h symbol) 
+                                (getComponentLegend comp.Type transform.Rotation) 
+                                "middle" 
+                                "bold" 
+                                (legendFontSize comp.Type))
+                                        |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+            | Rectangular -> (addLegendText 
+                                (legendOffset w h symbol) 
+                                (getComponentLegend comp.Type transform.Rotation) 
+                                "middle" 
+                                "bold" 
+                                (legendFontSize comp.Type))
+                                |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+                            
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addLegendText 
-                        (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) 
-                        "middle" 
-                        "bold" 
-                        (legendFontSize comp.Type))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)

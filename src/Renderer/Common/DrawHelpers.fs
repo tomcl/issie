@@ -198,10 +198,6 @@ let makeLine (x1: 'a) (y1: 'b) (x2: 'c) (y2: 'd) (lineParameters: Line) =
             SVGAttr.StrokeDasharray lineParameters.StrokeDashArray
     ] []
 
-let makeBoomerang x y curveOneWidth curveTwoWidth curveOneHeight curveTwoHeight=
-    $"M {x} {y} C -20.0 -5.0 {curveOneWidth} {curveOneHeight} {x} {curveTwoHeight} 
-    C {curveTwoWidth} {curveTwoHeight} {curveTwoWidth}  {y} {x} {y}"
-
 /// Makes path attributes for a horizontal upwards-pointing arc radius r
 let makeArcAttr r =
     $"a %.2f{r} %.2f{r} 0 0 0 %.3f{2.0*r} 0"
@@ -215,7 +211,17 @@ let makePartArcAttr r h1 d1 h2 d2 =
 /// makes a line segment offset dx,dy
 let makeLineAttr dx dy =
     $"l %.3f{dx} %.3f{dy}"
+/// makes bezier curve with 1 turning point x1 y1
+let makeQuadraticBezierAttr x1 y1 x2 y2 = 
+    $"Q {x1} {y1} {x2} {y2}"
+/// makes bezier curve with 2 turning points x1 y1 x2 y2
+let makeCubicBezierAttr x1 y1 x2 y2 x3 y3 = 
+    $"C {x1} {y1} {x2} {y2} {x3} {y3}"
 
+//Sequentially combines list of input attr
+let combineAnyPathAttr (attrList: string List) = 
+    attrList |> List.reduce((+))
+    
 let makePathFromAttr (attr:string) (pathParameters: Path) =
     path [
             D attr

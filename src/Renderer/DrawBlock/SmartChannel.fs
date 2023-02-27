@@ -1,5 +1,5 @@
 ﻿module SmartChannel
-
+open BusWireUpdate
 open CommonTypes
 open Elmish
 open DrawHelpers

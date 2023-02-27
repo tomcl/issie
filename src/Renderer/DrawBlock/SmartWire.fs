@@ -306,45 +306,10 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
 
 let genWireLabelName : string = 
     let random = new Random()
-    let randomNumber = random.Next(1, 101)
-    let wireLabelName = "Wire" + string randomNumber
+    let randomNumber = random.Next(1, 99)
+    let wireLabelName = "WL" + string randomNumber
     wireLabelName
 
-
-let wireLabelComponent (id: string) (name: string) (portPos: XYPos): Component =
-    let inputPorts = createPortList PortType.Input 1 id
-    // printfn "input ports: %A" inputPorts
-    let outputPorts = createPortList PortType.Output 1 id
-    // printfn "output ports: %A" outputPorts
-    let portOrientationMap = inputPorts |> List.map (fun port -> port.Id, Left) |> Map.ofList |> Map.add (outputPorts |> List.head).Id Right      
-    // type: 'Map<Edge,string list>
-    let portOrderMap = 
-        let inputs =  [Left, inputPorts |> List.map (fun port -> port.Id)]
-        let outputs = [Right, outputPorts |> List.map (fun port -> port.Id)]
-        let portOrder = inputs @ outputs
-        Map.ofList portOrder
-
-    {
-        Id = id
-        Type = IOLabel
-        Label = name.ToUpper()
-        InputPorts = inputPorts 
-        OutputPorts = outputPorts
-        X = 0.
-        Y = 0.
-        H = 30.
-        W = 30.
-        SymbolInfo = Some { 
-            LabelBoundingBox = Some {TopLeft = {X = portPos.X; Y = portPos.Y + 60.};  W = 30.; H = 30.}
-            PortOrientation = portOrientationMap
-            PortOrder = portOrderMap
-            LabelRotation = None
-            HScale = None
-            VScale = None
-            STransform = {Rotation = Rotation.Degree0; flipped = false}
-            ReversedInputPorts = None
-        }
-    }
 
 // ------------------------------------------ UNCOMMENT BELOW ----------------------------------------------------
 
@@ -473,90 +438,227 @@ let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutor
     let outputPortPos, inputPortPos =
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
     // create 2 wire label symbols to add to model
-    let uuid: string = JSHelpers.uuid()
     let wireName = genWireLabelName
     
-    let inputLabel: Symbol = 
-        let inputLabelPos = 
-            match outputPortEdge with
-                | Left -> {X = inputPortPos.X - 60.0; Y = inputPortPos.Y}
-                | Right -> {X = inputPortPos.X + 60.0; Y = inputPortPos.Y}
-                | _ -> {X = inputPortPos.X; Y = inputPortPos.Y}
-        printfn "input label pos: %A" inputPortEdge
+    let inputLabelPos = 
+        match outputPortEdge with
+            | Left -> {X = inputPortPos.X - 40.0; Y = inputPortPos.Y}
+            | Right -> {X = inputPortPos.X + 40.0; Y = inputPortPos.Y}
+            | Bottom -> {X = inputPortPos.X; Y = inputPortPos.Y + 40.0}
+            | _ -> {X = inputPortPos.X; Y = inputPortPos.Y - 40.0}
+        
+    let symbModelInput = addSymbol [] model.Symbol inputLabelPos ComponentType.IOLabel wireName
+    let newModel = {model with Symbol = (fst symbModelInput)}
 
-        let inputLabelComp = wireLabelComponent uuid wireName inputLabelPos
-        // printfn "input label component: %A" inputLabelComp
-
-        {symbol with
-            Id = ComponentId uuid
-            Component = inputLabelComp
-            Pos = inputLabelPos 
-            Appearance = 
-                {symbol.Appearance with
-                    ShowPorts = ShowBoth
-            }
-        }
-    // add input label ports to port map with the correct edge orientation
-    // let inputLabelPortMap = 
-    //     let leftMap = {inputLabel.PortMaps with Orientation = Map.add (string inputLabelComp.InputPorts[0]) Left inputLabel.PortMaps.Orientation}
-    //     let rightMap = {leftMap with Orientation = Map.add (string inputLabelComp.OutputPorts[0]) Right leftMap.Orientation}
-    //     rightMap
-    // let inputLabel = {inputLabel with PortMaps = inputLabelPortMap}
+    let outputLabelPos = 
+        match inputPortEdge with
+            | Left -> {X = outputPortPos.X - 40.0; Y = outputPortPos.Y}
+            | Right -> {X = outputPortPos.X + 40.0; Y = outputPortPos.Y}
+            | Bottom -> {X = outputPortPos.X; Y = outputPortPos.Y + 40.0}
+            | _ -> {X = outputPortPos.X; Y = outputPortPos.Y - 40.0}
 
 
-    let uuid2: string = JSHelpers.uuid()
-    
-    let outputLabel: Symbol = 
-        let outputLabelPos = 
-            match inputPortEdge with
-                | Left -> {X = outputPortPos.X - 60.0; Y = outputPortPos.Y}
-                | Right -> {X = outputPortPos.X + 60.0; Y = outputPortPos.Y}
-                | _ -> {X = outputPortPos.X; Y = outputPortPos.Y}
-
-        printfn "output label pos: %A" outputPortEdge
-
-        let outputLabelComp =  wireLabelComponent uuid2 wireName outputLabelPos
-        // printfn "output label component: %A" outputLabelComp
-
-        {symbol with
-            Id = ComponentId uuid2
-            Component = outputLabelComp
-            Pos = outputLabelPos
-            Appearance = 
-                {symbol.Appearance with
-                    ShowPorts = ShowBoth
-            }
-        }
-        // |> Symbol.autoScaleHAndW
-
-    
-    
-    // add output label ports to port map with the correct edge orientation
-    // let outputLabelPortMap = 
-    //     let leftMap = {outputLabel.PortMaps with Orientation = Map.add (string outputLabelComp.InputPorts[0]) Left outputLabel.PortMaps.Orientation}
-    //     let rightMap = {leftMap with Orientation = Map.add (string outputLabelComp.OutputPorts[0]) Right leftMap.Orientation}
-    //     rightMap
-    // let outputLabel = {outputLabel with PortMaps = outputLabelPortMap}
- 
-
-    let newModel = {model with Symbol = {model.Symbol with Symbols = Map.add inputLabel.Id inputLabel model.Symbol.Symbols}}
-    let newModel2 = {newModel with Symbol = {newModel.Symbol with Symbols = Map.add outputLabel.Id outputLabel newModel.Symbol.Symbols}}
+    let symbModelOutput = addSymbol [] newModel.Symbol outputLabelPos ComponentType.IOLabel wireName
+    let newModel2 = {model with Symbol = (fst symbModelOutput)}
     
     // create wires between ports and wire labels
 
-    // let conn1 = createConnection outputPortSymbol.Component.OutputPorts[OutputPortIndex] inputLabelComp.InputPorts.[0]
-    // let conn2 = createConnection inputLabelComp.OutputPorts.[0] inputPortSymbol.Component.InputPorts.[InputPortIndex]
+    // create connection between wire.InputPort and input label 
+        // need to the port of input port in inputPortSymbol.Component.InputPorts
+    let inputPortSymbolPort : Port = 
+        inputPortSymbol.Component.InputPorts
+        |> List.filter (fun p -> p.Id = (string inputPort))
+        |> List.head
+    let outputPortSymbolPort : Port = 
+        outputPortSymbol.Component.OutputPorts
+        |> List.filter (fun p -> p.Id = (string outputPort))
+        |> List.head
+
+    // find input label symbol using its component id (snd symbModelInput)
+    let inputLabelSymbol = 
+        newModel2.Symbol.Symbols[(snd symbModelInput)]
+    let outputLabelSymbol = 
+        newModel2.Symbol.Symbols[(snd symbModelOutput)]
+    // find inputport of input label symbol
+    let inputLabelSymbolPort : Port = inputLabelSymbol.Component.InputPorts[0]
+    let outputLabelSymbolPort : Port = outputLabelSymbol.Component.OutputPorts[0]
+    // create connection between input port and input label
+    let inputConnection: Connection = createConnection inputPortSymbolPort outputLabelSymbolPort
+    let outputConnection: Connection = createConnection outputPortSymbolPort inputLabelSymbolPort
 
 
-    // let OutputPortIndex = getOutputPortIndex outputPort outputPortSymbol.Component.OutputPorts  // CHECK if outputPort (id) is correct one associated to component of outputPortSymbol
-    // let InputPortIndex = getInputPortIndex inputPort inputPortSymbol.Component.InputPorts       // CHECK if inputPort (id) is correct one associated to component of inputPortSymbol
+    // create a wire between input port and input label
+    // let inputSegments = makeInitialSegmentsList wireId' sourcePos targetPos outputPortOrientation
+    // let inputWireID = DrawHelpers.uuid()
+    let inputWireID = ConnectionId inputConnection.Id
+    let inputSegments = 
+        let outputSegment: Segment = 
+            {
+                Index = 0
+                Length = 8.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = false
+                Mode = RoutingMode.Auto
+            }
+        let inputSegment: Segment = 
+            {
+                Index = 1
+                Length = 0.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let firstSegment: Segment = 
+            {
+                Index = 2
+                Length = 4.5
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let middleSegment: Segment = 
+            {
+                Index = 3
+                Length = 0.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let thirdSegment: Segment = 
+            {
+                Index = 4
+                Length = 4.5
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let fourthSegment: Segment = 
+            {
+                Index = 5
+                Length = 0.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let fifthSegment: Segment = 
+            {
+                Index = 6
+                Length = 8.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = false
+                Mode = RoutingMode.Auto
+            }
+        [outputSegment; inputSegment; firstSegment; middleSegment; thirdSegment; fourthSegment; fifthSegment]
 
-    printfn "input label symbol: %A" inputLabel
-    printfn "output label symbol: %A" outputLabel
+    let inputWire: Wire = 
+        {
+            WId = inputWireID
+            InputPort = InputPortId inputLabelSymbolPort.Id 
+            OutputPort = OutputPortId outputPortSymbolPort.Id
+            StartPos = inputPortPos
+            Segments = inputSegments
+            Color = HighLightColor.DarkSlateGrey
+            Width = 1
+            InitialOrientation = Horizontal
+        }
 
-    // let resModel1 = createWire newModel2 wire outputPortSymbol inputLabel OutputPortIndex 0
-    // let resModel2 = createWire resModel1 outputLabel inputPortSymbol 0 InputPortIndex
-    ModelT newModel2
+    let outputWireID = ConnectionId outputConnection.Id
+    let outputSegments = 
+        let outputSegment: Segment = 
+            {
+                Index = 0
+                Length = -8.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = false
+                Mode = RoutingMode.Auto
+            }
+        let inputSegment: Segment = 
+            {
+                Index = 1
+                Length = 0.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let firstSegment: Segment = 
+            {
+                Index = 2
+                Length = -4.5
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let middleSegment: Segment = 
+            {
+                Index = 3
+                Length = 0.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let thirdSegment: Segment = 
+            {
+                Index = 4
+                Length = -4.5
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let fourthSegment: Segment = 
+            {
+                Index = 5
+                Length = 0.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = true
+                Mode = RoutingMode.Auto
+            }
+        let fifthSegment: Segment = 
+            {
+                Index = 6
+                Length = -8.
+                WireId = inputWireID
+                IntersectOrJumpList = []
+                Draggable = false
+                Mode = RoutingMode.Auto
+            }
+        [outputSegment; inputSegment; firstSegment; middleSegment; thirdSegment; fourthSegment; fifthSegment] 
+
+    let outputWire : Wire = 
+        {
+            WId = outputWireID
+            InputPort = InputPortId inputPortSymbolPort.Id
+            OutputPort = OutputPortId outputLabelSymbolPort.Id
+            StartPos = outputPortPos
+            Segments = outputSegments
+            Color = HighLightColor.DarkSlateGrey
+            Width = 1
+            InitialOrientation = Horizontal
+        }
+
+    // add connectionID, wireID to model.Wires
+    let newWires = 
+        model.Wires
+        |> Map.add inputWireID inputWire
+        |> Map.add outputWireID outputWire
+    
+    let newModel3 = {newModel2 with Wires = newWires}
+
+
+
+    ModelT newModel3
 
 
 /// finds wire in model by connection id
@@ -595,7 +697,7 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
 
     let wireLength = autoWire.Segments[4].Length
     match wireLength with
-        | l when l > 10000.0 ->    // change to appropriate threshold when testing 
+        | l when l > 400.0 ->    // change to appropriate threshold when testing 
             // delete wire
             let newWireMap = deleteWire model wire
             // add wire labels at posiitons near ports

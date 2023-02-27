@@ -301,9 +301,9 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
 
     let intersectedBoxes = findWireSymbolIntersections model initialWire
 
-    match intersectedBoxes.Length, wire.InitialOrientation with
-    | 0, _ -> initialWire
-    | _, _ ->
+    match intersectedBoxes.Length with
+    | 0 -> initialWire
+    | _ ->
         tryShiftVerticalSeg model intersectedBoxes initialWire
         |> Option.orElse (
             tryShiftHorizontalSeg model intersectedBoxes initialWire Constants.maxCallsToShiftHorizontalSeg

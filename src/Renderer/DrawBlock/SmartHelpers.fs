@@ -111,4 +111,5 @@ let getMiddleSegment (model : Model) (wireId:ConnectionId) =
     match wire.Segments.Length with
     | 7 -> getSegmentFromId model (3, wireId)
     | 9 -> getSegmentFromId model (5, wireId)
-    | _ -> getSegmentFromId model (3, wireId)
+    | 8 -> getSegmentFromId model (3, wireId)
+    | x -> getSegmentFromId model (x/2, wireId)

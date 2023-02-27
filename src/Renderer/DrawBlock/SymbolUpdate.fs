@@ -16,6 +16,8 @@ open Optic
 open Operators
 open System
 
+open SymbolView
+
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
 let rec extractIOPrefix (str : string) (charLst: char list) =
     let len = String.length str
@@ -902,7 +904,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> Map.map 
                 (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
-
+ 
 
 
 // ----------------------interface to Issie----------------------------- //

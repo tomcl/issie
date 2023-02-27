@@ -58,6 +58,8 @@ module SymbolT =
     /// Represents the orientation of a wire segment or symbol flip
     type FlipType =  FlipHorizontal | FlipVertical
     type RotationType = RotateClockwise | RotateAntiClockwise
+    type ScaleType = ScaleUp | ScaleDown
+
 
     /// Wraps around the input and output port id types
     type PortId = | InputId of InputPortId | OutputId of OutputPortId
@@ -78,6 +80,7 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
@@ -89,6 +92,8 @@ module SymbolT =
             Colour: string
             /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
+
+     
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -102,8 +107,7 @@ module SymbolT =
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
-
-
+ 
     /// Represents a symbol, that contains a component and all the other information needed to render it
     type Symbol =
         {
@@ -172,7 +176,6 @@ module SymbolT =
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
             /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
-
         }
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
@@ -372,7 +375,7 @@ module SheetT =
         Pos: XYPos
         Move: XYPos
         }
-
+    
     let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
     let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
 
@@ -435,7 +438,7 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlU | CtrlI
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -529,6 +532,8 @@ module SheetT =
         | TestPortReorder
         | TestSmartChannel
         | TestPortPosition
+        //| TestScaleUp
+        | TestScaleDown
 
 
     type ReadLog = | ReadLog of int

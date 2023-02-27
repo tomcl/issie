@@ -135,10 +135,10 @@ let isBoundingBoxAboveOrBelowPos
     (wireOrientation: Orientation)
     : float * float =
 
-    let isBoxAboveOrBelowPos (pos: XYPos) (box: BoundingBox) : VertDistFromBoundingBox option =
+    let getVertDistanceToBox (pos: XYPos) (box: BoundingBox) : VertDistFromBoundingBox option =
         match wireOrientation with
         | Horizontal ->
-            if inMiddleOrEndOf pos.X box.TopLeft.X (box.TopLeft.X + box.W) then
+            if inMiddleOrEndOf box.TopLeft.X pos.X (box.TopLeft.X + box.W) then
                 if pos.Y > box.TopLeft.Y then
                     pos.Y - box.TopLeft.Y |> Above |> Some
                 else
@@ -146,7 +146,7 @@ let isBoundingBoxAboveOrBelowPos
             else
                 None
         | Vertical ->
-            if inMiddleOrEndOf pos.Y box.TopLeft.Y (box.TopLeft.Y + box.H) then
+            if inMiddleOrEndOf box.TopLeft.Y pos.Y (box.TopLeft.Y + box.H) then
                 if pos.X > box.TopLeft.X then
                     pos.X - box.TopLeft.X |> Above |> Some
                 else
@@ -156,7 +156,7 @@ let isBoundingBoxAboveOrBelowPos
 
     let verticalDistances =
         intersectedBoxes
-        |> List.map (isBoxAboveOrBelowPos pos)
+        |> List.map (getVertDistanceToBox pos)
         |> List.filter (fun x -> x <> None)
         |> List.map (Option.get)
 

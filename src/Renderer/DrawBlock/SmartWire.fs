@@ -46,14 +46,17 @@ Implemented the following Smart Routing Algorithm:
         depending on which results in a wire with shorter vertical distance.
         
         A max recursion depth is defined for step 3 so that Issie will not break when there are physically 
-        no possible routes that will not intersect any symbol. (ie when dragging a symbol around such that 
-        the dragged symbol is within another symbol)
+        no possible routes that will not intersect any symbol (eg when dragging a symbol around such that 
+        the dragged symbol is within another symbol) or when there are special corner cases that have not 
+        been implemented yet (eg symbol A is in top left quadrant with input port facing up, connected to
+        symbol B in bottom right quadrant with output port facing down, with other symbols in between the
+        2 symbols).
 
 *)
 
 module Constants =
     let buffer = 10.
-    let maxCallsToShiftHorizontalSeg = 10
+    let maxCallsToShiftHorizontalSeg = 5
 
 //------------------------------------------------------------------------//
 //--------------------------Shifting Vertical Segment---------------------//
@@ -197,10 +200,18 @@ let rec tryShiftHorizontalSeg
         let shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength =
             let newSegments =
                 match wire.Segments.Length with
+                | 6 ->
+                    // Change segments index 1,3. Leave rest as is
+                    wire.Segments[..0]
+                    @ [ { wire.Segments[1] with Length = firstVerticalSegLength } ]
+                      @ wire.Segments[2..2]
+                        @ [ { wire.Segments[3] with Length = secondVerticalSegLength } ]
+                          @ wire.Segments[4..]
                 | 7 ->
                     // Change segments index 1,3,5. Leave rest as is
                     wire.Segments[..0]
                     @ [ { wire.Segments[1] with Length = firstVerticalSegLength } ]
+                    //   @ [ { wire.Segments[2] with Length = 0. } ]
                       @ wire.Segments[2..2]
                         @ [ { wire.Segments[3] with Length = 0. } ]
                           @ wire.Segments[4..4]

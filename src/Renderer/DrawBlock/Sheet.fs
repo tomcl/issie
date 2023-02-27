@@ -15,6 +15,7 @@ open Optics
 open Operators
 
 // HLP 23 AUTHOR: BRYAN TAN
+open SymbolHelpers
 open SmartHelpers
 
 /// Keep track of HTML "Canvas" element used by Draw Blcok to read and write HTML scroll info.
@@ -245,16 +246,6 @@ let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
         let distance = ((pos.X - circleLocation.X) ** 2.0 + (pos.Y - circleLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
 
-    // let getCustomSymCorners (sym: SymbolT.Symbol) =
-    //     let getScale = function | Some x -> x | _ -> 1.0 
-    //     match sym.Component.Type with
-    //     | CommonTypes.Custom _ -> 
-    //         let HScale = getScale sym.HScale
-    //         let VScale = getScale sym.VScale
-    //         [|{X=0.0;Y=0.0}; {X=0.0;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=0.0}|]
-    //         |> Array.map ((+) sym.Pos)
-    //     | _ -> Array.empty // should never match
-
     let tryGetOppositeCorner corners= 
         match corners with
         | [||] -> None // should never match
@@ -264,12 +255,12 @@ let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
                 | Some idx -> Some corners[(idx + 2) % 4]
                 | None -> None
 
-
     Optic.get symbols_ model
     |> Map.tryPick (fun (sId:ComponentId) (sym:SymbolT.Symbol) ->   
         match sym.Component.Type with
         | CommonTypes.Custom _ -> 
             getCustomSymCorners sym
+            |> (translatePoints sym.Pos)
             |> tryGetOppositeCorner
             |> function
                 | Some p -> Some (sym, p)

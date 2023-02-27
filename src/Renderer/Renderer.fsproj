@@ -54,6 +54,7 @@
     <Compile Include="Interface\FilesIO.fs" />
     <None Include="scss\main.scss" />
     <Compile Include="DrawBlock\DrawModelType.fs" />
+    <Compile Include="DrawBlock\SymbolHelpers.fs" />
     <Compile Include="DrawBlock\PopupDrawingView.fs" />
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />

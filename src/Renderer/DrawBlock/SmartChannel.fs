@@ -177,6 +177,7 @@ let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<
 //                                                          SHIFTING THE WIRES TO THEIR CORRESPONDING POSITION IN THE CHANNEL
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+//Returns a bool whether the wire is shifted to minimal possible position
 let isWireShiftedToMinDistance (wire : Wire) (index : int) =
     let prevSeg = wire.Segments[index - 1]
     let nextSeg = wire.Segments[index + 1]
@@ -184,6 +185,7 @@ let isWireShiftedToMinDistance (wire : Wire) (index : int) =
     | false, false -> false
     | _ -> true
 
+//Filters the wires which could not be shifted to the desired location
 let filterShiftedWires (lst : List<Wire* Segment>) =
     let checkedList =
         lst
@@ -200,6 +202,7 @@ let filterShiftedWires (lst : List<Wire* Segment>) =
         |> List.map fst
     unsafeList, safeList
 
+//Shifts wires to the correct position
 let createShiftedWires (orientation : Orientation) (model : Model) (bounds: BoundingBox) (segList : List<List<Segment*(XYPos*XYPos)>>)  = 
     let innerSegFolder (increment : float ) (lst) (seg, (startPos:XYPos, endPos)) = 
         match orientation with
@@ -211,13 +214,6 @@ let createShiftedWires (orientation : Orientation) (model : Model) (bounds: Boun
     (([], 1.0), segList)||> List.fold outerSegFolder 
     |> fst 
      
-let placeHolderForReplacement (wireList : List<Wire>) = 
-    printfn "%A" "WIRES TO BE REPLACED: "
-    wireList |> List.map (printfn "%A") |> ignore
-
-let getStartComponentFromWire (model : DrawModelType.SheetT.Model) (wire : Wire) =
-    let startCompId = model.Wire.Symbol.Ports[Symbol.getInputPortIdStr wire.InputPort].HostId
-    model.Wire.Symbol.Symbols[ComponentId startCompId].Component
 
 
 ///
@@ -247,6 +243,7 @@ let rec smartChannelRoute
     let sortedWires, diffictulWires = 
         model 
         |> getWireList 
+        |> List.filter (fun element -> not(isWireConnectedToLabel model element))
         |> selectSegmentsIntersectingBoundingBox correctBounds
         |> categoriseWireSegments model correctBounds
         |> pipePrint

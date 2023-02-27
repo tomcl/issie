@@ -30,16 +30,54 @@ open Operators
 /// stating what it does.
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
-    (symbolToSize: Symbol) 
+    (symbolToSize: Symbol) // care about hscale and vscale and portmaps which describe the ports for each edge and vice versa & component H + W
     (otherSymbol: Symbol) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
+    printfn "%A" sModel.Ports
+    printfn "%A" wModel.Wires
+    printfn "%A" otherSymbol.Id
 
-    let wires = [] // replace this with correct wires
+    let wires = wModel.Wires // line 193 and 325
+    let ports = sModel.Ports
+    // sModel.Ports -> search for port ids from wires values
 
-    let symbol' = symbolToSize // no change at the moment
+    //let posFinder (wires: Map<ConnectionId,Wire>) (ports: Map<string, Port>) =
+        //let wireList = Map.toList wires
+        //let currWire = snd wireList[0]
+
+        //let startPos = currWire.StartPos
+
+        //let key = string currWire.InputPort
+        //let currPort = ports[key]
+        //let portNum = currPort.PortNumber
+        //let portHost = currPort.HostId
+
+        //startPos
+    
+    let wireList = Map.toList wires
+    let currWire = snd wireList[0]
+
+    let startPos = currWire.StartPos
+
+    let key = string currWire.InputPort
+    let currPort = ports[key]
+    let portNum = currPort.PortNumber
+    let portHost = currPort.HostId
+
+    //if portHost == symbolToSize.Id then
+    //    let endSymbol = symbolToSize
+    //else
+    //    let
+
+    let hScale = otherSymbol.Component.W / symbolToSize.Component.W
+    let vScale = otherSymbol.Component.H / symbolToSize.Component.H
+
+    let symbol' = {symbolToSize with HScale = Some hScale; VScale = Some vScale}
+
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
+    // Add new wires to model & new symbols to model map
     {wModel with 
         Wires = wModel.Wires // no change for now, but probably this function should use update wires after resizing.
                              // to make that happen the test function which calls this would need to provide an updateWire

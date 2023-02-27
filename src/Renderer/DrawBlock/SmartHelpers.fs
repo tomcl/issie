@@ -1,4 +1,4 @@
-﻿module SmartHelpers
+module SmartHelpers
 open CommonTypes
 open DrawHelpers
 open DrawModelType
@@ -9,6 +9,9 @@ open BusWireUpdateHelpers
 
 open Optics
 open Operators
+
+open SymbolUpdate
+open Symbol
 
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
@@ -181,3 +184,195 @@ let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Mo
    let newEndWire = {wire with OutputPort = OutputPortId endSymbol.Component.OutputPorts[0].Id; Segments = endSegmentList; WId = ConnectionId endWireId} |> autoroute newModel
 
    (unique_labelNb + 1, [newStartWire; newEndWire] |>  updateModelWires newModel)
+   
+   
+//Returns the bounding box of a block of selected symbols, in the 'BlockCorners' type
+//HLP 23: AUTHOR Ismagilov
+let getBlock 
+        (symbols:Symbol List) :BoundingBox = 
+
+    let maxXsym = (List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) symbols)
+    let maxX = maxXsym.Pos.X + (snd (getRotatedHAndW maxXsym))
+
+    let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
+
+    let maxYsym = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) symbols
+    let maxY = maxYsym.Pos.Y + (fst (getRotatedHAndW maxYsym))
+
+    let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
+
+    {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
+
+//Takes a point Pos, a centre Pos, a transform and a rotation type and returns the point rotated about the centre
+//HLP23: AUTHOR Ismagilov
+let rotatePointAboutBlockCentre 
+            (point:XYPos) 
+            (centre:XYPos) 
+            (transform:STransform) 
+            (rotation:RotationType) = 
+    let relativeToCentre = (fun x->x - centre)
+    let rotateAboutCentre (pointIn:XYPos) = 
+        match rotation with 
+        | RotateClockwise ->
+            match transform.Rotation with
+            | Degree0   -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree270 -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree180 -> {X = -pointIn.Y ; Y = pointIn.X}
+            | Degree90  -> {X = -pointIn.Y ; Y = pointIn.X}
+        | RotateAntiClockwise ->
+            match transform.Rotation with
+            | Degree0   -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree270 -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree180 -> {X = pointIn.Y ; Y = -pointIn.X}
+            | Degree90  -> {X = pointIn.Y ; Y = -pointIn.X}
+    let relativeToTopLeft = (fun x->x + centre)
+
+    point
+    |> relativeToCentre
+    |> rotateAboutCentre
+    |> relativeToTopLeft
+
+//Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre
+//HLP23: AUTHOR Ismagilov
+let flipPointAboutBlockCentre 
+    (point:XYPos)
+    (center:XYPos)
+    (flip:FlipType) = 
+    match flip with
+    | FlipHorizontal-> 
+        {X = center.X - (point.X - center.X); Y = point.Y} 
+    | FlipVertical -> 
+        {X = point.X; Y = center.Y - (point.Y - center.Y)}
+
+//Given rotation type, original height and width, and rotated top left point, returns the new top left point.
+//HLP23: AUTHOR Ismagilov
+let adjustPosForBlockRotation
+        (rotation:RotationType) 
+        (h: float)
+        (w:float)
+        (pos: XYPos)
+         : XYPos =
+    let posOffset =
+        match rotation with
+        | RotateClockwise -> {X=(float)h ;Y=0}
+        | RotateAntiClockwise -> { X = 0 ;Y = (float)w }
+    pos - posOffset
+
+//Given flip type, original height and width, and flipped top left point, returns the new top left point.
+//HLP23: AUTHOR Ismagilov
+let adjustPosForBlockFlip
+        (flip:FlipType) 
+        (h: float)
+        (w:float)
+        (pos: XYPos) =
+    let posOffset =
+        match flip with
+        | FlipHorizontal -> {X=(float)w ;Y=0}
+        | FlipVertical -> { X = 0 ;Y = (float)h }
+    pos - posOffset
+
+//Returns the new symbol after rotated about block centre.
+//Needed for overall block rotating and for CC's to maintain same shape
+//Shape changes means different block center -> divergence after many rotations
+//HLP 23: AUTHOR Ismagilov
+let rotateSymbolInBlock 
+        (rotation: RotationType) 
+        (blockCentre: XYPos)
+        (sym: Symbol)  : Symbol =
+      
+    let h,w = getRotatedHAndW sym
+    printfn "rot: %A" rotation
+
+    let newTopLeft = 
+        rotatePointAboutBlockCentre sym.Pos blockCentre sym.STransform rotation
+        |> adjustPosForBlockRotation rotation h w
+
+    let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
+
+    let newSTransform = 
+        match sym.STransform.flipped with
+        | true -> 
+            {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation}  
+        | _-> 
+            {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
+    printfn "newTopLeft : {%A}" newTopLeft
+
+    { sym with 
+        Pos = newTopLeft;
+        PortMaps = rotatePortInfo rotation sym.PortMaps
+        STransform =newSTransform 
+        LabelHasDefaultPos = true
+        Component = newComponent
+    } |> calcLabelBoundingBox 
+
+//Returns the new symbol after flipped about block centre.
+//Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
+//HLP 23: AUTHOR Ismagilov
+let flipSymbolInBlock
+    (flip: FlipType)
+    (blockCentre: XYPos)
+    (sym: Symbol) : Symbol =
+
+    let h,w = getRotatedHAndW sym
+
+    let newTopLeft = 
+        flipPointAboutBlockCentre sym.Pos blockCentre flip
+        |> adjustPosForBlockFlip flip h w
+
+    let portOrientation = 
+        sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
+
+    let flipPortList currPortOrder side =
+        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
+
+    let portOrder = 
+        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
+        |> Map.map (fun edge order -> List.rev order)       
+
+    let newSTransform = 
+        {flipped= not sym.STransform.flipped;
+        Rotation= sym.STransform.Rotation} 
+
+    let newcomponent = {sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
+
+    { sym with
+        Component = newcomponent
+        PortMaps = {Order=portOrder;Orientation=portOrientation}
+        STransform = newSTransform
+        LabelHasDefaultPos = true
+        Pos = newTopLeft
+    }
+    |> calcLabelBoundingBox
+    |> (fun sym -> 
+        match flip with
+        | FlipHorizontal -> sym
+        | FlipVertical -> 
+            let newblock = getBlock [sym]
+            let newblockCenter = newblock.Centre()
+            sym
+            |> rotateSymbolInBlock RotateAntiClockwise newblockCenter 
+            |> rotateSymbolInBlock RotateAntiClockwise newblockCenter)
+
+//Returns the new symbol after scaled about block centre.
+//HLP 23: AUTHOR Ismagilov
+let scaleSymbolInBlock
+    (scaleType: ScaleType)
+    (block: BoundingBox)
+    (sym: Symbol) : Symbol =
+
+    let symCenter = getRotatedSymbolCentre sym
+    let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
+    printfn "xProp: %A" xProp
+    printfn "yProp: %A" yProp
+    let newCenter =
+        match scaleType with
+            | ScaleUp ->
+                {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
+            | ScaleDown ->
+                {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
+
+    let h,w = getRotatedHAndW sym
+    let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
+    let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
+
+    {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}

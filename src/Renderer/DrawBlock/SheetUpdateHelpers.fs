@@ -263,6 +263,7 @@ let mDownUpdate
             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
                         wireCmd (BusWireT.SelectWires model.SelectedWires)
                         wireCmd (BusWireT.ResetJumps [])]
+            
     | _ ->
         match (mouseOn model mMsg.Pos) with
         | Canvas when mMsg.ShiftKeyDown ->
@@ -386,6 +387,7 @@ let mDragUpdate
             | MovingSymbols _ -> CursorType.ClickablePort
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
+
     match model.Action with
     | MovingWire segId -> 
         snapWire model mMsg segId 

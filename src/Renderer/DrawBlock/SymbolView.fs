@@ -185,9 +185,6 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 //--------------------------------------- SYMBOL DRAWING -------------------------------------//
 //--------------------------------------------------------------------------------------------//
 
-/// Draw symbol (and its label) using theme for colors, returning a list of React components 
-/// implementing all of the text and shapes needed.
-
 let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) 
                   w h symbol transform legendFontSize legendOffset=
 
@@ -199,42 +196,63 @@ let drawComponet (comp:Component) strokeWidth points colour outlineColour opacit
     |_ ->   let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
             
             match comp.Type with
-            |And -> let curveAttr = makePartArcAttr 5. (-(comp.W/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
-                    let vertLineAttr = makeLineAttr 0 comp.H
-                    let fillSquare = makePolygon ($"0,0 {comp.W/2.},0 {comp.W/2.},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
-                    [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
-                    makeAnyPath {X = comp.W/2.; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
-                    makeAnyPath {X = comp.W/2.; Y = comp.H} curveAttr parameters]
+
+            |And -> let lineOne = makeLineAttr 0. comp.H
+                    let lineTwo = makeLineAttr (comp.W/2.) 0.
+                    let curveAttr = makePartArcAttr 5. (-(comp.H/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
+                    let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
+                    [makeAnyPath {X= 0; Y = 0} shape parameters]
 
             |Nand ->let radius = 4.
                     let width = (comp.W/2.)-radius
-                    let curveAttr = makePartArcAttr 5. (-(comp.W/2.)) (-(comp.W/2.)) (comp.H/2.) ((comp.W/2.))
-                    let vertLineAttr = makeLineAttr 0 comp.H
-                    let fillSquare = makePolygon ($"0,0 {width},0 {width},{comp.H} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill}
-                    [fillSquare; makeAnyPath {X = 0; Y = 0} vertLineAttr parameters;
-                    makeAnyPath {X = width; Y = 0} vertLineAttr {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
-                    makeAnyPath {X = width; Y = comp.H} curveAttr parameters;
-                    makeCircle (width*2.+(2.*radius)) (comp.H/2.0) {defaultCircle with R = radius; Fill = parameters.Fill}]
+                    let lineOne = makeLineAttr 0. comp.H
+                    let lineTwo = makeLineAttr (width) 0.
+                    let curveAttr = makePartArcAttr 5. (-comp.H/2.) (-width) (comp.H/2.) width
+                    let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
+                    [makeAnyPath {X = 0; Y = 0} shape parameters;
+                    makeCircle (width*2.+(radius)) (comp.H/2.) {defaultCircle with R = radius; Fill = parameters.Fill}]
 
-            |Or ->  [makeAnyPath {X = 0; Y = 0} (makeBoomerang -20.0 -7.0 30. 70. 25. 50.) parameters]
+            |Or ->  let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-5.) ((comp.H/2.)) -5. comp.H
+                    let line = makeLineAttr ((comp.W/2.)+5.) 0.
+                    let curveTwo = makeQuadraticBezierAttr ((comp.W*1.5)) ((comp.H/2.)) (comp.W/2.) 0.
+                    let shape = combineAnyPathAttr [curveOne; line; curveTwo; "Z"]
+                    [makeAnyPath {X = -5; Y = 0} shape parameters]
 
-            |Nor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 25. 60. 25. 50.) parameters;
-                    makeCircle 43 (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
+            |Nor -> let notDiameter = 8.
+                    let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) -notDiameter comp.H
+                    let line = makeLineAttr (comp.W/2.) 0.
+                    let curveTwo = makeQuadraticBezierAttr ((comp.W*1.5)-notDiameter) ((comp.H/2.)) ((comp.W/2.)-notDiameter) 0.
+                    let orShape = combineAnyPathAttr [curveOne; line; curveTwo; "Z"]
+                    [makeAnyPath {X = -notDiameter; Y = 0} orShape parameters;
+                    makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}]
 
             |Not -> let notRadius = 3.
                     let width = comp.W-(notRadius*2.)
                     [makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
                     makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}]
 
-            |Xor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 30. 70. 25. 50.) parameters; 
-                    makeAnyPath {X= -22; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"}]
+            |Xor -> let curveOne = makeQuadraticBezierAttr ((comp.W/2.)) ((comp.H/2.)) 0. comp.H
+                    let line = makeLineAttr (comp.W/2.) 0.
+                    let curveTwo = makeQuadraticBezierAttr ((comp.W*1.5)) ((comp.H/2.)) (comp.W/2.) 0.
+                    let shape = combineAnyPathAttr [curveOne; line; curveTwo; "Z"]
+                    let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-5.) ((comp.H/2.)) -5. comp.H
+                    [makeAnyPath {X = 0; Y = 0} shape parameters; 
+                    makeAnyPath {X= -5; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"}]
 
-            |Xnor -> [makeAnyPath {X = 0; Y = comp.H} (makeBoomerang -20.0 -7.0 25. 60. 25. 50.) parameters; 
-                    makeAnyPath {X= -22; Y= -2} (makePartArcAttr 30 0 10 (-5. - comp.H) -10) {parameters with Fill = "None"; StrokeWidth = "1.5px"};
-                    makeCircle (43) (comp.H/2.0) {defaultCircle with R = 4; Fill = parameters.Fill}]
+            |Xnor ->let notDiameter = 8.
+                    let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) -notDiameter comp.H
+                    let line = makeLineAttr (comp.W/2.) 0.
+                    let curveTwo = makeQuadraticBezierAttr ((comp.W*1.5)-notDiameter) ((comp.H/2.)) ((comp.W/2.)-notDiameter) 0.
+                    let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter-5.) ((comp.H/2.)) (-notDiameter-5.) comp.H
+                    let shape = combineAnyPathAttr [curveOne; line; curveTwo; "Z"]
+                    [makeAnyPath {X = -notDiameter; Y = 0} shape parameters; 
+                    makeAnyPath {X= (-notDiameter-5.); Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"};
+                    makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}]
 
             |_ ->   createBiColorPolygon points colour outlineColour opacity strokeWidth comp
 
+/// Draw symbol (and its label) using theme for colors, returning a list of React components 
+/// implementing all of the text and shapes needed.
 let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let appear = symbol.Appearance
     let colour = appear.Colour

@@ -65,7 +65,7 @@ let process7Segment (seg: Segment) =
     | 3 -> if seg.Length = 0 then Some (seg, StraightCross) else Some (seg, ZigZagCross)
 
 //Given the output of selectSegmentsIntersectingBoundingBox, it reduces the list in a list into a single List containing one segment per wire, and its categorisation
-let categoriseWireSegments (model:Model ) (segList : List<List<Segment>>) =
+let categoriseWireSegments (model:Model ) (bounds: BoundingBox) (segList : List<List<Segment>>) =
     
     let mapOverWireSegment (segments : List<Segment>) =
         match segments.Length with
@@ -74,8 +74,8 @@ let categoriseWireSegments (model:Model ) (segList : List<List<Segment>>) =
         | 1 -> Some (segments[0], StraightCross)
         | 2 -> Some (getMiddleSegment model segments[0].WireId, LShape)
         | 3 -> if segments[1].Length <> 0 then Some (segments[0], HarryPotter) else Some (segments[0], StraightCross)
-        | 4 when segments[0].Index = 0 -> Some (segments[3], Originates)
-        | 4 -> Some(segments[0], Terminates )
+        | 4 when isWireConnectedOnLeft model bounds segments[0].WireId -> Some (getMiddleSegment model segments[0].WireId , Originates)
+        | 4 -> Some(getMiddleSegment model segments[0].WireId, Terminates )
         | 5 -> Some (getMiddleSegment model segments[0].WireId ,ZigZagCross)
         | 7 -> getMiddleSegment model segments[0].WireId |> process7Segment
         | _ -> Some (getMiddleSegment model segments[0].WireId, TooDifficult)
@@ -248,7 +248,7 @@ let rec smartChannelRoute
         model 
         |> getWireList 
         |> selectSegmentsIntersectingBoundingBox correctBounds
-        |> categoriseWireSegments model
+        |> categoriseWireSegments model correctBounds
         |> pipePrint
         |> generateChannelOrder channelOrientation model 
     let moreDiffictultWires ,wireListToModify =

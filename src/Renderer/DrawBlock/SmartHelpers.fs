@@ -1,4 +1,4 @@
-module SmartHelpers
+﻿module SmartHelpers
 open CommonTypes
 open DrawHelpers
 open DrawModelType
@@ -117,10 +117,25 @@ let getMiddleSegment (model : Model) (wireId:ConnectionId) =
     | 8 -> getSegmentFromId model (3, wireId)
     | x -> getSegmentFromId model (x/2, wireId)
 
+
+let isWireTerminatingInComponents (model : BusWireT.Model) (comIdLst : List<ComponentId>) (wireId : ConnectionId) =
+    let wire = model.Wires[wireId]
+    let outputPort =  model.Symbol.Ports[wire.OutputPort |> function | OutputPortId s -> s]
+    comIdLst|> List.contains (ComponentId outputPort.HostId)
+
+let isPositionInBounds (bound : BoundingBox) (pos : XYPos) =
+    match (pos.X >= bound.TopLeft.X, pos.X <= bound.TopLeft.X + bound.W, pos.Y >= bound.TopLeft.Y , pos.Y <= bound.TopLeft.Y + bound.H) with
+    | true,true,true,true -> true
+    | _ -> false
+
+let isWireConnectedOnLeft (model : Model) (bounds : BoundingBox) (wireId) =
+    let wire = model.Wires[wireId]
+    if isPositionInBounds {bounds with W = bounds.W / 2.0} wire.StartPos || isPositionInBounds {bounds with W = bounds.W / 2.0}  wire.EndPos then true else false
 //Gets the starting component 
 let getStartComponentFromWire (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     let startCompId = model.Symbol.Ports[Symbol.getInputPortIdStr wire.InputPort].HostId
     model.Symbol.Symbols[ComponentId startCompId].Component
+
 
 //Function which replaces a wire with two labels directly connected to original inputs and outputs of the wire
 //It requires a BusWireT.Model and a wire and it will modify the model

@@ -70,7 +70,8 @@ let categoriseWireSegments (model:Model ) (segList : List<List<Segment>>) =
     let mapOverWireSegment (segments : List<Segment>) =
         match segments.Length with
         | 0 -> None
-        | 1 -> Some (segments[0],PassThrough)
+        | 1 when segments[0].Index = 3 -> Some (segments[0],PassThrough)
+        | 1 -> Some (segments[0], StraightCross)
         | 2 -> Some (getMiddleSegment model segments[0].WireId, LShape)
         | 3 -> if segments[1].Length <> 0 then Some (segments[0], HarryPotter) else Some (segments[0], StraightCross)
         | 4 when segments[0].Index = 0 -> Some (segments[3], Originates)
@@ -169,7 +170,7 @@ let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<
         |> List.map fst
         |> sortUpDown model orientation
     let TooDifficult = lst |> List.filter (fun element -> snd element = TooDifficult) |> List.map fst
-    (leftHarry|> sortUpDown model orientation) @ OriginateList  @ PassThroughList @ LList @ ZiggZaggList  @ TerminatesList @ (rightHarry|> sortUpDown model orientation), TooDifficult
+    (leftHarry|> sortUpDown model orientation) @ OriginateList @ PassThroughList  @ LList @ ZiggZaggList  @ TerminatesList @ (rightHarry|> sortUpDown model orientation), TooDifficult
     
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -219,71 +220,6 @@ let getStartComponentFromWire (model : DrawModelType.SheetT.Model) (wire : Wire)
     model.Wire.Symbol.Symbols[ComponentId startCompId].Component
 
 
-//Helper function which replaces a connected wire with a label link
-let replaceWireWithLabel (model : DrawModelType.SheetT.Model) (wire : Wire) =
-   let startComp = getStartComponentFromWire model wire
-   let startLabelId = JSHelpers.uuid ()
-   let startPos = {wire.StartPos with X = wire.StartPos.X + 50.0 ;Y = wire.StartPos.Y - 7.5}
-   let startLabel = Symbol.makeComponent startPos ComponentType.IOLabel startLabelId startComp.Label
-    
-   let endLabelId = JSHelpers.uuid ()
-   let endPos = {wire.EndPos with X = wire.EndPos.X - 100.0;Y = wire.EndPos.Y - 7.5}
-   let endLabel = Symbol.makeComponent endPos ComponentType.IOLabel endLabelId startComp.Label
-   let startSymbol = 
-        { 
-            Pos = startPos
-            LabelBoundingBox = {TopLeft=startPos; W=0.;H=0.} // dummy, will be replaced
-            LabelHasDefaultPos = true
-            LabelRotation = None
-            Appearance =
-                {
-                    HighlightLabel = false
-                    ShowPorts = ShowNone
-                    Colour = "rgb(120,120,120)"
-                    Opacity = 1.0
-                }
-            InWidth0 = None // set by BusWire
-            InWidth1 = None
-            Id = ComponentId startLabel.Id
-            Component = startLabel
-            Moving = false
-            PortMaps = Symbol.initPortOrientation startLabel
-            STransform = {Rotation = Degree0; flipped = false}
-            ReversedInputPorts = Some false
-            MovingPort = None
-            IsClocked = false
-            MovingPortTarget = None
-            HScale = None
-            VScale = None
-            }
-            |> Symbol.autoScaleHAndW
-   let symbolModel = model.Wire.Symbol
-   let endSymbol = {startSymbol with Pos = endPos; Id = ComponentId endLabel.Id; Component = endLabel; PortMaps = Symbol.initPortOrientation endLabel} |> Symbol.autoScaleHAndW
-
-   let startSymbolMap = symbolModel.Symbols.Add (ComponentId startLabel.Id, startSymbol) 
-   let startNewPorts = Symbol.addToPortModel symbolModel startSymbol 
-
-   let endSymbolMap = {symbolModel with Symbols = startSymbolMap; Ports = startNewPorts}.Symbols.Add (ComponentId endLabel.Id, endSymbol) 
-   let endNewPorts = Symbol.addToPortModel {symbolModel with Symbols = endSymbolMap; Ports = startNewPorts} endSymbol 
-
-   let newModel = {model with Wire = {model.Wire with Symbol = {symbolModel with Symbols = endSymbolMap; Ports = endNewPorts}}}
-
-   let startLabelInputPortPos  = Symbol.getInputPortLocation None newModel.Wire.Symbol (InputPortId startSymbol.Component.InputPorts[0].Id)
-   let endLabelOutputPortPos = Symbol.getOutputPortLocation None newModel.Wire.Symbol (OutputPortId endSymbol.Component.OutputPorts[0].Id)
-
-   let startSegmentList = makeInitialSegmentsList wire.WId wire.StartPos startLabelInputPortPos Left
-   let endWireId = JSHelpers.uuid ()
-   let endSegmentList = makeInitialSegmentsList (ConnectionId endWireId) endLabelOutputPortPos wire.EndPos Right
-   let newStartWire = {wire with InputPort = InputPortId startSymbol.Component.InputPorts[0].Id; Segments = startSegmentList} |> autoroute newModel.Wire 
-
-   let newEndWire = {wire with OutputPort = OutputPortId endSymbol.Component.OutputPorts[0].Id; Segments = endSegmentList; WId = ConnectionId endWireId} |> autoroute newModel.Wire
-
-   {newModel with Wire = [newStartWire; newEndWire] |>  updateModelWires newModel.Wire}
-
-
-
-
-
 ///
 /// HLP23: suggested initial smartChannel top-level function
 /// to be tested, it must be given a channel in through which to route wires nicely
@@ -300,12 +236,11 @@ let replaceWireWithLabel (model : DrawModelType.SheetT.Model) (wire : Wire) =
 let rec smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 
-        (fullModel: DrawModelType.SheetT.Model) 
-            : DrawModelType.SheetT.Model =
+        (model: DrawModelType.BusWireT.Model) 
+            : DrawModelType.BusWireT.Model =
 
     let tl = channel.TopLeft
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
-    let model = fullModel.Wire
     
     let correctBounds = {channel with TopLeft = {channel.TopLeft with X = channel.TopLeft.X - channel.W}}
     
@@ -324,9 +259,9 @@ let rec smartChannelRoute
     let updatedWireModel : DrawModelType.BusWireT.Model = 
         wireListToModify
         |> updateModelWires model 
-    let modelWithMovedWires = {fullModel with Wire = updatedWireModel}
-    let finalModel = (modelWithMovedWires,moreDiffictultWires |> List.append (diffictulWires |> List.map (fun element -> model.Wires[element.WireId])))
+    let finalModel = ((1,updatedWireModel),moreDiffictultWires |> List.append (diffictulWires |> List.map (fun element -> model.Wires[element.WireId])))
                     ||> List.fold replaceWireWithLabel
+                    |> snd
     match moreDiffictultWires.Length with
     | 0 -> finalModel
     | _ -> smartChannelRoute channelOrientation channel finalModel

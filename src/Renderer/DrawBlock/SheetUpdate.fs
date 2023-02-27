@@ -773,7 +773,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         printfn "Symbols are not oriented for a vertical channel"
                         model, Cmd.none
                    | Some channel ->
-                        SmartChannel.smartChannelRoute Vertical channel model, Cmd.none
+                        {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   

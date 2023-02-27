@@ -114,8 +114,6 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
     // make huglength dependent on the port index
     let lengthAdjustment = float outputPortIndex * 5.0
 
-    printfn "output port index: %A" outputPortIndex
-
     let hugDist = huggingDistance model wire symbolFound
     let leftHugLength = 10.0 + fst hugDist + lengthAdjustment   
     let rightHugLength = 10.0 + snd hugDist + lengthAdjustment
@@ -211,24 +209,14 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                                 let wireRight = fst wireEndpos
                                 let wireTop = snd leftCornerPos
 
-                                printfn "symbol dims: %A" symbolBox
-                                printfn "wire top left dims: %A" leftCornerPos
-                                printfn "wire end pos  dims: %A" wireEndpos
-
                                 let middleCondition = symbolLeft < wireLeft && symbolRight > wireLeft && ( (symbolTop > wireTop && symbolBottom < (snd bottomLeftCornerPos)) || (symbolTop < wireTop && symbolBottom > wireTop) || (symbolTop > wireTop && symbolBottom < (snd bottomLeftCornerPos)) || (symbolTop > (snd bottomLeftCornerPos)  && symbolBottom < wireTop) || (symbolTop > wireTop && symbolTop < (snd bottomLeftCornerPos)))
                                 let leftCondition = symbolLeft > wire.StartPos.X && symbolLeft < (fst bottomLeftCornerPos) && symbolTop < (snd bottomLeftCornerPos) && symbolBottom > (snd bottomLeftCornerPos) 
                                 let rightCondition = symbolLeft > wireLeft && symbolLeft < wireRight && symbolTop < wireTop && symbolBottom > wireTop
 
                                 let symbolInWay = 
-                                    if middleCondition then
-                                        printfn "symbol in way of MIDDLE segment of wire"
-                                        true
-                                    elif leftCondition then
-                                        printfn "symbol in way of LEFT segment of wire"
-                                        true
-                                    elif rightCondition then
-                                        printfn "symbol in way of RIGHT segment of wire"
-                                        true
+                                    if middleCondition then true
+                                    elif leftCondition then true
+                                    elif rightCondition then true
                                     else false 
                                 
                                 symbolInWay)                        
@@ -238,7 +226,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                             match symbolList with
                             | [] -> wire
                             | symbol::symbols ->
-                                printfn "symbol in way"
+                                // printfn "symbol in way"
                                 let symbolBox = symbolBox symbol
                                 let symbolTopLeftPos = symbolBox[0]
                                 let symbolTopRightPos = symbolBox[1]
@@ -250,25 +238,14 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                                 let wireTop = snd leftCornerPos
                                 let wireRight = fst wireEndpos
                                 let wireLeft = fst leftCornerPos
-                                
-
-                                printfn "Second: symbol dims: %A" symbolBox
-                                printfn "wire bottom left dims: %A" bottomLeftCornerPos
-                                printfn "wire start pos dims: %A" wire.StartPos
-
-                                printfn "symbolLeft: %A" symbolLeft
-                                printfn "wireLeft: %A" wireLeft
-                                printfn "symbolRight: %A" symbolRight
-
+    
                                 let middleCondition = symbolLeft < wireLeft && symbolRight > wireLeft && ( (symbolTop > wireTop && symbolBottom < (snd bottomLeftCornerPos)) || (symbolTop < wireTop && symbolBottom > wireTop) || (symbolTop > wireTop && symbolBottom < (snd bottomLeftCornerPos)) || (symbolTop > (snd bottomLeftCornerPos)  && symbolBottom < wireTop) || (symbolTop > wireTop && symbolTop < (snd bottomLeftCornerPos)))
                                 let leftCondition = symbolLeft > wire.StartPos.X && symbolLeft < (fst bottomLeftCornerPos) && symbolTop < (snd bottomLeftCornerPos) && symbolBottom > (snd bottomLeftCornerPos) 
                                 let rightCondition = symbolLeft > wireLeft && symbolLeft < wireRight && symbolTop < wireTop && symbolBottom > wireTop
 
-                                printfn "(symbolLeft - wireLeft)  %A" (symbolLeft - wireLeft) 
-
                                 let newWire =
                                     if leftCondition && middleCondition then 
-                                        printfn "symbol in way of LEFT AND MIDDLE wire segments"
+                                        // printfn "symbol in way of LEFT AND MIDDLE wire segments"
                                         let newFifthSegment = { wire.Segments.[5] with Length = wire.Segments.[5].Length + (snd wireEndpos - symbolTop) }
                                         let newFirstSegment = { wire.Segments.[1] with Length = wire.Segments.[1].Length + 5. + (snd wireEndpos - symbolTop) }
                                         let newThirdSegment = { wire.Segments.[3] with Length = wire.Segments.[3].Length - 5. -  ( 2. * (wireTop - symbolTop) )  } 
@@ -277,7 +254,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                                         { wire with Segments = [ wire.Segments.[0]; newFirstSegment; newSecondSegment; newThirdSegment; newFourthSegment; newFifthSegment; wire.Segments.[6] ] }
 
                                     elif rightCondition && middleCondition then
-                                        printfn "symbol in way of RIGHT AND MIDDLE wire segments"
+                                        // printfn "symbol in way of RIGHT AND MIDDLE wire segments"
                                         let newSecondSegment = { wire.Segments.[2] with Length = wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft) }
                                         let newFourthSegment = { wire.Segments.[4] with Length = wire.Segments.[4].Length + 10. - (symbolLeft - wireLeft) }
                                         let newThirdSegment = { wire.Segments.[3] with Length = wire.Segments.[3].Length - 5. - (wireTop - symbolTop) }
@@ -285,15 +262,15 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                                         { wire with Segments = [ wire.Segments.[0]; wire.Segments.[1]; newSecondSegment; newThirdSegment; newFourthSegment; newFifthSegment; wire.Segments.[6] ] }
                                         
                                     elif leftCondition then
-                                        printfn "symbol in way of LEFT segment of wire"
+                                        // printfn "symbol in way of LEFT segment of wire"
                                         let newFirstSegment = { wire.Segments.[1] with Length = wire.Segments.[1].Length + 5. + (symbolBottom - snd bottomLeftCornerPos) }
                                         let newThirdSegment = { wire.Segments.[3] with Length = wire.Segments.[3].Length - 5. - (symbolBottom - snd bottomLeftCornerPos) }
                                         { wire with Segments = [ wire.Segments.[0]; newFirstSegment; wire.Segments.[2]; newThirdSegment; wire.Segments.[4]; wire.Segments.[5]; wire.Segments.[6] ] }
                                     
                                     elif middleCondition then
-                                        printfn "symbol in way of MIDDLE segment of wire"
+                                        // printfn "symbol in way of MIDDLE segment of wire"
                                         if symbolTop > snd bottomLeftCornerPos then
-                                            printfn  "symbol in MIDDLE and target symbol is BELOW source symbol"
+                                            // printfn  "symbol in MIDDLE and target symbol is BELOW source symbol"
 
                                             let newFifthSegment = { wire.Segments.[5] with Length = wire.Segments.[5].Length - 5. -  ( (symbolBottom - snd wireEndpos) ) }
                                             let newThirdSegment = { wire.Segments.[3] with Length = wire.Segments.[3].Length + 5. +  ( (symbolBottom - snd wireEndpos)  )  } 
@@ -302,12 +279,17 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Wire
                                             let newFourthSegment = { wire.Segments.[4] with Length = wire.Segments.[4].Length + 12. - (symbolLeft - wireLeft) }
                                             { wire with Segments = [ wire.Segments.[0]; wire.Segments[1]; newSecondSegment; newThirdSegment; newFourthSegment; newFifthSegment; wire.Segments.[6] ] }
                                         else 
+                                            // printfn  "symbol in MIDDLE and target symbol is ABOVE source symbol"
+
+                                            let newFifthSegment = { wire.Segments.[5] with Length = wire.Segments.[5].Length  + 5. +  ( (snd wireEndpos) - symbolTop) }
+                                            let newThirdSegment = { wire.Segments.[3] with Length = wire.Segments.[3].Length - 5. -  ( (snd wireEndpos - symbolTop)  )  } 
+
                                             let newSecondSegment = { wire.Segments.[2] with Length = wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft) }
                                             let newFourthSegment = { wire.Segments.[4] with Length = wire.Segments.[4].Length + 10. - (symbolLeft - wireLeft) }
-                                            { wire with Segments = [ wire.Segments.[0]; wire.Segments.[1]; newSecondSegment; wire.Segments.[3]; newFourthSegment; wire.Segments.[5]; wire.Segments.[6] ]}
+                                            { wire with Segments = [ wire.Segments.[0]; wire.Segments[1]; newSecondSegment; newThirdSegment; newFourthSegment; newFifthSegment; wire.Segments.[6] ] }
 
                                     else
-                                        printfn "symbol in way of RIGHT segment of wire"
+                                        // printfn "symbol in way of RIGHT segment of wire"
                                         let newThirdSegment = { wire.Segments.[3] with Length = wire.Segments.[3].Length - 5. - (wireTop - symbolTop) }
                                         let newFifthSegment = { wire.Segments.[5] with Length = wire.Segments.[5].Length + 5. + (wireTop - symbolTop) }
                                         { wire with Segments = [ wire.Segments.[0]; wire.Segments.[1]; wire.Segments.[2]; newThirdSegment; wire.Segments.[4]; newFifthSegment; wire.Segments.[6] ] }

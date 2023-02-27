@@ -4,7 +4,6 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 
-
 open CommonTypes
 open DrawHelpers
 open DrawModelType.SymbolT
@@ -185,8 +184,10 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 //--------------------------------------- SYMBOL DRAWING -------------------------------------//
 //--------------------------------------------------------------------------------------------//
 
+/// Draw component in either new IEEE style with legends or old curved style, returns list of react elements
+/// depending on theme and component
 let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) 
-                  w h symbol transform legendFontSize legendOffset=
+                  w h (symbol:Symbol) transform legendFontSize legendOffset=
 
     match symbolType with 
     |NewSymbols ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
@@ -203,14 +204,14 @@ let drawComponet (comp:Component) strokeWidth points colour outlineColour opacit
                     let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
                     [makeAnyPath {X= 0; Y = 0} shape parameters]
 
-            |Nand ->let radius = 4.
-                    let width = (comp.W/2.)-radius
+            |Nand ->let notDiameter = 8.
+                    let width = (comp.W/2.)-(notDiameter/2.)
                     let lineOne = makeLineAttr 0. comp.H
                     let lineTwo = makeLineAttr (width) 0.
                     let curveAttr = makePartArcAttr 5. (-comp.H/2.) (-width) (comp.H/2.) width
                     let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
                     [makeAnyPath {X = 0; Y = 0} shape parameters;
-                    makeCircle (width*2.+(radius)) (comp.H/2.) {defaultCircle with R = radius; Fill = parameters.Fill}]
+                    makeCircle (width*2.+(notDiameter)) (comp.H/2.) {defaultCircle with R = (notDiameter/2.); Fill = parameters.Fill}]
 
             |Or ->  let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-5.) ((comp.H/2.)) -5. comp.H
                     let line = makeLineAttr ((comp.W/2.)+5.) 0.

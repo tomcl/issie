@@ -286,7 +286,7 @@ let getEquivalentCopiedPorts (model: Model) (copiedIds) (pastedIds) (InputPortId
 
 /// Creates and adds a symbol into model, returns the updated model and the component id
 let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
-    let newSym = createNewSymbol ldcs pos compType lbl model.Theme
+    let newSym = createNewSymbol ldcs pos compType lbl model.Theme 
     let newPorts = addToPortModel model newSym
     let newSymModel = Map.add newSym.Id newSym model.Symbols
     { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
@@ -429,7 +429,7 @@ let inline colorSymbols (model: Model) compList colour =
     { model with Symbols = newSymbols }
 
 /// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
-let createSymbol ldcs theme prevSymbols comp =
+let createSymbol ldcs theme prevSymbols comp  =
         let clocked = isClocked [] ldcs comp
         let portMaps = 
             match comp.SymbolInfo with
@@ -489,7 +489,7 @@ let createSymbol ldcs theme prevSymbols comp =
 /// Given a model and a list of components, it creates and adds the symbols containing the specified components and returns the updated model.
 let loadComponents loadedComponents model comps=
     let symbolMap =
-        (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents model.Theme)
+        (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents model.Theme )
     let addPortsToModel currModel _ sym =
         { currModel with Ports = addToPortModel currModel sym }
         
@@ -904,7 +904,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> Map.map 
                 (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
- 
+    | SetStyle (style:StyleType) ->
+        {model with Style=style;}, Cmd.none
 
 
 // ----------------------interface to Issie----------------------------- //

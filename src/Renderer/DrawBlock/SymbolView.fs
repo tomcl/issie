@@ -120,6 +120,9 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
+let createPath (startingPoint: XYPos) (startingControlPoint: XYPos) (endingControlPoint: XYPos) (endingPoint: XYPos) =
+    [makePath startingPoint startingControlPoint endingControlPoint endingPoint {defaultPath with Stroke = "Black"; StrokeWidth="5px"}]
+
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
         [makePolygon points {defaultPolygon with Fill = colour; Stroke = strokeColor; FillOpacity = opacity; StrokeWidth=strokeWidth}]
@@ -184,7 +187,7 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 
 /// Draw symbol (and its label) using theme for colors, returning a list of React components 
 /// implementing all of the text and shapes needed.
-let drawSymbol (symbol:Symbol) (theme:ThemeType) =
+let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
@@ -277,7 +280,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             | NbitSpreader _ ->
                 [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
             | _ -> [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
-                
+
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
         |> toString 
 
@@ -446,6 +449,25 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
+    let daPoints = [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
+    let rotateAnd (points:XYPos[]) transform =
+        match transform with 
+        | Degree0 -> points
+        | Degree90 -> [|{X=0;Y=H}; {X= -H/2.;Y=0;}; {X= H/2.;Y=0};{X=W;Y=H/2.};{X= W;Y=0};{X=0.;Y= 0.};{X=0;Y=H/2.}|]
+        | _ -> [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
+
+    let andShape = (rotateAnd daPoints transform.Rotation)
+
+    let shapemaker = 
+        match style with
+            | Distinctive -> 
+                            match comp.Type with
+                            | And ->
+                                ([makeAnyPath (andShape[0]) (makePartArcAttr (H/2.) (andShape[1].Y) (andShape[1].X) (andShape[2].Y) (andShape[2].X)) {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]) 
+                                |> List.append ([makeAnyPath andShape[3] ((makeLineAttr (andShape[4].X) andShape[4].Y)+(makeLineAttr andShape[5].X andShape[5].Y)+(makeLineAttr (andShape[6].X) andShape[6].Y)) {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]) 
+                            | _ -> createBiColorPolygon points colour outlineColour opacity strokeWidth comp
+            | _ -> createBiColorPolygon points colour outlineColour opacity strokeWidth comp
+
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
@@ -459,10 +481,8 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-
-
-
+    // |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+    |> List.append (shapemaker)
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//
 //----------------------------------------------------------------------------------------//
@@ -473,6 +493,7 @@ type private RenderSymbolProps =
         Dispatch : Dispatch<Msg>
         key: string
         Theme: ThemeType
+        Style: StyleType
     }
 
 /// View for one symbol. Using FunctionComponent.Of to improve efficiency 
@@ -485,7 +506,7 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol props.Theme)
+                (drawSymbol props.Symbol props.Theme props.Style)
             
         , "Symbol"
         , equalsButFunctions
@@ -527,6 +548,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
                 Dispatch = dispatch
                 key = id
                 Theme = model.Theme
+                Style = model.Style
             }
     )
     |> ofList
@@ -537,5 +559,6 @@ let init () =
     { 
         Symbols = Map.empty; CopiedSymbols = Map.empty
         Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty; Theme = Colourful
+        OutputPortsConnected = Map.empty; Theme = Colourful;
+        Style = Rectangular
     }, Cmd.none

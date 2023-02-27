@@ -93,7 +93,6 @@ module SymbolT =
             /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
 
-     
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -101,6 +100,11 @@ module SymbolT =
         |White
         |Light
         |Colourful
+
+    type StyleType = 
+        |Rectangular
+        |Distinctive
+
 
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
@@ -176,6 +180,7 @@ module SymbolT =
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
             /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
+
         }
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
@@ -203,6 +208,8 @@ module SymbolT =
         OutputPortsConnected: Map<OutputPortId, int>
 
         Theme: ThemeType
+        Style: StyleType
+
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -245,6 +252,7 @@ module SymbolT =
         | MovePortDone of portId: string * move: XYPos
         | SaveSymbols
         | SetTheme of ThemeType
+        | SetStyle of StyleType
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
 

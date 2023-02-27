@@ -43,6 +43,7 @@ type MouseT = {
     ShiftKeyDown: bool
     Op: MouseOp}
 
+
 /// Record to help draw SVG circles
 type Circle = {
     ///  Radius of the circle
@@ -246,6 +247,7 @@ let makePath (startingPoint: XYPos) (startingControlPoint: XYPos) (endingControl
             SVGAttr.StrokeLinecap pathParameters.StrokeLinecap
             SVGAttr.Fill pathParameters.Fill
     ] []
+
     
 /// Makes a polygon ReactElement, points are to be given as a correctly formatted SVGAttr.Points string 
 let makePolygon (points: string) (polygonParameters: Polygon) =

@@ -96,9 +96,9 @@ let categoriseUpdown (model: Model) (seg : Segment) =
     let starPortOrientation = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort
     let endPortOrientation = Symbol.getInputPortOrientation model.Symbol wire.InputPort
     let initialPositon = match seg.Length with
-                        | x when x > 0 -> Down
-                        | x when x < 0 -> Up
-                        | _ -> Neither
+                            | x when x > 0 -> Down
+                            | x when x < 0 -> Up
+                            | _ -> Neither
     match initialPositon, (starPortOrientation = Left || endPortOrientation = Right) with
     | initialPositon, false -> initialPositon
     | Down, true -> Up
@@ -224,19 +224,12 @@ let createShiftedWires (orientation : Orientation) (model : Model) (bounds: Boun
      
 
 
-///
-/// HLP23: suggested initial smartChannel top-level function
-/// to be tested, it must be given a channel in through which to route wires nicely
-/// Normally the channel will come from symbol edges.
-/// The function must identify all wires with segments going through the channel and space them
-/// This function routes the middle segment of all 7 segment wires by moving them perpendicular to its direction.
-/// It is expected that all wires provided are 7 segment with middle segment in the same direction
-/// wires not so will be ignored.
-/// The messiness of when to call it, what to do with different types of wire, which wires to call it with
-/// could be left till later.
-/// For this simple routing only one dimension of the channel is needed (determined by orientation).
-/// The Wires going through the channel must be returned as an updated Wires map in model.
-// HLP23: need to update XML doc comments when this function is fully worked out.
+
+/// <summary>HLP 23: AUTHOR Klapper - Routes the wires in a nice readable way in a channel, replaces wires with labels if it fails to route them in a neet way</summary>
+/// <param name="channelOrientation">Orientation of the channel</param>
+/// <param name="channel">Boundingbox of the channel (Note: instead of TopLeft it uses TopRight)</param>
+/// <param name="model">BusWireT.Model</param>
+/// <returns>The modified BusWireT.Model</returns>
 let rec smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 

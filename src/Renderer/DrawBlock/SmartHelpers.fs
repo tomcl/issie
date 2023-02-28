@@ -107,8 +107,11 @@ let updateModelWires
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
 
-//Function which returns the middle segment of a given wire based on WireId (useful for moving wires around in the channel) 
-//Author: Zsombor Klapper
+
+/// <summary>HLP 23: AUTHOR Klapper - Returns the middle segment of a given wire</summary>
+/// <param name="model">BusWireT.Model</param>
+/// <param name="wireId">ConnectionId of the wire</param>
+/// <returns>The middle Segment</returns>
 let getMiddleSegment (model : Model) (wireId:ConnectionId) =
     let wire = model.Wires[wireId]
     match wire.Segments.Length with
@@ -117,40 +120,64 @@ let getMiddleSegment (model : Model) (wireId:ConnectionId) =
     | 8 -> getSegmentFromId model (3, wireId)
     | x -> getSegmentFromId model (x/2, wireId)
 
-//Function which checks wether the wire terminates in on of the selected components, returns a bool
-//Author: Zsombor Klapper
+
+
+/// <summary>HLP 23: AUTHOR Klapper - Checks whether the wire terminates in one of the components</summary>
+/// <param name="model">BusWireT.Model</param>
+/// <param name="comIdLst">List containing the ComponentId-s</param>
+/// <param name="wireId">ConnectionId of the wire</param>
+/// <returns>true or false</returns>
 let isWireTerminatingInComponents (model : BusWireT.Model) (comIdLst : List<ComponentId>) (wireId : ConnectionId) =
     let wire = model.Wires[wireId]
     let outputPort =  model.Symbol.Ports[wire.OutputPort |> function | OutputPortId s -> s]
     comIdLst|> List.contains (ComponentId outputPort.HostId)
 
-//Function which checks whether a position is inside the given bounds (edges included) or not
-//Author: Zsombor Klapper
+
+
+/// <summary>HLP 23: AUTHOR Klapper - Checks whether the given position is inside the bounding box</summary>
+/// <param name="bound">BoundingBox</param>
+/// <param name="pos">XYPos</param>
+/// <returns>true or false</returns>
 let isPositionInBounds (bound : BoundingBox) (pos : XYPos) =
     match (pos.X >= bound.TopLeft.X, pos.X <= bound.TopLeft.X + bound.W, pos.Y >= bound.TopLeft.Y , pos.Y <= bound.TopLeft.Y + bound.H) with
     | true,true,true,true -> true
     | _ -> false
 
-//Function which determines wether the given wire terminates on the left side of a bounding box or not
-//Author : Zsombor Klapper
+
+/// <summary>HLP 23: AUTHOR Klapper - Checks whether a wire is connected on the left or right side of a bounding box</summary>
+/// <param name="model">BusWireT.Model</param>
+/// <param name="bounds">BoundingBox to check against</param>
+/// <param name="wireId">Connection Id of the wire to check</param>
+/// <returns>true or false</returns>
 let isWireConnectedOnLeft (model : Model) (bounds : BoundingBox) (wireId) =
     let wire = model.Wires[wireId]
     if isPositionInBounds {bounds with W = bounds.W / 2.0} wire.StartPos || isPositionInBounds {bounds with W = bounds.W / 2.0}  wire.EndPos then true else false
 
-//Returns the component on the end of the wire
-//Author: Zsombor Klapper
+
+
+/// <summary>HLP 23: AUTHOR Klapper - Returns the component on the end of the wire</summary>
+/// <param name="model">BusWireT.Model</param>
+/// <param name="wire">Wire</param>
+/// <returns></returns>
 let getEndComponent (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     let endCompId = model.Symbol.Ports[Symbol.getInputPortIdStr wire.InputPort].HostId
     model.Symbol.Symbols[ComponentId endCompId].Component
 
-//Returns the component on the start of the wire
-//Author: Zsombor Klapper
+
+
+/// <summary>HLP 23: AUTHOR Klapper - Returns the component on the start of the wire</summary>
+/// <param name="model">BusWireT.Model</param>
+/// <param name="wire">Wire</param>
+/// <returns></returns>
 let getStartComponent (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     let startCompId = model.Symbol.Ports[Symbol.getOutputPortIdStr wire.OutputPort].HostId
     model.Symbol.Symbols[ComponentId startCompId].Component
 
-//Returns a bool whether the give wire is connected to a wire label or not
-//Author: Zsombor Klapper
+
+/// <summary>HLP 23: AUTHOR Klapper - Checks whether the wire is connected to a wire label</summary>
+/// <param name="model">BusWireT.Model</param>
+/// <param name="wire">Wire</param>
+/// <returns>true or false</returns>
 let isWireConnectedToLabel (model : Model) (wire : Wire) =
     let startComp = getStartComponent model wire
     let endComp = getEndComponent model wire
@@ -159,8 +186,11 @@ let isWireConnectedToLabel (model : Model) (wire : Wire) =
     | _, ComponentType.IOLabel -> true
     | _ -> false
 
-//Adds to degree-s together
-//Author: Zsombor Klapper
+
+/// <summary>HLP 23: AUTHOR Klapper - Adds to rotations together, legacy function could be useful for later applications.</summary>
+/// <param name="deg1"> Rotation: first degree</param>
+/// <param name="deg2"> Rotation: second degree</param>
+/// <returns>The sum of the two rotations</returns>
 let addDegree deg1 deg2 =
     match deg1,deg2 with
     | Degree0, deg -> deg
@@ -369,8 +399,12 @@ let scaleSymbolInBlock
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
 
-//Rotates a symbol based on a degree
-//Author: Zsombor Klapper
+
+
+/// <summary>HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.</summary>
+/// <param name="degree">  Roation: the desired degree which we want to rotate by</param>
+/// <param name="sym"> Symbol to be rotated</param>
+/// <returns>The rotated symbol</returns>
 let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
     match degree with
     | Degree0 -> sym
@@ -381,9 +415,15 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
                    
     | Degree270 -> rotateSymbolInBlock RotateAntiClockwise {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 } sym
 
-//Function which replaces a wire with two labels directly connected to original inputs and outputs of the wire
-//It requires a BusWireT.Model and a wire and it will modify the model
-//Author: Zsombor Klapper
+
+/// <summary>
+/// HLP 23: AUTHOR Klapper - 
+/// Function which replaces a wire with two labels directly connected to original inputs and outputs of the wire. 
+/// </summary>
+/// <param name="unique_labelNb"> A unique int used for label generation</param>
+/// <param name="model"> BusWireT model</param>
+/// <param name="wire"> Wire to be replace</param>
+/// <returns> uniqueNumber + 1 ,BusWireT.Model with wire replaced by labels</returns>
 let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Model) (wire : Wire) =
    
     let startComp = getStartComponent model wire

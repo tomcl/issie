@@ -31,7 +31,7 @@ open Symbol
     HLP23: the code here does not use helpers consistently or in all suitable places.
 *)
 
-//Created a property 'Style' of StyleType in DrawModelType.SymbolT.Model and DrawModelType.SymbolT.Symbol. 
+//Created a property 'Style' of StyleType in DrawModelType.SymbolT.Model and DrawModelType.SymbolT.Appearance 
 //Style is changed through view menu -> style (added functionality in renderer)
 //Used in Model to initialise states, detect changes and give correct shape of styled gate in drawSymbol Func, see SymbolUpdate 'SetStyle' msg
 //Used in Symbol to adjust Ports of curvy symbol directly in symbol.fs -> GetPortPos function
@@ -457,73 +457,55 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
+
+    //chooses the shape of curvy components so flip and rotations are correct
+    //HLP23: Author Ismagilov
+    let adjustCurvyPoints (points:XYPos[] List) = 
+        match transform.Rotation,transform.flipped with 
+            | Degree0, false -> points[0]
+            | Degree0, true -> points[2]
+            | Degree90, _-> points[1]
+            | Degree180, true -> points[0]
+            | Degree180, false -> points[2]
+            | Degree270,_ -> points[3]
+
     //Given the component, will give a list of XYPos used to draw the curvy version of the component
     //HLP23: Author Ismagilov
-    let getCurvyShape (comp:ComponentType) transform =
+    let getCurvyPoints (comp:ComponentType) =
         match comp with 
-        | And ->
-            let zero' = [|{X=W/2.;Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X= -W/2.;Y=0};{X=0.;Y= H};{X=W/2.;Y=0}|]
-            let ninety' = [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X= 0;Y= H/2.};{X= -W;Y= 0};{X=0;Y= -H/2.}|]
-            let oneEighty' = [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X= W/2.;Y=0};{X=0.;Y= -H};{X= -W/2.;Y=0}|]
-            let twoSeventy' = [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X= 0;Y= -H/2.};{X= -W;Y= 0};{X=0;Y= H/2.}|]
-
-            match transform.Rotation with 
-            | Degree0 -> match transform.flipped with
-                           | false -> zero'
-                           | true -> oneEighty'
-            | Degree90 -> ninety'
-            | Degree180 -> match transform.flipped with
-                           | true -> zero'
-                           | false -> oneEighty'
-            | Degree270 -> twoSeventy'
-        | Or -> 
-            let zero' = [|{X=0;Y= 0}; {X= 2.*W/3.;Y= 0}; {X= 5.*W/6.;Y= H/4.};{X=W;Y= H/2.};{X=5.*W/6.;Y= 3.*H/4.}; {X= 2.*W/3.;Y= H}; {X= 0; Y=H}; {X=W/4.;Y=3.*H/4.};{X=W/4.;Y=H/4.};{X=0;Y=0}|]
-            let ninety' = [|{X=0;Y=H}; {X= 0;Y=2.*H/3.;}; {X= W/4.;Y=W/6.};{X=W/2.;Y=0};{X= 3.*W/4.;Y=W/6.};{X=W;Y= 2.*H/3.};{X=W;Y= H};{X=3.*W/4.;Y= 3.*H/4.};{X=W/4.;Y= 3.*H/4.};{X=0;Y= H}|]
-            let oneEighty' = [|{X=W;Y=H}; {X=2.*W/3.;Y=H}; {X=W/6.;Y=3.*H/4.};{X=0;Y=H/2.};{X= W/6.;Y=H/4.};{X=2.*W/3.;Y= 0};{X= W;Y=0};{X= 3.*W/4.;Y=H/4.};{X= 3.*W/4.;Y=3.*H/4.};{X= W;Y=H}|]
-            let twoSeventy' = [|{X=W;Y=0}; {X= W;Y= 2.*H/3.;}; {X= 3.*W/4.;Y=5.*H/6.};{X=W/2.;Y= H};{X= W/4.;Y= 5.*H/6.};{X=0;Y= 2.*H/3.};{X=0;Y= 0.};{X=W/4.;Y= H/4.};{X=3.*W/4.;Y= H/4.};{X=W;Y=0}|]
-
-            match transform.Rotation with 
-            | Degree0 -> match transform.flipped with
-                           | false -> zero'
-                           | true -> oneEighty'
-            | Degree90 -> ninety'
-            | Degree180 -> match transform.flipped with
-                           | true -> zero'
-                           | false -> oneEighty'
-            | Degree270 -> twoSeventy'
-        
+        | And -> // 0: Starting Point, 1: Arc Attributes, 2,3,4,5: Line Attributes
+            [   [|{X=W/2.;Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X= -W/2.;Y=0};{X=0.;Y= H};{X=W/2.;Y=0}|]
+                [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X= 0;Y= H/2.};{X= -W;Y= 0};{X=0;Y= -H/2.}|]
+                [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X= W/2.;Y=0};{X=0.;Y= -H};{X= -W/2.;Y=0}|]
+                [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X= 0;Y= -H/2.};{X= -W;Y= 0};{X=0;Y= H/2.}|]        ]
+        | Or -> // 0: Starting Point, 1,2,3: Path Attributes, 4,5,6: Path Attributes, 7,8,0: Path Attributes
+            [   [|{X=0;Y= 0}; {X= 2.*W/3.;Y= 0}; {X= 5.*W/6.;Y= H/4.};{X=W;Y= H/2.};{X=5.*W/6.;Y= 3.*H/4.}; {X= 2.*W/3.;Y= H}; {X= 0; Y=H}; {X=W/4.;Y=3.*H/4.};{X=W/4.;Y=H/4.}|]
+                [|{X=0;Y=H}; {X= 0;Y=2.*H/3.;}; {X= W/4.;Y=W/6.};{X=W/2.;Y=0};{X= 3.*W/4.;Y=W/6.};{X=W;Y= 2.*H/3.};{X=W;Y= H};{X=3.*W/4.;Y= 3.*H/4.};{X=W/4.;Y= 3.*H/4.}|]
+                [|{X=W;Y=H}; {X=2.*W/3.;Y=H}; {X=W/6.;Y=3.*H/4.};{X=0;Y=H/2.};{X= W/6.;Y=H/4.};{X=2.*W/3.;Y= 0};{X= W;Y=0};{X= 3.*W/4.;Y=H/4.};{X= 3.*W/4.;Y=3.*H/4.}|]
+                [|{X=W;Y=0}; {X= W;Y= 2.*H/3.;}; {X= 3.*W/4.;Y=5.*H/6.};{X=W/2.;Y= H};{X= W/4.;Y= 5.*H/6.};{X=0;Y= 2.*H/3.};{X=0;Y= 0.};{X=W/4.;Y= H/4.};{X=3.*W/4.;Y= H/4.}|]  ]   
+             
         | _ -> failwith "What? Shouldn't happen"
-
+        |> adjustCurvyPoints  
 
     //Creates the shape & labels, depending on the style set by user
     //HLP23: Author Ismagilov
     let shapeMaker = 
-        match style with
-            | Distinctive -> 
-                            match comp.Type with
-                            | And ->
-                                let curvyShape = getCurvyShape And transform
+        match style,comp.Type with
+            | Distinctive, And -> 
+                                let curvyShape = getCurvyPoints comp.Type
                                 let arcAttr  = makePartArcAttr (H/2.) (curvyShape[1].Y) (curvyShape[1].X) (curvyShape[2].Y) (curvyShape[2].X)
                                 let lineAttr = ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)+(makeLineAttr curvyShape[4].X curvyShape[4].Y)+(makeLineAttr (curvyShape[5].X) curvyShape[5].Y))
 
                                 (createAnyPath (curvyShape[0]) (arcAttr+lineAttr) colour strokeWidth outlineColour) 
-
-                            | Or ->
-                                let curvyShape = getCurvyShape Or transform
+            | Distinctive, Or ->
+                                let curvyShape = getCurvyPoints comp.Type
                                 let arcAttr1  = makePathAttr (curvyShape[1]) (curvyShape[2]) (curvyShape[3])
                                 let arcAttr2  = makePathAttr   (curvyShape[4]) (curvyShape[5]) (curvyShape[6])
-                                let arcAttr3 = makePathAttr  curvyShape[7] curvyShape[8] curvyShape[9]
+                                let arcAttr3 = makePathAttr  curvyShape[7] curvyShape[8] curvyShape[0]
 
                                 (createAnyPath curvyShape[0] (arcAttr1+arcAttr2+arcAttr3) colour strokeWidth outlineColour) 
 
-                            | _ -> (addLegendText 
-                                (legendOffset w h symbol) 
-                                (getComponentLegend comp.Type transform.Rotation) 
-                                "middle" 
-                                "bold" 
-                                (legendFontSize comp.Type))
-                                        |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-            | Rectangular -> (addLegendText 
+            | _, _ -> (addLegendText 
                                 (legendOffset w h symbol) 
                                 (getComponentLegend comp.Type transform.Rotation) 
                                 "middle" 

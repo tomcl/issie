@@ -62,17 +62,30 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
     printfn $"SymbolBPortMap:{symbolBPortMap}"
     printfn $"SymbolAPortMap:{symbolAPortMap}"
     
+    let reverseTuple tupleList =
+        tupleList
+        |> List.map (fun (x,y) -> (y,x))
     
     let getConnectedNumbers (map1: Map<string, int>) (map2: Map<string, int>) (connections: (string * string) list) : (int * int option) list =
-        [for kvp1 in map1 do
-            match List.tryFind (fun (id1, id2) -> id1 = kvp1.Key) connections with
-            | Some (id1, id2) ->
-                match map2.TryFind(id2) with
-                | Some (int2) -> yield (kvp1.Value, Some(int2))
-                | None -> yield (kvp1.Value, None)
-            | None -> yield (kvp1.Value, None)
-        ]
-        |> List.sortBy fst
+        match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+            | true -> [for kvp1 in map1 do
+                            match List.tryFind (fun (id1, id2) -> id1 = kvp1.Key) connections with
+                            | Some (id1, id2) ->
+                                match map2.TryFind(id2) with
+                                | Some (int2) -> yield (kvp1.Value, Some(int2))
+                                | None -> yield (kvp1.Value, None)
+                            | None -> yield (kvp1.Value, None)
+                        ]
+                        |> List.sortBy fst
+            | false -> [for kvp1 in map2 do
+                            match List.tryFind (fun (id1, id2) -> id2 = kvp1.Key) (reverseTuple connections) with
+                            | Some (id1, id2) ->
+                                match map1.TryFind(id1) with
+                                | Some (int2) -> yield (kvp1.Value, Some(int2))
+                                | None -> yield (kvp1.Value, None)
+                            | None -> yield (kvp1.Value, None)
+                        ]
+                        |> List.sortBy fst
 
     let map1 = Map.ofList [("a", 0); ("b", 1); ("c", 2)]
     let map2 = Map.ofList [("x", 0); ("y", 1); ("z", 2)]

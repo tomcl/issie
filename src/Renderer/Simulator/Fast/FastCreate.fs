@@ -27,7 +27,6 @@ let emptyGather =
 let emptyFastSimulation diagramName =
     printfn $"Creating empty simulation: {diagramName}"
     { ClockTick = 0
-      MaxStepNum = -1 // this must be over-written
       MaxArraySize = 0 // must be larger than max number of wavesim clocks
       FGlobalInputComps = Array.empty
       FConstantComps = Array.empty
@@ -282,59 +281,6 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
           match sComp.Type with
           | IOLabel _ -> false
           | _ -> true }
-
-/// extends the simulation data arrays of the component to allow more steps
-/// No longer used now arrays are circular?
-let extendFastComponent (numSteps: int) (fc: FastComponent) =
-    let oldNumSteps = fc.OutputsFData[0].Step.Length - 1
-
-
-    if numSteps + 1 <= oldNumSteps   then
-        () // done
-    else
-        let extendArray (arr: StepArray<'T>) (dat: 'T) =
-            let oldArr = arr.Step
-            let a =
-                Array.init
-                    (numSteps + 1)
-                    (fun i ->
-                        if i < Array.length oldArr then
-                            oldArr[i]
-                        else
-                            dat)
-
-            arr.Step <- a
-
-        let inPortNum, outPortNum = getPortNumbers fc.SimComponent
-
-        // Input inputs at top level are a special case not mapped to outputs.
-        // They must be separately extended.
-        match fc.FType, fc.AccessPath with
-        | Input1 _, [] -> extendArray fc.InputLinksFData[0] fc.InputLinksFData[0].Step[oldNumSteps - 1]
-        | _ -> ()
-
-        [| 0 .. outPortNum - 1 |]
-        |> Array.iter (fun n -> extendArray fc.OutputsFData[n] (Data emptyFastData))
-
-        Option.iter
-            (fun (stateArr: StepArray<SimulationComponentState>) ->
-                extendArray stateArr stateArr.Step[oldNumSteps - 1])
-            fc.State
-
-
-/// extends the simulation data arrays of all components to allow more steps
-/// also truncates fast simulation to prevent memory overuse.
-let extendFastSimulation (numSteps: int) (fs: FastSimulation) =
-    if numSteps + 1 < fs.MaxStepNum then
-        ()
-    else
-        [| fs.FOrderedComps
-           fs.FConstantComps
-           Array.filter (fun fc -> not (isHybridComponent fc.FType)) fs.FClockedComps
-           fs.FGlobalInputComps |]
-        |> Array.iter (Array.iter (extendFastComponent numSteps))
-
-        fs.MaxStepNum <- numSteps
 
 
 /// Create an initial flattened and expanded version of the simulation graph with inputs, non-ordered components, simulationgraph, etc
@@ -635,7 +581,6 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
     { f with
           FComps = comps
           FCustomComps = customComps
-          MaxStepNum = 0
           MaxArraySize = simulationArraySize
           FSComps = g.AllComps
           FCustomOutputCompLookup = customOutLookup 

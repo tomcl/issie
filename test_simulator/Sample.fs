@@ -79,10 +79,10 @@ let runNewSimulator
     | Ok simData ->
         let fs = simData.FastSim
         // Run simulation
-        printfn "fs.MaxStepNum: %d, fs.MaxArraySize: %d" fs.MaxStepNum fs.MaxArraySize
+        printfn "fs.MaxArraySize: %d" fs.MaxArraySize
         FastRun.runFastSimulation None (clockTick + simData.ClockTickNumber) fs
         |> ignore
-        printfn "fs.MaxStepNum: %d, fs.MaxArraySize: %d" fs.MaxStepNum fs.MaxArraySize
+        printfn "fs.MaxArraySize: %d" fs.MaxArraySize
         FastRun.runFastSimulation None (clockTick + simData.ClockTickNumber) fs
         |> ignore
 
@@ -110,10 +110,10 @@ let runOldSimulator
     | Ok simData ->
         let fs = simData.FastSim
         // Run simulation
-        printfn "fs.MaxStepNum: %d, fs.MaxArraySize: %d" fs.MaxStepNum fs.MaxArraySize
+        printfn "fs.MaxArraySize: %d" fs.MaxArraySize
         OldFastRun.runFastSimulation None (clockTick + simData.ClockTickNumber) fs
         |> ignore
-        printfn "fs.MaxStepNum: %d, fs.MaxArraySize: %d" fs.MaxStepNum fs.MaxArraySize
+        printfn "fs.MaxArraySize: %d" fs.MaxArraySize
         OldFastRun.runFastSimulation None (clockTick + simData.ClockTickNumber) fs
         |> ignore
 

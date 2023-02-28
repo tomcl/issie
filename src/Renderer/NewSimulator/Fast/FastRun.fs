@@ -729,7 +729,7 @@ let runFastSimulation
     if stepsToDo <= 0 then
         None // do nothing
     else
-        printfn "==================== lastStepNeeded: %d, fs.MaxStepNum: %d, fs.MaxArraySize: %d" lastStepNeeded fs.MaxStepNum fs.MaxArraySize
+        printfn "==================== lastStepNeeded: %d, fs.MaxArraySize: %d" lastStepNeeded fs.MaxArraySize
         // if lastStepNeeded > fs.MaxStepNum then
         //     if fs.MaxStepNum < fs.MaxArraySize then
         //         let newMaxNum =
@@ -739,7 +739,6 @@ let runFastSimulation
         //                  + max 50 (int (float lastStepNeeded * 1.5)))
 
         //         //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps"
-        //         extendFastSimulation newMaxNum fs
 
         let doSimulation () =
             let lastTick = fs.ClockTick + 1

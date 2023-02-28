@@ -993,9 +993,6 @@ type FastSimulation =
     {
         // last step number (starting from 0) which is simulated.
         mutable ClockTick: int
-        // The step number of the last step that can be simulated in the
-        // current simulation outputs
-        mutable MaxStepNum: int
         // Maximum size of simulation arrays - after which they form a circular buffer
         MaxArraySize: int
         // top-level inputs to the simulation

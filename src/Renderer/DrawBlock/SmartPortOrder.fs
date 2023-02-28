@@ -67,53 +67,53 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
         |> List.map (fun (x,y) -> (y,x))
     
     let getConnectedNumbers (map1: Map<string, int>) (map2: Map<string, int>) (connections: (string * string) list) : (int * int option) list =
+        let newMap1 = map1 |> Map.toList |> List.sortBy snd
+        let portiDs, portNumbers = List.unzip newMap1
+        let portNumbers1 = List.rev portNumbers
+        let newestMap1 = List.zip portiDs portNumbers1 |> Map.ofList
+        let generalList = [for kvp1 in newestMap1 do
+                                match List.tryFind (fun (id1, id2) -> id2 = kvp1.Key) (reverseTuple connections) with
+                                | Some (id1, id2) ->
+                                    match map2.TryFind(id1) with
+                                    | Some (int2) -> yield (kvp1.Value, Some(int2))
+                                    | None -> yield (kvp1.Value, None)
+                                | None -> yield (kvp1.Value, None)
+                            ]
+                            |> List.sortBy fst
         match symbolToOrder.Pos.X > otherSymbol.Pos.X with
-            | true -> [for kvp1 in map1 do
-                            match List.tryFind (fun (id1, id2) -> id1 = kvp1.Key) connections with
-                            | Some (id1, id2) ->
-                                match map2.TryFind(id2) with
-                                | Some (int2) -> yield (kvp1.Value, Some(int2))
-                                | None -> yield (kvp1.Value, None)
-                            | None -> yield (kvp1.Value, None)
-                        ]
-                        |> List.sortBy fst
-            | false -> [for kvp1 in map2 do
-                            match List.tryFind (fun (id1, id2) -> id2 = kvp1.Key) (reverseTuple connections) with
-                            | Some (id1, id2) ->
-                                match map1.TryFind(id1) with
-                                | Some (int2) -> yield (kvp1.Value, Some(int2))
-                                | None -> yield (kvp1.Value, None)
-                            | None -> yield (kvp1.Value, None)
-                        ]
-                        |> List.sortBy fst
+            | true -> List.sortByDescending fst generalList
+            | false -> List.sortBy fst generalList
 
     let map1 = Map.ofList [("a", 0); ("b", 1); ("c", 2)]
     let map2 = Map.ofList [("x", 0); ("y", 1); ("z", 2)]
     let connections = [("a", "z"); ("b", "x"); ("c", "y")]
 
-    let connectedNumbers = getConnectedNumbers symbolAPortMap symbolBPortMap portConnections
+    let connectedNumbers = match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+                                | true -> getConnectedNumbers symbolAPortMap symbolBPortMap portConnections
+                                | false -> getConnectedNumbers symbolBPortMap symbolAPortMap portConnections
     printfn $"RIGHT HERE:{connectedNumbers}"
     
     let portMap =  Map.find Left symbolToOrder.PortMaps.Order
     printfn $"PORT MAP:{portMap}"
-    
-    let AtoBConnections=
-        match symbolToOrder.Pos.X > otherSymbol.Pos.X with
-            | true -> (portConnections
-                    |> List.map (fun (outputId, inputId) -> (symbolAPortMap.[outputId], symbolBPortMap.[inputId]))
-                    |> List.sortBy fst)
-            | false -> (portConnections
-                    |> List.map (fun (outputId, inputId) -> (symbolBPortMap.[outputId], symbolAPortMap.[inputId]))
-                    |> List.sortBy fst)
  
     let reorderList (portIds: string list) (connections: (int*int option) list) =
+        let filteredList = 
+            portIds 
+            |> List.mapi (fun i x -> (i, x)) 
+            |> List.filter (fun (i, _) -> 
+                not (List.exists (fun (_, index) -> index = Some i) connections)) 
+            |> List.map snd
+
         match portIds.Length with
-                | 0 -> portIds
-                | _ -> List.mapi (fun i (_,index) -> match index with
-                                                        | Some int -> portIds.[int]
-                                                        | None -> portIds.[i]) connections
-                
-    printfn $"AtoBConnections:{AtoBConnections}"
+            | 0 -> portIds
+            | _ -> List.map (fun (_,index) -> match index with
+                                                | Some int -> portIds.[int]
+                                                | None -> filteredList[0]) connections
+    
+    printfn $"Test0:{symbolToOrder.Component.OutputPorts}"
+    printfn $"Test1:{Map.find Right symbolToOrder.PortMaps.Order}"          
+    let test = reorderList (Map.find Right symbolToOrder.PortMaps.Order) connectedNumbers
+    printfn $"Test2:{test}"
     let updatedMapOrder =
         //let portMapRight = Map.find Right symbolToOrder.PortMaps.Order
         //let reorderedListRight = reorderList portMapRight BtoAConnections
@@ -124,7 +124,7 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
                       
             | false -> let portMap =  Map.find Right symbolToOrder.PortMaps.Order 
                        let reorderedList = reorderList portMap connectedNumbers
-                       symbolToOrder.PortMaps.Order |> Map.add Right reorderedList
+                       symbolToOrder.PortMaps.Order |> Map.add Right (reorderedList |> List.rev)
                        
     printfn $"originalMapOrder:{symbolToOrder.PortMaps.Order}"              
     printfn $"updatedMapOrder:{updatedMapOrder}"

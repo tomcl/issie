@@ -291,7 +291,7 @@ let mDownUpdate
                 {model with Action = MovingPort portIdstr}
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
         // HLP23 AUTHOR: BRYAN TAN
-        | ComponentCorner (compId, fixedCornerLoc) ->
+        | ComponentCorner (compId, fixedCornerLoc, _) ->
             if not model.CtrlKeyDown then
                 model, Cmd.none
             else

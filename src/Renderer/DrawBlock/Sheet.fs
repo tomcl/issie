@@ -246,13 +246,13 @@ let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
         let distance = ((pos.X - circleLocation.X) ** 2.0 + (pos.Y - circleLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
 
-    let tryGetOppositeCorner corners= 
+    let tryGetOppositeCorners corners= 
         match corners with
         | [||] -> None // should never match
         | _ -> 
             Array.tryFindIndex (fun c -> insideCircle pos c radius margin) corners
             |> function
-                | Some idx -> Some corners[(idx + 2) % 4]
+                | Some idx -> Some (corners[(idx + 2) % 4], corners[idx])
                 | None -> None
 
     Optic.get symbols_ model
@@ -261,9 +261,9 @@ let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
         | CommonTypes.Custom _ -> 
             getCustomSymCorners sym
             |> (translatePoints sym.Pos)
-            |> tryGetOppositeCorner
+            |> tryGetOppositeCorners
             |> function
-                | Some p -> Some (sym, p)
+                | Some (fp, p) -> Some (sym, fp, p)
                 | _ -> None
         | _ -> None
     )
@@ -580,7 +580,7 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
         | Some (portId, portLoc) -> OutputPort (portId, portLoc)
         | None ->
             match tryInsideSymCorner model pos with
-            | Some (sym, cornerLoc) -> ComponentCorner (sym.Id, cornerLoc)
+            | Some (sym, fixedCorner, mCorner) -> ComponentCorner (sym.Id, fixedCorner, mCorner)
             | None ->
                 match tryInsideLabelBox model pos with
                 | Some sym -> Label sym.Id

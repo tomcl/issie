@@ -12,12 +12,13 @@ open DrawModelType.SymbolT
 
 /// HLP23 AUTHOR: BRYAN TAN
 
+type scaleFactor = { x: float; y: float }
+
 let getCustomSymCorners (sym: Symbol) =
-    let getScale = function | Some x -> x | _ -> 1.0 
     match sym.Component.Type with
     | CommonTypes.Custom _ -> 
-        let HScale = getScale sym.HScale
-        let VScale = getScale sym.VScale
+        let HScale = Option.defaultValue 1.0 sym.HScale
+        let VScale = Option.defaultValue 1.0 sym.VScale
         [|{X=0.0;Y=0.0}; {X=0.0;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=0.0}|]
     | _ -> Array.empty // should never match
 
@@ -25,3 +26,16 @@ let translatePoints vector (points: XYPos[]) =
     match points with
     | [||] -> [||] 
     | _ -> Array.map ((+) vector) points
+
+/// scale a vector wrt to origin 
+/// TODO: change to an operator?
+let scalePoint (scale: scaleFactor) (point: XYPos) =
+    { X=point.X * scale.x; Y=point.Y * scale.y }
+
+/// Apply scaling centered at fixedPos to vector movePos
+/// in matrix operations: (p0-p1) * M + p1
+let scaleWrtFixed (scale: scaleFactor) (fixedPos: XYPos) (movePos: XYPos) = 
+    movePos 
+    |> (-) fixedPos
+    |> scalePoint scale
+    |> (+) fixedPos

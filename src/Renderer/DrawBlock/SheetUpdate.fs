@@ -150,12 +150,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | PortMovementStart ->
         printfn "IN PORT MOVEMENT"
         match model.Action with
-        | Idle -> {model with CtrlKeyDown = true}, Cmd.batch [symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)]
+        | Idle -> 
+            {model with CtrlKeyDown = true}, 
+            Cmd.batch 
+                [
+                    symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)
+                    symbolCmd (SymbolT.ShowCustomCorners model.NearbyComponents)
+                ]
         | _ -> model, Cmd.none
 
     | PortMovementEnd ->
         match model.Action with
-        | Idle -> {model with CtrlKeyDown = false}, symbolCmd (SymbolT.ShowPorts model.NearbyComponents)
+        | Idle -> 
+            {model with CtrlKeyDown = false}, 
+            Cmd.batch 
+                [
+                    symbolCmd (SymbolT.ShowPorts model.NearbyComponents)
+                    symbolCmd (SymbolT.HideCustomCorners model.NearbyComponents)
+                ]
         | _ -> {model with CtrlKeyDown = false}, Cmd.none
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise

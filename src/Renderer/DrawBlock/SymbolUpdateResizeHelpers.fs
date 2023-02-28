@@ -12,7 +12,34 @@ open Operators
 
 open SymbolHelpers
 
-/// HLP23 AUTHOR: BRYAN TAN
+/// HLP23 AUTHOR: BRYAN TAN 
+
+
+let changeSymbolCorners cornerShow sym = 
+    set (appearance_ >-> showCorners_) cornerShow sym
+
+let hideCompCorners (model: Model) = 
+    let resetSymbols =
+        model.Symbols
+        |> Map.map (fun _ sym -> changeSymbolCorners DontShow sym)
+
+    { model with Symbols = resetSymbols }
+
+/// Given a model it will change the appearance of all the specified components' corners
+let showCompCorners (model: Model) (cornerShow) (compIds: ComponentId list) =
+    let resetSymbols =
+        let model' = hideCompCorners model
+        model'.Symbols
+    
+    let updateSymbolInMap prevMap cId = 
+        prevMap
+        |> Map.add cId (changeSymbolCorners cornerShow model.Symbols[cId])
+
+    let newSymbols = 
+        (resetSymbols, compIds) 
+        ||> List.fold updateSymbolInMap
+
+    { model with Symbols = newSymbols }
 
 type ExternalHelpers =
     { FlipSymbol: FlipType -> Symbol -> Symbol }
@@ -116,4 +143,4 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
         |> set (appearance_ >-> showCorners_) ShowAll
         
 
-    set (symbolOf_ compId) newSymbol model, Cmd.none    
+    set (symbolOf_ compId) newSymbol model, Cmd.none        

@@ -454,7 +454,76 @@ let getXYPosPairsOfSegments (segments: list<Segment>) (startPos: XYPos) (initial
                                         ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=segment.Length; Y=0.0})]
                 |_ , Horizontal, false -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
                                         ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=0.0; Y=segment.Length})])
-                                        
+
+/// Returns the minimum between two arguments
+let min x y =
+        if x < y then x 
+        else y
+
+/// Returns the maximum between two arguments
+let max x y = 
+    if x > y then x
+    else y
+
+/// Returns the minimum and maximum distance of Bounding Boxes from the XYPos pair
+let getMinMaxDistOfBBfromXYPosPair (model:Model) (xyPosPair: XYPos * XYPos) =
+    let allBoundingBoxes: Map<ComponentId,BoundingBox> = Symbol.getBoundingBoxes model.Symbol
+    let xyPosPairOrientation = 
+        match xyPosPair with
+        |(A, B) when A.X = B.X -> Vertical
+        |_,_ -> Horizontal
+    
+    let xyPosPairXmin =
+        match xyPosPair with
+        |(A, B) when A.X <= B.X -> A.X
+        |(A, B) -> B.X
+
+    let xyPosPairXmax =
+        match xyPosPair with
+        |(A, B) when A.X <= B.X -> B.X
+        |(A, B) -> A.X
+
+    let xyPosPairYmin =
+        match xyPosPair with
+        |(A, B) when A.Y <= B.Y -> A.Y
+        |(A, B) -> B.Y
+
+    let xyPosPairYmax =
+        match xyPosPair with
+        |(A, B) when A.Y <= B.Y -> B.Y
+        |(A, B) -> A.Y
+
+    allBoundingBoxes
+    |> Map.filter (match xyPosPairOrientation with
+                    |Horizontal -> fun key bb -> 
+                                    (bb.TopLeft.X < xyPosPairXmax) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin) &&
+                                    (bb.TopLeft.Y < xyPosPairYmin) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin)
+                    | Vertical -> fun key bb -> 
+                                    (bb.TopLeft.Y < xyPosPairYmax) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin) &&
+                                    (bb.TopLeft.X < xyPosPairXmin) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin))
+
+    |> Map.toList
+    |> List.map (fun (a,b) -> b)
+    |> List.fold (match xyPosPairOrientation with
+                    |Horizontal -> (fun state bb -> match state with |A, B -> ((min A (bb.TopLeft.Y - xyPosPairYmin)),   (max B (bb.TopLeft.Y + bb.H - xyPosPairYmin))))
+                    |Vertical  -> (fun state bb -> match state with |A, B -> ((min A (bb.TopLeft.X - xyPosPairXmin)),   (max B (bb.TopLeft.X + bb.W - xyPosPairXmin)))))
+                    (0.0,0.0)
+
+/// Returns the minimum and maximum distance of Bounding Boxes list from the XYPos pair list
+let getMinMaxDistanceOfBBfromXYPosPairs (model:Model) (xyPosPairs: (XYPos * XYPos) list) =
+    xyPosPairs
+    |> List.map (getMinMaxDistOfBBfromXYPosPair model)
+    |> List.rev
+    |> List.mapi (fun i el -> 
+                    (match i with
+                    | 0 | 1 -> (0.0,0.0)
+                    | _ -> el))
+    |> List.rev
+    |> List.mapi (fun i el -> 
+                    (match i with
+                    | 0 | 1 -> (0.0,0.0)
+                    | _ -> el))
+                                       
 /// Returns a newly autorouted version of a wire for the given model
 let autoroute (model: Model) (wire: Wire) : Wire =
     let destPos, startPos =

@@ -898,18 +898,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     
     // HLP23 AUTHOR: BRYAN TAN
     | ShowCustomCorners compId ->
+        showCompCorners model ShowAll compId, Cmd.none
 
-        model, Cmd.none
+    | HideCustomCorners compId ->
+        // changeCompCorners model DontShow compId, Cmd.none
+        hideCompCorners model, Cmd.none
+
     | ResizeSymbol (compId, fixedCornerLoc, pos) ->
         let helpers = { SymbolUpdateResizeHelpers.ExternalHelpers.FlipSymbol = flipSymbol }
-        manualSymbolResize model compId fixedCornerLoc pos helpers
+        manualSymbolResize (hideCompCorners model) compId fixedCornerLoc pos helpers
 
     | ResizeSymbolDone (compId, fixedCornerLoc, pos) ->
-        model, Cmd.none
+        let newSymbol = set (appearance_ >-> showCorners_) DontShow model.Symbols[compId]
+        set (symbolOf_ compId) newSymbol model, Cmd.none
     
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none
+
     | SetTheme (theme) ->
         let resetSymbols = 
             model.Symbols

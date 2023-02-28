@@ -623,7 +623,7 @@ let mMoveUpdate
         let newModel = { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement} } 
         
         if Set.contains "CONTROL" model.CurrentKeyPresses then
-            newModel , symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents)
+            newModel , Cmd.batch [symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents); symbolCmd (SymbolT.ShowCustomCorners nearbyComponents)]
         else 
             newModel, symbolCmd (SymbolT.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
 

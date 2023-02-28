@@ -352,15 +352,10 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
 
 
     let additions =       // Helper function to add certain characteristics on specific symbols (inverter, enables, clocks)
-        let mergeWiresTextPos =
-            let textPoints = rotatePoints [|{X=W/5.;Y=H/6.+2.};{X=W/5.;Y=H*5./6.+2.};{X=W*0.75;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
-            match transform.Rotation with
-            | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
-            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
-            | _ -> textPoints
+        //HLP23: Shaanuka
 
-        let splitWiresTextPos =
-            //HLP23: Shaanuka - Using constant wirepostions that mirror and swap during rotation            
+        /// text positioins placed in non-coflicting areas for the SplitWire and MergeWire components
+        let splitMergeWireTextPos (comp:Component) = 
             let midX = W/2.
             let midY = H/2.
             let mirrorPos isX (pos:XYPos) = 
@@ -372,17 +367,19 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             let posTwo = {X=W/2.-30.;Y=H/2.+24.}
             let posThree = {X= midX+35.;Y=H/6.+5.}
             let textPoints = [|posOne; posTwo; posThree|]
-            //rotatePoints posList {X=W/2.;Y=H/2.} transform
-            
-            match transform.Rotation with
-            | Degree90 -> [|posThree; posOne; posTwo|]
-            | Degree180 -> [|mirrorPos true posTwo ; mirrorPos true posOne; mirrorPos true posThree|]
-            | Degree270 -> [|mirrorPos false posOne ; mirrorPos false posThree; mirrorPos false posTwo|]
-            | _ -> textPoints
+            match comp.Type with
+            |MergeWires _-> match transform.Rotation with
+                             | Degree270 -> [|posThree; posOne; posTwo|]
+                             | Degree180 -> [|mirrorPos true posTwo ; mirrorPos true posOne; mirrorPos true posThree|]
+                             | Degree90 -> [|mirrorPos false posOne ; mirrorPos false posThree; mirrorPos false posTwo|]
+                             | _ -> textPoints
 
-            // | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=offsetX;Y=0}) textPoints
-            // | Degree180 -> Array.map (fun pos -> pos + {X= -offsetX;Y= 0}) textPoints
-            // | _ -> textPoints
+            |_ ->           match transform.Rotation with
+                            | Degree90 -> [|posThree; posOne; posTwo|]
+                            | Degree180 -> [|mirrorPos true posTwo ; mirrorPos true posOne; mirrorPos true posThree|]
+                            | Degree270 -> [|mirrorPos false posOne ; mirrorPos false posThree; mirrorPos false posTwo|]
+                            | _ -> textPoints
+
         let NbitSpreaderTextPos =
             let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.7;Y=H/2.+4.}|] {X=W/2.;Y=H/2.} transform
             match transform.Rotation with
@@ -407,7 +404,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             let values = [(midt,0);(msb,midb);(msb,0)]
             List.fold (fun og i ->
                 og @ mergeSplitLine 
-                        mergeWiresTextPos[i] 
+                        ((splitMergeWireTextPos comp)[i]) //HLP23: Shaanuka
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
         | NbitSpreader n -> 
@@ -428,7 +425,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             let values = [(midt,0);(msb,midb);(msb,0)]
             List.fold (fun og i -> 
                 og @ mergeSplitLine 
-                        splitWiresTextPos[i] 
+                        ((splitMergeWireTextPos comp)[i]) //HLP23: Shaanuka
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
@@ -481,9 +478,9 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             | _ -> Constants.componentLabelOffsetDistance
 
         let pos = 
+            //HLP23:Shaanuka
             match comp.Type with 
-            |MergeWires -> box.TopLeft - symbol.Pos + {X=margin;Y=margin+10.} + Constants.labelCorrection
-            |SplitWire -> box.TopLeft - symbol.Pos + {X=margin;Y=margin+10.} + Constants.labelCorrection
+            |MergeWires|SplitWire _ -> box.TopLeft - symbol.Pos + {X=margin+5.;Y=margin+5.} + Constants.labelCorrection
             |_ -> box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
         let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
         match Constants.testShowLabelBoundingBoxes, colour with

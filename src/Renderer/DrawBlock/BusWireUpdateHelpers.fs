@@ -439,6 +439,22 @@ let rec rotateSegments (target: Edge) (wire: {| edge: Edge; segments: Segment li
         {| edge = rotate90Edge wire.edge; segments = rotatedSegs |}
         |> rotateSegments target 
 
+/// Returns a list of XYPos pair corresponding to each segment in segment list
+let getXYPosPairsOfSegments (segments: list<Segment>) (startPos: XYPos) (initialOrientation: Orientation)= 
+        ([], segments)
+        ||> List.fold (fun xyPosPairs segment -> 
+            match xyPosPairs, (initialOrientation), (segment.Index % 2 = 0) with
+                |[], Horizontal, true -> xyPosPairs@[(startPos), ((+) (startPos) {X=segment.Length; Y=0.0})]
+                |[], Vertical, true -> xyPosPairs@[(startPos), ((+) (startPos) {X=0.0; Y=segment.Length})]
+                |_ , Horizontal, true -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
+                                        ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=segment.Length; Y=0.0})]
+                |_ , Vertical, true -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
+                                        ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=0.0; Y=segment.Length})]
+                |_ , Vertical, false -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
+                                        ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=segment.Length; Y=0.0})]
+                |_ , Horizontal, false -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
+                                        ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=0.0; Y=segment.Length})])
+                                        
 /// Returns a newly autorouted version of a wire for the given model
 let autoroute (model: Model) (wire: Wire) : Wire =
     let destPos, startPos =

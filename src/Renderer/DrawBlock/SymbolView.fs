@@ -186,16 +186,14 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 
 /// Draw component in either new IEEE style with legends or old curved style, returns list of react elements
 /// depending on theme and component
-let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) 
+let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) //HLP23: Shaanuka
                   w h (symbol:Symbol) transform legendFontSize legendOffset=
 
     match symbolType with 
-    |NewSymbols ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-                    @(addLegendText (legendOffset w h symbol) 
+    |NewSymbols ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp) @(addLegendText (legendOffset w h symbol) 
                     (getComponentLegend comp.Type transform.Rotation) "middle" "bold" (legendFontSize comp.Type))
 
     |_ ->   let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
-            
             match comp.Type with
 
             |And -> let lineOne = makeLineAttr 0. comp.H
@@ -360,12 +358,31 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
             | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
             | _ -> textPoints
+
         let splitWiresTextPos =
-            let textPoints = rotatePoints [|{X=W*0.75;Y=H/6.+2.};{X=W*0.75;Y=H*5./6.+2.};{X=W/4.;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
+            //HLP23: Shaanuka - Using constant wirepostions that mirror and swap during rotation            
+            let midX = W/2.
+            let midY = H/2.
+            let mirrorPos isX (pos:XYPos) = 
+                match isX with
+                |true -> {pos with X = midX+(-((pos.X-midX)))} 
+                |_ -> {pos with Y = midY+(-((pos.Y-midY)))}
+
+            let posOne = {X=W/2.-40.;Y=H/6.+5.}
+            let posTwo = {X=W/2.-30.;Y=H/2.+24.}
+            let posThree = {X= midX+35.;Y=H/6.+5.}
+            let textPoints = [|posOne; posTwo; posThree|]
+            //rotatePoints posList {X=W/2.;Y=H/2.} transform
+            
             match transform.Rotation with
-            | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
-            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
+            | Degree90 -> [|posThree; posOne; posTwo|]
+            | Degree180 -> [|mirrorPos true posTwo ; mirrorPos true posOne; mirrorPos true posThree|]
+            | Degree270 -> [|mirrorPos false posOne ; mirrorPos false posThree; mirrorPos false posTwo|]
             | _ -> textPoints
+
+            // | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=offsetX;Y=0}) textPoints
+            // | Degree180 -> Array.map (fun pos -> pos + {X= -offsetX;Y= 0}) textPoints
+            // | _ -> textPoints
         let NbitSpreaderTextPos =
             let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.7;Y=H/2.+4.}|] {X=W/2.;Y=H/2.} transform
             match transform.Rotation with
@@ -463,8 +480,11 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             | BusSelection _ | IOLabel -> Constants.thinComponentLabelOffsetDistance
             | _ -> Constants.componentLabelOffsetDistance
 
-
-        let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
+        let pos = 
+            match comp.Type with 
+            |MergeWires -> box.TopLeft - symbol.Pos + {X=margin;Y=margin+10.} + Constants.labelCorrection
+            |SplitWire -> box.TopLeft - symbol.Pos + {X=margin;Y=margin+10.} + Constants.labelCorrection
+            |_ -> box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
         let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
         match Constants.testShowLabelBoundingBoxes, colour with
         | false, "lightgreen" ->
@@ -486,10 +506,6 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                     makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
             text :: corners
 
-
-
- 
-            
     let labelcolour = outlineColor symbol.Appearance.Colour
     let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
         let pMap = symbol.PortMaps.Order
@@ -524,7 +540,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (drawComponet comp strokeWidth points colour outlineColour opacity theme w h symbol transform legendFontSize legendOffset)
+    |> List.append (drawComponet comp strokeWidth points colour outlineColour opacity theme w h symbol transform legendFontSize legendOffset) //HLP23: Shaanuka
 
 
 //----------------------------------------------------------------------------------------//

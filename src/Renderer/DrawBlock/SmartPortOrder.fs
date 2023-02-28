@@ -78,7 +78,7 @@ let getSymDominantEdge (symPorts: PortInfo list) =
 
     match symPorts with
     | [] -> Left // Default to a Left Dominant Edge.
-    | _ :: _ ->
+    | _ ->
         symPorts
         |> List.tryFind (fun port -> not (edgeExists port.Orientation.Opposite))
         |> function
@@ -117,24 +117,6 @@ let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
     | Bottom -> unwrpByDirection 2
     | Left -> unwrpByDirection 3
 
-/// Get Ports Between Symbols. Exclude connections from one output to multiple inputs.
-let getPortsForSwaps (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
-    let wires =
-        getConnBtwnSyms model symToOrder otherSym
-        |> List.groupBy (fun conn -> conn.OutputPort)
-        |> List.filter (fun (_, wires) -> List.length wires <= 1) // Guard
-        |> List.map snd
-        |> List.concat
-
-    let ports =
-        wires
-        |> List.map (fun wire ->
-            [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
-              getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
-        |> List.concat
-
-    (fiterPortBySym ports symToOrder, fiterPortBySym ports otherSym)
-
 /// Gets Symbol Reordering Information.
 let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
     let getPortInfo (ports: Port list) =
@@ -147,7 +129,7 @@ let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Sy
         values |> List.zip [ symToOrder.Id; otherSym.Id ] |> Map.ofList
 
     let portBySym =
-        let symToOrderPorts, otherSymPorts = getPortsForSwaps model symToOrder otherSym
+        let symToOrderPorts, otherSymPorts = getPortsBtwnSyms model symToOrder otherSym
 
         [ symToOrderPorts; otherSymPorts ] |> List.map getPortInfo |> zipToMap
 
@@ -161,12 +143,49 @@ let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Sy
       Ports = portBySym
       DominantEdges = domEdgeBySym }
 
-/// Guard that ensures ports of non custom components are not reordered.
+/// Guard that ensures only certain ports of non custom components are reordered.
 /// Done by removing ports of symbol to order if its not a custom component.
-let rmvNonCustomCompPorts (reorderPair: SymbolReorderPair) =
+let nonCustomCompPortGuard (reorderPair: SymbolReorderPair) =
     match reorderPair.Symbol.Component.Type with
+    | And | Or | Xor | Nand | Nor | Xnor
+    | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitsOr _
+    | Mux2 | Demux2 -> // Two IO Components
+        let order = reorderPair.Symbol.PortMaps.Order
+        let symId, othId = reorderPair.Symbol.Id, reorderPair.OtherSymbol.Id
+        let symPorts, othPorts = reorderPair.Ports[symId], reorderPair.Ports[othId]
+
+        // Find Edge with two Ports
+        let portIdsOfIntrst =
+            order
+            |> Map.pick (fun _ ports' -> if List.length ports' = 2 then Some ports' else None)
+
+        // Keep Ports of Interest
+        let thisPorts', otherPorts' =
+            (symPorts, othPorts)
+            ||> List.zip
+            |> List.filter (fun (thisPort, _) -> List.contains thisPort.Port.Id portIdsOfIntrst)
+            |> List.unzip
+
+        // Update Symbol Reorder Pair
+        let filteredPorts =
+            [ thisPorts'; otherPorts' ] |> List.zip [ symId; othId ] |> Map.ofList
+
+        { reorderPair with Ports = filteredPorts }
     | Custom _ -> reorderPair
     | _ -> { reorderPair with Ports = reorderPair.Ports |> Map.add reorderPair.Symbol.Id [] }
+
+/// Guard that avoids reordering if connections from one output to multiple inputs is present.
+let outToMultInGuard (reorderPair: SymbolReorderPair) =
+    let avoidReordering (ports: PortInfo list) =
+        List.distinct ports |> List.length <> List.length ports
+
+    let symId, othId = reorderPair.Symbol.Id, reorderPair.OtherSymbol.Id
+    let symPorts, othPorts = reorderPair.Ports[symId], reorderPair.Ports[othId]
+
+    match avoidReordering symPorts, avoidReordering othPorts with
+    | true, _
+    | _, true -> { reorderPair with Ports = Map.map (fun _ _ -> []) reorderPair.Ports }
+    | _ -> reorderPair
 
 /// Reorder's Symbol Ports such to minimize wire crossings.
 /// To minimize wire crossings ports of one symbol must be the reverse of ports on another symbol.
@@ -245,10 +264,9 @@ let reOrderPorts
 
     let model' =
         getSymReorderPair wModel symToOrder otherSym
-        |> rmvNonCustomCompPorts
+        |> (nonCustomCompPortGuard >> outToMultInGuard) // Guards
         |> swapPortIds
         |> List.singleton
         |> updateModelSymbols wModel
 
     smartHelpers.UpdateSymbolWires model' symToOrder.Id
-// wModel

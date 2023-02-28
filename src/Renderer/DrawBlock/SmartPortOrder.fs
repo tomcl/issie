@@ -66,6 +66,15 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
         tupleList
         |> List.map (fun (x,y) -> (y,x))
     
+    let sortList myList =
+        myList |> List.sortWith(fun (x1, y1) (x2, y2) ->
+            match y1, y2 with
+            | None, None -> 0
+            | None, _ -> 1
+            | _, None -> -1
+            | _, _ -> compare y1 y2)
+
+
     let getConnectedNumbers (map1: Map<string, int>) (map2: Map<string, int>) (connections: (string * string) list) : (int * int option) list =
         let newMap1 = map1 |> Map.toList |> List.sortBy snd
         let portiDs, portNumbers = List.unzip newMap1
@@ -82,7 +91,7 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
                             |> List.sortBy fst
         match symbolToOrder.Pos.X > otherSymbol.Pos.X with
             | true -> List.sortByDescending fst generalList
-            | false -> List.sortBy fst generalList
+            | false -> sortList generalList
 
     let map1 = Map.ofList [("a", 0); ("b", 1); ("c", 2)]
     let map2 = Map.ofList [("x", 0); ("y", 1); ("z", 2)]
@@ -103,13 +112,17 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
             |> List.filter (fun (i, _) -> 
                 not (List.exists (fun (_, index) -> index = Some i) connections)) 
             |> List.map snd
-
-        match portIds.Length with
-            | 0 -> portIds
-            | _ -> List.map (fun (_,index) -> match index with
-                                                | Some int -> portIds.[int]
-                                                | None -> filteredList[0]) connections
-    
+            
+        match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+                | true -> match portIds.Length with
+                        | 0 -> portIds
+                        | _ -> List.map (fun (_,index) -> match index with
+                                                            | Some int -> portIds.[int]
+                                                            | None -> filteredList[0]) connections
+                | false -> match portIds.Length with
+                        | 0 -> portIds
+                        | _ -> List.map (fun (index,_) -> portIds[index]) connections  
+            
     printfn $"Test0:{symbolToOrder.Component.OutputPorts}"
     printfn $"Test1:{Map.find Right symbolToOrder.PortMaps.Order}"          
     let test = reorderList (Map.find Right symbolToOrder.PortMaps.Order) connectedNumbers

@@ -162,4 +162,14 @@ let getSymbolIndex (symbol: Symbol) (portId: string) =
 
     symbol.PortMaps.Order[edge]
     |> List.findIndex (fun elm -> elm = portId)
+
+
+/// HLP23: Indraneel
+/// Returns a symbol option given a model an inputPort/outputPort
+let getSymbol (wModel: BusWireT.Model) (portId: string) = 
+    let inputPortHostId = string wModel.Symbol.Ports[portId].HostId
+
+    wModel.Symbol.Symbols
+    |> Map.tryFind (ComponentId inputPortHostId)
+
   

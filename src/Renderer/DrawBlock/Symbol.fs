@@ -765,19 +765,19 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
 let getCurvePortOffset (sym:Symbol) (side:Edge) (h:float) (w:float) =  
     match side with
     | Left -> match sym.STransform.Rotation, sym.STransform.flipped with
-                | Degree0, false -> w/8.
-                | Degree180, true -> w/8.
-                | _ -> 0
+                | Degree0, false -> {X = w/8.; Y=0.}
+                | Degree180, true -> {X = w/8.; Y=0}
+                | _ -> {X = 0.; Y=0.}
     | Right -> match sym.STransform.Rotation, sym.STransform.flipped with
-                | Degree180, false -> -w/8.
-                | Degree0, true -> -w/8.
-                | _ -> 0
+                | Degree180, false -> {X = -w/8.; Y=0.}
+                | Degree0, true -> {X = -w/8.; Y=0.}
+                | _ -> {X = 0.; Y=0.}
     | Top -> match sym.STransform.Rotation with
-                | Degree270 -> h/8.
-                | _ -> 0
+                | Degree270 -> {X = 0.; Y=h/8.}
+                | _ -> {X = 0.; Y=0.}
     | Bottom -> match sym.STransform.Rotation with
-                | Degree90 -> -h/8.
-                | _ -> 0 
+                | Degree90 -> {X = 0.; Y= -h/8.}
+                | _ -> {X = 0.; Y=0.}
 
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
@@ -796,48 +796,29 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let comp = sym.Component
     //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
+    let curveOffset =
+            match sym.Appearance.Style, comp.Type with
+            | Distinctive, Or -> getCurvePortOffset sym side h w           
+            | _ , _-> {X=0.; Y=0.}
+
     match side with
     | Left ->
-        //Fixing port position of curvy symbol
+        //Fixing port position of curvy symbol by adding curve offset
         //HLP23: Author Ismagilov
-        let xOffset =
-            match sym.Appearance.Style with
-            | Distinctive -> match comp.Type with
-                                | Or -> getCurvePortOffset sym side h w
-                                | _ -> 0.0
-            | Rectangular -> 0.0
-
         let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = xOffset; Y = yOffset }
+        baseOffset' + {X = 0.0; Y = yOffset } + curveOffset
     | Right -> 
 
-        let xOffset =
-            match sym.Appearance.Style with
-            | Distinctive -> match comp.Type with
-                                | Or -> getCurvePortOffset sym side h w
-                                | _ -> 0.0
-            | Rectangular -> 0.0
-
         let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = xOffset; Y = yOffset }
+        baseOffset' + {X = 0.0; Y = yOffset } + curveOffset
     | Bottom -> 
-        let yOffset =
-            match sym.Appearance.Style with
-            | Distinctive -> match comp.Type with
-                                | Or -> getCurvePortOffset sym side h w
-                                | _ -> 0.0
-            | Rectangular -> 0.0
+       
         let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = yOffset }
+        baseOffset' + {X = xOffset; Y = 0.0} + curveOffset
     | Top ->
-        let yOffset =
-            match sym.Appearance.Style with
-            | Distinctive -> match comp.Type with
-                                | Or -> getCurvePortOffset sym side h w
-                                | _ -> 0.0
-            | Rectangular -> 0.0
+    
         let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = yOffset }
+        baseOffset' + {X = xOffset; Y = 0.0} + curveOffset
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
 let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =

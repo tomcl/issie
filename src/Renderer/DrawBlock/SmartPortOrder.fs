@@ -58,6 +58,7 @@ let findMaxIndex (symbol: Symbol) (portList) (edge: Edge) =
         List.min portList'
 
 // clean this by putting match inside if/elif//else
+// Use Options instead of .find
 let findIndexShifted (interWires: list<Wire>) (symbolToOrder: Symbol) 
     (otherSymbol: Symbol)
     (inputEdge: Edge)
@@ -237,5 +238,47 @@ let reOrderPorts
     wModel'
 
     
+let sheetReOrderPorts 
+    (wModel: BusWireT.Model) 
+    (busWireHelper: BusWireHelpers)
+        : BusWireT.Model =
+
+    printfn $"Ordering the whole sheet"
+
+    let sModel = wModel.Symbol
+
+    let wireList =
+        wModel.Wires
+        |> Map.toList
+        |> List.map snd
+
+    let sModel' = 
+        (sModel, wireList)
+        ||> List.fold (fun symbol wire ->
+
+            let outputPortId = string wire.OutputPort // port id of wire exiting
+            let inputPortId = string wire.InputPort // port id of  wire entering
+
+            let symbolToOrder = getSymbol symbol inputPortId
+            let otherSymbol = getSymbol symbol outputPortId
+
+            let symbol' = changePortOrder wModel symbolToOrder otherSymbol [wire]
+
+            {sModel with Symbols = Map.add symbol'.Id symbol' symbol.Symbols}
+        )
+
+
+    //let symbol' = changePortOrder wModel symbolToOrder otherSymbol wiresToOrder
+
+    let newModel = 
+        {wModel with 
+            Symbol = sModel'
+        }
+
+    //printfn " PortMaps.Order after: %A" symbol'.PortMaps.Order[Left]
+
+    let wModel' = busWireHelper.updateSymbolWires newModel symbol'.Id
+
+    wModel
 
 

@@ -897,6 +897,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     
     // HLP23 AUTHOR: BRYAN TAN
+    | ShowCustomCorners compId ->
+
+        model, Cmd.none
     | ResizeSymbol (compId, fixedCornerLoc, pos) ->
         let helpers = { SymbolUpdateResizeHelpers.ExternalHelpers.FlipSymbol = flipSymbol }
         manualSymbolResize model compId fixedCornerLoc pos helpers

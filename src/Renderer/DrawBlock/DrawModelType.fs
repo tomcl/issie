@@ -244,6 +244,9 @@ module SymbolT =
         /// Taking the input and..
         | MovePort of portId: string * move: XYPos
         | MovePortDone of portId: string * move: XYPos
+        // HLP23 AUTHOR: BRYAN TAN
+        | ShowCustomCorners of compList: ComponentId list
+        | HideCustomCorners of compList: ComponentId list
         | ResizeSymbol of compId: ComponentId * corner: XYPos * move: XYPos
         | ResizeSymbolDone of compId: ComponentId * corner: XYPos * move: XYPos
         | SaveSymbols
@@ -389,7 +392,7 @@ module SheetT =
         | OutputPort of CommonTypes.OutputPortId * XYPos
         | Component of CommonTypes.ComponentId
         | Connection of CommonTypes.ConnectionId
-        | ComponentCorner of CommonTypes.ComponentId * XYPos
+        | ComponentCorner of CommonTypes.ComponentId * XYPos * XYPos
         | Canvas
 
     /// Keeps track of the current action that the user is doing

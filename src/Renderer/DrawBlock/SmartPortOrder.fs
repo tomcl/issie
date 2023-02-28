@@ -29,6 +29,7 @@ open Operators
     Flow of the Smart Port Reordering Algorithm:
     1) We first get SymbolReorderPair information. This includes the Symbol, OtherSymbol, Ports and their Dominant Edges.
         - Dominant Edge: 
+            - Heuristic calculated from a subset of Symbol's port.
             - The Direction a Symbol faces. It's an edge where a symbol has ports but no port on another edge.
             - Otherwise its the edge with the most number of ports.
     2) Depending on the dominant edge of a port, we unwrap both Symbol ports in opposite directions.
@@ -36,7 +37,8 @@ open Operators
         - If ports around a component are the reverse order of pins around another component, they can be wired without crosses.
         - We force these connection pairs to avoid wire crosses.
     3) Swap ports on the the symbol to order such that connection pairs in (2) is followed.
-        - Ports of non custom components are not reordered. 
+        - Only Components with 2 IO ports are ordered (eg. Mux2, DeMux2, etc).
+        - Ports are not reordered if connections from one output to multiple inputs are present. 
 *)
 
 /// Holds data about External Helpers required.
@@ -68,10 +70,7 @@ let getPortInfo (model: SymbolT.Model) (portId: PortId) =
     { Port = getPort model (getPortIdStr portId)
       Orientation = getPortOrientation model portId }
 
-/// Finds the Dominant Edge of a Symbol given a subset of its ports.
-/// A dominant edge is defined as an edge where a symbol has a port but no port on its opposite edge.
-/// If no such edge exists, its an edge with the most number of ports.
-/// Dominant Edge is the direction a symbol faces.
+/// Finds the Dominant Edge of a Symbol.
 let getSymDominantEdge (symPorts: PortInfo list) =
     let edgeExists (edge: Edge) =
         symPorts |> List.exists (fun port -> port.Orientation = edge)
@@ -82,7 +81,7 @@ let getSymDominantEdge (symPorts: PortInfo list) =
         symPorts
         |> List.tryFind (fun port -> not (edgeExists port.Orientation.Opposite))
         |> function
-            | Some port -> port.Orientation
+            | Some port -> port.Orientation // Edge with no ports on opposite Edge.
             | _ ->
                 symPorts // Otherwise get Mode Edge
                 |> List.countBy (fun port -> port.Orientation)
@@ -90,8 +89,7 @@ let getSymDominantEdge (symPorts: PortInfo list) =
                 |> List.head
                 |> fst
 
-/// Unwrap a symbol's port in a Clockwise or AntiClockwise given a dominant edge.
-/// Eg. For a Top Dominant Edge AntiClockwise ordering, we order the ports from Right, Top, Left then Bottom Edge.
+/// Given a dominant edge, unwrap is symbol's port in a Clockwise or AntiClockwise direction.
 let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
 
     let order = sym.PortMaps.Order
@@ -104,12 +102,12 @@ let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
     // Gets a Clockwise Port Reordering for a Dominant Edge Anticlockwise Ordering
     let revDirection (ports: string list list) =
         let frnt, back = List.splitAt (List.length ports - 1) ports
-        (List.rev frnt) @ back
+        (List.rev frnt) @ back |> List.map List.rev |> List.concat
 
     let unwrpByDirection (n: int) =
         match direction with
         | AntiClockwise -> rotClkwise n |> List.concat
-        | Clockwise -> rotClkwise n |> revDirection |> List.map List.rev |> List.concat
+        | Clockwise -> rotClkwise n |> revDirection
 
     match domEdge with
     | Top -> unwrpByDirection 0
@@ -144,7 +142,6 @@ let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Sy
       DominantEdges = domEdgeBySym }
 
 /// Guard that ensures only certain ports of non custom components are reordered.
-/// Done by removing ports of symbol to order if its not a custom component.
 let nonCustomCompPortGuard (reorderPair: SymbolReorderPair) =
     match reorderPair.Symbol.Component.Type with
     | And | Or | Xor | Nand | Nor | Xnor
@@ -188,9 +185,9 @@ let outToMultInGuard (reorderPair: SymbolReorderPair) =
     | _ -> reorderPair
 
 /// Reorder's Symbol Ports such to minimize wire crossings.
-/// To minimize wire crossings ports of one symbol must be the reverse of ports on another symbol.
-/// We achieve this by unwrapping ports of a symbol by their dominant edge in opposite directions.
 let reorderSymPorts (reorderPair: SymbolReorderPair) =
+
+    let sym, otherSym = reorderPair.Symbol, reorderPair.OtherSymbol
 
     let sortByUnwrpPorts (sym: Symbol) (dir: Direction) =
         let unwrppedPorts = unwrapSymPorts reorderPair.DominantEdges[sym.Id] dir sym
@@ -199,14 +196,11 @@ let reorderSymPorts (reorderPair: SymbolReorderPair) =
         |> List.sortBy (fun port -> List.findIndex (fun id -> id = port.Port.Id) unwrppedPorts)
 
     let symPorts, otherSymPorts =
-        sortByUnwrpPorts reorderPair.Symbol Clockwise, sortByUnwrpPorts reorderPair.OtherSymbol AntiClockwise
+        sortByUnwrpPorts sym Clockwise, sortByUnwrpPorts otherSym AntiClockwise
 
-    [ (reorderPair.Symbol.Id, symPorts)
-      (reorderPair.OtherSymbol.Id, otherSymPorts) ]
-    |> Map.ofList
+    [ (sym.Id, symPorts); (otherSym.Id, otherSymPorts) ] |> Map.ofList
 
-/// Computes port swaps on symbol to reorder ports on. Port swaps are represented as a Map.
-/// Keys and values are old ports and new ports respectively on the symbol to order.
+/// Computes port swaps on symbol based on reordered ports that minimize crossing.
 let getPortSwaps (reorderPair: SymbolReorderPair) =
 
     let zipPorts (portsA: PortInfo list) (portsB: PortInfo list) =
@@ -222,7 +216,6 @@ let getPortSwaps (reorderPair: SymbolReorderPair) =
     ||> Map.fold (fun state src oldPort -> Map.add oldPort oldConns[src] state)
 
 /// Swaps around portIds in symToOrder to minimize criss crossing of wires.
-/// Keys and values of swaps represents old ports and new ports respectively.
 let swapPortIds (reorderPair: SymbolReorderPair) =
 
     let swaps = getPortSwaps reorderPair

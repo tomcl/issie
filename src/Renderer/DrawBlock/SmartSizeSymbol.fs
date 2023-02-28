@@ -11,7 +11,6 @@ open Symbol
 open Optics
 open Operators
 open SmartHelpers
-
 open BusWireUpdateHelpers
 
 
@@ -28,6 +27,9 @@ let Scale
     | Some x -> x
     | None -> 1.0
 
+//this function checks if two straight lines overlap 
+//for example if two horizontal lines, at different or same heights, overlap, that means 
+//we can draw a horizontal lines that will intersect both of them
 let isOverlapped
     (firstBegin: float)
     (firstEnd: float)
@@ -58,7 +60,6 @@ let getPortDist
 //this function returns the edges of the symbols which we would like to align
 //it's based purely on symbol positions on the canvas, and does not take into account 
 //any connections between the two symbols. 
-
 let relationPos 
     (toSize: Symbol)
     (other: Symbol)
@@ -108,37 +109,29 @@ let reSizeSymbol
     (wModel: BusWireT.Model) 
     (symbolToSize: Symbol) 
     (otherSymbol: Symbol) 
-        : BusWireT.Model =
+        : BusWireT.Model =  
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let manageableWires = Map.toList wModel.Wires
-    
     let sModel = wModel.Symbol
     let Orient = relationPos symbolToSize otherSymbol
-    printfn "%A" Orient
-    let SymbolIds = [(ComponentId symbolToSize.Component.Id); (ComponentId otherSymbol.Component.Id)]
-    
     let Dimension = getDim symbolToSize otherSymbol Orient
     
-    
-    let DimensionOfConstant, DimensionToChange = 
+    let ScaleFactor = 
         match Dimension with
-        | (x, y) -> y, x
-        
-    let ScaleFactor = DimensionOfConstant/DimensionToChange
+        | (x, y) -> y/x
 
     let symbol' = 
         match Orient with
-        | Some TopBottom -> {symbolToSize with HScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
-        | Some LeftRight -> {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
+        | Some TopBottom -> 
+            {symbolToSize with HScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
+        | Some LeftRight -> 
+            {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
         | None -> symbolToSize
 
     let wModel' = {wModel with Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}}
-    
-    let wires' = manageableWires |> List.collect (fun (x, y) -> [x, BusWireUpdateHelpers.autoroute wModel' y]) |> Map.ofList
+    let wires' = manageableWires |> List.collect (fun (x, y) -> [x, autoroute wModel' y]) |> Map.ofList
 
-    // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     {wModel' with 
-        Wires = wires'      // to make that happen the test function which calls this would need to provide an updateWire                      // function to this as a parameter (as was done in Tick
+        Wires = wires'
     }
-
 

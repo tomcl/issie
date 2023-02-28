@@ -132,23 +132,17 @@ let getWireSegmentsXY (wire: Wire) =
         {X = fst l; Y = snd l}
     segmentsToIssieVertices wire.Segments wire
     |> List.map (fun (x, y, _) -> (x, y))
-    |> List.map tupToXY    
+    |> List.map tupToXY
 
 /// Retrieves all wireId's which have N segments and intersect an arbitrary bounding box
 /// HLP23: Derek Lai
-let getNSegmentWiresInBox (n: int) (box: BoundingBox) (model: Model): ConnectionId list =
+let getWiresInBox (box: BoundingBox) (model: Model) = //: ConnectionId list =
     let wires = (List.ofSeq (Seq.cast model.Wires.Values))
-    let is7Seg (wire: Wire): bool =
-        wire.Segments.Length = n
-    let wireCoordList =
-        List.filter is7Seg wires
-        |> List.map (fun w -> getWireSegmentsXY w, w.WId)
-        |> List.map (fun (posL, wid) -> (posL[3], posL[4]), wid)
     let bottomRight =
         { box.TopLeft with X = box.TopLeft.X + box.W; Y = box.TopLeft.Y + box.H }
-    List.filter (fun x -> overlap2D (box.TopLeft, bottomRight) (fst x)) wireCoordList
-    |> List.map snd
-
+    let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool) (segment: Segment): bool =
+        state || overlap2D (startPos, endPos) (box.TopLeft, bottomRight)
+    List.filter (foldOverNonZeroSegs checkOverlapFolder false) wires
 
 /// Takes in ComponentId and returns the bounding box of the corresponding symbol
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)

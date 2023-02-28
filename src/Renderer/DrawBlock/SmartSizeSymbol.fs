@@ -12,24 +12,13 @@ open Optics
 open Operators
 open SmartHelpers
 
-(* 
-    HLP23: This module will normally be used exclusively by team member doing the "smart resize symbol" 
-    part of the individual coding. During group phase work how it is used is up to the
-    group. Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
+open BusWireUpdateHelpers
 
-    Normally it will update multiple wires and one symbols in the BusWire model so could use the SmartHelper 
-    function for the wires.
-*)
 
-/// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
-/// so that the connecting wires are exactly straight
-/// HLP23: It should work out the interconnecting wires (wires) from 
-////the two symbols, wModel.Wires and sModel.Ports
-/// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
-/// HLP23: when this function is written replace teh XML comment by something suitable concisely
-/// stating what it does.
-/// 
+
+type WhichDimension = Width | Height
+
+type Orientation = TopBottom | LeftRight
 
 // this function is used purely to return HScale or VScale of a symbol
 let Scale 
@@ -38,7 +27,6 @@ let Scale
     match symbolScale with
     | Some x -> x
     | None -> 1.0
-
 
 let isOverlapped
     (firstBegin: float)
@@ -56,8 +44,7 @@ let isOverlapped
     then true
     else false
 
-
-
+//this function is used to evaluate the distance between ports of a symbol.
 let getPortDist 
     (symbol: Symbol) 
     (pos: Edge) 
@@ -67,20 +54,10 @@ let getPortDist
     let NoPorts = List.length symbol.PortMaps.Order[pos]
     Width / ((float NoPorts) + 1.0)
 
-//this function returns all the common wires between two symbols
-let commonWires
-    (toSize: Symbol)
-    (other: Symbol)
-        : bool =
-    false
 
 //this function returns the edges of the symbols which we would like to align
 //it's based purely on symbol positions on the canvas, and does not take into account 
-//any connections between the two symbols. To check if there are connections, 
-//function commonWires will evaluate to True if connections exist.
-type WhichDimension = Width | Height
-
-type Orientation = TopBottom | LeftRight
+//any connections between the two symbols. 
 
 let relationPos 
     (toSize: Symbol)
@@ -133,36 +110,35 @@ let reSizeSymbol
     (otherSymbol: Symbol) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
+    let manageableWires = Map.toList wModel.Wires
+    
     let sModel = wModel.Symbol
     let Orient = relationPos symbolToSize otherSymbol
     printfn "%A" Orient
-    
+    let SymbolIds = [(ComponentId symbolToSize.Component.Id); (ComponentId otherSymbol.Component.Id)]
     
     let Dimension = getDim symbolToSize otherSymbol Orient
-
+    
     
     let DimensionOfConstant, DimensionToChange = 
         match Dimension with
         | (x, y) -> y, x
         
-
-
     let ScaleFactor = DimensionOfConstant/DimensionToChange
-    printfn "%A" ScaleFactor
-    let wires = [] // replace this with correct wires
+
+    let symbol' = 
+        match Orient with
+        | Some TopBottom -> {symbolToSize with HScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
+        | Some LeftRight -> {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
+        | None -> symbolToSize
+
+    let wModel' = {wModel with Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}}
     
-    
-    let symbol' = {symbolToSize with HScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
-    
-    let wModel' = SmartHelpers.updateModelWires wModel []
-    
+    let wires' = manageableWires |> List.collect (fun (x, y) -> [x, BusWireUpdateHelpers.autoroute wModel' y]) |> Map.ofList
 
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     {wModel' with 
-        Wires = wModel.Wires // no change for now, but probably this function should use update wires after resizing.
-                             // to make that happen the test function which calls this would need to provide an updateWire
-                             // function to this as a parameter (as was done in Tick3)
-        Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
+        Wires = wires'      // to make that happen the test function which calls this would need to provide an updateWire                      // function to this as a parameter (as was done in Tick
     }
 
 

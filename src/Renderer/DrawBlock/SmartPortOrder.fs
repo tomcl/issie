@@ -65,11 +65,6 @@ type Direction =
         | Clockwise -> AntiClockwise
         | _ -> Clockwise
 
-/// Gets port metadata which includes the port itself and Orientation.
-let getPortInfo (model: SymbolT.Model) (portId: PortId) =
-    { Port = getPort model (getPortIdStr portId)
-      Orientation = getPortOrientation model portId }
-
 /// Finds the Dominant Edge of a Symbol.
 let getSymDominantEdge (symPorts: PortInfo list) =
     let edgeExists (edge: Edge) =
@@ -203,11 +198,10 @@ let reorderSymPorts (reorderPair: SymbolReorderPair) =
 /// Computes port swaps on symbol based on reordered ports that minimize crossing.
 let getPortSwaps (reorderPair: SymbolReorderPair) =
 
-    let zipPorts (portsA: PortInfo list) (portsB: PortInfo list) =
-        (portsA, portsB) ||> List.zip |> Map.ofList
-
     let getConnections (ports: Map<ComponentId, PortInfo list>) =
-        (ports[reorderPair.OtherSymbol.Id], ports[reorderPair.Symbol.Id]) ||> zipPorts
+        (ports[reorderPair.OtherSymbol.Id], ports[reorderPair.Symbol.Id])
+        ||> List.zip
+        |> Map.ofList
 
     let oldConns, newConns =
         getConnections reorderPair.Ports, getConnections (reorderSymPorts reorderPair)

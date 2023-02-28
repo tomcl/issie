@@ -14,6 +14,7 @@ open DrawModelType.SymbolT
 
 type scaleFactor = { x: float; y: float }
 
+/// Returns the XYPos of points defining custom component 
 let getCustomSymCorners (sym: Symbol) =
     match sym.Component.Type with
     | CommonTypes.Custom _ -> 
@@ -27,13 +28,12 @@ let translatePoints vector (points: XYPos[]) =
     | [||] -> [||] 
     | _ -> Array.map ((+) vector) points
 
-/// scale a vector wrt to origin 
-/// TODO: change to an operator?
+/// Scale a point as a vector 
 let scalePoint (scale: scaleFactor) (point: XYPos) =
     { X=point.X * scale.x; Y=point.Y * scale.y }
 
-/// Apply scaling centered at fixedPos to vector movePos
-/// in matrix operations: (p0-p1) * M + p1
+/// Apply scaling centered at fixedPos (p0) to vector movePos (p1)
+/// In matrix operations: (p0-p1) * M + p1
 let scaleWrtFixed (scale: scaleFactor) (fixedPos: XYPos) (movePos: XYPos) = 
     movePos 
     |> (-) fixedPos

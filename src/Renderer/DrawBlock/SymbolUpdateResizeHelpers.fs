@@ -17,47 +17,103 @@ open SymbolHelpers
 type ExternalHelpers =
     { FlipSymbol: FlipType -> Symbol -> Symbol }
 
-type CornerIndex = { CornerIndex: int }
+// /// Specifies a corner of the rectangle
+// /// 0---3
+// /// |   |
+// /// 1---2
+// /// TODO: May be better as a DU but would need to define operations on the 4 different corners
+// type CornerIndex = { CornerIndex: int }
 
-type reflectAxis = | YHorizontal of float | XVertical of float
+// /// Return the corner index of b in the rectangle with a - b as a diagonal
+// /// e.g.
+// /// b---x
+// /// |   |
+// /// x---a
+// /// returns 0
+// /// 
+// /// TODO: May be a more elegant way of getting the correct CornerIndex
+// let getCornerIndexOfB (a: XYPos) (b: XYPos) =
+//     let bToa = a - b
+//     let sgnX, sgnY = sign bToa.X, sign bToa.Y
+//     match sgnX, sgnY with
+//     | 1, 1 -> {CornerIndex=0}
+//     | 1, -1 -> {CornerIndex=1}
+//     | -1, -1 -> {CornerIndex=2}
+//     | -1, 1 -> {CornerIndex=3}
+//     | _ -> failwithf "sgn must be either 1 or -1"
 
-/// /// reflect a symbol along a vertical or horizontal line
-/// TODO: this is probably a useful function that can be applied in other places, find a better place to put it
-let reflectSymbol (axis: reflectAxis) (symbol: Symbol) (helpers: ExternalHelpers)=
+type reflectType = | YVertical of float | XHorizontal of float
+
+/// reflect a symbol along a vertical or horizontal line
+/// TODO: this is probably a useful function that can be applied in other places, find a way to get FlipSymbol in a nicer way and find a better place to put it
+let reflectSymbol (helpers: ExternalHelpers) (axis: reflectType) (symbol: Symbol) =
     match axis with
-    | YHorizontal y -> 
+    | YVertical y -> 
         symbol
         |> helpers.FlipSymbol FlipVertical 
-        |> moveSymbol ({X = 0.0; Y = y - 2.0 * symbol.Pos.Y})
-    | XVertical x ->
+        |> moveSymbol ({X = 0.0; Y = 2.0 * (y - symbol.Pos.Y) - symbol.Component.H * Option.defaultValue 1.0 symbol.VScale})
+    | XHorizontal x ->
         symbol
         |> helpers.FlipSymbol FlipHorizontal 
-        |> moveSymbol ({X = x - 2.0 * symbol.Pos.X; Y = 0.0})
+        |> moveSymbol ({X = 2.0 * (x - symbol.Pos.X) - symbol.Component.W * Option.defaultValue 1.0 symbol.HScale; Y = 0.0})
 
 /// Resize a custom component based on current mouse location
 let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XYPos) (pos: XYPos) (helpers: ExternalHelpers) = 
+    
     let symbol = model.Symbols[compId]
     let hScale = (pos.X - fixedCornerLoc.X) / symbol.Component.W
     let vScale = (pos.Y - fixedCornerLoc.Y) / symbol.Component.H
-
-    let offset = pos - symbol.Pos
-    // let axis =
-    //     if offset.X > 0.0 && offset.Y  0.0 then
-    //         3
-    //     else if offset.X < 0.0 && offset.Y < 0.0 then
-    //         [|XVertical symbol.Pos.X|]
-    //     else if offset.X < 0.0 && offset.Y > 0.0 then
-    //         [|XVertical symbol.Pos.X|]
-    //     else
-    //         [||]
 
     let newPos = 
         let transform = { x = hScale / (Option.defaultValue 1.0 symbol.HScale); y = vScale / (Option.defaultValue 1.0 symbol.VScale) }
         scaleWrtFixed transform fixedCornerLoc symbol.Pos
 
+    printfn "--------------------"
+    printfn $"Pos: {pos}"
+    printfn $"Fix: {fixedCornerLoc}"
+    printfn $"Old: {symbol.Pos}"
+    printfn $"New: {newPos}"
+    // printfn $"TestPos: {}"
+    // printfn $"Pos: {pos}"
+
+    let testPos = 
+        let transform = { x = hScale / (Option.defaultValue 1.0 symbol.HScale); y = vScale / (Option.defaultValue 1.0 symbol.VScale) }
+        scaleWrtFixed transform fixedCornerLoc symbol.Pos
+
+
+    let reflections =
+        // hack to get the sign of the vector from fixed point to opposite diagonal
+        // without smallPosOffset diag may have a 0 element which is troublesome
+        let smallPosOffset = 0.0001
+        let diag = symbol.Pos + {X = smallPosOffset; Y = smallPosOffset} - fixedCornerLoc
+        let fixedToMouse = pos - fixedCornerLoc
+        let vReflect = if sign diag.X <> sign fixedToMouse.X then Some (XHorizontal fixedCornerLoc.X) else None
+        let hReflect = if sign diag.Y <> sign fixedToMouse.Y then Some (YVertical fixedCornerLoc.Y) else None
+        (vReflect, hReflect)
+
+    // let testing = 
+    //     let vR, hR = reflections
+    //     let pR oR = 
+    //         match oR with
+    //         | Some r -> r |> function | YVertical y -> printfn $"y: {y}" | XHorizontal x -> printfn $"x: {x}"
+    //         | None -> printfn "None"
+    //     pR vR
+    //     pR hR
+
+    let reflectSym = reflectSymbol helpers
+
+    let applyReflections reflects symbol =
+        let tryApply reflect sym = match reflect with | Some r -> reflectSym r sym | None -> sym
+        let vR, hR = reflects
+        symbol |> tryApply vR |> tryApply hR
+
+    let tSymbol = symbol |> applyReflections reflections 
+
     let newSymbol =
         {symbol with HScale = Some (abs hScale); VScale = Some (abs vScale) }
         |> moveSymbol (newPos - symbol.Pos)
+        |> applyReflections reflections
         |> set (appearance_ >-> showCorners_) ShowAll
+        
 
     set (symbolOf_ compId) newSymbol model, Cmd.none    

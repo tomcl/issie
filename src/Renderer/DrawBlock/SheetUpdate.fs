@@ -902,6 +902,25 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     ]
                 | _ -> model,Cmd.none
 
+    | SetStyle (style:StyleType) ->
+        let syms = model.Wire.Symbol.Symbols
+        let compList = 
+            syms
+            |> Map.toList
+            |> List.map (fun (key, _) -> key)
+
+        let resetSymbols = 
+            syms
+            |> Map.map 
+                (fun _ sym ->  
+                    {sym with Appearance = {sym.Appearance with Style=style}}
+                )
+        {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Style = style; Symbols = resetSymbols}}; },
+        Cmd.batch  [ 
+                wireCmd (BusWireT.UpdateConnectedWires compList)
+                Cmd.ofMsg UpdateBoundingBoxes
+        ]
+
     
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none

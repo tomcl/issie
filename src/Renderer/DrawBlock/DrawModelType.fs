@@ -112,7 +112,6 @@ module SymbolT =
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
-    let style_ = Lens.create (fun a -> a.Style) (fun s a -> {a with Style = s})
  
     /// Represents a symbol, that contains a component and all the other information needed to render it
     type Symbol =
@@ -254,7 +253,6 @@ module SymbolT =
         | MovePortDone of portId: string * move: XYPos
         | SaveSymbols
         | SetTheme of ThemeType
-        | SetStyle of StyleType
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
 
@@ -542,8 +540,9 @@ module SheetT =
         | TestPortReorder
         | TestSmartChannel
         | TestPortPosition
-        //| TestScaleUp
+        | TestScaleUp
         | TestScaleDown
+        | SetStyle of SymbolT.StyleType
 
 
     type ReadLog = | ReadLog of int

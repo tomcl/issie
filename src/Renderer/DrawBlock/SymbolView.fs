@@ -33,7 +33,8 @@ open Symbol
 
 //Created a property 'Style' of StyleType in DrawModelType.SymbolT.Model and DrawModelType.SymbolT.Appearance 
 //Style is changed through view menu -> style (added functionality in renderer)
-//Used in Model to initialise states, detect changes and give correct shape of styled gate in drawSymbol Func, see SymbolUpdate 'SetStyle' msg
+//Used in SymbolT.Model to initialise states, detect changes and give correct shape & ports of styled gate in drawSymbol Func
+//see SheetUpdate 'SetStyle' msg, needed there to correctly call wire command after style change
 //Used in Symbol to adjust Ports of curvy symbol directly in symbol.fs -> GetPortPos function
 //Also can then be used to change only specific symbols style, not all of them. Minimising match traversal.
 //HLP23: Author Ismagilov

@@ -905,13 +905,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> Map.map 
                 (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
-    | SetStyle (style:StyleType) ->
-        //Set symbols to new style
-        let resetSymbols = 
-            model.Symbols
-            |> Map.map 
-                (fun _ sym ->  Optic.map appearance_ (set style_ style) sym)
-        {model with Style=style; Symbols=resetSymbols}, Cmd.none
 
 
 // ----------------------interface to Issie----------------------------- //

@@ -188,11 +188,11 @@ let viewMenu dispatch =
         ]
         makeMenu false "Style" [
             makeItem "Rectangular" None (fun ev -> 
-            
-                symbolDispatch (SymbolT.Msg.SetStyle SymbolT.StyleType.Rectangular)
+                //call sheetT.Msg.SetStyle
+                sheetDispatch (SheetT.SetStyle SymbolT.StyleType.Rectangular)
             )
             makeItem "Distinctive" None (fun ev -> 
-                symbolDispatch (SymbolT.Msg.SetStyle SymbolT.StyleType.Distinctive)
+                sheetDispatch (SheetT.Msg.SetStyle SymbolT.StyleType.Distinctive)
             )
         ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))

@@ -53,6 +53,7 @@ open SmartHelpers
       1) Distinguish the type of scaling the user does
       2) Returns a structure containing the top left and bottom right corners of a block of symbols
   Added 2 keyboard messages in Renderer (CrtlU & CrtrlI) to scale the block of symbols up and down respectively.
+  Invalid placement handled by giving model action drag and drop, therefore requiring user to place down/continue changing until valid
 *)
 
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:RotationType) = 

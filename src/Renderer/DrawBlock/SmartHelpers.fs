@@ -154,3 +154,12 @@ let findInterconnectingWires (wireList:List<Wire>) (sModel)
             else false
 
         )
+
+/// HLP23: Indraneel
+/// Returns the symbol index given symbol and portId
+let getSymbolIndex (symbol: Symbol) (portId: string) = 
+    let edge = symbol.PortMaps.Orientation[portId]
+
+    symbol.PortMaps.Order[edge]
+    |> List.findIndex (fun elm -> elm = portId)
+  

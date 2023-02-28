@@ -6,13 +6,7 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open Optics
 open Operators
-open BusWire
-
-type Tick3BusWireHelpers = {
-    AutoRoute: BusWireT.Model -> Wire -> Wire
-    ReverseWire: Wire -> Wire
-    MoveSegment: Model -> Segment -> float -> Wire
-    }
+open BusWireUpdate
 
 (* 
     HLP23: This module will normally be used exclusively by team member doing the "smart port reorder" 
@@ -29,7 +23,7 @@ type Tick3BusWireHelpers = {
 /// Tt should work out the interconnecting wires (wiresToOrder) from
 ////the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has re-orderable ports).
-let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: Symbol) (tick3Helpers: Tick3BusWireHelpers) : BusWireT.Model =
+let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: Symbol): BusWireT.Model =
     printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
     printfn $"Input ports:{symbolToOrder.Component.InputPorts}, Output ports:{symbolToOrder.Component.OutputPorts}"
@@ -71,52 +65,43 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
             | true -> (portConnections
                     |> List.map (fun (outputId, inputId) -> (symbolAPortMap.[outputId], symbolBPortMap.[inputId]))
                     |> List.map (fun (x, y) -> (x |> Option.defaultValue 0, y |> Option.defaultValue 0))
-                    |> List.sortBy fst
-                    |> List.map snd)
-            | false -> portConnections
+                    |> List.sortBy fst)
+            | false -> (portConnections
                     |> List.map (fun (outputId, inputId) -> (symbolBPortMap.[outputId], symbolAPortMap.[inputId]))
                     |> List.map (fun (x, y) -> (x |> Option.defaultValue 0, y |> Option.defaultValue 0))
-                    |> List.sortBy fst
-                    |> List.map snd
-            
-    printfn $"AtoBConnections:{AtoBConnections}"
-    
-    (*let BtoAConnections=
-        portConnections
-        |> List.map (fun (inputId, outputId) ->
-            let outputPortNumber = symbolAPortMap.[outputId]
-            let inputPortNumber = symbolBPortMap.[inputId]
-            (outputPortNumber, inputPortNumber))
-        |> List.map (fun (x, y) -> (x |> Option.defaultValue 0, y |> Option.defaultValue 0))
-        |> List.sortBy fst
-        |> List.map fst*)
+                    |> List.sortBy fst)
  
-    let reorderList (strList: string list) (intList: int list) =
+    let reorderList (strList: string list) (intList: (int*int) list) =
         match strList.Length with
                 | 0 -> strList
-                | _ -> List.map (fun index -> strList.[index]) intList
-
+                | _ -> List.map (fun (_,index) -> strList.[index]) intList
+                
+    printfn $"AtoBConnections:{AtoBConnections}"
     let updatedMapOrder =
-        
         //let portMapRight = Map.find Right symbolToOrder.PortMaps.Order
         //let reorderedListRight = reorderList portMapRight BtoAConnections
         match symbolToOrder.Pos.X > otherSymbol.Pos.X with
-            | true -> let portMap =  Map.find Left symbolToOrder.PortMaps.Order 
+            | true -> let portMap =  Map.find Left symbolToOrder.PortMaps.Order
                       let reorderedList = reorderList portMap AtoBConnections
                       symbolToOrder.PortMaps.Order |> Map.add Left reorderedList
                       
             | false -> let portMap =  Map.find Right symbolToOrder.PortMaps.Order 
                        let reorderedList = reorderList portMap AtoBConnections
                        symbolToOrder.PortMaps.Order |> Map.add Right reorderedList
-    
+                       
+    printfn $"originalMapOrder:{symbolToOrder.PortMaps.Order}"              
     printfn $"updatedMapOrder:{updatedMapOrder}"
-    printfn $"APortMap:{symbolAPortMap}, BPortMap:{symbolBPortMap}"
+    
+    
     let updatedPortMaps = { symbolToOrder.PortMaps with Order = updatedMapOrder }
     let updatedSymbol = { symbolToOrder with PortMaps = updatedPortMaps }
     
     //let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
-    //let updatedWires = updateWires wModel [symbolToOrder.Id; otherSymbol.Id] 
+    //let autoroute (model: Model) (wire: Wire) : Wire =
+
+        
     let symbol' = updatedSymbol // no change at the moment
     { wModel with
-        Wires = wModel.Wires // no change for now, but probably this function should use update wires after reordering.
+        Wires = wModel.Wires //no change for now, but probably this function should use update wires after reordering.
         Symbol = { sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols } }
+    

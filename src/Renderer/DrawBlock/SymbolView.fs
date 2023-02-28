@@ -470,6 +470,8 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
             | Degree270,_ -> points[3]
 
     //Given the component, will give a list of XYPos used to draw the curvy version of the component
+    //Each list is points representing different rotation of the component
+    //Each item in list is commented for the corresponding component
     //HLP23: Author Ismagilov
     let getCurvyPoints (comp:ComponentType) =
         match comp with 

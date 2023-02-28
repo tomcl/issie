@@ -390,7 +390,8 @@ let mDragUpdate
         let dragCursor = 
             match model.Action with
             | MovingLabel _ -> Grabbing
-            | MovingSymbols _ -> CursorType.ClickablePort
+            | MovingSymbols _ -> ClickablePort
+            // | ResizingSymbol _ -> GrabWire
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
     match model.Action with
@@ -609,7 +610,9 @@ let mMoveUpdate
                     symbolCmd (SymbolT.PasteSymbols [ newCompId ]) ]
     | _ ->
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
-
+        
+        // HLP23 AUTHOR: BRYAN TAN
+        let ctrlPressed = Set.contains "CONTROL" model.CurrentKeyPresses
         let newCursor =
             match model.CursorType, model.Action with
             | Spinner,_ -> Spinner
@@ -619,10 +622,15 @@ let mMoveUpdate
                 | Label _ -> GrabLabel
                 | Connection _ -> GrabWire
                 | Component _ -> GrabSymbol
+                | ComponentCorner (_,_,idx) when ctrlPressed -> 
+                    printfn "bruh"
+                    match (idx % 2) with
+                    | 0 -> ResizeNWSE
+                    | _ -> ResizeNESW
                 | _ -> Default
         let newModel = { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement} } 
         
-        if Set.contains "CONTROL" model.CurrentKeyPresses then
+        if ctrlPressed then
             newModel , Cmd.batch [symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents); symbolCmd (SymbolT.ShowCustomCorners nearbyComponents)]
         else 
             newModel, symbolCmd (SymbolT.ShowPorts nearbyComponents) // Show Ports of nearbyComponents

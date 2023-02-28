@@ -392,7 +392,7 @@ module SheetT =
         | OutputPort of CommonTypes.OutputPortId * XYPos
         | Component of CommonTypes.ComponentId
         | Connection of CommonTypes.ConnectionId
-        | ComponentCorner of CommonTypes.ComponentId * XYPos * XYPos
+        | ComponentCorner of CommonTypes.ComponentId * XYPos * int
         | Canvas
 
     /// Keeps track of the current action that the user is doing
@@ -430,6 +430,8 @@ module SheetT =
         | GrabLabel
         | GrabSymbol
         | Grabbing
+        | ResizeNESW // HLP23 AUTHOR: BRYAN TAN 
+        | ResizeNWSE
     with
         member this.Text() = 
             match this with
@@ -441,8 +443,8 @@ module SheetT =
             | GrabSymbol -> "cell"
             | GrabLabel -> "grab"
             | Grabbing -> "grabbing"
-
-
+            | ResizeNESW -> "nesw-resize"   
+            | ResizeNWSE -> "nwse-resize"
 
     /// For Keyboard messages
     type KeyboardMsg =

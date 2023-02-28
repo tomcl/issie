@@ -237,7 +237,7 @@ let inline tryInsideLabelBox  (model: Model) (pos: XYPos) =
         if insideBox pos sym.LabelBoundingBox then Some sym else None)
 
 /// HLP23 AUTHOR: BRYAN TAN
-/// if pos is inside any one of the custom symbol's corners, return the diagonally opposite corner (its position is fixed during resizing) 
+/// if pos is inside any one of the custom symbol's corners, return the diagonally opposite corner (its position is fixed during resizing), and the index of the corner being held
 let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
     let radius = 5.0
     let margin = 2.5
@@ -252,7 +252,7 @@ let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
         | _ -> 
             Array.tryFindIndex (fun c -> insideCircle pos c radius margin) corners
             |> function
-                | Some idx -> Some (corners[(idx + 2) % 4], corners[idx])
+                | Some idx -> Some (corners[(idx + 2) % 4], idx)
                 | None -> None
 
     Optic.get symbols_ model

@@ -91,16 +91,24 @@ let categoriseWireSegments (model:Model ) (bounds: BoundingBox) (segList : List<
 type UpDown = Up | Down | Neither
 
 //Helper function to categorise whether the segment travels up or down
-let categoriseUpdown (seg : Segment) =
-    match seg.Length with
-    | x when x > 0 -> Down
-    | x when x < 0 -> Up
-    | _ -> Neither
+let categoriseUpdown (model: Model) (seg : Segment) =
+    let wire = model.Wires[seg.WireId]
+    let starPortOrientation = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort
+    let endPortOrientation = Symbol.getInputPortOrientation model.Symbol wire.InputPort
+    let initialPositon = match seg.Length with
+                        | x when x > 0 -> Down
+                        | x when x < 0 -> Up
+                        | _ -> Neither
+    match initialPositon, (starPortOrientation = Left || endPortOrientation = Right) with
+    | initialPositon, false -> initialPositon
+    | Down, true -> Up
+    | Up, true -> Down
+    | Neither, true -> Neither
 //Function to sort out the wires within any category based on travelling up or down
 let sortUpDown (model : Model) (orientation : Orientation) (segs : List<Segment*(XYPos*XYPos)>) :  List<List<Segment*(XYPos*XYPos)>>=
     let categorisedList = 
         segs 
-        |> List.groupBy (fun element -> categoriseUpdown (fst element))
+        |> List.groupBy (fun element -> categoriseUpdown model (fst element))
     let upLst = 
         categorisedList 
         |> List.filter (fun element -> fst element = Up)
@@ -148,7 +156,7 @@ let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<
         segList
         |> List.filter (fun element -> snd element = ZigZagCross)
         |> List.map fst
-        |> sortUpDown model orientation
+        
     let PassThroughList = 
         segList 
         |> List.filter (fun element -> snd element = PassThrough) 
@@ -163,14 +171,14 @@ let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<
         segList 
         |> List.filter (fun element -> snd element = Terminates) 
         |> List.map fst
-        |> sortUpDown model orientation
+       
     let LList =
         segList 
         |> List.filter (fun element -> snd element = LShape) 
         |> List.map fst
         |> sortUpDown model orientation
     let TooDifficult = lst |> List.filter (fun element -> snd element = TooDifficult) |> List.map fst
-    (leftHarry|> sortUpDown model orientation) @ OriginateList @ PassThroughList  @ LList @ ZiggZaggList  @ TerminatesList @ (rightHarry|> sortUpDown model orientation), TooDifficult
+    (leftHarry|> sortUpDown model orientation) @ OriginateList @ PassThroughList  @ LList @ (ZiggZaggList  @ TerminatesList |> sortUpDown model orientation) @ (rightHarry|> sortUpDown model orientation), TooDifficult
     
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------

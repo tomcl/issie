@@ -214,6 +214,14 @@ let makePartArcAttr r h1 d1 h2 d2 =
 let makeLineAttr dx dy =
     $"l %.3f{dx} %.3f{dy}"
 
+//Makes a bezier curve that can now be combined with other curves (for use in makeanypath)
+//HLP23: Author Ismagilov
+let makePathAttr (startingControlPoint: XYPos) (endingControlPoint: XYPos) (endingPoint: XYPos) =
+    let x2, y2 = endingPoint.X, endingPoint.Y
+    let dx1, dy1, dx2, dy2 = startingControlPoint.X, startingControlPoint.Y, endingControlPoint.X, endingControlPoint.Y
+    let dAttrribute = sprintf "C %f %f, %f %f, %f %f" dx1 dy1 dx2 dy2 x2 y2
+    dAttrribute
+
 let makePathFromAttr (attr:string) (pathParameters: Path) =
     path [
             D attr

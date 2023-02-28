@@ -658,7 +658,7 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
 
 
 /// Function to generate a new symbol
-let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
+let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) modelStyle =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
@@ -675,6 +675,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
             ShowPorts = ShowNone
             Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
+            Style = modelStyle
           }
       InWidth0 = None // set by BusWire
       InWidth1 = None
@@ -689,6 +690,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       MovingPortTarget = None
       HScale = None
       VScale = None
+      
     }
     |> autoScaleHAndW
     |> calcLabelBoundingBox
@@ -774,12 +776,21 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
     let baseOffset' = baseOffset + getMuxSelOffset sym side
     let portDimension = float ports.Length - 1.0
+    let comp = sym.Component
     //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
     match side with
     | Left ->
+        //Fixing port position of curvy symbol
+        //HLP23: Author Ismagilov
+        let xOffset =
+            match sym.Appearance.Style with
+            | Distinctive -> match comp.Type with
+                                | Or -> w/8.
+                                | _ -> 0.0
+            | Rectangular -> 0.0
         let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
+        baseOffset' + {X = xOffset; Y = yOffset }
     | Right -> 
         let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
         baseOffset' + {X = 0.0; Y = yOffset }

@@ -209,7 +209,7 @@ let rotateSymbolInBlock
         |> adjustPosForBlockRotation rotation h w
 
     let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
-
+    
     let newSTransform = 
         match sym.STransform.flipped with
         | true -> 
@@ -217,7 +217,7 @@ let rotateSymbolInBlock
         | _-> 
             {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
     printfn "newTopLeft : {%A}" newTopLeft
-
+    printfn "newSTransform : {%A}" newSTransform.Rotation
     { sym with 
         Pos = newTopLeft;
         PortMaps = rotatePortInfo rotation sym.PortMaps

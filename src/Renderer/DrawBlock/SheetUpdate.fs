@@ -346,6 +346,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
         // ]
 
+        //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov
         let rotmodel = 
             {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}}
@@ -379,6 +380,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
         //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
         // ]
+
+        //Replaced normal flipping, so individual and block flipping is correct
+        //HLP23: Author Ismagilov
         let flipmodel = 
             {model with Wire = {model.Wire with Symbol = (SmartRotate.flipBlock model.SelectedComponents model.Wire.Symbol orientation)}}
 

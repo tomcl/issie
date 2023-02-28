@@ -31,6 +31,12 @@ open Symbol
     HLP23: the code here does not use helpers consistently or in all suitable places.
 *)
 
+//Created a property 'Style' of StyleType in DrawModelType.SymbolT.Model and DrawModelType.SymbolT.Symbol. 
+//Style is changed through view menu -> style (added functionality in renderer)
+//Used in Model to initialise states, detect changes and give correct shape of styled gate in drawSymbol Func, see SymbolUpdate 'SetStyle' msg
+//Used in Symbol to adjust Ports of curvy symbol directly in symbol.fs -> GetPortPos function
+//Also can then be used to change only specific symbols style, not all of them. Minimising match traversal.
+//HLP23: Author Ismagilov
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
 
@@ -120,13 +126,13 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
-//Functions to create any straightline path, and any arc path
+//Function to create any straightline path, and any arc path
 //HLP23 Author: Ismagilov
 let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour = 
     [makeAnyPath startingPoint pathAttr {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]
 
 let createPath (startingPoint: XYPos) (startingControlPoint: XYPos) (endingControlPoint: XYPos) (endingPoint: XYPos) =
-    [makePath startingPoint startingControlPoint endingControlPoint endingPoint {defaultPath with Stroke = "Black"; StrokeWidth="5px"}]
+    [makePath startingPoint startingControlPoint endingControlPoint endingPoint {defaultPath with StrokeWidth = "5px"; Stroke = "black"}]
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
@@ -196,6 +202,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
+    let symStyle = symbol.Appearance.Style
     // let showOutputPorts = appear.ShowOutputPorts
     let opacity = appear.Opacity
     let comp = symbol.Component
@@ -450,12 +457,27 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
-    //Given the component, will give a list of XYPos used to draw the component
-    //HLP23 Author: Ismagilov
+    //Given the component, will give a list of XYPos used to draw the curvy version of the component
+    //HLP23: Author Ismagilov
     let getCurvyShape (comp:ComponentType) transform =
         match comp with 
         | And ->
-            let zero' = [|{X=W-(H/2.);Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X=W/2.;Y=H};{X= -W/2.;Y=0};{X=0.;Y= -H};{X=W/2.;Y=0}|]
+            let zero' = [|{X=W/2.;Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X= -W/2.;Y=0};{X=0.;Y= H};{X=W/2.;Y=0}|]
+            let ninety' = [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X= 0;Y= H/2.};{X= -W;Y= 0};{X=0;Y= -H/2.}|]
+            let oneEighty' = [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X= W/2.;Y=0};{X=0.;Y= -H};{X= -W/2.;Y=0}|]
+            let twoSeventy' = [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X= 0;Y= -H/2.};{X= -W;Y= 0};{X=0;Y= H/2.}|]
+
+            match transform.Rotation with 
+            | Degree0 -> match transform.flipped with
+                           | false -> zero'
+                           | true -> oneEighty'
+            | Degree90 -> ninety'
+            | Degree180 -> match transform.flipped with
+                           | true -> zero'
+                           | false -> oneEighty'
+            | Degree270 -> twoSeventy'
+        | Or -> 
+            let zero' = [|{X=0;Y= 0}; {X= 2.*W/3.;Y= 0}; {X= 5.*W/6.;Y= H/4.};{X=W;Y= H/2.};{X=5.*W/6.;Y= 3.*H/4.}; {X= 2.*W/3.;Y= H}; {X= 0; Y=H}; {X=W/4.;Y=3.*H/4.};{X=W/4.;Y=H/4.};{X=0;Y=0}|]
             let ninety' = [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X=0;Y=H/2.};{X= 0;Y=H/2.};{X=W;Y= 0};{X=0;Y= -H/2.}|]
             let oneEighty' = [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X=W/2.;Y=0};{X= W/2.;Y=0};{X=0.;Y= H};{X= -W/2.;Y=0}|]
             let twoSeventy' = [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X=0;Y= H/2.};{X= 0;Y= -H/2.};{X=W;Y= 0};{X=0;Y= H/2.}|]
@@ -469,11 +491,12 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                            | true -> zero'
                            | false -> oneEighty'
             | Degree270 -> twoSeventy'
+        
         | _ -> failwith "What? Shouldn't happen"
 
 
-    //Creates the shape, depending on the style set by user
-    //HLP23 Author: Ismagilov
+    //Creates the shape & labels, depending on the style set by user
+    //HLP23: Author Ismagilov
     let shapeMaker = 
         match style with
             | Distinctive -> 
@@ -481,10 +504,17 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                             | And ->
                                 let curvyShape = getCurvyShape And transform
                                 let arcAttr  = makePartArcAttr (H/2.) (curvyShape[1].Y) (curvyShape[1].X) (curvyShape[2].Y) (curvyShape[2].X)
-                                let lineAttr = ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y)+(makeLineAttr curvyShape[5].X curvyShape[5].Y)+(makeLineAttr (curvyShape[6].X) curvyShape[6].Y))
+                                let lineAttr = ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)+(makeLineAttr curvyShape[4].X curvyShape[4].Y)+(makeLineAttr (curvyShape[5].X) curvyShape[5].Y))
 
-                                (createAnyPath (curvyShape[0]) arcAttr  colour strokeWidth outlineColour) 
-                                |> List.append (createAnyPath curvyShape[3] lineAttr colour strokeWidth outlineColour)
+                                (createAnyPath (curvyShape[0]) (arcAttr+lineAttr) colour strokeWidth outlineColour) 
+
+                            | Or ->
+                                let curvyShape = getCurvyShape Or transform
+                                let arcAttr1  = makePathAttr (curvyShape[1]) (curvyShape[2]) (curvyShape[3])
+                                let arcAttr2  = makePathAttr   (curvyShape[4]) (curvyShape[5]) (curvyShape[6])
+                                let arcAttr3 = makePathAttr  curvyShape[7] curvyShape[8] curvyShape[9]
+
+                                (createAnyPath curvyShape[0] (arcAttr1+arcAttr2+arcAttr3) colour strokeWidth outlineColour) 
 
                             | _ -> (addLegendText 
                                 (legendOffset w h symbol) 

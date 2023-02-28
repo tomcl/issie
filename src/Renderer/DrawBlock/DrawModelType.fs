@@ -80,6 +80,9 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+    type StyleType = 
+        |Rectangular
+        |Distinctive
 
     type AppearanceT =
         {
@@ -93,6 +96,8 @@ module SymbolT =
             /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
 
+            Style: StyleType
+
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -101,16 +106,13 @@ module SymbolT =
         |Light
         |Colourful
 
-    type StyleType = 
-        |Rectangular
-        |Distinctive
-
-
+   
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
+    let style_ = Lens.create (fun a -> a.Style) (fun s a -> {a with Style = s})
  
     /// Represents a symbol, that contains a component and all the other information needed to render it
     type Symbol =

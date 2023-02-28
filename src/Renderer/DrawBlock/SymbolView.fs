@@ -478,9 +478,9 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
             | Degree270 -> twoSeventy'
         | Or -> 
             let zero' = [|{X=0;Y= 0}; {X= 2.*W/3.;Y= 0}; {X= 5.*W/6.;Y= H/4.};{X=W;Y= H/2.};{X=5.*W/6.;Y= 3.*H/4.}; {X= 2.*W/3.;Y= H}; {X= 0; Y=H}; {X=W/4.;Y=3.*H/4.};{X=W/4.;Y=H/4.};{X=0;Y=0}|]
-            let ninety' = [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X=0;Y=H/2.};{X= 0;Y=H/2.};{X=W;Y= 0};{X=0;Y= -H/2.}|]
-            let oneEighty' = [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X=W/2.;Y=0};{X= W/2.;Y=0};{X=0.;Y= H};{X= -W/2.;Y=0}|]
-            let twoSeventy' = [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X=0;Y= H/2.};{X= 0;Y= -H/2.};{X=W;Y= 0};{X=0;Y= H/2.}|]
+            let ninety' = [|{X=0;Y=H}; {X= 0;Y=2.*H/3.;}; {X= W/4.;Y=W/6.};{X=W/2.;Y=0};{X= 3.*W/4.;Y=W/6.};{X=W;Y= 2.*H/3.};{X=W;Y= H};{X=3.*W/4.;Y= 3.*H/4.};{X=W/4.;Y= 3.*H/4.};{X=0;Y= H}|]
+            let oneEighty' = [|{X=W;Y=H}; {X=2.*W/3.;Y=H}; {X=W/6.;Y=3.*H/4.};{X=0;Y=H/2.};{X= W/6.;Y=H/4.};{X=2.*W/3.;Y= 0};{X= W;Y=0};{X= 3.*W/4.;Y=H/4.};{X= 3.*W/4.;Y=3.*H/4.};{X= W;Y=H}|]
+            let twoSeventy' = [|{X=W;Y=0}; {X= W;Y= 2.*H/3.;}; {X= 3.*W/4.;Y=5.*H/6.};{X=W/2.;Y= H};{X= W/4.;Y= 5.*H/6.};{X=0;Y= 2.*H/3.};{X=0;Y= 0.};{X=W/4.;Y= H/4.};{X=3.*W/4.;Y= H/4.};{X=W;Y=0}|]
 
             match transform.Rotation with 
             | Degree0 -> match transform.flipped with

@@ -597,6 +597,7 @@ let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Mo
                     ShowPorts = ShowNone
                     Colour = "rgb(120,120,120)"
                     Opacity = 1.0
+                    Style = model.Symbol.Style
                 }
             InWidth0 = None // set by BusWire
             InWidth1 = None

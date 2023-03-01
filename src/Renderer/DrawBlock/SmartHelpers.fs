@@ -192,21 +192,13 @@ let findSymbol (model: Model) (wire: Wire) (mode: findSymbolMode) : Symbol optio
 
 
 /// HLP23: Author Omar
-/// discriminated union for return type of the smart autoroute and other SmartWire functions
-type SmartAutorouteResult =
-    | ModelT of Model
-    | WireT of Wire
-
-
-/// HLP23: Author Omar
 /// deletes wire from model by filtering out the wire
-let deleteWire (model: Model) (wire: Wire) : SmartAutorouteResult = 
+let deleteWire (model: Model) (wire: Wire) : Model = 
     let newWires =
         model.Wires
-        |> Map.filter (fun id w -> not (wire.WId = id))
-    let model =
-        {model with Wires = newWires}
-    ModelT model
+        |> Map.filter (fun id w -> wire.WId <> id)
+    
+    {model with Wires = newWires}
 
 
 /// HLP23: Author Omar
@@ -215,4 +207,5 @@ let updateWire (wire: Wire) (lengths: float list) : Wire =
     let newSegments = 
         lengths
         |> List.mapi (fun i length -> {wire.Segments[i] with Length = length})
+    
     {wire with Segments = newSegments}

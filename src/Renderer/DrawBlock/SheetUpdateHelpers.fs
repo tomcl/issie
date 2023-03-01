@@ -291,6 +291,13 @@ let mDownUpdate
                 let  portIdstr = match portId with | OutputPortId x -> x
                 {model with Action = MovingPort portIdstr}
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
+        // HLP23 AUTHOR: BRYAN TAN
+        | ComponentCorner (compId, fixedCornerLoc, _) ->
+            if not model.CtrlKeyDown then
+                model, Cmd.none
+            else
+                {model with Action = ResizingSymbol (compId, fixedCornerLoc)}
+                , symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
 
         | Component compId ->
 
@@ -384,7 +391,8 @@ let mDragUpdate
         let dragCursor = 
             match model.Action with
             | MovingLabel _ -> Grabbing
-            | MovingSymbols _ -> CursorType.ClickablePort
+            | MovingSymbols _ -> ClickablePort
+            // | ResizingSymbol _ -> GrabWire
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
     match model.Action with
@@ -460,6 +468,13 @@ let mDragUpdate
 
     | MovingPort portId->
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
+    // HLP23 AUTHOR: BRYAN TAN
+    | ResizingSymbol (compId, fixedCornerLoc) ->
+        model,
+        Cmd.batch [
+            symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
+            wireCmd (BusWireT.UpdateSymbolWires compId);]
+        
     | Panning initPos->
         let sPos = initPos - mMsg.ScreenPage
         model, Cmd.ofMsg (Msg.UpdateScrollPos sPos)
@@ -561,6 +576,12 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             symbolCmd (SymbolT.MovePortDone (portId, mMsg.Pos))
             wireCmd (BusWireT.UpdateSymbolWires symbol);
             wireCmd (BusWireT.RerouteWire portId)]
+    // HLP23 AUTHOR: BRYAN TAN
+    | ResizingSymbol (compId, fixedCornerLoc) -> 
+        {model with Action = Idle},
+        Cmd.batch [
+            symbolCmd (SymbolT.ResizeSymbolDone (compId, fixedCornerLoc, mMsg.Pos))
+            wireCmd (BusWireT.UpdateSymbolWires compId);]
     | _ -> model, Cmd.none
 
 /// Mouse Move Update, looks for nearby components and looks if mouse is on a port
@@ -590,21 +611,28 @@ let mMoveUpdate
                     symbolCmd (SymbolT.PasteSymbols [ newCompId ]) ]
     | _ ->
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
-
+        
+        // HLP23 AUTHOR: BRYAN TAN
+        let ctrlPressed = Set.contains "CONTROL" model.CurrentKeyPresses
         let newCursor =
             match model.CursorType, model.Action with
             | Spinner,_ -> Spinner
             | _ ->
                 match mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos with // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
-                | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
+                | InputPort (_, p) | OutputPort (_, p) -> printfn $"portpos: {p}"; ClickablePort // Change cursor if on port
+                // | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
                 | Label _ -> GrabLabel
                 | Connection _ -> GrabWire
                 | Component _ -> GrabSymbol
+                | ComponentCorner (_,_,idx) when ctrlPressed -> 
+                    match (idx % 2) with
+                    | 0 -> ResizeNWSE
+                    | _ -> ResizeNESW
                 | _ -> Default
         let newModel = { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement} } 
         
-        if Set.contains "CONTROL" model.CurrentKeyPresses then
-            newModel , symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents)
+        if ctrlPressed then
+            newModel , Cmd.batch [symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents); symbolCmd (SymbolT.ShowCustomCorners nearbyComponents)]
         else 
             newModel, symbolCmd (SymbolT.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
 

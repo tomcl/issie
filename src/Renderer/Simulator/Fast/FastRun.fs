@@ -40,7 +40,6 @@ let inline isComb (comp: FastComponent) =
 /// True if all conditions are fulfiled for the component to be in the next batch to be reduced.
 /// Used when ordering components.
 let inline canBeReduced (fs: FastSimulation) (step: int) (fc: FastComponent) =
-    printfn "======== NumMissingInputValues: %i" fc.NumMissingInputValues
     fc.NumMissingInputValues = 0
     && not fc.Touched
     && fc.Active
@@ -94,10 +93,8 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
 
 
     let propagateEval (fc:FastComponent) =
-        printfn "===== Propagate eval %d" fc.DrivenComponents.Length
         fc.DrivenComponents
         |> List.iter (fun fc' -> 
-            printfn "====== %d" fc'.NumMissingInputValues
             fc'.NumMissingInputValues <- fc'.NumMissingInputValues - 1
             if canBeReduced fs 0 fc' then
                 readyToReduce <- fc' :: readyToReduce)
@@ -290,7 +287,6 @@ let buildFastSimulation
         emptyFastSimulation diagramName
         |> createInitFastCompPhase simulationArraySize gather
         |> linkFastComponents gather
-    printfn "======== Building fast simulation"
     gather
     |> createFastArrays fs
     |> orderCombinationalComponents simulationArraySize

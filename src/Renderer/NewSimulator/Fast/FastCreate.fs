@@ -206,30 +206,17 @@ let createFastComponent
     (sComp: SimulationComponent)
     (accessPath: ComponentId list)
     =
-    printfn "createFastComponent => stepArrayIndex: %d" stepArrayIndex
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
         [| 0 .. inPortNum - 1 |]
         |> Array.map (fun n -> Array.create maxArraySize emptyFastData)
-        |> Array.map (fun x ->
-            printfn "will call makeStepArray for input port"
-            makeStepArray x)
-
-    printfn
-        "createFastComponent => ins => stepArrayIndex: %d, len(ins): %d"
-        stepArrayIndex
-        ins.Length
+        |> Array.map (fun x -> makeStepArray x)
 
     let outs =
         [| 0 .. outPortNum - 1 |]
         |> Array.map (fun n -> Array.create maxArraySize emptyFastData)
         |> Array.map makeStepArray
-
-    printfn
-        "createFastComponent => outs => stepArrayIndex: %d, len(outs): %d"
-        stepArrayIndex
-        outs.Length
 
     let inps =
         let dat =
@@ -291,7 +278,6 @@ let createFastComponentFData
     (sComp: SimulationComponent)
     (accessPath: ComponentId list)
     =
-    printfn "createFastComponentFData => stepArrayIndex: %d" stepArrayIndex
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
@@ -299,20 +285,10 @@ let createFastComponentFData
         |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
 
-    printfn
-        "createFastComponentFData => ins => stepArrayIndex: %d, len(ins): %d"
-        stepArrayIndex
-        ins.Length
-
     let outs =
         [| 0 .. outPortNum - 1 |]
         |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
-
-    printfn
-        "createFastComponentFData => outs => stepArrayIndex: %d, len(outs): %d"
-        stepArrayIndex
-        outs.Length
 
     let inps =
         let dat =
@@ -497,13 +473,11 @@ let printGather (g: GatherData) =
 /// WaveIndex refrences are bound to specific component ports
 /// and not unique per driver.
 let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: PortType) =
-    printfn "addComponentWaveDrivers: %A, fc.FLabel: %A:" fc.fId fc.FLabel
     let makeWaveIndex index pn pType arr =
         { SimArrayIndex = index; Id = fc.fId; PortType = pType; PortNumber = pn }
 
     let addStepArray pn index (stepA: StepArray<FastData>) =
         let index = index - 1
-        printfn "Index: %A, len(Drivers) = %d" index f.Drivers.Length
 
         f.Drivers[index] <-
             Some
@@ -521,13 +495,10 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
         f.FIOActive[ComponentLabel fc.FLabel, snd fc.fId].fId
         <> fc.fId
 
-    printfn "PortType: %A" pType
-
     match pType with
     | PortType.Output -> fc.Outputs
     | PortType.Input -> fc.InputLinks
     |> Array.mapi (fun pn (stepA: StepArray<FastData>) ->
-        printfn "===== PortNumber: %d" pn
         let index = stepA.Index
 
         let addDriver, addWave =
@@ -540,8 +511,6 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
                 true, false
             | IOLabel, _ when ioLabelIsActive fc -> false, false
             | _ -> true, true
-
-        printfn "\tindex: %d" index
 
         if pType = PortType.Output && addDriver then
             addStepArray pn index stepA
@@ -582,8 +551,6 @@ let addComponentWaveDriversFData (f: FastSimulation) (fc: FastComponent) (pType:
         f.FIOActive[ComponentLabel fc.FLabel, snd fc.fId].fId
         <> fc.fId
 
-    printfn "PortType: %A" pType
-
     match pType with
     | PortType.Output -> fc.OutputsFData
     | PortType.Input -> fc.InputLinksFData
@@ -600,8 +567,6 @@ let addComponentWaveDriversFData (f: FastSimulation) (fc: FastComponent) (pType:
                 true, false
             | IOLabel, _ when ioLabelIsActive fc -> false, false
             | _ -> true, true
-
-        printfn "\tindex: %d" index
 
         if pType = PortType.Output && addDriver then
             addStepArray pn index stepA

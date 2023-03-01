@@ -208,7 +208,6 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
 let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
-    printfn "createFastComponent => stepArrayIndex: %d" stepArrayIndex
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
@@ -216,20 +215,10 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
         |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
 
-    printfn
-        "createFastComponent => ins => stepArrayIndex: %d, len(ins): %d"
-        stepArrayIndex
-        ins.Length
-
     let outs =
         [| 0 .. outPortNum - 1 |]
         |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
-
-    printfn
-        "createFastComponent => outs => stepArrayIndex: %d, len(outs): %d"
-        stepArrayIndex
-        outs.Length
 
     let inps =
         let dat =
@@ -423,7 +412,6 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
     | PortType.Input -> fc.InputLinksFData
     |> Array.mapi (fun pn stepA ->
         let index = stepA.Index
-        printfn "index %A" index
         let addDriver, addWave =
             match fc.FType, pType with
             | IOLabel, PortType.Input 

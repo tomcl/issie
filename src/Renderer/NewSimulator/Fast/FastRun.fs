@@ -233,7 +233,6 @@ let private orderCombinationalComponentsFData
         printfn "===== Propagate eval %d" fc.DrivenComponents.Length
         fc.DrivenComponents
         |> List.iter (fun fc' ->
-            printfn "====== %d" fc'.NumMissingInputValues
             fc'.NumMissingInputValues <- fc'.NumMissingInputValues - 1
 
             if canBeReduced fs 0 fc' then
@@ -340,7 +339,6 @@ let private orderCombinationalComponentsFData
 /// Check all the active FastComponents to ensure everything is valid
 /// Use data from initialisation to write any not-yet-written component output widths
 let checkAndValidate (fs: FastSimulation) =
-    printf "checkAndValidate in new simulator\n"
     let start = getTimeMs ()
     let activeComps =
         fs.FComps
@@ -414,7 +412,6 @@ let checkAndValidate (fs: FastSimulation) =
         Ok fs
 
 let checkAndValidateFData (fs: FastSimulation) =
-    printfn "checkAndValidateFData in new simulator"
     let start = getTimeMs ()
     let activeComps =
         fs.FComps
@@ -550,7 +547,6 @@ let buildFastSimulationFData
         |> createInitFastCompPhaseFData simulationArraySize gather
         |> linkFastComponentsFData gather
 
-    printfn "======== Building fast simulation"
     gather
     |> createFastArrays fs
     |> orderCombinationalComponentsFData simulationArraySize
@@ -729,7 +725,7 @@ let runFastSimulation
     if stepsToDo <= 0 then
         None // do nothing
     else
-        printfn "==================== lastStepNeeded: %d, fs.MaxArraySize: %d" lastStepNeeded fs.MaxArraySize
+        printfn "===== lastStepNeeded: %d, fs.MaxArraySize: %d" lastStepNeeded fs.MaxArraySize
         // if lastStepNeeded > fs.MaxStepNum then
         //     if fs.MaxStepNum < fs.MaxArraySize then
         //         let newMaxNum =

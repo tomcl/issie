@@ -10,34 +10,23 @@ open DrawHelpers
 open DrawModelType.SymbolT
 open Symbol
 
-(*
-    HLP23: This module will normally be used exclusively by team member doing the "smart rendering" part of the 
-    individual coding. During group phase work how it is used is up to the
-    group. Normally chnages will be to drawSymbol and the code used by this. OTHER changes to the rendering code
-    are possible but you should check before doing anything. renderSymbol is not all well written, but it uses
-    React cacheing (the Props of FunctionComponent.Of are used as a key so that the whole render function (which
-    calls drawSymbol) is only re-executed when renderSymbolProps change. This means that normally drawSymbol is not
-    called whenever the view function is evaluated - crucial to keeping view function time down!
-    
-    
-    HLP23: There is a lot of code here. For assessment, changes to existing code, or new functions,
-    MUST be documented by HLP23:AUTHOR even if from the smart rendering assigned student, so that new code
-    can easily distinguished from old. (Git can also help with this, but it is not totally reliable)
-    Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
+(* HLP23: AUTHOR Ismagilov
 
-    HLP23: the existing drawSymbol code is imperfect. Many issues, note for example repeated pipelined
-    use of append to join different elements together which is inefficient and less readable.
-    HLP23: the code here does not use helpers consistently or in all suitable places.
+Have implemented working style property, and changing of And and Or gate appearance, working with Rotation, Flip and Scaling.
+
+Created a property 'Style' of StyleType in DrawModelType.SymbolT.Model and DrawModelType.SymbolT.Appearance 
+    Style is changed through view menu -> style (added functionality in renderer.fs)
+    Message is caught in SheetUpdate, to access BusWire Update Connected Wires Command after (port offsets changed)
+
+Used in SymbolT.Model to initialise states, detect changes in render function and give correct shape/ports 
+of styled gate in the drawSymbol Function.
+
+Used in Symbol.Appearance to give correct port adjustments in symbol.fs. See symbol.fs -> GetPortPos function.
+Can also then be used in SheetUpdate to only change style of components that have a curvy shape, 
+minimising match traversal later on when checking for styles. (match Appearance.Style rather than model.Style, comp.Type)
+
 *)
 
-//Created a property 'Style' of StyleType in DrawModelType.SymbolT.Model and DrawModelType.SymbolT.Appearance 
-//Style is changed through view menu -> style (added functionality in renderer)
-//Used in SymbolT.Model to initialise states, detect changes and give correct shape & ports of styled gate in drawSymbol Func
-//see SheetUpdate 'SetStyle' msg, needed there to correctly call wire command after style change
-//Used in Symbol to adjust Ports of curvy symbol directly in symbol.fs -> GetPortPos function
-//Also can then be used to change only specific symbols style, not all of them. Minimising match traversal.
-//HLP23: Author Ismagilov
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
 
@@ -127,7 +116,7 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
-//Function to create any straightline path, and any arc path
+//Function to create any path, combining multiple attributes of different paths.
 //HLP23 Author: Ismagilov
 let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour = 
     [makeAnyPath startingPoint pathAttr {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]
@@ -203,7 +192,6 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
-    let symStyle = symbol.Appearance.Style
     // let showOutputPorts = appear.ShowOutputPorts
     let opacity = appear.Opacity
     let comp = symbol.Component
@@ -523,11 +511,15 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
+    //HLP23: Author Ismagilov
+    //Now call shapemaker. Labels are only done to the correct style of component
     |> List.append (shapeMaker)
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//
 //----------------------------------------------------------------------------------------//
 
+//Added StyleType to detect style change on Symbol.Model (Called in SheetUpdate.fs)
+//HLP23: Author Ismagilov
 type private RenderSymbolProps =
     {
         Symbol : Symbol 
@@ -547,6 +539,8 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
+                //HLP23: Author Ismagilov
+                //Passing Model Style to drawSymbol
                 (drawSymbol props.Symbol props.Theme props.Style)
             
         , "Symbol"
@@ -589,6 +583,8 @@ let view (model : Model) (dispatch : Msg -> unit) =
                 Dispatch = dispatch
                 key = id
                 Theme = model.Theme
+                //HLP23: Author Ismagilov
+                //Adding Style to Render Props
                 Style = model.Style
             }
     )
@@ -601,5 +597,7 @@ let init () =
         Symbols = Map.empty; CopiedSymbols = Map.empty
         Ports = Map.empty ; InputPortsConnected= Set.empty
         OutputPortsConnected = Map.empty; Theme = Colourful;
+        //HLP23: Author Ismagilov
+        //Default style to rectangular
         Style = Rectangular
     }, Cmd.none

@@ -796,15 +796,18 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let comp = sym.Component
     //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
+
+    //Get offset of pos if symbol is curvy
+    //HLP23: Author Ismagilov
     let curveOffset =
             match sym.Appearance.Style, comp.Type with
             | Distinctive, Or -> getCurvePortOffset sym side h w           
             | _ , _-> {X=0.; Y=0.}
 
+    //Fixing port position of curvy symbol by adding curve offset
+    //HLP23: Author Ismagilov
     match side with
     | Left ->
-        //Fixing port position of curvy symbol by adding curve offset
-        //HLP23: Author Ismagilov
         let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
         baseOffset' + {X = 0.0; Y = yOffset } + curveOffset
     | Right -> 

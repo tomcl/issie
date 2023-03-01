@@ -13,9 +13,17 @@ open Operators
 open SmartHelpers
 open BusWireUpdateHelpers
 
-///HLP 23: AUTHOR Rzepala
+//HLP 23: AUTHOR Rzepala
+//
+//This is the smartSize file. When Ctrl+E (or Cmd+E) is pressed, the chosen symbol is resized, so that
+//the ports on each edge are equidistant. When Ctrl+E is pressed for the second time
+//it moves the symbol, so that there is a nice alignment between.
+//By my own decision, the chosen custom components have to 'align' in order for this to work;
+//some of their vertical or horizontal lengths have to overlap.
 
-///this record determines how far will the other components will move from a custom resized component
+
+
+//this record determines how far will the other components will move from a custom resized component
 type ConstantsSmartSize = {
     Distance: float
 }
@@ -39,12 +47,15 @@ let offsetPorts
         |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
     let CoordinateTwo = TmpTwo.Item(0) |> snd
     let Coordinates = CoordinateTwo - CoordinateOne
+
     match orient with
     | Some TopBottom ->
         {X = Coordinates.X; Y = 0.0}
     | Some LeftRight ->
         {X = 0.0; Y = Coordinates.Y}
     | None -> {X = 0.0; Y = 0.0}
+
+
 // this function is used purely to return HScale or VScale of a symbol
 let Scale 
     (symbolScale: float option)
@@ -74,7 +85,6 @@ let getPortDist
             Some (XYPosOne.Y - XYPosZero.Y)
         | None -> None
     
-
 
 //this function returns the edges of the symbols which we would like to align
 //it's based purely on symbol positions on the canvas, and does not take into account 
@@ -144,9 +154,9 @@ let reSizeSymbol
         getCommonWires wModel symbolToSize otherSymbol Orient 
         |> Map.toList
     printfn "%A" checker
-    let checker' = checker.Item(0)
-    let checker'' = offsetPorts checker' portsOrderedToSize portsOrderedOther Orient
-    printfn "%A" checker''
+    let Checker' = checker.Item(0)
+    let Checker'' = offsetPorts Checker' portsOrderedToSize portsOrderedOther Orient
+
     let ScaleFactor = 
         match Dimension with
         | (x, y) -> (Scale y) / (Scale x)
@@ -159,7 +169,7 @@ let reSizeSymbol
         | Some LeftRight -> 
             {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.VScale)}
         | None -> symbolToSize
-        |> moveSymbol checker''
+        |> moveSymbol Checker''
 
     let wModel' = {wModel with Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}}
     

@@ -9,7 +9,9 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open Symbol
 open Optics
+open Optic
 open Operators
+open SmartHelpers
 
 (* 
     HLP23: This module will normally be used exclusively by team member doing the "smart resize symbol" 
@@ -21,6 +23,11 @@ open Operators
     function for the wires.
 *)
 
+/// Record containing External Helpers required. 
+/// HLP23: AUTHOR Dharmil Shah
+type ExternalSmartHelpers =
+    { UpdateSymbolWires: Model -> ComponentId -> Model }
+
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
 /// HLP23: It should work out the interconnecting wires (wires) from 
@@ -31,20 +38,17 @@ open Operators
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
     (symbolToSize: Symbol) 
-    (otherSymbol: Symbol) 
+    (otherSymbol: Symbol)
+    (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
+    printfn $"Symbol XYPos: {symbolToSize.Pos}"
+    printfn $"Component XYPos: {symbolToSize.Component.X}, {symbolToSize.Component.Y}"
     let sModel = wModel.Symbol
 
     let wires = [] // replace this with correct wires
 
-    let symbol' = symbolToSize // no change at the moment
-    // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
-    {wModel with 
-        Wires = wModel.Wires // no change for now, but probably this function should use update wires after resizing.
-                             // to make that happen the test function which calls this would need to provide an updateWire
-                             // function to this as a parameter (as was done in Tick3)
-        Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
-    }
+    let symbol' = {symbolToSize with VScale=Some 2} // no change at the moment
 
+    set (symbolOf_ symbolToSize.Id ) symbol' wModel
 

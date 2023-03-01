@@ -10,6 +10,7 @@ open DrawModelType
 open DrawModelType.SymbolT
 open Symbol
 open SymbolUpdatePortHelpers
+open SymbolUpdateResizeHelpers // HLP23 AUTHOR: BRYAN TAN
 open SymbolReplaceHelpers
 open Optics
 open Optic
@@ -458,6 +459,7 @@ let createSymbol ldcs theme prevSymbols comp =
                 Appearance = {
                     HighlightLabel = false
                     ShowPorts = ShowNone //do not show input ports initially
+                    ShowCorners = DontShow
                     // ShowOutputPorts = false //do not show output ports initially
                     Colour = getSymbolColour comp.Type clocked theme
                     Opacity = 1.0
@@ -893,9 +895,27 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             {(updatePortPos oldSymbol pos portId) with MovingPortTarget = None}
             |> autoScaleHAndW
         set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
+    
+    // HLP23 AUTHOR: BRYAN TAN
+    | ShowCustomCorners compId ->
+        showCompCorners model ShowAll compId, Cmd.none
+
+    | HideCustomCorners compId ->
+        // changeCompCorners model DontShow compId, Cmd.none
+        hideCompCorners model, Cmd.none
+
+    | ResizeSymbol (compId, fixedCornerLoc, pos) ->
+        let helpers = { SymbolUpdateResizeHelpers.ExternalHelpers.FlipSymbol = flipSymbol }
+        manualSymbolResize (hideCompCorners model) compId fixedCornerLoc pos helpers
+
+    | ResizeSymbolDone (compId, fixedCornerLoc, pos) ->
+        let newSymbol = set (appearance_ >-> showCorners_) DontShow model.Symbols[compId]
+        set (symbolOf_ compId) newSymbol model, Cmd.none
+    
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none
+
     | SetTheme (theme) ->
         let resetSymbols = 
             model.Symbols

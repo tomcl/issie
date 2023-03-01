@@ -135,7 +135,6 @@ let CheckforFlip
     match CheckSelectComponent symComponentType with 
         | true ->
             let lengthNewSelect, lengthOldSelect , newSymbol, newModel= GetSelectWireLength newSmodel wModel wireList otherSymbol
-            printfn $"New Select Length: {lengthNewSelect} Old Select Length: {lengthOldSelect}"
             match lengthNewSelect < lengthOldSelect with
                | true -> newSymbol, newModel, true
                | false -> otherSymbol, wModel, false 

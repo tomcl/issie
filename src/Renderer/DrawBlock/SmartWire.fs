@@ -461,12 +461,11 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
     let autoWire = autoroute model wire
     let segListLength = autoWire.Segments |> List.length
 
-    if segListLength < 4 then
+    if segListLength < 7 then
         // 2 segment wire - no need to route around symbols
         WireT autoWire
     else
         let wireLength = autoWire.Segments[4].Length
-        // printfn "wire segment info %A" autoWire.Segments
         match wireLength with
-        | l when l > 500.0 -> replaceWithWireLabels model wire
+        | l when l > 600.0 -> replaceWithWireLabels model wire
         | _ -> routeAroundSymbol model autoWire symbol

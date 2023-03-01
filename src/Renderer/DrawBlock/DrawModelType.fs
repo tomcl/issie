@@ -96,7 +96,7 @@ module SymbolT =
         |White
         |Light
         |Colourful
-        |OldSymbols
+        |OldSymbols //HLP23: Shaanuka
         |NewSymbols
 
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})

@@ -24,57 +24,81 @@ open Operators
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
 /// HLP23: It should work out the interconnecting wires (wires) from 
-////the two symbols, wModel.Wires and sModel.Ports
+/// the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
-/// HLP23: when this function is written replace teh XML comment by something suitable concisely
+/// HLP23: when this function is written replace the XML comment by something suitable concisely
 /// stating what it does.
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
-    (symbolToSize: Symbol) // care about hscale and vscale and portmaps which describe the ports for each edge and vice versa & component H + W
+    (symbolToSize: Symbol)
     (otherSymbol: Symbol) 
         : BusWireT.Model =
+    // Currently works on the assumption that symbolToSize is always on the receiving end of wires
+    // Also assumes parallel sides are vertical
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let sModel = wModel.Symbol
-    printfn "%A" sModel.Ports
-    printfn "%A" wModel.Wires
-    printfn "%A" otherSymbol.Id
 
-    let wires = wModel.Wires // line 193 and 325
+    let wires = wModel.Wires
     let ports = sModel.Ports
-    // sModel.Ports -> search for port ids from wires values
-
-    //let posFinder (wires: Map<ConnectionId,Wire>) (ports: Map<string, Port>) =
-        //let wireList = Map.toList wires
-        //let currWire = snd wireList[0]
-
-        //let startPos = currWire.StartPos
-
-        //let key = string currWire.InputPort
-        //let currPort = ports[key]
-        //let portNum = currPort.PortNumber
-        //let portHost = currPort.HostId
-
-        //startPos
     
-    let wireList = Map.toList wires
-    let currWire = snd wireList[0]
+    let wireList = (Map.toList wires) |> List.map (fun x -> snd x)
+    // picks out wires going from otherSymbol to symbolToSize
+    let connectedWires = SmartHelpers.findInterconnectingWires wireList sModel symbolToSize otherSymbol 0
 
-    let startPos = currWire.StartPos
+    let wireEndsFolder lst currWire =
+        let key = string currWire.InputPort
+        let currPort = ports[key]
+        let portOffset = getPortPos symbolToSize currPort
 
-    let key = string currWire.InputPort
-    let currPort = ports[key]
-    let portNum = currPort.PortNumber
-    let portHost = currPort.HostId
+        let startY = currWire.StartPos.Y
+        let endY = symbolToSize.Component.Y + portOffset.Y
 
-    //if portHost == symbolToSize.Id then
-    //    let endSymbol = symbolToSize
-    //else
-    //    let
+        lst @ [startY, endY]
 
-    let hScale = otherSymbol.Component.W / symbolToSize.Component.W
-    let vScale = otherSymbol.Component.H / symbolToSize.Component.H
+    let endsList = 
+        ([], connectedWires) 
+        ||> List.fold wireEndsFolder 
+        |> List.sortBy (fun pair -> snd pair)
 
-    let symbol' = {symbolToSize with HScale = Some hScale; VScale = Some vScale}
+    let pairDiff pair = snd pair - fst pair
+    let closeWireFilter thresh ends = abs (pairDiff ends) < thresh
+
+    let fstPair = 
+        endsList 
+        |> List.find (closeWireFilter 11.0)
+    let offset = pairDiff fstPair
+    // split pairs into sep lists
+    let endsList' = endsList |> List.map (fun ends -> fst ends, snd ends - offset)
+
+    let sndPair = // rename
+        endsList'
+        |> List.findIndexBack (closeWireFilter 21.0) 
+        |> List.item <| endsList'
+
+    let portGap = snd endsList[0] - symbolToSize.Pos.Y
+    printfn "%A" portGap
+
+    let newPos = {symbolToSize.Pos with Y = symbolToSize.Pos.Y - offset}
+    let newComponent = {symbolToSize.Component with H = symbolToSize.Component.H - pairDiff sndPair}
+    let scale = (snd sndPair - snd fstPair - pairDiff sndPair) / (snd sndPair - snd fstPair)
+
+    printfn "%A" endsList'
+
+    // now look at another set of connected port pairs and figure out the scaling factor to match them too
+    // beyond that it is impossible to match 3 pairs which are all misaligned from one another
+
+
+    printfn "%A" scale
+
+    //let testSym = {symbolToSize with VScale = Some 0.8}
+    //let testLst = SmartHelpers.findInterconnectingWires wireList sModel testSym otherSymbol 0
+    //let y1 = getPortPos testSym ports[string testLst[0].InputPort]
+    //let y2 = getPortPos testSym ports[string testLst[1].InputPort]
+    //printfn "%A" y1
+    //printfn "%A" y2
+
+    //let symbol' = {symbolToSize with Pos = newPos; Component = newComponent}
+    let symbol' = {symbolToSize with Pos = newPos; VScale = Some scale}
 
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     // Add new wires to model & new symbols to model map

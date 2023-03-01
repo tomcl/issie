@@ -4,7 +4,6 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 
-
 open CommonTypes
 open DrawHelpers
 open DrawModelType.SymbolT
@@ -185,16 +184,16 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 //--------------------------------------- SYMBOL DRAWING -------------------------------------//
 //--------------------------------------------------------------------------------------------//
 
-let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) 
-                  w h symbol transform legendFontSize legendOffset=
+/// Draw component in either new IEEE style with legends or old curved style, returns list of react elements
+/// depending on theme and component
+let drawComponet (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) //HLP23: Shaanuka
+                  w h (symbol:Symbol) transform legendFontSize legendOffset=
 
     match symbolType with 
-    |NewSymbols ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-                    @(addLegendText (legendOffset w h symbol) 
+    |NewSymbols ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp) @(addLegendText (legendOffset w h symbol) 
                     (getComponentLegend comp.Type transform.Rotation) "middle" "bold" (legendFontSize comp.Type))
 
     |_ ->   let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
-            
             match comp.Type with
 
             |And -> let lineOne = makeLineAttr 0. comp.H
@@ -203,14 +202,14 @@ let drawComponet (comp:Component) strokeWidth points colour outlineColour opacit
                     let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
                     [makeAnyPath {X= 0; Y = 0} shape parameters]
 
-            |Nand ->let radius = 4.
-                    let width = (comp.W/2.)-radius
+            |Nand ->let notDiameter = 8.
+                    let width = (comp.W/2.)-(notDiameter/2.)
                     let lineOne = makeLineAttr 0. comp.H
                     let lineTwo = makeLineAttr (width) 0.
                     let curveAttr = makePartArcAttr 5. (-comp.H/2.) (-width) (comp.H/2.) width
                     let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
                     [makeAnyPath {X = 0; Y = 0} shape parameters;
-                    makeCircle (width*2.+(radius)) (comp.H/2.) {defaultCircle with R = radius; Fill = parameters.Fill}]
+                    makeCircle (width*2.+(notDiameter)) (comp.H/2.) {defaultCircle with R = (notDiameter/2.); Fill = parameters.Fill}]
 
             |Or ->  let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-5.) ((comp.H/2.)) -5. comp.H
                     let line = makeLineAttr ((comp.W/2.)+5.) 0.
@@ -353,18 +352,34 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
 
 
     let additions =       // Helper function to add certain characteristics on specific symbols (inverter, enables, clocks)
-        let mergeWiresTextPos =
-            let textPoints = rotatePoints [|{X=W/5.;Y=H/6.+2.};{X=W/5.;Y=H*5./6.+2.};{X=W*0.75;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
-            match transform.Rotation with
-            | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
-            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
-            | _ -> textPoints
-        let splitWiresTextPos =
-            let textPoints = rotatePoints [|{X=W*0.75;Y=H/6.+2.};{X=W*0.75;Y=H*5./6.+2.};{X=W/4.;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
-            match transform.Rotation with
-            | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
-            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
-            | _ -> textPoints
+        //HLP23: Shaanuka
+
+        /// text positioins placed in non-coflicting areas for the SplitWire and MergeWire components
+        let splitMergeWireTextPos (comp:Component) = 
+            let midX = W/2.
+            let midY = H/2.
+            let mirrorPos isX (pos:XYPos) = 
+                match isX with
+                |true -> {pos with X = midX+(-((pos.X-midX)))} 
+                |_ -> {pos with Y = midY+(-((pos.Y-midY)))}
+
+            let posOne = {X=W/2.-40.;Y=H/6.+5.}
+            let posTwo = {X=W/2.-30.;Y=H/2.+24.}
+            let posThree = {X= midX+35.;Y=H/6.+5.}
+            let textPoints = [|posOne; posTwo; posThree|]
+            match comp.Type with
+            |MergeWires _-> match transform.Rotation with
+                             | Degree270 -> [|posThree; posOne; posTwo|]
+                             | Degree180 -> [|mirrorPos true posTwo ; mirrorPos true posOne; mirrorPos true posThree|]
+                             | Degree90 -> [|mirrorPos false posOne ; mirrorPos false posThree; mirrorPos false posTwo|]
+                             | _ -> textPoints
+
+            |_ ->           match transform.Rotation with
+                            | Degree90 -> [|posThree; posOne; posTwo|]
+                            | Degree180 -> [|mirrorPos true posTwo ; mirrorPos true posOne; mirrorPos true posThree|]
+                            | Degree270 -> [|mirrorPos false posOne ; mirrorPos false posThree; mirrorPos false posTwo|]
+                            | _ -> textPoints
+
         let NbitSpreaderTextPos =
             let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.7;Y=H/2.+4.}|] {X=W/2.;Y=H/2.} transform
             match transform.Rotation with
@@ -389,7 +404,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             let values = [(midt,0);(msb,midb);(msb,0)]
             List.fold (fun og i ->
                 og @ mergeSplitLine 
-                        mergeWiresTextPos[i] 
+                        ((splitMergeWireTextPos comp)[i]) //HLP23: Shaanuka
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
         | NbitSpreader n -> 
@@ -410,7 +425,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             let values = [(midt,0);(msb,midb);(msb,0)]
             List.fold (fun og i -> 
                 og @ mergeSplitLine 
-                        splitWiresTextPos[i] 
+                        ((splitMergeWireTextPos comp)[i]) //HLP23: Shaanuka
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
@@ -462,8 +477,11 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             | BusSelection _ | IOLabel -> Constants.thinComponentLabelOffsetDistance
             | _ -> Constants.componentLabelOffsetDistance
 
-
-        let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
+        let pos = 
+            //HLP23:Shaanuka
+            match comp.Type with 
+            |MergeWires|SplitWire _ -> box.TopLeft - symbol.Pos + {X=margin+5.;Y=margin+5.} + Constants.labelCorrection
+            |_ -> box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
         let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
         match Constants.testShowLabelBoundingBoxes, colour with
         | false, "lightgreen" ->
@@ -485,10 +503,6 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                     makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
             text :: corners
 
-
-
- 
-            
     let labelcolour = outlineColor symbol.Appearance.Colour
     let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
         let pMap = symbol.PortMaps.Order
@@ -523,7 +537,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (drawComponet comp strokeWidth points colour outlineColour opacity theme w h symbol transform legendFontSize legendOffset)
+    |> List.append (drawComponet comp strokeWidth points colour outlineColour opacity theme w h symbol transform legendFontSize legendOffset) //HLP23: Shaanuka
 
 
 //----------------------------------------------------------------------------------------//

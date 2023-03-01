@@ -12,7 +12,7 @@ open Optics
 open Operators
 
 // HLP23: AUTHOR Omar
-open SmartWire
+open SmartHelpers
 
 //---------------------------------------------------------------------------------//
 //----------------------Helper functions that need SmartRoute etc------------------//
@@ -39,7 +39,7 @@ let updateWire (model : Model) (wire : Wire) (reverse : bool) : Wire =
     let updateWire' = 
         match smartRoute with
         | WireT wire -> partial |> Option.defaultValue wire
-        | ModelT _ -> printfn "updateWire: smartRoute returned ModelT" ; wire
+        | ModelT _ -> wire
     updateWire'
 
 /// Re-routes the wires in the model based on a list of components that have been altered.

@@ -737,6 +737,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
+    | TestSheetReorder ->
+        // Test code called from Edit menu item
+
+        let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
+            {
+                updateWire = BusWireUpdate.updateWire
+                updateSymbolWires = BusWireUpdate.updateSymbolWires
+            }
+
+        {model with Wire = SmartPortOrder.sheetReOrderPorts model.Wire portOrderHelpers}, Cmd.none
+
     | TestPortReorder ->
         // Test code called from Edit menu item
         // Validate the lits of selected symbols: it muts have just 2 for

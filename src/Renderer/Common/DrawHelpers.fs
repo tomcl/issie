@@ -220,7 +220,7 @@ let makeQuadraticBezierAttr x1 y1 x2 y2 =
 let makeCubicBezierAttr x1 y1 x2 y2 x3 y3 = 
     $"C {x1} {y1} {x2} {y2} {x3} {y3}"
 
-//Sequentially combines list of input attr
+///Sequentially combines list of input attr
 let combineAnyPathAttr (attrList: string List) = 
     attrList |> List.reduce((+))
 

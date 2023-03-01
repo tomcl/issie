@@ -650,23 +650,16 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
             let topLeft = {Y=union.TopLeft.Y; X=x1}
             Some {TopLeft = topLeft; H = union.H; W = x2 - x1}
 
+///Return the channel between two bounding boxes with its orientation
 let rec getOrientedChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox*Orientation) option =
-    if bb1.TopLeft.X > bb2.TopLeft.X then
-        getOrientedChannel bb2 bb1
-    else
-        if  bb1.TopLeft.X + bb1.W > bb2.TopLeft.X then
-            // horizontal intersection
+
+        if  not (bb1.TopLeft.X + bb1.W < bb2.TopLeft.X || bb2.TopLeft.X + bb2.W < bb1.TopLeft.X) then
             //vertical channel
-            if bb1.TopLeft.Y < bb2.TopLeft.Y then
+            if bb1.TopLeft.Y > bb2.TopLeft.Y then
+                getOrientedChannel bb2 bb1
+            else
                 let y1 = bb1.TopLeft.Y + bb1.H
                 let y2 = bb2.TopLeft.Y
-                let union = boxUnion bb1 bb2
-                let topLeft = {Y=y1; X=union.TopLeft.X}
-
-                Some( {TopLeft = topLeft; H = y2 - y1; W = union.W}, Horizontal)  
-            else
-                let y1 = bb2.TopLeft.Y + bb2.H
-                let y2 = bb1.TopLeft.Y
                 let union = boxUnion bb1 bb2
                 let topLeft = {Y=y1; X=union.TopLeft.X}
 
@@ -674,11 +667,13 @@ let rec getOrientedChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox*Or
 
 
         elif bb1.TopLeft.Y > bb2.TopLeft.Y + bb2.H || bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y then
-            //if bb1 is below bottom of bb2, OR bb2 is below bb1
             None // symbols are not aligned vertically
         else
-            let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
-            let union = boxUnion bb1 bb2
-            let topLeft = {Y=union.TopLeft.Y; X=x1}
-            Some( {TopLeft = topLeft; H = union.H; W = x2 - x1}, Vertical)  
-
+            //horizontal channel
+            if bb1.TopLeft.X > bb2.TopLeft.X then
+                getOrientedChannel bb2 bb1
+            else
+                let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
+                let union = boxUnion bb1 bb2
+                let topLeft = {Y=union.TopLeft.Y; X=x1}
+                Some( {TopLeft = topLeft; H = union.H; W = x2 - x1}, Vertical)  

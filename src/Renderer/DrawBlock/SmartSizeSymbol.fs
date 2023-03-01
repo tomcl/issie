@@ -110,3 +110,14 @@ let reSizeSymbol
     }
 
 
+//HLP23: Shaanuka - Helper function for scaling custom component sizes
+
+///Scales custom component size by multiplying the Symbol fields HScale and VScale by input float XScale and YScale and returns Symbol type .
+let symbolSizeScale (symbol: Symbol) xScale yScale =
+    let scales = symbol //{symbol with VScale = Some 1.; HScale = Some 1.} //Uncomment (replace 'symbol') to initialise scales to 1 if no initial value given
+
+    match scales.VScale, symbol.HScale with 
+    |Some vScale, Some hScale ->    let vScaleRes = vScale * yScale
+                                    let hScaleRes = hScale * xScale
+                                    {symbol with VScale = Some vScaleRes; HScale = Some hScaleRes}
+    |_, _ -> symbol

@@ -53,23 +53,52 @@ let reSizeSymbol
         let startY = currWire.StartPos.Y
         let endY = symbolToSize.Component.Y + portOffset.Y
 
-        lst @ [endY - startY]
+        lst @ [startY, endY]
 
-    let diffList = ([], connectedWires) ||> List.fold wireEndsFolder
+    let endsList = 
+        ([], connectedWires) 
+        ||> List.fold wireEndsFolder 
+        |> List.sortBy (fun pair -> snd pair)
 
-    let idx = diffList |> List.findIndex (fun diff -> abs diff < 11.0) // rename?
-    let offset = diffList[idx]
+    let pairDiff pair = snd pair - fst pair
+    let closeWireFilter thresh ends = abs (pairDiff ends) < thresh
 
+    let fstPair = 
+        endsList 
+        |> List.find (closeWireFilter 11.0)
+    let offset = pairDiff fstPair
+    // split pairs into sep lists
+    let endsList' = endsList |> List.map (fun ends -> fst ends, snd ends - offset)
 
-    printfn "%A" diffList
-    
-    // basic resizing
-    let hScale = otherSymbol.Component.W / symbolToSize.Component.W
-    let vScale = otherSymbol.Component.H / symbolToSize.Component.H
+    let sndPair = // rename
+        endsList'
+        |> List.findIndexBack (closeWireFilter 21.0) 
+        |> List.item <| endsList'
+
+    let portGap = snd endsList[0] - symbolToSize.Pos.Y
+    printfn "%A" portGap
 
     let newPos = {symbolToSize.Pos with Y = symbolToSize.Pos.Y - offset}
+    let newComponent = {symbolToSize.Component with H = symbolToSize.Component.H - pairDiff sndPair}
+    let scale = (snd sndPair - snd fstPair - pairDiff sndPair) / (snd sndPair - snd fstPair)
 
-    let symbol' = {symbolToSize with Pos = newPos}
+    printfn "%A" endsList'
+
+    // now look at another set of connected port pairs and figure out the scaling factor to match them too
+    // beyond that it is impossible to match 3 pairs which are all misaligned from one another
+
+
+    printfn "%A" scale
+
+    //let testSym = {symbolToSize with VScale = Some 0.8}
+    //let testLst = SmartHelpers.findInterconnectingWires wireList sModel testSym otherSymbol 0
+    //let y1 = getPortPos testSym ports[string testLst[0].InputPort]
+    //let y2 = getPortPos testSym ports[string testLst[1].InputPort]
+    //printfn "%A" y1
+    //printfn "%A" y2
+
+    //let symbol' = {symbolToSize with Pos = newPos; Component = newComponent}
+    let symbol' = {symbolToSize with Pos = newPos; VScale = Some scale}
 
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     // Add new wires to model & new symbols to model map

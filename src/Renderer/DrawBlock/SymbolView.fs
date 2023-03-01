@@ -372,7 +372,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
 
             let posOne = {X=W/2.-40.;Y=H/6.+5.}
             let posTwo = {X=W/2.-30.;Y=H/2.+24.}
-            let posThree = {X= midX+35.;Y=H/6.+5.}
+            let posThree = {X= midX+39.;Y=H/6.+5.}
             let textPoints = [|posOne; posTwo; posThree|]
             match comp.Type with
             |MergeWires _-> match transform.Rotation with

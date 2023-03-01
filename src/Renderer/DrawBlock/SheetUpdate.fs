@@ -148,7 +148,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     
 
     | PortMovementStart ->
-        printfn "IN PORT MOVEMENT"
         match model.Action with
         | Idle -> 
             {model with CtrlKeyDown = true}, 

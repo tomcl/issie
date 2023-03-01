@@ -13,11 +13,12 @@ open BusWireUpdateHelpers
 open SymbolUpdate
 open SmartHelpers
 
-
+// HLP23 AUTHOR: Khoury
 // Start of HLP23: SmartPortOrder with order list 
+// Helper functions for SmartPortOrder
 
 //Sort the ports by the otherSymbol Order Ports
-let SymbolToOrderOrientationList
+let getSymEdgeList
     (list: (string*string*Edge*Edge) list list)
         : Edge list =
     list 
@@ -27,20 +28,20 @@ let SymbolToOrderOrientationList
 
 let CreateNewPortsList 
     (newSymbolToOrder: Symbol)
-    (orientationList: Edge list)
+    (edgeList: Edge list)
     (newPorts: string list list)
         : (Edge*string list) list =
         newSymbolToOrder.PortMaps.Order
         |> Map.toList
         |> List.map (fun (x, y) ->
-            match List.tryFindIndex ((=) x) orientationList with
+            match List.tryFindIndex ((=) x) edgeList with
             | Some i -> (x, newPorts[i])
             | None -> (x, y))
 
 let AddUnconnectedPorts 
     (reorderedPorts: (string*string*Edge*Edge) list list)
     (newSymbolToOrder: Symbol)
-    (orientationList: Edge list)
+    (edgeList: Edge list)
         : string list list =
         reorderedPorts
         |> List.map (fun x -> x |> List.map (fun (_,x,_,_) -> x))
@@ -48,7 +49,7 @@ let AddUnconnectedPorts
             List.fold (fun acc y -> 
                             if List.contains y acc 
                             then acc 
-                            else y::acc) x (newSymbolToOrder.PortMaps.Order |> Map.find (orientationList[i]))
+                            else y::acc) x (newSymbolToOrder.PortMaps.Order |> Map.find (edgeList[i]))
             |> List.rev
         )
 
@@ -66,21 +67,21 @@ let FixOtherSymbolPorts
     (newSymbol: Symbol)
     (isFlipped: bool) 
         : Map<Edge, string list> =
-    if isFlipped then
-        finalSymbol.PortMaps.Order
-        |> Map.add  Left newSymbol.PortMaps.Order.[Left]
-        |> Map.add  Right newSymbol.PortMaps.Order.[Right]
-    else 
-        finalSymbol.PortMaps.Order
+    match isFlipped with
+        |true ->  finalSymbol.PortMaps.Order
+                |> Map.add  Left newSymbol.PortMaps.Order.[Left]
+                |> Map.add  Right newSymbol.PortMaps.Order.[Right]
+        |false -> finalSymbol.PortMaps.Order
 
 
+
+//Main Function
 let reOrderPorts 
     (wModel: BusWireT.Model) 
     (symbolToOrder: Symbol) 
     (otherSymbol: Symbol) 
         : BusWireT.Model =
     let sModel = wModel.Symbol
-    printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label}, Other:{otherSymbol.Component.Label}"
 
     //Getting a list of the connection IDs of wires needed for wModel NewWires
     let connectionIdList =
@@ -95,43 +96,37 @@ let reOrderPorts
         wireList |> List.map (fun x -> x.InputPort, x.OutputPort)
     
 
-    printfn $"HERE"
-
-    //Check if the symbolToOrder is a MUX or a Demux and if a flip is needed
-    let NewSymbolToOrder, NewOtherSymbol = checkSymbolToOrder symbolToOrder otherSymbol 
-    printfn $"ReorderPorts: ToOrder:{NewSymbolToOrder.Component.Label}, Other:{NewOtherSymbol.Component.Label}"
-    // let NewSymbolToOrder = symbolToOrder
-    // let NewOtherSymbol = otherSymbol
-    // let NewWModel = wModel
+    //Check if the symbolToOrder is a MUX or a Demux and if so set it otherSymbol because it is better not to reorder the MUX or Demux
+    let newSymbolToOrder, newOtherSymbol = checkSymbolToOrder symbolToOrder otherSymbol 
 
     //Reorder the symbol to order ports by comparing with the other symbol ports
-    let ReorderedPorts = SortPorts connectedPorts NewSymbolToOrder NewOtherSymbol 
+    let reorderedPorts = sortPorts connectedPorts newSymbolToOrder newOtherSymbol 
      
 
     //Get the orientation of the ports we reordered on the symbolToOrder
-    let OrientationList = SymbolToOrderOrientationList ReorderedPorts
+    let symEdgeList = getSymEdgeList reorderedPorts
 
 
     //Adding the ports that aren't connected to any wires
-    let NewPorts =  AddUnconnectedPorts ReorderedPorts NewSymbolToOrder OrientationList
+    let fullPorts =  AddUnconnectedPorts reorderedPorts newSymbolToOrder symEdgeList
 
 
     //Creating a new list of ports in new order to replace the old ports
-    let ReorderedPortsList = CreateNewPortsList NewSymbolToOrder OrientationList NewPorts
+    let ReorderedPortsList = CreateNewPortsList newSymbolToOrder symEdgeList fullPorts
 
     
     // Replacing the ports to get the new symbol
-    let portMapsReplace = {NewSymbolToOrder.PortMaps with Order= Map.ofList ReorderedPortsList} 
-    let symbol' = {NewSymbolToOrder with PortMaps = portMapsReplace} 
-    let finalSymbolToOrder, finalOtherSymbol, finalWModel, isFlipped = CheckforFlip sModel wireList wModel symbol' NewOtherSymbol
-    let OtherSymbolPorts = FixOtherSymbolPorts finalOtherSymbol NewOtherSymbol isFlipped
+    let portMapsReplace = {newSymbolToOrder.PortMaps with Order= Map.ofList ReorderedPortsList} 
+    let symbol' = {newSymbolToOrder with PortMaps = portMapsReplace} 
+    let finalOtherSymbol, finalWModel, isFlipped = CheckforFlip sModel wireList wModel symbol' newOtherSymbol
+    let OtherSymbolPorts = FixOtherSymbolPorts finalOtherSymbol newOtherSymbol isFlipped
     let symbol'' = {finalOtherSymbol with PortMaps = {finalOtherSymbol.PortMaps with Order = OtherSymbolPorts}}
 
 
     //New model with the new symbols
     let newSmodel = {sModel with Symbols = sModel.Symbols 
-                                                  |> Map.add symbolToOrder.Id symbol'
-                                                  |> Map.add otherSymbol.Id symbol''}
+                                                  |> Map.add symbol'.Id symbol'
+                                                  |> Map.add symbol''.Id symbol''}
 
     // Rerouting the wires with our new model
     let wiresToOrder = List.map (autoroute {finalWModel with Symbol = newSmodel}) wireList
@@ -193,7 +188,7 @@ let concatenateOrientationLists
             orientationLists
             |> List.fold folder Map.empty
 
-
+//Combines all Othersymbols to get one symbol Order and Orientation map so that we can compare with the SymbolToOrder
 let CombineOtherSymbols 
     (symbolsInOrder : Symbol list)
     (symbolToOrder: Symbol)
@@ -208,7 +203,7 @@ let CombineOtherSymbols
                                                         Orientation= newOrientationMap}
         }
 
-
+//Creates a symbol that combines all ports of Othersymbols
 let createOtherSymbol 
     (otherSymbols: Symbol list)
     (symbolToOrder: Symbol)
@@ -232,23 +227,22 @@ let createOtherSymbol
                         |> List.sortBy (fun x -> x.Pos.X)
                     CombineOtherSymbols SymbolsInOrder symbolToOrder
 
+//Groups the ports that are connected to the wires by the edge of the symbolToOrder they are on or connected to
 let groupPorts 
     (wiresSymbolToOrder: list<ConnectionId * Wire>)
-    (symbolToOrderOrientationList: Map<string, Edge>)
+    (symbolToOrder: Symbol)
+    (symOrientationList: Map<string, Edge>)
       : list<Edge * list<string * string * Edge * Edge>> =
-      //I really tried to put this part in a function and call it because it is similar to the previous function but it did not work I think there is a bug in Issie
       wiresSymbolToOrder
         |> List.map (fun (_,x)->(x.InputPort,x.OutputPort))
-        |> List.map (fun x  -> 
-                match symbolToOrderOrientationList |> Map.containsKey ($"{fst x}") with 
-                | true -> ($"{snd x}",$"{fst x}")
-                | false -> ($"{fst x}",$"{snd x}"))
-        |> List.collect (fun (x,y) -> match symbolToOrderOrientationList  |> Map.tryFind  y with
+        |> sortInputOutput symbolToOrder
+        |> List.collect (fun (x,y) -> match symOrientationList  |> Map.tryFind  y with
                                                         | Some e -> [(x,y,e,e)]
                                                         | None -> [] )
         |> List.groupBy (fun (_,_, e, _) -> e)
 
 
+//Sorts the ports of the SymbolToOrder by the order of the ports of the new combined othercomponents
 let sortMultPorts 
     (connectedPortsNeeded: list<Edge * list<string * string * Edge * Edge>>)
     (combinedOtherSymbolsOrientation: Map<string,Edge>)
@@ -259,7 +253,7 @@ let sortMultPorts
                                                                                     |> Map.containsKey (lst[0]|> (fun (x,_,_,_)->x)))
                 |> List.map (fun (_,lst)->lst)
                 |> List.map (fun y -> 
-                                                    sortPortsHelper  (combinedOtherSymbolsOrder 
+                                                    sortByOther  (combinedOtherSymbolsOrder 
                                                                                 |> Map.find (combinedOtherSymbolsOrientation
                                                                                                     |>Map.find (y[0] |> (fun (x,_,_,_)-> x)))) 
                                                                         y)
@@ -268,6 +262,7 @@ let sortMultPorts
 // Will only reorder the component with the most wires connected to it.
 // Only works if components are connected to the SymbolToReorder from the same edge.
 // All Components connected to that edge of the symbolToOrder should be selected or it will not work.
+// Main function for this part
 let multipleReorderPorts 
         (wModel: BusWireT.Model)
         (symbols : Symbol list)
@@ -275,21 +270,21 @@ let multipleReorderPorts
     let sModel = wModel.Symbol
 
     printfn $"MultipleReorderPorts: Symbols:{symbols |> List.map (fun x -> x.Component.Type)}"
+
     let connectedPorts = wModel.Wires |> Map.toList |> List.collect (fun (_,x) -> [$"{x.InputPort}"; $"{x.OutputPort}"])
     let listofOrientationMaps = symbols |> List.map (fun x -> x.PortMaps.Orientation)
-    let symbolToOrderOrientationList = getMaxComponent connectedPorts listofOrientationMaps
-    let otherSymbols =  symbols |> List.filter (fun x -> x.PortMaps.Orientation <> symbolToOrderOrientationList)
+    let symOrientationList = getMaxComponent connectedPorts listofOrientationMaps
+    let otherSymbols =  symbols |> List.filter (fun x -> x.PortMaps.Orientation <> symOrientationList)
     let symbolToOrder=  (List.except otherSymbols symbols)[0]
 
     let wiresSymbolToOrder = 
         wModel.Wires 
         |> Map.toList 
         |> List.filter (fun (_,x) -> 
-                            symbolToOrderOrientationList |> Map.containsKey $"{x.InputPort}" || 
-                            symbolToOrderOrientationList |> Map.containsKey $"{x.OutputPort}")
+                            symOrientationList |> Map.containsKey $"{x.InputPort}" || 
+                            symOrientationList |> Map.containsKey $"{x.OutputPort}")
 
-    let connectedPortsNeeded = groupPorts wiresSymbolToOrder symbolToOrderOrientationList
-    
+    let connectedPortsNeeded = groupPorts wiresSymbolToOrder symbolToOrder symOrientationList
     let CombinedOtherSymbols = createOtherSymbol otherSymbols symbolToOrder connectedPortsNeeded
     let CombinedOtherSymbolsOrder = CombinedOtherSymbols.PortMaps.Order
     let CombinedOtherSymbolsOrientation = CombinedOtherSymbols.PortMaps.Orientation
@@ -299,11 +294,11 @@ let multipleReorderPorts
                                                                                  
 
     //Get the orientation of the ports we reordered on the symbolToOrder
-    let OrientationList = SymbolToOrderOrientationList  SortedPorts
+    let edgeList = getSymEdgeList  SortedPorts
 
-    let NewPorts = AddUnconnectedPorts  SortedPorts symbolToOrder OrientationList
+    let fullPorts = AddUnconnectedPorts  SortedPorts symbolToOrder edgeList
 
-    let NewOrderList = CreateNewPortsList symbolToOrder OrientationList NewPorts
+    let NewOrderList = CreateNewPortsList symbolToOrder edgeList fullPorts
 
     let newSymbolToOrder = {symbolToOrder with PortMaps = {symbolToOrder.PortMaps with Order = Map.ofList NewOrderList}}
 
@@ -319,7 +314,6 @@ let multipleReorderPorts
     let ListWires = List.zip (wModel.Wires |> Map.toList |> List.map (fun (y,_)->y)) wiresToOrder
 
 
-    // HLP23: This could be cleaned up using Optics - see SmartHelpers for examples
     {wModel with 
         Wires = Map.ofList ListWires
         Symbol = newSmodel

@@ -14,7 +14,6 @@ open SymbolHelpers
 
 /// HLP23 AUTHOR: BRYAN TAN 
 
-
 let changeSymbolCorners cornerShow sym = 
     set (appearance_ >-> showCorners_) cornerShow sym
 
@@ -44,31 +43,6 @@ let showCompCorners (model: Model) (cornerShow) (compIds: ComponentId list) =
 type ExternalHelpers =
     { FlipSymbol: FlipType -> Symbol -> Symbol }
 
-// /// Specifies a corner of the rectangle
-// /// 0---3
-// /// |   |
-// /// 1---2
-// /// TODO: May be better as a DU but would need to define operations on the 4 different corners
-// type CornerIndex = { CornerIndex: int }
-
-// /// Return the corner index of b in the rectangle with a - b as a diagonal
-// /// e.g.
-// /// b---x
-// /// |   |
-// /// x---a
-// /// returns 0
-// /// 
-// /// TODO: May be a more elegant way of getting the correct CornerIndex
-// let getCornerIndexOfB (a: XYPos) (b: XYPos) =
-//     let bToa = a - b
-//     let sgnX, sgnY = sign bToa.X, sign bToa.Y
-//     match sgnX, sgnY with
-//     | 1, 1 -> {CornerIndex=0}
-//     | 1, -1 -> {CornerIndex=1}
-//     | -1, -1 -> {CornerIndex=2}
-//     | -1, 1 -> {CornerIndex=3}
-//     | _ -> failwithf "sgn must be either 1 or -1"
-
 type reflectType = | YVertical of float | XHorizontal of float
 
 /// reflect a symbol along a vertical or horizontal line
@@ -87,10 +61,6 @@ let reflectSymbol (helpers: ExternalHelpers) (axis: reflectType) (symbol: Symbol
 /// Resize a custom component based on current mouse location
 let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XYPos) (pos: XYPos) (helpers: ExternalHelpers) = 
     let symbol = model.Symbols[compId]
-    
-    // let pos = 
-    //     let tmp = (getCustomSymCorners symbol |> translatePoints symbol.Pos)[2]
-    //     {tmp with X = tmp.X - 2.0 * symbol.Component.W}
 
     let hScale = (pos.X - fixedCornerLoc.X) / symbol.Component.W
     let vScale = (pos.Y - fixedCornerLoc.Y) / symbol.Component.H
@@ -99,18 +69,9 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
         let transform = { x = hScale / (Option.defaultValue 1.0 symbol.HScale); y = vScale / (Option.defaultValue 1.0 symbol.VScale) }
         scaleWrtFixed transform fixedCornerLoc symbol.Pos
 
-    printfn "--------------------"
-    printfn $"Pos: {pos}"
-    printfn $"Fix: {fixedCornerLoc}"
-    printfn $"Old: {symbol.Pos}"
-    printfn $"New: {newPos}"
-    // printfn $"TestPos: {}"
-    // printfn $"Pos: {pos}"
-
     let testPos = 
         let transform = { x = hScale / (Option.defaultValue 1.0 symbol.HScale); y = vScale / (Option.defaultValue 1.0 symbol.VScale) }
         scaleWrtFixed transform fixedCornerLoc symbol.Pos
-
 
     let reflections =
         // hack to get the sign of the vector from fixed point to opposite diagonal
@@ -122,15 +83,6 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
         let hReflect = if sign diag.Y <> sign fixedToMouse.Y then Some (YVertical fixedCornerLoc.Y) else None
         (vReflect, hReflect)
 
-    // let testing = 
-    //     let vR, hR = reflections
-    //     let pR oR = 
-    //         match oR with
-    //         | Some r -> r |> function | YVertical y -> printfn $"y: {y}" | XHorizontal x -> printfn $"x: {x}"
-    //         | None -> printfn "None"
-    //     pR vR
-    //     pR hR
-
     let reflectSym = reflectSymbol helpers
 
     let applyReflections reflects symbol =
@@ -138,14 +90,10 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
         let vR, hR = reflects
         symbol |> tryApply vR |> tryApply hR
 
-    let tSymbol = symbol |> applyReflections reflections 
-
     let newSymbol =
         {symbol with HScale = Some (abs hScale); VScale = Some (abs vScale) }
         |> moveSymbol (newPos - symbol.Pos)
-        // |> applyReflections reflections
-        // |> reflectSym (XHorizontal fixedCornerLoc.X) 
+        |> applyReflections reflections
         |> set (appearance_ >-> showCorners_) ShowAll
         
-
     set (symbolOf_ compId) newSymbol model, Cmd.none        

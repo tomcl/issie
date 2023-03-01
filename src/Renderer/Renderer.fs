@@ -186,6 +186,15 @@ let viewMenu dispatch =
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
             )
         ]
+        makeMenu false "Style" [
+            makeItem "Rectangular" None (fun ev -> 
+                //call sheetT.Msg.SetStyle
+                sheetDispatch (SheetT.SetStyle SymbolT.StyleType.Rectangular)
+            )
+            makeItem "Distinctive" None (fun ev -> 
+                sheetDispatch (SheetT.Msg.SetStyle SymbolT.StyleType.Distinctive)
+            )
+        ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
         makeMenu false "Wire Type" [
             makeItem "Jump wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)

@@ -58,6 +58,7 @@ let init() = {
         LastUsedDirectory = None
         RecentProjects = None
         Theme = SymbolT.ThemeType.Colourful
+        Style = SymbolT.StyleType.Rectangular
         }
     LastChangeCheckTime = 0.
     // Diagram = new Draw2dWrapper()

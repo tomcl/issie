@@ -237,7 +237,6 @@ let updateModelWires
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
 
-
 /// <summary>HLP 23: AUTHOR Klapper - Returns the middle segment of a given wire</summary>
 /// <param name="model">BusWireT.Model</param>
 /// <param name="wireId">ConnectionId of the wire</param>
@@ -337,7 +336,7 @@ let addDegree deg1 deg2 =
 
 
    
-//Returns the bounding box of a block of selected symbols, in the 'BlockCorners' type
+//Returns the bounding box of a block of selected symbols, in the 'BoundingBox' type
 //HLP 23: AUTHOR Ismagilov
 let getBlock 
         (symbols:Symbol List) :BoundingBox = 
@@ -424,7 +423,7 @@ let adjustPosForBlockFlip
 
 //Returns the new symbol after rotated about block centre.
 //Needed for overall block rotating and for CC's to maintain same shape
-//Shape changes means different block center -> divergence after many rotations
+//Shape changes means different block center -> divergence after many rotations 
 //HLP 23: AUTHOR Ismagilov
 let rotateSymbolInBlock 
         (rotation: RotationType) 
@@ -432,21 +431,19 @@ let rotateSymbolInBlock
         (sym: Symbol)  : Symbol =
       
     let h,w = getRotatedHAndW sym
-    printfn "rot: %A" rotation
 
     let newTopLeft = 
         rotatePointAboutBlockCentre sym.Pos blockCentre sym.STransform rotation
         |> adjustPosForBlockRotation rotation h w
 
     let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
-
+    
     let newSTransform = 
         match sym.STransform.flipped with
         | true -> 
             {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation}  
         | _-> 
             {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
-    printfn "newTopLeft : {%A}" newTopLeft
 
     { sym with 
         Pos = newTopLeft;
@@ -512,9 +509,10 @@ let scaleSymbolInBlock
     (sym: Symbol) : Symbol =
 
     let symCenter = getRotatedSymbolCentre sym
+
+    //Get x and y proportion of symbol to block
     let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
-    printfn "xProp: %A" xProp
-    printfn "yProp: %A" yProp
+
     let newCenter =
         match scaleType with
             | ScaleUp ->
@@ -599,6 +597,7 @@ let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Mo
                     ShowPorts = ShowNone
                     Colour = "rgb(120,120,120)"
                     Opacity = 1.0
+                    Style = model.Symbol.Style
                 }
             InWidth0 = None // set by BusWire
             InWidth1 = None

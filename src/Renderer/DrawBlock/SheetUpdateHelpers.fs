@@ -631,25 +631,6 @@ let validateTwoSelectedSymbols (model:Model) =
             printfn $"Can't test because number of selected symbols ({syms.Length}) is not 2"
             None
 
-/// Geometric helper used for testing. Probably needs a better name, and to be collected with other
-/// This should perhaps be generalised for all orientations and made a helper function.
-/// However different testing may be needed, so who knows?
-/// Return the vertical channel between two bounding boxes, if they do not intersect and
-/// their vertical coordinates overlap.
-let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
-    if bb1.TopLeft.X > bb2.TopLeft.X then
-        getChannel bb2 bb1
-    else
-        if  bb1.TopLeft.X + bb1.W > bb2.TopLeft.X then
-            None // horizontal intersection
-        elif bb1.TopLeft.Y > bb2.TopLeft.Y + bb2.H || bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y then
-            None // symbols are not aligned vertically
-        else
-            let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
-            let union = boxUnion bb1 bb2
-            let topLeft = {Y=union.TopLeft.Y; X=x1}
-            Some {TopLeft = topLeft; H = union.H; W = x2 - x1}
-
 ///Return the channel between two bounding boxes with its orientation
 let rec getOrientedChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox*Orientation) option =
 

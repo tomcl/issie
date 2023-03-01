@@ -266,3 +266,11 @@ let getPortsBtwnSyms (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Sym
     let ports = getConnBtwnSyms model symToOrder otherSym |> getPortsFrmWires model
 
     (fiterPortBySym ports symToOrder, fiterPortBySym ports otherSym)
+
+
+/// Scales a symbol so it has the provided height and width
+/// HLP23: AUTHOR BRYAN TAN
+let setCustomCompHW (h: float) (w: float) (sym: Symbol) = 
+    let hScale = w / sym.Component.W
+    let vScale = h / sym.Component.H
+    {sym with HScale=Some hScale; VScale=Some vScale}

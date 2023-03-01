@@ -835,6 +835,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   
 
+    //HLP23 AUTHOR Ismagilov
+    //Caught message for scaling up selected components
     | KeyPress CtrlU -> 
         printfn "Scaling up"
         match model.SelectedComponents.Length with
@@ -865,6 +867,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg SheetT.UpdateBoundingBoxes
             ]
 
+    //HLP23 AUTHOR Ismagilov
+    //Caught message for scaling down selected components
     | KeyPress CtrlI -> 
         printfn "Scaling down"
         match model.SelectedComponents.Length with
@@ -902,6 +906,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     ]
                 | _ -> model,Cmd.none
 
+    //HLP23 AUTHOR Ismagilov
+    //Sets the chosen style for the selected components
     | SetStyle (style:StyleType) ->
         let syms = model.Wire.Symbol.Symbols
         let compList = 

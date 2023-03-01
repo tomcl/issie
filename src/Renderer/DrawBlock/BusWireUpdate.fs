@@ -12,7 +12,7 @@ open Optics
 open Operators
 
 // HLP23: AUTHOR Omar
-open SmartWire
+open SmartHelpers
 
 //---------------------------------------------------------------------------------//
 //----------------------Helper functions that need SmartRoute etc------------------//

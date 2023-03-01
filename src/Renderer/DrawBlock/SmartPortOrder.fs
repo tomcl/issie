@@ -162,22 +162,24 @@ let nonCustomCompPortGuard (reorderPair: SymbolReorderPair) =
         let filteredPorts =
             [ thisPorts'; otherPorts' ] |> List.zip [ symId; othId ] |> Map.ofList
 
-        { reorderPair with Ports = filteredPorts }
+        { reorderPair with
+            Ports = filteredPorts }
     | Custom _ -> reorderPair
-    | _ -> { reorderPair with Ports = reorderPair.Ports |> Map.add reorderPair.Symbol.Id [] }
+    | _ ->
+        { reorderPair with
+            Ports = reorderPair.Ports |> Map.add reorderPair.Symbol.Id [] }
 
 /// Guard that avoids reordering if connections from one output to multiple inputs is present.
 let outToMultInGuard (reorderPair: SymbolReorderPair) =
-    let avoidReordering (ports: PortInfo list) =
+    let avoidReordering (symbol: Symbol) =
+        let ports = reorderPair.Ports[symbol.Id]
         List.distinct ports |> List.length <> List.length ports
 
-    let symId, othId = reorderPair.Symbol.Id, reorderPair.OtherSymbol.Id
-    let symPorts, othPorts = reorderPair.Ports[symId], reorderPair.Ports[othId]
-
-    match avoidReordering symPorts, avoidReordering othPorts with
-    | true, _
-    | _, true -> { reorderPair with Ports = Map.map (fun _ _ -> []) reorderPair.Ports }
-    | _ -> reorderPair
+    match avoidReordering reorderPair.Symbol, avoidReordering reorderPair.OtherSymbol with
+    | false, false -> reorderPair
+    | _ ->
+        { reorderPair with
+            Ports = Map.map (fun _ _ -> []) reorderPair.Ports }
 
 /// Reorder's Symbol Ports such to minimize wire crossings.
 let reorderSymPorts (reorderPair: SymbolReorderPair) =

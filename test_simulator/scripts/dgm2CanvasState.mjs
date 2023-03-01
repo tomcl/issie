@@ -21,6 +21,12 @@ const json2Components = (json) => {
     /{Constant1 = \s*\[(\d+);\s*(\d+);\s*(\d+)\]}/g,
     'Constant1($1, $2, "$3")'
   );
+  // parse custom components
+  result = result.replaceAll(/{\s*Custom\s*=\s*(.*?)}/g, "Custom $1");
+  result = result.replaceAll(/Name\s*=\s*(\w+)/g, 'Name = "$1"');
+  result = result.replaceAll(/\[\s*(\w+);\s*(\d+)\s*\]/g, '("$1", $2)');
+  result = result.replaceAll(/Form\s*=\s*(\w+)/g, 'Form = Some $1');
+  
   result = result.replaceAll(/SymbolInfo = ({.*?}})/gm, "SymbolInfo = Some $1");
   result = result.replaceAll(
     /ReversedInputPorts = (\w+)/g,
@@ -92,7 +98,7 @@ const json2CanvasState = (json) => {
   return `(${components},${connections})`;
 };
 
-const main = async () => {
+const main = () => {
   const filePath = process.argv[2];
   const baseName = path.basename(filePath, path.extname(filePath));
   const content = fs.readFileSync(filePath, "utf8");

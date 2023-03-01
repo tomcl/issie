@@ -123,7 +123,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 readyToReduce <- fc' :: readyToReduce)
 
     let init fc =
-        fastReduce 0 0 false fc
+        fastReduce 1 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -239,7 +239,7 @@ let private orderCombinationalComponentsFData
                 readyToReduce <- fc' :: readyToReduce)
 
     let init fc =
-        fastReduceFData 0 0 false fc
+        fastReduceFData 1 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -727,16 +727,6 @@ let runFastSimulation
         None // do nothing
     else
         eprintfn "===== lastStepNeeded: %d, fs.MaxArraySize: %d" lastStepNeeded fs.MaxArraySize
-        // if lastStepNeeded > fs.MaxStepNum then
-        //     if fs.MaxStepNum < fs.MaxArraySize then
-        //         let newMaxNum =
-        //             min
-        //                 fs.MaxArraySize
-        //                 (lastStepNeeded
-        //                  + max 50 (int (float lastStepNeeded * 1.5)))
-
-        //         //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps"
-
         let doSimulation () =
             let lastTick = fs.ClockTick + 1
             let startTick = fs.ClockTick
@@ -769,22 +759,6 @@ let runFastSimulation
                 )
 
         doSimulation ()
-
-/// Run a fast simulation for a given number of steps building it from the graph
-(*
-let runSimulationZeroInputs 
-        (timeOut: float option)
-        (simulationArraySize: int) 
-        (diagramName: string) 
-        (steps: int) 
-        (graph: SimulationGraph) 
-            : Result<FastSimulation,SimulationError> =
-    let fsResult = buildFastSimulation simulationArraySize diagramName  graph
-    fsResult
-    |> Result.map (runFastSimulation timeOut steps)
-    |> ignore
-    fsResult
-*)
 
 /// Look up a simulation (not a FastSimulation) component or return None.
 let rec findSimulationComponentOpt

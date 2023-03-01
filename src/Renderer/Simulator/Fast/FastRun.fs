@@ -100,7 +100,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 readyToReduce <- fc' :: readyToReduce)
     
     let init fc = 
-        OldFastReduce.fastReduce 0 0 false fc
+        OldFastReduce.fastReduce 1 0 false fc
         fc.Touched <- true
         propagateEval fc
 

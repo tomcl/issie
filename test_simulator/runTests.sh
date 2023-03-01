@@ -3,7 +3,7 @@
 set -e
 
 # Get the folder path from the command-line argument
-FOLDER=$1
+FOLDER=${1:-"testcases"}
 FOLDER_NAME=$(basename "${FOLDER}")
 TARGET_FILE="${FOLDER_NAME}.fs"
 
@@ -16,3 +16,5 @@ if which fantomas >/dev/null; then
 else
 	echo "fantomas is not installed, skipping formatting"
 fi
+
+dotnet test -l:"console;verbosity=normal"

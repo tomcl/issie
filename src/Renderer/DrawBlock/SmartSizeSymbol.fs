@@ -22,13 +22,8 @@ open SmartHelpers
     function for the wires.
 *)
 
-/// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
-/// so that the connecting wires are exactly straight
-/// HLP23: It should work out the interconnecting wires (wires) from 
-/// the two symbols, wModel.Wires and sModel.Ports
-/// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
-/// HLP23: when this function is written replace the XML comment by something suitable concisely
-/// stating what it does.
+/// HLP23: reSizeSymbol takes two symbols connected by wires and resizes symbolToSize so that any wires that
+/// are nearly straight become straight
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
     (symbolToSize: Symbol)
@@ -36,7 +31,6 @@ let reSizeSymbol
         : BusWireT.Model =
     // Currently works on the assumption that symbolToSize is always on the receiving end of wires
     // Also assumes parallel sides are vertical
-    printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 
     let wireThreshold = 11.0
     let sModel = wModel.Symbol
@@ -53,7 +47,7 @@ let reSizeSymbol
         let currPort = ports[key]
         let portOffset = getPortPos symbolToSize currPort
 
-        let startY = currWire.StartPos.Y //assuming verttical
+        let startY = currWire.StartPos.Y
         let endY = symbolToSize.Component.Y + portOffset.Y
 
         lst @ [startY, endY]
@@ -81,14 +75,27 @@ let reSizeSymbol
     let portSep = snd sndPorts + offset - snd fstPorts
     let scale = (portSep - pairDiff sndPorts) / portSep
     let newPos = {symbolToSize.Pos with Y = symbolToSize.Pos.Y - offset}
+
     let symbol' = {symbolToSize with Pos = newPos; VScale = Some scale}
+
+    let wireScale (model: Model) (sFactor: float) =
+        let mapLst = Map.toList model.Wires
+        let wiresLst = mapLst |> List.map (fun pair -> snd pair)
+        let segLst = ([], wiresLst) ||> List.fold (fun segLst wire -> List.append segLst [wire.Segments])
+        let segLst' = 
+            segLst 
+            |> List.map (fun lst -> [lst[0]; lst[1]; lst[2]; {lst[3] with Length = sFactor*lst[3].Length}; lst[4]; lst[5]; lst[6]])
+        let scaledWires = mapLst |> List.mapi (fun i pair -> 
+            let currWire = {(snd pair) with Segments = segLst'[i]}
+            fst pair, currWire
+            )
+        Map.ofList scaledWires
+
 
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     // Add new wires to model & new symbols to model map
     {wModel with 
-        Wires = wModel.Wires // no change for now, but probably this function should use update wires after resizing.
-                             // to make that happen the test function which calls this would need to provide an updateWire
-                             // function to this as a parameter (as was done in Tick3)
+        Wires = wireScale wModel scale
         Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
     }
 

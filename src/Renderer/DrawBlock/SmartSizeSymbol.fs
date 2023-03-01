@@ -13,11 +13,15 @@ open Operators
 open SmartHelpers
 open BusWireUpdateHelpers
 
+///HLP 23: AUTHOR Rzepala
 
+///this record determines how far will the other components will move from a custom resized component
+type ConstantsSmartSize = {
+    Distance: float
+}
 
-type WhichDimension = Width | Height
+let OffsetSmartSize = {Distance = 50.0}
 
-type Orientation = TopBottom | LeftRight
 
 // this function is used purely to return HScale or VScale of a symbol
 let Scale 
@@ -27,34 +31,30 @@ let Scale
     | Some x -> x
     | None -> 1.0
 
-//this function checks if two straight lines overlap 
-//for example if two horizontal lines, at different or same heights, overlap, that means 
-//we can draw a horizontal lines that will intersect both of them
-let isOverlapped
-    (firstBegin: float)
-    (firstEnd: float)
-    (secondBegin: float)
-    (secondEnd: float)
-        : bool =
-    if firstBegin > secondBegin && firstBegin < secondEnd
-    then true
-    elif firstEnd < secondEnd && firstEnd > secondBegin
-    then true
-    elif secondBegin > firstBegin && secondBegin < firstEnd
-    then true
-    elif secondEnd < firstEnd && secondEnd > firstBegin
-    then true
-    else false
 
 //this function is used to evaluate the distance between ports of a symbol.
 let getPortDist 
-    (symbol: Symbol) 
-    (pos: Edge) 
-        : float = 
-    let Width = symbol.Component.W * Scale symbol.HScale
-    printfn $"Width of symbol {Width}"
-    let NoPorts = List.length symbol.PortMaps.Order[pos]
-    Width / ((float NoPorts) + 1.0)
+    (portsOrdereds: (string * XYPos) list)
+    (orient: OrientationS option)
+        : float option= 
+    
+    let ItemOne = portsOrdereds.Item(1)
+    let XYPosOne = snd ItemOne
+    printfn "%A" XYPosOne
+    let ItemZero = portsOrdereds.Item(0)
+    let XYPosZero = snd ItemZero
+    printfn "%A" XYPosZero
+    let l = portsOrdereds.Length
+    if l = 0 then None
+    elif l = 1 then None
+    else 
+        match orient with
+        | Some TopBottom ->
+            Some (XYPosOne.X - XYPosZero.X)
+        | Some LeftRight -> 
+            Some (XYPosOne.Y - XYPosZero.Y)
+        | None -> None
+    
 
 
 //this function returns the edges of the symbols which we would like to align
@@ -63,14 +63,14 @@ let getPortDist
 let relationPos 
     (toSize: Symbol)
     (other: Symbol)
-        : Orientation option =
+        : OrientationS option =
     let dimension 
         (symbol: Symbol)
         (dim: WhichDimension)
             : float = 
         match dim with
-        | Width -> symbol.Pos.X + symbol.Component.W * Scale symbol.HScale
-        | Height -> symbol.Pos.Y + symbol.Component.H * Scale symbol.VScale
+        | Widths -> symbol.Pos.X + symbol.Component.W * Scale symbol.HScale
+        | Heights -> symbol.Pos.Y + symbol.Component.H * Scale symbol.VScale
     
     let toSizeBeginH = toSize.Pos.X
     let toSizeEndH = toSize.Pos.X + toSize.Component.W * Scale toSize.HScale
@@ -85,25 +85,9 @@ let relationPos
     then Some TopBottom
     elif isOverlapped toSizeBeginV toSizeEndV otherBeginV otherEndV
     then Some LeftRight
-    else 
-    failwithf "%A" "What? Symbols don't overlap"
-    None
+    else None
 
-let getDim 
-    (symbolToSize: Symbol)
-    (otherSymbol: Symbol)
-    (orient: Orientation option)
-        : float * float = 
-    match orient with
-    | Some TopBottom ->
-        if symbolToSize.Pos.Y < otherSymbol.Pos.Y
-        then getPortDist symbolToSize Bottom, getPortDist otherSymbol Top
-        else getPortDist symbolToSize Top, getPortDist otherSymbol Bottom
-    | Some LeftRight ->
-        if symbolToSize.Pos.X < otherSymbol.Pos.X
-        then getPortDist symbolToSize Right, getPortDist otherSymbol Left
-        else getPortDist symbolToSize Left, getPortDist otherSymbol Right
-    | None -> failwithf "Whatt?"
+
 
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
@@ -114,21 +98,46 @@ let reSizeSymbol
     let manageableWires = Map.toList wModel.Wires
     let sModel = wModel.Symbol
     let Orient = relationPos symbolToSize otherSymbol
-    let Dimension = getDim symbolToSize otherSymbol Orient
-    
+    let portsOrderedToSize, portsOrderedOther = 
+        match Orient with
+        | Some TopBottom -> 
+            if symbolToSize.Pos.Y < otherSymbol.Pos.Y then
+                getAllPortsFromEdgeOrdered wModel symbolToSize Orient Bottom,
+                getAllPortsFromEdgeOrdered wModel otherSymbol Orient Top
+            else
+                getAllPortsFromEdgeOrdered wModel symbolToSize Orient Top,
+                getAllPortsFromEdgeOrdered wModel otherSymbol Orient Bottom
+        | Some LeftRight ->
+            if symbolToSize.Pos.X < otherSymbol.Pos.X then
+                getAllPortsFromEdgeOrdered wModel symbolToSize Orient Right,
+                getAllPortsFromEdgeOrdered wModel otherSymbol Orient Left
+            else 
+                getAllPortsFromEdgeOrdered wModel symbolToSize Orient Left,
+                getAllPortsFromEdgeOrdered wModel otherSymbol Orient Right
+        | None -> [], []
+    printfn "%A" portsOrderedToSize
+    printfn "%A" portsOrderedOther
+    let Dimension = getPortDist portsOrderedToSize Orient, getPortDist portsOrderedOther Orient
+    printfn "%A" Dimension
+    let checker = 
+        getCommonWires wModel symbolToSize otherSymbol Orient 
+        |> Map.toList
+
     let ScaleFactor = 
         match Dimension with
-        | (x, y) -> y/x
-
+        | (x, y) -> (Scale y) / (Scale x)
+    
+    
     let symbol' = 
         match Orient with
         | Some TopBottom -> 
             {symbolToSize with HScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
         | Some LeftRight -> 
-            {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
+            {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.VScale)}
         | None -> symbolToSize
 
     let wModel' = {wModel with Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}}
+    
     let wires' = manageableWires |> List.collect (fun (x, y) -> [x, autoroute wModel' y]) |> Map.ofList
 
     {wModel' with 

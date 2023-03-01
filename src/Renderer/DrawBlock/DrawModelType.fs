@@ -11,6 +11,9 @@ open Node.ChildProcess
 
 //--------------------------COMMON TYPES------------------------------//
 
+type WhichDimension = Widths | Heights
+//This type is used to infer whether two symbols are next to each other or one above another
+type OrientationS = TopBottom | LeftRight
 /// Static 1D data defining position range within which the currently moved thing will "snap"
 /// to fixed point (Snap).
 type SnapData = {

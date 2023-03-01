@@ -61,6 +61,9 @@ module SymbolT =
     /// Represents the orientation of a wire segment or symbol flip
     type FlipType =  FlipHorizontal | FlipVertical
     type RotationType = RotateClockwise | RotateAntiClockwise
+
+    //Used in scaling in SmartRotate
+    //HLP23: AUTHOR Ismagilov
     type ScaleType = ScaleUp | ScaleDown
 
 
@@ -83,6 +86,11 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+    //Used for SmartRender
+    //HLP23: AUTHOR Ismagilov
+    type StyleType = 
+        |Rectangular
+        |Distinctive
 
     type AppearanceT =
         {
@@ -96,7 +104,9 @@ module SymbolT =
             /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
 
-     
+            //HLP23: AUTHOR Ismagilov
+            Style: StyleType
+
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -105,6 +115,7 @@ module SymbolT =
         |Light
         |Colourful
 
+   
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
@@ -179,6 +190,7 @@ module SymbolT =
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
             /// dynamic info used in port move operation
             MovingPortTarget: (XYPos*XYPos) option
+
         }
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
@@ -206,6 +218,10 @@ module SymbolT =
         OutputPortsConnected: Map<OutputPortId, int>
 
         Theme: ThemeType
+
+        //HLP23: AUTHOR Ismagilov
+        Style: StyleType
+
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -441,7 +457,8 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlU | CtrlI
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlR | CtrlT | CtrlU | CtrlI
+
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -535,8 +552,11 @@ module SheetT =
         | TestPortReorder
         | TestSmartChannel
         | TestPortPosition
-        //| TestScaleUp
+        | TestScaleUp
+        | TestPortReorder2
         | TestScaleDown
+        | SetStyle of SymbolT.StyleType //HLP23: AUTHOR Ismagilov
+
 
 
     type ReadLog = | ReadLog of int

@@ -10,25 +10,21 @@ open DrawHelpers
 open DrawModelType.SymbolT
 open Symbol
 
-(*
-    HLP23: This module will normally be used exclusively by team member doing the "smart rendering" part of the 
-    individual coding. During group phase work how it is used is up to the
-    group. Normally chnages will be to drawSymbol and the code used by this. OTHER changes to the rendering code
-    are possible but you should check before doing anything. renderSymbol is not all well written, but it uses
-    React cacheing (the Props of FunctionComponent.Of are used as a key so that the whole render function (which
-    calls drawSymbol) is only re-executed when renderSymbolProps change. This means that normally drawSymbol is not
-    called whenever the view function is evaluated - crucial to keeping view function time down!
-    
-    
-    HLP23: There is a lot of code here. For assessment, changes to existing code, or new functions,
-    MUST be documented by HLP23:AUTHOR even if from the smart rendering assigned student, so that new code
-    can easily distinguished from old. (Git can also help with this, but it is not totally reliable)
-    Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
+(* HLP23: AUTHOR Ismagilov
 
-    HLP23: the existing drawSymbol code is imperfect. Many issues, note for example repeated pipelined
-    use of append to join different elements together which is inefficient and less readable.
-    HLP23: the code here does not use helpers consistently or in all suitable places.
+Have implemented working style property, and changing of And and Or gate appearance, working with Rotation, Flip and Scaling.
+
+Created a property 'Style' of StyleType in DrawModelType.SymbolT.Model and DrawModelType.SymbolT.Appearance 
+    Style is changed through view menu -> style (added functionality in renderer.fs)
+    Message is caught in SheetUpdate, to access BusWire Update Connected Wires Command after (port offsets changed)
+
+Used in SymbolT.Model to initialise states, detect changes in render function and give correct shape/ports 
+of styled gate in the drawSymbol Function.
+
+Used in Symbol.Appearance to give correct port adjustments in symbol.fs. See symbol.fs -> GetPortPos function.
+Can also then be used in SheetUpdate to only change style of components that have a curvy shape, 
+minimising match traversal later on when checking for styles. (match Appearance.Style rather than model.Style, comp.Type)
+
 *)
 
 
@@ -120,6 +116,14 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
+//Function to create any path, combining multiple attributes of different paths.
+//HLP23 Author: Ismagilov
+let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour = 
+    [makeAnyPath startingPoint pathAttr {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]
+
+let createPath (startingPoint: XYPos) (startingControlPoint: XYPos) (endingControlPoint: XYPos) (endingPoint: XYPos) =
+    [makePath startingPoint startingControlPoint endingControlPoint endingPoint {defaultPath with StrokeWidth = "5px"; Stroke = "black"}]
+
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
         [makePolygon points {defaultPolygon with Fill = colour; Stroke = strokeColor; FillOpacity = opacity; StrokeWidth=strokeWidth}]
@@ -184,7 +188,7 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 
 /// Draw symbol (and its label) using theme for colors, returning a list of React components 
 /// implementing all of the text and shapes needed.
-let drawSymbol (symbol:Symbol) (theme:ThemeType) =
+let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
@@ -277,7 +281,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             | NbitSpreader _ ->
                 [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
             | _ -> [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
-                
+
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
         |> toString 
 
@@ -415,10 +419,6 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                     makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
             text :: corners
 
-
-
- 
-            
     let labelcolour = outlineColor symbol.Appearance.Colour
     let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
         let pMap = symbol.PortMaps.Order
@@ -446,33 +446,87 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
+
+    //chooses the shape of curvy components so flip and rotations are correct
+    //HLP23: Author Ismagilov
+    let adjustCurvyPoints (points:XYPos[] List) = 
+        match transform.Rotation,transform.flipped with 
+            | Degree0, false -> points[0]
+            | Degree0, true -> points[2]
+            | Degree90, _-> points[1]
+            | Degree180, true -> points[0]
+            | Degree180, false -> points[2]
+            | Degree270,_ -> points[3]
+
+    //Given the component, will give a list of XYPos used to draw the curvy version of the component
+    //Each list is points representing different rotation of the component
+    //Each item in list is commented for the corresponding component
+    //HLP23: Author Ismagilov
+    let getCurvyPoints (comp:ComponentType) =
+        match comp with 
+        | And -> // 0: Starting Point, 1: Arc Attributes, 2,3,4,5: Line Attributes
+            [   [|{X=W/2.;Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X= -W/2.;Y=0};{X=0.;Y= H};{X=W/2.;Y=0}|]
+                [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X= 0;Y= H/2.};{X= -W;Y= 0};{X=0;Y= -H/2.}|]
+                [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X= W/2.;Y=0};{X=0.;Y= -H};{X= -W/2.;Y=0}|]
+                [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X= 0;Y= -H/2.};{X= -W;Y= 0};{X=0;Y= H/2.}|]        ]
+        | Or -> // 0: Starting Point, 1,2,3: Path Attributes, 4,5,6: Path Attributes, 7,8,0: Path Attributes
+            [   [|{X=0;Y= 0}; {X= 2.*W/3.;Y= 0}; {X= 5.*W/6.;Y= H/4.};{X=W;Y= H/2.};{X=5.*W/6.;Y= 3.*H/4.}; {X= 2.*W/3.;Y= H}; {X= 0; Y=H}; {X=W/4.;Y=3.*H/4.};{X=W/4.;Y=H/4.}|]
+                [|{X=0;Y=H}; {X= 0;Y=2.*H/3.;}; {X= W/4.;Y=W/6.};{X=W/2.;Y=0};{X= 3.*W/4.;Y=W/6.};{X=W;Y= 2.*H/3.};{X=W;Y= H};{X=3.*W/4.;Y= 3.*H/4.};{X=W/4.;Y= 3.*H/4.}|]
+                [|{X=W;Y=H}; {X=2.*W/3.;Y=H}; {X=W/6.;Y=3.*H/4.};{X=0;Y=H/2.};{X= W/6.;Y=H/4.};{X=2.*W/3.;Y= 0};{X= W;Y=0};{X= 3.*W/4.;Y=H/4.};{X= 3.*W/4.;Y=3.*H/4.}|]
+                [|{X=W;Y=0}; {X= W;Y= 2.*H/3.;}; {X= 3.*W/4.;Y=5.*H/6.};{X=W/2.;Y= H};{X= W/4.;Y= 5.*H/6.};{X=0;Y= 2.*H/3.};{X=0;Y= 0.};{X=W/4.;Y= H/4.};{X=3.*W/4.;Y= H/4.}|]  ]   
+             
+        | _ -> failwith "What? Shouldn't happen"
+        |> adjustCurvyPoints  
+
+    //Creates the shape & labels, depending on the style set by user
+    //HLP23: Author Ismagilov
+    let shapeMaker = 
+        match style,comp.Type with
+            | Distinctive, And -> 
+                                let curvyShape = getCurvyPoints comp.Type
+                                let arcAttr  = makePartArcAttr (H/2.) (curvyShape[1].Y) (curvyShape[1].X) (curvyShape[2].Y) (curvyShape[2].X)
+                                let lineAttr = ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)+(makeLineAttr curvyShape[4].X curvyShape[4].Y)+(makeLineAttr (curvyShape[5].X) curvyShape[5].Y))
+
+                                (createAnyPath (curvyShape[0]) (arcAttr+lineAttr) colour strokeWidth outlineColour) 
+            | Distinctive, Or ->
+                                let curvyShape = getCurvyPoints comp.Type
+                                let arcAttr1  = makePathAttr (curvyShape[1]) (curvyShape[2]) (curvyShape[3])
+                                let arcAttr2  = makePathAttr   (curvyShape[4]) (curvyShape[5]) (curvyShape[6])
+                                let arcAttr3 = makePathAttr  curvyShape[7] curvyShape[8] curvyShape[0]
+
+                                (createAnyPath curvyShape[0] (arcAttr1+arcAttr2+arcAttr3) colour strokeWidth outlineColour) 
+
+            | _, _ -> (addLegendText 
+                                (legendOffset w h symbol) 
+                                (getComponentLegend comp.Type transform.Rotation) 
+                                "middle" 
+                                "bold" 
+                                (legendFontSize comp.Type))
+                                |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+                            
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addLegendText 
-                        (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) 
-                        "middle" 
-                        "bold" 
-                        (legendFontSize comp.Type))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-
-
-
+    //HLP23: Author Ismagilov
+    //Now call shapemaker. Labels are only done to the correct style of component
+    |> List.append (shapeMaker)
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//
 //----------------------------------------------------------------------------------------//
 
+//Added StyleType to detect style change on Symbol.Model (Called in SheetUpdate.fs)
+//HLP23: Author Ismagilov
 type private RenderSymbolProps =
     {
         Symbol : Symbol 
         Dispatch : Dispatch<Msg>
         key: string
         Theme: ThemeType
+        Style: StyleType
     }
 
 /// View for one symbol. Using FunctionComponent.Of to improve efficiency 
@@ -485,7 +539,9 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol props.Theme)
+                //HLP23: Author Ismagilov
+                //Passing Model Style to drawSymbol
+                (drawSymbol props.Symbol props.Theme props.Style)
             
         , "Symbol"
         , equalsButFunctions
@@ -527,6 +583,9 @@ let view (model : Model) (dispatch : Msg -> unit) =
                 Dispatch = dispatch
                 key = id
                 Theme = model.Theme
+                //HLP23: Author Ismagilov
+                //Adding Style to Render Props
+                Style = model.Style
             }
     )
     |> ofList
@@ -537,5 +596,8 @@ let init () =
     { 
         Symbols = Map.empty; CopiedSymbols = Map.empty
         Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty; Theme = Colourful
+        OutputPortsConnected = Map.empty; Theme = Colourful;
+        //HLP23: Author Ismagilov
+        //Default style to rectangular
+        Style = Rectangular
     }, Cmd.none

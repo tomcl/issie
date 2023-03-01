@@ -302,8 +302,7 @@ let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
 
 /// replaces wire with wire labels 
 let replaceWithWireLabels (model: Model) (wire: Wire) : SmartAutorouteResult =
-    printfn "replacing wire with wire labels" // REMOVE
-    let newWireMap = deleteWire model wire // SOURCE OF ERROR
+    let newWireMap = deleteWire model wire
     generateWireLabels newWireMap wire
 
 

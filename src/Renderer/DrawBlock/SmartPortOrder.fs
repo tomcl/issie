@@ -32,7 +32,7 @@ let updatePortMapList (sym:Symbol) (index:int) (portId:string) (edge:Edge) =
     |> List.updateAt index portId
   
 
-
+// need to use tryFindIndex here as well.
 let findMinIndex (symbol: Symbol) (portList) (edge: Edge) =
 
     let portList' = 
@@ -172,14 +172,21 @@ let changePortOrder (wModel: BusWireT.Model)
                 | Top, Bottom | Bottom, Top | Left, Right | Right, Left | Top, Top | Bottom, Bottom | Right, Right | Left, Left
                 | Top, Left | Left, Top | Top, Right | Bottom, Left | Left, Bottom | Right, Top | Right, Bottom | Bottom, Right ->
 
-                    // maybe use tryfind and return an empty list otherwise
                     let oportList' = 
                         outputPortList
-                        |> List.collect (fun id -> [otherSymbol.PortMaps.Order[outputEdge] |> List.findIndex (fun elm -> elm = id)])
+                        |> List.collect (fun id -> 
+                            match otherSymbol.PortMaps.Order[outputEdge] |> List.tryFindIndex (fun elm -> elm = id) with
+                            | Some index -> [index]
+                            | None -> []
+                        )
 
                     let iportList' = 
                         inputPortList
-                        |> List.collect (fun id -> [symbolToOrder.PortMaps.Order[inputEdge] |> List.findIndex (fun elm -> elm = id)])
+                        |> List.collect (fun id ->
+                            match symbolToOrder.PortMaps.Order[inputEdge] |> List.tryFindIndex (fun elm -> elm = id) with
+                            | Some index -> [index]
+                            | None -> []
+                        )
 
                     let newIndexShift = 
                         match inputLength > outputLength with

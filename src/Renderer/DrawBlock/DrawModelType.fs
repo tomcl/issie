@@ -58,6 +58,9 @@ module SymbolT =
     /// Represents the orientation of a wire segment or symbol flip
     type FlipType =  FlipHorizontal | FlipVertical
     type RotationType = RotateClockwise | RotateAntiClockwise
+
+    //Used in scaling in SmartRotate
+    //HLP23: AUTHOR Ismagilov
     type ScaleType = ScaleUp | ScaleDown
 
 
@@ -80,6 +83,8 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+    //Used for SmartRender
+    //HLP23: AUTHOR Ismagilov
     type StyleType = 
         |Rectangular
         |Distinctive
@@ -96,6 +101,7 @@ module SymbolT =
             /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
 
+            //HLP23: AUTHOR Ismagilov
             Style: StyleType
 
         }
@@ -209,6 +215,8 @@ module SymbolT =
         OutputPortsConnected: Map<OutputPortId, int>
 
         Theme: ThemeType
+
+        //HLP23: AUTHOR Ismagilov
         Style: StyleType
 
         }
@@ -542,7 +550,7 @@ module SheetT =
         | TestPortPosition
         | TestScaleUp
         | TestScaleDown
-        | SetStyle of SymbolT.StyleType
+        | SetStyle of SymbolT.StyleType //HLP23: AUTHOR Ismagilov
 
 
     type ReadLog = | ReadLog of int

@@ -10,7 +10,6 @@ open Symbol
 open Optics
 open Operators
 
-open SymbolUpdate
 open SmartHelpers
 
 (*HLP23: AUTHOR Ismagilov

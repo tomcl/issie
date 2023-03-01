@@ -121,7 +121,7 @@ let updateSegments (segments:Segment list) (index: int) (distance:float) =
             printfn $"Trying to move wire segment {idx}:{logSegmentId segments[idx]}, out of range in wire length {segments.Length}"
             segments
         else
-            let safeDistance = distance
+            let safeDistance = getSafeDistanceForMove segments index distance
         
             let prevSeg = segments[idx - 1]
             let nextSeg = segments[idx + 1]
@@ -150,27 +150,49 @@ let getSortedIndexListFromMiddle (listLen:int) =
     
     sortIndexFromMiddle (listLen-1)
 
-let rec smartRouteSegment model segments startPos initialOrientation limit index =
+let rec smartRouteSegment1 model segments startPos initialOrientation limit index =
     // printf $"HERE"
     let MinMaxDistanceOfBBfromXYPosPairs = getMinMaxDistanceOfBBfromXYPosPairs model (getXYPosPairsOfSegments segments startPos initialOrientation)
     let distancePair = MinMaxDistanceOfBBfromXYPosPairs[index]
     let distance = match distancePair with
-                    |(a,b) when abs(a) < abs(b) -> a - 20.
-                    |(a, b) -> b + 20.
+                    |(a,b) when abs(a) < abs(b) -> a - 10.
+                    |(a, b) -> b + 10.
     let segsNeedUpdate = (distancePair <> (0.0,0.0)) && (limit <> 0)
     // printf $"safe: {segsNeedUpdate}, dist: {distance}"
     match segsNeedUpdate with
-    |true -> smartRouteSegment model (updateSegments segments index distance) startPos initialOrientation (limit-1) index 
+    |true -> smartRouteSegment1 model (updateSegments segments index distance) startPos initialOrientation (limit-1) index 
     |false -> segments
 
-let smartRouteSegments model (segments: Segment list) startPos initialOrientation: Segment list =
+let smartRouteSegments1 model (segments: Segment list) startPos initialOrientation: Segment list =
     let preSortedIndex = getSortedIndexListFromMiddle segments.Length
     let indexOf1 = preSortedIndex |> List.findIndex (fun x -> x = 1)
-    let sortedIndex = preSortedIndex |> List.take indexOf1
-    let preSegments =
-        (segments, (sortedIndex @ List.rev sortedIndex))
-        ||> List.fold (fun segs i -> smartRouteSegment model segs startPos initialOrientation 15 i)  
-    preSegments
+
+    let notSortedIndex, nubIndex = preSortedIndex |> List.splitAt indexOf1
+    
+    let sortedIndex = notSortedIndex
+    (segments, (sortedIndex))
+    ||> List.fold (fun segs i -> smartRouteSegment1 model segs startPos initialOrientation 15 i)        
+                              
+let rec smartRouteSegment2 model segments startPos initialOrientation limit index =
+    // printf $"HERE"
+    let MinMaxDistanceOfBBfromXYPosPairs = getMinMaxDistanceOfBBfromXYPosPairs model (getXYPosPairsOfSegments segments startPos initialOrientation)
+    let distancePair = MinMaxDistanceOfBBfromXYPosPairs[index]
+    let distance = match distancePair with
+                    |(a,b) when abs(a) > abs(b) -> a - 10.
+                    |(a, b) -> b + 10.
+    let segsNeedUpdate = (distancePair <> (0.0,0.0)) && (limit <> 0)
+    // printf $"safe: {segsNeedUpdate}, dist: {distance}"
+    match segsNeedUpdate with
+    |true -> smartRouteSegment1 model (updateSegments segments index distance) startPos initialOrientation (limit-1) index 
+    |false -> segments
+
+let smartRouteSegments2 model (segments: Segment list) startPos initialOrientation: Segment list =
+    let preSortedIndex = getSortedIndexListFromMiddle segments.Length
+    let indexOf1 = preSortedIndex |> List.findIndex (fun x -> x = 1)
+    let sortedIndex, nubIndex = preSortedIndex |> List.splitAt indexOf1
+    
+    (segments, (sortedIndex))
+    ||> List.fold (fun segs i -> smartRouteSegment2 model segs startPos initialOrientation 15 i)  
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
@@ -180,11 +202,15 @@ let smartAutoroute (model: Model) (wire: Wire): Wire =
     let startPos = legacyWire.StartPos
     let initialOrientation = legacyWire.InitialOrientation
 
-    // let smartSegments = smartRouteSegments model segments startPos initialOrientation
-    // let smartSegStillIntersect = getMinMaxDistanceOfBBfromXYPosPairs model (getXYPosPairsOfSegments smartSegments startPos initialOrientation) |> List.exists (fun (x, y) -> x <> 0. || y <> 0.)
+    let smartSegments1 = smartRouteSegments1 model segments startPos initialOrientation
+    let smartSeg1StillIntersect = getMinMaxDistanceOfBBfromXYPosPairs model (getXYPosPairsOfSegments smartSegments1 startPos initialOrientation) |> List.exists (fun (x, y) -> x <> 0. || y <> 0.)
+    let smartSegments2 = smartRouteSegments2 model segments startPos initialOrientation
+    let smartSeg2StillIntersect = getMinMaxDistanceOfBBfromXYPosPairs model (getXYPosPairsOfSegments smartSegments2 startPos initialOrientation) |> List.exists (fun (x, y) -> x <> 0. || y <> 0.)
     
-    let newSegments = smartRouteSegments model segments startPos initialOrientation
-
+    let newSegments = if smartSeg1StillIntersect && smartSeg2StillIntersect then smartSegments1
+                                    elif smartSeg1StillIntersect then smartSegments2
+                                    else smartSegments1
+    // printf $"{newSegments}"
     { wire with
           Segments = newSegments
           InitialOrientation = initialOrientation

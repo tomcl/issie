@@ -16,19 +16,7 @@ open Operators
 open System 
 
 
-
-(* HLP23
-
-    This module will normally be used exclusively by team member doing the "smart autoroute on single
-    wire creation" part of the individual coding. During group phase work how it is used is up to the
-    group. Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
-
-    It does not need specific "get started" test code since is called whenever a new wire is created 
-    or (not usual) a symbol is moved so far that the topology of a wire chnages and it is autorouted 
-    again from scratch.
-
-*)
+// HLP23: Author Omar
 
 
 /// discriminated union for return type of the smart autoroute and other SmartWire functions

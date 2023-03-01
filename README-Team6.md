@@ -8,7 +8,7 @@ Bartek's work:
 Timur (AUTHOR Ismagilov) : 
 * Added SmartHelper functions
 * Full SmartRotate.fs, does block rotation, flipping & scaling (added ScaleType in drawModelType)
-* Initial SmartRendering in SymbolView.fs (added StyleType in drawModelType)
+* Initial SmartRendering in SymbolView.fs (added StyleType in drawModelType). Working robustly with And and Or gates.
 * Functionalities added in Symbol.fs, SheetUpdate, drawHelpers, Renderer.fs, explained at top level SmartRotate and SymbolView Comments
 
 Zsombor Klapper's work: 

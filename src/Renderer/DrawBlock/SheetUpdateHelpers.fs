@@ -631,6 +631,7 @@ let validateTwoSelectedSymbols (model:Model) =
             printfn $"Can't test because number of selected symbols ({syms.Length}) is not 2"
             None
 
+//HLP23: Harshil Shah
 ///Return the channel between two bounding boxes with its orientation
 let rec getOrientedChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox*Orientation) option =
 

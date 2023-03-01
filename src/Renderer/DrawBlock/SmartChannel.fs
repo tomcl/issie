@@ -11,6 +11,8 @@ open BusWireUpdateHelpers
 open Optics
 open Operators
 
+// Authored by Harshil Shah
+
 (* 
     HLP23: This module will normally be used exclusively by team member doing the "smart channel route" 
     part of the individual coding. During group phase work how it is used is up to the
@@ -21,7 +23,7 @@ open Operators
     this purpose.
 *)
 
-///
+
 /// HLP23: suggested initial smartChannel top-level function
 /// to be tested, it must be given a channel in through which to route wires nicely
 /// Normally the channel will come from symbol edges.
@@ -35,7 +37,7 @@ open Operators
 /// The Wires going through the channel must be returned as an updated Wires map in model.
 // HLP23: need to update XML doc comments when this function is fully worked out.
 
-// Authored by Harshil Shah
+
 let smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 

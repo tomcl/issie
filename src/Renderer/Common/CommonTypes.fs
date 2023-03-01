@@ -263,7 +263,8 @@ module CommonTypes
         | Bottom
         | Left
         | Right
-
+        
+        /// HLP23: AUTHOR dgs119
         member this.Opposite =
             match this with
             | Top -> Bottom

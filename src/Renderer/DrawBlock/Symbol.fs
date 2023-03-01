@@ -842,6 +842,7 @@ let inline getOutputPortIdStr (portId: OutputPortId) =
     match portId with
     | OutputPortId s -> s
 
+/// HLP23: AUTHOR dgs119
 let inline getPortOrientationFrmPortIdStr (model: Model) (portIdStr: string) : Edge = 
     let port = model.Ports[portIdStr]
     let sId = ComponentId port.HostId

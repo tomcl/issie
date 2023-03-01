@@ -74,7 +74,7 @@ let smartChannelRoute
         match channelOrientation with 
         | Vertical -> 
             //Setup desired wire positions
-            let wireSpacing = 0.8*channel.W/(float channelWiresList.Length)
+            let wireSpacing = 0.7*channel.W/(float channelWiresList.Length)
             let spacedWirePos = 
                 [1..channelWiresList.Length]
                 |> List.map (fun i -> tl.X  + float(i) * wireSpacing)

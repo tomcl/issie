@@ -636,7 +636,7 @@ let validateTwoSelectedSymbols (model:Model) =
 let rec getOrientedChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox*Orientation) option =
 
         if  not (bb1.TopLeft.X + bb1.W < bb2.TopLeft.X || bb2.TopLeft.X + bb2.W < bb1.TopLeft.X) then
-            //vertical channel
+            //vertical channel, horixontal intersection
             if bb1.TopLeft.Y > bb2.TopLeft.Y then
                 getOrientedChannel bb2 bb1
             else
@@ -651,11 +651,12 @@ let rec getOrientedChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox*Or
         elif bb1.TopLeft.Y > bb2.TopLeft.Y + bb2.H || bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y then
             None // symbols are not aligned vertically
         else
-            //horizontal channel
+            //horizontal channel, vertical intersection
             if bb1.TopLeft.X > bb2.TopLeft.X then
                 getOrientedChannel bb2 bb1
             else
-                let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
+                let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X
                 let union = boxUnion bb1 bb2
                 let topLeft = {Y=union.TopLeft.Y; X=x1}
+
                 Some( {TopLeft = topLeft; H = union.H; W = x2 - x1}, Vertical)  

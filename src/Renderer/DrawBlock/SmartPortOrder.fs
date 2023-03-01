@@ -66,8 +66,8 @@ let findIndexShifted (interWires: list<Wire>) (symbolToOrder: Symbol)
 
     let outputPortList = 
         interWires
-        |> List.map(fun wire -> string wire.OutputPort)
-    
+            |> List.map(fun wire -> string wire.OutputPort)
+
     let inputPortList = 
         interWires
         |> List.map(fun wire -> string wire.InputPort)
@@ -102,9 +102,12 @@ let findIndexShifted (interWires: list<Wire>) (symbolToOrder: Symbol)
                 0
             elif inputLength > outputLength then
                 let inputMinIndex = findMinIndex symbolToOrder inputPortList inputEdge
+                printfn "InputMin: %A" inputMinIndex
+                printfn "Diff input>output: %A" -(inputLength - inputMinIndex)
                 -(inputLength - inputMinIndex)
             else
                 let outputMaxIndex = findMaxIndex otherSymbol outputPortList outputEdge
+                printfn "Diff else: %A" outputMaxIndex
                 outputMaxIndex
 
     | Right, Right | Top, Right | Right, Top ->
@@ -126,6 +129,7 @@ let changePortOrder (wModel: BusWireT.Model)
     let sModel = wModel.Symbol
 
     printfn " PortMaps.Order before: %A" symbolToOrder.PortMaps.Order[Bottom]
+    printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label} {symbolToOrder.Id }, Other:{otherSymbol.Component.Label}"
 
     let updatedSymbol = 
         (symbolToOrder, interWires)
@@ -146,9 +150,21 @@ let changePortOrder (wModel: BusWireT.Model)
             //printfn "Output:%A Input:%A" outputEdge inputEdge
             //printfn " PortMaps.Order: %A" symbolToOrder.PortMaps.Order[inputEdge]
 
+           
             let outputPortIndex =
                 otherSymbol.PortMaps.Order[outputEdge] 
                 |> List.findIndex (fun elm -> elm = string outputPortId)
+
+            let outputPortList = 
+                interWires
+                |> List.map(fun wire -> string wire.OutputPort)
+
+            let inputPortList = 
+                interWires
+                |> List.map(fun wire -> string wire.InputPort)
+
+            let outputLength = otherSymbol.PortMaps.Order[outputEdge].Length - 1
+            let inputLength = symbolToOrder.PortMaps.Order[inputEdge].Length - 1
 
             // returns new symbol
             let newPortMapOrder =
@@ -156,8 +172,23 @@ let changePortOrder (wModel: BusWireT.Model)
                 | Top, Bottom | Bottom, Top | Left, Right | Right, Left | Top, Top | Bottom, Bottom | Right, Right | Left, Left
                 | Top, Left | Left, Top | Top, Right | Bottom, Left | Left, Bottom | Right, Top | Right, Bottom | Bottom, Right ->
 
+                    // maybe use tryfind and return an empty list otherwise
+                    let oportList' = 
+                        outputPortList
+                        |> List.collect (fun id -> [otherSymbol.PortMaps.Order[outputEdge] |> List.findIndex (fun elm -> elm = id)])
+
+                    let iportList' = 
+                        inputPortList
+                        |> List.collect (fun id -> [symbolToOrder.PortMaps.Order[inputEdge] |> List.findIndex (fun elm -> elm = id)])
+
+                    let newIndexShift = 
+                        match inputLength > outputLength with
+                        | true -> List.min oportList'
+                        | false -> -(inputLength - List.max iportList')
+                    
+                    printfn "NewIndexSHift: %A" newIndexShift
                     let remainder = findIndexShifted interWires symbolToOrder otherSymbol inputEdge outputEdge
-                    let indexChange = symbolToOrder.PortMaps.Order[inputEdge].Length - (outputPortIndex) - 1 + remainder
+                    let indexChange = symbolToOrder.PortMaps.Order[inputEdge].Length - (outputPortIndex) - 1 + remainder + newIndexShift
                     printfn " Port Index: %A  %A" outputPortIndex indexChange
                     printfn " Port Index before : %A \n %A" indexChange symbolToOrder.PortMaps.Order[inputEdge].[indexChange]
                     let newPortMapList = updatePortMapList symbol indexChange (string inputPortId) inputEdge
@@ -225,6 +256,7 @@ let reOrderPorts
 
     printfn "Wire length is %A" wiresToOrder.Length
 
+    // we might need to seperate wires so that input edge and output edges are same
     let symbol' = changePortOrder wModel symbolToOrder otherSymbol wiresToOrder
 
     let newModel = 
@@ -252,6 +284,11 @@ let sheetReOrderPorts
         |> Map.toList
         |> List.map snd
 
+    let symbolList = 
+        sModel.Symbols
+        |> Map.toList
+        |> List.map snd
+
     let sModel' = 
         (sModel, wireList)
         ||> List.fold (fun symbol wire ->
@@ -267,9 +304,6 @@ let sheetReOrderPorts
             {sModel with Symbols = Map.add symbol'.Id symbol' symbol.Symbols}
         )
 
-
-    //let symbol' = changePortOrder wModel symbolToOrder otherSymbol wiresToOrder
-
     let newModel = 
         {wModel with 
             Symbol = sModel'
@@ -277,8 +311,14 @@ let sheetReOrderPorts
 
     //printfn " PortMaps.Order after: %A" symbol'.PortMaps.Order[Left]
 
-    let wModel' = busWireHelper.updateSymbolWires newModel symbol'.Id
+    let wModel' = 
+        (newModel, symbolList)
+        ||> List.fold (fun model symbol ->
 
-    wModel
+            busWireHelper.updateSymbolWires model symbol.Id    
+        )
+    
+
+    wModel'
 
 

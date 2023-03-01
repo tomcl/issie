@@ -10,6 +10,11 @@ open Symbol
 open Optics
 open Operators
 
+open SymbolUpdate
+open SmartHelpers
+
+
+
 (*
     HLP23: this is a placeholder module for some work that can be done in the individual or team phase
     but has not been given a "starter" by me. however it is pretty easy to get started on it.
@@ -42,3 +47,57 @@ open Operators
     Those interested can ask me for details.
 *)
 
+(*Note: Author ISMAGILOV
+  SheetUpdate 'Rotate' and 'Flip' msg in update function is replaced with this Smart implentation of rotate and flip.
+  Added 2 types in DrawModelType SymbolT Module: ScaleType and BlockCorners, which respectively:
+      1) Distinguish the type of scaling the user does
+      2) Returns a structure containing the top left and bottom right corners of a block of symbols
+  Added 2 keyboard messages in Renderer (CrtlU & CrtrlI) to scale the block of symbols up and down respectively.
+*)
+
+let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:RotationType) = 
+
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+
+    //Find the maximum and minimum x and y values of the selected components
+    let block = SmartHelpers.getBlock SelectedSymbols
+
+    //Rotated symbols about the center
+    let newSymbols = 
+        List.map (fun x -> SmartHelpers.rotateSymbolInBlock rotation (block.Centre()) x) SelectedSymbols 
+
+    //return model with block of rotated selected symbols, and unselected symbols
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}
+
+let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scaleType:ScaleType) =
+
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+
+    let block = SmartHelpers.getBlock SelectedSymbols
+      
+    let newSymbols = List.map (SmartHelpers.scaleSymbolInBlock scaleType block) SelectedSymbols
+
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}
+
+let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) = 
+
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+    
+    let block = SmartHelpers.getBlock SelectedSymbols
+  
+    let newSymbols = 
+        List.map (fun x -> SmartHelpers.flipSymbolInBlock flip (block.Centre()) x ) SelectedSymbols
+
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}

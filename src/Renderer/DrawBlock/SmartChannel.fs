@@ -34,6 +34,8 @@ open Operators
 /// For this simple routing only one dimension of the channel is needed (determined by orientation).
 /// The Wires going through the channel must be returned as an updated Wires map in model.
 // HLP23: need to update XML doc comments when this function is fully worked out.
+
+// Authored by Harshil Shah
 let smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 
@@ -42,52 +44,28 @@ let smartChannelRoute
     let tl = channel.TopLeft
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
   
-    //must return a model with an updated Wires:Map<ConnectionId,Wire>
-    //determine which wires are inside the bounding box given?
-    let wireInChannelPredicate (ConnId,wire) :bool = 
-        //is middle segment in bounding box?
 
-        //let midSegPos = getAbsoluteSegmentPos wire 3
-        //geta
-        //let midSeg = getAbsSegments wire [3]
-        //let segStartPos, segEndPos = fst midSegPos, snd midSegPos
-
-        //match segmentIntersectsBoundingBox channel segStartPos segEndPos with
-        //| None -> false
-        //| Some x -> true
-        if not (List.length wire.Segments = 7) then 
+    let wireInChannelPredicate (connId,wire) :bool = 
+        //7 seg wires allowed in horizontal channel ONLY
+        //9 seg wires allowed in vertical channel ONLY
+        if not (List.length wire.Segments = 7 && channelOrientation = Vertical 
+                || List.length wire.Segments = 9 && channelOrientation = Horizontal ) then 
             false
         else
             match wireIntersectsBoundingBox wire channel with
             | None -> false
             | Some x -> true
 
-    let shiftWire wire adj = 
-            let a,b = wire.Segments[2].Length, wire.Segments[4].Length
-            wire.Segments
-            |> List.updateAt 2 {wire.Segments[2] with Length = a + adj}
-            |> List.updateAt 4 {wire.Segments[4] with Length = b - adj}
-            |> (fun x -> {wire with Segments = x})
-
-    let shiftWireHorizontal wire adj = 
-            let a,b = wire.Segments[1].Length, wire.Segments[3].Length
-            wire.Segments
-            |> List.updateAt 2 {wire.Segments[1] with Length = a + adj}
-            |> List.updateAt 4 {wire.Segments[3] with Length = b - adj}
-            |> (fun x -> {wire with Segments = x})
-
-    let wires = 
+    let allWiresList = 
         model.Wires
         |> Map.toList
         |> List.partition wireInChannelPredicate 
 
     let channelWiresList = 
-        fst wires
+        fst allWiresList
         |> List.sortBy (fun (x,y) -> y.StartPos.X)
 
-    //printfn $"{List.map (fun (x,y) -> List.length y.Segments) channelWiresList}"
-
-    let shiftedWires =
+    let shiftedWiresList =
         match channelOrientation with 
 
         | Vertical -> 
@@ -103,7 +81,7 @@ let smartChannelRoute
             |> List.map (fun x -> (fst x).X) //extract X coord of middle segment
 
             |> List.map2 (fun autoPosX absPos  -> autoPosX - absPos) spacedWirePos //list of adjustments
-            |> List.map2 (fun (cid,wire) adj -> (cid, shiftWire wire adj)) channelWiresList
+            |> List.map2 (fun (cid,wire) adj -> (cid, moveSegment model wire.Segments[3] adj)) channelWiresList
 
 
 
@@ -115,27 +93,15 @@ let smartChannelRoute
                 |> List.map (fun i -> tl.Y  + float(i) * wireSpacing)
 
             channelWiresList
-            |> List.map (fun (cid,wire) -> getAbsoluteSegmentPos wire 2) //gives absoulte pos of each mid wire segment
+            |> List.map (fun (cid,wire) -> getAbsoluteSegmentPos wire 4) //gives absoulte pos of each mid wire segment
             //|> List.map (fun x -> printf $"{x}  ")
             |> List.map (fun x -> (fst x).Y) //extract Y coord of middle segment - which we will use to calculate the correction needed
 
             |> List.map2 (fun autoPosY absPos  -> autoPosY - absPos) spacedWirePos //list of adjustments
-            |> List.map2 (fun (cid,wire) adj -> (cid, shiftWireHorizontal wire adj)) channelWiresList
-
-
-        
-    //let shiftedWires = 
-    //    channelWiresList
-    //    |> List.map (fun (cid,wire) -> getAbsoluteSegmentPos wire 3) //gives absoulte pos of each mid wire segment
-    //    |> List.map (fun x -> (fst x).X) //extract X coord of middle segment
-
-    //    |> List.map2 (fun autoPosX absPos  -> autoPosX - absPos) spacedWirePos //list of adjustments
-    //    //|> List.map (fun x -> printf $"{x}  ")
-    //    |> List.map2 (fun (cid,wire) adj -> (cid, shiftWire wire adj)) channelWiresList
-    //    |> Map.ofList
+            |> List.map2 (fun (cid,wire) adj -> (cid, moveSegment model wire.Segments[4] adj)) channelWiresList
 
     let allWiresMap = 
-        shiftedWires @ (snd wires) 
+        shiftedWiresList @ (snd allWiresList) 
         |> Map.ofList
 
     {model with Wires = allWiresMap}

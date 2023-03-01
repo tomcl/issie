@@ -757,7 +757,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2}, Cmd.none
+                let helpers =
+                    { SmartPortOrder.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
+                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 helpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
@@ -785,10 +787,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 getChannel bBoxes[s1.Id] bBoxes[s2.Id]
                 |> function 
                    | None -> 
-                        printfn "Symbols are not oriented for a vertical channel"
+                        printfn "Symbols are not oriented for any channel"
                         model, Cmd.none
-                   | Some channel ->
-                        {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire}, Cmd.none
+                   | Some (channel, orient) ->
+                        {model with Wire = SmartChannel.smartChannelRoute orient channel model.Wire}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   

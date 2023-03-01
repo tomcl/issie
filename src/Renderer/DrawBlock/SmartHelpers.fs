@@ -104,6 +104,7 @@ let updateModelWires
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
+
 /// HLP23: Author Omar
 /// returns a list of corner coordinates of a symbol: [upper, lower, left, right]
 let symbolBox (symbol: Symbol) : list<float*float> = 

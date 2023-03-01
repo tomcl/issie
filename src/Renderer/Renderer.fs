@@ -187,11 +187,11 @@ let viewMenu dispatch =
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
             )
             makeItem "New Symbols" None (fun ev -> 
-                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.NewSymbols) //HLP23: Shaanuka
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.NewSymbols) 
             )
             makeItem "Old Symbols" None (fun ev -> 
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.OldSymbols)
-            )
+            ) //HLP23: Shaanuka
         ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
         makeMenu false "Wire Type" [

@@ -208,6 +208,8 @@ let makePartArcAttr r h1 d1 h2 d2 =
     let flag = if d1 > 0.0 then 1 else 0
     $"a %.2f{r} %.2f{r} %.2f{rot} 0 {flag} %.3f{d1+d2} %.3f{h1-h2}"
 
+
+//HLP23: Shaanuka
 /// makes a line segment offset dx,dy
 let makeLineAttr dx dy =
     $"l %.3f{dx} %.3f{dy}"
@@ -221,7 +223,10 @@ let makeCubicBezierAttr x1 y1 x2 y2 x3 y3 =
 //Sequentially combines list of input attr
 let combineAnyPathAttr (attrList: string List) = 
     attrList |> List.reduce((+))
-    
+
+
+
+
 let makePathFromAttr (attr:string) (pathParameters: Path) =
     path [
             D attr

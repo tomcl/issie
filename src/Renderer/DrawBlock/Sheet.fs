@@ -14,6 +14,9 @@ open DrawModelType.SheetT
 open Optics
 open Operators
 
+// HLP 23 AUTHOR: BRYAN TAN
+open SymbolHelpers
+open SmartHelpers
 
 /// Keep track of HTML "Canvas" element used by Draw Blcok to read and write HTML scroll info.
 /// Set in view function from react hook.
@@ -232,7 +235,38 @@ let inline tryInsideLabelBox  (model: Model) (pos: XYPos) =
     Optic.get symbols_ model
     |> Map.tryPick (fun (sId:ComponentId) (sym:SymbolT.Symbol) ->
         if insideBox pos sym.LabelBoundingBox then Some sym else None)
+
+/// HLP23 AUTHOR: BRYAN TAN
+/// if pos is inside any one of the custom symbol's corners, return the diagonally opposite corner (its position is fixed during resizing), and the index of the corner being held
+let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
+    let radius = 5.0
+    let margin = 2.5
     
+    let insideCircle (pos: XYPos) (circleLocation: XYPos) radius margin: bool =
+        let distance = ((pos.X - circleLocation.X) ** 2.0 + (pos.Y - circleLocation.Y) ** 2.0) ** 0.5
+        distance <= radius + margin
+
+    let tryGetOppositeCorners corners= 
+        match corners with
+        | [||] -> None // should never match
+        | _ -> 
+            Array.tryFindIndex (fun c -> insideCircle pos c radius margin) corners
+            |> function
+                | Some idx -> Some (corners[(idx + 2) % 4], idx)
+                | None -> None
+
+    Optic.get symbols_ model
+    |> Map.tryPick (fun (sId:ComponentId) (sym:SymbolT.Symbol) ->   
+        match sym.Component.Type with
+        | CommonTypes.Custom _ -> 
+            getCustomSymCorners sym
+            |> (translatePoints sym.Pos)
+            |> tryGetOppositeCorners
+            |> function
+                | Some (fp, p) -> Some (sym, fp, p)
+                | _ -> None
+        | _ -> None
+    )
 
 /// return a BB equivalent to input but with (X,Y) = LH Top coord, (X+W,Y+H) = RH bottom coord
 /// note that LH Top is lower end of the two screen coordinates
@@ -518,6 +552,7 @@ let findNearbyComponents (model: Model) (pos: XYPos) (range: float)  =
 let mouseOnPort portList (pos: XYPos) (margin: float) =
     let radius = 5.0
 
+    // TODO: Abstract this out? Also used to detect corners
     let insidePortCircle (pos: XYPos) (portLocation: XYPos): bool =
         let distance = ((pos.X - portLocation.X) ** 2.0 + (pos.Y - portLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
@@ -544,16 +579,18 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
         match mouseOnPort outputPorts pos 2.5 with
         | Some (portId, portLoc) -> OutputPort (portId, portLoc)
         | None ->
-            match tryInsideLabelBox model pos with
-            | Some sym -> 
-                Label sym.Id
+            match tryInsideSymCorner model pos with
+            | Some (sym, fixedCorner, mCorner) -> ComponentCorner (sym.Id, fixedCorner, mCorner)
             | None ->
-                match BusWireUpdate.getClickedWire model.Wire pos (Constants.wireBoundingBoxSize/model.Zoom) with
-                | Some connId -> Connection connId
+                match tryInsideLabelBox model pos with
+                | Some sym -> Label sym.Id
                 | None ->
-                    match insideBoxMap model.BoundingBoxes pos with
-                    | Some compId -> Component compId
-                    | None -> Canvas
+                    match BusWireUpdate.getClickedWire model.Wire pos (Constants.wireBoundingBoxSize/model.Zoom) with
+                    | Some connId -> Connection connId
+                    | None ->
+                        match insideBoxMap model.BoundingBoxes pos with
+                        | Some compId -> Component compId
+                        | None -> Canvas
 
 
 let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =

@@ -78,11 +78,14 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+    // HLP23 AUTHOR: BRYAN TAN
+    type ShowCorners = | ShowAll | DontShow
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
             // are highlighted as circles. This D.U. controls that.
             ShowPorts: ShowPorts
+            ShowCorners: ShowCorners
             // appears not to be used now.
             HighlightLabel: bool
             /// symbol color is determined by symbol selected / not selected, or if there are errors.
@@ -99,6 +102,7 @@ module SymbolT =
 
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
+    let showCorners_ = Lens.create (fun a -> a.ShowCorners) (fun s a -> {a with ShowCorners = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
@@ -240,6 +244,11 @@ module SymbolT =
         /// Taking the input and..
         | MovePort of portId: string * move: XYPos
         | MovePortDone of portId: string * move: XYPos
+        // HLP23 AUTHOR: BRYAN TAN
+        | ShowCustomCorners of compList: ComponentId list
+        | HideCustomCorners of compList: ComponentId list
+        | ResizeSymbol of compId: ComponentId * corner: XYPos * move: XYPos
+        | ResizeSymbolDone of compId: ComponentId * corner: XYPos * move: XYPos
         | SaveSymbols
         | SetTheme of ThemeType
              //------------------------Sheet interface message----------------------------//
@@ -383,6 +392,7 @@ module SheetT =
         | OutputPort of CommonTypes.OutputPortId * XYPos
         | Component of CommonTypes.ComponentId
         | Connection of CommonTypes.ConnectionId
+        | ComponentCorner of CommonTypes.ComponentId * XYPos * int
         | Canvas
 
     /// Keeps track of the current action that the user is doing
@@ -402,6 +412,7 @@ module SheetT =
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
+        | ResizingSymbol of CommonTypes.ComponentId * XYPos
 
     type UndoAction =
         | MoveBackSymbol of CommonTypes.ComponentId List * XYPos
@@ -419,6 +430,8 @@ module SheetT =
         | GrabLabel
         | GrabSymbol
         | Grabbing
+        | ResizeNESW // HLP23 AUTHOR: BRYAN TAN 
+        | ResizeNWSE
     with
         member this.Text() = 
             match this with
@@ -430,8 +443,8 @@ module SheetT =
             | GrabSymbol -> "cell"
             | GrabLabel -> "grab"
             | Grabbing -> "grabbing"
-
-
+            | ResizeNESW -> "nesw-resize"   
+            | ResizeNWSE -> "nwse-resize"
 
     /// For Keyboard messages
     type KeyboardMsg =

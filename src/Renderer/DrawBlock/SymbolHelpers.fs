@@ -39,3 +39,8 @@ let scaleWrtFixed (scale: scaleFactor) (fixedPos: XYPos) (movePos: XYPos) =
     |> (-) fixedPos
     |> scalePoint scale
     |> (+) fixedPos
+
+// get the new XYPos of the symbol after scaling to ensure fixed point is fixed
+let getNewPos fixedPos scaleF sym = 
+    let transform = { x = scaleF.x / (Option.defaultValue 1.0 sym.HScale); y = scaleF.y / (Option.defaultValue 1.0 sym.VScale) }
+    scaleWrtFixed transform fixedPos sym.Pos

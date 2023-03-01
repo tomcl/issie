@@ -767,13 +767,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          |> function
             | Some (s1,s2) ->
                 let bBoxes = model.BoundingBoxes
-                getChannel bBoxes[s1.Id] bBoxes[s2.Id]
+                getOrientedChannel bBoxes[s1.Id] bBoxes[s2.Id]
                 |> function 
                    | None -> 
                         printfn "Symbols are not oriented for a vertical channel"
                         model, Cmd.none
-                   | Some channel ->
-                        {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire}, Cmd.none
+                   | Some (channel, orientation) ->
+                        printfn $"{orientation}"
+                        {model with Wire = SmartChannel.smartChannelRoute orientation channel model.Wire}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   

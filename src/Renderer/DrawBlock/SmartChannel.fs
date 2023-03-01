@@ -33,20 +33,24 @@ let smartChannelRoute
     
     let tl = channel.TopLeft
     let extractWire (wId: ConnectionId): Wire = model.Wires[wId]
+    
     // Sorts all wire IDs so that all the wires through the channel will be separated if possible
-    let sortWires (wireIds: ConnectionId list) =
+    let sortWires7Seg (wires: Wire list) =
+        // Get two XY positions: one at the start of the wire (after the nub and 0 len) and the first bend.
         let wire23Pos =
-            List.map (fun wid -> wid, extractWire wid) wireIds
+            List.map (fun wire -> wire.WId, wire) wires
             |> List.map (fun (wid, w) -> wid, getWireSegmentsXY w)
-            |> List.map (fun (wid, l) -> wid, l[2..3])
+            |> List.map (fun (wid, l) -> wid, l[2..3]) 
         
         let sorted (wire23Pos: (ConnectionId * XYPos list) list) =
             match channelOrientation with
             | Vertical ->
+                // Sort by the vertical positioning of the wire starts
                 wire23Pos
                 |> List.sortByDescending (fun (_: ConnectionId, pos: XYPos list) -> pos[0].Y)
                 |> List.map (fun (wid, pos) -> wid, pos[1].X)
             | Horizontal ->
+                // Sort by the horizontal positioning of the wire starts
                 wire23Pos
                 |> List.sortByDescending (fun (_: ConnectionId, pos: XYPos list) -> pos[0].X)
                 |> List.map (fun (wid, pos) -> wid, pos[1].Y)
@@ -87,7 +91,11 @@ let smartChannelRoute
     
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     
-    getNSegmentWiresInBox 7 channel model
-    |> sortWires
+    let sorted7SegWires =
+        getWiresInBox channel model
+        |> List.filter (fun w -> w.Segments.Length = 7)
+        |> sortWires7Seg
+    
+    sorted7SegWires
     |> moveWires model
     

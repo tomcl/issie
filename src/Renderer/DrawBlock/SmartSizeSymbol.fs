@@ -22,7 +22,29 @@ type ConstantsSmartSize = {
 
 let OffsetSmartSize = {Distance = 50.0}
 
-
+let offsetPorts
+    (wire: ConnectionId * Wire)
+    (orderedPortsResize: (string * XYPos) list)
+    (orderedPortsOther: (string * XYPos) list)
+    (orient: OrientationS option)
+        : XYPos = 
+    let PortOneId = string (snd wire).InputPort
+    let PortTwoId = string (snd wire).OutputPort
+    let TmpOne = 
+        orderedPortsResize 
+        |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
+    let CoordinateOne = TmpOne.Item(0) |> snd
+    let TmpTwo = 
+        orderedPortsOther 
+        |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
+    let CoordinateTwo = TmpTwo.Item(0) |> snd
+    let Coordinates = CoordinateTwo - CoordinateOne
+    match orient with
+    | Some TopBottom ->
+        {X = Coordinates.X; Y = 0.0}
+    | Some LeftRight ->
+        {X = 0.0; Y = Coordinates.Y}
+    | None -> {X = 0.0; Y = 0.0}
 // this function is used purely to return HScale or VScale of a symbol
 let Scale 
     (symbolScale: float option)
@@ -37,13 +59,10 @@ let getPortDist
     (portsOrdereds: (string * XYPos) list)
     (orient: OrientationS option)
         : float option= 
-    
     let ItemOne = portsOrdereds.Item(1)
     let XYPosOne = snd ItemOne
-    printfn "%A" XYPosOne
     let ItemZero = portsOrdereds.Item(0)
     let XYPosZero = snd ItemZero
-    printfn "%A" XYPosZero
     let l = portsOrdereds.Length
     if l = 0 then None
     elif l = 1 then None
@@ -117,12 +136,17 @@ let reSizeSymbol
         | None -> [], []
     printfn "%A" portsOrderedToSize
     printfn "%A" portsOrderedOther
+
     let Dimension = getPortDist portsOrderedToSize Orient, getPortDist portsOrderedOther Orient
     printfn "%A" Dimension
+
     let checker = 
         getCommonWires wModel symbolToSize otherSymbol Orient 
         |> Map.toList
-
+    printfn "%A" checker
+    let checker' = checker.Item(0)
+    let checker'' = offsetPorts checker' portsOrderedToSize portsOrderedOther Orient
+    printfn "%A" checker''
     let ScaleFactor = 
         match Dimension with
         | (x, y) -> (Scale y) / (Scale x)
@@ -135,6 +159,7 @@ let reSizeSymbol
         | Some LeftRight -> 
             {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.VScale)}
         | None -> symbolToSize
+        |> moveSymbol checker''
 
     let wModel' = {wModel with Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}}
     

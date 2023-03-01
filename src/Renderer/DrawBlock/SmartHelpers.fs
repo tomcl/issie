@@ -113,3 +113,88 @@ let updateModelWires
     |> Optic.map wires_ (fun wireMap  ->
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
+
+
+/// This function returns (XYPos * XYPos) list corresponding to the Segment list 
+/// The list of tupled XYPos coordinate, correspond to each segment in the segment list
+/// HLP23: AUTHOR Rahimi
+let getXYPosPairsOfSegments (segments: list<Segment>) (startPos: XYPos) (initialOrientation: Orientation) = 
+        ([], segments)
+        ||> List.fold (fun xyPosPairs segment -> 
+            match xyPosPairs, (initialOrientation), (segment.Index % 2 = 0) with
+                |[], Horizontal, true -> xyPosPairs@[(startPos), ((+) (startPos) {X=segment.Length; Y=0.0})]
+                |[], Vertical, true -> xyPosPairs@[(startPos), ((+) (startPos) {X=0.0; Y=segment.Length})]
+                |_ , Horizontal, true -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
+                                        ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=segment.Length; Y=0.0})]
+                |_ , Vertical, true -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
+                                        ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=0.0; Y=segment.Length})]
+                |_ , Vertical, false -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
+                                        ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=segment.Length; Y=0.0})]
+                |_ , Horizontal, false -> xyPosPairs@[snd(xyPosPairs[xyPosPairs.Length-1]), 
+                                        ((+) (snd(xyPosPairs[xyPosPairs.Length-1])) {X=0.0; Y=segment.Length})])
+
+/// This function returns the minimum and maximum distance of Bounding Box (BB) from the XYPos tuple
+/// The minimum distance is typically leftmost and top-most distance of BB from vertical and horizontal segment respectively
+/// and the maximum distance is typically rightmost and bottom-most distance of BB from vertical and horizontal segment respectively.
+/// The segment correspond to the segment that generate the XYPos tuple, but this can also be used to check the BB exists in some
+/// XYPos tuple coordinates.
+/// HLP23: AUTHOR Rahimi
+let getMinMaxDistOfBBfromXYPosPair (model:Model) (xyPosPair: XYPos * XYPos) =
+    let allBoundingBoxes: Map<ComponentId,BoundingBox> = Symbol.getBoundingBoxes model.Symbol
+    let allLabelBoundingBoxes = Symbol.getLabelBoundingBoxes model.Symbol
+
+    let xyPosPairOrientation = 
+        match xyPosPair with
+        |(A, B) when A.X = B.X -> Vertical
+        |_,_ -> Horizontal
+    
+    let xyPosPairXmin =
+        match xyPosPair with
+        |(A, B) when A.X <= B.X -> A.X
+        |(A, B) -> B.X
+
+    let xyPosPairXmax =
+        match xyPosPair with
+        |(A, B) when A.X <= B.X -> B.X
+        |(A, B) -> A.X
+
+    let xyPosPairYmin =
+        match xyPosPair with
+        |(A, B) when A.Y <= B.Y -> A.Y
+        |(A, B) -> B.Y
+
+    let xyPosPairYmax =
+        match xyPosPair with
+        |(A, B) when A.Y <= B.Y -> B.Y
+        |(A, B) -> A.Y
+
+    let allBBList =
+        allBoundingBoxes
+        |> Map.filter (match xyPosPairOrientation with
+                        |Horizontal -> fun key bb -> 
+                                        (bb.TopLeft.X < xyPosPairXmax) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin) &&
+                                        (bb.TopLeft.Y < xyPosPairYmin) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin)
+                        | Vertical -> fun key bb -> 
+                                        (bb.TopLeft.Y < xyPosPairYmax) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin) &&
+                                        (bb.TopLeft.X < xyPosPairXmin) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin))
+        |> Map.toList
+    
+    let allLabelBBList = 
+        allLabelBoundingBoxes
+        |> Map.filter (match xyPosPairOrientation with
+                        |Horizontal -> fun key bb -> 
+                                        (bb.TopLeft.X < xyPosPairXmax) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin) &&
+                                        (bb.TopLeft.Y < xyPosPairYmin) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin)
+                        | Vertical -> fun key bb -> 
+                                        (bb.TopLeft.Y < xyPosPairYmax) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin) &&
+                                        (bb.TopLeft.X < xyPosPairXmin) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin))
+        |> Map.toList
+    
+    (allBBList @ allLabelBBList)
+    |> List.map (fun (a,b) -> b)
+    |> List.fold (match xyPosPairOrientation with
+                    |Horizontal -> (fun state bb -> match state with 
+                                    |A, B -> ((min A (bb.TopLeft.Y - xyPosPairYmin)), (max B (bb.TopLeft.Y + bb.H - xyPosPairYmin))))
+                    |Vertical  -> (fun state bb -> match state with 
+                                    |A, B -> ((min A (bb.TopLeft.X - xyPosPairXmin)), (max B (bb.TopLeft.X + bb.W - xyPosPairXmin)))))
+                    (0.0,0.0)

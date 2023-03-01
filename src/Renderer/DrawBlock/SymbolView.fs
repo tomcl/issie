@@ -276,8 +276,8 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | NbitSpreader _ ->
                 [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
-            | _ -> 
-                [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
+            | _ -> [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
+                
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
         |> toString 
 

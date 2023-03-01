@@ -238,6 +238,9 @@ let editMenu dispatch' =
                menuSeparator
                makeItem "TestPortReorder" None (fun ev -> sheetDispatch SheetT.Msg.TestPortReorder)
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
+               makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
+               makeElmItem "TestScaleUp"  "CmdorCtrl+U" (fun () -> dispatch SheetT.KeyboardMsg.CtrlU)
+               makeElmItem "TestScaleDown" "CmdorCtrl+I" (fun () -> dispatch SheetT.KeyboardMsg.CtrlI)
                makeItem "TestResize" (Some"CmdOrCtrl+T") (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
 
                

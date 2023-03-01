@@ -637,3 +637,111 @@ let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Mo
     let newEndWire = {wire with OutputPort = OutputPortId endSymbol.Component.OutputPorts[0].Id; Segments = endSegmentList; WId = ConnectionId endWireId} |> autoroute newModel
 
     (unique_labelNb + 1, [newStartWire; newEndWire] |>  updateModelWires newModel)
+
+
+
+///HLP 23: AUTHOR Rzepala
+///this function return common wires between two adjacent symbols
+///for example for the given configuration of two symbols:
+///
+/// ------------
+/// |          |
+/// |          |
+/// |          |        ---------------------------
+/// |          |        |                         |
+/// |          |        |                         |
+/// ------------        |                         |
+///                     |                         |
+///                     ---------------------------
+///
+/// it should return all the wires between the right side of the
+/// left symbol and the left side of the right symbol
+let getCommonWires 
+    (wModel: BusWireT.Model)
+    (symbolToResize: Symbol)
+    (otherSymbol: Symbol)
+    (orient: OrientationS option)
+        : Map<ConnectionId, Wire> =
+    let manageableWires = Map.toList wModel.Wires |> List.map (fun (_, x) -> x)
+
+    match orient with
+    | Some TopBottom ->
+        if symbolToResize.Pos.Y < otherSymbol.Pos.Y then 
+            manageableWires 
+            |> List.filter (fun x -> 
+                (List.contains (string x.InputPort) (Map.find Bottom symbolToResize.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Bottom symbolToResize.PortMaps.Order))
+                && (List.contains (string x.InputPort) (Map.find Top otherSymbol.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Top otherSymbol.PortMaps.Order)))
+            |> List.map (fun c -> (c.WId, c))
+            |> Map.ofList
+        else 
+            manageableWires 
+            |> List.filter (fun x -> 
+                (List.contains (string x.InputPort) (Map.find Top symbolToResize.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Top symbolToResize.PortMaps.Order))
+                && (List.contains (string x.InputPort) (Map.find Bottom otherSymbol.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Bottom otherSymbol.PortMaps.Order)))
+            |> List.map (fun c -> (c.WId, c))
+            |> Map.ofList
+    | Some LeftRight->
+        if symbolToResize.Pos.X > otherSymbol.Pos.X then 
+            manageableWires 
+            |> List.filter (fun x -> 
+                (List.contains (string x.InputPort) (Map.find Left symbolToResize.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Left symbolToResize.PortMaps.Order))
+                && (List.contains (string x.InputPort) (Map.find Right otherSymbol.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Right otherSymbol.PortMaps.Order)))
+            |> List.map (fun c -> (c.WId, c))
+            |> Map.ofList
+        else 
+            manageableWires 
+            |> List.filter (fun x -> 
+                (List.contains (string x.InputPort) (Map.find Right symbolToResize.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Right symbolToResize.PortMaps.Order))
+                && (List.contains (string x.InputPort) (Map.find Left otherSymbol.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Left otherSymbol.PortMaps.Order)))
+            |> List.map (fun c -> (c.WId, c))
+            |> Map.ofList
+    | None -> failwithf "Whatt?"
+
+
+///HLP 23: AUTHOR Rzepala
+/// return all the ports from a given edge of the symbol in order (left->right) or (up->down)
+let getAllPortsFromEdgeOrdered
+    (wModel: BusWireT.Model)
+    (symbol: Symbol)
+    (orient: OrientationS option)
+    (edge: Edge)
+        : (string * XYPos) list =
+    let edgePorts = Map.find edge symbol.PortMaps.Order
+    wModel.Symbol.Ports 
+    |> Map.toList
+    |> List.filter (fun (x, _) -> List.contains x edgePorts)
+    |> List.map (fun (y, x) -> y, (getPortPos symbol x))
+    |> List.sortBy (fun (_, x) -> 
+                        match orient with
+                        | Some TopBottom -> x.X
+                        | Some LeftRight -> x.Y
+                        | None -> failwithf "Whatt?")
+    |> List.map (fun (x, y) -> (x, (y + symbol.Pos)))
+
+///HLP 23: AUTHOR Rzepala
+///this function checks if two straight lines overlap 
+///for example if two horizontal lines, at different or same heights, overlap, that means 
+///we can draw a horizontal lines that will intersect both of them
+let isOverlapped
+    (firstBegin: float)
+    (firstEnd: float)
+    (secondBegin: float)
+    (secondEnd: float)
+        : bool =
+    if firstBegin > secondBegin && firstBegin < secondEnd
+    then true
+    elif firstEnd < secondEnd && firstEnd > secondBegin
+    then true
+    elif secondBegin > firstBegin && secondBegin < firstEnd
+    then true
+    elif secondEnd < firstEnd && secondEnd > firstBegin
+    then true
+    else false

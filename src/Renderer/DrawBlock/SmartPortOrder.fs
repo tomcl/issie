@@ -10,16 +10,7 @@ open Symbol
 open Optics
 open Operators
 
-(* 
-    HLP23: This module will normally be used exclusively by team member doing the "smart port reorder" 
-    part of the individual coding. During group phase work how it is used is up to the
-    group. Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
-
-    Normally it will update multiple wires and symbols in the BusWire model so could use the SmartHelper 
-    functions for this purpose.
-*)
-
+/// HLP23: Indraneel
 
 /// Created my own function that returns an option
 /// in the form of an updated List otherwise None
@@ -94,6 +85,7 @@ let findTranslatedIndex (interWires: list<Wire>) (symbolToOrder: Symbol)
                 -(inputLength - inputMinIndex)
             else
                 let outputMinIndex = findMinIndex otherSymbol outputPortList outputEdge
+                printfn "Diff else: %A" outputMinIndex
                 outputMinIndex
         
         | Top, Top | Top, Left | Right, Bottom ->
@@ -103,12 +95,12 @@ let findTranslatedIndex (interWires: list<Wire>) (symbolToOrder: Symbol)
                 -(inputLength - inputMaxIndex)
             else
                 let outputMaxIndex = findMaxIndex otherSymbol outputPortList outputEdge
+                printfn "Diff else: %A" outputMaxIndex
                 outputMaxIndex
 
         | Bottom, Bottom | Left, Left | Bottom, Left | Left, Bottom ->
                 if inputLength > outputLength then
                     let inputMinIndex = findMinIndex symbolToOrder inputPortList inputEdge
-                    printfn "InputMin: %A" inputMinIndex
                     printfn "Diff input>output: %A" -(inputLength - inputMinIndex)
                     -(inputLength - inputMinIndex)
                 else
@@ -119,9 +111,11 @@ let findTranslatedIndex (interWires: list<Wire>) (symbolToOrder: Symbol)
         | Right, Right | Top, Right | Right, Top ->
             if inputLength > outputLength then
                 let inputMaxIndex = findMaxIndex symbolToOrder inputPortList inputEdge
+                printfn "Diff input>output: %A" -(inputLength - inputMaxIndex)
                 -(inputLength - inputMaxIndex)
             else
                 let outputMinIndex = findMinIndex otherSymbol outputPortList outputEdge
+                printfn "Diff else: %A" outputMinIndex
                 outputMinIndex
 
 /// Gets new input and output port maps that only
@@ -166,16 +160,14 @@ let changeOldPortMaps (symbolToOrder: Symbol) (newPortMapList: list<string>) (ed
                 | None -> [])
             |> List.min
     
-
-    printfn"Min Index: %A length: %A" minIndex newLength
  
-    let sliceList (start:int) (length:int) list =
+    let returnSliceList (start:int) (length:int) list =
         list
         |> Seq.skip start
         |> Seq.take length
         |> List.ofSeq
 
-    let slicedList = sliceList minIndex newLength symbolToOrder.PortMaps.Order[edge]
+    let slicedList = returnSliceList minIndex newLength symbolToOrder.PortMaps.Order[edge]
 
     let newOrderWithRemovedElements = 
         symbolToOrder.PortMaps.Order[edge] 
@@ -209,7 +201,6 @@ let changePortOrder (wModel: BusWireT.Model)
 
     let sModel = wModel.Symbol
 
-    printfn " PortMaps.Order before: %A" symbolToOrder.PortMaps.Order[Bottom]
     printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label} {symbolToOrder.Id }, Other:{otherSymbol.Component.Label}"
 
     let updatedSymbol = 
@@ -284,7 +275,7 @@ type BusWireHelpers = {
     updateSymbolWires: Model -> ComponentId -> Model
     }
 
-
+/// Main Function that is called from issie
 let reOrderPorts 
     (wModel: BusWireT.Model) 
     (symbolToOrder: Symbol) 
@@ -308,7 +299,7 @@ let reOrderPorts
 
     match wiresToOrder.Length with 
     | n when n > 1 ->
-        // we might need to seperate wires so that input edge and output edges are same
+     
         let symbol' = changePortOrder wModel symbolToOrder otherSymbol wiresToOrder
 
         let newModel = 
@@ -316,7 +307,6 @@ let reOrderPorts
                 Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
             }
 
-        printfn " PortMaps.Order after: %A" symbol'.PortMaps.Order[Bottom]
         let wModel' = busWireHelper.updateSymbolWires newModel symbol'.Id
         wModel'
     | _ ->

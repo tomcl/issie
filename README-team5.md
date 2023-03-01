@@ -1,10 +1,9 @@
 ## Contributions to Modules
 
-### **Omar:**
+### **Omar:** SmartWire, BusWireUpdate
 
-### **Indraneel:**
+### **Indraneel:** SmartPortOrder
 
-### **Shaanuka:**  
-SymbolView, Renderer, DrawHelpers, DrawModelType, SmartSizeSymbol, Style.
+### **Shaanuka:** SymbolView, Renderer, DrawHelpers, DrawModelType, SmartSizeSymbol, Style.
 
-### **Ifte:**
+### **Ifte:** SmartSizeSymbol

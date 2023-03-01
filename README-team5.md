@@ -1,10 +1,14 @@
 ## Contributions to Modules
 
-### **Omar (HLP23: Author Omar):** SmartWire, BusWireUpdate 
+### **Omar (HLP23: Author Omar):** 
+SmartWire, BusWireUpdate 
 
-### **Indraneel (HLP23: Author Indraneel):** SmartPortOrder
+### **Indraneel (HLP23: Author Indraneel):** 
+SmartPortOrder
 
-### **Shaanuka (HLP23: Author Shaanuka):** SymbolView, Renderer, DrawHelpers, DrawModelType, SmartSizeSymbol, Style.
+### **Shaanuka (HLP23: Author Shaanuka):** 
+SymbolView, Renderer, DrawHelpers, DrawModelType, SmartSizeSymbol, Style.
 
-### **Ifte (HLP23: Author Ifte):** SmartSizeSymbol
+### **Ifte (HLP23: Author Ifte):** 
+SmartSizeSymbol
 

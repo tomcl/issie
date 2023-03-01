@@ -76,9 +76,6 @@ let reSizeSymbol
     (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
-    // let H,W = getRotatedHAndW symbolToSize
-    // printfn $"hw: {symbolToSize.Component.H}, {symbolToSize.Component.W}"
-    // printfn $"adj: {H}, {W}"
 
     let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
     

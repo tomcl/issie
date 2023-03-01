@@ -14,8 +14,8 @@ open SymbolHelpers
 
 /// HLP23 AUTHOR: BRYAN TAN 
 
-let changeSymbolCorners cornerShow sym = 
-    set (appearance_ >-> showCorners_) cornerShow sym
+let changeSymbolCorners showCorners sym = 
+    set (appearance_ >-> showCorners_) showCorners sym
 
 let hideCompCorners (model: Model) = 
     let resetSymbols =
@@ -40,6 +40,12 @@ let showCompCorners (model: Model) (cornerShow) (compIds: ComponentId list) =
 
     { model with Symbols = newSymbols }
 
+// resize and reposition symbol so that the fixed point is still in the right place
+let reSizePosSym fixedPos scaleF sym =
+    let newPos = getNewPos fixedPos scaleF sym
+    let sym' = {sym with HScale = Some (abs scaleF.x); VScale = Some (abs scaleF.y) }
+    moveSymbol (newPos - sym'.Pos) sym'
+
 type ExternalHelpers =
     { FlipSymbol: FlipType -> Symbol -> Symbol }
 
@@ -62,16 +68,8 @@ let reflectSymbol (helpers: ExternalHelpers) (axis: reflectType) (symbol: Symbol
 let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XYPos) (pos: XYPos) (helpers: ExternalHelpers) = 
     let symbol = model.Symbols[compId]
     
-    let W, H = getRotatedHAndW symbol
-
-    printfn "--------------------"
-    printfn $"Pos: {pos}"
-    // printfn $"Fix: {fixedCornerLoc}"
-    // printfn $"Old: {symbol.Pos}"
-    // printfn $"New: {newPos}"
-
     let reflections =
-        // hack to get the sign of the vector from fixed point to opposite diagonal
+        // hack to get the sign of the vector components from fixed point to opposite diagonal
         // without smallPosOffset diag may have a 0 element which is troublesome
         let smallPosOffset = 0.0001
         let diag = symbol.Pos + {X = smallPosOffset; Y = smallPosOffset} - fixedCornerLoc
@@ -87,27 +85,15 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
         let vR, hR = reflects
         symbol |> tryApply vR |> tryApply hR
 
-    
-    let getNewPos sym = 
-        let hScale = (pos.X - fixedCornerLoc.X) / sym.Component.W
-        let vScale = (pos.Y - fixedCornerLoc.Y) / sym.Component.H
-        let transform = { x = hScale / (Option.defaultValue 1.0 sym.HScale); y = vScale / (Option.defaultValue 1.0 sym.VScale) }
-        scaleWrtFixed transform fixedCornerLoc sym.Pos
-
-    // resize and reposition symbol so that the fixed point is still in the right place
-    let reSizePosSym sym =
-        // {symbol with HScale = Some (abs hScale); VScale = Some (abs vScale) }
-        // |> moveSymbol (newPos - symbol.Pos)
-        let hScale = (pos.X - fixedCornerLoc.X) / sym.Component.W
-        let vScale = (pos.Y - fixedCornerLoc.Y) / sym.Component.H
-        let newPos = getNewPos sym
-        let sym' = {sym with HScale = Some (abs hScale); VScale = Some (abs vScale) }
-        moveSymbol (newPos - sym'.Pos) sym'
+    let scaleFactor = {x = (pos.X - fixedCornerLoc.X) / symbol.Component.W; y = (pos.Y - fixedCornerLoc.Y) / symbol.Component.H }
 
     let newSymbol = 
-        symbol 
-        |> applyReflections reflections
-        |> reSizePosSym
-        |> set (appearance_ >-> showCorners_) ShowAll
+        match scaleFactor with
+        | {x = 0.0} | {y = 0.0} -> symbol
+        | _ ->
+            symbol 
+            |> applyReflections reflections
+            |> reSizePosSym fixedCornerLoc scaleFactor
+            |> set (appearance_ >-> showCorners_) ShowAll
         
     set (symbolOf_ compId) newSymbol model, Cmd.none        

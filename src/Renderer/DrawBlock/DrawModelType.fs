@@ -530,6 +530,7 @@ module SheetT =
         | DebugPause
         | SetDebugDevice of string
         | TestPortReorder
+        | TestSheetReorder
         | TestSmartChannel
         | TestPortPosition
 

@@ -166,9 +166,14 @@ let getSymbolIndex (symbol: Symbol) (portId: string) =
     |> List.findIndex (fun elm -> elm = portId)
 
 
-/// HLP23: Author Omar
-/// discriminated union for the modes of the findSymbol function
-type findSymbolMode = Input| Output
+/// HLP23: Author Indraneel
+/// Returns an option
+/// in the form of an updated List otherwise None
+let tryUpdateAt index value list =
+    if index >= 0 && index < List.length list then
+        Some (List.updateAt index value list)
+    else
+        None
 
 
 /// HLP23: Author Indraneel
@@ -179,6 +184,11 @@ let findSymbolHelper (wModel: BusWireT.Model) (portId: string) =
     wModel.Symbol.Symbols
     |> Map.tryFind (ComponentId inputPortHostId)
 
+    
+
+/// HLP23: Author Omar
+/// discriminated union for the modes of the findSymbol function
+type findSymbolMode = Input| Output
 
 /// HLP23: Author Omar
 /// finds matching symbol in model for given port ids on wire 

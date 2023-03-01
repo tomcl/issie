@@ -179,6 +179,15 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> flipIfNecessary
     |> relativeToTopLeft
 
+//HLP23: Shaanuka
+///Change rendered scale of component's width and height
+let scaleCompSize (comp:Component) scaleX scaleY = 
+    let newComp = {comp with W = comp.W*scaleX; H = comp.H*scaleY}
+    newComp
+
+let getLabelScale = 
+    1. // change to whatever label size scale you want (orignila font size = 16px)
+
 
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------- SYMBOL DRAWING -------------------------------------//
@@ -187,8 +196,7 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 /// Draws component in either new IEEE style with legends or old curved style without legends, returns list of react elements
 /// depending on theme and component
 let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) //HLP23: Shaanuka
-                  w h (symbol:Symbol) transform legendFontSize legendOffset=
-
+                        w h (symbol:Symbol) transform legendFontSize legendOffset=
     match symbolType with 
     |OldSymbols ->  let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
                     match comp.Type with
@@ -353,8 +361,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
 
     let additions =       // Helper function to add certain characteristics on specific symbols (inverter, enables, clocks)
         //HLP23: Shaanuka
-
-        /// text positioins placed in non-coflicting areas for the SplitWire and MergeWire components
+        /// Merged function for SplitWire and MergeWire to place text in set non-coflicting areas then swap positions when rotated
         let splitMergeWireTextPos (comp:Component) = 
             let midX = W/2.
             let midY = H/2.
@@ -466,11 +473,13 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     
 
 
-
+    //HLP23: Shaanuka - change label size by scale factor + offset for mergewire and splitwire labels
     /// to deal with the label
     let addComponentLabel (comp: Component) transform colour = 
+        let scale = getLabelScale
         let weight = Constants.componentLabelStyle.FontWeight // bold or normal
         let style = {Constants.componentLabelStyle with FontWeight = weight}
+        let scaledLabelFontSize = Constants.labelFontSizeInPixels * scale
         let box = symbol.LabelBoundingBox
         let margin = 
             match comp.Type with
@@ -478,16 +487,16 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             | _ -> Constants.componentLabelOffsetDistance
 
         let pos = 
-            //HLP23: Shaanuka
+            
             match comp.Type with 
-            |MergeWires|SplitWire _ -> box.TopLeft - symbol.Pos + {X=margin+5.;Y=margin+5.} + Constants.labelCorrection
-            |_ -> box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
+            |MergeWires|SplitWire _ -> (box.TopLeft - symbol.Pos + {X=margin+5.;Y=margin+5.} + Constants.labelCorrection)
+            |_ -> (box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection)
 
-        let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
+        let text = addStyledText {style with DominantBaseline="hanging"; FontSize = $"{scaledLabelFontSize}px"} (pos) comp.Label
         match Constants.testShowLabelBoundingBoxes, colour with
         | false, "lightgreen" ->
-            let x,y = pos.X - margin*0.8, pos.Y - margin*0.8
-            let w,h = box.W - margin*0.4, box.H - margin * 0.4
+            let x,y = (pos.X - (margin*0.8)), (pos.Y - (margin*0.8))
+            let w,h = (box.W - (margin*0.4))*scale, (box.H - (margin* 0.4) + scaledLabelFontSize/2.)
             let polyStyle = {defaultPolygon with Fill = "lightgreen"; StrokeWidth = "0"}
             let poly = makePolygon $"{x},{y} {x+w},{y} {x+w},{y+h} {x},{y+h}" polyStyle 
             [ poly ; text ]

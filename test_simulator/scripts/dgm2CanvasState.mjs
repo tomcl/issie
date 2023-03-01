@@ -17,6 +17,10 @@ const json2Components = (json) => {
     /{Input1 = \s*\[(\d+);\s*(\d+)\]}/g,
     "Input1($1, Some $2)"
   );
+  result = result.replaceAll(
+    /{Constant1 = \s*\[(\d+);\s*(\d+);\s*(\d+)\]}/g,
+    'Constant1($1, $2, "$3")'
+  );
   result = result.replaceAll(/SymbolInfo = ({.*?}})/gm, "SymbolInfo = Some $1");
   result = result.replaceAll(
     /ReversedInputPorts = (\w+)/g,

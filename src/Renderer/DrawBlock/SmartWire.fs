@@ -40,6 +40,8 @@ let getXYPosPairsOfSegments (segments: list<Segment>) (startPos: XYPos) (initial
 /// Returns the minimum and maximum distance of Bounding Boxes from the XYPos pair
 let getMinMaxDistOfBBfromXYPosPair (model:Model) (xyPosPair: XYPos * XYPos) =
     let allBoundingBoxes: Map<ComponentId,BoundingBox> = Symbol.getBoundingBoxes model.Symbol
+    let allLabelBoundingBoxes = Symbol.getLabelBoundingBoxes model.Symbol
+
     let xyPosPairOrientation = 
         match xyPosPair with
         |(A, B) when A.X = B.X -> Vertical
@@ -65,16 +67,31 @@ let getMinMaxDistOfBBfromXYPosPair (model:Model) (xyPosPair: XYPos * XYPos) =
         |(A, B) when A.Y <= B.Y -> B.Y
         |(A, B) -> A.Y
 
-    allBoundingBoxes
-    |> Map.filter (match xyPosPairOrientation with
-                    |Horizontal -> fun key bb -> 
-                                    (bb.TopLeft.X < xyPosPairXmax) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin) &&
-                                    (bb.TopLeft.Y < xyPosPairYmin) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin)
-                    | Vertical -> fun key bb -> 
-                                    (bb.TopLeft.Y < xyPosPairYmax) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin) &&
-                                    (bb.TopLeft.X < xyPosPairXmin) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin))
+    let allBBList =
+        allBoundingBoxes
+        |> Map.filter (match xyPosPairOrientation with
+                        |Horizontal -> fun key bb -> 
+                                        (bb.TopLeft.X < xyPosPairXmax) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin) &&
+                                        (bb.TopLeft.Y < xyPosPairYmin) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin)
+                        | Vertical -> fun key bb -> 
+                                        (bb.TopLeft.Y < xyPosPairYmax) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin) &&
+                                        (bb.TopLeft.X < xyPosPairXmin) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin))
 
-    |> Map.toList
+        |> Map.toList
+    
+    let allLabelBBList = 
+        allLabelBoundingBoxes
+        |> Map.filter (match xyPosPairOrientation with
+                        |Horizontal -> fun key bb -> 
+                                        (bb.TopLeft.X < xyPosPairXmax) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin) &&
+                                        (bb.TopLeft.Y < xyPosPairYmin) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin)
+                        | Vertical -> fun key bb -> 
+                                        (bb.TopLeft.Y < xyPosPairYmax) && ((bb.TopLeft.Y + bb.H) > xyPosPairYmin) &&
+                                        (bb.TopLeft.X < xyPosPairXmin) && ((bb.TopLeft.X + bb.W) > xyPosPairXmin))
+
+        |> Map.toList
+    
+    (allBBList @ allLabelBBList)
     |> List.map (fun (a,b) -> b)
     |> List.fold (match xyPosPairOrientation with
                     |Horizontal -> (fun state bb -> match state with |A, B -> ((min A (bb.TopLeft.Y - xyPosPairYmin)),   (max B (bb.TopLeft.Y + bb.H - xyPosPairYmin))))
@@ -134,27 +151,26 @@ let getSortedIndexListFromMiddle (listLen:int) =
     sortIndexFromMiddle (listLen-1)
 
 let rec smartRouteSegment model segments startPos initialOrientation limit index =
-    printf $"HERE"
+    // printf $"HERE"
     let MinMaxDistanceOfBBfromXYPosPairs = getMinMaxDistanceOfBBfromXYPosPairs model (getXYPosPairsOfSegments segments startPos initialOrientation)
     let distancePair = MinMaxDistanceOfBBfromXYPosPairs[index]
     let distance = match distancePair with
-                    |(a,b) when abs(a) < abs(b) -> a - 5.
-                    |(a, b) -> b + 5.
+                    |(a,b) when abs(a) < abs(b) -> a - 20.
+                    |(a, b) -> b + 20.
     let segsNeedUpdate = (distancePair <> (0.0,0.0)) && (limit <> 0)
-    printf $"safe: {segsNeedUpdate}, dist: {distance}"
+    // printf $"safe: {segsNeedUpdate}, dist: {distance}"
     match segsNeedUpdate with
     |true -> smartRouteSegment model (updateSegments segments index distance) startPos initialOrientation (limit-1) index 
     |false -> segments
 
-let smartRouteSegments model (segments: Segment list) startPos initialOrientation =
-    // let preSortedIndex = [0..segments.Length-1]
+let smartRouteSegments model (segments: Segment list) startPos initialOrientation: Segment list =
     let preSortedIndex = getSortedIndexListFromMiddle segments.Length
-    // let sortedIndex = preSortedIndex
     let indexOf1 = preSortedIndex |> List.findIndex (fun x -> x = 1)
-    let sortedIndex1 = preSortedIndex |> List.take indexOf1
-    let sortedIndex = sortedIndex1 @ List.rev sortedIndex1
-    (segments, sortedIndex)
-    ||> List.fold (fun segs i -> smartRouteSegment model segs startPos initialOrientation 20 i)  
+    let sortedIndex = preSortedIndex |> List.take indexOf1
+    let preSegments =
+        (segments, (sortedIndex @ List.rev sortedIndex))
+        ||> List.fold (fun segs i -> smartRouteSegment model segs startPos initialOrientation 15 i)  
+    preSegments
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.

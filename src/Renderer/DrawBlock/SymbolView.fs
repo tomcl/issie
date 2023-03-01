@@ -30,7 +30,7 @@ open Symbol
     HLP23: the code here does not use helpers consistently or in all suitable places.
 *)
 
-
+//HLP23: Shaanuka
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
 
 /// Text adding function with many parameters (such as bold, position and text)
@@ -192,7 +192,7 @@ let getLabelScale =
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------- SYMBOL DRAWING -------------------------------------//
 //--------------------------------------------------------------------------------------------//
-
+//HLP23: Shaanuka
 /// Draws component in either new IEEE style with legends or old curved style without legends, returns list of react elements
 /// depending on theme and component
 let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) //HLP23: Shaanuka

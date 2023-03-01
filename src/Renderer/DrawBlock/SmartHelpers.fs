@@ -8,6 +8,7 @@ open DrawModelType.BusWireT
 open Symbol
 open BusWire
 open BusWireUpdateHelpers
+open SymbolHelpers
 
 open Optics
 open Operators
@@ -160,8 +161,15 @@ let getSymbolBoundingBox (model: Model) (componentId: ComponentId) : BoundingBox
         | None -> symbol.Component.W
 
     match symbol.STransform.Rotation with
-    | Degree0 | Degree180 -> { H = symbolHeight; W = symbolWidth; TopLeft = symbol.Pos }
-    | _ -> { H = symbolWidth; W = symbolHeight; TopLeft = symbol.Pos }
+    | Degree0
+    | Degree180 ->
+        { H = symbolHeight
+          W = symbolWidth
+          TopLeft = symbol.Pos }
+    | _ ->
+        { H = symbolWidth
+          W = symbolHeight
+          TopLeft = symbol.Pos }
 
 /// Returns a list of the bounding boxes of all symbols in current sheet.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)
@@ -232,18 +240,31 @@ let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol)
     |> Map.toList
     |> List.map snd
 
+/// Filters Ports by Symbol.
+/// HLP23: AUTHOR dgs119
+let fiterPortBySym (ports: Port list) (symbol: Symbol) =
+    ports |> List.filter (fun port -> ComponentId port.HostId = symbol.Id)
+
+/// Gets Ports From a List of Wires.
+/// HLP23: AUTHOR dgs119
+let getPortsFrmWires (model: BusWireT.Model) (wires: Wire list) =
+    wires
+    |> List.map (fun wire ->
+        [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
+          getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
+    |> List.concat
+
 /// Gets port info from wires that are connected to two given symbols.
 /// HLP23: AUTHOR dgs119
 let getPortsBtwnSyms (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
-    let ports =
-        getConnBtwnSyms model symToOrder otherSym
-        |> List.map (fun wire ->
-            [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
-              getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
-        |> List.concat
+    let ports = getConnBtwnSyms model symToOrder otherSym |> getPortsFrmWires model
 
-    let fiterPortInfoBySym (symbol: Symbol) =
-        ports |> List.filter (fun port -> ComponentId port.HostId = symbol.Id)
+    (fiterPortBySym ports symToOrder, fiterPortBySym ports otherSym)
 
-    (fiterPortInfoBySym symToOrder, fiterPortInfoBySym otherSym)
 
+/// Scales a symbol so it has the provided height and width
+/// HLP23: AUTHOR BRYAN TAN
+let setCustomCompHW (h: float) (w: float) (sym: Symbol) = 
+    let hScale = w / sym.Component.W
+    let vScale = h / sym.Component.H
+    {sym with HScale=Some hScale; VScale=Some vScale}

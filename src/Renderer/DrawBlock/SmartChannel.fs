@@ -12,16 +12,6 @@ open SmartHelpers
 open Optics
 open Operators
 
-(* 
-    HLP23: This module will normally be used exclusively by team member doing the "smart channel route" 
-    part of the individual coding. During group phase work how it is used is up to the
-    group. Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
-
-    Normally it will update multiple wires in the BusWire model so could use the SmartHelper function for
-    this purpose.
-*)
-
 let pipePrint x = 
     printfn "%A" x
     x
@@ -223,7 +213,9 @@ let createShiftedWires (orientation : Orientation) (model : Model) (bounds: Boun
     (([], 1.0), segList)||> List.fold outerSegFolder 
     |> fst 
      
-
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------
+//                                                                           MAIN PIPELINE
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 /// <summary>HLP 23: AUTHOR Klapper - Routes the wires in a nice readable way in a channel, replaces wires with labels if it fails to route them in a neet way</summary>

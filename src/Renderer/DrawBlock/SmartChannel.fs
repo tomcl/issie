@@ -34,9 +34,6 @@ let smartChannelRoute
     let tl = channel.TopLeft
     let extractWire (wId: ConnectionId): Wire = model.Wires[wId]
     
-    // let print_wires = (List.ofSeq (Seq.cast model.Wires.Values))
-    // printfn "All wires segments: %A" (List.map (fun w -> w.Segments.Length) print_wires)
-    
     // Sorts all wire IDs so that all the wires through the channel will be separated if possible
     let sortWires7Seg (wires: Wire list) =
         // Get two XY positions: one at the start of the wire (after the nub and 0 len) and the first bend.

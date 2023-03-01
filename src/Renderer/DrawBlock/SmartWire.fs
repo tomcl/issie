@@ -100,9 +100,11 @@ let getMinMaxDistOfBBfromXYPosPair (model:Model) (xyPosPair: XYPos * XYPos) =
     (allBBList @ allLabelBBList)
     |> List.map (fun (a,b) -> b)
     |> List.fold (match xyPosPairOrientation with
-                    |Horizontal -> (fun state bb -> match state with 
+                    |Horizontal -> (fun state bb -> 
+                                    match state with 
                                     |A, B -> ((min A (bb.TopLeft.Y - xyPosPairYmin)), (max B (bb.TopLeft.Y + bb.H - xyPosPairYmin))))
-                    |Vertical  -> (fun state bb -> match state with 
+                    |Vertical  -> (fun state bb -> 
+                                    match state with 
                                     |A, B -> ((min A (bb.TopLeft.X - xyPosPairXmin)), (max B (bb.TopLeft.X + bb.W - xyPosPairXmin)))))
                     (0.0,0.0)
 
@@ -122,8 +124,9 @@ let getMinMaxDistanceOfBBfromXYPosPairs (model:Model) (xyPosPairs: (XYPos * XYPo
                     | 0 | 1 -> (0.0,0.0)
                     | _ -> el))
 
-/// This function is inspired by manual updateSegments, however it is implemented for autorouting
-let autoUpdateSegments (segments:Segment list) (index: int) (distance:float) = 
+/// This function is inspired by manual moveSegment, however it is implemented for autorouting
+/// It returns Segment list with moved segment
+let autoMoveSegment (segments:Segment list) (index: int) (distance:float) = 
     
         let idx = index
 
@@ -174,7 +177,7 @@ let rec smartRouteSegment1 model segments startPos initialOrientation limit inde
     let segsNeedUpdate = (distancePair <> (0.0,0.0)) && (limit <> 0)
     // printf $"safe: {segsNeedUpdate}, dist: {distance}"
     match segsNeedUpdate with
-    |true -> smartRouteSegment1 model (autoUpdateSegments segments index distance) startPos initialOrientation (limit-1) index 
+    |true -> smartRouteSegment1 model (autoMoveSegment segments index distance) startPos initialOrientation (limit-1) index 
     |false -> segments
 
 let smartRouteSegments1 model (segments: Segment list) startPos initialOrientation: Segment list =
@@ -197,7 +200,7 @@ let rec smartRouteSegment2 model segments startPos initialOrientation limit inde
     let segsNeedUpdate = (distancePair <> (0.0,0.0)) && (limit <> 0)
     // printf $"safe: {segsNeedUpdate}, dist: {distance}"
     match segsNeedUpdate with
-    |true -> smartRouteSegment1 model (autoUpdateSegments segments index distance) startPos initialOrientation (limit-1) index 
+    |true -> smartRouteSegment1 model (autoMoveSegment segments index distance) startPos initialOrientation (limit-1) index 
     |false -> segments
 
 /// This function returns a clean smartrouted segment if possible with priority on longer route
@@ -218,6 +221,7 @@ let smartRouteSegments2 model (segments: Segment list) startPos initialOrientati
 /// This function improves the previous autoroute function
 /// This function identify if the segment produced by the previous function is intersected with Bounding Boxes (BB)
 /// If intersections exist, this function update the segment such that it has the least possible intersection with BB
+/// It works fine for wire connections among components with non-awkward position
 let smartAutoroute (model: Model) (wire: Wire): Wire = 
     let initWire = autoroute model wire
     let segments = initWire.Segments

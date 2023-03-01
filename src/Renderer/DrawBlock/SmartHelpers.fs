@@ -193,8 +193,11 @@ let getMinMaxDistOfBBfromXYPosPair (model:Model) (xyPosPair: XYPos * XYPos) =
     (allBBList @ allLabelBBList)
     |> List.map (fun (a,b) -> b)
     |> List.fold (match xyPosPairOrientation with
-                    |Horizontal -> (fun state bb -> match state with 
+                    |Horizontal -> (fun state bb -> 
+                                    match state with 
                                     |A, B -> ((min A (bb.TopLeft.Y - xyPosPairYmin)), (max B (bb.TopLeft.Y + bb.H - xyPosPairYmin))))
-                    |Vertical  -> (fun state bb -> match state with 
+                    |Vertical  -> (fun state bb -> 
+                                    match state with 
                                     |A, B -> ((min A (bb.TopLeft.X - xyPosPairXmin)), (max B (bb.TopLeft.X + bb.W - xyPosPairXmin)))))
                     (0.0,0.0)
+                    

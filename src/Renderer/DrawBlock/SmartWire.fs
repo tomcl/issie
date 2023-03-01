@@ -31,6 +31,12 @@ open System
 *)
 
 
+/// discriminated union for return type of the smart autoroute and other SmartWire functions
+type SmartAutorouteResult =
+    | ModelT of Model
+    | WireT of Wire
+
+
 /// determines if wire is connected from and to the same symbol
 let isSelfConnected (model: Model) (wire: Wire) : bool = 
     let inputSymbol = findSymbol model wire Input |> Option.get
@@ -56,7 +62,10 @@ let huggingDistance (model: Model) (wire: Wire) (symbol: Symbol) : float * float
         | _ -> 0.0, 0.0
 
 
-/// route wire connected across same symbol
+/// route wire connected across same symbol to be able to hug the symbol
+/// wires are spaced out based on the net they are connected to
+/// hugging of same-net wires is only implemented for wires connected across the same symbol
+/// because the wires most often become hard to read when they are connected across the same symbol
 let sameSymbolRouting (model: Model) (wire: Wire) : Wire = 
     let symbol = findSymbol model wire Output
     let symbolFound = symbol |> Option.get
@@ -191,7 +200,7 @@ let genWireLabelName : string =
 
 
 /// creates wire labels near two symbols
-let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutorouteResult = 
+let generateWireLabels (model: Model) (wire: Wire) : SmartAutorouteResult = 
     let inputPort = wire.InputPort
     let outputPort = wire.OutputPort
 
@@ -291,16 +300,10 @@ let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
     | _ -> None
 
 
-/// replaces wire with wire labels  - FIXME: FIX SO THAT IT WORKS WHEN MOVING SYMBOLS AROUND   
-let replaceWithWireLabels (model: Model) (wire: Wire) (symbol: Symbol Option) : SmartAutorouteResult =
+/// replaces wire with wire labels 
+let replaceWithWireLabels (model: Model) (wire: Wire) : SmartAutorouteResult =
     let newWireMap = deleteWire model wire
-    match newWireMap with
-    | ModelT m -> 
-        let foundsymbol = symbol |> Option.get
-        generateWireLabels m wire foundsymbol
-    | _ -> 
-        printfn "error" 
-        WireT wire
+    generateWireLabels newWireMap wire
 
 
 /// returns left, middle, and right conditions for symbol intersection with wire
@@ -442,7 +445,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                 
                 if (List.length symbolInWay > 3) && (wire.Segments[4].Length > 300.0) then 
                     // if there are more than 3 symbols in the way of the wire and the wire is long enough - replace wire with wire labels
-                    replaceWithWireLabels model wire symbol
+                    replaceWithWireLabels model wire
 
                 else 
                     let newWire = adjustWireSegments wire symbolInWay
@@ -456,8 +459,14 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
 let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =     
     let symbol = findSymbol model wire Output
     let autoWire = autoroute model wire
-    let wireLength = autoWire.Segments[4].Length
+    let segListLength = autoWire.Segments |> List.length
 
-    match wireLength with
-    | l when l > 500.0 -> replaceWithWireLabels model wire symbol
-    | _ -> routeAroundSymbol model autoWire symbol
+    if segListLength < 4 then
+        // 2 segment wire - no need to route around symbols
+        WireT autoWire
+    else
+        let wireLength = autoWire.Segments[4].Length
+        // printfn "wire segment info %A" autoWire.Segments
+        match wireLength with
+        | l when l > 500.0 -> replaceWithWireLabels model wire
+        | _ -> routeAroundSymbol model autoWire symbol

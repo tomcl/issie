@@ -61,13 +61,15 @@ let smartChannelRoute
         |> Map.toList
         |> List.partition wireInChannelPredicate 
 
+    //List of wires in channel sorted by X coord of starting pos
     let channelWiresList = 
         fst allWiresList
         |> List.sortBy (fun (x,y) -> y.StartPos.X)
 
+    //Calculates current deviation of each wire's mid segment from desired position, then calls moveSegment to correct it
     let shiftedWiresList =
-        match channelOrientation with 
 
+        match channelOrientation with 
         | Vertical -> 
             //Setup desired wire positions
             let wireSpacing = 0.8*channel.W/(float channelWiresList.Length)
@@ -77,14 +79,10 @@ let smartChannelRoute
 
 
             channelWiresList
-            |> List.map (fun (cid,wire) -> getAbsoluteSegmentPos wire 3) //gives absoulte pos of each mid wire segment
-            |> List.map (fun x -> (fst x).X) //extract X coord of middle segment
-
+            |> List.map (fun (cid,wire) -> getAbsoluteSegmentPos wire 3)
+            |> List.map (fun x -> (fst x).X)
             |> List.map2 (fun autoPosX absPos  -> autoPosX - absPos) spacedWirePos //list of adjustments
             |> List.map2 (fun (cid,wire) adj -> (cid, moveSegment model wire.Segments[3] adj)) channelWiresList
-
-
-
 
         | Horizontal -> 
             let wireSpacing = 0.8*channel.H/(float channelWiresList.Length)
@@ -93,10 +91,8 @@ let smartChannelRoute
                 |> List.map (fun i -> tl.Y  + float(i) * wireSpacing)
 
             channelWiresList
-            |> List.map (fun (cid,wire) -> getAbsoluteSegmentPos wire 4) //gives absoulte pos of each mid wire segment
-            //|> List.map (fun x -> printf $"{x}  ")
-            |> List.map (fun x -> (fst x).Y) //extract Y coord of middle segment - which we will use to calculate the correction needed
-
+            |> List.map (fun (cid,wire) -> getAbsoluteSegmentPos wire 4)
+            |> List.map (fun x -> (fst x).Y)
             |> List.map2 (fun autoPosY absPos  -> autoPosY - absPos) spacedWirePos //list of adjustments
             |> List.map2 (fun (cid,wire) adj -> (cid, moveSegment model wire.Segments[4] adj)) channelWiresList
 

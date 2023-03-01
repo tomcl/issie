@@ -623,7 +623,6 @@ let mMoveUpdate
                 | Connection _ -> GrabWire
                 | Component _ -> GrabSymbol
                 | ComponentCorner (_,_,idx) when ctrlPressed -> 
-                    printfn "bruh"
                     match (idx % 2) with
                     | 0 -> ResizeNWSE
                     | _ -> ResizeNESW

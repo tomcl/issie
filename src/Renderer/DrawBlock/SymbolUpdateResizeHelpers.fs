@@ -86,8 +86,12 @@ let reflectSymbol (helpers: ExternalHelpers) (axis: reflectType) (symbol: Symbol
 
 /// Resize a custom component based on current mouse location
 let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XYPos) (pos: XYPos) (helpers: ExternalHelpers) = 
-    
     let symbol = model.Symbols[compId]
+    
+    // let pos = 
+    //     let tmp = (getCustomSymCorners symbol |> translatePoints symbol.Pos)[2]
+    //     {tmp with X = tmp.X - 2.0 * symbol.Component.W}
+
     let hScale = (pos.X - fixedCornerLoc.X) / symbol.Component.W
     let vScale = (pos.Y - fixedCornerLoc.Y) / symbol.Component.H
 
@@ -139,7 +143,8 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
     let newSymbol =
         {symbol with HScale = Some (abs hScale); VScale = Some (abs vScale) }
         |> moveSymbol (newPos - symbol.Pos)
-        |> applyReflections reflections
+        // |> applyReflections reflections
+        // |> reflectSym (XHorizontal fixedCornerLoc.X) 
         |> set (appearance_ >-> showCorners_) ShowAll
         
 

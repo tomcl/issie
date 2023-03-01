@@ -77,7 +77,6 @@ let reSizeSymbol
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 
-    let sModel = wModel.Symbol
     let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
     
     let getPortAB wireSyms =
@@ -103,7 +102,6 @@ let reSizeSymbol
     let resizePort, otherPort = twoPorts
     let resizePortInfo = makePortInfo symbolToSize resizePort
     let otherPortInfo = makePortInfo otherSymbol otherPort
-    printfn $"GAP: {otherPortInfo.portGap}"
 
     let h, w = 
         match resizePortInfo.side with

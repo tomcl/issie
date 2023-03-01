@@ -392,7 +392,7 @@ let mDragUpdate
             match model.Action with
             | MovingLabel _ -> Grabbing
             | MovingSymbols _ -> ClickablePort
-            // | ResizingSymbol _ -> GrabWire
+            | ResizingSymbol _ -> GrabWire
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
     match model.Action with
@@ -581,6 +581,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         {model with Action = Idle},
         Cmd.batch [
             symbolCmd (SymbolT.ResizeSymbolDone (compId, fixedCornerLoc, mMsg.Pos))
+            Cmd.ofMsg UpdateBoundingBoxes
             wireCmd (BusWireT.UpdateSymbolWires compId);]
     | _ -> model, Cmd.none
 

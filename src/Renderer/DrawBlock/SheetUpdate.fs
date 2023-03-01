@@ -814,9 +814,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 model, Cmd.none
     
     | KeyPress CtrlT ->
-        //Added test code to test multiple components
+        // Added test code to test multiple components
         // Must select 2 or more componenets for it to work
-        //HLP23: AUTHOR: Khoury
+        //HLP23 AUTHOR: Khoury
          validateMultipleSelectedSymbols model
          |> function
             | Some s -> 

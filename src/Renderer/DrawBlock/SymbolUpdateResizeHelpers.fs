@@ -61,17 +61,14 @@ let reflectSymbol (helpers: ExternalHelpers) (axis: reflectType) (symbol: Symbol
 /// Resize a custom component based on current mouse location
 let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XYPos) (pos: XYPos) (helpers: ExternalHelpers) = 
     let symbol = model.Symbols[compId]
+    
+    let W, H = getRotatedHAndW symbol
 
-    let hScale = (pos.X - fixedCornerLoc.X) / symbol.Component.W
-    let vScale = (pos.Y - fixedCornerLoc.Y) / symbol.Component.H
-
-    let newPos = 
-        let transform = { x = hScale / (Option.defaultValue 1.0 symbol.HScale); y = vScale / (Option.defaultValue 1.0 symbol.VScale) }
-        scaleWrtFixed transform fixedCornerLoc symbol.Pos
-
-    let testPos = 
-        let transform = { x = hScale / (Option.defaultValue 1.0 symbol.HScale); y = vScale / (Option.defaultValue 1.0 symbol.VScale) }
-        scaleWrtFixed transform fixedCornerLoc symbol.Pos
+    printfn "--------------------"
+    printfn $"Pos: {pos}"
+    // printfn $"Fix: {fixedCornerLoc}"
+    // printfn $"Old: {symbol.Pos}"
+    // printfn $"New: {newPos}"
 
     let reflections =
         // hack to get the sign of the vector from fixed point to opposite diagonal
@@ -90,10 +87,27 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
         let vR, hR = reflects
         symbol |> tryApply vR |> tryApply hR
 
-    let newSymbol =
-        {symbol with HScale = Some (abs hScale); VScale = Some (abs vScale) }
-        |> moveSymbol (newPos - symbol.Pos)
+    
+    let getNewPos sym = 
+        let hScale = (pos.X - fixedCornerLoc.X) / sym.Component.W
+        let vScale = (pos.Y - fixedCornerLoc.Y) / sym.Component.H
+        let transform = { x = hScale / (Option.defaultValue 1.0 sym.HScale); y = vScale / (Option.defaultValue 1.0 sym.VScale) }
+        scaleWrtFixed transform fixedCornerLoc sym.Pos
+
+    // resize and reposition symbol so that the fixed point is still in the right place
+    let reSizePosSym sym =
+        // {symbol with HScale = Some (abs hScale); VScale = Some (abs vScale) }
+        // |> moveSymbol (newPos - symbol.Pos)
+        let hScale = (pos.X - fixedCornerLoc.X) / sym.Component.W
+        let vScale = (pos.Y - fixedCornerLoc.Y) / sym.Component.H
+        let newPos = getNewPos sym
+        let sym' = {sym with HScale = Some (abs hScale); VScale = Some (abs vScale) }
+        moveSymbol (newPos - sym'.Pos) sym'
+
+    let newSymbol = 
+        symbol 
         |> applyReflections reflections
+        |> reSizePosSym
         |> set (appearance_ >-> showCorners_) ShowAll
         
     set (symbolOf_ compId) newSymbol model, Cmd.none        

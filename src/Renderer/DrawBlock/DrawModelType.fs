@@ -11,6 +11,9 @@ open Node.ChildProcess
 
 //--------------------------COMMON TYPES------------------------------//
 
+type WhichDimension = Widths | Heights
+//This type is used to infer whether two symbols are next to each other or one above another
+type OrientationS = TopBottom | LeftRight
 /// Static 1D data defining position range within which the currently moved thing will "snap"
 /// to fixed point (Snap).
 type SnapData = {
@@ -59,6 +62,11 @@ module SymbolT =
     type FlipType =  FlipHorizontal | FlipVertical
     type RotationType = RotateClockwise | RotateAntiClockwise
 
+    //Used in scaling in SmartRotate
+    //HLP23: AUTHOR Ismagilov
+    type ScaleType = ScaleUp | ScaleDown
+
+
     /// Wraps around the input and output port id types
     type PortId = | InputId of InputPortId | OutputId of OutputPortId
 
@@ -78,6 +86,12 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+    //Used for SmartRender
+    //HLP23: AUTHOR Ismagilov
+    type StyleType = 
+        |Rectangular
+        |Distinctive
+
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
@@ -89,6 +103,10 @@ module SymbolT =
             Colour: string
             /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
+
+            //HLP23: AUTHOR Ismagilov
+            Style: StyleType
+
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -97,13 +115,13 @@ module SymbolT =
         |Light
         |Colourful
 
+   
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
-
-
+ 
     /// Represents a symbol, that contains a component and all the other information needed to render it
     type Symbol =
         {
@@ -200,6 +218,10 @@ module SymbolT =
         OutputPortsConnected: Map<OutputPortId, int>
 
         Theme: ThemeType
+
+        //HLP23: AUTHOR Ismagilov
+        Style: StyleType
+
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -372,7 +394,7 @@ module SheetT =
         Pos: XYPos
         Move: XYPos
         }
-
+    
     let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
     let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
 
@@ -435,7 +457,8 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlR | CtrlT | CtrlU | CtrlI
+
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -529,6 +552,11 @@ module SheetT =
         | TestPortReorder
         | TestSmartChannel
         | TestPortPosition
+        | TestScaleUp
+        | TestPortReorder2
+        | TestScaleDown
+        | SetStyle of SymbolT.StyleType //HLP23: AUTHOR Ismagilov
+
 
 
     type ReadLog = | ReadLog of int

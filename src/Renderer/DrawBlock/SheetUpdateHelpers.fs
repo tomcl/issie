@@ -263,6 +263,7 @@ let mDownUpdate
             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
                         wireCmd (BusWireT.SelectWires model.SelectedWires)
                         wireCmd (BusWireT.ResetJumps [])]
+            
     | _ ->
         match (mouseOn model mMsg.Pos) with
         | Canvas when mMsg.ShiftKeyDown ->
@@ -386,6 +387,7 @@ let mDragUpdate
             | MovingSymbols _ -> CursorType.ClickablePort
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
+
     match model.Action with
     | MovingWire segId -> 
         snapWire model mMsg segId 
@@ -630,6 +632,19 @@ let validateTwoSelectedSymbols (model:Model) =
         | syms -> 
             printfn $"Can't test because number of selected symbols ({syms.Length}) is not 2"
             None
+
+let validateMultipleSelectedSymbols (model:Model) =
+    match model.SelectedComponents with
+        | lst when lst.Length > 1 -> 
+            let symbols = model.Wire.Symbol.Symbols
+            let getSym sId = 
+                Map.tryFind sId symbols
+            let syms = lst |> List.map getSym |> List.filter (fun x -> x <> None) |> List.map (fun x -> x.Value)
+            printfn $"Testing with {syms.Length} symbols"
+            Some syms
+        | _ -> printfn "Error less than two components selected"
+               None
+     
 
 /// Geometric helper used for testing. Probably needs a better name, and to be collected with other
 /// This should perhaps be generalised for all orientations and made a helper function.

@@ -186,6 +186,15 @@ let viewMenu dispatch =
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
             )
         ]
+        makeMenu false "Style" [
+            makeItem "Rectangular" None (fun ev -> 
+                //call sheetT.Msg.SetStyle
+                sheetDispatch (SheetT.SetStyle SymbolT.StyleType.Rectangular)
+            )
+            makeItem "Distinctive" None (fun ev -> 
+                sheetDispatch (SheetT.Msg.SetStyle SymbolT.StyleType.Distinctive)
+            )
+        ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
         makeMenu false "Wire Type" [
             makeItem "Jump wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
@@ -236,9 +245,13 @@ let editMenu dispatch' =
                makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
                makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
                menuSeparator
-               makeItem "TestPortReorder" None (fun ev -> sheetDispatch SheetT.Msg.TestPortReorder)
+               makeElmItem "TestPortReorder" "CmdOrCtrl+R" (fun () -> dispatch SheetT.KeyboardMsg.CtrlR)
+               makeElmItem "TestPortReorder2" "CmdOrCtrl+T" (fun () -> dispatch SheetT.KeyboardMsg.CtrlT)
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
+               makeElmItem "TestScaleUp"  "CmdorCtrl+U" (fun () -> dispatch SheetT.KeyboardMsg.CtrlU)
+               makeElmItem "TestScaleDown" "CmdorCtrl+I" (fun () -> dispatch SheetT.KeyboardMsg.CtrlI)
+               makeItem "TestResize" (Some"CmdOrCtrl+E") (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
 
                
             |]

@@ -561,4 +561,7 @@ let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: Commo
    |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox box1 && inputId <> sId)
    |> Map.isEmpty
 
-
+let notIntersectingSelectedComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
+   model.BoundingBoxes |> Map.filter (fun sId _ -> List.contains sId model.SelectedComponents)
+   |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox box1 && inputId <> sId)
+   |> Map.isEmpty

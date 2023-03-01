@@ -1,5 +1,4 @@
 ﻿module SmartPortOrder
-open System
 open BusWireUpdateHelpers
 open CommonTypes
 open DrawModelType
@@ -7,7 +6,6 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open Optics
 open Operators
-open BusWireUpdate
 
 (* 
     HLP23: This module will normally be used exclusively by team member doing the "smart port reorder" 
@@ -28,22 +26,27 @@ open BusWireUpdate
 let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: Symbol): BusWireT.Model =
     // gets the symbol model used for symbol manipulation
     let sModel = wModel.Symbol
-    
+    printfn $"symbolToOrder.Component.InputPorts.Id: {symbolToOrder.Component.InputPorts |> List.map (fun x -> x.Id)}"
+     
     // gets the list of wires connected between the two selected components
     let wiresToOrder =
         [ [symbolToOrder.Id]; [otherSymbol.Id] ]
         |> List.map (getConnectedWires wModel)
         |> (fun lst -> Set.intersect ((List.head lst) |> Set) ((List.head (List.tail lst)) |> Set))
         |> Set.toList
-
+  
     // uses the list of wires to determine a list of connected port ids
     let portConnections =
         wiresToOrder
         |> List.map (fun x -> (x.OutputPort, x.InputPort))
         |> List.map (fun (outputId, inputId) -> (outputId.ToString(), inputId.ToString()))
-    
+        
+    let AtoBCheck: bool =
+        let outputIds = otherSymbol.Component.OutputPorts |> List.map (fun x -> x.Id)
+        portConnections |> List.forall (fun (x, _) -> List.contains x outputIds)
+
     let symbolAPortMap =
-        match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+        match AtoBCheck with
             | true -> otherSymbol.Component.OutputPorts
                     |> List.map (fun port -> (port.Id, port.PortNumber |> Option.defaultValue 0))
                     |> Map.ofList
@@ -52,7 +55,7 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
                     |> Map.ofList
         
     let symbolBPortMap =
-        match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+        match AtoBCheck with
             | true -> symbolToOrder.Component.InputPorts
                     |> List.map (fun port -> (port.Id, port.PortNumber |> Option.defaultValue 0))
                     |> Map.ofList
@@ -86,22 +89,22 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
             
         let generalList =
             map1'
-            |> Seq.map (fun kvp1 ->
-                match List.tryFind (fun (id1, id2) -> id2 = kvp1.Key) (reverseTuple connections) with
-                | Some (id1, id2) ->
+            |> Seq.map (fun x ->
+                match List.tryFind (fun (_, id2) -> id2 = x.Key) (reverseTuple connections) with
+                | Some (id1, _) ->
                     match map2.TryFind(id1) with
-                    | Some (int2) -> (kvp1.Value, Some(int2))
-                    | None -> (kvp1.Value, None)
-                | None -> (kvp1.Value, None))
+                    | Some (int2) -> (x.Value, Some(int2))
+                    | None -> (x.Value, None)
+                | None -> (x.Value, None))
             |> List.ofSeq
             |> List.sortBy fst
 
-        match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+        match AtoBCheck with
             | true -> List.sortByDescending fst generalList
             | false -> sortList generalList
 
 
-    let connectedNumbers = match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+    let connectedNumbers = match AtoBCheck with
                                 | true -> getConnectedNumbers symbolAPortMap symbolBPortMap portConnections
                                 | false -> getConnectedNumbers symbolBPortMap symbolAPortMap portConnections
    
@@ -116,19 +119,19 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
                 not (List.exists (fun (_, index) -> index = Some i) connections)) 
             |> List.map snd
             
-        match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+        match AtoBCheck with
                 | true -> match portIds.Length with
-                        | 0 -> portIds
-                        | _ -> List.map (fun (_,index) -> match index with
-                                                            | Some int -> portIds.[int]
-                                                            | None -> filteredList[0]) connections
+                            | 0 -> portIds
+                            | _ -> List.map (fun (_,index) -> match index with
+                                                                | Some int -> portIds.[int]
+                                                                | None -> filteredList[0]) connections
                 | false -> match portIds.Length with
-                        | 0 -> portIds
-                        | _ -> List.map (fun (index,_) -> portIds[index]) connections  
+                            | 0 -> portIds
+                            | _ -> List.map (fun (index,_) -> portIds[index]) connections  
       
     // updates the corresponding area of the portMap      
     let updatedMapOrder =
-        match symbolToOrder.Pos.X > otherSymbol.Pos.X with
+        match AtoBCheck with
             | true -> let portMap =  Map.find Left symbolToOrder.PortMaps.Order
                       let reorderedList = reorderList portMap connectedNumbers
                       symbolToOrder.PortMaps.Order |> Map.add Left reorderedList

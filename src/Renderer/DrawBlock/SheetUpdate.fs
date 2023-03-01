@@ -757,6 +757,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
+                /// HLP23: AUTHOR dgs119
                 let helpers =
                     { SmartPortOrder.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
                 {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 helpers}, Cmd.none

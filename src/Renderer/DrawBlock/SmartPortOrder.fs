@@ -40,11 +40,13 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
         wiresToOrder
         |> List.map (fun x -> (x.OutputPort, x.InputPort))
         |> List.map (fun (outputId, inputId) -> (outputId.ToString(), inputId.ToString()))
-        
+    
+    // check which of the two selected symbols is input and which is output
     let AtoBCheck: bool =
         let outputIds = otherSymbol.Component.OutputPorts |> List.map (fun x -> x.Id)
         portConnections |> List.forall (fun (x, _) -> List.contains x outputIds)
 
+    // generates symbol map for each component
     let symbolAPortMap =
         match AtoBCheck with
             | true -> otherSymbol.Component.OutputPorts
@@ -103,7 +105,7 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
             | true -> List.sortByDescending fst generalList
             | false -> sortList generalList
 
-
+    // gets port connections
     let connectedNumbers = match AtoBCheck with
                                 | true -> getConnectedNumbers symbolAPortMap symbolBPortMap portConnections
                                 | false -> getConnectedNumbers symbolBPortMap symbolAPortMap portConnections
@@ -112,22 +114,30 @@ let reOrderPorts (wModel: BusWireT.Model) (symbolToOrder: Symbol) (otherSymbol: 
     
     // reorders the ports based on the existing port order and the port connections
     let reorderList (portIds: string list) (connections: (int*int option) list) =
+
         let filteredList = 
             portIds 
             |> List.mapi (fun i x -> (i, x)) 
             |> List.filter (fun (i, _) -> 
                 not (List.exists (fun (_, index) -> index = Some i) connections)) 
             |> List.map snd
-            
+
+        let mutable filteredIndex = 0
+
         match AtoBCheck with
-                | true -> match portIds.Length with
-                            | 0 -> portIds
-                            | _ -> List.map (fun (_,index) -> match index with
-                                                                | Some int -> portIds.[int]
-                                                                | None -> filteredList[0]) connections
-                | false -> match portIds.Length with
-                            | 0 -> portIds
-                            | _ -> List.map (fun (index,_) -> portIds[index]) connections  
+        | true -> match portIds.Length with
+                  | 0 -> portIds
+                  | _ -> List.map (fun (_,index) -> match index with
+                                                        | Some int -> portIds.[int]
+                                                        | None -> 
+                                                            let filtered = filteredList.[filteredIndex]
+                                                            filteredIndex <- filteredIndex + 1
+                                                            filtered
+                                                    ) connections
+        | false -> match portIds.Length with
+                   | 0 -> portIds
+                   | _ -> List.map (fun (index,_) -> portIds[index]) connections
+ 
       
     // updates the corresponding area of the portMap      
     let updatedMapOrder =

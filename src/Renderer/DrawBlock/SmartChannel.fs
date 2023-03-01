@@ -54,10 +54,10 @@ let selectSegmentsIntersectingBoundingBox (bounds: BoundingBox) (wires: List<Wir
 //Originates : The wire originitas from the channel
 //Terminates : The wire terminates in the channel
 //StraightCross: The wire crosses the channel sideways originating from and terminating in the channel, while being straight
-//HarryPotter : The wire crosses the channel vertically while making a 'HarryPotter' shape
+//NShape : The wire crosses the channel vertically while making a '-, shape
 //LShape : The wire enters the channel sideways then takes a turn and leaves vertically
 //TooDifficult: Any other wire types which are too difficult too route in a readable sense
-type ChannelRelation = PassThrough | ZigZagCross | Originates | Terminates | StraightCross | HarryPotter | LShape | TooDifficult 
+type ChannelRelation = PassThrough | ZigZagCross | Originates | Terminates | StraightCross | NShape | LShape | TooDifficult 
 
 //Helper function to further categorise wire, which are fully contained within the channel
 let process7Segment (seg: Segment) =
@@ -73,7 +73,7 @@ let categoriseWireSegments (model:Model ) (bounds: BoundingBox) (segList : List<
         | 1 when segments[0].Index = 3 -> Some (segments[0],PassThrough)
         | 1 -> Some (segments[0], StraightCross)
         | 2 -> Some (getMiddleSegment model segments[0].WireId, LShape)
-        | 3 -> if segments[1].Length <> 0 then Some (segments[0], HarryPotter) else Some (segments[0], StraightCross)
+        | 3 -> if segments[1].Length <> 0 then Some (segments[0], NShape) else Some (segments[0], StraightCross)
         | 4 when isWireConnectedOnLeft model bounds segments[0].WireId -> Some (getMiddleSegment model segments[0].WireId , Originates)
         | 4 -> Some(getMiddleSegment model segments[0].WireId, Terminates )
         | 5 -> Some (getMiddleSegment model segments[0].WireId ,ZigZagCross)
@@ -125,8 +125,8 @@ let sortUpDown (model : Model) (orientation : Orientation) (segs : List<Segment*
         |> List.map snd
     downList @ upLst
 
-//Specialised helper function to return the vertical segments of a HarryPotter wire
-let createHarryPair (model : Model) (segment : Segment, posTuple) =
+//Specialised helper function to return the vertical segments of a NShape wire
+let createNShapePair (model : Model) (segment : Segment, posTuple) =
     match segment.Length with 
     | x when  x >= 0.0 -> ((getSegmentFromId model (segment.Index - 1, segment.WireId),
                             getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)),
@@ -146,17 +146,18 @@ let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<
     let segList =
         lst
         |> List.map (fun (segment, orient) -> (segment, getAbsoluteSegmentPos model.Wires[segment.WireId] segment.Index), orient)
-    let leftHarry, rightHarry =
+    let leftNList, rightNList =
         segList
-        |> List.filter (fun element -> snd element = HarryPotter)
+        |> List.filter (fun element -> snd element = NShape)
         |> List.map fst
-        |> List.map (createHarryPair model)
+        |> List.map (createNShapePair model)
         |> List.unzip
+        |> (fun (a , b) -> sortUpDown model orientation a, sortUpDown model orientation b)
     let ZiggZaggList =
         segList
         |> List.filter (fun element -> snd element = ZigZagCross)
         |> List.map fst
-        
+        |> sortUpDown model orientation
     let PassThroughList = 
         segList 
         |> List.filter (fun element -> snd element = PassThrough) 
@@ -171,14 +172,14 @@ let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<
         segList 
         |> List.filter (fun element -> snd element = Terminates) 
         |> List.map fst
-       
+        |> sortUpDown model orientation
     let LList =
         segList 
         |> List.filter (fun element -> snd element = LShape) 
         |> List.map fst
         |> sortUpDown model orientation
     let TooDifficult = lst |> List.filter (fun element -> snd element = TooDifficult) |> List.map fst
-    (leftHarry|> sortUpDown model orientation) @ OriginateList @ PassThroughList  @ LList @ (ZiggZaggList  @ TerminatesList |> sortUpDown model orientation) @ (rightHarry|> sortUpDown model orientation), TooDifficult
+    leftNList @ OriginateList @ PassThroughList  @ LList @ ZiggZaggList  @ TerminatesList @ rightNList, TooDifficult
     
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -12,10 +12,9 @@ open SmartHelpers
 open Optics
 open Operators
 
-let pipePrint x = 
-    printfn "%A" x
-    x
-
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------
+//                                                                      HLP23: AUTHOR Klapper
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -240,7 +239,6 @@ let rec smartChannelRoute
         |> List.filter (fun element -> not(isWireConnectedToLabel model element))
         |> selectSegmentsIntersectingBoundingBox correctBounds
         |> categoriseWireSegments model correctBounds
-        |> pipePrint
         |> generateChannelOrder channelOrientation model 
     let moreDiffictultWires ,wireListToModify =
         sortedWires

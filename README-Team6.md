@@ -19,5 +19,5 @@ Rhea Khoury's work:
 * Added SmartHelper functions 
 * Full Smart port Reorder (works for all edges of two components)
 * Implemented MUX flipping (Added some of these functions in Smart Helpers)
-* Implemented smart port Reorder for multiple components (Added an ectra test for that) (Second half of SmartPortReorder.fs)
+* Implemented smart port Reorder for multiple components (Added an extra test for that) (Second half of SmartPortReorder.fs)
 * Added keyboard shortcuts for test in Renderer.fs and Sheet Update.

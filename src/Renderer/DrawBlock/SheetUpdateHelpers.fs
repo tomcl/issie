@@ -619,7 +619,8 @@ let mMoveUpdate
             | Spinner,_ -> Spinner
             | _ ->
                 match mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos with // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
-                | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
+                | InputPort (_, p) | OutputPort (_, p) -> printfn $"portpos: {p}"; ClickablePort // Change cursor if on port
+                // | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
                 | Label _ -> GrabLabel
                 | Connection _ -> GrabWire
                 | Component _ -> GrabSymbol

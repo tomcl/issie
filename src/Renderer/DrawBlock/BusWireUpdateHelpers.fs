@@ -438,7 +438,7 @@ let rec rotateSegments (target: Edge) (wire: {| edge: Edge; segments: Segment li
         
         {| edge = rotate90Edge wire.edge; segments = rotatedSegs |}
         |> rotateSegments target 
-
+                                       
 /// Returns a newly autorouted version of a wire for the given model
 let autoroute (model: Model) (wire: Wire) : Wire =
     let destPos, startPos =

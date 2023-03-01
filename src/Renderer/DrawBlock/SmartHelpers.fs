@@ -104,7 +104,7 @@ let updateModelWires
         (wireMap,wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
-/// HLP23: Author OMAR
+/// HLP23: Author Omar
 /// returns a list of corner coordinates of a symbol: [upper, lower, left, right]
 let symbolBox (symbol: Symbol) : list<float*float> = 
     let topLeft = float symbol.Pos.X, float symbol.Pos.Y
@@ -154,3 +154,64 @@ let findInterconnectingWires (wireList:List<Wire>) (sModel)
             else false
 
         )
+
+
+/// HLP23: Author Indraneel
+/// Returns the symbol's port index corresponding to the portId
+let getSymbolIndex (symbol: Symbol) (portId: string) = 
+    let edge = symbol.PortMaps.Orientation[portId]
+
+    symbol.PortMaps.Order[edge]
+    |> List.findIndex (fun elm -> elm = portId)
+
+
+/// HLP23: Author Omar
+/// discriminated union for the modes of the findSymbol function
+type findSymbolMode = Input| Output
+
+
+/// HLP23: Author Indraneel
+/// Returns a symbol option given a model an inputPort/outputPort
+let findSymbolHelper (wModel: BusWireT.Model) (portId: string) = 
+    let inputPortHostId = string wModel.Symbol.Ports[portId].HostId
+
+    wModel.Symbol.Symbols
+    |> Map.tryFind (ComponentId inputPortHostId)
+
+
+/// HLP23: Author Omar
+/// finds matching symbol in model for given port ids on wire 
+let findSymbol (model: Model) (wire: Wire) (mode: findSymbolMode) : Symbol option = 
+    let port = 
+        match mode with
+        | Input -> string wire.InputPort
+        | Output -> string wire.OutputPort
+
+    findSymbolHelper model port
+
+
+/// HLP23: Author Omar
+/// discriminated union for return type of the smart autoroute and other SmartWire functions
+type SmartAutorouteResult =
+    | ModelT of Model
+    | WireT of Wire
+
+
+/// HLP23: Author Omar
+/// deletes wire from model by filtering out the wire
+let deleteWire (model: Model) (wire: Wire) : SmartAutorouteResult = 
+    let newWires =
+        model.Wires
+        |> Map.filter (fun id w -> not (wire.WId = id))
+    let model =
+        {model with Wires = newWires}
+    ModelT model
+
+
+/// HLP23: Author Omar
+/// returns a new wire with updated segments based on the given list of segment lengths
+let updateWire (wire: Wire) (lengths: float list) : Wire = 
+    let newSegments = 
+        lengths
+        |> List.mapi (fun i length -> {wire.Segments[i] with Length = length})
+    {wire with Segments = newSegments}

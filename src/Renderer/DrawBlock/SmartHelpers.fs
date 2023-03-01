@@ -8,6 +8,7 @@ open DrawModelType.BusWireT
 open Symbol
 open BusWire
 open BusWireUpdateHelpers
+open SymbolHelpers
 
 open Optics
 open Operators

@@ -8,7 +8,11 @@ open Elmish
 open CommonTypes
 open DrawHelpers
 open DrawModelType.SymbolT
+open SymbolHelpers
 open Symbol
+
+// // HLP23 AUTHOR: BRYAN TAN
+// open SmartHelpers
 
 (*
     HLP23: This module will normally be used exclusively by team member doing the "smart rendering" part of the 
@@ -113,6 +117,17 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
         |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {defaultLine with Stroke="DodgerBlue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
         |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
 
+
+/// HLP23 AUTHOR: BRYAN TAN
+/// Draw circles on the corners of custom components when manually resizing them
+let drawCorners (showCorners: ShowCorners) (symb: Symbol) =    
+    match showCorners with
+    | DontShow -> []
+    | ShowAll ->
+        getCustomSymCorners symb
+        |> Array.map (fun p -> makeCircle p.X p.Y cornerCircle)
+        |> Array.toList  
+
 //------------------------------------------------------------------------------------------------//
 //------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS------------------------------//
 //------------------------------------------------------------------------------------------------//
@@ -189,6 +204,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
     // let showOutputPorts = appear.ShowOutputPorts
+    let showCorners = appear.ShowCorners /// HLP23 AUTHOR: BRYAN TAN
     let opacity = appear.Opacity
     let comp = symbol.Component
     let h,w = getRotatedHAndW symbol
@@ -450,6 +466,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+    |> List.append (drawCorners showCorners symbol) // HLP23 AUTHOR: BRYAN TAN
     |> List.append (addLegendText 
                         (legendOffset w h symbol) 
                         (getComponentLegend comp.Type transform.Rotation) 
@@ -460,6 +477,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
     |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+    // |> 
 
 
 

@@ -10,3 +10,7 @@ Timur (AUTHOR Ismagilov) :
 * Full SmartRotate.fs, does block rotation, flipping & scaling (added ScaleType in drawModelType)
 * Initial SmartRendering in SymbolView.fs (added StyleType in drawModelType)
 * Functionalities added in Symbol.fs, SheetUpdate, drawHelpers, Renderer.fs, explained at top level Smart* Comments
+
+Zsombor Klapper's work: 
+* Added SmartHelpert functions (XML contents discribes each, most important: replaceWireWithLabel)
+* Full of SmartChannel.fs (Works with every kind of arrangement in vertical channels, not yet fully implemented for horizontal channels)

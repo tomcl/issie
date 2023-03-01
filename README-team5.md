@@ -13,6 +13,10 @@ SmartPortOrder
 ### **Shaanuka (HLP23: Author Shaanuka):** 
 SymbolView, Renderer, DrawHelpers, DrawModelType, SmartSizeSymbol, Style.
 
+#### For Markers: ####
+As requested and accepted by Dr Clarke: Before running, change line 375 of SymbolView.fs from " let posThree = {X= midX+35.;Y=H/6.+5.} " to " let posThree = {X= midX+39.;Y=H/6.+5.} ".
+This is a tiny offset change in float (35 to 39) that shifts the label to the right so no overlap occurs - Shaanuka.
+
 ### **Ifte (HLP23: Author Ifte):** 
 SmartSizeSymbol
 

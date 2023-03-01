@@ -31,34 +31,6 @@ open System
 *)
 
 
-/// discriminated union for return type of the smart autoroute function
-type SmartAutorouteResult =
-    | ModelT of Model
-    | WireT of Wire
-
-/// discriminated union for the modes of the findSymbol function
-type findSymbolMode = Input| Output
-
-// TRY USING HOST ID TO GET SYMBOL ASSOCIATED WITH IT - USE INDRANEEL'S CODE 
-/// finds matching symbol in model for given port ids on wire 
-let findSymbol (model: Model) (wire: Wire) (mode: findSymbolMode) : Symbol option = 
-    let port = 
-        match mode with
-        | Input -> string wire.InputPort
-        | Output -> string wire.OutputPort
-
-    let symbolValues =
-        model.Symbol.Symbols
-        |> Map.toList
-        |> List.map snd
-    let symbolsWithPortId =
-        symbolValues
-        |> List.filter (fun symbol ->
-            symbol.PortMaps.Orientation.ContainsKey(port))
-        |> List.tryHead
-    symbolsWithPortId
-
-
 /// determines if wire is connected from and to the same symbol
 let isSelfConnected (model: Model) (wire: Wire) : bool = 
     let inputSymbol = findSymbol model wire Input |> Option.get
@@ -74,8 +46,8 @@ let huggingDistance (model: Model) (wire: Wire) (symbol: Symbol) : float * float
     let outputPortPos, inputPortPos =
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
 
+    // tuple representing left and right hug distance
     let hugDistance = 
-        // tuple for the left and right distance needed to hug the symbol
         (snd boundaryBox[3]) - outputPortPos.Y, (snd boundaryBox[3]) - inputPortPos.Y 
 
     match portPos with
@@ -84,36 +56,20 @@ let huggingDistance (model: Model) (wire: Wire) (symbol: Symbol) : float * float
         | _ -> 0.0, 0.0
 
 
-/// return a new wire with updated segments based on the given list of segment lengths - ADD TO SMART HELPERS FOR IFTE TO USE
-let updateWire (wire: Wire) (lengths: float list) : Wire = 
-    let newSegments = 
-        lengths
-        |> List.mapi (fun i length -> {wire.Segments[i] with Length = length})
-    {wire with Segments = newSegments}
-
-
 /// route wire connected across same symbol
 let sameSymbolRouting (model: Model) (wire: Wire) : Wire = 
     let symbol = findSymbol model wire Output
     let symbolFound = symbol |> Option.get
-
-    // USE INDRANEEL'S FUNCTION:
-    let outputPortEdge = symbolFound.PortMaps.Orientation |> Map.find (string wire.OutputPort)
-    let outputPortIndex = 
-        symbolFound.PortMaps.Order[outputPortEdge] 
-        |> List.findIndex (fun port -> port = string wire.OutputPort)
-    // -----------
-
+    let outputPortIndex = getSymbolIndex symbolFound (string wire.OutputPort)
 
     // make huglength dependent on the port index
     let lengthAdjustment = float outputPortIndex * 5.0
-
     let hugDist = huggingDistance model wire symbolFound
     let leftHugLength = 10.0 + fst hugDist + lengthAdjustment   
     let rightHugLength = 10.0 + snd hugDist + lengthAdjustment
     let seperation = 7.0 + lengthAdjustment
 
-    // offset the input extension (wire.Segments[6]) based on the output port index 
+    // offset the input segment length (wire.Segments[6]) based on the output port index 
     let inputExtension = 
         match outputPortIndex with
             | l when l<2 -> -2.0
@@ -136,7 +92,7 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
 
     // FIND BETTER PLACE TO HAVE THE TWO FUNCTIONS BELOW
     let boundaryBox = symbolBox symbolFound 
-    let outputPortPos, inputPortPos =
+    let outputPortPos, inputPortPos = 
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
 
     match portPos with
@@ -211,10 +167,8 @@ let generateWireLabels (model: Model) (wire: Wire) (symbol: Symbol) : SmartAutor
         |> List.head
 
     // find input label symbol using its component id (snd symbModelInput)
-    let inputLabelSymbol = 
-        newModel2.Symbol.Symbols[(snd symbModelInput)]
-    let outputLabelSymbol = 
-        newModel2.Symbol.Symbols[(snd symbModelOutput)]
+    let inputLabelSymbol = newModel2.Symbol.Symbols[(snd symbModelInput)]
+    let outputLabelSymbol = newModel2.Symbol.Symbols[(snd symbModelOutput)]
 
     let inputLabelSymbolPort : Port = inputLabelSymbol.Component.InputPorts[0]
     let outputLabelSymbolPort : Port = outputLabelSymbol.Component.OutputPorts[0]
@@ -337,17 +291,6 @@ let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
     | _ -> None
 
 
-/// deletes wire from model by filtering out the wire - MIGHT NEED TO ADD TO SMART HELPERS FOR IFTE
-// FIXME: Wire remains connected to input port when moving function away from threshold
-let deleteWire (model: Model) (wire: Wire) : SmartAutorouteResult = 
-    let newWires =
-        model.Wires
-        |> Map.filter (fun id w -> not (wire.WId = id))
-    let model =
-        {model with Wires = newWires}
-    ModelT model
-
-
 /// replaces wire with wire labels  - FIXME: FIX SO THAT IT WORKS WHEN MOVING SYMBOLS AROUND   
 let replaceWithWireLabels (model: Model) (wire: Wire) (symbol: Symbol Option) : SmartAutorouteResult =
     let newWireMap = deleteWire model wire
@@ -355,7 +298,6 @@ let replaceWithWireLabels (model: Model) (wire: Wire) (symbol: Symbol Option) : 
     | ModelT m -> 
         let foundsymbol = symbol |> Option.get
         generateWireLabels m wire foundsymbol
-
     | _ -> 
         printfn "error" 
         WireT wire
@@ -492,8 +434,6 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
 
                         adjustWireSegments newWire symbols
                 
-                // printfn "symbolinway length: %i" (List.length symbolInWay)
-                // printfn "wire length: %f" wire.Segments[4].Length
                 if (List.length symbolInWay > 2) && (wire.Segments[4].Length > 300.0) then 
                     // if there are more than 2 symbols in the way of the wire and the wire is long enough - replace wire with wire labels
                     replaceWithWireLabels model wire symbol
@@ -510,9 +450,8 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
 let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =     
     let symbol = findSymbol model wire Output
     let autoWire = autoroute model wire
-
-    // printfn "%s" $"Wire: Initial Orientation={wire.InitialOrientation}\nSegments={autoWire.Segments}"
     let wireLength = autoWire.Segments[4].Length
+
     match wireLength with
     | l when l > 500.0 -> replaceWithWireLabels model wire symbol
     | _ -> routeAroundSymbol model autoWire symbol

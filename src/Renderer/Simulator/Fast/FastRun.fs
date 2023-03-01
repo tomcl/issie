@@ -160,7 +160,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     //printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
     //printfn "Loop init done"
-    printfn
+    eprintfn
         "%d constant, %d input, %d clocked, %d ready to reduce from %d"
         fs.FConstantComps.Length
         fs.FGlobalInputComps.Length
@@ -205,9 +205,9 @@ let checkAndValidate (fs:FastSimulation) =
             fs.FGlobalInputComps
             fs.FOrderedComps
         |] |> Array.concat
-    printfn "Checking %d active components against %d components in simulation" activeComps.Length inSimulationComps.Length
+    eprintfn "Checking %d active components against %d components in simulation" activeComps.Length inSimulationComps.Length
     if (activeComps.Length <> inSimulationComps.Length) then
-            printf "Validation problem: %d active components, %d components in simulation"
+            eprintf "Validation problem: %d active components, %d components in simulation"
                    activeComps.Length
                    inSimulationComps.Length
             inSimulationComps
@@ -281,7 +281,7 @@ let buildFastSimulation
         (diagramName: string) 
         (graph: SimulationGraph) 
             : Result<FastSimulation,SimulationError> =
-    printfn "======== Building fast simulation"
+    eprintfn "===== Building fast simulation"
     let gather = gatherSimulation graph
     let fs =  
         emptyFastSimulation diagramName
@@ -301,6 +301,7 @@ let buildFastSimulation
 
 /// sets up default no-change input values for the next step
 let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
+    let step = step % fastSim.MaxArraySize
     if step > 0 then
         fastSim.FGlobalInputComps
         |> Array.iter

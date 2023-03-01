@@ -25,7 +25,7 @@ let emptyGather =
       AllComps = Map.empty }
 
 let emptyFastSimulation diagramName =
-    printfn $"Creating empty simulation: {diagramName}"
+    eprintfn $"Creating empty simulation: {diagramName}"
     { ClockTick = 0
       MaxArraySize = 0 // must be larger than max number of wavesim clocks
       FGlobalInputComps = Array.empty
@@ -527,14 +527,14 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
     
     
 let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
-    printfn $"Creating fast components with {simulationArraySize} steps"
+    eprintfn $"Creating fast components with {simulationArraySize} steps"
     let numSteps = simulationArraySize
     stepArrayIndex <- stepArrayIndexInitValue
     let start = getTimeMs()
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]
         let fc = createFastComponent numSteps comp ap
-        printfn $"Created fast component {comp.Type} with {fc.NumMissingInputValues} missing inputs"
+        eprintfn $"Created fast component {comp.Type} with {fc.NumMissingInputValues} missing inputs"
         let fc = { fc with FullName = g.getFullName fid; SheetName = g.getSheetName fid}
 
         let outs : StepArray<FData> array =

@@ -190,7 +190,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     //printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
     //printfn "Loop init done"
-    printfn
+    eprintfn
         "%d constant, %d input, %d clocked, %d ready to reduce from %d"
         fs.FConstantComps.Length
         fs.FGlobalInputComps.Length
@@ -230,7 +230,7 @@ let private orderCombinationalComponentsFData
     let mutable orderedComps: FastComponent list = fs.FConstantComps |> Array.toList
 
     let propagateEval (fc: FastComponent) =
-        printfn "===== Propagate eval %d" fc.DrivenComponents.Length
+        eprintfn "===== Propagate eval %d" fc.DrivenComponents.Length
         fc.DrivenComponents
         |> List.iter (fun fc' ->
             fc'.NumMissingInputValues <- fc'.NumMissingInputValues - 1
@@ -306,7 +306,7 @@ let private orderCombinationalComponentsFData
     //printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
     //printfn "Loop init done"
-    printfn
+    eprintfn
         "%d constant, %d input, %d clocked, %d ready to reduce from %d"
         fs.FConstantComps.Length
         fs.FGlobalInputComps.Length
@@ -539,7 +539,7 @@ let buildFastSimulationFData
     (graph: SimulationGraph)
     : Result<FastSimulation, SimulationError>
     =
-    printfn "======== Building fast simulation"
+    eprintfn "===== Building fast simulation"
     let gather = gatherSimulation graph
 
     let fs =
@@ -559,6 +559,7 @@ let buildFastSimulationFData
 
 /// sets up default no-change input values for the next step
 let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
+    let step = step % fastSim.MaxArraySize
     if step > 0 then
         fastSim.FGlobalInputComps
         |> Array.iter (fun fc ->
@@ -725,7 +726,7 @@ let runFastSimulation
     if stepsToDo <= 0 then
         None // do nothing
     else
-        printfn "===== lastStepNeeded: %d, fs.MaxArraySize: %d" lastStepNeeded fs.MaxArraySize
+        eprintfn "===== lastStepNeeded: %d, fs.MaxArraySize: %d" lastStepNeeded fs.MaxArraySize
         // if lastStepNeeded > fs.MaxStepNum then
         //     if fs.MaxStepNum < fs.MaxArraySize then
         //         let newMaxNum =

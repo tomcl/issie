@@ -25,7 +25,7 @@ let emptyGather =
       AllComps = Map.empty }
 
 let emptyFastSimulation diagramName =
-    printfn $"Creating empty simulation: {diagramName}"
+    eprintfn $"Creating empty simulation: {diagramName}"
 
     { ClockTick = 0
       MaxArraySize = 0 // must be larger than max number of wavesim clocks
@@ -809,7 +809,7 @@ let rec createInitFastCompPhaseFData
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]
         let fc = createFastComponentFData numSteps comp ap
-        printfn $"Created fast component {comp.Type} with {fc.NumMissingInputValues} missing inputs"
+        eprintfn $"Created fast component {comp.Type} with {fc.NumMissingInputValues} missing inputs"
 
         let fc = { fc with FullName = g.getFullName fid; SheetName = g.getSheetName fid }
 

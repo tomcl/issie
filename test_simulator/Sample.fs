@@ -34,7 +34,7 @@ let printDriversFData (drivers: DriverFData option[]) =
         match driver with
         | None -> ()
         | Some d ->
-            printfn "[%d, width=%d] : %s" d.Index d.DriverWidth
+            eprintfn "[%d, width=%d] : %s" d.Index d.DriverWidth
             <| (d.DriverData.Step
                 |> Array.map (fun data ->
                     match data with
@@ -51,7 +51,7 @@ let printDrivers (drivers: Driver option[]) =
         match driver with
         | None -> ()
         | Some d ->
-            printfn "[%d, width=%d] : %s" d.Index d.DriverWidth
+            eprintfn "[%d, width=%d] : %s" d.Index d.DriverWidth
             <| (d.DriverData.Step
                 |> Array.map (fun data ->
                     match data.Dat with
@@ -66,7 +66,7 @@ let runNewSimulator
     (canvasState: CommonTypes.CanvasState)
     (loadedDependencies: CommonTypes.LoadedComponent list)
     =
-    printfn "===== running new simulator"
+    eprintfn "===== running new simulator"
     // Build simulation
     match
         Simulator.startCircuitSimulation
@@ -79,10 +79,10 @@ let runNewSimulator
     | Ok simData ->
         let fs = simData.FastSim
         // Run simulation
-        printfn "fs.MaxArraySize: %d" fs.MaxArraySize
+        eprintfn "fs.MaxArraySize: %d" fs.MaxArraySize
         FastRun.runFastSimulation None (clockTick + simData.ClockTickNumber) fs
         |> ignore
-        printfn "fs.MaxArraySize: %d" fs.MaxArraySize
+        eprintfn "fs.MaxArraySize: %d" fs.MaxArraySize
         FastRun.runFastSimulation None (clockTick + simData.ClockTickNumber) fs
         |> ignore
 
@@ -97,7 +97,7 @@ let runOldSimulator
     (canvasState: CommonTypes.CanvasState)
     (loadedDependencies: CommonTypes.LoadedComponent list)
     =
-    printfn "===== running old simulator"
+    eprintfn "===== running old simulator"
     // Build simulation
     match
         OldSimulator.startCircuitSimulation
@@ -110,30 +110,43 @@ let runOldSimulator
     | Ok simData ->
         let fs = simData.FastSim
         // Run simulation
-        printfn "fs.MaxArraySize: %d" fs.MaxArraySize
+        eprintfn "fs.MaxArraySize: %d" fs.MaxArraySize
         OldFastRun.runFastSimulation None (clockTick + simData.ClockTickNumber) fs
         |> ignore
-        printfn "fs.MaxArraySize: %d" fs.MaxArraySize
+        eprintfn "fs.MaxArraySize: %d" fs.MaxArraySize
         OldFastRun.runFastSimulation None (clockTick + simData.ClockTickNumber) fs
         |> ignore
 
         printDriversFData fs.DriversFData
         Ok fs.DriversFData
 
+let n = 100 // size of simulation array
+let ticks = 1000
+let ldcs = testcases2loadedComponents
+
 [<Tests>]
-let simulatorTests =
-    testList
-        "fake"
-        [ testCase "fake"
-          <| fun _ ->
-              let n = 10 // size of simulation array
-              let ticks = 15
-              let ldcs = testcases2loadedComponents
-              let entry = ldcs[1]
-              printfn "Entry: %A" entry.Name
-              let observed = runNewSimulator "" n ticks entry.CanvasState ldcs
-              let expected = runOldSimulator "" n ticks entry.CanvasState ldcs
-              Expect.equal
-                  expected
-                  observed
-                  "Outputs of new simulator is not the same as outputs of old simulator" ]
+let functionalityTests =
+    let runTestForComp comp =
+        test (sprintf "compare simulator output on %A after %d ticks" comp.Name ticks) {
+            let observed = runNewSimulator "" n ticks comp.CanvasState ldcs
+            let expected = runOldSimulator "" n ticks comp.CanvasState ldcs
+            Expect.equal
+                expected
+                observed
+                "Outputs of new simulator is not the same as outputs of old simulator"
+        }
+
+    testSequenced
+    <| testList "functionality tests" (ldcs |> List.map runTestForComp)
+
+[<Tests>]
+let performanceTests =
+    let runPerformanceTestForComp comp =
+        test (sprintf "compare simulator performance on %A after %d ticks" comp.Name ticks) {
+            Expect.isFasterThan
+                (fun () -> runNewSimulator "" n ticks comp.CanvasState ldcs)
+                (fun () -> runOldSimulator "" n ticks comp.CanvasState ldcs)
+                "New simulator is faster than old simulator"
+        }
+    testSequenced
+    <| testList "performace tests" (ldcs |> List.map runPerformanceTestForComp)

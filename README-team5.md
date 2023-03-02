@@ -9,6 +9,8 @@ SmartWire, BusWireUpdate
 
 ### **Indraneel (HLP23: Author Indraneel):** 
 SmartPortOrder
+#### Notes: #### 
+The SmartPortOrdering can only re-order contigous sections of wires. For example: you can't have 2 wires with input port indexes [0,1] and the output ports[3,47]. They have to be contigously connected in output and input.
 
 ### **Shaanuka (HLP23: Author Shaanuka):** 
 SymbolView, Renderer, DrawHelpers, DrawModelType, SmartSizeSymbol, Style.

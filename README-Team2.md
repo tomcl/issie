@@ -12,7 +12,7 @@ Changed files:
 Hold `Ctrl` near a custom component to highlight its four corners. Drag a corner in any direction to resize or mirror the component. 
 
 Changed files: 
-- `DrawModelType.fs`
+- `DrawModelType.fs` - added new message types required for resizing
 - `Common/DrawHelpers` - added new type of circle to display the corners of components (following pattern for `portCircle`)
 - `DrawModelType.fs` - added new messages to indicate resize operation and whether to display corners, added new cursor style
 - `Sheet.fs` - added function to detect if mouse is over a custom component corner, integrated with `mouseOn`

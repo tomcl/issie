@@ -38,3 +38,12 @@ Dharmil Shah (dgs119)
     - Module that implements port reordering algorithm.
 - `Symbol.fs`
     - Adds helper `getPortOrientationFrmPortIdStr`.
+
+# Smart Channel
+Derek Lai (ddl20)
+
+## Changed Files:
+- `SmartChannel.fs` - To implement smart channels.
+- `SmartHelpers.fs` - To add helpers which detect overlap.
+- `SheetUpdate.fs` - To add horizontal channel generation.
+- `SheetUpdateHelpers.fs` - To add horizontal channel generation.

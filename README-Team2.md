@@ -39,7 +39,6 @@ Dharmil Shah (dgs119)
 - `Symbol.fs`
     - Adds helper `getPortOrientationFrmPortIdStr`.
 
-
 # Smart Wire Autoroute
 Jian Fu Eng (jfe20)
 

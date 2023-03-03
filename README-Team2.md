@@ -23,3 +23,18 @@ Changed files:
 - `SymbolHelpers.fs` - new file, contains helpers used in `SymbolView.fs` (couldn't go in `SmartHelpers.fs`)
 - `SymbolUpdateResizeHelpers.fs` - new file, contains manual component resize logic (followed pattern set by `SymbolUpdatePortHelpers.fs`)
 - `Renderer/Renderer.fsproj` - added the new files to the project
+
+# Smart Port Reordering
+Dharmil Shah (dgs119)
+
+## Changed Files:
+- `CommonTypes.fs`
+    - Added a helper to the `Edge` Type to find an opposite  `Edge`.
+- `SheetUpdate.fs`
+    - Passed helpers from `BusWireUpdate` to `SmartPortOrder` function.
+- `SmartHelpers.fs`
+    - Added helpers. Helpers are tagged with `HLP23: AUTHOR dgs119'.
+- `SmartPortOrder.fs`
+    - Module that implements port reordering algorithm.
+- `Symbol.fs`
+    - Adds helper `getPortOrientationFrmPortIdStr`.

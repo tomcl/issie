@@ -31,28 +31,31 @@ type ConstantsSmartSize = {
 let OffsetSmartSize = {Distance = 50.0}
 
 let offsetPorts
-    (wire: ConnectionId * Wire)
+    (wire: (ConnectionId * Wire) option)
     (orderedPortsResize: (string * XYPos) list)
     (orderedPortsOther: (string * XYPos) list)
     (orient: OrientationS option)
         : XYPos = 
-    let PortOneId = string (snd wire).InputPort
-    let PortTwoId = string (snd wire).OutputPort
-    let TmpOne = 
-        orderedPortsResize 
-        |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
-    let CoordinateOne = TmpOne.Item(0) |> snd
-    let TmpTwo = 
-        orderedPortsOther 
-        |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
-    let CoordinateTwo = TmpTwo.Item(0) |> snd
-    let Coordinates = CoordinateTwo - CoordinateOne
+    match wire with
+    | Some x ->
+        let PortOneId = string (snd x).InputPort
+        let PortTwoId = string (snd x).OutputPort
+        let TmpOne = 
+            orderedPortsResize 
+            |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
+        let CoordinateOne = TmpOne.Item(0) |> snd
+        let TmpTwo = 
+            orderedPortsOther 
+            |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
+        let CoordinateTwo = TmpTwo.Item(0) |> snd
+        let Coordinates = CoordinateTwo - CoordinateOne
 
-    match orient with
-    | Some TopBottom ->
-        {X = Coordinates.X; Y = 0.0}
-    | Some LeftRight ->
-        {X = 0.0; Y = Coordinates.Y}
+        match orient with
+        | Some TopBottom ->
+            {X = Coordinates.X; Y = 0.0}
+        | Some LeftRight ->
+            {X = 0.0; Y = Coordinates.Y}
+        | None -> {X = 0.0; Y = 0.0}
     | None -> {X = 0.0; Y = 0.0}
 
 
@@ -144,23 +147,29 @@ let reSizeSymbol
                 getAllPortsFromEdgeOrdered wModel symbolToSize Orient Left,
                 getAllPortsFromEdgeOrdered wModel otherSymbol Orient Right
         | None -> [], []
-    printfn "%A" portsOrderedToSize
-    printfn "%A" portsOrderedOther
+
 
     let Dimension = getPortDist portsOrderedToSize Orient, getPortDist portsOrderedOther Orient
-    printfn "%A" Dimension
 
-    let checker = 
+
+    let Checker = 
         getCommonWires wModel symbolToSize otherSymbol Orient 
         |> Map.toList
-    printfn "%A" checker
-    let Checker' = checker.Item(0)
+    
+    
+
+    let Checker' = 
+        match Checker.Length with
+        | 0 -> None
+        | n when n > 0 ->
+            let tmp = Checker.Item(0)
+            Some tmp
+
     let Checker'' = offsetPorts Checker' portsOrderedToSize portsOrderedOther Orient
 
     let ScaleFactor = 
         match Dimension with
         | (x, y) -> (Scale y) / (Scale x)
-    
     
     let symbol' = 
         match Orient with

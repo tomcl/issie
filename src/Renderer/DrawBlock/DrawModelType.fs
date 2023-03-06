@@ -526,6 +526,10 @@ module SheetT =
         | DebugContinue
         | DebugPause
         | SetDebugDevice of string
+        | TestPortReorder
+        | TestSmartChannel
+        | TestPortPosition
+
 
     type ReadLog = | ReadLog of int
 

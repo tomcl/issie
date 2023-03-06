@@ -39,7 +39,8 @@ Dharmil Shah (dgs119)
 - `Symbol.fs`
     - Adds helper `getPortOrientationFrmPortIdStr`.
 
-# Smart Custom Symbol Sizing 
+
+# Smart Wire Autoroute
 Jian Fu Eng (jfe20)
 
 ## Smart Routing Algorithm:

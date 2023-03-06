@@ -172,6 +172,7 @@ let reSizeSymbol
         match Dimension with
         | (Some x, Some y) -> y / x
         | (None, _) -> 1.0
+        | (_, _) -> 1.0 
     
     let symbol' = 
         match Orient with

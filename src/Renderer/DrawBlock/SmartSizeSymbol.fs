@@ -73,14 +73,15 @@ let getPortDist
     (portsOrdereds: (string * XYPos) list)
     (orient: OrientationS option)
         : float option= 
-    let ItemOne = portsOrdereds.Item(1)
-    let XYPosOne = snd ItemOne
-    let ItemZero = portsOrdereds.Item(0)
-    let XYPosZero = snd ItemZero
+    
     let l = portsOrdereds.Length
     if l = 0 then None
     elif l = 1 then None
     else 
+        let ItemOne = portsOrdereds.Item(1)
+        let XYPosOne = snd ItemOne
+        let ItemZero = portsOrdereds.Item(0)
+        let XYPosZero = snd ItemZero
         match orient with
         | Some TopBottom ->
             Some (XYPosOne.X - XYPosZero.X)
@@ -169,7 +170,8 @@ let reSizeSymbol
 
     let ScaleFactor = 
         match Dimension with
-        | (x, y) -> (Scale y) / (Scale x)
+        | (Some x, Some y) -> y / x
+        | (None, _) -> 1.0
     
     let symbol' = 
         match Orient with

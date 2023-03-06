@@ -186,7 +186,7 @@ let scaleCompSize (comp:Component) scaleX scaleY =
     newComp
 
 let getLabelScale = 
-    1. // change to whatever label size scale you want (orignila font size = 16px)
+    1.0 // change to whatever label size scale you want (orignila font size = 16px)
 
 
 //--------------------------------------------------------------------------------------------//
@@ -201,7 +201,8 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
     |OldSymbols ->  let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
                     match comp.Type with
 
-                    |And -> let lineOne = makeLineAttr 0. comp.H
+                    |And -> //let comp = scaleCompSize comp 2.0 2.0
+                            let lineOne = makeLineAttr 0. comp.H
                             let lineTwo = makeLineAttr (comp.W/2.) 0.
                             let curveAttr = makePartArcAttr 5. (-(comp.H/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
                             let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]

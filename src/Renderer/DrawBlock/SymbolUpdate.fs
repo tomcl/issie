@@ -282,13 +282,6 @@ let getEquivalentCopiedPorts (model: Model) (copiedIds) (pastedIds) (InputPortId
     | [pastedInputPort], [pastedOutputPort] -> Some (pastedInputPort, pastedOutputPort) 
     | _ -> None // If either of source or target component of the wire was not copied then we discard the wire
 
-/// Creates and adds a symbol into model, returns the updated model and the component id
-let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
-    let newSym = createNewSymbol ldcs pos compType lbl model.Theme
-    let newPorts = addToPortModel model newSym
-    let newSymModel = Map.add newSym.Id newSym model.Symbols
-    { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
-
 
 //---------------------Helper functions for the upadte function------------------------------//
 
@@ -362,7 +355,7 @@ let inline selectSymbols model compList =
             sym
             |> map appearance_ (
                 set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> 
-                set opacity_ 1.0 
+                set opacity_ 1.0
             )
         )
 
@@ -642,36 +635,6 @@ let flipSideHorizontal (edge: Edge) : Edge =
         |> rotateSide RotateClockwise
     | _ -> edge
 
-/// Takes in a symbol and returns the same symbol flipped
-let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
-    let portOrientation = 
-        sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
-
-    let flipPortList currPortOrder side =
-        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
-
-    let portOrder = 
-        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
-        |> Map.map (fun edge order -> List.rev order)       
-
-    let newSTransform = 
-        {flipped= not sym.STransform.flipped;
-        Rotation= sym.STransform.Rotation} 
-
-    { sym with
-        PortMaps = {Order=portOrder;Orientation=portOrientation}
-        STransform = newSTransform
-        LabelHasDefaultPos = true
-    }
-    |> calcLabelBoundingBox
-    |> (fun sym -> 
-        match orientation with
-        | FlipHorizontal -> sym
-        | FlipVertical -> 
-            sym
-            |> rotateSymbol RotateAntiClockwise
-            |> rotateSymbol RotateAntiClockwise)
-
 type Rectangle = {TopLeft: XYPos; BottomRight: XYPos}
 
 let inline getX (pos: XYPos) =
@@ -758,6 +721,59 @@ let storeLayoutInfoInComponent _ symbol =
 
 let checkSymbolIntegrity (sym: Symbol) =
     failwithf ""
+    
+        
+/// Takes in a symbol and returns the same symbol flipped
+let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
+    let portOrientation = 
+        sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
+
+    let flipPortList currPortOrder side =
+        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
+
+    let portOrder = 
+        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
+        |> Map.map (fun edge order -> List.rev order)       
+
+    let newSTransform = 
+        {flipped= not sym.STransform.flipped;
+        Rotation= sym.STransform.Rotation} 
+
+    { sym with
+        PortMaps = {Order=portOrder;Orientation=portOrientation}
+        STransform = newSTransform
+        LabelHasDefaultPos = true
+    }
+    |> calcLabelBoundingBox
+    |> (fun sym -> 
+        match orientation with
+        | FlipHorizontal -> sym
+        | FlipVertical -> 
+            sym
+            |> rotateSymbol RotateAntiClockwise
+            |> rotateSymbol RotateAntiClockwise)
+
+type BusWireHelpers = {
+    WireIntersect: BusWireT.Wire -> BusWireT.Wire -> bool
+    GetConnectedWires: BusWireT.Model -> ComponentId list -> BusWireT.Wire list
+}
+(*let foo (sym: Symbol) (model: Model) (busWireHelpers:BusWireHelpers) =
+    printf "FLIPPED!"
+    let wireList = busWireHelpers.GetConnectedWires model [sym.Id]
+    match busWireHelpers.WireIntersect wireList[0] wireList[1] with
+        | true -> flipSymbol FlipVertical sym
+        | false -> sym*)
+
+let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
+    let newSym = createNewSymbol ldcs pos compType lbl model.Theme
+    (*let newSym2 =
+        match newSym.Component with
+        | {Type = Mux2|Mux4|Mux8} -> foo newSym model
+        | _ -> newSym*)
+    let newPorts = addToPortModel model newSym
+    let newSymModel = Map.add newSym.Id newSym model.Symbols
+    { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
+
 
 
 /// Update function which displays symbols

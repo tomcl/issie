@@ -198,6 +198,10 @@ let makeLine (x1: 'a) (y1: 'b) (x2: 'c) (y2: 'd) (lineParameters: Line) =
             SVGAttr.StrokeDasharray lineParameters.StrokeDashArray
     ] []
 
+///make path attributes for or-shape. Hannah Shewan HLP23
+let makeOrShape (h_1:float) (h_2:float) (w_1: float) (w_2: float)= 
+    $"M 0 0 C 0 0 {w_1} {h_1} 0 {h_2} 
+    C {w_2} {h_2} {w_2} 0 0 0"
 
 /// Makes path attributes for a horizontal upwards-pointing arc radius r
 let makeArcAttr r =

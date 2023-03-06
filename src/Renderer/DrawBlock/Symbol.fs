@@ -206,6 +206,20 @@ let movePortToBottom (portMaps: PortMaps) index =
     let newPortOrientation =
         portMaps.Orientation |> Map.add portId Bottom
     {Order=newPortOrder; Orientation=newPortOrientation}
+    
+let movePortToTop (portMaps: PortMaps) index =
+    let leftPorts = portMaps.Order[Left]
+    let portId = leftPorts |> List.item index //get id of sel
+
+    let newBottomPorts = [portId]
+    let newLeftPorts = portMaps.Order[Left] |> List.removeAt index
+    let newPortOrder =
+        portMaps.Order
+        |> Map.add Top newBottomPorts
+        |> Map.add Left newLeftPorts
+    let newPortOrientation =
+        portMaps.Orientation |> Map.add portId Top
+    {Order=newPortOrder; Orientation=newPortOrientation}
 
 
 /// Work out a label bounding box from symbol, return symbol with box added.
@@ -488,6 +502,7 @@ let getCustomCompArgs (x:CustomComponentType) (label:string) =
 *)
 /// obtain map from port IDs to port names for Custom Component.
 /// for other components types this returns empty map
+
 let getCustomPortIdMap (comp: Component)  =
         let label = comp.Label
         match comp.Type with
@@ -654,16 +669,15 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
         }
     let props = getComponentProperties compType label           
     makeComponent' props label
-
-
+  
 
 /// Function to generate a new symbol
 let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
+    printf "The component Label %A" comp.Label
     let transform = {Rotation= Degree0; flipped= false}
-
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
@@ -692,6 +706,11 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     }
     |> autoScaleHAndW
     |> calcLabelBoundingBox
+    
+    
+let updatePorts (model: Model) (sym: Symbol) =
+    sym.ReversedInputPorts = Some true
+    
 
 // Function to add ports to port model     
 let addToPortModel (model: Model) (sym: Symbol) =

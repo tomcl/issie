@@ -17,4 +17,4 @@ Harshil Shah
 Hannah Shewan
     - shortcode: hs3520
     - section: smart rendering
-    - files: [SymbolView.fs] (./src/Renderer/DrawBlock/SymbolView.fs), [DrawHelpers.fs] (./src/Renderer/Common/DrawHelpers.fs)
+    - files: [SymbolView.fs](./src/Renderer/DrawBlock/SymbolView.fs), [DrawHelpers.fs](./src/Renderer/Common/DrawHelpers.fs)

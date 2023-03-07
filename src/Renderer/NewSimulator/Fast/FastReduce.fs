@@ -153,7 +153,7 @@ let fastReduceFData
         else
             simStep - 1
 #if ASSERTS
-    printfn "Warning: simulation is running with ASSERTS on for debugging -this will be very slow!"
+    eprintfn "Warning: simulation is running with ASSERTS on for debugging -this will be very slow!"
 #endif
 
     ///  get data feom input i of component
@@ -1492,7 +1492,7 @@ let fastReduce
         else
             simStep - 1
 #if ASSERTS
-    printfn "Warning: simulation is running with ASSERTS on for debugging -this will be very slow!"
+    eprintfn "Warning: simulation is running with ASSERTS on for debugging -this will be very slow!"
 #endif
 
     ///  get data from input i of component

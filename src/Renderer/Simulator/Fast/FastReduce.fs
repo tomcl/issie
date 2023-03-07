@@ -116,7 +116,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     let simStep = numStep % maxArraySize 
     let simStepOld = if simStep = 0 then maxArraySize - 1 else simStep - 1
 #if ASSERTS
-    printfn "Warning: simulation is running with ASSERTS on for debugging -this will be very slow!"
+    eprintfn "Warning: simulation is running with ASSERTS on for debugging -this will be very slow!"
 #endif
 
     ///  get data feom input i of component

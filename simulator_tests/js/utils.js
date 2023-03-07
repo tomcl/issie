@@ -5,18 +5,23 @@ import {
   JsonHelpers_SavedInfo__get_getSheetInfo,
   JsonHelpers_SavedInfo__get_getTimeStamp,
   JsonHelpers_SavedInfo__get_getWaveInfo,
-} from "./temp/renderer/Common/Helpers.js";
-import { parseDiagramSignature } from "./temp/renderer/NewSimulator/Extractor.js";
-import { CCForm, LoadedComponent } from "./temp/renderer/Common/CommonTypes.js";
-import { startCircuitSimulation } from "./temp/renderer/NewSimulator/Simulator.js";
-import { runFastSimulation } from "./temp/renderer/NewSimulator/Fast/FastRun.js";
+} from "./temp/src/Renderer/Common/Helpers.js";
+import { parseDiagramSignature } from "./temp/src/Renderer/NewSimulator/Extractor.js";
+import {
+  CCForm,
+  LoadedComponent,
+} from "./temp/src/Renderer/Common/CommonTypes.js";
+import { startCircuitSimulation as newStartCircuitSimulation } from "./temp/src/Renderer/NewSimulator/Simulator.js";
+import { runFastSimulation as newRunFastSimulation } from "./temp/src/Renderer/NewSimulator/Fast/FastRun.js";
+import { startCircuitSimulation as oldStartCircuitSimulation } from "./temp/src/Renderer/Simulator/Simulator.js";
+import { runFastSimulation as oldRunFastSimulation } from "./temp/src/Renderer/Simulator/Fast/FastRun.js";
 import {
   FSharpList,
-} from "./temp/renderer/fable_modules/fable-library.4.0.0-theta-018/List.js";
+} from "./temp/fable_modules/fable-library.4.0.0-theta-018/List.js";
 
 function tryLoadStateFromPath(filePath) {
   if (!existsSync(filePath)) {
-    console.error(
+    console.warn(
       `Can't read file from ${filePath} because it does not seem to exist!`,
     );
   }
@@ -25,7 +30,7 @@ function tryLoadStateFromPath(filePath) {
     const content = readFileSync(filePath, "utf8");
     return JsonHelpers_jsonStringToState(content).fields[0];
   } catch (err) {
-    console.error(
+    console.warn(
       `could not convert file ${filePath} to a valid issie design sheet. Details: ${err}`,
     );
     return [];
@@ -87,8 +92,7 @@ function tryLoadComponentFromPath(filePath) {
   try {
     const state = tryLoadStateFromPath(filePath);
     const canvas = getLatestCanvas(state);
-    // console.debug(canvas);
-    // makeLoadedComponentFromCanvasData(canvas)
+    // console.error(canvas);
     return makeLoadedComponentFromCanvasData(
       canvas,
       filePath,
@@ -97,7 +101,7 @@ function tryLoadComponentFromPath(filePath) {
       JsonHelpers_SavedInfo__get_getSheetInfo(state),
     );
   } catch (err) {
-    console.error(
+    console.warn(
       `Can't load component ${
         getBaseNameNoExtension(filePath)
       } because of Error: ${err}`,
@@ -110,22 +114,71 @@ function loadAllComponentFiles(folderPath) {
   try {
     files = readdirSync(folderPath).filter((file) => extname(file) === ".dgm");
   } catch (err) {
-    console.error(
+    console.warn(
       `Error reading Issie project directory at ${folerPath}: ${err}`,
     );
   }
   return files.map((file) => {
     // NOTE: fileNameIsBad checking is skipped
     const filePath = join(folderPath, file);
-    console.debug(`loading  ${filePath}`);
+    console.error(`loading  ${filePath}`);
     const ldComp = tryLoadComponentFromPath(filePath);
     return ldComp;
   });
 }
 
+function extracContentOfDrivers(drivers) {
+  return drivers.map((driver) => {
+    if (driver == undefined || driver == null) return undefined;
+    return {
+      index: driver.Index,
+      width: driver.DriverWidth,
+      data: driver.DriverData.Step.map(
+        (data) => data.Dat.fields[0],
+      ),
+    };
+  }).filter((el) => el !== undefined);
+}
+
+function extracContentOfDriversFData(drivers) {
+  return drivers.map((driver) => {
+    if (driver == undefined || driver == null) return undefined;
+    return {
+      index: driver.Index,
+      width: driver.DriverWidth,
+      data: driver.DriverData.Step.map(
+        (data) => data.fields[0].Dat.fields[0],
+      ),
+    };
+  }).filter((el) => el !== undefined);
+}
+
+function drivers2String(drivers) {
+  drivers.map((driver) =>
+    `Driver [Index=${driver.index}, width=${driver.width}] : [${
+      driver.data.join(", ")
+    }]`
+  );
+}
+
+const NewSimulator = {
+  startCircuitSimulation: newStartCircuitSimulation,
+  runFastSimulation: newRunFastSimulation,
+  extractDriversContent: (FastSimulation) =>
+    extracContentOfDrivers(FastSimulation.Drivers),
+};
+
+const OldSimulator = {
+  startCircuitSimulation: oldStartCircuitSimulation,
+  runFastSimulation: oldRunFastSimulation,
+  extractDriversContent: (FastSimulation) =>
+    extracContentOfDriversFData(FastSimulation.DriversFData),
+};
+
 export {
+  drivers2String,
   FSharpList,
   loadAllComponentFiles,
-  runFastSimulation,
-  startCircuitSimulation,
+  NewSimulator,
+  OldSimulator,
 };

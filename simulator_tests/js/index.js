@@ -1,14 +1,18 @@
 import {
   SimulationError,
-} from "./temp/renderer/NewSimulator/SimulatorTypes.js";
+} from "./temp/src/Renderer/NewSimulator/SimulatorTypes.js";
 import {
   FSharpList,
   loadAllComponentFiles,
-  runFastSimulation,
-  startCircuitSimulation,
+  NewSimulator,
+  OldSimulator,
 } from "./utils.js";
+import { performance } from "node:perf_hooks";
+import test from "node:test";
+import assert from "node:assert";
 
 function runSimulation(
+  simulator,
   topComp,
   loadedComponents,
   timeOut,
@@ -19,9 +23,9 @@ function runSimulation(
   const diagramName = topComp.Name;
   const components = canvasState[0];
   const connections = canvasState[1];
-  console.debug(`========== Running simulation for ${diagramName} ==========`);
+  console.log(`========== Running simulation for ${diagramName} ==========`);
 
-  const simData = startCircuitSimulation(
+  const simData = simulator.startCircuitSimulation(
     simulationArraySize,
     diagramName,
     components,
@@ -29,48 +33,83 @@ function runSimulation(
     loadedComponents,
   ).fields[0];
   if (simData instanceof SimulationError) {
-    console.error(simData);
+    console.warn(simData);
     return;
   }
   const fs = simData.FastSim; // FastSimulation
-  // console.debug(fs);
-  runFastSimulation(timeOut, lastStepNeeded, fs);
-  // console.debug(fs.Drivers);
-  fs.Drivers.map((driver) => {
-    if (driver == undefined || driver == null) return;
-    const result = driver.DriverData.Step.map(
-      (data) => data.Dat.fields[0],
+  // console.error(fs);
+  const iterations = 200;
+  let time = 0;
+  for (let i = 0; i < iterations; i++) {
+    const t0 = performance.now();
+    simulator.runFastSimulation(timeOut, lastStepNeeded, fs);
+    const t1 = performance.now();
+    time += t1 - t0;
+  }
+  time /= iterations;
+  console.log(`runFastSimulation took ${time} milliseconds.`);
+  return {
+    result: simulator.extractDriversContent(fs),
+    time: time,
+  };
+}
+
+function runTest(
+  topComp,
+  loadedComponents,
+  timeOut,
+  lastStepNeeded,
+  simulationArraySize,
+) {
+  return test(topComp, async (t) => {
+    const resultFromNew = runSimulation(
+      NewSimulator,
+      topComp,
+      loadedComponents,
+      timeOut,
+      lastStepNeeded,
+      simulationArraySize,
     );
-    console.debug(
-      `Driver [Index=${driver.Index}, width=${driver.DriverWidth}] : [${
-        result.join(", ")
-      }]`,
+    const resultFromOld = runSimulation(
+      OldSimulator,
+      topComp,
+      loadedComponents,
+      timeOut,
+      lastStepNeeded,
+      simulationArraySize,
     );
+    console.debug(resultFromNew.time, resultFromOld.time);
+    await t.test("Same output", (t) => {
+      assert.deepStrictEqual(resultFromNew.result, resultFromOld.result);
+    });
+    await t.test("Performance of runFastSimulation", (t) => {
+      assert.ok(resultFromNew.time <= resultFromOld.time);
+    });
   });
 }
 
 function main() {
   const testcasesPath = "../testcases";
-  const simulationArraySize = 200;
+  const simulationArraySize = 500;
   const lastStepNeeded = 10000;
   const timeOut = null;
 
   const loadedComponents = loadAllComponentFiles(testcasesPath);
-  //   console.debug(loadedComponents);
+  // console.error(loadedComponents);
   const ldcs = loadedComponents.reduceRight(
     (tail, head) => (new FSharpList(head, tail)),
     void 0,
   );
-  //   console.debug(ldcs);
-  loadedComponents.map((ldComp) => {
-    runSimulation(
+  // console.error(ldcs);
+  loadedComponents.map((ldComp) =>
+    runTest(
       ldComp,
       ldcs,
       timeOut,
       lastStepNeeded,
       simulationArraySize,
-    );
-  });
+    )
+  );
 }
 
 main();

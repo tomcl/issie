@@ -5,9 +5,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "compile-main": "dotnet fable ../../src/Main -s --outDir temp/main --noCache",
-    "compile-renderer": "dotnet fable ../../src/Renderer -s --outDir temp/renderer --noCache",
-    "compile": "npm run compile-main && npm run compile-renderer",
+    "compile": "dotnet fable . --outDir temp --noCache",
     "test": "node index"
   },
   "author": "Yujie Wang",

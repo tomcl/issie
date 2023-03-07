@@ -13,6 +13,7 @@ SmartPortOrder
 The SmartPortOrdering can only re-order contigous sections of wires. For example: you can't have 2 wires with input port indexes [0,1] and the output ports[3,9], obviously they can be at any output port index such as [78,79] but the only condition is they have to be next to each other as a contiguous set.
 Obviously this sort of issue is mainly only present on custom components as other components seem to have a max input of 3. 
 
+
 ### **Shaanuka (HLP23: Author Shaanuka):** 
 SymbolView, Renderer, DrawHelpers, DrawModelType, SmartSizeSymbol, Style.
 

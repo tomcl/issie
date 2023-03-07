@@ -248,7 +248,7 @@ let private createNbitsXorPopup (model:Model) dispatch =
 let private createNbitsAndPopup (model:Model) dispatch =
     let title = sprintf "Add N bits AND gates"
     let beforeInt =
-        fun _ -> str "How many bits should the input have?"
+        fun _ -> str "How many bits should each operand have?"
     let intDefault = model.LastUsedDialogWidth
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
@@ -256,7 +256,7 @@ let private createNbitsAndPopup (model:Model) dispatch =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
-            createCompStdLabel And {model with LastUsedDialogWidth = inputInt} dispatch
+            createCompStdLabel (NbitsAnd inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1

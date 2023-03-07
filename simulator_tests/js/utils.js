@@ -1,4 +1,3 @@
-// import { readFilesFromDirectory } from "../../src/Renderer/Interface/FilesIO.fs.js"
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import {
@@ -8,10 +7,12 @@ import {
   JsonHelpers_SavedInfo__get_getWaveInfo,
 } from "./temp/renderer/Common/Helpers.js";
 import { parseDiagramSignature } from "./temp/renderer/NewSimulator/Extractor.js";
-import { LoadedComponent } from "./temp/renderer/Common/CommonTypes.js";
+import { CCForm, LoadedComponent } from "./temp/renderer/Common/CommonTypes.js";
 import { startCircuitSimulation } from "./temp/renderer/NewSimulator/Simulator.js";
 import { runFastSimulation } from "./temp/renderer/NewSimulator/Fast/FastRun.js";
-// import { map } from "../../src/Renderer/fable_modules/fable-library.4.0.0-theta-018/List.js"; // const {
+import {
+  FSharpList,
+} from "./temp/renderer/fable_modules/fable-library.4.0.0-theta-018/List.js";
 
 function tryLoadStateFromPath(filePath) {
   if (!existsSync(filePath)) {
@@ -122,41 +123,9 @@ function loadAllComponentFiles(folderPath) {
   });
 }
 
-function main() {
-  const testcasesPath = "../testcases";
-  const simulationArraySize = 200;
-  const lastStepNeeded = 10000;
-  const timeOut = null;
-  const diagramName = "";
-
-  const loadedDependencies = loadAllComponentFiles(testcasesPath);
-  // console.debug(loadedDependencies);
-  const canvasState = loadedDependencies[1].CanvasState;
-  const components = canvasState[0];
-  const connections = canvasState[1];
-  const simData = startCircuitSimulation(
-    simulationArraySize,
-    diagramName,
-    components,
-    connections,
-    loadedDependencies,
-  ).fields[0];
-  // console.debug(simData);
-  const fs = simData.FastSim; // FastSimulation
-  // console.debug(fs);
-  runFastSimulation(timeOut, lastStepNeeded, fs);
-  // console.debug(fs.Drivers);
-  fs.Drivers.map((driver) => {
-    if (driver == undefined || driver == null) return;
-    const result = driver.DriverData.Step.map(
-      (data) => data.Dat.fields[0],
-    );
-    console.debug(
-      `Driver [Index=${driver.Index}, width=${driver.DriverWidth}] : [${
-        result.join(", ")
-      }]`,
-    );
-  });
-}
-
-main();
+export {
+  FSharpList,
+  loadAllComponentFiles,
+  runFastSimulation,
+  startCircuitSimulation,
+};

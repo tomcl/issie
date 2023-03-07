@@ -425,7 +425,6 @@ let checkCustomComponentForOkIOs
     (args: CustomComponentType)
     (sheets: LoadedComponent list)
     =
-    let inouts = args.InputLabels, args.OutputLabels
     let name = args.Name
     let compare labs1 labs2 = (labs1 |> Set) = (labs2 |> Set)
     sheets

@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "test.js",
+  "main": "index.js",
   "scripts": {
-    "compile-main": "dotnet fable ../../src/Main -s --outDir temp/main",
-    "compile-renderer": "dotnet fable ../../src/Renderer -s --outDir temp/renderer",
+    "compile-main": "dotnet fable ../../src/Main -s --outDir temp/main --noCache",
+    "compile-renderer": "dotnet fable ../../src/Renderer -s --outDir temp/renderer --noCache",
     "compile": "npm run compile-main && npm run compile-renderer",
-    "test": "node test.js"
+    "test": "node index"
   },
   "author": "Yujie Wang",
   "license": "ISC"

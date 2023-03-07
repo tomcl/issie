@@ -5,6 +5,9 @@
   "type": "module",
   "main": "test.js",
   "scripts": {
+    "compile-main": "dotnet fable ../../src/Main -s --outDir temp/main",
+    "compile-renderer": "dotnet fable ../../src/Renderer -s --outDir temp/renderer",
+    "compile": "npm run compile-main && npm run compile-renderer",
     "test": "node test.js"
   },
   "author": "Yujie Wang",

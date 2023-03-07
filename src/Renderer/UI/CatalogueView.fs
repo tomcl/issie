@@ -248,7 +248,7 @@ let private createNbitsXorPopup (model:Model) dispatch =
 let private createNbitsAndPopup (model:Model) dispatch =
     let title = sprintf "Add N bits AND gates"
     let beforeInt =
-        fun _ -> str "How many bits should each operand have?"
+        fun _ -> str "How many bits should the input have?"
     let intDefault = model.LastUsedDialogWidth
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
@@ -256,7 +256,7 @@ let private createNbitsAndPopup (model:Model) dispatch =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
-            createCompStdLabel (NbitsAnd inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            createCompStdLabel And {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
@@ -825,7 +825,7 @@ let viewCatalogue model dispatch =
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
-                          catTip1 "And"  (fun _ -> createCompStdLabel And model dispatch) "Output is 1 if both the two inputs are 1"
+                          catTip1 "And"  (fun _ -> createNbitsAndPopup model dispatch) "Output is 1 if both the two inputs are 1"
                           catTip1 "Or"   (fun _ -> createCompStdLabel Or model dispatch) "Output is 1 if either of the two inputs are 1"
                           catTip1 "Xor"  (fun _ -> createCompStdLabel Xor model dispatch) "Output is 1 if the two inputs have different values"
                           catTip1 "Nand" (fun _ -> createCompStdLabel Nand model dispatch) "Output is 0 if both the two inputs are 1"

@@ -77,7 +77,7 @@ let reSizeSymbol
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 
-    let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
+    let wires = getWiresBtwnSyms wModel symbolToSize otherSymbol
     
     let getPortAB wireSyms =
         let ports = getPortsFrmWires wModel [wireSyms.wire]

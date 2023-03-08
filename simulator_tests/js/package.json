@@ -3,14 +3,15 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "index.js",
+  "main": "test.js",
   "scripts": {
     "compile": "dotnet fable . --outDir temp --noCache",
-    "test": "node index"
+    "test": "mocha"
   },
   "author": "Yujie Wang",
   "license": "ISC",
   "dependencies": {
-    "chalk": "^5.2.0"
+    "mocha": "^10.2.0",
+    "winston": "^3.8.2"
   }
 }

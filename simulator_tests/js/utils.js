@@ -1,5 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
+import { performance } from "node:perf_hooks";
+import { createLogger, format, transports } from "winston";
 import {
   JsonHelpers_jsonStringToState,
   JsonHelpers_SavedInfo__get_getSheetInfo,
@@ -11,17 +13,51 @@ import {
   CCForm,
   LoadedComponent,
 } from "./temp/src/Renderer/Common/CommonTypes.js";
-import { startCircuitSimulation as newStartCircuitSimulation } from "./temp/src/Renderer/NewSimulator/Simulator.js";
-import { runFastSimulation as newRunFastSimulation } from "./temp/src/Renderer/NewSimulator/Fast/FastRun.js";
-import { startCircuitSimulation as oldStartCircuitSimulation } from "./temp/src/Renderer/Simulator/Simulator.js";
-import { runFastSimulation as oldRunFastSimulation } from "./temp/src/Renderer/Simulator/Fast/FastRun.js";
 import {
   FSharpList,
 } from "./temp/fable_modules/fable-library.4.0.0-theta-018/List.js";
+import {
+  SimulationError,
+} from "./temp/src/Renderer/NewSimulator/SimulatorTypes.js";
+// New Simulator
+import { startCircuitSimulation as newStartCircuitSimulation } from "./temp/src/Renderer/NewSimulator/Simulator.js";
+import { runFastSimulation as newRunFastSimulation } from "./temp/src/Renderer/NewSimulator/Fast/FastRun.js";
+import { emptyFastSimulation as newEmptyFastSimulation } from "./temp/src/Renderer/NewSimulator/Fast/FastCreate.js";
+// Old Simulator
+import { startCircuitSimulation as oldStartCircuitSimulation } from "./temp/src/Renderer/Simulator/Simulator.js";
+import { runFastSimulation as oldRunFastSimulation } from "./temp/src/Renderer/Simulator/Fast/FastRun.js";
+import { emptyFastSimulation as oldEmptyFastSimulation } from "./temp/src/Renderer/Simulator/Fast/FastCreate.js";
+
+const toPrecision = (num) => num.toPrecision(3);
+
+const logger = createLogger({
+  transports: [
+    new transports.File({
+      level: "info",
+      format: format.json(),
+      filename: "combined.log",
+      options: { flags: "w" },
+    }),
+    new transports.Console({
+      level: "verbose",
+      format: format.combine(
+        format.colorize(),
+        format.splat(),
+        format.simple(),
+        format.timestamp(),
+        format.printf(({ level, message, label, timestamp }) => {
+          return `${timestamp} [${
+            `${label}`.padEnd(15, " ")
+          }] ${level}: ${message}`;
+        }),
+      ),
+    }),
+  ],
+});
 
 function tryLoadStateFromPath(filePath) {
   if (!existsSync(filePath)) {
-    console.warn(
+    console.error(
       `Can't read file from ${filePath} because it does not seem to exist!`,
     );
   }
@@ -30,7 +66,7 @@ function tryLoadStateFromPath(filePath) {
     const content = readFileSync(filePath, "utf8");
     return JsonHelpers_jsonStringToState(content).fields[0];
   } catch (err) {
-    console.warn(
+    console.error(
       `could not convert file ${filePath} to a valid issie design sheet. Details: ${err}`,
     );
     return [];
@@ -92,7 +128,6 @@ function tryLoadComponentFromPath(filePath) {
   try {
     const state = tryLoadStateFromPath(filePath);
     const canvas = getLatestCanvas(state);
-    // console.error(canvas);
     return makeLoadedComponentFromCanvasData(
       canvas,
       filePath,
@@ -101,7 +136,7 @@ function tryLoadComponentFromPath(filePath) {
       JsonHelpers_SavedInfo__get_getSheetInfo(state),
     );
   } catch (err) {
-    console.warn(
+    console.error(
       `Can't load component ${
         getBaseNameNoExtension(filePath)
       } because of Error: ${err}`,
@@ -114,14 +149,14 @@ function loadAllComponentFiles(folderPath) {
   try {
     files = readdirSync(folderPath).filter((file) => extname(file) === ".dgm");
   } catch (err) {
-    console.warn(
-      `Error reading Issie project directory at ${folerPath}: ${err}`,
+    console.error(
+      `Error reading Issie project directory at ${folderPath}: ${err}`,
     );
   }
   return files.map((file) => {
     // NOTE: fileNameIsBad checking is skipped
     const filePath = join(folderPath, file);
-    console.error(`loading  ${filePath}`);
+    console.info(`loading  ${filePath}`);
     const ldComp = tryLoadComponentFromPath(filePath);
     return ldComp;
   });
@@ -165,6 +200,7 @@ const NewSimulator = {
   type: "new",
   startCircuitSimulation: newStartCircuitSimulation,
   runFastSimulation: newRunFastSimulation,
+  emptyFastSimulation: () => newEmptyFastSimulation(),
   extractDriversContent: (FastSimulation) =>
     extracContentOfDrivers(FastSimulation.Drivers),
 };
@@ -173,14 +209,83 @@ const OldSimulator = {
   type: "old",
   startCircuitSimulation: oldStartCircuitSimulation,
   runFastSimulation: oldRunFastSimulation,
+  emptyFastSimulation: () => oldEmptyFastSimulation(),
   extractDriversContent: (FastSimulation) =>
     extracContentOfDriversFData(FastSimulation.DriversFData),
 };
+
+function simulationFactory(
+  loadedComponents,
+  timeOut,
+  lastStepNeeded,
+  simulationArraySize,
+  detail,
+  warmupIterations = 20,
+  iterations = 100,
+) {
+  return (simulator, topComp) => {
+    const canvasState = topComp.CanvasState;
+    const diagramName = topComp.Name;
+    const components = canvasState[0];
+    const connections = canvasState[1];
+
+    let time = 0;
+
+    logger.verbose({
+      label: `${simulator.type} simulator`,
+      message: `Run simulation for ${diagramName}`,
+    });
+
+    const simData = simulator.startCircuitSimulation(
+      simulationArraySize,
+      diagramName,
+      components,
+      connections,
+      loadedComponents,
+    ).fields[0];
+    if (simData instanceof SimulationError) {
+      logger.error(simData);
+      return;
+    }
+    const fs = simData.FastSim; // FastSimulation
+    // warm up the JIT compiler
+    for (let i = 0; i < warmupIterations; i++) {
+      const cloned = { ...fs }; // deep clone of fs
+      simulator.runFastSimulation(timeOut, lastStepNeeded, cloned);
+    }
+    // run the actual test
+    for (let i = 0; i < iterations; i++) {
+      const cloned = { ...fs }; // deep clone of fs
+      const t0 = performance.now();
+      simulator.runFastSimulation(timeOut, lastStepNeeded, cloned);
+      const t1 = performance.now();
+      time += t1 - t0;
+    }
+    time /= iterations;
+    logger.info({
+      label: `${simulator.type} simulator`,
+      message: `runFastSimulation() took ${toPrecision(time)} milliseconds.`,
+      detail: {
+        ...detail,
+        "testcase": diagramName,
+        "simulator": simulator.type,
+        "execTime": time,
+      },
+    });
+    return {
+      result: simulator.extractDriversContent(fs),
+      time: time,
+    };
+  };
+}
 
 export {
   drivers2String,
   FSharpList,
   loadAllComponentFiles,
+  logger,
   NewSimulator,
   OldSimulator,
+  simulationFactory,
+  toPrecision,
 };

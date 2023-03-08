@@ -155,6 +155,8 @@ module CommonTypes
         // less memory efficient.
         Data : Map<int64,int64>
     }
+        
+
 
     type InitMemData = 
         | FromData // old method (from data field)
@@ -448,6 +450,8 @@ module CommonTypes
     /// SHA hash unique to a component - common between JS and F#
     [<Erase>]
     type ComponentId = | ComponentId of string
+
+    type ButtonId = | ButtonId of string
 
     /// Unique identifier for a fast component.
     /// The list is the access path, a list of all the containing custom components 

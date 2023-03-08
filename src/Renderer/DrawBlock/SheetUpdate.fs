@@ -20,6 +20,7 @@ open Fable.Core.JsInterop
 open BuildUartHelpers
 open Node.ChildProcess
 open Node
+open SmartHelpers
 
 module node = Node.Api
 
@@ -103,7 +104,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     wireCmd (BusWireT.ColorWires (pastedConnIds, HighLightColor.Thistle)) ]
     
     | DrawBox ->
-        ({model with Box = true}), Cmd.none  
+        let box = 
+                    model.SelectedComponents
+                    |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+                    |> getBlock 
+        ({model with Box = true
+                     ScallingBox = box }), Cmd.none  
         
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with
@@ -999,6 +1005,7 @@ let init () =
         DebugMappings = [||]
         DebugDevice = None
         Box = false
+        ScallingBox = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}
     }, Cmd.none
 
 

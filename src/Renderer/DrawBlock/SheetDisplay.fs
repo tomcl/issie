@@ -151,15 +151,11 @@ let view
         makePolygon polygonPoints selectionBox
 
     let scalingBox = 
+            let {BoundingBox.TopLeft = {X=fX; Y=fY}; H=fH; W=fW} = model.ScallingBox
+            printfn "Scaling box: %A" model.ScallingBox
             match model.SelectedComponents.Length with
             | s when s<2 -> makeAnyPath {X=0;Y=0} (makeLineAttr 0.0 0.0) defaultPath 
-            | _ ->       
-                    let box = 
-                        model.SelectedComponents
-                        |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
-                        |> getBlock 
-
-                    makeAnyPath {X=(box.TopLeft.X)-50.0;Y=(box.TopLeft.Y-50.0)} ((makeLineAttr ((box.W)+100.0) 0.0)+(makeLineAttr 0.0 ((box.H)+100.0))+(makeLineAttr (-(box.W)-100.0) 0.0)+(makeLineAttr 0.0 (-(box.H)-100.0))) {defaultPath with StrokeDashArray="4,4"}
+            | _ -> makeAnyPath {X=(fX)-50.0;Y=(fY-50.0)} ((makeLineAttr ((fW)+100.0) 0.0)+(makeLineAttr 0.0 ((fH)+100.0))+(makeLineAttr (-(fW)-100.0) 0.0)+(makeLineAttr 0.0 (-(fH)-100.0))) {defaultPath with StrokeDashArray="4,4"}
 
 
     let connectingPortsWire =
@@ -187,6 +183,7 @@ let view
     | MovingWire _,_ -> 
         displaySvgWithZoom model headerHeight style (displayElements @ snaps) dispatch
     | _ , true -> 
+        printfn "HERE"
         displaySvgWithZoom model headerHeight style ( displayElements @ [ scalingBox ] ) dispatch
     | _ , _->
         displaySvgWithZoom model headerHeight style displayElements dispatch

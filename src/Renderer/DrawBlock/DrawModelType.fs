@@ -395,6 +395,8 @@ module SheetT =
         Move: XYPos
         }
     
+
+    
     let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
     let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
 
@@ -405,6 +407,7 @@ module SheetT =
         | OutputPort of CommonTypes.OutputPortId * XYPos
         | Component of CommonTypes.ComponentId
         | Connection of CommonTypes.ConnectionId
+        | Buttons of CommonTypes.ButtonId
         | Canvas
 
     /// Keeps track of the current action that the user is doing
@@ -421,6 +424,7 @@ module SheetT =
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
+        | Scaling
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
@@ -471,6 +475,15 @@ module SheetT =
         Text : string option;
         Int : int option;
         Int2: int64 option
+    }
+   // Button Stuff
+    type Button = {
+        ButtonId : ButtonId
+        Position : XYPos
+        W : float 
+        H : float
+        Center : float
+        Radius : float
     }
 
     type Arrange = | AlignSymbols | DistributeSymbols
@@ -581,6 +594,7 @@ module SheetT =
         NearbyComponents: CommonTypes.ComponentId list
         ErrorComponents: CommonTypes.ComponentId list
         DragToSelectBox: BoundingBox
+        ScallingBox : BoundingBox
         ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
         TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
@@ -619,7 +633,8 @@ module SheetT =
         DebugIsConnected: bool
         DebugDevice: string option
         Box: bool
-        }
+        ScalingButtons : List<Button>
+    }
     
     open Operators
     let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})

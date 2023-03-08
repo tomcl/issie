@@ -12,6 +12,7 @@ open SheetSnap
 open SheetDisplay
 open DrawHelpers
 open Browser
+open SmartHelpers
 
 
 
@@ -270,7 +271,9 @@ let mDownUpdate
             // Start Panning with drag, setting up offset to calculate scroll poistion during drag.
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
             {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
-        | Label compId ->
+        | Buttons butId-> 
+            {model with Action = Scaling}, Cmd.none
+        | Label compId -> 
             {model with Action = InitialiseMovingLabel compId},
             Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
 
@@ -391,7 +394,16 @@ let mDragUpdate
     match model.Action with
     | MovingWire segId -> 
         snapWire model mMsg segId 
-    | Selecting ->
+    | Scaling -> 
+            let newBox = 
+                model.SelectedComponents
+                |> List.map (fun id ->Map.find id model.Wire.Symbol.Symbols)
+                |> getBlock
+            let newScalingBox = newBox
+            {model with ScallingBox = newScalingBox}, Cmd.ofMsg DoNothing
+
+
+    | Selecting -> 
         let initialX = model.DragToSelectBox.TopLeft.X
         let initialY = model.DragToSelectBox.TopLeft.Y
         let newDragToSelectBox = {model.DragToSelectBox with W = (mMsg.Pos.X - initialX); H = (mMsg.Pos.Y - initialY)}

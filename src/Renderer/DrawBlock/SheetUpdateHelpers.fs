@@ -646,14 +646,24 @@ let validateMultipleSelectedSymbols (model:Model) =
                None
      
 
-/// Geometric helper used for testing. Probably needs a better name, and to be collected with other
-/// This should perhaps be generalised for all orientations and made a helper function.
-/// However different testing may be needed, so who knows?
-/// Return the vertical channel between two bounding boxes, if they do not intersect and
-/// their vertical coordinates overlap.
-let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
+
+
+let rec getHorizontalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
+    if bb1.TopLeft.Y > bb2.TopLeft.Y then
+        getHorizontalChannel bb2 bb1
+    else
+        if bb1.TopLeft.Y + bb1.H > bb2.TopLeft.Y then
+            None //Vertical intersection
+        elif bb1.TopLeft.X > bb2.TopLeft.X + bb2.W|| bb1.TopLeft.X + bb1.W < bb2.TopLeft.X then
+            None //Symbols ar not aligned vertically
+        else 
+            let y1, y2 = bb1.TopLeft.Y + bb1.H, bb2.TopLeft.Y
+            let union = boxUnion bb1 bb2
+            let topLeft = {X = union.TopLeft.X; Y = y1}
+            Some {TopLeft = topLeft; W = union.W; H = y2 - y1}
+let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
     if bb1.TopLeft.X > bb2.TopLeft.X then
-        getChannel bb2 bb1
+        getVerticalChannel bb2 bb1
     else
         if  bb1.TopLeft.X + bb1.W > bb2.TopLeft.X then
             None // horizontal intersection
@@ -662,8 +672,19 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
         else
             let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
             let union = boxUnion bb1 bb2
-            let topLeft = {Y=union.TopLeft.Y; X=x2}
+            let topLeft = {Y=union.TopLeft.Y; X=x1}
             Some {TopLeft = topLeft; H = union.H; W = x2 - x1}
 
-        
-
+/// Geometric helper used for testing. Probably needs a better name, and to be collected with other
+/// This should perhaps be generalised for all orientations and made a helper function.
+/// However different testing may be needed, so who knows?
+/// Return the vertical channel between two bounding boxes, if they do not intersect and
+/// their vertical coordinates overlap.
+let getChannel (bb1:BoundingBox) (bb2:BoundingBox) : Option<BoundingBox*Orientation> =
+    let vChannel = getVerticalChannel bb1 bb2
+    let hChannel = getHorizontalChannel bb1 bb2 
+    match vChannel, hChannel with
+    | Some vBB, Some hBB -> None //Should not happen
+    | Some vBB, None -> Some (vBB, Vertical)
+    | None, Some hBB -> Some (hBB, Horizontal)
+    | None, None -> None

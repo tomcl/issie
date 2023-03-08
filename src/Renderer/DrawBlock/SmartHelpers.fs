@@ -249,6 +249,7 @@ let updateModelWires
 let getMiddleSegment (model : Model) (wireId:ConnectionId) =
     let wire = model.Wires[wireId]
     match wire.Segments.Length with
+    | 6 -> getSegmentFromId model (2, wireId)
     | 7 -> getSegmentFromId model (3, wireId)
     | 9 -> getSegmentFromId model (5, wireId)
     | 8 -> getSegmentFromId model (3, wireId)
@@ -283,10 +284,12 @@ let isPositionInBounds (bound : BoundingBox) (pos : XYPos) =
 /// <param name="bounds">BoundingBox to check against</param>
 /// <param name="wireId">Connection Id of the wire to check</param>
 /// <returns>true or false</returns>
-let isWireConnectedOnLeft (model : Model) (bounds : BoundingBox) (wireId) =
+let isWireConnectedOnLeft (model : Model) (bounds : BoundingBox) (wireId) (orientation: Orientation)=
     let wire = model.Wires[wireId]
-    if isPositionInBounds {bounds with W = bounds.W / 2.0} wire.StartPos || isPositionInBounds {bounds with W = bounds.W / 2.0}  wire.EndPos then true else false
-
+    if orientation = Vertical then
+        if isPositionInBounds {bounds with W = bounds.W / 2.0} wire.StartPos || isPositionInBounds {bounds with W = bounds.W / 2.0}  wire.EndPos then true else false
+    else 
+        if isPositionInBounds {bounds with H = bounds.H / 2.0} wire.StartPos || isPositionInBounds {bounds with H = bounds.H / 2.0}  wire.EndPos then true else false
 
 
 /// <summary>HLP 23: AUTHOR Klapper - Returns the component on the end of the wire</summary>
@@ -574,7 +577,6 @@ let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Mo
         | Right -> {X = startOrigin.X + 20.0; Y =  startOrigin.Y - compHeight / 2.0},Degree0
          
     
-    
     let startLabel = Symbol.makeComponent startPos ComponentType.IOLabel startLabelId (endComp.Label + string(unique_labelNb))
 
     let endComp = getEndComponent model wire
@@ -587,7 +589,6 @@ let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Mo
         | Bottom ->  {X = endOrigin.X - compWidth / 2.0; Y = endOrigin.Y + 20.0}, Degree270
         | Left ->  {X = endOrigin.X - 60.0; Y =  endOrigin.Y - compHeight / 2.0},Degree0    
         | Right -> {X = endOrigin.X + 20.0; Y =  endOrigin.Y - compHeight / 2.0} , Degree180
-    
     let endLabelId = JSHelpers.uuid ()
     let endLabel = Symbol.makeComponent endPos ComponentType.IOLabel endLabelId (endComp.Label + string(unique_labelNb))
     let sym = 
@@ -620,9 +621,9 @@ let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Mo
             }
             |> Symbol.autoScaleHAndW
             
-    let startSymbol = sym |> rotateSymbolByDegree startRotation
+    let startSymbol = sym |> rotateSymbolByDegree startRotation |> Symbol.autoScaleHAndW
     let symbolModel = model.Symbol
-    let endSymbol = {startSymbol with Pos = endPos; Id = ComponentId endLabel.Id; Component = endLabel; PortMaps = Symbol.initPortOrientation endLabel} |> Symbol.autoScaleHAndW |> rotateSymbolByDegree endRotation
+    let endSymbol = {sym with Pos = endPos; Id = ComponentId endLabel.Id; Component = endLabel; PortMaps = Symbol.initPortOrientation endLabel} |>  Symbol.autoScaleHAndW |> rotateSymbolByDegree endRotation 
     let startSymbolMap = symbolModel.Symbols.Add (ComponentId startLabel.Id, startSymbol) 
     let startNewPorts = Symbol.addToPortModel symbolModel startSymbol 
 
@@ -750,3 +751,6 @@ let isOverlapped
     elif secondEnd < firstEnd && secondEnd > firstBegin
     then true
     else false
+
+
+

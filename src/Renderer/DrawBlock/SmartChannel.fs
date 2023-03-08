@@ -54,7 +54,7 @@ let process7Segment (seg: Segment) =
     | 3 -> if seg.Length = 0 then Some (seg, StraightCross) else Some (seg, ZigZagCross)
 
 //Given the output of selectSegmentsIntersectingBoundingBox, it reduces the list in a list into a single List containing one segment per wire, and its categorisation
-let categoriseWireSegments (model:Model ) (bounds: BoundingBox) (segList : List<List<Segment>>) =
+let categoriseWireSegments (model:Model ) (bounds: BoundingBox) (orientation : Orientation) (segList : List<List<Segment>>)  =
     
     let mapOverWireSegment (segments : List<Segment>) =
         match segments.Length with
@@ -63,7 +63,7 @@ let categoriseWireSegments (model:Model ) (bounds: BoundingBox) (segList : List<
         | 1 -> Some (segments[0], StraightCross)
         | 2 -> Some (getMiddleSegment model segments[0].WireId, LShape)
         | 3 -> if segments[1].Length <> 0 then Some (segments[0], NShape) else Some (segments[0], StraightCross)
-        | 4 when isWireConnectedOnLeft model bounds segments[0].WireId -> Some (getMiddleSegment model segments[0].WireId , Originates)
+        | 4 when isWireConnectedOnLeft model bounds segments[0].WireId orientation -> Some (getMiddleSegment model segments[0].WireId , Originates)
         | 4 -> Some(getMiddleSegment model segments[0].WireId, Terminates )
         | 5 -> Some (getMiddleSegment model segments[0].WireId ,ZigZagCross)
         | 7 -> getMiddleSegment model segments[0].WireId |> process7Segment
@@ -204,7 +204,7 @@ let filterShiftedWires (lst : List<Wire* Segment>) =
 let createShiftedWires (orientation : Orientation) (model : Model) (bounds: BoundingBox) (segList : List<List<Segment*(XYPos*XYPos)>>)  = 
     let innerSegFolder (increment : float ) (lst) (seg, (startPos:XYPos, endPos)) = 
         match orientation with
-        | Vertical -> lst@[moveSegment model seg -(startPos.X - (bounds.TopLeft.X - bounds.W + increment *(bounds.W / float (segList.Length + 1)))) , seg]
+        | Vertical -> lst@[moveSegment model seg -(startPos.X - (bounds.TopLeft.X + increment *(bounds.W / float (segList.Length + 1)))) , seg]
         | Horizontal -> lst@[moveSegment model seg -(startPos.Y - (bounds.TopLeft.Y + increment *(bounds.H / float (segList.Length + 1)))), seg]
     let outerSegFolder (stateLst, counter) (sgLst) =
         let updatedList = (stateLst, sgLst) ||> List.fold (innerSegFolder counter)
@@ -231,14 +231,13 @@ let rec smartChannelRoute
     let tl = channel.TopLeft
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     
-    let correctBounds = {channel with TopLeft = {channel.TopLeft with X = channel.TopLeft.X - channel.W}}
     
     let sortedWires, diffictulWires = 
         model 
         |> getWireList 
         |> List.filter (fun element -> not(isWireConnectedToLabel model element))
-        |> selectSegmentsIntersectingBoundingBox correctBounds
-        |> categoriseWireSegments model correctBounds
+        |> selectSegmentsIntersectingBoundingBox channel
+        |> categoriseWireSegments model channel channelOrientation
         |> generateChannelOrder channelOrientation model 
     let moreDiffictultWires ,wireListToModify =
         sortedWires

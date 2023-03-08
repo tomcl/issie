@@ -101,7 +101,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     symbolCmd (SymbolT.PasteSymbols pastedCompIds)
                     wireCmd (BusWireT.SelectWires [])
                     wireCmd (BusWireT.ColorWires (pastedConnIds, HighLightColor.Thistle)) ]
-
+    
+    | DrawBox ->
+        ({model with Box = true}), Cmd.none  
+        
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with
         | DragAndDrop ->
@@ -995,6 +998,7 @@ let init () =
         DebugIsConnected = false
         DebugMappings = [||]
         DebugDevice = None
+        Box = false
     }, Cmd.none
 
 

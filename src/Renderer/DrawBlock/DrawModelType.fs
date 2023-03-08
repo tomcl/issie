@@ -495,6 +495,7 @@ module SheetT =
     }
 
     type Msg =
+        | DrawBox 
         | Wire of BusWireT.Msg
         | KeyPress of KeyboardMsg
         | ToggleGrid
@@ -617,6 +618,7 @@ module SheetT =
         DebugMappings: string array
         DebugIsConnected: bool
         DebugDevice: string option
+        Box: bool
         }
     
     open Operators

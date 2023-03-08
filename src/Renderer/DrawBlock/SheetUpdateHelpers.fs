@@ -500,6 +500,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             SelectedWires = selectWires; 
             AutomaticScrolling = false },
         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols selectComps)
+                    Cmd.ofMsg (DrawBox)
                     wireCmd (BusWireT.SelectWires selectWires) ]
 
     | InitialiseMoving compId -> 

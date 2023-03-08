@@ -62,6 +62,49 @@ type wireSymbols = {
     wire: Wire
 }
 
+let alignSymbols
+    (wModel: BusWireT.Model) 
+    (symbolToSize: Symbol) 
+    (otherSymbol: Symbol)
+    (smartHelpers: ExternalSmartHelpers) 
+        : BusWireT.Model = 
+    let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
+    
+    let getPortAB wireSyms =
+        let ports = getPortsFrmWires wModel [wireSyms.wire]
+        let portA = fiterPortBySym ports wireSyms.symA |> List.head
+        let portB = fiterPortBySym ports wireSyms.symB |> List.head
+        portA, portB
+
+    let tryGetOppEdgePorts wireSyms =
+        let portA, portB = getPortAB wireSyms
+        let edgeA = getSymbolPortOrientation wireSyms.symA portA
+        let edgeB = getSymbolPortOrientation wireSyms.symB portB
+        match edgeA, edgeB with
+        | Top, Bottom | Bottom, Top | Left, Right | Right, Left -> Some (portA, portB)
+        | _ -> None
+
+    // try to get two ports that are on opposite edges, if none found just use any two ports
+    let twoPorts = 
+        wires |> List.tryPick (fun w -> tryGetOppEdgePorts {symA=symbolToSize; symB=otherSymbol; wire=w}) 
+
+    match twoPorts with
+    | None -> wModel
+    | Some (resizePort, otherPort) ->
+        let getPortAbsPos sym port = getPortPos sym port + sym.Pos
+        let resizePortPos = getPortAbsPos symbolToSize resizePort
+        let otherPortPos = getPortAbsPos otherSymbol otherPort
+        let posDiff = otherPortPos - resizePortPos
+
+        let offset = 
+            match getSymbolPortOrientation symbolToSize resizePort with
+            | Top | Bottom -> { X=posDiff.X; Y=0.0 }
+            | Left | Right -> { X=0.0; Y=posDiff.Y }
+
+        let symbol' = moveSymbol offset symbolToSize
+        let model' = set (symbolOf_ symbolToSize.Id ) symbol' wModel
+        smartHelpers.UpdateSymbolWires model' symbolToSize.Id
+
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
 /// HLP23: It should work out the interconnecting wires (wires) from 
@@ -85,7 +128,7 @@ let reSizeSymbol
         let portB = fiterPortBySym ports wireSyms.symB |> List.head
         portA, portB
 
-    let tryGetOppEdge wireSyms =
+    let tryGetOppEdgePorts wireSyms =
         let portA, portB = getPortAB wireSyms
         let edgeA = getSymbolPortOrientation wireSyms.symA portA
         let edgeB = getSymbolPortOrientation wireSyms.symB portB
@@ -96,7 +139,7 @@ let reSizeSymbol
     // try to get two ports that are on opposite edges, if none found just use any two ports
     let twoPorts = 
         wires 
-        |> List.tryPick (fun w -> tryGetOppEdge {symA=symbolToSize; symB=otherSymbol; wire=w}) 
+        |> List.tryPick (fun w -> tryGetOppEdgePorts {symA=symbolToSize; symB=otherSymbol; wire=w}) 
         |> Option.defaultValue (getPortAB {symA=symbolToSize; symB=otherSymbol; wire=wires[0]})
 
     let resizePort, otherPort = twoPorts
@@ -111,4 +154,6 @@ let reSizeSymbol
     let symbol' = setCustomCompHW h w symbolToSize
     let model' = set (symbolOf_ symbolToSize.Id ) symbol' wModel
 
-    smartHelpers.UpdateSymbolWires model' symbolToSize.Id
+
+    alignSymbols model' symbol' otherSymbol smartHelpers 
+    // smartHelpers.UpdateSymbolWires model' symbolToSize.Id

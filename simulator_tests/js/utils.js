@@ -221,7 +221,7 @@ function simulationFactory(
   simulationArraySize,
   detail,
   warmupIterations = 20,
-  iterations = 100,
+  testIterations = 100,
 ) {
   return (simulator, topComp) => {
     const canvasState = topComp.CanvasState;
@@ -254,14 +254,14 @@ function simulationFactory(
       simulator.runFastSimulation(timeOut, lastStepNeeded, cloned);
     }
     // run the actual test
-    for (let i = 0; i < iterations; i++) {
+    for (let i = 0; i < testIterations; i++) {
       const cloned = { ...fs }; // deep clone of fs
       const t0 = performance.now();
       simulator.runFastSimulation(timeOut, lastStepNeeded, cloned);
       const t1 = performance.now();
       time += t1 - t0;
     }
-    time /= iterations;
+    time /= testIterations;
     logger.info({
       label: `${simulator.type} simulator`,
       message: `runFastSimulation() took ${toPrecision(time)} milliseconds.`,

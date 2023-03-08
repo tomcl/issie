@@ -62,6 +62,12 @@ type wireSymbols = {
     wire: Wire
 }
 
+let getPortAB wModel wireSyms =
+    let ports = getPortsFrmWires wModel [wireSyms.wire]
+    let portA = fiterPortBySym ports wireSyms.symA |> List.head
+    let portB = fiterPortBySym ports wireSyms.symB |> List.head
+    portA, portB
+
 /// Try to get two ports that are on opposite edges
 let getOppEdgePortInfo 
     (wModel: BusWireT.Model) 
@@ -70,14 +76,10 @@ let getOppEdgePortInfo
         : (portInfo * portInfo) option  =
     let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
     
-    let getPortAB wireSyms =
-        let ports = getPortsFrmWires wModel [wireSyms.wire]
-        let portA = fiterPortBySym ports wireSyms.symA |> List.head
-        let portB = fiterPortBySym ports wireSyms.symB |> List.head
-        portA, portB
+    
 
     let tryGetOppEdgePorts wireSyms =
-        let portA, portB = getPortAB wireSyms
+        let portA, portB = getPortAB wModel wireSyms
         let edgeA = getSymbolPortOrientation wireSyms.symA portA
         let edgeB = getSymbolPortOrientation wireSyms.symB portB
         match edgeA, edgeB with
@@ -107,25 +109,6 @@ let alignSymbols
     (otherSymbol: Symbol)
     (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model = 
-    let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
-    
-    let getPortAB wireSyms =
-        let ports = getPortsFrmWires wModel [wireSyms.wire]
-        let portA = fiterPortBySym ports wireSyms.symA |> List.head
-        let portB = fiterPortBySym ports wireSyms.symB |> List.head
-        portA, portB
-
-    let tryGetOppEdgePorts wireSyms =
-        let portA, portB = getPortAB wireSyms
-        let edgeA = getSymbolPortOrientation wireSyms.symA portA
-        let edgeB = getSymbolPortOrientation wireSyms.symB portB
-        match edgeA, edgeB with
-        | Top, Bottom | Bottom, Top | Left, Right | Right, Left -> Some (portA, portB)
-        | _ -> None
-
-    // try to get two ports that are on opposite edges, if none found just use any two ports
-    let twoPorts = 
-        wires |> List.tryPick (fun w -> tryGetOppEdgePorts {symA=symbolToSize; symB=otherSymbol; wire=w}) 
 
     match getOppEdgePortInfo wModel symbolToSize otherSymbol with
     | None -> wModel
@@ -148,41 +131,24 @@ let reSizeSymbol
     (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
-
     let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
-    
-    let getPortAB wireSyms =
-        let ports = getPortsFrmWires wModel [wireSyms.wire]
-        let portA = fiterPortBySym ports wireSyms.symA |> List.head
-        let portB = fiterPortBySym ports wireSyms.symB |> List.head
-        portA, portB
-
-    let tryGetOppEdgePorts wireSyms =
-        let portA, portB = getPortAB wireSyms
-        let edgeA = getSymbolPortOrientation wireSyms.symA portA
-        let edgeB = getSymbolPortOrientation wireSyms.symB portB
-        match edgeA, edgeB with
-        | Top, Bottom | Bottom, Top | Left, Right | Right, Left -> Some (portA, portB)
-        | _ -> None
 
     // try to get two ports that are on opposite edges, if none found just use any two ports
-    let twoPorts = 
-        wires 
-        |> List.tryPick (fun w -> tryGetOppEdgePorts {symA=symbolToSize; symB=otherSymbol; wire=w}) 
-        |> Option.defaultValue (getPortAB {symA=symbolToSize; symB=otherSymbol; wire=wires[0]})
-
-    let resizePort, otherPort = twoPorts
-    let resizePortInfo = makePortInfo symbolToSize resizePort
-    let otherPortInfo = makePortInfo otherSymbol otherPort
+    let resizePortInfo, otherPortInfo= 
+        match getOppEdgePortInfo wModel symbolToSize otherSymbol with 
+        | None ->
+            let pA, pB = getPortAB wModel {symA=symbolToSize; symB=otherSymbol; wire=wires[0]}
+            makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
+        | Some (pIA, pIB) -> (pIA, pIB)
 
     let h, w = 
         match resizePortInfo.side with
         | Left | Right -> otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0*resizePortInfo.gap), resizePortInfo.w
         | Top | Bottom -> resizePortInfo.h, otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0*resizePortInfo.topBottomGap)
 
-    let symbol' = setCustomCompHW h w symbolToSize 
-    let model' = set (symbolOf_ symbolToSize.Id ) symbol' wModel
+    let scaledSymbol = setCustomCompHW h w symbolToSize 
+    let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
+    let symbol' = alignPorts scaledInfo otherPortInfo
+    let model' = set (symbolOf_ symbolToSize.Id) symbol' wModel
 
-
-    alignSymbols model' symbol' otherSymbol smartHelpers 
-    // smartHelpers.UpdateSymbolWires model' symbolToSize.Id
+    smartHelpers.UpdateSymbolWires model' symbolToSize.Id

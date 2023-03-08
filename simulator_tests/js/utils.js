@@ -162,6 +162,7 @@ function drivers2String(drivers) {
 }
 
 const NewSimulator = {
+  type: "new",
   startCircuitSimulation: newStartCircuitSimulation,
   runFastSimulation: newRunFastSimulation,
   extractDriversContent: (FastSimulation) =>
@@ -169,6 +170,7 @@ const NewSimulator = {
 };
 
 const OldSimulator = {
+  type: "old",
   startCircuitSimulation: oldStartCircuitSimulation,
   runFastSimulation: oldRunFastSimulation,
   extractDriversContent: (FastSimulation) =>

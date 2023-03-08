@@ -9,5 +9,8 @@
     "test": "node index"
   },
   "author": "Yujie Wang",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^5.2.0"
+  }
 }

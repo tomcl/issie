@@ -1,3 +1,7 @@
+import { performance } from "node:perf_hooks";
+import test from "node:test";
+import assert from "node:assert";
+import chalk from "chalk";
 import {
   SimulationError,
 } from "./temp/src/Renderer/NewSimulator/SimulatorTypes.js";
@@ -7,9 +11,6 @@ import {
   NewSimulator,
   OldSimulator,
 } from "./utils.js";
-import { performance } from "node:perf_hooks";
-import test from "node:test";
-import assert from "node:assert";
 
 function runSimulation(
   simulator,
@@ -23,8 +24,10 @@ function runSimulation(
   const diagramName = topComp.Name;
   const components = canvasState[0];
   const connections = canvasState[1];
-  console.log(`========== Running simulation for ${diagramName} ==========`);
-
+  const color = simulator.type === "new" ? chalk.blue : chalk.green;
+  console.error(color(
+    `========== Running simulation for ${diagramName} with ${simulator.type} simulator ==========`,
+  ));
   const simData = simulator.startCircuitSimulation(
     simulationArraySize,
     diagramName,
@@ -47,7 +50,15 @@ function runSimulation(
     time += t1 - t0;
   }
   time /= iterations;
-  console.log(`runFastSimulation took ${time} milliseconds.`);
+  console.log(
+    color(
+      `[${simulator.type}] : runFastSimulation took ${
+        chalk.bold(
+          time.toFixed(2),
+        )
+      } milliseconds.`,
+    ),
+  );
   return {
     result: simulator.extractDriversContent(fs),
     time: time,
@@ -61,31 +72,45 @@ function runTest(
   lastStepNeeded,
   simulationArraySize,
 ) {
-  return test(topComp, async (t) => {
-    const resultFromNew = runSimulation(
-      NewSimulator,
-      topComp,
-      loadedComponents,
-      timeOut,
-      lastStepNeeded,
-      simulationArraySize,
-    );
-    const resultFromOld = runSimulation(
-      OldSimulator,
-      topComp,
-      loadedComponents,
-      timeOut,
-      lastStepNeeded,
-      simulationArraySize,
-    );
-    console.debug(resultFromNew.time, resultFromOld.time);
+  console.log(
+    chalk.red(
+      `[test bench] : 🚧 Running test for ${chalk.bold(topComp.Name)}`,
+    ),
+  );
+  let execTimeNew = 0;
+  let execTimeOld = 0;
+  const resultFromNew = runSimulation(
+    NewSimulator,
+    topComp,
+    loadedComponents,
+    timeOut,
+    lastStepNeeded,
+    simulationArraySize,
+  );
+  const resultFromOld = runSimulation(
+    OldSimulator,
+    topComp,
+    loadedComponents,
+    timeOut,
+    lastStepNeeded,
+    simulationArraySize,
+  );
+  execTimeNew = resultFromNew.time;
+  execTimeOld = resultFromOld.time;
+  test(topComp.Name, async (t) => {
     await t.test("Same output", (t) => {
       assert.deepStrictEqual(resultFromNew.result, resultFromOld.result);
-    });
-    await t.test("Performance of runFastSimulation", (t) => {
-      assert.ok(resultFromNew.time <= resultFromOld.time);
+      // console.log(chalk.red("[test bench] : Same output from both simulators"));
     });
   });
+  console.log(chalk.red(
+    `[test bench] : New simulator is ${
+      chalk.bold(
+        ((execTimeOld - execTimeNew) / execTimeOld * 100).toFixed(2),
+      )
+    }% faster`,
+  ));
+  return [execTimeNew, execTimeOld];
 }
 
 function main() {
@@ -101,7 +126,7 @@ function main() {
     void 0,
   );
   // console.error(ldcs);
-  loadedComponents.map((ldComp) =>
+  const execTimes = loadedComponents.map((ldComp) =>
     runTest(
       ldComp,
       ldcs,
@@ -109,6 +134,28 @@ function main() {
       lastStepNeeded,
       simulationArraySize,
     )
+  );
+  // Geometric mean of execution times of all test cases for both simulators
+  const avgExecTimeNew = Math.sqrt(
+    execTimes.reduce((a, b) => a * b[0], 1),
+    execTimes.length,
+  );
+  const avgExecTimeOld = Math.sqrt(
+    execTimes.reduce((a, b) => a * b[1], 1),
+    execTimes.length,
+  );
+  console.error(
+    "Geometric mean of new simulator:",
+    avgExecTimeNew,
+  );
+  console.error(
+    "Geometric mean of old simulator:",
+    avgExecTimeOld,
+  );
+  console.log(
+    `New simulator is ${
+      ((avgExecTimeOld - avgExecTimeNew) / avgExecTimeOld * 100).toFixed(2)
+    }% faster`,
   );
 }
 

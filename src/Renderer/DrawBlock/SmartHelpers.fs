@@ -104,84 +104,60 @@ let updateModelWires (model: BusWireT.Model) (wiresToAdd: Wire list) : BusWireT.
 
 /// Returns true if two 1D line segments intersect
 /// HLP23: Derek Lai (ddl20)
-let overlap1D ((a1, a2): float * float) ((b1, b2): float * float): bool =
+let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
     let a_min, a_max = min a1 a2, max a1 a2
     let b_min, b_max = min b1 b2, max b1 b2
     a_max >= b_min && b_max >= a_min
 
 /// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
 /// HLP23: Derek Lai (ddl20)
-let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos): bool =
-    (overlap1D (a1.X, a2.X) (b1.X, b2.X)) &&
-    (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
+let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
+    (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
 
 /// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
 /// HLP23: Derek Lai (ddl20)
-let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox): bool =
+let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
     let bb1Coords =
         { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
-        { X = bb1.TopLeft.X + bb1.W; Y = bb1.TopLeft.Y + bb1.H }
+        { X = bb1.TopLeft.X + bb1.W
+          Y = bb1.TopLeft.Y + bb1.H }
+
     let bb2Coords =
         { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
-        { X = bb2.TopLeft.X + bb2.W; Y = bb2.TopLeft.Y + bb2.H }    
+        { X = bb2.TopLeft.X + bb2.W
+          Y = bb2.TopLeft.Y + bb2.H }
+
     overlap2D bb1Coords bb2Coords
 
 /// Retrieves XYPos of every vertex in a wire
 /// HLP23: Derek Lai (ddl20)
 let getWireSegmentsXY (wire: Wire) =
-    let tupToXY (l: (float * float)): XYPos =
-        {X = fst l; Y = snd l}
+    let tupToXY (l: (float * float)) : XYPos = { X = fst l; Y = snd l }
+
     segmentsToIssieVertices wire.Segments wire
     |> List.map (fun (x, y, _) -> (x, y))
     |> List.map tupToXY
 
 /// Retrieves all wires which intersect an arbitrary bounding box
 /// HLP23: Derek Lai (ddl20)
-let getWiresInBox (box: BoundingBox) (model: Model): Wire list =
+let getWiresInBox (box: BoundingBox) (model: Model) : Wire list =
     let wires = (List.ofSeq (Seq.cast model.Wires.Values))
+
     let bottomRight =
-        { box.TopLeft with X = box.TopLeft.X + box.W; Y = box.TopLeft.Y + box.H }
-    let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool) (segment: Segment): bool =
+        { box.TopLeft with
+            X = box.TopLeft.X + box.W
+            Y = box.TopLeft.Y + box.H }
+
+    let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool) (segment: Segment) : bool =
         state || overlap2D (startPos, endPos) (box.TopLeft, bottomRight)
+
     List.filter (foldOverNonZeroSegs checkOverlapFolder false) wires
-
-/// Takes in ComponentId and returns the bounding box of the corresponding symbol
-/// HLP23: AUTHOR Jian Fu Eng (jfe20)
-let getSymbolBoundingBox (model: Model) (componentId: ComponentId) : BoundingBox =
-    let symbol = model.Symbol.Symbols[componentId]
-
-    let symbolHeight =
-        match symbol.VScale with
-        | Some vScale -> symbol.Component.H * vScale
-        | None -> symbol.Component.H
-
-    let symbolWidth =
-        match symbol.HScale with
-        | Some hScale -> symbol.Component.W * hScale
-        | None -> symbol.Component.W
-
-    match symbol.STransform.Rotation with
-    | Degree0
-    | Degree180 ->
-        { H = symbolHeight
-          W = symbolWidth
-          TopLeft = symbol.Pos }
-    | _ ->
-        { H = symbolWidth
-          W = symbolHeight
-          TopLeft = symbol.Pos }
-
-/// Returns a list of the bounding boxes of all symbols in current sheet.
-/// HLP23: AUTHOR Jian Fu Eng (jfe20)
-let getAllSymbolBoundingBoxes (model: Model) : BoundingBox list =
-    let componentIDs = model.Symbol.Symbols.Keys |> List.ofSeq
-    componentIDs |> List.map (getSymbolBoundingBox model)
 
 /// Checks if a wire intersects any symbol or not.
 /// Returns list of bounding boxes of symbols intersected by wire.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)
-let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
-    let allSymbolBoundingBoxes = getAllSymbolBoundingBoxes model
+let findWireSymbolIntersections (model: Model) (wire: Wire) : (ComponentId * BoundingBox) list =
+    let allSymbolBoundingBoxes = Symbol.getBoundingBoxes model.Symbol
 
     let wireVertices =
         segmentsToIssieVertices wire.Segments wire
@@ -189,19 +165,17 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
 
     let segVertices = List.pairwise wireVertices[1 .. wireVertices.Length - 2] // do not consider the nubs
 
-    let numBoxesIntersectedBySegment startPos endPos =
+    let boxesIntersectedBySegment startPos endPos =
         allSymbolBoundingBoxes
-        |> List.mapi (fun i boundingBox ->
+        |> Map.filter (fun compID boundingBox ->
             match segmentIntersectsBoundingBox boundingBox startPos endPos with
-            | Some _ -> Some boundingBox // segment intersects bounding box
-            | None -> None // no intersection
+            | Some _ -> true // segment intersects bounding box
+            | None -> false // no intersection
         )
-        |> List.distinct
-        |> List.filter (fun x -> x <> None)
-        |> List.map (Option.get)
+        |> Map.toList
 
     segVertices
-    |> List.collect (fun (startPos, endPos) -> numBoxesIntersectedBySegment startPos endPos)
+    |> List.collect (fun (startPos, endPos) -> boxesIntersectedBySegment startPos endPos)
     |> List.distinct
 
 /// Get the start and end positions of a wire.
@@ -215,6 +189,20 @@ let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
     let currentEndPos = wireVertices[wireVertices.Length - 2]
 
     currentStartPos, currentEndPos
+
+/// Returns length of wire
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
+let getWireLength (wire: Wire) : float =
+    (0., wire.Segments) ||> List.fold (fun acc seg -> acc + (abs seg.Length))
+
+/// Checks if a wire is part of a net.
+/// If yes, return the netlist. Otherwise, return None
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
+let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wire) list) option =
+    let nets = partitionWiresIntoNets model
+
+    nets
+    |> List.tryFind (fun (outputPortID, netlist) -> wire.OutputPort = outputPortID && netlist.Length > 1)
 
 /// Checks if a port is part of a Symbol.
 /// HLP23: AUTHOR dgs119
@@ -264,7 +252,10 @@ let getPortsBtwnSyms (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Sym
 
 /// Scales a symbol so it has the provided height and width
 /// HLP23: AUTHOR BRYAN TAN
-let setCustomCompHW (h: float) (w: float) (sym: Symbol) = 
+let setCustomCompHW (h: float) (w: float) (sym: Symbol) =
     let hScale = w / sym.Component.W
     let vScale = h / sym.Component.H
-    {sym with HScale=Some hScale; VScale=Some vScale}
+
+    { sym with
+        HScale = Some hScale
+        VScale = Some vScale }

@@ -227,7 +227,7 @@ let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol)
 
 /// Gets Wires between symbols.
 /// HLP23: AUTHOR dgs119
-let getWireBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : Wire list =
+let getWiresBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : Wire list =
     getConnBtwnSyms wModel symbolA symbolB |> Map.toList |> List.map snd
 
 /// Filters Ports by Symbol.

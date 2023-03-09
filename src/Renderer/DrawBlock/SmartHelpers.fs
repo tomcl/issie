@@ -209,6 +209,17 @@ let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wi
 let isPortInSymbol (portId: string) (symbol: Symbol) : bool =
     symbol.PortMaps.Orientation |> Map.containsKey portId
 
+/// Get pairs of symbols that are connected to each other.
+/// Excludes Symbols with self connections.
+/// HLP23: AUTHOR dgs119
+let getConnSyms (wModel: BusWireT.Model) =
+    wModel.Wires
+    |> Map.values
+    |> Seq.toList
+    |> List.map (fun wire -> (getSourceSymbol wModel wire, getTargetSymbol wModel wire))
+    |> List.filter (fun (symA, symB) -> symA.Id <> symB.Id)
+    |> List.distinctBy (fun (symA, symB) -> Set.ofList [ symA; symB ])
+
 /// Checks if wire is connected to two given symbols. Neglects self connections.
 /// HLP23: AUTHOR dgs119
 let isConnBtwnSyms (wire: Wire) (symbolA: Symbol) (symbolB: Symbol) : bool =

@@ -40,15 +40,23 @@ let reSizeSymbol
     let wireList = (Map.toList wires) |> List.map (fun x -> snd x)
     // picks out wires going from otherSymbol to symbolToSize
     /// HLP23: AUTHOR Indraneel
-    let connectedWires = findInterconnectingWires wireList sModel symbolToSize otherSymbol 0
+    let connectedWires, symbolToSize', otherSymbol' = 
+        let connWires = findInterconnectingWires wireList sModel symbolToSize otherSymbol 0
+        let altConnWires = findInterconnectingWires wireList sModel otherSymbol symbolToSize 0
+        if List.length connWires <> 0 then
+            connWires, symbolToSize, otherSymbol
+        else if List.length altConnWires <> 0 then
+            altConnWires, otherSymbol, symbolToSize
+        else
+            [None], symbolToSize, otherSymbol
 
     let wirePortsFolder lst currWire =
         let key = string currWire.InputPort
         let currPort = ports[key]
-        let portOffset = getPortPos symbolToSize currPort
+        let portOffset = getPortPos symbolToSize' currPort
 
         let startY = currWire.StartPos.Y
-        let endY = symbolToSize.Component.Y + portOffset.Y
+        let endY = symbolToSize'.Component.Y + portOffset.Y
 
         lst @ [startY, endY]
 
@@ -74,9 +82,9 @@ let reSizeSymbol
 
     let portSep = snd sndPorts + offset - snd fstPorts
     let scale = (portSep - pairDiff sndPorts) / portSep
-    let newPos = {symbolToSize.Pos with Y = symbolToSize.Pos.Y - offset}
+    let newPos = {symbolToSize'.Pos with Y = symbolToSize'.Pos.Y - offset}
 
-    let symbol' = {symbolToSize with Pos = newPos; VScale = Some scale}
+    let symbol' = {symbolToSize' with Pos = newPos; VScale = Some scale}
 
     let wireScale (model: Model) (sFactor: float) =
         let mapLst = Map.toList model.Wires
@@ -91,6 +99,7 @@ let reSizeSymbol
             )
         Map.ofList scaledWires
 
+    // Use BusWireUpdate.UpdateConnectedWires
 
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     // Add new wires to model & new symbols to model map

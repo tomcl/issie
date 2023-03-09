@@ -8,6 +8,7 @@ open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
 open SmartWire
+open SmartHelpers
 open Optics
 open Operators
 
@@ -89,6 +90,8 @@ let init () =
         Notifications = None
         Type = Constants.initialWireType
         ArrowDisplay = Constants.initialArrowDisplay
+        PopupViewFunc = None
+        PopupDialogData = {Text=None; Int=None; Int2=None}
     } , Cmd.none
 
 
@@ -97,6 +100,17 @@ let init () =
 let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     match msg with
+    | SetPopupDialogInt n ->
+        let data = {model.PopupDialogData with Int = n}
+        {model with PopupDialogData = data}, Cmd.none
+    | SetPopupDialogText txt ->
+        let data = {model.PopupDialogData with Text = txt}
+        {model with PopupDialogData = data}, Cmd.none
+    | SetPopupDialogText _ 
+    | ClosePopup ->
+        {model with PopupViewFunc = None}, Cmd.none
+    | ShowPopup popupFun ->
+        {model with PopupViewFunc = Some popupFun}, Cmd.none
     | Symbol sMsg ->
         // update Symbol model with a Symbol message
         let sm,sCmd = SymbolUpdate.update sMsg model.Symbol
@@ -418,7 +432,13 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 inputPorts @ outputPorts
                 |> List.map (Msg.RerouteWire >> Cmd.ofMsg))
         model, Cmd.batch updatePortIdMessages
-
+    | ReplaceWireWithLabel (wireId : ConnectionId) ->
+        if model.PopupDialogData.Text |> Option.isSome then
+            let label = model.PopupDialogData.Text.Value
+            replaceWireWithLabelWithName model wireId label, Cmd.none
+        else
+            replaceWireWithLabel model model.Wires[wireId], Cmd.none
+        
     | RerouteWire (portId: string) ->
         // parially or fully autoroutes wires connected to port
         // typically used after port has moved

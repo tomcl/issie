@@ -250,6 +250,7 @@ let editMenu dispatch' =
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
                makeElmItem "TestScaleUp"  "CmdorCtrl+U" (fun () -> dispatch SheetT.KeyboardMsg.CtrlU)
+               makeElmItem "TestLabel" "CmdorCtrl+L" (fun () -> dispatch SheetT.KeyboardMsg.CtrlL)
                makeElmItem "TestScaleDown" "CmdorCtrl+I" (fun () -> dispatch SheetT.KeyboardMsg.CtrlI)
                makeItem "TestResize" (Some"CmdOrCtrl+E") (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
 

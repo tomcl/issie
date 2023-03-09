@@ -851,9 +851,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                    | Some (channel, orient) ->
                         let newModel =  SmartChannel.smartChannelRoute orient channel {model with SelectedWires = []}
                         if newModel.SelectedWires.Length = 0 then
-                            newModel, Cmd.none
+                            {newModel with RedoList = model.RedoList @ [model]}, Cmd.none
                         else
-                            newModel, Cmd.ofMsg (KeyPress CtrlL)
+                            {newModel with RedoList = model.RedoList @ [model]}, Cmd.ofMsg (KeyPress CtrlL)
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   

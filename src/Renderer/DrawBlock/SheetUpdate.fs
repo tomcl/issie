@@ -829,8 +829,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 printfn "Error: can't validate two or more symbols selected to reorder ports"
                 model, Cmd.none
     | KeyPress CtrlL ->
-        printfn "Trying to generate label"
-        {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire model.SelectedWires.Head)}, Cmd.none 
+        match model.SelectedWires with
+        | hd::tl -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd)}, Cmd.none 
+        | _ -> 
+            printfn "No wires have been selected"
+            model, Cmd.none
+        
     | TestSmartChannel ->
         // Test code called from Edit menu item
         // Validate the list of selected symbols: it muts have just two for

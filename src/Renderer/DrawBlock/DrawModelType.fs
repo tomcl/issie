@@ -395,6 +395,7 @@ module BusWireT =
         | SetPopupDialogText of string option
         | SetPopupDialogInt of int option
         | ReplaceWireWithLabel of ConnectionId 
+        | ReplaceWireListWithLabels of List<ConnectionId>
 
     open Optics
     open Operators

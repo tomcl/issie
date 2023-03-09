@@ -318,6 +318,69 @@ let choicePopupFunc
         ]
     closablePopupFunc title body foot []
 
+///HLP23: AUTHOR Klapper
+///Generates a popup function with one text input field and two buttons
+let popupWithTextInputAndTwoButtonsFunc title beforeText placeholder buttonAction buttonText = 
+    let body = 
+        fun dispatch ->
+        div [] [
+            beforeText 
+            Input.text [
+                Input.Props [AutoFocus true; SpellCheck false]
+                Input.Placeholder "Label name"
+                Input.OnChange ( getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ]
+        ]
+    let foot =
+        fun dispatch ->
+            Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsLight
+                            Button.OnClick (fun _ -> 
+                                dispatch ClosePopup
+                                ) 
+                        ] [ str "Cancel" ]
+                    ]
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ -> buttonAction dispatch)
+                        ] [ str buttonText ]
+                    ]
+                ]
+            ]
+    closablePopupFunc title body foot []
+
+///HLP23: AUTHOR Klapper
+///Generates a popup function with text and two buttons
+let popupWithTwoButtonsFunc title text buttonAction buttonText = 
+    let body = fun dispatch -> text
+    let foot = 
+        fun dispatch ->
+            Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsLight
+                            Button.OnClick (fun _ -> 
+                                dispatch ClosePopup
+                                ) 
+                        ] [ str "Cancel" ]
+                    ]
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ -> buttonAction dispatch)
+                        ] [ str buttonText ]
+                    ]
+                ]
+            ]
+    closablePopupFunc title body foot []
+
 /// A static choice dialog popup.
 let choicePopup title (body:ReactElement) buttonTrueText buttonFalseText (buttonAction: bool -> Browser.Types.MouseEvent -> Unit) dispatch =
     let popup = choicePopupFunc title (fun _ -> body) buttonTrueText buttonFalseText (fun bool dispatch-> buttonAction bool)

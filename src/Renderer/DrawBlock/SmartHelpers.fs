@@ -554,59 +554,40 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
                    
     | Degree270 -> rotateSymbolInBlock RotateAntiClockwise {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 } sym
 
-
-
+///HLP 23: AUTHOR Klapper
+///Generates automatic labels for wires
 let labelNameSuggester (model : BusWireT.Model) (wire : Wire) =
     (getEndComponent model wire).Label + "," + string(model.Symbol.Ports[Symbol.getInputPortIdStr wire.InputPort].PortNumber)
 
 
-
+///HLP 23: AUTHOR Klapper
+///Creates popup for wire label
 let wireReplacePopUp (model : BusWireT.Model) (wireId : ConnectionId)  =
     let wire = model.Wires[wireId]
     let title = "Replace selected wire with label"
     let suggestedName = labelNameSuggester model wire
     let beforeText =  $"How do you want to name your label? (Default: {suggestedName})" |> str
-    let body = 
-        fun dispatch ->
-        div [] [
-            beforeText 
-            Input.text [
-                Input.Props [AutoFocus true; SpellCheck false]
-                Input.Placeholder "Label name"
-                Input.OnChange ( getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
-            ]
-        ]
     let buttonAction = 
         fun (dispatch) -> 
             BusWireT.Msg.ReplaceWireWithLabel wireId |> dispatch
             BusWireT.Msg.ClosePopup |> dispatch
     let buttonText = "Replace"
-    let foot =
-        fun dispatch ->
-            Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
-                Level.left [] []
-                Level.right [] [
-                    Level.item [] [
-                        Button.button [
-                            Button.Color IsLight
-                            Button.OnClick (fun _ -> 
-                                dispatch ClosePopup
-                                ) 
-                        ] [ str "Cancel" ]
-                    ]
-                    Level.item [] [
-                        Button.button [
-                            Button.Color IsPrimary
-                            Button.OnClick (fun _ -> buttonAction dispatch)
-                        ] [ str buttonText ]
-                    ]
-                ]
-            ]
-    let myPopup = closablePopupFunc title body foot []
+    
+    let myPopup = popupWithTextInputAndTwoButtonsFunc title beforeText "Label name here" buttonAction buttonText
     {model with PopupViewFunc = Some myPopup}
-    
-    
 
+///HLP 23: AUTHOR Klapper
+///Creates popup for bunchwire replace 
+let wireReplaceAllPopup (model : BusWireT.Model) (wireIdList : ConnectionId list) =
+    let title = "Replace all the selected wires with labels"
+    let text = "Do you want to replace all selected/unroutable wires with labels?" |> str
+    let buttonAction =
+        fun dispatch ->
+            BusWireT.Msg.ReplaceWireListWithLabels wireIdList |> dispatch
+            BusWireT.Msg.ClosePopup |> dispatch
+    let buttonText = "Yes"
+    let myPopup = popupWithTwoButtonsFunc title text buttonAction buttonText
+    {model with PopupViewFunc = Some myPopup}
 
 /// <summary>
 /// HLP 23: AUTHOR Klapper - 
@@ -697,6 +678,7 @@ let replaceWireWithLabelWithName (model : DrawModelType.BusWireT.Model) (wireId 
     let newEndWire = {wire with OutputPort = OutputPortId endSymbol.Component.OutputPorts[0].Id; Segments = endSegmentList; WId = ConnectionId endWireId} |> autoroute newModel
 
     [newStartWire; newEndWire] |>  updateModelWires newModel
+
 
 let replaceWireWithLabel (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     labelNameSuggester model wire

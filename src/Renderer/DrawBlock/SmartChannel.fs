@@ -225,16 +225,17 @@ let createShiftedWires (orientation : Orientation) (model : Model) (bounds: Boun
 let rec smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 
-        (model: DrawModelType.BusWireT.Model) 
-            : DrawModelType.BusWireT.Model =
-
+        (fullModel: DrawModelType.SheetT.Model) 
+            : DrawModelType.SheetT.Model =
+    let model = fullModel.Wire
     let tl = channel.TopLeft
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     
     
     let sortedWires, diffictulWires = 
         model 
-        |> getWireList 
+        |> getWireList
+        |> List.filter (fun element -> (List.contains element.WId fullModel.SelectedWires) |> not)
         |> List.filter (fun element -> not(isWireConnectedToLabel model element))
         |> selectSegmentsIntersectingBoundingBox channel
         |> categoriseWireSegments model channel channelOrientation
@@ -247,9 +248,14 @@ let rec smartChannelRoute
     let updatedWireModel : DrawModelType.BusWireT.Model = 
         wireListToModify
         |> updateModelWires model 
-    let finalModel = (updatedWireModel,moreDiffictultWires |> List.append (diffictulWires |> List.map (fun element -> model.Wires[element.WireId])))
-                    ||> List.fold replaceWireWithLabel
-    match moreDiffictultWires.Length with
+    let wireToReplaceWithLabel = 
+        diffictulWires
+        |> List.map (fun element -> model.Wires[element.WireId])
+        |> List.append moreDiffictultWires
+        |> List.map (fun element -> element.WId)
+    
+    let finalModel = {fullModel with Wire = updatedWireModel; SelectedWires = fullModel.SelectedWires @ wireToReplaceWithLabel}
+    match wireToReplaceWithLabel.Length with
     | 0 -> finalModel
     | _ -> smartChannelRoute channelOrientation channel finalModel
     

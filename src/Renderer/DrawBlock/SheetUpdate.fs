@@ -795,6 +795,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   
     
+    | BeautifySheet ->  
+        let helpers =
+            { SmartPortOrder.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
+
+        {model with Wire = SmartBeautify.smartBeautify model.Wire helpers}, Cmd.none
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks

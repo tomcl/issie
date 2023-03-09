@@ -542,6 +542,7 @@ module SheetT =
         | TestPortReorder
         | TestSmartChannel
         | TestPortPosition
+        | BeautifySheet
 
 
     type ReadLog = | ReadLog of int

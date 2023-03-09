@@ -43,7 +43,7 @@ open Operators
 *)
 
 /// Holds data about External Helpers required.
-type ExternalSmartHelpers =
+type ExternalSmartHelpers = // TODO: Transfer to SmartHelpers.
     { UpdateSymbolWires: Model -> ComponentId -> Model }
 
 /// Holds data about Port, its Edge and Location.
@@ -136,7 +136,7 @@ let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
             let sym = getPortSymbol portId
 
             match symbolMatch sym with
-            | And -> // Flip 2IO Components
+            | And -> // Flip 2IO Components.
                 let portIdsOfIntrst =
                     sym.PortMaps.Order
                     |> Map.pick (fun _ ports' -> if List.length ports' = 2 then Some ports' else None)

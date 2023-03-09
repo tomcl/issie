@@ -17,6 +17,9 @@ import {
   FSharpList,
 } from "./temp/fable_modules/fable-library.4.0.0-theta-018/List.js";
 import {
+  length as seqLength,
+} from "./temp/fable_modules/fable-library.4.0.0-theta-018/Seq.js";
+import {
   SimulationError,
 } from "./temp/src/Renderer/NewSimulator/SimulatorTypes.js";
 // New Simulator
@@ -30,28 +33,38 @@ import { emptyFastSimulation as oldEmptyFastSimulation } from "./temp/src/Render
 
 const toPrecision = (num) => num.toPrecision(3);
 
+// Get the number of components involved in a FastSimulation
+const getNumComponents = (fastSim) => {
+  return seqLength(fastSim.FComps.values());
+};
+
+const transportList = {
+  file: new transports.File({
+    level: "info",
+    format: format.json(),
+    filename: "combined.log",
+    options: { flags: "w" },
+  }),
+  console: new transports.Console({
+    level: "verbose",
+    format: format.combine(
+      format.colorize(),
+      format.splat(),
+      format.simple(),
+      format.timestamp(),
+      format.printf(({ level, message, label, timestamp }) => {
+        return `${timestamp} [${
+          `${label}`.padEnd(15, " ")
+        }] ${level}: ${message}`;
+      }),
+    ),
+  }),
+};
+
 const logger = createLogger({
   transports: [
-    new transports.File({
-      level: "info",
-      format: format.json(),
-      filename: "combined.log",
-      options: { flags: "w" },
-    }),
-    new transports.Console({
-      level: "verbose",
-      format: format.combine(
-        format.colorize(),
-        format.splat(),
-        format.simple(),
-        format.timestamp(),
-        format.printf(({ level, message, label, timestamp }) => {
-          return `${timestamp} [${
-            `${label}`.padEnd(15, " ")
-          }] ${level}: ${message}`;
-        }),
-      ),
-    }),
+    transportList.file,
+    transportList.console,
   ],
 });
 
@@ -156,7 +169,7 @@ function loadAllComponentFiles(folderPath) {
   return files.map((file) => {
     // NOTE: fileNameIsBad checking is skipped
     const filePath = join(folderPath, file);
-    console.info(`loading  ${filePath}`);
+    logger.verbose(`loading  ${filePath}`);
     const ldComp = tryLoadComponentFromPath(filePath);
     return ldComp;
   });
@@ -189,7 +202,7 @@ function extracContentOfDriversFData(drivers) {
 }
 
 function drivers2String(drivers) {
-  drivers.map((driver) =>
+  return drivers.map((driver) =>
     `Driver [Index=${driver.index}, width=${driver.width}] : [${
       driver.data.join(", ")
     }]`
@@ -261,6 +274,7 @@ function simulationFactory(
       const t1 = performance.now();
       time += t1 - t0;
     }
+    const numComps = getNumComponents(fs);
     time /= testIterations;
     logger.info({
       label: `${simulator.type} simulator`,
@@ -270,11 +284,13 @@ function simulationFactory(
         "testcase": diagramName,
         "simulator": simulator.type,
         "execTime": time,
+        "numComps": numComps,
       },
     });
     return {
       result: simulator.extractDriversContent(fs),
       time: time,
+      numComps: numComps,
     };
   };
 }
@@ -282,10 +298,12 @@ function simulationFactory(
 export {
   drivers2String,
   FSharpList,
+  getNumComponents,
   loadAllComponentFiles,
   logger,
   NewSimulator,
   OldSimulator,
   simulationFactory,
   toPrecision,
+  transportList,
 };

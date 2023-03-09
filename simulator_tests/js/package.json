@@ -5,7 +5,7 @@
   "type": "module",
   "main": "test.js",
   "scripts": {
-    "compile": "dotnet fable . --outDir temp --noCache",
+    "compile": "dotnet fable . --outDir temp --sourceMaps --noCache",
     "test": "mocha"
   },
   "author": "Yujie Wang",

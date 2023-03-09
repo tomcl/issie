@@ -19,11 +19,21 @@ Simulation results from both simulators is compared using `assert.deepStrictEqua
 
 ### Performance tests
 
-#### Compare execution time
+#### Speed of simulation
 
 For each test case, the simulators will be warmed up by running simulation `warmupIterations` times before the actual tests.
-The actual test will then run simulation `testIterations` times to obtain average execution time.
+The actual test will then run simulation `testIterations` times to obtain arithmetic average of execution time for each test case.
+The comparison between the two simulators is done by comparing the geometric mean of speed across all test cases.
+
+## Profiling
+
+```bash
+CPU_PROF=1 bash inspect.sh # CPU profiling
+HEAP_PROF=1 bash inspect.sh # Heap profiling
+```
+
+Results are stored in `./cpuprof` and `./heapprof` respectively.
 
 ## Results
 
-- By removing one branch in `fastReduce` function (FData -> FastData), the performance of the new simulator is improved by 98%.
+- By removing one branch in `fastReduce` function (FData -> FastData), the new simulator obtained x40+ speedup on average.

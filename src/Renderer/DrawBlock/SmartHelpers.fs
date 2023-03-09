@@ -220,13 +220,15 @@ let isConnBtwnSyms (wire: Wire) (symbolA: Symbol) (symbolB: Symbol) : bool =
     | inId, outId when (isPortInSymbol inId symbolB) && (isPortInSymbol outId symbolA) -> true
     | _ -> false
 
-/// Gets wires connected between symbols.
+/// Gets connections between symbols.
 /// HLP23: AUTHOR dgs119
-let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : List<Wire> =
-    wModel.Wires
-    |> Map.filter (fun _ wire -> isConnBtwnSyms wire symbolA symbolB)
-    |> Map.toList
-    |> List.map snd
+let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : Map<ConnectionId, Wire> =
+    wModel.Wires |> Map.filter (fun _ wire -> isConnBtwnSyms wire symbolA symbolB)
+
+/// Gets Wires between symbols.
+/// HLP23: AUTHOR dgs119
+let getWiresBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : Wire list =
+    getConnBtwnSyms wModel symbolA symbolB |> Map.toList |> List.map snd
 
 /// Filters Ports by Symbol.
 /// HLP23: AUTHOR dgs119
@@ -241,14 +243,15 @@ let getPortsFrmWires (model: BusWireT.Model) (wires: Wire list) =
         [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
           getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
     |> List.concat
+    |> List.distinct
 
-/// Gets port info from wires that are connected to two given symbols.
+/// Groups Wires by their net.
 /// HLP23: AUTHOR dgs119
-let getPortsBtwnSyms (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
-    let ports = getConnBtwnSyms model symToOrder otherSym |> getPortsFrmWires model
-
-    (fiterPortBySym ports symToOrder, fiterPortBySym ports otherSym)
-
+let partitionWiresByNet (conns: Map<ConnectionId, Wire>) =
+    conns
+    |> Map.toList
+    |> List.groupBy (fun (_, wire) -> wire.OutputPort)
+    |> List.map (snd >> List.map snd)
 
 /// Scales a symbol so it has the provided height and width
 /// HLP23: AUTHOR BRYAN TAN

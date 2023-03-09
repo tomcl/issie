@@ -37,6 +37,16 @@ let reSizeSymbol
     let wires = wModel.Wires
     let ports = sModel.Ports
     
+	let getOrientation fstSym sndSym =
+		let fstCorners = symbolBox fstSym
+		let sndCorners = symbolBox sndSym
+		if (((snd fstCorners[0] > snd sndCorners[2]) || (snd fstCorners[2] < snd sndCorners[0])) && (fst fstCorners[0] < fst sndCorners[1]) && (fst fstCorners[1] > fst sndCorners[0])) then
+			1
+		else if (((fst fstCorners[0] > fst sndCorners[1]) || (fst fstCorners[1] < fst sndCorners[0])) && (snd fstCorners[0] < snd sndCorners[2]) && (snd fstCorners[2] > snd sndCorners[0])) then
+			0
+		else
+			None
+
     let wireList = (Map.toList wires) |> List.map (fun x -> snd x)
     // picks out wires going from otherSymbol to symbolToSize
     /// HLP23: AUTHOR Indraneel

@@ -247,9 +247,8 @@ let rec smartChannelRoute
     let updatedWireModel : DrawModelType.BusWireT.Model = 
         wireListToModify
         |> updateModelWires model 
-    let finalModel = ((1,updatedWireModel),moreDiffictultWires |> List.append (diffictulWires |> List.map (fun element -> model.Wires[element.WireId])))
+    let finalModel = (updatedWireModel,moreDiffictultWires |> List.append (diffictulWires |> List.map (fun element -> model.Wires[element.WireId])))
                     ||> List.fold replaceWireWithLabel
-                    |> snd
     match moreDiffictultWires.Length with
     | 0 -> finalModel
     | _ -> smartChannelRoute channelOrientation channel finalModel

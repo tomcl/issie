@@ -828,7 +828,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | None -> 
                 printfn "Error: can't validate two or more symbols selected to reorder ports"
                 model, Cmd.none
-
+    | KeyPress CtrlL ->
+        match model.SelectedWires with
+        | hd::tl -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd)}, Cmd.none 
+        | _ -> 
+            printfn "No wires have been selected"
+            model, Cmd.none
+        
     | TestSmartChannel ->
         // Test code called from Edit menu item
         // Validate the list of selected symbols: it muts have just two for
@@ -951,11 +957,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 let init () =
     let wireModel, cmds = (BusWireUpdate.init ())
     let boundingBoxes = Symbol.getBoundingBoxes wireModel.Symbol
-
     {
         Wire = wireModel
-        PopupViewFunc = None
-        PopupDialogData = {Text=None; Int=None; Int2=None}
         BoundingBoxes = boundingBoxes
         LastValidBoundingBoxes = boundingBoxes
         SelectedComponents = []

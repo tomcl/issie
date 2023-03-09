@@ -50,10 +50,10 @@ open CommonTypes
 open EEExtensions
 
 open DrawModelType
-
+open BusWireT
 open SheetT
 
-type Msg = SheetT.Msg
+type Msg = BusWireT.Msg
 
 
 
@@ -329,7 +329,6 @@ let viewDrawingPopup model dispatch =
     match model.PopupViewFunc with
     | None -> div [] []
     | Some popup -> popup dispatch model.PopupDialogData 
-
 
 
 

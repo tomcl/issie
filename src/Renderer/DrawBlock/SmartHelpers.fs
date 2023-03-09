@@ -565,7 +565,7 @@ let wireReplacePopUp (model : BusWireT.Model) (wireId : ConnectionId)  =
     let wire = model.Wires[wireId]
     let title = "Replace selected wire with label"
     let suggestedName = labelNameSuggester model wire
-    let beforeText =  $"How do you want to name your label? (Suggested: {suggestedName})" |> str
+    let beforeText =  $"How do you want to name your label? (Default: {suggestedName})" |> str
     let body = 
         fun dispatch ->
         div [] [

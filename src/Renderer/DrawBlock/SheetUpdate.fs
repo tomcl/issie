@@ -830,11 +830,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 model, Cmd.none
     | KeyPress CtrlL ->
         match model.SelectedWires with
-        | hd::tl -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd)}, Cmd.none 
+        | hd::[] -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd)}, Cmd.none 
+        | hd::tl -> {model with Wire = (SmartHelpers.wireReplaceAllPopup model.Wire model.SelectedWires)}, Cmd.none
         | _ -> 
             printfn "No wires have been selected"
             model, Cmd.none
-        
     | TestSmartChannel ->
         // Test code called from Edit menu item
         // Validate the list of selected symbols: it muts have just two for
@@ -849,8 +849,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         printfn "Symbols are not oriented for a vertical channel"
                         model, Cmd.none
                    | Some (channel, orient) ->
-                        model.RedoList @ [model] |> ignore
-                        {model with Wire = SmartChannel.smartChannelRoute orient channel model.Wire}, Cmd.none
+                        let newModel =  SmartChannel.smartChannelRoute orient channel {model with SelectedWires = []}
+                        if newModel.SelectedWires.Length = 0 then
+                            newModel, Cmd.none
+                        else
+                            newModel, Cmd.ofMsg (KeyPress CtrlL)
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   

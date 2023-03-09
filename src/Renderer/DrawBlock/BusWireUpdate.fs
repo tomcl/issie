@@ -433,12 +433,18 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 |> List.map (Msg.RerouteWire >> Cmd.ofMsg))
         model, Cmd.batch updatePortIdMessages
     | ReplaceWireWithLabel (wireId : ConnectionId) ->
-        if model.PopupDialogData.Text |> Option.isSome then
-            let label = model.PopupDialogData.Text.Value
-            replaceWireWithLabelWithName model wireId label, Cmd.none
-        else
-            replaceWireWithLabel model model.Wires[wireId], Cmd.none
-        
+        let newModel =
+            if model.PopupDialogData.Text |> Option.isSome then
+                let label = model.PopupDialogData.Text.Value
+                replaceWireWithLabelWithName model wireId label
+            else
+                replaceWireWithLabel model model.Wires[wireId]
+        {newModel with PopupDialogData = {Text = None; Int = None; Int2 = None}}, Cmd.none
+    
+    | ReplaceWireListWithLabels (wireIdList : ConnectionId list) ->
+        let wireList = wireIdList |> List.map (fun id -> model.Wires[id])
+        (model, wireList) ||> List.fold (fun state n -> replaceWireWithLabel state n), Cmd.none
+
     | RerouteWire (portId: string) ->
         // parially or fully autoroutes wires connected to port
         // typically used after port has moved

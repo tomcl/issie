@@ -251,9 +251,10 @@ let editMenu dispatch' =
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
                makeElmItem "TestScaleUp"  "CmdorCtrl+U" (fun () -> dispatch SheetT.KeyboardMsg.CtrlU)
                makeElmItem "TestLabel" "CmdorCtrl+L" (fun () -> dispatch SheetT.KeyboardMsg.CtrlL)
+               makeElmItem "TestForceLabel" "CmdorCtrl+Shift+L" (fun () -> dispatch SheetT.KeyboardMsg.CtrlAltL)
                makeElmItem "TestScaleDown" "CmdorCtrl+I" (fun () -> dispatch SheetT.KeyboardMsg.CtrlI)
                makeItem "TestResize" (Some"CmdOrCtrl+E") (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
-
+               
                
             |]
             |> ResizeArray

@@ -433,6 +433,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 |> List.map (Msg.RerouteWire >> Cmd.ofMsg))
         model, Cmd.batch updatePortIdMessages
     | ReplaceWireWithLabel (wireId : ConnectionId) ->
+        //Replaces a single wire with a label 
         let newModel =
             if model.PopupDialogData.Text |> Option.isSome then
                 let label = model.PopupDialogData.Text.Value
@@ -442,6 +443,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         {newModel with PopupDialogData = {Text = None; Int = None; Int2 = None}}, Cmd.none
     
     | ReplaceWireListWithLabels (wireIdList : ConnectionId list) ->
+        //Replaces a list of wires with labels
         let wireList = wireIdList |> List.map (fun id -> model.Wires[id])
         (model, wireList) ||> List.fold (fun state n -> replaceWireWithLabel state n), Cmd.none
 

@@ -595,6 +595,7 @@ let wireReplaceAllPopup (model : BusWireT.Model) (wireIdList : ConnectionId list
 /// </summary>
 /// <param name="model"> BusWireT model</param>
 /// <param name="wire"> Wire to be replace</param>
+/// <param name="label"> What we want to call our wire</param>
 /// <returns> uniqueNumber + 1 ,BusWireT.Model with wire replaced by labels</returns>
 let replaceWireWithLabelWithName (model : DrawModelType.BusWireT.Model) (wireId : ConnectionId) (label : string) =
     let wire = model.Wires[wireId]
@@ -679,7 +680,10 @@ let replaceWireWithLabelWithName (model : DrawModelType.BusWireT.Model) (wireId 
 
     [newStartWire; newEndWire] |>  updateModelWires newModel
 
-
+/// <summary>HLP23 AUTHOR: Klapper. Replaces a wire with a label with an auto generated name</summary>
+/// <param name="model"></param>
+/// <param name="wire"></param>
+/// <returns>Updated BusWireT.Model</returns>
 let replaceWireWithLabel (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     labelNameSuggester model wire
     |> replaceWireWithLabelWithName model wire.WId

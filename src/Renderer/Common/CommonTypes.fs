@@ -213,8 +213,6 @@ module CommonTypes
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
         | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
-        | NumofInputs of int option //HLP23: Shaanuka
-
 
     /// Active pattern which matches 2-input gate component types.
     /// NB - NOT gates are not included here.
@@ -222,6 +220,12 @@ module CommonTypes
         match cType with
          | And | Or | Xor | Nand | Nor | Xnor -> IsBinaryGate
          | _ -> NotBinaryGate
+
+    // let numOfGateInputs (ct: ComponentType) =
+    //     match ct with
+    //     | And (Some n) | Or (Some n)| Xor (Some n) | Nand (Some n) 
+    //     | Nor (Some n)| Xnor (Some n) -> n
+    //     | _ -> 2
 
     /// get memory component type constructor
     /// NB only works with new-style memory components

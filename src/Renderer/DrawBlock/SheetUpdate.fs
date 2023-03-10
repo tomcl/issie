@@ -829,11 +829,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 printfn "Error: can't validate two or more symbols selected to reorder ports"
                 model, Cmd.none
     | KeyPress CtrlL ->
-        match model.SelectedWires with
+        let filteredWireList = model.SelectedWires 
+                            |> List.filter (fun element -> SmartHelpers.isWireConnectedToLabel model.Wire model.Wire.Wires[element] |> not)
+        match filteredWireList with
         | hd::[] -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd)}, Cmd.none 
-        | hd::tl -> {model with Wire = (SmartHelpers.wireReplaceAllPopup model.Wire model.SelectedWires)}, Cmd.none
+        | hd::tl -> {model with Wire = (SmartHelpers.wireReplaceAllPopup model.Wire filteredWireList)}, Cmd.none
         | _ -> 
-            printfn "No wires have been selected"
+            printfn "No valid wires have been selected"
+            model, Cmd.none
+    | KeyPress CtrlAltL -> 
+        //Replaces all wires with labels without popup
+        //HLP23 AUTHOR: Klapper
+        let filteredWireList = model.SelectedWires 
+                            |> List.map (fun element -> model.Wire.Wires[element])
+                            |> List.filter (fun element -> SmartHelpers.isWireConnectedToLabel model.Wire element |> not)
+        match filteredWireList with
+        | hd::[] -> {model with Wire = SmartHelpers.replaceWireWithLabel model.Wire hd; UndoList = model.UndoList @ [model]}, Cmd.none
+        | hd::tl -> 
+            let newWireModel = (model.Wire, filteredWireList)
+                                ||> List.fold (fun state element -> SmartHelpers.replaceWireWithLabel state element)
+            {model with Wire = newWireModel; UndoList = model.UndoList @ [model]}, Cmd.none
+        | _ -> 
+            printfn "No valid wires have been selected"
             model, Cmd.none
     | TestSmartChannel ->
         // Test code called from Edit menu item

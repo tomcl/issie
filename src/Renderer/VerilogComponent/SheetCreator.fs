@@ -87,7 +87,7 @@ let createComponent (compType:ComponentType) (name:string) : Component =
         |Output _ |Viewer _ 
             -> 1,0 
         |NbitsAnd _ |NbitsOr _ |NbitsXor _ |Shift _
-        |And |Or |MergeWires
+        |And _ |Or _ |MergeWires
             -> 2,1
         |Mux2 
             -> 3,1
@@ -274,8 +274,8 @@ let buildExpressionComponent (rhs:ExpressionT) width =
         | "bitwise_AND" -> (NbitsAnd width)
         | "additive" -> (NbitsAdder width)
         | "conditional_cond" -> (Mux2)
-        | "logical_AND" -> (And) 
-        | "logical_OR" -> (Or)
+        | "logical_AND" -> (And None) 
+        | "logical_OR" -> (Or None)
         |_ -> failwithf "Missing component(?) in buildExpressionComponent" 
     
     let baseName = 

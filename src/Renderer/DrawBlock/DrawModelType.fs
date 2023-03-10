@@ -557,7 +557,7 @@ module SheetT =
         | SetDebugDevice of string
         | TestPopUp
         | TestPortReorder
-        | TestSmartChannel
+        | TestSmartChannel of BusWireT.Orientation
         | TestPortPosition
         | TestScaleUp
         | TestPortReorder2

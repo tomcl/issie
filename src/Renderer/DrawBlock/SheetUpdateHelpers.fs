@@ -644,7 +644,44 @@ let validateMultipleSelectedSymbols (model:Model) =
             Some syms
         | _ -> printfn "Error less than two components selected"
                None
-     
+
+
+let halfBoundingBox (orientation: Orientation) (bb:BoundingBox)=
+    match orientation with
+    | Vertical -> {TopLeft = bb.TopLeft; W = bb.W/2.0; H = bb.H} 
+    | Horizontal -> {TopLeft = bb.TopLeft; W = bb.W; H = bb.H/2.0}
+
+
+
+let rec findChannel (model : SheetT.Model) (prevLeft : int) (prevRight : int) (orientation:Orientation) (currentComps : List<ComponentId>) =
+    let hd::tail = currentComps |> List.map (fun id -> model.BoundingBoxes[id])
+    let leftBounds = 
+        (hd, tail) 
+        ||> List.fold boxUnion 
+        |> halfBoundingBox orientation 
+    let leftComponents = 
+        [hd]@tail
+        |> List.mapi (fun i element -> element.TopLeft, currentComps[i])
+        |> List.filter (fun (pos, comp) -> SmartHelpers.isPositionInBounds leftBounds pos)
+    let rightComponents =
+        [hd]@tail
+        |> List.mapi (fun i element -> element.TopLeft, currentComps[i])
+        |> List.filter (fun element -> List.contains element leftComponents |> not)
+    match leftComponents.Length, rightComponents.Length with
+    | 0,_ -> 
+        Some <| (rightComponents |> List.map (fun e -> snd e)),
+        Some <| (rightComponents |> List.map (fun e -> snd e))
+    | _,0 ->
+        Some <| (leftComponents |> List.map (fun e -> snd e)),
+        Some <| (leftComponents |> List.map (fun e -> snd e))
+    | l,r when l = prevLeft ->
+        Some <| (leftComponents |> List.map (fun e -> snd e)),
+        Some <| (rightComponents |> List.map (fun e -> snd e))
+    | l,r -> 
+        snd <| findChannel model l r orientation ( leftComponents |> List.map (fun e -> snd e)),
+        fst <| findChannel model l r orientation (rightComponents |> List.map (fun e -> snd e))
+
+
 
 
 
@@ -680,11 +717,15 @@ let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox opt
 /// However different testing may be needed, so who knows?
 /// Return the vertical channel between two bounding boxes, if they do not intersect and
 /// their vertical coordinates overlap.
-let getChannel (bb1:BoundingBox) (bb2:BoundingBox) : Option<BoundingBox*Orientation> =
-    let vChannel = getVerticalChannel bb1 bb2
-    let hChannel = getHorizontalChannel bb1 bb2 
-    match vChannel, hChannel with
-    | Some vBB, Some hBB -> None //Should not happen
-    | Some vBB, None -> Some (vBB, Vertical)
-    | None, Some hBB -> Some (hBB, Horizontal)
-    | None, None -> None
+let getChannel (bb1:BoundingBox) (bb2:BoundingBox) (orientation : Orientation): Option<BoundingBox*Orientation> =
+    match orientation with
+    | Vertical ->
+        getVerticalChannel bb1 bb2
+        |> function
+            | Some vBB -> Some (vBB, Vertical)
+            | None -> None
+    | Horizontal -> 
+        getHorizontalChannel bb1 bb2 
+        |> function
+            | Some hBB -> Some (hBB, Horizontal)
+            | None -> None

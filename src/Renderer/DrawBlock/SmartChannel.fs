@@ -102,14 +102,14 @@ let sortUpDown (model : Model) (orientation : Orientation) (segs : List<Segment*
         categorisedList 
         |> List.filter (fun element -> fst element = Up)
         |> List.collect snd
-        |> List.sortBy (fun element -> if orientation = Vertical then (snd (snd element)).Y else (fst (snd element)).X )
+        |> List.sortBy (fun element -> if orientation = Vertical then (snd (snd element)).Y else -(fst (snd element)).X )
         |> List.groupBy (fun (seg, posTuple) -> model.Wires[seg.WireId].OutputPort)
         |> List.map snd
     let downList =
         categorisedList 
         |> List.filter (fun element -> fst element = Down)
         |> List.collect snd
-        |> List.sortByDescending (fun element -> if orientation = Vertical then (snd (snd element)).Y else (snd (snd element)).X )
+        |> List.sortByDescending (fun element -> if orientation = Vertical then (snd (snd element)).Y else -(snd (snd element)).X )
         |> List.groupBy (fun (seg, posTuple) -> model.Wires[seg.WireId].OutputPort)
         |> List.map snd
     downList @ upLst

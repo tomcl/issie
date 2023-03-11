@@ -308,7 +308,7 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
-    let index = (fs.ClockTick + 1) % fs.MaxArraySize
+    let index = fs.ClockTick + 1
     propagateInputsFromLastStep index fs
     Array.iter (fastReduce fs.MaxArraySize index true) fs.FClockedComps
     Array.iter (fastReduce fs.MaxArraySize index false) fs.FOrderedComps
@@ -325,7 +325,7 @@ let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fs: F
 /// input has changed
 let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
     fastSim.FOrderedComps
-    |> Array.iter (fastReduce fastSim.MaxArraySize (step % fastSim.MaxArraySize) false)
+    |> Array.iter (fastReduce fastSim.MaxArraySize step false)
 
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)

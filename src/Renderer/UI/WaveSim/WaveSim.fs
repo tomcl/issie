@@ -533,6 +533,9 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
     let fs = wsModel.FastSim
     let fc = wsModel.FastSim.FComps[ramId]
     let step = wsModel.CurrClkCycle
+    FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
+
+    // in some cases fast sim is run for one cycle less than currClockCycle
     let memData =
         match fc.FType with
         | ROM1 mem
@@ -541,7 +544,8 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         | AsyncRAM1 mem -> 
             match FastRun.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
             |RamState mem -> mem
-            | _ -> failwithf $"What? Can't find state from RAM component '{ramLabel}'"
+            | x -> failwithf $"What? Unexpected state {x} from cycle {wsModel.CurrClkCycle} \
+                    in RAM component '{ramLabel}'. FastSim step = {fs.ClockTick}"
         | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
     let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
 

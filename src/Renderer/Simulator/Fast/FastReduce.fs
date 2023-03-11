@@ -1066,7 +1066,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let n' =
                     if n = (bigint (2.**bits.Width)) then (bigint 0)
                     else n
-                let res = {Dat = BigWord n'; Width = bits.Width}
+                let res = FastData.MakeFastData bits.Width n'
                 put0 <| Data res
             elif (extractBit (Data enable) 1 = 1u) && (extractBit (Data load) 1 = 1u) then
                 put0 <| Data bits
@@ -1095,7 +1095,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let n' =
                     if n = (bigint (2.**bits.Width)) then (bigint 0)
                     else n
-                let res = {Dat = BigWord n'; Width = bits.Width}
+                let res = FastData.MakeFastData bits.Width n'
                 put0 <| Data res
             else
                 put0 <| Data bits
@@ -1119,7 +1119,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let n' =
                     if n = (bigint (2.**width)) then (bigint 0)
                     else n
-                let res = {Dat = BigWord n'; Width = width}
+                let res = FastData.MakeFastData width n'
                 put0 <| Data res
             else
                 put0 (getLastCycleOut 0)
@@ -1138,7 +1138,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let n' =
             if n = (bigint (2.**width)) then (bigint 0)
             else n
-        let res = {Dat = BigWord n'; Width = width}
+        let res = FastData.MakeFastData width n'
         put0 <| Data res
     | AsyncROM1 mem -> // Asynchronous ROM.
         let fd = ins 0

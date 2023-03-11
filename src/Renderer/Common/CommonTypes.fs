@@ -195,7 +195,8 @@ module CommonTypes
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant of Width: int * ConstValue: int64 
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
-        | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+        | Not | And of int option| Or of int option| Xor of int option 
+        | Nand of int option| Nor of int option | Xnor of int option | Decode4
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
         | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -218,14 +219,28 @@ module CommonTypes
     /// NB - NOT gates are not included here.
     let (|IsBinaryGate|NotBinaryGate|) cType =
         match cType with
-         | And | Or | Xor | Nand | Nor | Xnor -> IsBinaryGate
+         | And _ | Or _| Xor _ | Nand _ | Nor _ | Xnor _ -> IsBinaryGate
          | _ -> NotBinaryGate
 
-    // let numOfGateInputs (ct: ComponentType) =
-    //     match ct with
-    //     | And (Some n) | Or (Some n)| Xor (Some n) | Nand (Some n) 
-    //     | Nor (Some n)| Xnor (Some n) -> n
-    //     | _ -> 2
+    /// returns Some num of inputs for a "binary " n input gate, or None for anything else
+    let (|NumBinaryGateInputs|_|) cType =
+        match cType with
+        | And o | Or o| Xor o | Nand o | Nor o | Xnor o -> 
+            match o with 
+            None -> Some 2 | o -> o
+        | _ -> None
+
+    /// sets number of inputs to n for a "binary" n-input gate, leaves otehr component types unchnaged.
+    let setNumBinaryGateInputs n cType =
+        match cType with
+        | And _ -> And (Some n)
+        | Or _ -> Or (Some n)
+        | Xor _ -> Xor (Some n)
+        | Nand _ -> Nand (Some n)
+        | Nor _ -> Nor (Some n)
+        | Xnor _ -> Xnor (Some n)
+        | _ -> cType
+        
 
     /// get memory component type constructor
     /// NB only works with new-style memory components

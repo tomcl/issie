@@ -122,7 +122,8 @@ let getPortNumbers (sc: SimulationComponent) =
             2,4
         | Demux8 ->
             2,8
-        | Not | And | Or | Xor | Nand | Nor | Xnor -> 2,1
+        | And n | Or n | Xor n | Nand n | Nor n | Xnor n-> 
+            Option.defaultValue 2 n,1
         | Custom ct -> ct.InputLabels.Length, ct.OutputLabels.Length
         | AsyncROM _ | RAM _ | ROM _ -> failwithf "legacy component type is not supported"
         | Input _ -> failwithf "Legacy Input component types should never occur"
@@ -162,13 +163,13 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | NbitsAdder w | NbitsAdderNoCin w ->
         putW0 w
         putW1 1
-    | Not
-    | And
-    | Or
-    | Xor
-    | Nand
-    | Nor
-    | Xnor
+    | Not _
+    | And _
+    | Or _
+    | Xor _
+    | Nand _
+    | Nor _
+    | Xnor _
     | BusCompare _ | BusCompare1 _ -> putW0 1
     | AsyncROM1 mem
     | ROM1 mem

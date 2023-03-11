@@ -196,16 +196,18 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     let inline putW num w = comp.OutputWidth[num] <- Some w
 
     /// implement a binary combinational operation
-    let inline getBinaryGateReducer 
+    /// TODO -extend to n-ary gates
+    let inline getBinaryGateReducer n 
         (bitOp: uint32 ->uint32 -> uint32) 
         (algOp: FastAlgExp ->FastAlgExp -> FastAlgExp) 
         : Unit =
-        match (ins 0),(ins 1) with
-        | Data d1, Data d2 -> 
+        let n = match n with None -> 2 | Some n -> n
+        match n, (ins 0),(ins 1) with
+        | _, Data d1, Data d2 -> 
             let bit0 = d1.GetQUint32
             let bit1 = d2.GetQUint32
             put0 <| Data {Width=1; Dat = Word (bitOp bit1 bit0)}
-        | A, B ->
+        | _, A, B ->
             put0 <| Alg (algOp A.toExp B.toExp)
         // | Alg exp1, Alg exp2 ->
         //     put0 <| Alg (algOp exp1 exp2)
@@ -333,12 +335,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {(getAlgExpWidth exp)}")
 #endif
             put0 <| Alg (ComparisonExp(exp,Equals,compareVal))
-    | And -> getBinaryGateReducer bitAnd algAnd
-    | Or -> getBinaryGateReducer bitOr algOr
-    | Xor -> getBinaryGateReducer bitXor algXor
-    | Nand -> getBinaryGateReducer bitNand algNand
-    | Nor -> getBinaryGateReducer bitNor algNor
-    | Xnor -> getBinaryGateReducer bitXnor algXnor
+    | And n -> (getBinaryGateReducer n) bitAnd algAnd
+    | Or n -> (getBinaryGateReducer n) bitOr algOr
+    | Xor n -> (getBinaryGateReducer n) bitXor algXor
+    | Nand n -> (getBinaryGateReducer n) bitNand algNand
+    | Nor n -> (getBinaryGateReducer n) bitNor algNor
+    | Xnor n -> (getBinaryGateReducer n) bitXnor algXnor
     | Mux2 ->
         match (ins 0),(ins 1),(ins 2) with
         | Alg exp1, Alg exp2, Data bitSelect ->

@@ -381,6 +381,7 @@ let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list =
     // printfn "symbolBottom: %A" symbolBottom
     // printfn "symbolLeft: %A" symbolLeft
     // printfn "symbolRight: %A" symbolRight
+    // printfn "symbol type: %A" symbol.Component.Type
 
     let horizTwoSegVerticalCondition = 
         (symbolLeft < cornerPosX' && symbolRight > cornerPosX')
@@ -439,6 +440,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                             
                         symbolInWay)                        
                             
+
                 // iterate through the list of symbols in the way and adjust the wire segments accordingly and return the wire with the adjusted segments
                 let rec adjustWireSegments wire symbolList =
                     match symbolList with
@@ -626,6 +628,28 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                         let verticalCondition = conditionList[0]
                         let horizontalCondition = conditionList[1]
 
+                        // REMOVE BELOW
+                        let symbolBox = symbolBox sym
+                        let symbolTopLeftPos = symbolBox[0]
+                        let symbolBottomRightPos = symbolBox[3]
+                        let symbolLeft = fst symbolTopLeftPos
+                        let symbolRight = fst symbolBottomRightPos
+                        let symbolTop = snd symbolTopLeftPos
+                        let symbolBottom = snd symbolBottomRightPos
+                        let cornerPosX' = wire.StartPos.X + wire.Segments[2].Length
+                        let cornerPosY' = wire.StartPos.Y + wire.Segments[2].Length
+                        // let wireEndPointY = outputPortPos.Y
+                        printfn "cornerPosX;: %A" cornerPosX'
+                        printfn "cornerPosY': %A" cornerPosY'
+                        printfn "wireEndPointY': %A" wireEndPointY
+                        printfn "wireStartPos.Y': %A" wire.StartPos.Y
+                        // printfn "wireEndPointX': %A" wireEndPointX
+                        printfn "symbolTop: %A" symbolTop
+                        printfn "symbolBottom: %A" symbolBottom
+                        printfn "symbolLeft: %A" symbolLeft
+                        printfn "symbolRight: %A" symbolRight
+                        // REMOVE ABOVE
+
                         let symbolInWay = 
                             if verticalCondition || horizontalCondition then 
                                 printfn "DETECTED SYMBOL IN WAY"
@@ -653,7 +677,7 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
 
                         let conditionList = conditions model symbol wire
                         let verticalCondition = conditionList[0]
-                        let horizontalCondition = conditionList[1]
+                        let horizontalCondition = conditionList[1]                        
 
                         let newWireHorizontal =
                             let cornerPosX = wire.StartPos.X + wire.Segments[2].Length
@@ -793,10 +817,14 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
     if segListLength < 7 then
         // 2 segment wire
         // call 2 segemnt routing function
+        printfn "Routing 2 segment wire"
         routeTwoSegWires model autoWire
         // WireT autoWire
     else
+        // 3 segment wire
         let wireLength = autoWire.Segments[4].Length
         match wireLength with
         | l when l > 600.0 -> replaceWithWireLabels model wire
         | _ -> routeAroundSymbol model autoWire symbol
+
+        // routeAroundSymbol should include your implemntation of external wire hugging/avoiding

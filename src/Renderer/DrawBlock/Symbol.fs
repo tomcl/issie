@@ -322,9 +322,9 @@ let getPrefix (compType:ComponentType) =
 // Text to be put inside different Symbols depending on their ComponentType
 let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     match componentType with
-    | And | Nand-> "&"
-    | Or | Nor-> "≥1"
-    | Xor | Xnor -> "=1"
+    | And _ | Nand _ -> "&"
+    | Or _ | Nor _ -> "≥1"
+    | Xor _ | Xnor _ -> "=1"
     | Not -> "1"
     | Decode4 -> "Decode"
     | NbitsAdder n | NbitsAdderNoCin n
@@ -581,12 +581,16 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     // match statement for each component type. the output is a 4-tuple that is used as an input to makecomponent (see below)
     // 4-tuple of the form ( number of input ports, number of output ports, Height, Width)
     let gS = float Constants.gridSize
+    let inpPort x = 
+        match x with
+        | Some n -> n
+        | _ -> 2
     match compType with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
-    | And | Or | Nand | Nor | Xor | Xnor ->  (2 , 1, 1.5*gS , 1.5*gS) 
+    | And n| Or n| Nand n| Nor n| Xor n| Xnor n->  (inpPort n , 1, 1.5*gS , 1.5*gS) 
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 

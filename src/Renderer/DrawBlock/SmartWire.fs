@@ -309,9 +309,9 @@ let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list =
     let wireLeft = fst leftCornerPos
     let bottomLeftCornerY = snd bottomLeftCornerPos
 
-    let inputPort = string wire.InputPort 
-    let inputSymbol = findSymbol model wire Input |> Option.get
-    let inputPortEdge = inputSymbol.PortMaps.Orientation |> Map.find inputPort
+    let outputPort = string wire.OutputPort 
+    let outputSymbol = findSymbol model wire Output |> Option.get
+    let outputPortEdge = outputSymbol.PortMaps.Orientation |> Map.find outputPort
 
     // conditions for horizontal wires
     let middleCondition = 
@@ -348,7 +348,6 @@ let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list =
         symbolTop < bottomSegmentY && symbolTop > wireTopY
         && symbolLeft < rightMidX && symbolRight > rightMidX
 
-
     // conditions for 2 segment vertical wires
     let outputPortPos, inputPortPos =
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
@@ -368,20 +367,9 @@ let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list =
         && symbolTop < cornerPosY && symbolBottom > cornerPosY
 
     // conditions for 2 segment horizontal wires
-    let cornerPosX' = wire.StartPos.X + wire.Segments[2].Length
-    let cornerPosY' = wire.StartPos.Y
+    let cornerPosX' = float outputPortPos.X
+    let cornerPosY' = float inputPortPos.Y
     let wireEndPointY = outputPortPos.Y
-
-    // printfn "cornerPosX;: %A" cornerPosX'
-    // printfn "cornerPosY': %A" cornerPosY'
-    // printfn "wireEndPointY': %A" wireEndPointY
-    // printfn "wireStartPos.Y': %A" wire.StartPos.Y
-    // printfn "wireEndPointX': %A" wireEndPointX
-    // printfn "symbolTop: %A" symbolTop
-    // printfn "symbolBottom: %A" symbolBottom
-    // printfn "symbolLeft: %A" symbolLeft
-    // printfn "symbolRight: %A" symbolRight
-    // printfn "symbol type: %A" symbol.Component.Type
 
     let horizTwoSegVerticalCondition = 
         (symbolLeft < cornerPosX' && symbolRight > cornerPosX')
@@ -393,19 +381,22 @@ let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list =
         || (symbolRight > cornerPosX' && symbolRight < wire.StartPos.X)) // horiz wire to left of symbol
         && symbolTop < cornerPosY' && symbolBottom > cornerPosY'
     
+    let inputPort = string wire.InputPort 
+    let inputSymbol = findSymbol model wire Input |> Option.get
+    let inputPortEdge = inputSymbol.PortMaps.Orientation |> Map.find inputPort
 
     let segListLength = wire.Segments |> List.length
     match segListLength with
         | l when l < 7 -> 
             // 2 segment wire
             match inputPortEdge with
-                | Left -> [horizTwoSegVerticalCondition; horizTwoSegHorizontalCondition]
-                | Right -> [horizTwoSegVerticalCondition; horizTwoSegHorizontalCondition]
-                | Top -> [verticalTwoSegVerticalCondition; verticalTwoSegHorizontalCondition]
-                | Bottom -> [verticalTwoSegVerticalCondition; verticalTwoSegHorizontalCondition]
+                | Top -> [horizTwoSegVerticalCondition; horizTwoSegHorizontalCondition]
+                | Bottom -> [horizTwoSegVerticalCondition; horizTwoSegHorizontalCondition]
+                | Right -> [verticalTwoSegVerticalCondition; verticalTwoSegHorizontalCondition]
+                | Left -> [verticalTwoSegVerticalCondition; verticalTwoSegHorizontalCondition]
         | _ -> 
             // 3 segment wire
-            match inputPortEdge with
+            match outputPortEdge with
                 | Left -> [leftCondition; middleCondition; rightCondition]
                 | Right -> [leftCondition; middleCondition; rightCondition]
                 | Top -> [verticalTopCondition; verticalMiddleCondition; verticalBottomCondition]
@@ -464,6 +455,10 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
 
                         let conditionList = conditions model symbol wire
                         
+                        let inputPort = string wire.InputPort 
+                        let inputSymbol = findSymbol model wire Input |> Option.get
+                        let inputPortEdge = inputSymbol.PortMaps.Orientation |> Map.find inputPort
+
                         let newWireHorizontal =
                             let leftCondition = conditionList[0]
                             let middleCondition = conditionList[1]
@@ -492,29 +487,49 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                                 updateWire wire segmentLengths
                             
                             elif middleCondition then
-                                if symbolTop > bottomLeftCornerY then // symbol in MIDDLE and target symbol is BELOW source symbol
-                                    let segmentLengths = 
-                                        [ wire.Segments.[0].Length; wire.Segments[1].Length; wire.Segments.[2].Length - 12. + (symbolLeft - wireLeft);
-                                        wire.Segments.[3].Length + 5. + (symbolBottom - wireEndposY); wire.Segments.[4].Length + 12. - (symbolLeft - wireLeft);
-                                        wire.Segments.[5].Length - 5. -  (symbolBottom - wireEndposY); wire.Segments.[6].Length ]
-                                    updateWire wire segmentLengths
-                                else // symbol in MIDDLE and target symbol is ABOVE source symbol
-                                    let segmentLengths = 
-                                        [ wire.Segments.[0].Length; wire.Segments[1].Length; wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft);
-                                        wire.Segments.[3].Length - 5. - (wireEndposY - symbolTop); wire.Segments.[4].Length + 10. - (symbolLeft - wireLeft);
-                                        wire.Segments.[5].Length + 5. + (wireEndposY - symbolTop); wire.Segments.[6].Length ]
-                                    updateWire wire segmentLengths
+                                if inputPortEdge = Bottom then    // prevents the adjusted wire from going through the input symbol
+                                    if (symbolBottom > wireTop) then 
+                                        let segmentLengths = 
+                                            [ wire.Segments.[0].Length; wire.Segments[1].Length; wire.Segments.[2].Length - 12. + (symbolLeft - wireLeft);
+                                            wire.Segments.[3].Length + 5. + (symbolBottom - wireTop); wire.Segments.[4].Length + 12. - (symbolLeft - wireLeft);
+                                            wire.Segments.[5].Length - 5. - (symbolBottom - wireTop); wire.Segments.[6].Length ]
+                                        updateWire wire segmentLengths
+                                    else
+                                        let segmentLengths = 
+                                            [ wire.Segments.[0].Length; wire.Segments[1].Length; wire.Segments.[2].Length - 12. + (symbolLeft - wireLeft);
+                                            wire.Segments.[3].Length; wire.Segments.[4].Length + 12. - (symbolLeft - wireLeft);
+                                            wire.Segments.[5].Length; wire.Segments.[6].Length ]
+                                        updateWire wire segmentLengths
+
+                                else
+                                    if symbolTop > bottomLeftCornerY then // symbol in MIDDLE and target symbol is BELOW source symbol
+                                        let segmentLengths = 
+                                            [ wire.Segments.[0].Length; wire.Segments[1].Length; wire.Segments.[2].Length - 12. + (symbolLeft - wireLeft);
+                                            wire.Segments.[3].Length + 5. + (symbolBottom - wireEndposY); wire.Segments.[4].Length + 12. - (symbolLeft - wireLeft);
+                                            wire.Segments.[5].Length - 5. -  (symbolBottom - wireEndposY); wire.Segments.[6].Length ]
+                                        updateWire wire segmentLengths
+                                    else // symbol in MIDDLE and target symbol is ABOVE source symbol
+                                        let segmentLengths = 
+                                            [ wire.Segments.[0].Length; wire.Segments[1].Length; wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft);
+                                            wire.Segments.[3].Length - 5. - (wireEndposY - symbolTop); wire.Segments.[4].Length + 10. - (symbolLeft - wireLeft);
+                                            wire.Segments.[5].Length + 5. + (wireEndposY - symbolTop); wire.Segments.[6].Length ]
+                                        updateWire wire segmentLengths
                             
                             else // symbol in way of RIGHT segment of wire
-                                let segmentLengths = 
-                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length; wire.Segments.[2].Length; wire.Segments.[3].Length - 5. - (wireTop - symbolTop);
-                                    wire.Segments.[4].Length; wire.Segments.[5].Length + 5. + (wireTop - symbolTop); wire.Segments.[6].Length]
-                                updateWire wire segmentLengths
+                                if inputPortEdge = Bottom then    // prevents the adjusted wire from going through the input symbol
+                                    let segmentLengths = 
+                                        [ wire.Segments.[0].Length; wire.Segments.[1].Length; wire.Segments.[2].Length; wire.Segments.[3].Length + 5. + (symbolBottom - wireTop);
+                                        wire.Segments.[4].Length; wire.Segments.[5].Length - 5. - (symbolBottom - wireTop); wire.Segments.[6].Length]
+                                    updateWire wire segmentLengths
+                                else
+                                    let segmentLengths = 
+                                        [ wire.Segments.[0].Length; wire.Segments.[1].Length; wire.Segments.[2].Length; wire.Segments.[3].Length - 5. - (wireTop - symbolTop);
+                                        wire.Segments.[4].Length; wire.Segments.[5].Length + 5. + (wireTop - symbolTop); wire.Segments.[6].Length]
+                                    updateWire wire segmentLengths
 
                         let newWireVertical =
                             let rightMidX = wire.StartPos.X + wire.Segments[3].Length
                             let bottomSegmentY = wire.StartPos.Y + wire.Segments[2].Length
-                            let wireTopY = bottomSegmentY + wire.Segments[4].Length
 
                             let verticalTopCondition = conditionList[0]
                             let verticalMiddleCondition = conditionList[1]
@@ -584,12 +599,12 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                                         wire.Segments.[4].Length - 15. - (symbolBottom - bottomSegmentY) ; wire.Segments.[5].Length; wire.Segments.[6].Length ]
                                     updateWire wire segmentLengths
 
-                        let inputPort = string wire.InputPort 
-                        let inputSymbol = findSymbol model wire Input |> Option.get
-                        let inputPortEdge = inputSymbol.PortMaps.Orientation |> Map.find inputPort
+                        let outputPort = string wire.OutputPort 
+                        let outputSymbol = findSymbol model wire Output |> Option.get
+                        let outputPortEdge = outputSymbol.PortMaps.Orientation |> Map.find outputPort
 
                         let wireSegments = 
-                            match inputPortEdge with
+                            match outputPortEdge with
                                 | Left -> newWireHorizontal
                                 | Right -> newWireHorizontal
                                 | _ -> newWireVertical
@@ -608,7 +623,6 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
 
 /// 2 (visable) segment wire routing
 let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult = 
-    printfn "routeTwoSegWires"
     let selfConnected = isSelfConnected model wire
     let routing = 
         match selfConnected with
@@ -628,32 +642,8 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                         let verticalCondition = conditionList[0]
                         let horizontalCondition = conditionList[1]
 
-                        // REMOVE BELOW
-                        let symbolBox = symbolBox sym
-                        let symbolTopLeftPos = symbolBox[0]
-                        let symbolBottomRightPos = symbolBox[3]
-                        let symbolLeft = fst symbolTopLeftPos
-                        let symbolRight = fst symbolBottomRightPos
-                        let symbolTop = snd symbolTopLeftPos
-                        let symbolBottom = snd symbolBottomRightPos
-                        let cornerPosX' = wire.StartPos.X + wire.Segments[2].Length
-                        let cornerPosY' = wire.StartPos.Y + wire.Segments[2].Length
-                        // let wireEndPointY = outputPortPos.Y
-                        printfn "cornerPosX;: %A" cornerPosX'
-                        printfn "cornerPosY': %A" cornerPosY'
-                        printfn "wireEndPointY': %A" wireEndPointY
-                        printfn "wireStartPos.Y': %A" wire.StartPos.Y
-                        // printfn "wireEndPointX': %A" wireEndPointX
-                        printfn "symbolTop: %A" symbolTop
-                        printfn "symbolBottom: %A" symbolBottom
-                        printfn "symbolLeft: %A" symbolLeft
-                        printfn "symbolRight: %A" symbolRight
-                        // REMOVE ABOVE
-
                         let symbolInWay = 
-                            if verticalCondition || horizontalCondition then 
-                                printfn "DETECTED SYMBOL IN WAY"
-                                true
+                            if verticalCondition || horizontalCondition then true
                             else false 
 
                         symbolInWay)      
@@ -668,127 +658,66 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                         let symbolBottomRightPos = symbolBox[3]
                         let symbolLeft = fst symbolTopLeftPos
                         let symbolRight = fst symbolBottomRightPos
-                        let symbolTop = snd symbolTopLeftPos
                         let symbolBottom = snd symbolBottomRightPos
-                        
-                        let leftCornerPos = (wire.StartPos.X + wire.Segments[2].Length, wire.StartPos.Y + wire.Segments[3].Length)
-                        let bottomLeftCornerPos = (fst leftCornerPos, snd leftCornerPos - wire.Segments[3].Length)
-                        let wireEndpos = (fst leftCornerPos + wire.Segments[4].Length, snd leftCornerPos)
 
+                        let outputPortPos, inputPortPos =
+                            Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)    
                         let conditionList = conditions model symbol wire
                         let verticalCondition = conditionList[0]
-                        let horizontalCondition = conditionList[1]                        
+
+                        let outputPort = string wire.OutputPort 
+                        let outputSymbol = findSymbol model wire Output |> Option.get
+                        let outputPortEdge = outputSymbol.PortMaps.Orientation |> Map.find outputPort             
 
                         let newWireHorizontal =
-                            let cornerPosX = wire.StartPos.X + wire.Segments[2].Length
-                            let cornerPosY = wire.StartPos.Y
-                            let wireEndPointY = cornerPosY + wire.Segments[3].Length
-                            
-                            if verticalCondition && horizontalCondition then 
-                                printfn "verticalCondition && horizontalCondition"
+                            if outputPortEdge = Left then wire
+                            else
+                                let cornerPosX = float outputPortPos.X
+                                let cornerPosY = float inputPortPos.Y
+
+                                if verticalCondition then
+                                    let segmentLengths = 
+                                        [ wire.Segments.[0].Length; wire.Segments.[1].Length;
+                                        wire.Segments.[2].Length - 5. - (cornerPosX - symbolLeft); wire.Segments.[3].Length; 
+                                        wire.Segments.[4].Length + 5. + (cornerPosX - symbolLeft); wire.Segments.[5].Length]
+                                    updateWire wire segmentLengths
+                                
+                                else   // horizontalCondition
+                                    let segmentLengths = 
+                                        [ wire.Segments.[0].Length; wire.Segments.[1].Length + 5. + (symbolBottom - cornerPosY);
+                                        wire.Segments.[2].Length; wire.Segments.[3].Length - 5. - (symbolBottom - cornerPosY); 
+                                        wire.Segments.[4].Length; wire.Segments.[5].Length]
+                                    updateWire wire segmentLengths
+
+                        let newWireVertical =
+                            let cornerPosX = float inputPortPos.X
+                            let cornerPosY = float outputPortPos.Y
+
+                            if verticalCondition then
                                 let segmentLengths = 
-                                    [ ]
-                                updateWire wire segmentLengths
-                            
-                            elif verticalCondition then
-                                printfn "verticalCondition"
-                                let segmentLengths = 
-                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length + 5. + (symbolBottom - cornerPosY);
-                                    wire.Segments.[2].Length - 5. - (cornerPosY - symbolLeft); wire.Segments.[3].Length - 5. - (symbolBottom - cornerPosY); 
-                                    wire.Segments.[4].Length - 5. - (cornerPosY - symbolLeft); wire.Segments.[5].Length]
-                                updateWire wire segmentLengths
-                            
-                            else    // horizontalCondition
-                                printfn "horizontalCondition"
-                                let segmentLengths = 
-                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length + 5. + (symbolBottom - cornerPosY);
-                                    wire.Segments.[2].Length; wire.Segments.[3].Length - 5. - (symbolBottom - cornerPosY); 
+                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length + 5. + (symbolRight - cornerPosX);
+                                    wire.Segments.[2].Length; wire.Segments.[3].Length - 5. - (symbolRight - cornerPosX); 
                                     wire.Segments.[4].Length; wire.Segments.[5].Length]
                                 updateWire wire segmentLengths
-
-
-                        // let newWireVertical =
-                        //     let rightMidX = wire.StartPos.X + wire.Segments[3].Length
-                        //     let bottomSegmentY = wire.StartPos.Y + wire.Segments[2].Length
-                        //     let wireTopY = bottomSegmentY + wire.Segments[4].Length
-
-                        //     let verticalTopCondition = conditionList[0]
-                        //     let verticalMiddleCondition = conditionList[1]
-                        //     let verticalBottomCondition = conditionList[2]
-
-                        //     if verticalMiddleCondition && verticalTopCondition then
-                        //         if wire.Segments.[3].Length > 0. then
-                        //             let segmentLengths = 
-                        //                 [ wire.Segments.[0].Length; wire.Segments.[1].Length;
-                        //                 wire.Segments.[2].Length - (bottomSegmentY - symbolTop); wire.Segments.[3].Length; 
-                        //                 wire.Segments.[4].Length + (bottomSegmentY - symbolTop); wire.Segments.[5].Length; wire.Segments.[6].Length ]
-                        //             updateWire wire segmentLengths
-                        //         else
-                        //             let segmentLengths = 
-                        //                 [ wire.Segments.[0].Length; wire.Segments.[1].Length;
-                        //                 wire.Segments.[2].Length - (bottomSegmentY - symbolTop); wire.Segments.[3].Length; 
-                        //                 wire.Segments.[4].Length + (bottomSegmentY - symbolTop); wire.Segments.[5].Length; wire.Segments.[6].Length ]
-                        //             updateWire wire segmentLengths
-
-                        //     elif verticalMiddleCondition && verticalBottomCondition then
-                        //         if wire.Segments.[3].Length > 0. then
-                        //             let segmentLengths = 
-                        //                 [ wire.Segments.[0].Length; wire.Segments.[1].Length + (symbolLeft - wire.StartPos.X);
-                        //                 wire.Segments.[2].Length - (bottomSegmentY - symbolTop); wire.Segments.[3].Length - (symbolLeft - wire.StartPos.X); 
-                        //                 wire.Segments.[4].Length + (bottomSegmentY - symbolTop); wire.Segments.[5].Length; wire.Segments.[6].Length ]
-                        //             updateWire wire segmentLengths
-                        //         else
-                        //             let segmentLengths = 
-                        //                 [ wire.Segments.[0].Length; wire.Segments.[1].Length +  (symbolRight - wire.StartPos.X);
-                        //                 wire.Segments.[2].Length - (bottomSegmentY - symbolTop); wire.Segments.[3].Length - (symbolRight - wire.StartPos.X); 
-                        //                 wire.Segments.[4].Length + (bottomSegmentY - symbolTop); wire.Segments.[5].Length; wire.Segments.[6].Length ]
-                        //             updateWire wire segmentLengths
-
-                        //     elif verticalMiddleCondition then
-                        //         let segmentLengths = 
-                        //             [ wire.Segments.[0].Length; wire.Segments.[1].Length;
-                        //             wire.Segments.[2].Length - (bottomSegmentY - symbolTop); wire.Segments.[3].Length; 
-                        //             wire.Segments.[4].Length + (bottomSegmentY - symbolTop); wire.Segments.[5].Length; wire.Segments.[6].Length ]
-                        //         updateWire wire segmentLengths
                             
-                        //     elif verticalTopCondition then
-                        //         if wire.Segments.[3].Length > 0. then
-                        //             let segmentLengths = 
-                        //                 [ wire.Segments.[0].Length; wire.Segments.[1].Length;
-                        //                 wire.Segments.[2].Length - (bottomSegmentY - symbolTop); wire.Segments.[3].Length; 
-                        //                 wire.Segments.[4].Length + (bottomSegmentY - symbolTop); wire.Segments.[5].Length; wire.Segments.[6].Length ]
-                        //             updateWire wire segmentLengths
-                        //         else
-                        //             let segmentLengths = 
-                        //                 [ wire.Segments.[0].Length; wire.Segments.[1].Length;
-                        //                 wire.Segments.[2].Length - (bottomSegmentY - symbolTop); wire.Segments.[3].Length + (symbolLeft - rightMidX); 
-                        //                 wire.Segments.[4].Length + (bottomSegmentY - symbolTop); wire.Segments.[5].Length - (symbolLeft - rightMidX); wire.Segments.[6].Length ]
-                        //             updateWire wire segmentLengths
-
-                        //     else    
-                        //         // verticalBottomCondition     2:  + 15. + (symbolBottom - bottomSegmentY), 4: - 15. - (symbolBottom - bottomSegmentY
-                        //         if wire.Segments.[3].Length > 0. then
-                        //             let segmentLengths = 
-                        //                 [ wire.Segments.[0].Length; wire.Segments.[1].Length + (symbolLeft - wire.StartPos.X);
-                        //                 wire.Segments.[2].Length; wire.Segments.[3].Length - (symbolLeft - wire.StartPos.X); 
-                        //                 wire.Segments.[4].Length; wire.Segments.[5].Length; wire.Segments.[6].Length ]
-                        //             updateWire wire segmentLengths
-                        //         else
-                        //             let segmentLengths = 
-                        //                 [ wire.Segments.[0].Length; wire.Segments.[1].Length;
-                        //                 wire.Segments.[2].Length + 15. + (symbolBottom - bottomSegmentY); wire.Segments.[3].Length; 
-                        //                 wire.Segments.[4].Length - 15. - (symbolBottom - bottomSegmentY) ; wire.Segments.[5].Length; wire.Segments.[6].Length ]
-                        //             updateWire wire segmentLengths
-
+                            else   // horizontalCondition
+                                let segmentLengths = 
+                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length;
+                                    wire.Segments.[2].Length + 5. + (symbolBottom - cornerPosY); wire.Segments.[3].Length; 
+                                    wire.Segments.[4].Length - 5. - (symbolBottom - cornerPosY); wire.Segments.[5].Length]
+                                updateWire wire segmentLengths
+                        
+                        
                         let inputPort = string wire.InputPort 
                         let inputSymbol = findSymbol model wire Input |> Option.get
                         let inputPortEdge = inputSymbol.PortMaps.Orientation |> Map.find inputPort
-
+                        // printfn "inputportedge: %A" inputPortEdge
                         let wireSegments = 
                             match inputPortEdge with
-                                | Left -> newWireHorizontal
-                                | Right -> newWireHorizontal
-                                | _ -> newWireHorizontal
+                                | Bottom -> newWireHorizontal
+                                | Top -> wire                                
+                                | Left -> newWireVertical
+                                | Right -> newWireVertical
 
                         adjustWireSegments wireSegments symbols
                 
@@ -803,28 +732,20 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
     routing
             
 
-    
-
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =     
     let symbol = findSymbol model wire Output
     let autoWire = autoroute model wire
     let segListLength = autoWire.Segments |> List.length
-
-    printfn "segment info %A" wire.Segments
-
+    // printfn "segment info %A" wire.Segments
+    
     if segListLength < 7 then
         // 2 segment wire
-        // call 2 segemnt routing function
-        printfn "Routing 2 segment wire"
         routeTwoSegWires model autoWire
-        // WireT autoWire
     else
         // 3 segment wire
         let wireLength = autoWire.Segments[4].Length
         match wireLength with
         | l when l > 600.0 -> replaceWithWireLabels model wire
         | _ -> routeAroundSymbol model autoWire symbol
-
-        // routeAroundSymbol should include your implemntation of external wire hugging/avoiding

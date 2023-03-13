@@ -138,9 +138,10 @@ let getWireSegmentsXY (wire: Wire) =
     |> List.map (fun (x, y, _) -> (x, y))
     |> List.map tupToXY
 
-/// Retrieves all wires which intersect an arbitrary bounding box
+/// Retrieves all wires which intersect an arbitrary bounding box & the index
+/// of the segment which intersects the box
 /// HLP23: Derek Lai (ddl20)
-let getWiresInBox (box: BoundingBox) (model: Model) : Wire list =
+let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
     let wires = (List.ofSeq (Seq.cast model.Wires.Values))
 
     let bottomRight =
@@ -148,10 +149,13 @@ let getWiresInBox (box: BoundingBox) (model: Model) : Wire list =
             X = box.TopLeft.X + box.W
             Y = box.TopLeft.Y + box.H }
 
-    let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool) (segment: Segment) : bool =
-        state || overlap2D (startPos, endPos) (box.TopLeft, bottomRight)
+    let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool * int) (segment: Segment) : bool * int =
+        let overlap = overlap2D (startPos, endPos) (box.TopLeft, bottomRight)
+        (fst state || overlap), if overlap then segment.Index else snd state
 
-    List.filter (foldOverNonZeroSegs checkOverlapFolder false) wires
+    List.map (fun w -> foldOverNonZeroSegs checkOverlapFolder (false, -1) w, w) wires
+    |> List.filter (fun l -> fst (fst l))
+    |> List.map (fun ((_, index), w) -> w, index)
 
 /// Checks if a wire intersects any symbol or not.
 /// Returns list of bounding boxes of symbols intersected by wire.

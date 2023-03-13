@@ -273,9 +273,17 @@ let mDownUpdate
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
             {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
         | Label compId -> 
-            {model with Action = InitialiseMovingLabel compId},
-            Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
-
+            match model.ButtonList with
+            | [] ->
+                {model with Action = InitialiseMovingLabel compId},
+                Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
+            | _ ->
+                {model with Action = InitialiseMovingLabel compId; ButtonList = []},
+                Cmd.batch [
+                    Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId]))),
+                    symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                ]
+              
         | InputPort (portId, portLoc) ->
             if not model.CtrlKeyDown then
                 {model with Action = ConnectingInput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
@@ -305,15 +313,28 @@ let mDownUpdate
                                 if List.contains compId model.SelectedComponents
                                 then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
                                 else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
-                            {model with 
-                                SelectedComponents = newComponents; 
-                                SnapSymbols = emptySnap
-                                LastValidPos = mMsg.Pos ; 
-                                LastValidBoundingBoxes=model.BoundingBoxes ; 
-                                Action = action; LastMousePos = mMsg.Pos; 
-                                TmpModel = Some model; 
-                                PrevWireSelection = model.SelectedWires},
-                            Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); Cmd.ofMsg msg]
+                            match model.ButtonList with
+                            | [] ->
+                                {model with 
+                                    SelectedComponents = newComponents; 
+                                    SnapSymbols = emptySnap
+                                    LastValidPos = mMsg.Pos ; 
+                                    LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                    Action = action; LastMousePos = mMsg.Pos; 
+                                    TmpModel = Some model; 
+                                    PrevWireSelection = model.SelectedWires},
+                                Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); Cmd.ofMsg msg]
+                            | _ -> 
+                                {model with 
+                                    SelectedComponents = newComponents; 
+                                    SnapSymbols = emptySnap
+                                    LastValidPos = mMsg.Pos ; 
+                                    LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                    Action = action; LastMousePos = mMsg.Pos; 
+                                    TmpModel = Some model; 
+                                    PrevWireSelection = model.SelectedWires;
+                                    model.ButtonList = []},
+                                Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); symbolCmd (SymbolT.DeleteSymbols model.ButtonList);Cmd.ofMsg msg]
                         else
                             let newComponents, newWires =
                                 if List.contains compId model.SelectedComponents
@@ -324,17 +345,31 @@ let mDownUpdate
                                 | [compId] -> 
                                     getNewSymbolSnapInfo model model.Wire.Symbol.Symbols[compId]
                                 | _ -> emptySnap
-
-                            {model with 
-                                SelectedComponents = newComponents; 
-                                SnapSymbols = snapXY
-                                LastValidPos = mMsg.Pos ; 
-                                LastValidBoundingBoxes=model.BoundingBoxes ; 
-                                SelectedWires = newWires; Action = action; 
-                                LastMousePos = mMsg.Pos; TmpModel = Some model},
-                            Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                                        wireCmd (BusWireT.SelectWires newWires)
-                                        Cmd.ofMsg msg]
+                            match model.ButtonList with
+                            | [] ->
+                                {model with 
+                                    SelectedComponents = newComponents; 
+                                    SnapSymbols = snapXY
+                                    LastValidPos = mMsg.Pos ; 
+                                    LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                    SelectedWires = newWires; Action = action; 
+                                    LastMousePos = mMsg.Pos; TmpModel = Some model},
+                                Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
+                                            wireCmd (BusWireT.SelectWires newWires)
+                                            Cmd.ofMsg msg]
+                            | _ ->
+                                {model with 
+                                    SelectedComponents = newComponents; 
+                                    SnapSymbols = snapXY
+                                    LastValidPos = mMsg.Pos ; 
+                                    LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                    SelectedWires = newWires; Action = action; 
+                                    LastMousePos = mMsg.Pos; TmpModel = Some model;
+                                    ButtonList = []},
+                                Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
+                                            wireCmd (BusWireT.SelectWires newWires)
+                                            symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                            Cmd.ofMsg msg]
 
         | Connection connId ->
             let aSeg = BusWireUpdateHelpers.getClickedSegment model.Wire connId mMsg.Pos
@@ -530,10 +565,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         Cmd.ofMsg DoNothing
 
     | MovingLabel ->
-        {model with Action = Idle; ButtonList=[]}, symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
-    
-    | Scaling -> 
-        {model with Action = Idle}, Cmd.ofMsg DoNothing
+        {model with Action = Idle; ButtonList=[]}, Cmd.ofMsg DoNothing
 
     | MovingSymbols ->
         // Reset Movement State in Model

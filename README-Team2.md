@@ -39,7 +39,12 @@ Dharmil Shah (dgs119)
 - `Symbol.fs`
     - Adds helper `getPortOrientationFrmPortIdStr`.
 
+<<<<<<< HEAD
+
+# Smart Custom Symbol Sizing 
+=======
 # Smart Wire Autoroute
+>>>>>>> 5a0ed287652467e31ca18ce634169e1c6745623d
 Jian Fu Eng (jfe20)
 
 ## Smart Routing Algorithm:
@@ -71,6 +76,10 @@ symbol B in bottom right quadrant with output port facing down, with other symbo
     - `getStartAndEndWirePos`: Return the start and end positions of a wire.
 - `SmartWire.fs`
     - Module that implements smart wire autoroute algorithm.
+<<<<<<< HEAD
+
+=======
+>>>>>>> 5a0ed287652467e31ca18ce634169e1c6745623d
 # Smart Channel
 Derek Lai (ddl20)
 
@@ -79,3 +88,7 @@ Derek Lai (ddl20)
 - `SmartHelpers.fs` - To add helpers which detect overlap.
 - `SheetUpdate.fs` - To add horizontal channel generation.
 - `SheetUpdateHelpers.fs` - To add horizontal channel generation.
+<<<<<<< HEAD
+
+=======
+>>>>>>> 5a0ed287652467e31ca18ce634169e1c6745623d

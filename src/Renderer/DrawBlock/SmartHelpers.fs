@@ -149,6 +149,7 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
             X = box.TopLeft.X + box.W
             Y = box.TopLeft.Y + box.H }
 
+    // State Tuple - (overlapping: bool, overlapping_wire_index: int)
     let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool * int) (segment: Segment) : bool * int =
         let overlap = overlap2D (startPos, endPos) (box.TopLeft, bottomRight)
         (fst state || overlap), if overlap then segment.Index else snd state

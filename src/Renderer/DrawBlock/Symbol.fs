@@ -332,36 +332,39 @@ let getPrefix (compType:ComponentType) =
     |_  -> ""
 
 
-
+//HLP23 Hannah Shewan
 // Text to be put inside different Symbols depending on their ComponentType
-let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
-    match componentType with
-    | And | Nand-> "&"
-    | Or | Nor-> "≥1"
-    | Xor | Xnor -> "=1"
-    | Not -> "1"
-    | Decode4 -> "Decode"
-    | NbitsAdder n | NbitsAdderNoCin n
-    | NbitsAdderNoCinCout n | NbitsAdderNoCout n -> busTitleAndBits "Adder" n
-    | Register n | RegisterE n-> 
-        match rotation with
-        |Degree90 |Degree270 -> busTitleAndBits "Reg" n
-        |_ -> busTitleAndBits "Register" n
-    | AsyncROM1 _ -> "Async.ROM"
-    | ROM1 _ -> "Sync.ROM"
-    | RAM1 _ -> "Sync.RAM"
-    | AsyncRAM1 _ -> "Async.RAM"
-    | DFF -> "DFF"
-    | DFFE -> "DFFE"
-    | Counter n |CounterNoEnable n
-    | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
-    | NbitsXor (x)->   nBitsGateTitle "XOR" x
-    | NbitsOr (x)->   nBitsGateTitle "OR" x
-    | NbitsAnd (x)->   nBitsGateTitle "AND" x
-    | NbitsNot (x)->  nBitsGateTitle "NOT" x
-    | Shift (n,_,_) -> busTitleAndBits "Shift" n
-    | Custom x -> x.Name.ToUpper()
-    | _ -> ""
+let getComponentLegend (componentType:ComponentType) (rotation:Rotation) (ieee: bool) =
+    match ieee with
+        | true -> ""
+        | false ->  
+            match componentType with
+            | And | Nand-> "&"
+            | Or | Nor-> "≥1"
+            | Xor | Xnor -> "=1"
+            | Not -> "1"
+            | Decode4 -> "Decode"
+            | NbitsAdder n | NbitsAdderNoCin n
+            | NbitsAdderNoCinCout n | NbitsAdderNoCout n -> busTitleAndBits "Adder" n
+            | Register n | RegisterE n-> 
+                match rotation with
+                |Degree90 |Degree270 -> busTitleAndBits "Reg" n
+                |_ -> busTitleAndBits "Register" n
+            | AsyncROM1 _ -> "Async.ROM"
+            | ROM1 _ -> "Sync.ROM"
+            | RAM1 _ -> "Sync.RAM"
+            | AsyncRAM1 _ -> "Async.RAM"
+            | DFF -> "DFF"
+            | DFFE -> "DFFE"
+            | Counter n |CounterNoEnable n
+            | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
+            | NbitsXor (x)->   nBitsGateTitle "XOR" x
+            | NbitsOr (x)->   nBitsGateTitle "OR" x
+            | NbitsAnd (x)->   nBitsGateTitle "AND" x
+            | NbitsNot (x)->  nBitsGateTitle "NOT" x
+            | Shift (n,_,_) -> busTitleAndBits "Shift" n
+            | Custom x -> x.Name.ToUpper()
+            | _ -> ""
 
 // Input and Output names of the ports depending on their ComponentType
 let portNames (componentType:ComponentType)  = //(input port names, output port names)

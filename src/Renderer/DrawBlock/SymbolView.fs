@@ -38,7 +38,7 @@ open Symbol
 let addText (pos: XYPos) name alignment weight size =
     let text =
             {defaultText with TextAnchor = alignment; FontWeight = weight; FontSize = size}
-    [makeText pos.X pos.Y name text]
+    [makeText pos.X pos.Y name text] 
 
 /// Add one or two lines of text, two lines are marked by a . delimiter
 let addLegendText (pos: XYPos) (name:string) alignment weight size =
@@ -178,11 +178,11 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> relativeToTopLeft
 
 ///create symbols in IEEE form
-let create_component (comp:Component) (colour:string) (outlineColour:string) (opacity:float) (strokeWidth:string) (points:string) (strokeColor: string) (symbolType)= 
+let createComponent (comp:Component) (colour:string) (outlineColour:string) (opacity:float) (strokeWidth:string) (points:string) (strokeColor: string) (ieee: bool)= 
     let parameters:Path = {Stroke = "Black" ; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
-    match symbolType with
-    //| OldSymbol -> createBiColorPolygon points colour strokeColor opacity strokeWidth comp;
-    | _ ->     
+    match ieee with
+    | false -> createBiColorPolygon points colour strokeColor opacity strokeWidth comp;
+    | true ->     
         match comp.Type with 
         |And -> [makePolygon ($"0,0 20, 0 20, {comp.H} 0, {comp.H}") {defaultPolygon with Fill = parameters.Fill};
                 makeAnyPath {X = 20; Y=0} (makeLineAttr 0 comp.H) {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
@@ -473,20 +473,22 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
+    let ieee = true
+
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addLegendText 
+    |> List.append (addLegendText //TO DO: get an extra field in and/or/not gates that determine whether they're ieee/new labels. let this affect the label.
                         (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) 
+                        (getComponentLegend comp.Type transform.Rotation ieee) //move this step to inside create_component
                         "middle" 
                         "bold" 
                         (legendFontSize comp.Type))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (create_component comp colour outlineColour opacity strokeWidth points colour "asd")
+    |> List.append (createComponent comp colour outlineColour opacity strokeWidth points colour ieee)
 
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//

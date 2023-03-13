@@ -624,7 +624,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | NbitsAdderNoCinCout (n) -> (  2 , 1, 3.*gS  , 4.*gS)
     | Shift _ -> (  2 , 1, 3.*gS  , 4.*gS)
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
-    | ScaleButton -> (0,0,7.0,7.0)
+    | ScaleButton -> (0,0,14.0,14.0)
 
 /// make a completely new component
 let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:string) : Component =

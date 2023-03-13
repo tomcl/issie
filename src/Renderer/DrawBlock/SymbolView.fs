@@ -498,7 +498,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
 
                                 (createAnyPath curvyShape[0] (arcAttr1+arcAttr2+arcAttr3) colour strokeWidth outlineColour) 
             | _, ScaleButton -> 
-                                let circle = makeCircle (W) (H) {defaultCircle with R = W/2.; Fill = "Grey"}
+                                let circle = makeCircle (10.0) (10.0){defaultCircle with R = 3.5; Fill = "Grey"}
                                 [circle]
             | _, _ -> (addLegendText 
                                 (legendOffset w h symbol) 

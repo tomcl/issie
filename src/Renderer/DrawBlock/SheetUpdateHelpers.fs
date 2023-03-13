@@ -494,7 +494,7 @@ let mDragUpdate
                                             let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
                                             let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
                                             let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
-                                            let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = distanceMoved*2. + startWidth; H = distanceMoved*2. + startHeight}}
+                                            let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((sqrt(2.)/2.)*distanceMoved*2.) + startWidth; H = ((sqrt(2.)/2.)*distanceMoved*2.) + startHeight}}
                                             {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
                                                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                                                         LastMousePos = mMsg.Pos
@@ -504,10 +504,13 @@ let mDragUpdate
                                 let newTopLeft = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
                                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
                                 let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
+                                let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
+                                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((sqrt(2.)/2.)*distanceMoved*2.) ; H = startHeight - ((sqrt(2.)/2.)*distanceMoved*2.) }}
                                 {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
                                             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                            LastMousePos = mMsg.Pos}, Cmd.ofMsg CheckAutomaticScrolling
-            
+                                            LastMousePos = mMsg.Pos
+                                            Box = newBox}, Cmd.ofMsg CheckAutomaticScrolling
+
 
     | Selecting -> 
         let initialX = model.DragToSelectBox.TopLeft.X

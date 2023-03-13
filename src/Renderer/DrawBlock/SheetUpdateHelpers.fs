@@ -280,7 +280,7 @@ let mDownUpdate
             | _ ->
                 {model with Action = InitialiseMovingLabel compId; ButtonList = []},
                 Cmd.batch [
-                    Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId]))),
+                    Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
                     symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
                 ]
               
@@ -303,9 +303,10 @@ let mDownUpdate
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
 
         | Component compId ->
+            printfn ("HERE1")
             match (model.Wire.Symbol.Symbols |> Map.find compId).Component.Type with 
                 | s when s = ScaleButton -> {model with Action = Scaling}, Cmd.none
-                |_ ->   
+                |_ ->   printfn("HERE5")
                         let msg, action = DoNothing, InitialiseMoving compId
                         if model.CtrlKeyDown || mMsg.ShiftKeyDown
                         then
@@ -325,6 +326,7 @@ let mDownUpdate
                                     PrevWireSelection = model.SelectedWires},
                                 Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); Cmd.ofMsg msg]
                             | _ -> 
+                                let buttonId = model.ButtonList
                                 {model with 
                                     SelectedComponents = newComponents; 
                                     SnapSymbols = emptySnap
@@ -333,8 +335,8 @@ let mDownUpdate
                                     Action = action; LastMousePos = mMsg.Pos; 
                                     TmpModel = Some model; 
                                     PrevWireSelection = model.SelectedWires;
-                                    model.ButtonList = []},
-                                Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); symbolCmd (SymbolT.DeleteSymbols model.ButtonList);Cmd.ofMsg msg]
+                                    ButtonList = []},
+                                Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); symbolCmd (SymbolT.DeleteSymbols buttonId);Cmd.ofMsg msg]
                         else
                             let newComponents, newWires =
                                 if List.contains compId model.SelectedComponents
@@ -358,6 +360,7 @@ let mDownUpdate
                                             wireCmd (BusWireT.SelectWires newWires)
                                             Cmd.ofMsg msg]
                             | _ ->
+                                let buttonId = model.ButtonList
                                 {model with 
                                     SelectedComponents = newComponents; 
                                     SnapSymbols = snapXY
@@ -368,7 +371,7 @@ let mDownUpdate
                                     ButtonList = []},
                                 Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                             wireCmd (BusWireT.SelectWires newWires)
-                                            symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                            symbolCmd (SymbolT.DeleteSymbols buttonId)
                                             Cmd.ofMsg msg]
 
         | Connection connId ->
@@ -404,6 +407,7 @@ let mDownUpdate
                                 wireCmd (BusWireT.ResetJumps [ connId ] )
                                 Cmd.ofMsg msg]
                 | _ ->
+                    let buttonId = model.ButtonList 
                     { model with 
                         SelectedComponents = []; 
                         SelectedWires = [ connId ]; 
@@ -412,7 +416,7 @@ let mDownUpdate
                         TmpModel = Some model
                         ButtonList = []},
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols [])
-                                symbolCmd (SymbolT.DeleteSymbols ButtonList)
+                                symbolCmd (SymbolT.DeleteSymbols buttonId)
                                 wireCmd (BusWireT.SelectWires [ connId ])
                                 wireCmd (BusWireT.DragSegment (aSeg.Segment.GetId(), mMsg))
                                 wireCmd (BusWireT.ResetJumps [ connId ] )
@@ -425,26 +429,26 @@ let mDownUpdate
             // Start Creating Selection Box and Reset Selected Components
             let initialiseSelection = 
                 {model.DragToSelectBox with TopLeft= {X=mMsg.Pos.X; Y=mMsg.Pos.Y}}
-            match newComponents.Length, model.CtrlKeyDown with
-            | s when s < 2, _ ->
+            match model.CtrlKeyDown with
+            | true ->
+
                 {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
                 Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                             wireCmd (BusWireT.SelectWires newWires) ]
-            | _, true -> 
-                {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
-                Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                            wireCmd (BusWireT.SelectWires newWires) ]
-            | _, false -> 
+
+            | false ->
                 match model.ButtonList with
-                | [] -> 
+                | [] ->
                     {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                            wireCmd (BusWireT.SelectWires newWires) ]
-                | _ -> 
-                    {model with ButtonList = []; DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
+                                wireCmd (BusWireT.SelectWires newWires) ]
+                | _ ->
+                    let buttonId = model.ButtonList 
+                    {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires; ButtonList = [] },
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                            symbolCmd (SymbolT.DeleteSymbols ButtonList)
-                            wireCmd (BusWireT.SelectWires newWires) ]
+                                symbolCmd (SymbolT.DeleteSymbols buttonId)
+                                wireCmd (BusWireT.SelectWires newWires) ]
+          
 
 
 /// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
@@ -603,7 +607,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         {model with Action = Idle}, Cmd.ofMsg DoNothing
     
     | Scaling -> 
-        {model with Action = Idle; ButtonList=[]}, symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+        {model with Action = Idle}, Cmd.ofMsg DoNothing
         
     | MovingSymbols ->
         // Reset Movement State in Model

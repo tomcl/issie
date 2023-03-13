@@ -141,10 +141,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | DrawBox ->
         let box: BoundingBox = 
                     match model.SelectedComponents.Length with
-                     | s when s <2 -> model.Box.BoxBound
-                     | _  -> model.SelectedComponents
+                     | s when s<2 -> model.Box.BoxBound
+                     | _  ->    printfn("HERE2")
+                                model.SelectedComponents
                                     |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
                                     |> getBlock
+        printfn("HERE3")
         if (model.SelectedComponents.Length < 2) then 
             (model), Cmd.none
         else

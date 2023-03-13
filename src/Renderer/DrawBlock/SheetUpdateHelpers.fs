@@ -496,7 +496,7 @@ let mDragUpdate
         //let newModel = {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}};ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement};LastMousePos = mMsg.Pos}
         let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(sqrt(2.)/2.)))
         let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
-        {oldModel with Wire = {model.Wire with Symbol = newSymModel};ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement};LastMousePos = mMsg.Pos},
+        {model with Wire = {model.Wire with Symbol = newSymModel};ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement};LastMousePos = mMsg.Pos},
         Cmd.ofMsg CheckAutomaticScrolling
        
 

@@ -138,9 +138,10 @@ let getWireSegmentsXY (wire: Wire) =
     |> List.map (fun (x, y, _) -> (x, y))
     |> List.map tupToXY
 
-/// Retrieves all wires which intersect an arbitrary bounding box
+/// Retrieves all wires which intersect an arbitrary bounding box & the index
+/// of the segment which intersects the box
 /// HLP23: Derek Lai (ddl20)
-let getWiresInBox (box: BoundingBox) (model: Model) : Wire list =
+let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
     let wires = (List.ofSeq (Seq.cast model.Wires.Values))
 
     let bottomRight =
@@ -148,10 +149,14 @@ let getWiresInBox (box: BoundingBox) (model: Model) : Wire list =
             X = box.TopLeft.X + box.W
             Y = box.TopLeft.Y + box.H }
 
-    let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool) (segment: Segment) : bool =
-        state || overlap2D (startPos, endPos) (box.TopLeft, bottomRight)
+    // State Tuple - (overlapping: bool, overlapping_wire_index: int)
+    let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool * int) (segment: Segment) : bool * int =
+        let overlap = overlap2D (startPos, endPos) (box.TopLeft, bottomRight)
+        (fst state || overlap), if overlap then segment.Index else snd state
 
-    List.filter (foldOverNonZeroSegs checkOverlapFolder false) wires
+    List.map (fun w -> foldOverNonZeroSegs checkOverlapFolder (false, -1) w, w) wires
+    |> List.filter (fun l -> fst (fst l))
+    |> List.map (fun ((_, index), w) -> w, index)
 
 /// Checks if a wire intersects any symbol or not.
 /// Returns list of bounding boxes of symbols intersected by wire.
@@ -209,6 +214,17 @@ let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wi
 let isPortInSymbol (portId: string) (symbol: Symbol) : bool =
     symbol.PortMaps.Orientation |> Map.containsKey portId
 
+/// Get pairs of symbols that are connected to each other.
+/// Excludes Symbols with self connections.
+/// HLP23: AUTHOR dgs119
+let getConnSyms (wModel: BusWireT.Model) =
+    wModel.Wires
+    |> Map.values
+    |> Seq.toList
+    |> List.map (fun wire -> (getSourceSymbol wModel wire, getTargetSymbol wModel wire))
+    |> List.filter (fun (symA, symB) -> symA.Id <> symB.Id)
+    |> List.distinctBy (fun (symA, symB) -> Set.ofList [ symA; symB ])
+
 /// Checks if wire is connected to two given symbols. Neglects self connections.
 /// HLP23: AUTHOR dgs119
 let isConnBtwnSyms (wire: Wire) (symbolA: Symbol) (symbolB: Symbol) : bool =
@@ -220,13 +236,15 @@ let isConnBtwnSyms (wire: Wire) (symbolA: Symbol) (symbolB: Symbol) : bool =
     | inId, outId when (isPortInSymbol inId symbolB) && (isPortInSymbol outId symbolA) -> true
     | _ -> false
 
-/// Gets wires connected between symbols.
+/// Gets connections between symbols.
 /// HLP23: AUTHOR dgs119
-let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : List<Wire> =
-    wModel.Wires
-    |> Map.filter (fun _ wire -> isConnBtwnSyms wire symbolA symbolB)
-    |> Map.toList
-    |> List.map snd
+let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : Map<ConnectionId, Wire> =
+    wModel.Wires |> Map.filter (fun _ wire -> isConnBtwnSyms wire symbolA symbolB)
+
+/// Gets Wires between symbols.
+/// HLP23: AUTHOR dgs119
+let getWiresBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : Wire list =
+    getConnBtwnSyms wModel symbolA symbolB |> Map.toList |> List.map snd
 
 /// Filters Ports by Symbol.
 /// HLP23: AUTHOR dgs119
@@ -241,14 +259,15 @@ let getPortsFrmWires (model: BusWireT.Model) (wires: Wire list) =
         [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
           getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
     |> List.concat
+    |> List.distinct
 
-/// Gets port info from wires that are connected to two given symbols.
+/// Groups Wires by their net.
 /// HLP23: AUTHOR dgs119
-let getPortsBtwnSyms (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
-    let ports = getConnBtwnSyms model symToOrder otherSym |> getPortsFrmWires model
-
-    (fiterPortBySym ports symToOrder, fiterPortBySym ports otherSym)
-
+let partitionWiresByNet (conns: Map<ConnectionId, Wire>) =
+    conns
+    |> Map.toList
+    |> List.groupBy (fun (_, wire) -> wire.OutputPort)
+    |> List.map (snd >> List.map snd)
 
 /// Scales a symbol so it has the provided height and width
 /// HLP23: AUTHOR BRYAN TAN

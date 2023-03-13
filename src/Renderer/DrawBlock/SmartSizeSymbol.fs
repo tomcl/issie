@@ -129,7 +129,7 @@ let reSizeSymbol
     (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
-    let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
+    let wires = getWiresBtwnSyms wModel symbolToSize otherSymbol
 
     // try to get two ports that are on opposite edges, if none found just use any two ports
     let resizePortInfo, otherPortInfo= 

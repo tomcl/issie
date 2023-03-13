@@ -37,12 +37,13 @@ open Operators
         - If ports around a component are the reverse order of pins around another component, they can be wired without crosses.
         - We force these connection pairs to avoid wire crosses.
     3) Swap ports on the the symbol to order such that connection pairs in (2) is followed.
+        - There are two valid reorderings depending on how we unwrap a symbol's port. We chose one with least swaps.
         - Only Components with 2 IO ports are ordered (eg. Mux2, DeMux2, etc).
         - Ports are not reordered if connections from one output to multiple inputs are present. 
 *)
 
 /// Holds data about External Helpers required.
-type ExternalSmartHelpers =
+type ExternalSmartHelpers = // TODO: Transfer to SmartHelpers.
     { UpdateSymbolWires: Model -> ComponentId -> Model }
 
 /// Holds data about Port, its Edge and Location.
@@ -70,6 +71,13 @@ let getSymDominantEdge (symPorts: PortInfo list) =
     let edgeExists (edge: Edge) =
         symPorts |> List.exists (fun port -> port.Orientation = edge)
 
+    let modeEdge (ports: PortInfo list) =
+        ports // Otherwise get Mode Edge
+        |> List.countBy (fun port -> port.Orientation)
+        |> List.sortByDescending snd
+        |> List.head
+        |> fst
+
     match symPorts with
     | [] -> Left // Default to a Left Dominant Edge.
     | _ ->
@@ -77,12 +85,7 @@ let getSymDominantEdge (symPorts: PortInfo list) =
         |> List.tryFind (fun port -> not (edgeExists port.Orientation.Opposite))
         |> function
             | Some port -> port.Orientation // Edge with no ports on opposite Edge.
-            | _ ->
-                symPorts // Otherwise get Mode Edge
-                |> List.countBy (fun port -> port.Orientation)
-                |> List.sortByDescending snd
-                |> List.head
-                |> fst
+            | _ -> modeEdge symPorts // Otherwise Mode Edge
 
 /// Given a dominant edge, unwrap is symbol's port in a Clockwise or AntiClockwise direction.
 let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
@@ -110,78 +113,81 @@ let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
     | Bottom -> unwrpByDirection 2
     | Left -> unwrpByDirection 3
 
-/// Gets Symbol Reordering Information.
-let getSymReorderPair (model: BusWireT.Model) (symToOrder: Symbol) (otherSym: Symbol) =
-    let getPortInfo (ports: Port list) =
-        ports
+/// Groups Symbols to Reorder Into Sets.
+let symbolMatch (sym: Symbol) =
+    match sym.Component.Type with
+    | And | Or | Xor | Nand | Nor | Xnor 
+    | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitsOr _ 
+    | Mux2 | Demux2 -> // Two IO Components
+        And
+    | Custom _ as customComp -> customComp
+    | otherCompType -> otherCompType
+
+/// Get Ports Betweem Symbols
+let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
+
+    let keepWire (wire: Wire) =
+        let getPortSymbol (portId: string) =
+            match isPortInSymbol portId sym with
+            | true -> sym
+            | _ -> otherSym
+
+        let keepPort (portId: string) =
+            let sym = getPortSymbol portId
+
+            match symbolMatch sym with
+            | And -> // Flip 2IO Components.
+                let portIdsOfIntrst =
+                    sym.PortMaps.Order
+                    |> Map.pick (fun _ ports' -> if List.length ports' = 2 then Some ports' else None)
+
+                List.contains portId portIdsOfIntrst
+            | Custom _ -> // Reorder.
+                true
+            | _ -> // Don't Reorder.
+                false
+
+        keepPort (getInputPortIdStr wire.InputPort)
+        && keepPort (getOutputPortIdStr wire.OutputPort)
+
+    let paritionPortsBySym (ports: Port list) =
+        ports |> List.partition (fun port -> ComponentId port.HostId = sym.Id)
+
+    let getPortInfos (portsByNet: Port list list) =
+        portsByNet
+        |> List.concat
         |> List.map (fun port ->
             { Port = port
               Orientation = getPortOrientationFrmPortIdStr model.Symbol port.Id })
 
-    let zipToMap (values: 'a list) =
-        values |> List.zip [ symToOrder.Id; otherSym.Id ] |> Map.ofList
+    let symPorts, otherSymPorts =
+        getConnBtwnSyms model sym otherSym
+        |> Map.filter (fun _ wire -> keepWire wire)
+        |> partitionWiresByNet
+        |> List.map (getPortsFrmWires model >> paritionPortsBySym)
+        |> List.unzip
 
-    let portBySym =
-        let symToOrderPorts, otherSymPorts = getPortsBtwnSyms model symToOrder otherSym
+    [ getPortInfos symPorts; getPortInfos otherSymPorts ]
+    |> List.zip [ sym.Id; otherSym.Id ]
+    |> Map.ofList
 
-        [ symToOrderPorts; otherSymPorts ] |> List.map getPortInfo |> zipToMap
+/// Gets Symbol Reordering Information.
+let getSymReorderPair (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
 
-    let domEdgeBySym =
-        [ portBySym[symToOrder.Id]; portBySym[otherSym.Id] ]
+    let portsBySym = getPortsBtwnSyms model sym otherSym
+
+    let edgesBySym =
+        [ portsBySym[sym.Id]; portsBySym[otherSym.Id] ]
         |> List.map getSymDominantEdge
-        |> zipToMap
+        |> List.zip [ sym.Id; otherSym.Id ]
+        |> Map.ofList
 
-    { Symbol = symToOrder
+    { Symbol = sym
       OtherSymbol = otherSym
-      Ports = portBySym
-      DominantEdges = domEdgeBySym }
+      Ports = portsBySym
+      DominantEdges = edgesBySym }
 
-/// Guard that ensures only certain ports of non custom components are reordered.
-let nonCustomCompPortGuard (reorderPair: SymbolReorderPair) =
-    match reorderPair.Symbol.Component.Type with
-    | And | Or | Xor | Nand | Nor | Xnor
-    | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitsOr _
-    | Mux2 | Demux2 -> // Two IO Components
-        let order = reorderPair.Symbol.PortMaps.Order
-        let symId, othId = reorderPair.Symbol.Id, reorderPair.OtherSymbol.Id
-        let symPorts, othPorts = reorderPair.Ports[symId], reorderPair.Ports[othId]
-
-        // Find Edge with two Ports
-        let portIdsOfIntrst =
-            order
-            |> Map.pick (fun _ ports' -> if List.length ports' = 2 then Some ports' else None)
-
-        // Keep Ports of Interest
-        let thisPorts', otherPorts' =
-            (symPorts, othPorts)
-            ||> List.zip
-            |> List.filter (fun (thisPort, _) -> List.contains thisPort.Port.Id portIdsOfIntrst)
-            |> List.unzip
-
-        // Update Symbol Reorder Pair
-        let filteredPorts =
-            [ thisPorts'; otherPorts' ] |> List.zip [ symId; othId ] |> Map.ofList
-
-        { reorderPair with
-            Ports = filteredPorts }
-    | Custom _ -> reorderPair
-    | _ ->
-        { reorderPair with
-            Ports = reorderPair.Ports |> Map.add reorderPair.Symbol.Id [] }
-
-/// Guard that avoids reordering if connections from one output to multiple inputs is present.
-let outToMultInGuard (reorderPair: SymbolReorderPair) =
-    let avoidReordering (symbol: Symbol) =
-        let ports = reorderPair.Ports[symbol.Id]
-        List.distinct ports |> List.length <> List.length ports
-
-    match avoidReordering reorderPair.Symbol, avoidReordering reorderPair.OtherSymbol with
-    | false, false -> reorderPair
-    | _ ->
-        { reorderPair with
-            Ports = Map.map (fun _ _ -> []) reorderPair.Ports }
-
-/// Reorder's Symbol Ports such to minimize wire crossings.
+/// Reorder's Symbol Ports such to prevent wire crossings.
 let reorderSymPorts (reorderPair: SymbolReorderPair) =
 
     let sym, otherSym = reorderPair.Symbol, reorderPair.OtherSymbol
@@ -197,49 +203,70 @@ let reorderSymPorts (reorderPair: SymbolReorderPair) =
 
     [ (sym.Id, symPorts); (otherSym.Id, otherSymPorts) ] |> Map.ofList
 
-/// Computes port swaps on symbol based on reordered ports that minimize crossing.
-let getPortSwaps (reorderPair: SymbolReorderPair) =
+/// Find reordering that minimizes swaps.
+let getOptSwaps (reorderPair: SymbolReorderPair) =
 
-    let getConnections (ports: Map<ComponentId, PortInfo list>) =
-        (ports[reorderPair.OtherSymbol.Id], ports[reorderPair.Symbol.Id])
-        ||> List.zip
+    let portsOrdered = reorderSymPorts reorderPair
+    let portsOrderedRev = portsOrdered |> Map.map (fun _ ports -> List.rev ports) // Use reorderSymPorts? But inefficient.
+
+    let getSwapsBySym (portsBySym: Map<ComponentId, PortInfo list>) =
+        let symId, othId = reorderPair.Symbol.Id, reorderPair.OtherSymbol.Id
+
+        let getSwapsForSym (symId: ComponentId) =
+            (portsBySym[symId], reorderPair.Ports[symId])
+            ||> List.zip
+            |> List.map (fun (portA, portB) -> portA.Port.Id, portB.Port.Id)
+            |> Map.ofList
+
+        [ getSwapsForSym symId; getSwapsForSym othId ]
+        |> List.zip [ symId; othId ]
         |> Map.ofList
 
-    let oldConns, newConns =
-        getConnections reorderPair.Ports, getConnections (reorderSymPorts reorderPair)
+    let countSwaps (swapsBySym: Map<ComponentId, Map<string, string>>) =
+        let countSwapsBySym (sym: Symbol) =
+            let swaps', _ =
+                swapsBySym[sym.Id]
+                |> Map.toList
+                |> List.partition (fun (portA, portB) -> portA <> portB)
 
-    (Map.empty, newConns)
-    ||> Map.fold (fun state src oldPort -> Map.add oldPort oldConns[src] state)
+            List.length swaps'
 
-/// Swaps around portIds in symToOrder to minimize criss crossing of wires.
+        (countSwapsBySym reorderPair.Symbol) + (countSwapsBySym reorderPair.OtherSymbol)
+
+    // Pick Swaps with fewest orderings.
+    [ getSwapsBySym portsOrdered; getSwapsBySym portsOrderedRev ]
+    |> List.map (fun swaps -> (countSwaps swaps, swaps)) // Keep as tuple to use count as Hueristic
+    |> List.minBy fst
+
+// Swaps around portIds in symToOrder to minimize crossing of wires.
 let swapPortIds (reorderPair: SymbolReorderPair) =
 
-    let swaps = getPortSwaps reorderPair
+    let swapsBySym = getOptSwaps reorderPair |> snd
 
-    let swapsPortIds =
-        (Map.empty, swaps)
-        ||> Map.fold (fun swaps' oldPort newPort -> Map.add oldPort.Port.Id newPort.Port.Id swaps')
+    let swapIds (sym: Symbol) =
+        let swapsPortIds = swapsBySym[sym.Id]
 
-    let tryFindSwapId (id: string) =
-        Map.tryFind id swapsPortIds |> Option.defaultWith (fun () -> id)
+        let tryFindSwapId (id: string) =
+            Map.tryFind id swapsPortIds |> Option.defaultWith (fun () -> id)
 
-    let updatePortMapOrder (symbol: Symbol) =
-        let newOrder =
-            symbol.PortMaps.Order |> Map.map (fun _ order -> List.map tryFindSwapId order)
+        let updatePortMapOrder (symbol: Symbol) =
+            let newOrder =
+                symbol.PortMaps.Order |> Map.map (fun _ order -> List.map tryFindSwapId order)
 
-        Optic.set (portMaps_ >-> order_) newOrder symbol
+            Optic.set (portMaps_ >-> order_) newOrder symbol
 
-    let updatePortMapOrientation (symbol: Symbol) =
-        let newOrientation =
-            (Map.empty, symbol.PortMaps.Orientation)
-            ||> Map.fold (fun newOrien' id edge ->
-                let id = tryFindSwapId id
-                Map.add id edge newOrien')
+        let updatePortMapOrientation (symbol: Symbol) =
+            let newOrientation =
+                (Map.empty, symbol.PortMaps.Orientation)
+                ||> Map.fold (fun newOrien' id edge ->
+                    let id = tryFindSwapId id
+                    Map.add id edge newOrien')
 
-        Optic.set (portMaps_ >-> orientation_) newOrientation symbol
+            Optic.set (portMaps_ >-> orientation_) newOrientation symbol
 
-    (updatePortMapOrder >> updatePortMapOrientation) reorderPair.Symbol
+        (updatePortMapOrder >> updatePortMapOrientation) sym
 
+    [ swapIds reorderPair.Symbol; swapIds reorderPair.OtherSymbol ]
 
 /// Reorders ports so interconnecting wires do not cross.
 let reOrderPorts
@@ -251,11 +278,12 @@ let reOrderPorts
 
     printfn $"ReorderPorts: ToOrder:{symToOrder.Component.Label}, Other:{otherSym.Component.Label}"
 
-    let model' =
-        getSymReorderPair wModel symToOrder otherSym
-        |> (nonCustomCompPortGuard >> outToMultInGuard) // Guards
-        |> swapPortIds
-        |> List.singleton
-        |> updateModelSymbols wModel
+    let updatedSymbols = getSymReorderPair wModel symToOrder otherSym |> swapPortIds
 
-    smartHelpers.UpdateSymbolWires model' symToOrder.Id
+    let updatedModel =
+        let model = updateModelSymbols wModel updatedSymbols
+
+        (model, updatedSymbols)
+        ||> List.fold (fun model' symbol -> smartHelpers.UpdateSymbolWires model' symbol.Id)
+
+    updatedModel

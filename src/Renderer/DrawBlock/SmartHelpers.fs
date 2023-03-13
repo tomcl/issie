@@ -75,13 +75,13 @@ let CheckSelectComponent
     (inputType : ComponentType)
         : bool =
     match inputType with
-    | Mux2 -> true
-    | Mux4 -> true
-    | Mux8 -> true
-    | Demux2 -> true
-    | Demux4 -> true
-    | Demux8 -> true
-    | _ -> false
+        | Mux2 -> true
+        | Mux4 -> true
+        | Mux8 -> true
+        | Demux2 -> true
+        | Demux4 -> true
+        | Demux8 -> true
+        | _ -> false
 
 //Helper function to CheckforFlip takes a DrawModelType.SymbolT.Model, a BusWireT.Model, a list of wires, and a symbol and returns a triple of 
 //a symbol, a symbol, and a BusWireT.Model. 
@@ -93,12 +93,20 @@ let GetSelectWireLength
     (wireList: Wire list)
     (inputSymbol : Symbol)
         : float*float*Symbol*BusWireT.Model=
+
+        let symOrderMap = inputSymbol.PortMaps.Order 
+        let findOrderList map edge = map |> Map.find edge
+
+
         let oldWires = List.map (autoroute {wModel with Symbol = sModel}) wireList
-        let SelectPort = match List.isEmpty (inputSymbol.PortMaps.Order |> Map.find Bottom) with
-                                | true -> (inputSymbol.PortMaps.Order |> Map.find Top)[0]
-                                | false -> (inputSymbol.PortMaps.Order |> Map.find Bottom)[0]
+
+        let SelectPort = match List.isEmpty (findOrderList symOrderMap Bottom) with
+                                | true -> (findOrderList symOrderMap Top)[0]
+                                | false -> (findOrderList symOrderMap Bottom)[0]
+
         let newSymbol =  flipSymbol FlipVertical inputSymbol 
         let oldSelectWire = oldWires |> List.filter (fun wire -> $"{wire.InputPort}" = SelectPort || $"{wire.OutputPort}" = SelectPort)
+
         if List.isEmpty oldSelectWire then 
             0.0, 0.0, inputSymbol, wModel
         else
@@ -106,9 +114,7 @@ let GetSelectWireLength
             let newSelectWire = autoroute newModel oldSelectWire[0]
 
             let lengthOldSelect =(oldSelectWire[0].Segments) |> List.fold (fun acc x -> acc + abs x.Length) 0.0 
-            printfn "lengthOldSelect: %A" lengthOldSelect
             let lengthNewSelect = (newSelectWire.Segments)  |> List.fold (fun acc x -> acc+ abs  x.Length) 0.0
-            printfn "lengthNewSelect: %A" lengthNewSelect
 
 
             lengthNewSelect, lengthOldSelect, newSymbol, newModel
@@ -121,29 +127,23 @@ let CheckforFlip
     (wModel: BusWireT.Model)
     (symbolToOrder: Symbol)
     (otherSymbol: Symbol)
-        : Symbol*Symbol*BusWireT.Model*bool =
+        : Symbol*BusWireT.Model*bool =
+
     let newSmodel = {sModel with Symbols = Map.add symbolToOrder.Id symbolToOrder sModel.Symbols}
-    if CheckSelectComponent symbolToOrder.Component.Type then 
-        let lengthNewSelect, lengthOldSelect , newSymbol, newModel= GetSelectWireLength newSmodel wModel wireList symbolToOrder
-        if lengthNewSelect < lengthOldSelect then 
-            symbolToOrder, newSymbol, newModel, true
-        else 
-            symbolToOrder, otherSymbol, wModel, false 
-    elif CheckSelectComponent otherSymbol.Component.Type then  
-        printfn $"In the if statement"
-        let lengthNewSelect, lengthOldSelect , newSymbol, newModel = GetSelectWireLength newSmodel wModel wireList otherSymbol
-        if lengthNewSelect < lengthOldSelect then 
-            printfn $"Returned the flipped symbol"
-            symbolToOrder, newSymbol, newModel, true
-        else 
-            symbolToOrder, otherSymbol, wModel, false
-    else 
-        symbolToOrder, otherSymbol, wModel, false
+    let symComponentType = otherSymbol.Component.Type
+
+    match CheckSelectComponent symComponentType with 
+        | true ->
+            let lengthNewSelect, lengthOldSelect , newSymbol, newModel= GetSelectWireLength newSmodel wModel wireList otherSymbol
+            match lengthNewSelect < lengthOldSelect with
+               | true -> newSymbol, newModel, true
+               | false -> otherSymbol, wModel, false 
+        | false -> otherSymbol, wModel, false
 
 //Helper function to SortPorts takes in connected ports Ids (strings) and the Edges they are on in a quadruple list and a list of ports Ids (string)
 //It sorts the quadruple list by the first element of the quadruple which is the port Id of the otherSymbol with the same order as the list of ports Ids
 //HLP23: AUTHOR Khoury
-let sortPortsHelper 
+let sortByOther 
     (list2 : string list)
     (list1 : (string*string*Edge*Edge) list) 
         : (string*string*Edge*Edge) list=
@@ -160,8 +160,10 @@ let OtherSymbolOrientation
     |> List.map (fun (_,_,x,_) -> x)
     |> List.head
 
-
-let SortInputOutput 
+//Helper function to SortPorts takes in a list of quadruple lists and a symbol returns an Edge.
+//It resorts the Ports in a way that the first element is always the one of the symbolToOrder
+//HLP23: AUTHOR Khoury
+let sortInputOutput 
     (symbolToOrder: Symbol)
     (connectedPorts:(InputPortId*OutputPortId)list)
         : (string*string) list =
@@ -174,26 +176,29 @@ let SortInputOutput
 // Uses helper functions to sort the ports in the correct order. It returns a list of quadruple lists. 
 //Each quadruple list contains the ports that are connected to the same edges on the otherSymbol and the symbolToOrder
 //HLP23: AUTHOR Khoury
-let SortPorts 
+let sortPorts 
     (connectedPorts:(InputPortId*OutputPortId)list)
     (symbolToOrder: Symbol)
     (otherSymbol: Symbol)
         : ((string*string*Edge*Edge) list)list =
+    
+    let otherOrderMaps = otherSymbol.PortMaps.Order
+    let tryFindOrientation x sym = Map.tryFind x sym.PortMaps.Orientation
 
     connectedPorts
     //Put the Ports in correct order (Input, Output) depending on which is the symbolToOrder
-    |> SortInputOutput symbolToOrder 
+    |> sortInputOutput symbolToOrder 
     //Group the Ports by the matching edges
     |>List.collect (fun (x, y) ->
-            match Map.tryFind x otherSymbol.PortMaps.Orientation, Map.tryFind y symbolToOrder.PortMaps.Orientation with
-            | Some e1, Some e2 -> [(e1, e2, x, y)]
-            | _ -> []
+            match tryFindOrientation x otherSymbol, tryFindOrientation y symbolToOrder with
+                | Some e1, Some e2 -> [(e1, e2, x, y)]
+                | _ -> []
             )
     |> List.groupBy (fun (e1, e2, _, _) -> e1, e2)
     |> List.map (fun (_, group) -> List.map (fun (e1, e2, x, y) -> (x,y,e1,e2)) group)
     |> List.map (fun x -> 
-                                            sortPortsHelper  (otherSymbol.PortMaps.Order 
-                                            |> Map.find (OtherSymbolOrientation x))x)
+                                            sortByOther  (otherOrderMaps 
+                                                                      |> Map.find (OtherSymbolOrientation x))x)
 
 /// Update BusWire model with given wires. Can also be used to add new wires.
 /// This uses a fold on the Map to add wires which makes it fast in the case that the number

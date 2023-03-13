@@ -451,8 +451,6 @@ module CommonTypes
     [<Erase>]
     type ComponentId = | ComponentId of string
 
-    type ButtonId = | ButtonId of string
-
     /// Unique identifier for a fast component.
     /// The list is the access path, a list of all the containing custom components 
     /// from the top sheet of the simulation (root first)

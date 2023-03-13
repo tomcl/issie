@@ -106,12 +106,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | DrawBox ->
         let box: BoundingBox = 
                     match model.SelectedComponents.Length with
-                     | s when s <2 -> model.ScallingBox
+                     | s when s <2 -> model.Box.BoxBound
                      | _  -> model.SelectedComponents
                                     |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
                                     |> getBlock 
-        ({model with Box = true
-                     ScallingBox = box }), Cmd.none  
+        ({model with Box = {BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}}), Cmd.none  
         
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with
@@ -1006,10 +1005,7 @@ let init () =
         DebugIsConnected = false
         DebugMappings = [||]
         DebugDevice = None
-        Box = false
-        ScallingBox = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}
-        ScalingButtons = []
+        Box = {ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
     }, Cmd.none
-
 
 

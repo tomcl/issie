@@ -271,8 +271,6 @@ let mDownUpdate
             // Start Panning with drag, setting up offset to calculate scroll poistion during drag.
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
             {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
-        | Buttons butId-> 
-            {model with Action = Scaling}, Cmd.none
         | Label compId -> 
             {model with Action = InitialiseMovingLabel compId},
             Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
@@ -394,13 +392,15 @@ let mDragUpdate
     match model.Action with
     | MovingWire segId -> 
         snapWire model mMsg segId 
-    | Scaling -> 
-            let newBox = 
-                model.SelectedComponents
-                |> List.map (fun id ->Map.find id model.Wire.Symbol.Symbols)
-                |> getBlock
-            let newScalingBox = newBox
-            {model with ScallingBox = newScalingBox}, Cmd.ofMsg DoNothing
+    
+    | Scaling -> mode, Cmd.ofMsg DoNothing
+    // | Scaling -> 
+    //         let newBox = 
+    //             model.SelectedComponents
+    //             |> List.map (fun id ->Map.find id model.Wire.Symbol.Symbols)
+    //             |> getBlock
+    //         let newScalingBox = newBox
+    //         {model with ScallingBox = newScalingBox}, Cmd.ofMsg DoNothing
 
 
     | Selecting -> 

@@ -250,12 +250,11 @@ let sortMultPorts
        : list<list<string * string * Edge * Edge>> =
        connectedPortsNeeded 
                 |> List.filter (fun (_,lst) -> combinedOtherSymbolsOrientation 
-                                                                                    |> Map.containsKey (lst[0]|> (fun (x,_,_,_)->x)))
+                                                |> Map.containsKey (lst[0]|> (fun (x,_,_,_)->x)))
                 |> List.map (fun (_,lst)->lst)
-                |> List.map (fun y -> 
-                                                    sortByOther  (combinedOtherSymbolsOrder 
-                                                                                |> Map.find (combinedOtherSymbolsOrientation
-                                                                                                    |>Map.find (y[0] |> (fun (x,_,_,_)-> x)))) 
+                |> List.map (fun y -> sortByOther(combinedOtherSymbolsOrder 
+                                                    |> Map.find (combinedOtherSymbolsOrientation
+                                                                    |>Map.find (y[0] |> (fun (x,_,_,_)-> x)))) 
                                                                         y)
     
 

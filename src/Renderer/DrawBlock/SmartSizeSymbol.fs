@@ -22,7 +22,6 @@ open BusWireUpdateHelpers
 //some of their vertical or horizontal lengths have to overlap.
 
 
-
 //this record determines how far will the other components will move from a custom resized component
 type ConstantsSmartSize = {
     Distance: float

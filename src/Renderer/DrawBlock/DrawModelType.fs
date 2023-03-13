@@ -388,12 +388,23 @@ module BusWireT =
     let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
 
 module SheetT =
+    // Button Stuff
+    type Button = {
+        Center : XYPos
+        Radius : float
+    }
+
+    type ScalingBox = {
+        ShowBox: bool
+        BoxBound: BoundingBox
+        ScaleButton: Button
+    }
 
     /// Used to keep mouse movement (AKA velocity) info as well as position
     type XYPosMov = {
         Pos: XYPos
         Move: XYPos
-        }
+    }
     
 
     
@@ -407,7 +418,6 @@ module SheetT =
         | OutputPort of CommonTypes.OutputPortId * XYPos
         | Component of CommonTypes.ComponentId
         | Connection of CommonTypes.ConnectionId
-        | Buttons of CommonTypes.ButtonId
         | Canvas
 
     /// Keeps track of the current action that the user is doing
@@ -475,15 +485,6 @@ module SheetT =
         Text : string option;
         Int : int option;
         Int2: int64 option
-    }
-   // Button Stuff
-    type Button = {
-        ButtonId : ButtonId
-        Position : XYPos
-        W : float 
-        H : float
-        Center : float
-        Radius : float
     }
 
     type Arrange = | AlignSymbols | DistributeSymbols
@@ -594,7 +595,6 @@ module SheetT =
         NearbyComponents: CommonTypes.ComponentId list
         ErrorComponents: CommonTypes.ComponentId list
         DragToSelectBox: BoundingBox
-        ScallingBox : BoundingBox
         ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
         TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
@@ -632,8 +632,7 @@ module SheetT =
         DebugMappings: string array
         DebugIsConnected: bool
         DebugDevice: string option
-        Box: bool
-        ScalingButtons : List<Button>
+        Box: ScalingBox
     }
     
     open Operators

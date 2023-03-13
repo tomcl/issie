@@ -207,7 +207,7 @@ let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wi
     let nets = partitionWiresIntoNets model
 
     nets
-    |> List.tryFind (fun (outputPortID, netlist) -> wire.OutputPort = outputPortID && netlist.Length > 1)
+    |> List.tryFind (fun (outputPortID, netlist) -> wire.OutputPort = outputPortID && netlist |> List.exists (fun (connID, w) -> connID <> wire.WId))
 
 /// Checks if a port is part of a Symbol.
 /// HLP23: AUTHOR dgs119

@@ -59,6 +59,48 @@ module Constants =
     let maxCallsToShiftHorizontalSeg = 5
     let minWireSeparation = 10.
 
+type DirectionToMove =
+    | Up_
+    | Down_
+    | Left_
+    | Right_
+
+let swapXY (pos: XYPos) (orientation: Orientation) : XYPos =
+    match orientation with
+    | Horizontal -> pos
+    | Vertical -> { X = pos.Y; Y = pos.X }
+
+let swapBB (box: BoundingBox) (orientation: Orientation) : BoundingBox =
+    match orientation with
+    | Horizontal -> box
+    | Vertical ->
+        { TopLeft = swapXY box.TopLeft orientation
+          W = box.H
+          H = box.W }
+
+
+let updatePos (pos: XYPos) (direction: DirectionToMove) (distanceToShift: float) : XYPos =
+    match direction with
+    | Up_ -> { pos with Y = pos.Y - distanceToShift }
+    | Down_ -> { pos with Y = pos.Y + distanceToShift }
+    | Left_ -> { pos with X = pos.X - distanceToShift }
+    | Right_ -> { pos with X = pos.X + distanceToShift }
+
+let rec findMinWireSeparation (model: Model) (pos: XYPos) (wire: Wire) (direction: DirectionToMove) =
+    let box =
+        { TopLeft = updatePos pos Up_ (Constants.minWireSeparation / 2.)
+          W = Constants.minWireSeparation * 2.
+          H = Constants.minWireSeparation * 2. }
+
+    let intersectingWires = getWiresInBox box model
+
+    match intersectingWires with
+    | [] -> pos
+    | [ (w, _) ] when w.WId = wire.WId -> pos
+    | _ ->
+        let newPos = updatePos pos direction Constants.minWireSeparation
+        findMinWireSeparation model newPos wire direction
+
 //------------------------------------------------------------------------//
 //--------------------------Shifting Vertical Segment---------------------//
 //------------------------------------------------------------------------//
@@ -76,40 +118,62 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: (ComponentId * Boundin
         | Vertical -> wireVertices[4].Y
 
     let shiftVerticalSeg amountToShift =
-        let prevSeg = wire.Segments[2]
-        let nextSeg = wire.Segments[4]
-        let newPrevSeg = { prevSeg with Length = prevSeg.Length + amountToShift }
-        let newNextSeg = { nextSeg with Length = nextSeg.Length - amountToShift }
-
         let newSegments =
-            wire.Segments[..1]
-            @ [ newPrevSeg ] @ wire.Segments[3..3] @ [ newNextSeg ] @ wire.Segments[5..]
+            wire.Segments
+            |> List.updateAt 2 { wire.Segments[2] with Length = wire.Segments[2].Length + amountToShift }
+            |> List.updateAt 4 { wire.Segments[4] with Length = wire.Segments[4].Length - amountToShift }
 
         { wire with Segments = newSegments }
 
-    let tryShiftLeftWire =
-        let leftBound =
+    let tryShiftWireVert (dir: DirectionToMove) =
+        let bounds =
             intersectedBoxes
             |> List.map (fun (_compID, box) ->
-                match wire.InitialOrientation with
-                | Horizontal -> box.TopLeft.X
-                | Vertical -> box.TopLeft.Y)
-            |> List.min
+                let box = swapBB box wire.InitialOrientation
 
-        let amountToShift = currentVerticalSegXPos - leftBound + Constants.buffer
-        shiftVerticalSeg -amountToShift
+                match dir with
+                | Left_ -> box.TopLeft.X
+                | Right_ -> box.TopLeft.X + box.W
+                | _ -> failwith "Invalid direction to shift wire")
 
-    let tryShiftRightWire =
-        let rightBound =
+        let boundBox =
             intersectedBoxes
-            |> List.map (fun (_compID, box) ->
-                match wire.InitialOrientation with
-                | Horizontal -> box.TopLeft.X + box.W
-                | Vertical -> box.TopLeft.Y + box.H)
-            |> List.max
+            |> List.sortWith (fun (_, box1) (_, box2) ->
+                let box1 = swapBB box1 wire.InitialOrientation
+                let box2 = swapBB box2 wire.InitialOrientation
 
-        let amountToShift = rightBound - currentVerticalSegXPos + Constants.buffer
+                match dir with
+                | Left_ -> compare (box1.TopLeft.X) (box2.TopLeft.X)
+                | Right_ -> compare (box2.TopLeft.X + box2.W) (box1.TopLeft.X + box1.W)
+                | _ -> failwith "Invalid direction to shift wire")
+            |> List.head
+            |> snd
+
+        let viablePos =
+            match dir, wire.InitialOrientation with
+            | Left_, Horizontal ->
+                let initialAttemptPos = updatePos boundBox.TopLeft Left_ Constants.buffer
+                findMinWireSeparation model initialAttemptPos wire Left_
+            | Right_, Horizontal ->
+                let initialAttemptPos =
+                    updatePos boundBox.TopLeft Right_ (boundBox.W + Constants.buffer)
+
+                findMinWireSeparation model initialAttemptPos wire Right_
+            | Left_, Vertical ->
+                let initialAttemptPos = updatePos boundBox.TopLeft Up_ Constants.buffer
+                findMinWireSeparation model initialAttemptPos wire Up_
+            | Right_, Vertical ->
+                let initialAttemptPos =
+                    updatePos boundBox.TopLeft Down_ (boundBox.W + Constants.buffer)
+
+                findMinWireSeparation model initialAttemptPos wire Down_
+            | _ -> failwith "Invalid direction to shift wire"
+
+        let amountToShift = viablePos.X - currentVerticalSegXPos
         shiftVerticalSeg amountToShift
+
+    let tryShiftLeftWire = tryShiftWireVert Left_
+    let tryShiftRightWire = tryShiftWireVert Right_
 
     let leftShiftedWireIntersections =
         findWireSymbolIntersections model tryShiftLeftWire
@@ -140,23 +204,15 @@ let isBoundingBoxAboveOrBelowPos
     : float * float =
 
     let getVertDistanceToBox (pos: XYPos) (box: BoundingBox) : VertDistFromBoundingBox option =
-        match wireOrientation with
-        | Horizontal ->
+        (swapXY pos wireOrientation, swapBB box wireOrientation)
+        ||> (fun pos box ->
             if inMiddleOrEndOf box.TopLeft.X pos.X (box.TopLeft.X + box.W) then
                 if pos.Y > box.TopLeft.Y then
                     pos.Y - box.TopLeft.Y |> Above |> Some
                 else
                     box.TopLeft.Y - pos.Y + box.H |> Below |> Some
             else
-                None
-        | Vertical ->
-            if inMiddleOrEndOf box.TopLeft.Y pos.Y (box.TopLeft.Y + box.H) then
-                if pos.X > box.TopLeft.X then
-                    pos.X - box.TopLeft.X |> Above |> Some
-                else
-                    box.TopLeft.X - pos.X + box.W |> Below |> Some
-            else
-                None
+                None)
 
     let verticalDistances =
         intersectedBoxes
@@ -181,95 +237,116 @@ let isBoundingBoxAboveOrBelowPos
 
     largestDistance verticalDistances (0., 0.)
 
-
 /// Recursively shift horizontal seg up/down until no symbol intersections.
 /// Limit in recursion depth defined by argument callsLeft given to initial function call.
 /// Limit needed to prevent Issie from breaking when there are physically
 /// no possible routes that achieve 0 intersections.
 /// Returns None if no route found
 let rec tryShiftHorizontalSeg
+    (callsLeft: int)
     (model: Model)
     (intersectedBoxes: (ComponentId * BoundingBox) list)
     (wire: Wire)
-    (callsLeft: int)
     : Wire option =
-    if callsLeft = 0 then
-        None
-    else
+    match callsLeft with
+    | 0 -> None
+    | n ->
+        let tryShiftHorizontalSeg = tryShiftHorizontalSeg (n - 1)
+
         let currentStartPos, currentEndPos = getStartAndEndWirePos wire
 
         let shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength =
             let newSegments =
                 match wire.Segments.Length with
-                | 5 ->
-                    wire.Segments[..0]
-                    @ [ { wire.Segments[1] with Length = firstVerticalSegLength } ]
-                      @ [ { wire.Segments[2] with Length = wire.Segments[2].Length } ]
-                        @ [ { wire.Segments[3] with Length = secondVerticalSegLength } ]
-                          @ wire.Segments[4..]
+                | 5
                 | 6 ->
-                    // Change segments index 1,3. Leave rest as is
-                    wire.Segments[..0]
-                    @ [ { wire.Segments[1] with Length = firstVerticalSegLength } ]
-                      @ wire.Segments[2..2]
-                        @ [ { wire.Segments[3] with Length = secondVerticalSegLength } ]
-                          @ wire.Segments[4..]
+                    wire.Segments
+                    |> List.updateAt 1 { wire.Segments.[1] with Length = firstVerticalSegLength }
+                    |> List.updateAt 3 { wire.Segments.[3] with Length = secondVerticalSegLength }
                 | 7 ->
                     // Change into a 5 segment wire
-                    wire.Segments[..0]
-                    @ [ { wire.Segments[1] with Length = firstVerticalSegLength } ]
-                      @ [ { wire.Segments[2] with Length = wire.Segments[2].Length + wire.Segments[4].Length } ]
-                        @ [ { wire.Segments[3] with Length = secondVerticalSegLength } ]
-                          @ [ { wire.Segments[6] with Index = 4 } ]
+                    wire.Segments[..4]
+                    |> List.updateAt 1 { wire.Segments.[1] with Length = firstVerticalSegLength }
+                    |> List.updateAt
+                        2
+                        { wire.Segments.[2] with Length = wire.Segments.[2].Length + wire.Segments.[4].Length }
+                    |> List.updateAt 3 { wire.Segments.[3] with Length = secondVerticalSegLength }
+                    |> List.updateAt 4 { wire.Segments.[6] with Index = 4 }
                 | 9 ->
                     // Change segments index 1,3,5,7. Leave rest as is
-                    wire.Segments[..0]
-                    @ [ { wire.Segments[1] with Length = 0. } ]
-                      @ wire.Segments[2..2]
-                        @ [ { wire.Segments[3] with Length = firstVerticalSegLength } ]
-                          @ wire.Segments[4..4]
-                            @ [ { wire.Segments[5] with Length = secondVerticalSegLength } ]
-                              @ wire.Segments[6..6]
-                                @ [ { wire.Segments[7] with Length = 0. } ] @ wire.Segments[8..]
+                    wire.Segments
+                    |> List.updateAt 1 { wire.Segments[1] with Length = 0. }
+                    |> List.updateAt 3 { wire.Segments[3] with Length = firstVerticalSegLength }
+                    |> List.updateAt 5 { wire.Segments[5] with Length = secondVerticalSegLength }
+                    |> List.updateAt 7 { wire.Segments[7] with Length = 0. }
                 | _ -> wire.Segments
 
             { wire with Segments = newSegments }
 
         let tryShiftUpWire =
-            let topBound =
+            let topBoundBox =
                 intersectedBoxes
-                |> List.map (fun (_compID, box) ->
+                |> List.sortWith (fun (_, box1) (_, box2) ->
                     match wire.InitialOrientation with
-                    | Horizontal -> box.TopLeft.Y
-                    | Vertical -> box.TopLeft.X)
-                |> List.min
+                    | Horizontal -> compare box1.TopLeft.Y box2.TopLeft.Y
+                    | Vertical -> compare box1.TopLeft.X box2.TopLeft.X)
+                |> List.head
+                |> snd
+
+            let topBound =
+                let viablePos =
+                    match wire.InitialOrientation with
+                    | Horizontal ->
+                        let initialAttemptPos = updatePos topBoundBox.TopLeft Up_ Constants.buffer
+                        findMinWireSeparation model initialAttemptPos wire Up_
+                    | Vertical ->
+                        let initialAttemptPos = updatePos topBoundBox.TopLeft Left_ Constants.buffer
+                        findMinWireSeparation model initialAttemptPos wire Left_
+
+                match wire.InitialOrientation with
+                | Horizontal -> viablePos.Y
+                | Vertical -> viablePos.X
 
             let firstVerticalSegLength, secondVerticalSegLength =
                 match wire.InitialOrientation with
-                | Horizontal ->
-                    topBound - Constants.buffer - currentStartPos.Y, currentEndPos.Y - (topBound - Constants.buffer)
-                | Vertical ->
-                    topBound - Constants.buffer - currentStartPos.X, currentEndPos.X - (topBound - Constants.buffer)
+                | Horizontal -> topBound - currentStartPos.Y, currentEndPos.Y - topBound
+                | Vertical -> topBound - currentStartPos.X, currentEndPos.X - topBound
 
             shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength
 
         let tryShiftDownWire =
-            let bottomBound =
+            let bottomBoundBox =
                 intersectedBoxes
-                |> List.map (fun (_compID, box) ->
+                |> List.sortWith (fun (_, box1) (_, box2) ->
                     match wire.InitialOrientation with
-                    | Horizontal -> box.TopLeft.Y + box.H
-                    | Vertical -> box.TopLeft.X + box.W)
-                |> List.max
+                    | Horizontal -> compare (box1.TopLeft.Y + box1.H) (box2.TopLeft.Y + box2.H)
+                    | Vertical -> compare (box1.TopLeft.X + box1.W) (box2.TopLeft.X + box2.W))
+                |> List.rev
+                |> List.head
+                |> snd
+
+            let bottomBound =
+                let viablePos =
+                    match wire.InitialOrientation with
+                    | Horizontal ->
+                        let initialAttemptPos =
+                            updatePos bottomBoundBox.TopLeft Down_ (Constants.buffer + bottomBoundBox.H)
+
+                        findMinWireSeparation model initialAttemptPos wire Down_
+                    | Vertical ->
+                        let initialAttemptPos =
+                            updatePos bottomBoundBox.TopLeft Right_ (Constants.buffer + bottomBoundBox.W)
+
+                        findMinWireSeparation model initialAttemptPos wire Right_
+
+                match wire.InitialOrientation with
+                | Horizontal -> viablePos.Y
+                | Vertical -> viablePos.X
 
             let firstVerticalSegLength, secondVerticalSegLength =
                 match wire.InitialOrientation with
-                | Horizontal ->
-                    bottomBound + Constants.buffer - currentStartPos.Y,
-                    currentEndPos.Y - (bottomBound + Constants.buffer)
-                | Vertical ->
-                    bottomBound + Constants.buffer - currentStartPos.X,
-                    currentEndPos.X - (bottomBound + Constants.buffer)
+                | Horizontal -> bottomBound - currentStartPos.Y, currentEndPos.Y - bottomBound
+                | Vertical -> bottomBound - currentStartPos.X, currentEndPos.X - bottomBound
 
             shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength
 
@@ -297,35 +374,41 @@ let rec tryShiftHorizontalSeg
 
             match max distanceAboveFromStart distanceAboveFromEnd, max distanceBelowFromStart distanceBelowFromEnd with
             | distanceFromAbove, distanceFromBelow when distanceFromAbove > distanceFromBelow ->
-                tryShiftHorizontalSeg model downShiftedWireIntersections tryShiftDownWire (callsLeft - 1)
+                tryShiftHorizontalSeg model downShiftedWireIntersections tryShiftDownWire
             | _distanceFromAbove, _distanceFromBelow (*when _distanceFromAbove <= _distanceFromBelow*)  ->
-                tryShiftHorizontalSeg model upShiftedWireIntersections tryShiftUpWire (callsLeft - 1)
+                tryShiftHorizontalSeg model upShiftedWireIntersections tryShiftUpWire
 
 //------------------------------------------------------------------------//
-//-------------------------------Snapping to Net--------------------------//
+//-----------------------------Snapping to Net----------------------------//
 //------------------------------------------------------------------------//
 
 let getWireVertices (wire: Wire) =
     segmentsToIssieVertices wire.Segments wire
     |> List.map (fun (x, y, _) -> { X = x; Y = y })
 
-let copySegments (wire: Wire) (refWire: Wire) (numOfSegsToCopy: int) =
+let copySegments (wire: Wire) (refWire: Wire) (numOfSegsToCopy: int) : Segment list =
     [ 0 .. numOfSegsToCopy - 1 ]
     |> List.map (fun i -> { wire.Segments[i] with Length = refWire.Segments[i].Length })
+
+let generateEndSegments (startIndex: int) (numOfSegs: int) (wire: Wire) : Segment list =
+    [ startIndex .. startIndex + numOfSegs - 1 ]
+    |> List.map (fun i ->
+        { wire.Segments[i % 2] with
+            Length = 0.
+            Index = i })
+    |> List.updateAt (numOfSegs - 1) { wire.Segments.[numOfSegs - 1] with Length = nubLength }
 
 let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
     match isWireInNet model wireToRoute, wireToRoute.Segments.Length with
     | None, _ -> wireToRoute // If wire is not in net, return original wire
     | _, n when n <> 5 && n <> 7 -> wireToRoute // If wire is not 5 or 7 seg, return original wire
     | Some(_, netlist), _ ->
-        let otherWiresInNet =
-            netlist |> List.filter (fun (connID, _) -> connID <> wireToRoute.WId)
         // Take first wire in netlist as reference wire for snapping
-        let refWire = otherWiresInNet.Head |> snd
+        let refWire = netlist.Head |> snd
         let refWireVertices = getWireVertices refWire
 
         let wireToRouteStartPos, wireToRouteEndPos = getStartAndEndWirePos wireToRoute
-        let refStartPos, refEndPos = getStartAndEndWirePos refWire
+        let _, refEndPos = getStartAndEndWirePos refWire
 
         let firstBendPos = refWireVertices[3]
         let horizontalSegLength = refWire.Segments[2].Length
@@ -334,21 +417,19 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
             (wireToRouteEndPos.X - wireToRouteStartPos.X) < horizontalSegLength / 2.
 
         let numOfSegsToCopy =
+            let simpleCase =
+                match wireToRouteEndPos.X < firstBendPos.X, isHorizontalSegTooShort with
+                | true, true -> 1
+                | true, false -> 2
+                | false, _ -> 3
+
             match refWire.Segments.Length with
             | 5 ->
                 match firstBendPos.Y < refEndPos.Y, firstBendPos.Y > wireToRouteEndPos.Y with
-                | true, true -> if wireToRouteEndPos.X < firstBendPos.X then 2 else 3
-                | false, false -> if wireToRouteEndPos.X < firstBendPos.X then 1 else 2
-                | _ ->
-                    match wireToRouteEndPos.X < firstBendPos.X, isHorizontalSegTooShort with
-                    | true, true -> 1
-                    | true, false -> 2
-                    | false, _ -> 3
-            | 7 ->
-                match wireToRouteEndPos.X < firstBendPos.X, isHorizontalSegTooShort with
-                | _, true -> 1
-                | true, false -> 2
-                | false, false -> 3
+                | (true, true)
+                | (false, false) -> if wireToRouteEndPos.X < firstBendPos.X then 2 else 3
+                | _ -> simpleCase
+            | 7 -> simpleCase
             | _ -> 0 // Not implemented for ref wires that are not 5 or 7 seg
 
         let newSegments =
@@ -357,39 +438,18 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
                 copySegments wireToRoute refWire 3
                 @ [ { wireToRoute.Segments[3] with Length = wireToRouteEndPos.Y - firstBendPos.Y } ]
                   @ [ { wireToRoute.Segments[4] with Length = wireToRouteEndPos.X - firstBendPos.X } ]
-                    @ [ { wireToRoute.Segments[3] with
-                            Index = 5
-                            Length = 0. } ]
-                      @ [ { wireToRoute.Segments[4] with
-                              Index = 6
-                              Length = nubLength } ]
+                    @ generateEndSegments 5 2 wireToRoute
             | 2 ->
                 copySegments wireToRoute refWire 2
                 @ [ { wireToRoute.Segments[2] with Length = wireToRouteEndPos.X - wireToRouteStartPos.X - nubLength } ]
                   @ [ { wireToRoute.Segments[3] with Length = wireToRouteEndPos.Y - firstBendPos.Y } ]
-                    @ [ { wireToRoute.Segments[4] with
-                            Index = 4
-                            Length = 0. } ]
-                      @ [ { wireToRoute.Segments[3] with
-                              Index = 5
-                              Length = 0. } ]
-                        @ [ { wireToRoute.Segments[4] with
-                                Index = 6
-                                Length = nubLength } ]
+                    @ generateEndSegments 4 3 wireToRoute
             | 1 ->
                 copySegments wireToRoute refWire 1
                 @ [ { wireToRoute.Segments[1] with Length = wireToRouteEndPos.Y - wireToRouteStartPos.Y } ]
                   @ [ { wireToRoute.Segments[2] with Length = wireToRouteEndPos.X - wireToRouteStartPos.X - nubLength } ]
                     @ [ { wireToRoute.Segments[3] with Length = 0. } ]
-                      @ [ { wireToRoute.Segments[4] with
-                              Index = 4
-                              Length = 0. } ]
-                        @ [ { wireToRoute.Segments[3] with
-                                Index = 5
-                                Length = 0. } ]
-                          @ [ { wireToRoute.Segments[4] with
-                                  Index = 6
-                                  Length = nubLength } ]
+                      @ generateEndSegments 4 3 wireToRoute
             | 0 -> wireToRoute.Segments // Not implemented for ref wires that are not 5 or 7 seg
             | _ -> failwithf "Shouldn't happen"
 
@@ -404,9 +464,10 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
 
     // Snapping to Net only implemented for one orientation
     let snappedToNetWire =
-        match wire.InitialOrientation with
-        | Horizontal -> snapToNet model initialWire
-        | Vertical -> initialWire
+        match model.SnapToNet, wire.InitialOrientation with
+        | false, _
+        | _, Vertical -> initialWire
+        | true, Horizontal -> snapToNet model initialWire
 
     let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire
 
@@ -415,6 +476,6 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
     | _ ->
         tryShiftVerticalSeg model intersectedBoxes snappedToNetWire
         |> Option.orElse (
-            tryShiftHorizontalSeg model intersectedBoxes snappedToNetWire Constants.maxCallsToShiftHorizontalSeg
+            tryShiftHorizontalSeg Constants.maxCallsToShiftHorizontalSeg model intersectedBoxes snappedToNetWire
         )
         |> Option.defaultValue snappedToNetWire

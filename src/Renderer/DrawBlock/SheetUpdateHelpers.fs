@@ -477,23 +477,22 @@ let mDragUpdate
     
     | Scaling ->
 
-                 printfn $"{mMsg.Pos.X} {mMsg.Pos.Y}"
-                 match mMsg.Pos.X, mMsg.Pos.Y with 
-                    | x,y when x>0. ->      
-                                                        let symButton =  model.Wire.Symbol.Symbols
-                                                                                    |> Map.find (model.ButtonList |> List.head)
-                                                        let distanceMoved = sqrt(((mMsg.Pos.X-symButton.Pos.X)**2) + ((mMsg.Pos.Y-symButton.Pos.Y)**2))
-                                                        printfn $"differences : {mMsg.Pos.X-symButton.Pos.X} {mMsg.Pos.Y-symButton.Pos.Y}"
-                                                        printfn $"distanceMoved: {distanceMoved}"
-                                                        printfn $"oldPos: {symButton.Pos.X} {symButton.Pos.Y}"
-                                                        printfn $"newPos: {symButton.Pos.X+(distanceMoved*2.)} {symButton.Pos.Y-(distanceMoved*2.)}"
-                                                        let newPos = {X=symButton.Pos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(symButton.Pos.Y-(distanceMoved*(sqrt(2.)/2.)))}
-                                                        let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                                        let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-                                                        {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
-                                                                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                                                    LastMousePos = mMsg.Pos}, Cmd.ofMsg CheckAutomaticScrolling
-                    | x , y -> model
+    
+        let startPos = model.Box.StartingPos
+        let symButton =  model.Wire.Symbol.Symbols
+                                    |> Map.find (model.ButtonList |> List.head)
+        let distanceMoved = sqrt((mMsg.Pos.X-startPos.X)**2 + (mMsg.Pos.Y-startPos.Y)**2)
+        printfn $"differences : {mMsg.Pos.X-startPos.X} {mMsg.Pos.Y-startPos.Y}"
+        printfn $"distanceMoved: {distanceMoved}"
+        printfn $"oldPos: {symButton.Pos.X} {symButton.Pos.Y}"
+        printfn $"newPos: {symButton.Pos.X+(distanceMoved*2.)} {symButton.Pos.Y-(distanceMoved*2.)}"
+        let newPos = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
+        let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
+        let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
+        {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                    LastMousePos = mMsg.Pos}, Cmd.ofMsg CheckAutomaticScrolling
+   
 
     | Selecting -> 
         let initialX = model.DragToSelectBox.TopLeft.X
@@ -623,7 +622,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         {model with Action = Idle}, Cmd.ofMsg DoNothing
     
     | Scaling -> 
-        {model with Action = Idle}, Cmd.ofMsg DoNothing
+        let symButton =  model.Wire.Symbol.Symbols
+                        |> Map.find (model.ButtonList |> List.head)
+        {model with Action = Idle; Box = {model.Box with StartingPos = symButton.Pos}}, Cmd.ofMsg DoNothing
         
     | MovingSymbols ->
         // Reset Movement State in Model

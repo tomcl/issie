@@ -476,23 +476,26 @@ let mDragUpdate
         snapWire model mMsg segId 
     
     | Scaling ->
-
-    
-        let startPos = model.Box.StartingPos
-        let symButton =  model.Wire.Symbol.Symbols
-                                    |> Map.find (model.ButtonList |> List.head)
-        let distanceMoved = sqrt((mMsg.Pos.X-startPos.X)**2 + (mMsg.Pos.Y-startPos.Y)**2)
-        printfn $"differences : {mMsg.Pos.X-startPos.X} {mMsg.Pos.Y-startPos.Y}"
-        printfn $"distanceMoved: {distanceMoved}"
-        printfn $"oldPos: {symButton.Pos.X} {symButton.Pos.Y}"
-        printfn $"newPos: {symButton.Pos.X+(distanceMoved*2.)} {symButton.Pos.Y-(distanceMoved*2.)}"
-        let newPos = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
-        let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-        let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-        {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
-                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                    LastMousePos = mMsg.Pos}, Cmd.ofMsg CheckAutomaticScrolling
-   
+                let startPos = model.Box.StartingPos
+                let symButton =  model.Wire.Symbol.Symbols
+                                            |> Map.find (model.ButtonList |> List.head)
+                let distanceMoved = sqrt((mMsg.Pos.X-startPos.X)**2 + (mMsg.Pos.Y-startPos.Y)**2)
+                match (startPos.X - mMsg.Pos.X) with
+                | x when x < 0. ->
+                                            let newPos = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
+                                            let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
+                                            let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
+                                            {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
+                                                        ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                                                        LastMousePos = mMsg.Pos}, Cmd.ofMsg CheckAutomaticScrolling
+                | x ->  
+                                let newPos = {X=startPos.X-(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
+                                let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
+                                let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
+                                {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
+                                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                                            LastMousePos = mMsg.Pos}, Cmd.ofMsg CheckAutomaticScrolling
+            
 
     | Selecting -> 
         let initialX = model.DragToSelectBox.TopLeft.X

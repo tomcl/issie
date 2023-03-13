@@ -231,6 +231,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
         { model with Wires = newWires }, Cmd.none
 
+    | MakeChannel (box: BoundingBox) ->
+        SmartChannel.smartChannelRoute Vertical box model, Cmd.none
+
     | DeleteWires (connectionIds : list<ConnectionId>) ->
         // deletes wires from model, then runs bus inference
         // Issie model is not affected but will extract connections from wires

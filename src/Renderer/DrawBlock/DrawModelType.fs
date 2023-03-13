@@ -352,6 +352,7 @@ module BusWireT =
         | DeleteWires of list<ConnectionId>
         | DeleteWiresOnPort of (Port option) list
         | SelectWires of list<ConnectionId>
+        | MakeChannel of BoundingBox
         | UpdateWires of list<ComponentId> * XYPos
         | UpdateSymbolWires of ComponentId
         | DragSegment of SegmentId * MouseT

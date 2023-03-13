@@ -22,8 +22,8 @@ open Operators
 *)
 
 
-/// TODO:
-/// Dont move wires which have two segments in the channel
+// TODO:
+// Dont move wires which have two segments in the channel?
 
 /// Automatically moves all wires which intersect the channel
 /// 1. Detects all wires in the model which pass through the channel

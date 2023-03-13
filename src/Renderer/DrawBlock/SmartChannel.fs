@@ -21,8 +21,12 @@ open Operators
     this purpose.
 *)
 
-/// Automatically moves all 7-seg wires which intersect the channel
-/// 1. Detects all 7-seg wires in the model which pass through the channel
+
+/// TODO:
+/// Dont move wires which have two segments in the channel
+
+/// Automatically moves all wires which intersect the channel
+/// 1. Detects all wires in the model which pass through the channel
 /// 2. Sorts them in the ideal order so that wires are separated in the channel, if possible
 /// 3. Moves wires so that they are equidistant to one another in the channel
 let smartChannelRoute 
@@ -34,31 +38,30 @@ let smartChannelRoute
     let tl = channel.TopLeft
     let extractWire (wId: ConnectionId): Wire = model.Wires[wId]
     
-    // Sorts all wire IDs so that all the wires through the channel will be separated if possible
-    let sortWires7Seg (wires: Wire list) =
-        // Get two XY positions: one at the start of the wire (after the nub and 0 len) and the first bend.
-        let wire23Pos =
-            List.map (fun wire -> wire.WId, wire) wires
-            |> List.map (fun (wid, w) -> wid, getWireSegmentsXY w)
-            |> List.map (fun (wid, l) -> wid, l[2..3]) 
-        
-        let sorted (wire23Pos: (ConnectionId * XYPos list) list) =
+    let sortWires (wires: (Wire * int) list) =
+        // Get two XY positions: one at the first bend before the wire crosses the channel
+        // as well as the one before that.
+        let wirePos =
+            List.map (fun (wire, index) ->
+                (wire.WId, index), (getWireSegmentsXY wire)[index-1..index]) wires
+    
+        let sorted (wirePos: ((ConnectionId * int) * XYPos list) list) =
             match channelOrientation with
             | Vertical ->
                 // Sort by the vertical positioning of the wire starts
-                wire23Pos
-                |> List.sortByDescending (fun (_: ConnectionId, pos: XYPos list) -> pos[0].Y)
-                |> List.map (fun (wid, pos) -> wid, pos[1].X)
+                wirePos
+                |> List.sortByDescending (fun (_, pos: XYPos list) -> pos[0].Y)
+                |> List.map (fun ((wid, ind), pos) -> (wid, ind), pos[1].X)
             | Horizontal ->
                 // Sort by the horizontal positioning of the wire starts
-                wire23Pos
-                |> List.sortByDescending (fun (_: ConnectionId, pos: XYPos list) -> pos[0].X)
-                |> List.map (fun (wid, pos) -> wid, pos[1].Y)
+                wirePos
+                |> List.sortBy (fun (_, pos: XYPos list) -> pos[0].Y)
+                |> List.map (fun ((wid, ind), pos) -> (wid, ind), pos[1].Y)
                 
-        sorted wire23Pos
+        sorted wirePos
 
     // Moves all the wire IDs which are passed in from their old position to the new position in the channel
-    let moveWires (model: Model) (sortedWires: (ConnectionId * float) list) =
+    let moveWires (model: Model) (sortedWires: ((ConnectionId * int) * float) list) =
         let wireChannels =
             match channelOrientation with
             | Vertical ->
@@ -71,7 +74,7 @@ let smartChannelRoute
         printfn "New Channels: %A" wireChannels
         
         // In a 7 segment wire, seg index 2,3,4 are the ones which control the bend
-        let adjustWire (model: Model) (newPos: float) ((wid, oldPos): ConnectionId * float) =
+        let adjustWire (model: Model) (newPos: float) (((wid, index), oldPos): (ConnectionId * int) * float) =
             // shorten or lengthen seg 2 & 4
             let currentWire = extractWire wid
             let currentSegments = currentWire.Segments
@@ -79,11 +82,11 @@ let smartChannelRoute
                 {
                     extractWire wid with
                         Segments =
-                            currentSegments[0..1] @
-                            [{currentSegments[2]  with Length = currentSegments[2].Length + (newPos - oldPos)}] @
-                            [currentSegments[3]] @
-                            [{currentSegments[4] with Length = currentSegments[4].Length - (newPos - oldPos)}] @ 
-                            currentSegments[5..6]
+                            currentSegments
+                            |> List.updateAt (index-1)
+                                   {currentSegments[index-1] with Length = currentSegments[index-1].Length + (newPos - oldPos)}
+                            |> List.updateAt (index+1)
+                                   {currentSegments[index+1] with Length = currentSegments[index+1].Length - (newPos - oldPos)}
                 }
             { model with Wires = Map.add wid newWire model.Wires }
             
@@ -91,11 +94,7 @@ let smartChannelRoute
     
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     
-    let sorted7SegWires =
-        getWiresInBox channel model
-        |> List.filter (fun w -> w.Segments.Length = 7)
-        |> sortWires7Seg
-    
-    sorted7SegWires
+    getWiresInBox channel model
+    |> sortWires
     |> moveWires model
     

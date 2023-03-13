@@ -435,6 +435,7 @@ module SheetT =
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
         | Scaling
+        | InitScaling
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
@@ -633,6 +634,7 @@ module SheetT =
         DebugIsConnected: bool
         DebugDevice: string option
         Box: ScalingBox
+        ButtonList : list<ComponentId>
     }
     
     open Operators

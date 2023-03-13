@@ -27,7 +27,42 @@ module node = Node.Api
 importReadUart 
 
 open Symbol
+let createNewSymbol  (pos: XYPos) (comptype: ComponentType) (label:string) modelStyle =
+    let id = JSHelpers.uuid ()
+    let style = Constants.componentLabelStyle
+    let comp = makeComponent pos comptype id label
+    let transform = {Rotation= Degree0; flipped= false}
 
+    { 
+      Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
+      LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
+      LabelHasDefaultPos = true
+      LabelRotation = None
+      Appearance =
+          {
+            HighlightLabel = false
+            ShowPorts = ShowNone
+            Colour = "Black"
+            Opacity = 1.0
+            Style = modelStyle
+          }
+      InWidth0 = None // set by BusWire
+      InWidth1 = None
+      Id = ComponentId id
+      Component = comp
+      Moving = false
+      PortMaps = initPortOrientation comp
+      STransform = transform
+      ReversedInputPorts = Some false
+      MovingPort = None
+      IsClocked = false
+      MovingPortTarget = None
+      HScale = None
+      VScale = None
+      
+    }
+    |> autoScaleHAndW
+    |> calcLabelBoundingBox
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     /// check things that might not have been correctly completed in the last update and if so do them
@@ -110,7 +145,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                      | _  -> model.SelectedComponents
                                     |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
                                     |> getBlock 
-        ({model with Box = {BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}}), Cmd.none  
+        let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W-7.0; Y=box.TopLeft.Y-7.0} ScaleButton "ScaleButton"  Distinctive
+        ({model with Box = {BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym}}}), Cmd.none  
         
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with

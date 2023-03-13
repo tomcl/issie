@@ -150,13 +150,6 @@ let view
 
         makePolygon polygonPoints selectionBox
 
-    let scalingBox = 
-            let {BoundingBox.TopLeft = {X=fX; Y=fY}; H=fH; W=fW} = model.Box.BoxBound
-            match model.SelectedComponents.Length with
-            | s when s<2 -> [makeAnyPath {X=0;Y=0} (makeLineAttr 0.0 0.0) defaultPath] @ [makeCircle 0.0 0.0 {defaultCircle with R=0.0}]
-            | _ -> [makeAnyPath {X=fX+50.0+fW;Y=(fY-43.0)} ((makeLineAttr 0.0 (fH+93.0))+(makeLineAttr -(fW+100.0) 0)+(makeLineAttr 0.0 (-(fH)-100.0))+(makeLineAttr (fW+93.0) 0.0)) {defaultPath with StrokeDashArray="4,4"}] @ [makeCircle (fX+50.0+fW) (fY-50.0) {defaultCircle with R=7.0; Fill= "Grey"}]
-
-
     let connectingPortsWire =
         let connectPortsLine = { defaultLine with Stroke = "Green"; StrokeWidth = "2.0px"; StrokeDashArray = "5, 5" }
         let {XYPos.X = x1; Y = y1}, {XYPos.X = x2; Y = y2} = model.ConnectPortsLine
@@ -172,18 +165,16 @@ let view
     // uncomment the display model react for visbility of all snaps
     let snaps = snapIndicatorLineX @ snapIndicatorLineY // snapDisplay model
 
-    match model.Action, model.Box.ShowBox with // Display differently depending on what state Sheet is in
-    | Selecting, _ ->
+    match model.Action with // Display differently depending on what state Sheet is in
+    | Selecting ->
         displaySvgWithZoom model headerHeight style ( displayElements @ [ dragToSelectBox ] ) dispatch
-    | (ConnectingInput _ | ConnectingOutput _),_ ->
+    | (ConnectingInput _ | ConnectingOutput _) ->
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
-    | (MovingSymbols | DragAndDrop),_  ->
+    | (MovingSymbols | DragAndDrop) ->
         displaySvgWithZoom model headerHeight style ( displayElements @ snaps) dispatch
-    | MovingWire _,_ -> 
+    | MovingWire _ -> 
         displaySvgWithZoom model headerHeight style (displayElements @ snaps) dispatch
-    | _ , true -> 
-        displaySvgWithZoom model headerHeight style ( displayElements @  scalingBox ) dispatch
-    | _ , _->
+    | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
     |> TimeHelpers.instrumentInterval "SheetView" start
 

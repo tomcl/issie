@@ -393,7 +393,7 @@ let mDragUpdate
     | MovingWire segId -> 
         snapWire model mMsg segId 
     
-    | Scaling -> mode, Cmd.ofMsg DoNothing
+    | Scaling -> model, Cmd.ofMsg DoNothing
     // | Scaling -> 
     //         let newBox = 
     //             model.SelectedComponents

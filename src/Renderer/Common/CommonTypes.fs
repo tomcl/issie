@@ -215,6 +215,7 @@ module CommonTypes
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
         | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
+        | ScaleButton
 
 
     /// Active pattern which matches 2-input gate component types.

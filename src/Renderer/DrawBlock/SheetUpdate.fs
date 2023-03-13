@@ -143,16 +143,21 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     match model.SelectedComponents.Length with
                      | s when s<2 -> model.Box.BoxBound
                      | _  ->    printfn("HERE2")
-                                model.SelectedComponents
-                                    |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
-                                    |> getBlock
+                                printfn "Selected Components: %A" model.SelectedComponents
+                                printfn "Symbols: %A" (model.Wire.Symbol.Symbols |> Map.toList |> List.map (fun (k,v) -> (k)))
+                                let myList =  model.SelectedComponents
+                                                            |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+                                                            // |> List.filter (fun x -> x.IsSome) 
+                                                            // |> List.map (fun l -> if (l = Some x) then x else failwith "This can't happen")
+                                printfn "myList: %A" (myList |> List.map (fun x -> x.Id)) 
+                                myList |> getBlock
         printfn("HERE3")
         if (model.SelectedComponents.Length < 2) then 
             (model), Cmd.none
         else
             let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W+50.; Y=box.TopLeft.Y-50.} ScaleButton "ScaleButton"  Distinctive
             let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym
-            ({model with Box = {BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id]}), Cmd.none
+            ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id]}), Cmd.none
     
 
             
@@ -1049,7 +1054,7 @@ let init () =
         DebugIsConnected = false
         DebugMappings = [||]
         DebugDevice = None
-        Box = {ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
+        Box = {StartingPos = {X=0;Y=0};ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
         ButtonList =[]
     }, Cmd.none
 

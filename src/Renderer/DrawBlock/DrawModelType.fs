@@ -395,6 +395,7 @@ module SheetT =
     }
 
     type ScalingBox = {
+        StartingPos: XYPos
         ShowBox: bool
         BoxBound: BoundingBox
         ScaleButton: Button

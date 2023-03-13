@@ -565,8 +565,12 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         Cmd.ofMsg DoNothing
 
     | MovingLabel ->
-        {model with Action = Idle; ButtonList=[]}, Cmd.ofMsg DoNothing
 
+        {model with Action = Idle}, Cmd.ofMsg DoNothing
+    
+    | Scaling -> 
+        {model with Action = Idle; ButtonList=[]}, symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+        
     | MovingSymbols ->
         // Reset Movement State in Model
         match model.ErrorComponents with

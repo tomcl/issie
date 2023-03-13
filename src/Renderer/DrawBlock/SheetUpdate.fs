@@ -148,9 +148,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if (model.SelectedComponents.Length < 2) then 
             (model), Cmd.none
         else
-            let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W-7.0; Y=box.TopLeft.Y-7.0} ScaleButton "ScaleButton"  Distinctive
+            let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W+50.; Y=box.TopLeft.Y-50.} ScaleButton "ScaleButton"  Distinctive
             let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym
-            printfn ("HERE")
             ({model with Box = {BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id]}), Cmd.none
     
 

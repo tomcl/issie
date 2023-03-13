@@ -280,6 +280,8 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | NbitSpreader _ ->
                 [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
+            // | ScaleButton -> 
+            //         [|{X=H/2.; Y=W/2.};{X=H/2.0;Y=0.}|]
             | _ -> [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
 
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
@@ -495,7 +497,9 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                                 let arcAttr3 = makePathAttr  curvyShape[7] curvyShape[8] curvyShape[0]
 
                                 (createAnyPath curvyShape[0] (arcAttr1+arcAttr2+arcAttr3) colour strokeWidth outlineColour) 
-
+            | _, ScaleButton -> 
+                                let circle = makeCircle (W/2.) (H/2.) {defaultCircle with R = W/2.; Fill = "Grey"}
+                                [circle]
             | _, _ -> (addLegendText 
                                 (legendOffset w h symbol) 
                                 (getComponentLegend comp.Type transform.Rotation) 
@@ -504,16 +508,19 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                                 (legendFontSize comp.Type))
                                 |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
                             
-    // Put everything together 
-    (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
-    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
-    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addComponentLabel comp transform labelcolour)
-    |> List.append (additions)
-    |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    //HLP23: Author Ismagilov
-    //Now call shapemaker. Labels are only done to the correct style of component
-    |> List.append (shapeMaker)
+    // Put everything together
+    match comp.Type with
+        | ScaleButton -> shapeMaker
+        | _ ->
+                (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
+                |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
+                |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+                |> List.append (addComponentLabel comp transform labelcolour)
+                |> List.append (additions)
+                |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
+                //HLP23: Author Ismagilov
+                //Now call shapemaker. Labels are only done to the correct style of component
+                |> List.append (shapeMaker)
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//
 //----------------------------------------------------------------------------------------//

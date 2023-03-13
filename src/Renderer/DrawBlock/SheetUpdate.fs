@@ -146,7 +146,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                     |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
                                     |> getBlock 
         let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W-7.0; Y=box.TopLeft.Y-7.0} ScaleButton "ScaleButton"  Distinctive
-        ({model with Box = {BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym}}}), Cmd.none  
+        ({model with Box = {BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym}}; ButtonList = [buttonSym.Id]}), Cmd.none  
         
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with
@@ -1042,6 +1042,7 @@ let init () =
         DebugMappings = [||]
         DebugDevice = None
         Box = {ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
+        ButtonList =[]
     }, Cmd.none
 
 

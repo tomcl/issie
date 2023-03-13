@@ -267,6 +267,7 @@ let mDownUpdate
             
     | _ ->
         match (mouseOn model mMsg.Pos) with
+
         | Canvas when mMsg.ShiftKeyDown ->
             // Start Panning with drag, setting up offset to calculate scroll poistion during drag.
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
@@ -294,45 +295,46 @@ let mDownUpdate
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
 
         | Component compId ->
+            match (model.Wire.Symbol.Symbols |> Map.find compId).Component.Type with 
+                | s when s = ScaleButton -> {model with Action = Scaling}, Cmd.none
+                |_ ->   
+                        let msg, action = DoNothing, InitialiseMoving compId
+                        if model.CtrlKeyDown || mMsg.ShiftKeyDown
+                        then
+                            let newComponents =
+                                if List.contains compId model.SelectedComponents
+                                then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
+                                else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
+                            {model with 
+                                SelectedComponents = newComponents; 
+                                SnapSymbols = emptySnap
+                                LastValidPos = mMsg.Pos ; 
+                                LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                Action = action; LastMousePos = mMsg.Pos; 
+                                TmpModel = Some model; 
+                                PrevWireSelection = model.SelectedWires},
+                            Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); Cmd.ofMsg msg]
+                        else
+                            let newComponents, newWires =
+                                if List.contains compId model.SelectedComponents
+                                then model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
+                                else [compId], [] // If user clicked on a new component, select that one instead
+                            let snapXY =
+                                match newComponents with
+                                | [compId] -> 
+                                    getNewSymbolSnapInfo model model.Wire.Symbol.Symbols[compId]
+                                | _ -> emptySnap
 
-            let msg, action = DoNothing, InitialiseMoving compId
-
-            if model.CtrlKeyDown || mMsg.ShiftKeyDown
-            then
-                let newComponents =
-                    if List.contains compId model.SelectedComponents
-                    then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
-                    else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
-                {model with 
-                    SelectedComponents = newComponents; 
-                    SnapSymbols = emptySnap
-                    LastValidPos = mMsg.Pos ; 
-                    LastValidBoundingBoxes=model.BoundingBoxes ; 
-                    Action = action; LastMousePos = mMsg.Pos; 
-                    TmpModel = Some model; 
-                    PrevWireSelection = model.SelectedWires},
-                Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); Cmd.ofMsg msg]
-            else
-                let newComponents, newWires =
-                    if List.contains compId model.SelectedComponents
-                    then model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
-                    else [compId], [] // If user clicked on a new component, select that one instead
-                let snapXY =
-                    match newComponents with
-                    | [compId] -> 
-                        getNewSymbolSnapInfo model model.Wire.Symbol.Symbols[compId]
-                    | _ -> emptySnap
-
-                {model with 
-                    SelectedComponents = newComponents; 
-                    SnapSymbols = snapXY
-                    LastValidPos = mMsg.Pos ; 
-                    LastValidBoundingBoxes=model.BoundingBoxes ; 
-                    SelectedWires = newWires; Action = action; 
-                    LastMousePos = mMsg.Pos; TmpModel = Some model},
-                Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                            wireCmd (BusWireT.SelectWires newWires)
-                            Cmd.ofMsg msg]
+                            {model with 
+                                SelectedComponents = newComponents; 
+                                SnapSymbols = snapXY
+                                LastValidPos = mMsg.Pos ; 
+                                LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                SelectedWires = newWires; Action = action; 
+                                LastMousePos = mMsg.Pos; TmpModel = Some model},
+                            Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
+                                        wireCmd (BusWireT.SelectWires newWires)
+                                        Cmd.ofMsg msg]
 
         | Connection connId ->
             let aSeg = BusWireUpdateHelpers.getClickedSegment model.Wire connId mMsg.Pos
@@ -506,9 +508,12 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 symDiff newComponents model.SelectedComponents, symDiff newWires model.SelectedWires
             else 
                 newComponents, newWires
+        let nextAction = match selectComps.Length with
+                                             | s when s<2 -> Idle 
+                                             | _ -> Scaling
         { model with 
             DragToSelectBox = resetDragToSelectBox; 
-            Action = Idle; SelectedComponents = selectComps; 
+            Action = nextAction; SelectedComponents = selectComps; 
             SelectedWires = selectWires; 
             AutomaticScrolling = false },
         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols selectComps)
@@ -525,6 +530,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         Cmd.ofMsg DoNothing
 
     | MovingLabel ->
+        {model with Action = Idle; ButtonList=[]}, symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+    
+    | Scaling -> 
         {model with Action = Idle}, Cmd.ofMsg DoNothing
 
     | MovingSymbols ->

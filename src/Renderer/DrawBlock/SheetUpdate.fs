@@ -150,7 +150,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         else
             let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W-7.0; Y=box.TopLeft.Y-7.0} ScaleButton "ScaleButton"  Distinctive
             let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym
-            printfn ("HERE")
             ({model with Box = {BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id]}), Cmd.none
     
 

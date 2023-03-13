@@ -304,12 +304,17 @@ let mDownUpdate
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
 
         | Component compId ->
-            printfn ("HERE1")
             match (model.Wire.Symbol.Symbols |> Map.find compId).Component.Type with 
                 | s when s = ScaleButton ->   
                                                               let symButton = (model.Wire.Symbol.Symbols |> Map.find compId)
                                                               let iniPos = symButton.Pos
-                                                              {model with Action = Scaling; Box = {model.Box with StartingPos= iniPos}}, Cmd.none
+                                                              let TopLeft = model.Box.BoxBound.TopLeft
+                                                              let startW = model.Box.BoxBound.W
+                                                              let startH = model.Box.BoxBound.H
+                                                              {model with Action = Scaling; Box = {model.Box with StartingPos= iniPos
+                                                                                                                  TopLeftStart=TopLeft
+                                                                                                                  WidthStart = startW
+                                                                                                                  HeightStart= startH}}, Cmd.none
                 |_ ->  
                         let msg, action = DoNothing, InitialiseMoving compId
                         if model.CtrlKeyDown || mMsg.ShiftKeyDown
@@ -477,6 +482,9 @@ let mDragUpdate
     
     | Scaling ->
                 let startPos = model.Box.StartingPos
+                let startBoxPos = model.Box.TopLeftStart
+                let startWidth = model.Box.WidthStart
+                let startHeight = model.Box.HeightStart
                 let symButton =  model.Wire.Symbol.Symbols
                                             |> Map.find (model.ButtonList |> List.head)
                 let distanceMoved = sqrt((mMsg.Pos.X-startPos.X)**2 + (mMsg.Pos.Y-startPos.Y)**2)
@@ -485,11 +493,15 @@ let mDragUpdate
                                             let newPos = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
                                             let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
                                             let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
+                                            let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
+                                            let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = distanceMoved*2. + startWidth; H = distanceMoved*2. + startHeight}}
                                             {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
                                                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                                        LastMousePos = mMsg.Pos}, Cmd.ofMsg CheckAutomaticScrolling
+                                                        LastMousePos = mMsg.Pos
+                                                        Box = newBox}, Cmd.ofMsg CheckAutomaticScrolling
                 | x ->  
                                 let newPos = {X=startPos.X-(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
+                                let newTopLeft = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
                                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
                                 let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
                                 {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}

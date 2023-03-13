@@ -282,6 +282,7 @@ let mDownUpdate
                 Cmd.batch [
                     Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
                     symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                    Cmd.ofMsg UpdateBoundingBoxes
                 ]
               
         | InputPort (portId, portLoc) ->
@@ -336,7 +337,7 @@ let mDownUpdate
                                     TmpModel = Some model; 
                                     PrevWireSelection = model.SelectedWires;
                                     ButtonList = []},
-                                Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); symbolCmd (SymbolT.DeleteSymbols buttonId);Cmd.ofMsg msg]
+                                Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); symbolCmd (SymbolT.DeleteSymbols buttonId);Cmd.ofMsg UpdateBoundingBoxes;Cmd.ofMsg msg]
                         else
                             let newComponents, newWires =
                                 if List.contains compId model.SelectedComponents
@@ -372,6 +373,7 @@ let mDownUpdate
                                 Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                             wireCmd (BusWireT.SelectWires newWires)
                                             symbolCmd (SymbolT.DeleteSymbols buttonId)
+                                            Cmd.ofMsg UpdateBoundingBoxes
                                             Cmd.ofMsg msg]
 
         | Connection connId ->
@@ -417,6 +419,7 @@ let mDownUpdate
                         ButtonList = []},
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols [])
                                 symbolCmd (SymbolT.DeleteSymbols buttonId)
+                                Cmd.ofMsg UpdateBoundingBoxes
                                 wireCmd (BusWireT.SelectWires [ connId ])
                                 wireCmd (BusWireT.DragSegment (aSeg.Segment.GetId(), mMsg))
                                 wireCmd (BusWireT.ResetJumps [ connId ] )
@@ -447,7 +450,8 @@ let mDownUpdate
                     {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires; ButtonList = [] },
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                 symbolCmd (SymbolT.DeleteSymbols buttonId)
-                                wireCmd (BusWireT.SelectWires newWires) ]
+                                wireCmd (BusWireT.SelectWires newWires)
+                                Cmd.ofMsg UpdateBoundingBoxes ]
           
 
 
@@ -468,7 +472,7 @@ let mDragUpdate
     | MovingWire segId -> 
         snapWire model mMsg segId 
     
-    | Scaling -> model, Cmd.ofMsg DoNothing
+    //| Scaling -> model, Cmd.ofMsg DoNothing
     // | Scaling -> 
     //         let newBox = 
     //             model.SelectedComponents

@@ -41,7 +41,7 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
-let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scaleType:ScaleType) =
+let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (Mag:float)=
     //Similar structure to rotateBlock, easy to understand
 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
@@ -49,7 +49,7 @@ let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scaleType:Scal
 
     let block = SmartHelpers.getBlock SelectedSymbols
       
-    let newSymbols = List.map (SmartHelpers.scaleSymbolInBlock scaleType block) SelectedSymbols
+    let newSymbols = List.map (SmartHelpers.scaleSymbolInBlock Mag block) SelectedSymbols
 
     {model with Symbols = 
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)

@@ -11,14 +11,7 @@ open Optics
 open Operators
 open System 
 
-
 // HLP23: Author Omar
-
-
-/// discriminated union for return type of the smart autoroute and other SmartWire functions
-type SmartAutorouteResult =
-    | ModelT of Model
-    | WireT of Wire
 
 
 /// determines if wire is connected from and to the same symbol

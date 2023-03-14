@@ -17,7 +17,7 @@ type scaleFactor = { x: float; y: float }
 /// Returns the XYPos of points defining custom component 
 let getCustomSymCorners (sym: Symbol) =
     match sym.Component.Type with
-    | CommonTypes.Custom _ -> 
+    | Custom _ -> 
         let HScale = Option.defaultValue 1.0 sym.HScale
         let VScale = Option.defaultValue 1.0 sym.VScale
         [|{X=0.0;Y=0.0}; {X=0.0;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=sym.Component.H*VScale}; {X=sym.Component.W*HScale;Y=0.0}|]

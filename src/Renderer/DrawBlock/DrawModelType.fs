@@ -339,6 +339,7 @@ module BusWireT =
             Notifications: Option<string>
             Type : WireType
             ArrowDisplay: bool
+            SnapToNet: bool
             MakeChannelToggle: bool
         }
     
@@ -367,6 +368,7 @@ module BusWireT =
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
+        | ToggleSnapToNet
         | MakeChannel of BoundingBox // For manual channel routing
 
     open Optics
@@ -544,6 +546,7 @@ module SheetT =
         | TestPortReorder
         | TestSmartChannel
         | TestPortPosition
+        | ToggleSnapToNet
         | BeautifySheet
         | MakeChannelToggle
 

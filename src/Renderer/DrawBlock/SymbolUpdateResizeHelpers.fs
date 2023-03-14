@@ -81,15 +81,16 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
     let reflectSym = reflectSymbol helpers
 
     let applyReflections reflects symbol =
-        let tryApply reflect sym = match reflect with | Some r -> reflectSym r sym | None -> sym
         let vR, hR = reflects
-        symbol |> tryApply vR |> tryApply hR
+        symbol 
+        |> Option.foldBack reflectSym vR 
+        |> Option.foldBack reflectSym hR
 
     let scaleFactor = {x = (pos.X - fixedCornerLoc.X) / symbol.Component.W; y = (pos.Y - fixedCornerLoc.Y) / symbol.Component.H }
 
     let newSymbol = 
         match scaleFactor with
-        | {x = 0.0} | {y = 0.0} -> symbol
+        | {x = 0.0} | {y = 0.0} -> symbol // hack to avoid divide by zero errors
         | _ ->
             symbol 
             |> applyReflections reflections

@@ -1,4 +1,4 @@
-﻿module BusWireUpdate
+module BusWireUpdate
 
 open CommonTypes
 open Elmish
@@ -89,6 +89,7 @@ let init () =
         Notifications = None
         Type = Constants.initialWireType
         ArrowDisplay = Constants.initialArrowDisplay
+        SnapToNet = true
     } , Cmd.none
 
 
@@ -447,6 +448,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 Map.add wid wire' wires)
 
         {model with Wires = newWires}, Cmd.none
+    | ToggleSnapToNet ->
+        {model with SnapToNet = not model.SnapToNet}, Cmd.none
 
 
 //---------------------------------------------------------------------------------//        

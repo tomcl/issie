@@ -217,14 +217,14 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 [makeAnyPath {X = 0; Y = 0} shape parameters;
                                 makeCircle (comp.W-notDiameter/2.) (comp.H/2.) {defaultCircle with R = (notDiameter/2.); Fill = parameters.Fill}]
 
-                    |Or n ->    let origin = -comp.W/6.
+                    |Or n ->    let origin = -comp.W/9.
                                 let curveOne = makeQuadraticBezierAttr ((comp.W/2.)+origin) (comp.H/2.) origin comp.H
                                 let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
                                 let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
                                 let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
                                 [makeAnyPath {X = origin; Y = 0} shape parameters]
 
-                    |Nor n ->   let origin = (-comp.W/6.)
+                    |Nor n ->   let origin = -comp.W/9.
                                 let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H
                                 let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)
                                 let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
@@ -237,7 +237,7 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 [makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
                                 makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}]
 
-                    |Xor n->    let origin = -comp.W/6.
+                    |Xor n->    let origin = -comp.W/9.
                                 let curveOne = makeQuadraticBezierAttr ((comp.W/2.)) ((comp.H/2.)) origin comp.H
                                 let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
                                 let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
@@ -246,7 +246,7 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 [makeAnyPath {X = origin; Y = 0} shape parameters; 
                                 makeAnyPath {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"}]
 
-                    |Xnor n ->  let origin = -comp.W/6.
+                    |Xnor n ->  let origin = -comp.W/9.
                                 let notDiameter = 8.
                                 let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H
                                 let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)

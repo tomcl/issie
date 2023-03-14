@@ -278,7 +278,7 @@ let mDownUpdate
                 {model with Action = InitialiseMovingLabel compId},
                 Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
             | _ ->
-                {model with Action = InitialiseMovingLabel compId; ButtonList = []},
+                {model with Action = InitialiseMovingLabel compId; ButtonList = []; Box = {model.Box with ShowBox = false}},
                 Cmd.batch [
                     Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
                     symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
@@ -508,11 +508,16 @@ let mDragUpdate
                                             {model with Wire = {model.Wire with Symbol = newSymModel}
                                                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                                                         LastMousePos = mMsg.Pos
-                                                        Box = newBox}, Cmd.ofMsg CheckAutomaticScrolling
+                                                        Box = newBox}, 
+                                            Cmd.batch [
+                                                Cmd.ofMsg CheckAutomaticScrolling
+                                                wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                                                Cmd.ofMsg UpdateBoundingBoxes
+                                            ]
                 | x ->  
                                 let newPos = {X=startPos.X-(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
                                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
+                                //let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
                                 let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(sqrt(2.)/2.)))
                                 let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
                                 let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
@@ -520,7 +525,12 @@ let mDragUpdate
                                 {model with Wire = {model.Wire with Symbol = newSymModel}
                                             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                                             LastMousePos = mMsg.Pos
-                                            Box = newBox}, Cmd.ofMsg CheckAutomaticScrolling
+                                            Box = newBox}, 
+                                            Cmd.batch [
+                                                Cmd.ofMsg CheckAutomaticScrolling
+                                                wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                                                Cmd.ofMsg UpdateBoundingBoxes
+                                            ]
 
 
     | Selecting -> 

@@ -29,14 +29,13 @@ importReadUart
 open Symbol
 let createNewSymbol  (pos: XYPos) (comptype: ComponentType) (label:string) modelStyle =
     let id = JSHelpers.uuid ()
-    let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
     let transform = {Rotation= Degree0; flipped= false}
 
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
-      LabelHasDefaultPos = true
+      LabelHasDefaultPos = false
       LabelRotation = None
       Appearance =
           {

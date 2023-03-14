@@ -339,6 +339,7 @@ module BusWireT =
             Notifications: Option<string>
             Type : WireType
             ArrowDisplay: bool
+            MakeChannelToggle: bool
         }
     
     //----------------------------Message Type-----------------------------------//
@@ -352,7 +353,6 @@ module BusWireT =
         | DeleteWires of list<ConnectionId>
         | DeleteWiresOnPort of (Port option) list
         | SelectWires of list<ConnectionId>
-        | MakeChannel of BoundingBox
         | UpdateWires of list<ComponentId> * XYPos
         | UpdateSymbolWires of ComponentId
         | DragSegment of SegmentId * MouseT
@@ -367,6 +367,7 @@ module BusWireT =
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
+        | MakeChannel of BoundingBox // For manual channel routing
 
     open Optics
     open Operators
@@ -544,6 +545,7 @@ module SheetT =
         | TestSmartChannel
         | TestPortPosition
         | BeautifySheet
+        | MakeChannelToggle
 
 
     type ReadLog = | ReadLog of int

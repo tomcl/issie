@@ -512,7 +512,8 @@ let flipSymbolInBlock
 //Returns the new symbol after scaled about block centre.
 //HLP 23: AUTHOR Ismagilov
 let scaleSymbolInBlock
-    (scaleType: ScaleType)
+    (Mag: float)
+    //(scaleType: ScaleType)
     (block: BoundingBox)
     (sym: Symbol) : Symbol =
 
@@ -521,12 +522,12 @@ let scaleSymbolInBlock
     //Get x and y proportion of symbol to block
     let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
 
-    let newCenter =
-        match scaleType with
-            | ScaleUp ->
-                {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
-            | ScaleDown ->
-                {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
+    let newCenter = {X = (block.TopLeft.X-Mag) + ((block.W+Mag) * xProp); Y = (block.TopLeft.Y-Mag) + ((block.H+Mag) * yProp)}
+        // match scaleType with
+        //     | ScaleUp ->
+        //         {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
+        //     | ScaleDown ->
+        //         {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
 
     let h,w = getRotatedHAndW sym
     let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}

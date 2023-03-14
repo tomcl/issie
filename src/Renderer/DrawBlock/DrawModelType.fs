@@ -575,6 +575,7 @@ module SheetT =
         | TestScaleUp
         | TestPortReorder2
         | TestScaleDown
+        | Scale of Mag:float
         | SetStyle of SymbolT.StyleType //HLP23: AUTHOR Ismagilov
 
 

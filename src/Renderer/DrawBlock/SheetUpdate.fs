@@ -759,7 +759,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 /// HLP23: AUTHOR dgs119
                 let helpers =
                     { SmartPortOrder.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
-                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 helpers}, Cmd.none
+                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 true helpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none

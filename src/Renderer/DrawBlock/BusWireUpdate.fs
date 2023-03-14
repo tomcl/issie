@@ -90,6 +90,7 @@ let init () =
         Type = Constants.initialWireType
         ArrowDisplay = Constants.initialArrowDisplay
         SnapToNet = true
+        MakeChannelToggle = false
     } , Cmd.none
 
 

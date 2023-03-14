@@ -10,6 +10,7 @@ open DrawModelType.BusWireT
 open SmartHelpers
 open Symbol
 open Optics
+open Optic
 open Operators
 
 
@@ -261,7 +262,7 @@ let swapPortIds (reorderPair: SymbolReorderPair) =
             let newOrder =
                 sym.PortMaps.Order |> Map.map (fun _ order -> List.map tryFindSwapId order)
 
-            Optic.set (portMaps_ >-> order_) newOrder
+            set (portMaps_ >-> order_) newOrder
 
         let updatePortMapOrientation =
             let newOrientation =
@@ -270,7 +271,7 @@ let swapPortIds (reorderPair: SymbolReorderPair) =
                     let id = tryFindSwapId id
                     Map.add id edge newOrien')
 
-            Optic.set (portMaps_ >-> orientation_) newOrientation
+            set (portMaps_ >-> orientation_) newOrientation
 
         (updatePortMapOrder >> updatePortMapOrientation) sym
 
@@ -310,7 +311,7 @@ let flipMuxSel (model: BusWireT.Model) (switch: bool) (sym: Symbol) =
         let updateOri (portId: string) (ori: Edge) =
             sym.PortMaps.Orientation
             |> Map.add portId ori
-            |> Optic.set (portMaps_ >-> orientation_)
+            |> set (portMaps_ >-> orientation_)
 
         let updateOrd (portId: string) (ori: Edge) =
             sym.PortMaps.Order
@@ -319,7 +320,7 @@ let flipMuxSel (model: BusWireT.Model) (switch: bool) (sym: Symbol) =
                 match ports with
                 | Some ports' -> List.filter (fun id -> id <> portId) ports' |> Some
                 | _ -> None)
-            |> Optic.set (portMaps_ >-> order_)
+            |> set (portMaps_ >-> order_)
 
         match getMuxSelPorts sym with
         | Some(selPort, othPort) ->

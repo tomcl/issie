@@ -644,6 +644,23 @@ let getVisibleScreenCentre (model : Model) : XYPos =
         Y = (canvas.scrollTop + canvas.clientHeight / 2.0) / model.Zoom
     }
 
+let validateSingleSelectedSymbol (model:Model) =
+    match model.SelectedComponents with
+    | [s1] as sym -> 
+        let symbols = model.Wire.Symbol.Symbols
+        let getSym sId = 
+            Map.tryFind sId symbols
+        match getSym s1 with
+        | Some s1-> 
+            printfn $"Testing with\ns1= {s1.Component.Type}"
+            Some(s1)
+        | _ -> 
+            printfn "Error: can't validate the selected symbol"
+            None
+    | _ -> 
+        printfn $"Did not select single symbol"
+        None
+
 let validateTwoSelectedSymbols (model:Model) =
         match model.SelectedComponents with
         | [s1; s2] as syms -> 

@@ -308,7 +308,7 @@ let mDownUpdate
 
                 | s when s = ScaleButton ->   
                                                               let symButton = (model.Wire.Symbol.Symbols |> Map.find compId)
-                                                              let iniPos = symButton.Pos
+                                                              let iniPos = symButton.Pos //+ {X=((symButton.Component.W)/2.); Y=((symButton.Component.H)/2.)}
                                                               let TopLeft = model.Box.BoxBound.TopLeft
                                                               let startW = model.Box.BoxBound.W
                                                               let startH = model.Box.BoxBound.H
@@ -490,21 +490,25 @@ let mDragUpdate
                   | Some x -> x
                   | _ -> model
                 let startPos = model.Box.StartingPos
+                //let startMouse = model.Box.StartingMouse
                 let startBoxPos = model.Box.TopLeftStart
                 let startWidth = model.Box.WidthStart
                 let startHeight = model.Box.HeightStart
                 let symButton =  model.Wire.Symbol.Symbols
                                             |> Map.find (model.ButtonList |> List.head)
                 let distanceMoved = sqrt((mMsg.Pos.X-startPos.X)**2 + (mMsg.Pos.Y-startPos.Y)**2)
+                printfn "%A" distanceMoved
                 match (startPos.X - mMsg.Pos.X) with
                 | x when x < 0. ->
-                                            let newPos = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
+                                            let newPos = {X=startPos.X+(distanceMoved*(1.414/2.)); Y=(startPos.Y-(distanceMoved*(1.414/2.)))}
                                             let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                            //let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-                                            let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(sqrt(2.)/2.)))
+                                           // let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
+                                            let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(1.414/2.)))
                                             let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
-                                            let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
-                                            let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((sqrt(2.)/2.)*distanceMoved*2.) + startWidth; H = ((sqrt(2.)/2.)*distanceMoved*2.) + startHeight}}
+                                            let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y-(distanceMoved*(1.414/2.)))}
+                                            let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((1.414/2.)*distanceMoved*2.) + startWidth; H = ((1.414/2.)*distanceMoved*2.) + startHeight}}
+                                            //let newBlock = SmartHelpers.getBlock (modelSymbols |> Map.toList |> List.map snd)
+                                            
                                             {model with Wire = {model.Wire with Symbol = newSymModel}
                                                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                                                         LastMousePos = mMsg.Pos
@@ -515,22 +519,37 @@ let mDragUpdate
                                                 Cmd.ofMsg UpdateBoundingBoxes
                                             ]
                 | x ->  
-                                let newPos = {X=startPos.X-(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
+                                let newPos = {X=startPos.X-(distanceMoved*(1.414/2.)); Y=(startPos.Y+(distanceMoved*(1.414/2.)))}
                                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                //let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-                                let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(sqrt(2.)/2.)))
+                                let newMap = model.Wire.Symbol.Symbols |> Map.add symButton.Id symButton
+                                let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(1.414/2.)))
                                 let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
-                                let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
-                                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((sqrt(2.)/2.)*distanceMoved*2.) ; H = startHeight - ((sqrt(2.)/2.)*distanceMoved*2.) }}
-                                {model with Wire = {model.Wire with Symbol = newSymModel}
-                                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                            LastMousePos = mMsg.Pos
-                                            Box = newBox}, 
-                                            Cmd.batch [
-                                                Cmd.ofMsg CheckAutomaticScrolling
-                                                wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
-                                                Cmd.ofMsg UpdateBoundingBoxes
-                                            ]
+                                let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y+(distanceMoved*(1.414/2.)))}
+                                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((1.414/2.)*distanceMoved*2.) ; H = startHeight - ((1.414/2.)*distanceMoved*2.) }}
+                                let newBlock = SmartHelpers.getBlock (modelSymbols.Symbols |> Map.toList |> List.map snd)
+                                printfn "%A" newBox
+                                printfn "%A" newBlock
+                                match ((newBox.BoxBound.TopLeft.X-50. > newBlock.TopLeft.X) || (newBox.BoxBound.TopLeft.X+50.+newBox.BoxBound.W < newBlock.TopLeft.X+newBlock.W) || (newBox.BoxBound.TopLeft.Y-50. > newBlock.TopLeft.Y) || (newBox.BoxBound.TopLeft.Y+newBox.BoxBound.H+50. < newBlock.TopLeft.Y+newBlock.Y)) with
+                                | false ->
+                                    {model with Wire = {model.Wire with Symbol = newSymModel}
+                                                ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                                                LastMousePos = mMsg.Pos
+                                                Box = newBox}, 
+                                                Cmd.batch [
+                                                    Cmd.ofMsg CheckAutomaticScrolling
+                                                    wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                                                    Cmd.ofMsg UpdateBoundingBoxes
+                                                ]
+                                | true -> 
+                                    {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}} 
+                                                ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                                                LastMousePos = mMsg.Pos
+                                                Box = newBox}, 
+                                                Cmd.batch [
+                                                    Cmd.ofMsg CheckAutomaticScrolling
+                                                    wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                                                    Cmd.ofMsg UpdateBoundingBoxes
+                                                ]
 
 
     | Selecting -> 

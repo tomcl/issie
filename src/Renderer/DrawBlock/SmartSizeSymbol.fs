@@ -110,9 +110,9 @@ let reSizeSymbol
         else
             None
 
-    let getPortSep offset fstPorts sndPorts = fst sndPorts - (fst fstPorts + offset)
+    let getPortSep offset fstPorts sndPorts = fst sndPorts - fst fstPorts
 
-    let getScale portSep sndPorts = (portSep - pairDiff sndPorts) / portSep
+    let getScale offset portSep sndPorts = (portSep - (pairDiff sndPorts - offset)) / portSep
 
     let getNewPos orientation offset = 
         match orientation with
@@ -161,8 +161,8 @@ let reSizeSymbol
     let portSep = (offset, fstPorts, sndPorts) 
                   |||> Option.map3 getPortSep
     printf "%A" portSep
-    let scale = (portSep, sndPorts) 
-                ||> Option.map2 getScale
+    let scale = (offset, portSep, sndPorts) 
+                |||> Option.map3 getScale
     printf "%A" scale
     let newPos = (orientation, offset)
                  ||> Option.map2 getNewPos 

@@ -543,6 +543,7 @@ module SheetT =
         | TestSmartChannel
         | TestPortPosition
         | BeautifySheet
+        | OptimiseSymbol
 
 
     type ReadLog = | ReadLog of int

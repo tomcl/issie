@@ -150,3 +150,12 @@ let reSizeSymbol
     let model' = set (symbolOf_ symbolToSize.Id) symbol' wModel
 
     smartHelpers.UpdateSymbolWires model' symbolToSize.Id
+
+/// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols
+let optimiseSymbol 
+    (wModel: BusWireT.Model) 
+    (symbol: Symbol) 
+    (smartHelpers: ExternalSmartHelpers) 
+        : BusWireT.Model =
+    
+    wModel

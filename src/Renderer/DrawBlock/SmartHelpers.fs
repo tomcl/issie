@@ -522,7 +522,7 @@ let scaleSymbolInBlock
     //Get x and y proportion of symbol to block
     let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
 
-    let newCenter = {X = (block.TopLeft.X-Mag) + ((block.W+Mag) * xProp); Y = (block.TopLeft.Y-Mag) + ((block.H+Mag) * yProp)}
+    let newCenter = {X = (block.TopLeft.X-Mag) + ((block.W+(Mag*2.)) * xProp); Y = (block.TopLeft.Y-Mag) + ((block.H+(Mag*2.)) * yProp)}
         // match scaleType with
         //     | ScaleUp ->
         //         {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}

@@ -315,7 +315,7 @@ let mDownUpdate
                                                               {model with Action = Scaling; Box = {model.Box with StartingPos= iniPos
                                                                                                                   TopLeftStart=TopLeft
                                                                                                                   WidthStart = startW
-                                                                                                                  HeightStart= startH}
+                                                                                                                  HeightStart= startH};
                                                                                                                   TmpModel = Some model}, Cmd.none
 
                 |_ ->  
@@ -501,7 +501,7 @@ let mDragUpdate
                                             let newPos = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
                                             let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
                                             //let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-                                            let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(sqrt(2.)/2.)))
+                                            let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(sqrt(2.)/2.)))
                                             let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
                                             let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
                                             let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((sqrt(2.)/2.)*distanceMoved*2.) + startWidth; H = ((sqrt(2.)/2.)*distanceMoved*2.) + startHeight}}
@@ -513,7 +513,7 @@ let mDragUpdate
                                 let newPos = {X=startPos.X-(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
                                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
                                 let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-                                let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(sqrt(2.)/2.)))
+                                let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(sqrt(2.)/2.)))
                                 let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
                                 let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
                                 let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((sqrt(2.)/2.)*distanceMoved*2.) ; H = startHeight - ((sqrt(2.)/2.)*distanceMoved*2.) }}

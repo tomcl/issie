@@ -90,6 +90,7 @@ let init () =
         Type = Constants.initialWireType
         ArrowDisplay = Constants.initialArrowDisplay
         SnapToNet = true
+        MakeChannelToggle = false
     } , Cmd.none
 
 
@@ -231,6 +232,12 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 )
 
         { model with Wires = newWires }, Cmd.none
+
+    | MakeChannel (box: BoundingBox) ->
+        if model.MakeChannelToggle then
+            SmartChannel.smartChannelRoute Vertical box model, Cmd.none
+        else
+            model, Cmd.none
 
     | DeleteWires (connectionIds : list<ConnectionId>) ->
         // deletes wires from model, then runs bus inference

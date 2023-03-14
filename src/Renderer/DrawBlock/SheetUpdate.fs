@@ -802,7 +802,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             { SmartPortOrder.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
 
         {model with Wire = SmartBeautify.smartBeautify model.Wire helpers}, Cmd.none
-
+    
+    | MakeChannelToggle ->
+        {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none
+    
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 

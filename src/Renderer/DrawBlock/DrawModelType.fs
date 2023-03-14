@@ -340,6 +340,7 @@ module BusWireT =
             Type : WireType
             ArrowDisplay: bool
             SnapToNet: bool
+            MakeChannelToggle: bool
         }
     
     //----------------------------Message Type-----------------------------------//
@@ -368,6 +369,7 @@ module BusWireT =
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
         | ToggleSnapToNet
+        | MakeChannel of BoundingBox // For manual channel routing
 
     open Optics
     open Operators
@@ -546,6 +548,7 @@ module SheetT =
         | TestPortPosition
         | ToggleSnapToNet
         | BeautifySheet
+        | MakeChannelToggle
 
 
     type ReadLog = | ReadLog of int

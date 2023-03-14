@@ -501,10 +501,9 @@ let mDragUpdate
                                                         Box = newBox}, Cmd.ofMsg CheckAutomaticScrolling
                 | x ->  
                                 let newPos = {X=startPos.X-(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
-                                let newTopLeft = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
                                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
                                 let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-                                let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
+                                let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
                                 let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((sqrt(2.)/2.)*distanceMoved*2.) ; H = startHeight - ((sqrt(2.)/2.)*distanceMoved*2.) }}
                                 {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newMap}}
                                             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}

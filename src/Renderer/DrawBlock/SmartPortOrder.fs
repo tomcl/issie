@@ -71,9 +71,12 @@ type Direction =
 
 /// Finds the Dominant Edge of a Symbol.
 let getSymDominantEdge (symPorts: PortInfo list) =
+    
+    /// Checks if we have ports for an Edge.
     let edgeExists (edge: Edge) =
         symPorts |> List.exists (fun port -> port.Orientation = edge)
 
+    /// Calculates Edge with most ports.
     let modeEdge (ports: PortInfo list) =
         ports // Otherwise get Mode Edge
         |> List.countBy (fun port -> port.Orientation)
@@ -95,16 +98,17 @@ let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
 
     let order = sym.PortMaps.Order
 
-    // Rotates the starting edge of an AntiClockwise Port Ordering Clockwise
+    /// Rotates the starting edge of an AntiClockwise Port Ordering Clockwise
     let rotClkwise (n: int) =
         ([ order[Right] ] @ [ order[Top] ] @ [ order[Left] ] @ [ order[Bottom] ])
         |> List.permute (fun idx -> (idx + n) % 4)
 
-    // Gets a Clockwise Port Reordering for a Dominant Edge Anticlockwise Ordering
+    /// Gets a Clockwise Port Reordering for a Dominant Edge Anticlockwise Ordering
     let revDirection (ports: string list list) =
         let frnt, back = List.splitAt (List.length ports - 1) ports
         (List.rev frnt) @ back |> List.map List.rev |> List.concat
 
+    /// Unwraps Ports of a Symbol by dominant Edge and Direction.
     let unwrpByDirection (n: int) =
         match direction with
         | AntiClockwise -> rotClkwise n |> List.concat
@@ -129,6 +133,7 @@ let symbolMatch (sym: Symbol) =
 /// Get Ports Betweem Symbols
 let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
 
+    /// Keeps Wire if its connected between 2IO or Custom Components.
     let keepWire (wire: Wire) =
         let getPortSymbol (portId: string) =
             match isPortInSymbol portId sym with
@@ -166,7 +171,7 @@ let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
     let symPorts, otherSymPorts =
         getConnBtwnSyms model sym otherSym
         |> Map.filter (fun _ wire -> keepWire wire)
-        |> partitionWiresByNet
+        |> partitionWiresByNet // Keep Ports of the same Net together.
         |> List.map (getPortsFrmWires model >> paritionPortsBySym)
         |> List.unzip
 
@@ -252,20 +257,20 @@ let swapPortIds (reorderPair: SymbolReorderPair) =
         let tryFindSwapId (id: string) =
             Map.tryFind id swapsPortIds |> Option.defaultWith (fun () -> id)
 
-        let updatePortMapOrder (symbol: Symbol) =
+        let updatePortMapOrder =
             let newOrder =
-                symbol.PortMaps.Order |> Map.map (fun _ order -> List.map tryFindSwapId order)
+                sym.PortMaps.Order |> Map.map (fun _ order -> List.map tryFindSwapId order)
 
-            Optic.set (portMaps_ >-> order_) newOrder symbol
+            Optic.set (portMaps_ >-> order_) newOrder
 
-        let updatePortMapOrientation (symbol: Symbol) =
+        let updatePortMapOrientation =
             let newOrientation =
-                (Map.empty, symbol.PortMaps.Orientation)
+                (Map.empty, sym.PortMaps.Orientation)
                 ||> Map.fold (fun newOrien' id edge ->
                     let id = tryFindSwapId id
                     Map.add id edge newOrien')
 
-            Optic.set (portMaps_ >-> orientation_) newOrientation symbol
+            Optic.set (portMaps_ >-> orientation_) newOrientation
 
         (updatePortMapOrder >> updatePortMapOrientation) sym
 

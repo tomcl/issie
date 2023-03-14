@@ -219,3 +219,9 @@ let updateWire (wire: Wire) (lengths: float list) : Wire =
         |> List.mapi (fun i length -> {wire.Segments[i] with Length = length})
     
     {wire with Segments = newSegments}
+
+/// HLP23: Author Omar
+/// discriminated union for return type of the smart autoroute function and other SmartWire functions
+type SmartAutorouteResult =
+    | ModelT of Model
+    | WireT of Wire

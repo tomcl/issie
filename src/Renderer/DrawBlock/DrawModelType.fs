@@ -541,7 +541,7 @@ module SheetT =
         | DebugContinue
         | DebugPause
         | SetDebugDevice of string
-        | TestPortReorder
+        | ReorderPorts
         | TestSmartChannel
         | TestPortPosition
         | ToggleSnapToNet

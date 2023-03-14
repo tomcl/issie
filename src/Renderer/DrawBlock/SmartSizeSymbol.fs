@@ -23,15 +23,14 @@ open SmartHelpers
 *)
 
 /// HLP23: AUTHOR Ifte
-/// HLP23: reSizeSymbol takes two symbols connected by wires and resizes symbolToSize so that any wires that
+/// reSizeSymbol takes two symbols connected by wires and resizes symbolToSize so that any wires that
 /// are nearly straight become straight
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
     (symbolToSize: Symbol)
     (otherSymbol: Symbol) 
         : BusWireT.Model =
-    // Currently works on the assumption that symbolToSize is always on the receiving end of wires
-    // Also assumes parallel sides are vertical
+    // Wire information needs to be properly updated
 
     let wireThreshold = 11.0
     let sModel = wModel.Symbol
@@ -114,15 +113,19 @@ let reSizeSymbol
 
     let getScale offset portSep sndPorts = (portSep - (pairDiff sndPorts - offset)) / portSep
 
-    let getNewPos orientation offset = 
+    let getNewSymbol orientation offset scale =
+        let offset' = Option.get offset
         match orientation with
-        | Horizontal -> {symbolToSize.Pos with Y = symbolToSize.Pos.Y - offset}
-        | Vertical -> {symbolToSize.Pos with X = symbolToSize.Pos.X - offset}
-
-    let getNewSymbol orientation newPos scale =
-        match orientation with
-        | Some Horizontal -> {symbolToSize with Pos = newPos; VScale = scale}
-        | Some Vertical -> {symbolToSize with Pos = newPos; HScale = scale}
+        | Some Horizontal -> 
+            let newY = symbolToSize.Pos.Y - offset'
+            let newComp = {symbolToSize.Component with Y = newY}
+            let newPos = {symbolToSize.Pos with Y = newY}
+            {symbolToSize with Pos = newPos; Component = newComp; VScale = scale}
+        | Some Vertical -> 
+            let newX = symbolToSize.Pos.X - offset'
+            let newComp = {symbolToSize.Component with X = newX}
+            let newPos = {symbolToSize.Pos with X = newX}
+            {symbolToSize with Pos = newPos; Component = newComp; HScale = scale}
         | None -> symbolToSize
 
     //let wireScale (model: Model) (sFactor: float) =
@@ -141,8 +144,6 @@ let reSizeSymbol
     let orientation = getOrientation symbolToSize otherSymbol
     let wireList = wires |> getWireList
 
-    //let connectedWires = (orientation, wireList) ||> Option.map2 getConnectedWires
-
     let wirePorts = (orientation, wireList) 
                     ||> Option.map2 getConnectedWires 
                     |> Option.map2 getWirePorts orientation
@@ -156,18 +157,17 @@ let reSizeSymbol
                    ||> Option.map2 getSndPorts
                    |> Option.map2 duplicateFilter fstPorts
                    |> Option.flatten
-    printf "%A" fstPorts
-    printf "%A" sndPorts
     let portSep = (offset, fstPorts, sndPorts) 
                   |||> Option.map3 getPortSep
-    printf "%A" portSep
     let scale = (offset, portSep, sndPorts) 
                 |||> Option.map3 getScale
-    printf "%A" scale
-    let newPos = (orientation, offset)
-                 ||> Option.map2 getNewPos 
-                 |> Option.defaultValue symbolToSize.Pos
-    let newSymbol = getNewSymbol orientation newPos scale
+    let newSymbol = getNewSymbol orientation offset scale
+
+    //printf "%A" offset
+    //printf "%A" fstPorts
+    //printf "%A" sndPorts
+    //printf "%A" portSep
+    //printf "%A" scale
 
     // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
     // Add new wires to model & new symbols to model map

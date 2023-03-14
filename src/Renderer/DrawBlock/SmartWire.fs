@@ -178,13 +178,13 @@ let createSegmentList (segLengths: float list) (wId: ConnectionId) : Segment lis
 /// generates a wire label name with a random number
 let genWireLabelName : string = 
     let random = new Random()
-    let randomNumber = random.Next(1, 99)
+    let randomNumber = random.Next(1, 199)
     let wireLabelName = "WL" + string randomNumber
     wireLabelName
 
 
 /// creates wire labels near two symbols
-let generateWireLabels (model: Model) (wire: Wire) : SmartAutorouteResult = 
+let generateWireLabels (model: Model) (wire: Wire) (wlName: string) : SmartAutorouteResult = 
     let inputPort = wire.InputPort
     let outputPort = wire.OutputPort
 
@@ -196,7 +196,7 @@ let generateWireLabels (model: Model) (wire: Wire) : SmartAutorouteResult =
 
     let outputPortPos, inputPortPos =
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
-    let wireName = genWireLabelName
+    let wireName = wlName
     
     let inputLabelPos = 
         match outputPortEdge with
@@ -285,9 +285,9 @@ let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
 
 
 /// replaces wire with wire labels 
-let replaceWithWireLabels (model: Model) (wire: Wire) : SmartAutorouteResult =
+let replaceWithWireLabels (model: Model) (wire: Wire) (wlName: string): SmartAutorouteResult =
     let newWireMap = deleteWire model wire
-    generateWireLabels newWireMap wire
+    generateWireLabels newWireMap wire wlName
 
 
 /// returns left, middle, and right conditions for symbol intersection with wire
@@ -431,7 +431,6 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                             
                         symbolInWay)                        
                             
-
                 // iterate through the list of symbols in the way and adjust the wire segments accordingly and return the wire with the adjusted segments
                 let rec adjustWireSegments wire symbolList =
                     match symbolList with
@@ -613,7 +612,9 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                 
                 if (List.length symbolInWay > 3) && (wire.Segments[4].Length > 300.0) then 
                     // if there are more than 3 symbols in the way of the wire and the wire is long enough - replace wire with wire labels
-                    replaceWithWireLabels model wire
+                    // printfn "IN ROUTING - replace wire with wire labels"
+                    let wireLabelName = genWireLabelName
+                    replaceWithWireLabels model wire wireLabelName
 
                 else 
                     let newWire = adjustWireSegments wire symbolInWay
@@ -723,14 +724,15 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                 
                 if (List.length symbolInWay > 3) && (wire.Segments[4].Length > 300.0) then 
                     // if there are more than 3 symbols in the way of the wire and the wire is long enough - replace wire with wire labels
-                    replaceWithWireLabels model wire
+                    let wireLabelName = genWireLabelName
+                    replaceWithWireLabels model wire wireLabelName
 
                 else 
                     let newWire = adjustWireSegments wire symbolInWay
                     WireT newWire
     
     routing
-            
+
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
@@ -747,5 +749,8 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
         // 3 segment wire
         let wireLength = autoWire.Segments[4].Length
         match wireLength with
-        | l when l > 600.0 -> replaceWithWireLabels model wire
+        | l when l > 600.0 -> 
+            // printfn "REPLACING WIRE LABELS IN TOP FUCNTION"
+            let wireLabelName = genWireLabelName
+            replaceWithWireLabels model wire wireLabelName
         | _ -> routeAroundSymbol model autoWire symbol

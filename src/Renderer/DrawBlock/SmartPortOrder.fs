@@ -9,6 +9,7 @@ open DrawModelType.BusWireT
 open Symbol
 open Optics
 open Operators
+open SmartHelpers
 
 
 //HLP23: Indraneel
@@ -273,7 +274,7 @@ let findInterconnectingWires (wireList:List<Wire>) (sModel)
 
 /// Some helpers which are lower in compiler order
 type BusWireHelpers = {
-    updateWire: Model -> Wire -> bool -> Wire
+    updateWire: Model -> Wire -> bool -> SmartAutorouteResult
     updateSymbolWires: Model -> ComponentId -> Model
     }
 

@@ -239,7 +239,7 @@ let editMenu dispatch' =
                makeElmItem "Toggle Snap To Net" "CmdOrCtrl+T" (fun ev -> sheetDispatch SheetT.Msg.ToggleSnapToNet)
                makeElmItem "Beautify Sheet" "CmdOrCtrl+B" (fun ev -> sheetDispatch SheetT.Msg.BeautifySheet)
                menuSeparator
-               makeItem "TestPortReorder" None (fun ev -> sheetDispatch SheetT.Msg.TestPortReorder)
+               makeElmItem "Reorder Ports" "CmdOrCtrl+R" (fun ev -> sheetDispatch SheetT.Msg.ReorderPorts)
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
 

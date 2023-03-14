@@ -74,7 +74,7 @@ let getOppEdgePortInfo
     (symbolToSize: Symbol) 
     (otherSymbol: Symbol) 
         : (portInfo * portInfo) option  =
-    let wires = getConnBtwnSyms wModel symbolToSize otherSymbol
+    let wires = getWiresBtwnSyms wModel symbolToSize otherSymbol
 
     let tryGetOppEdgePorts wireSyms =
         let portA, portB = getPortAB wModel wireSyms

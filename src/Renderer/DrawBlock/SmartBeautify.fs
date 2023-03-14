@@ -38,7 +38,7 @@ let beautifyPairs (model: BusWireT.Model) (smartHelpers: ExternalSmartHelpers) =
     ||> List.fold (fun model' (symA, symB) ->
         let syms' = model'.Symbol.Symbols
         let symA', symB' = syms'[symA.Id], syms'[symB.Id]
-        reOrderPorts model' symA' symB' smartHelpers)
+        reOrderPorts model' symA' symB' false smartHelpers)
 
 /// Header Function.
 let smartBeautify (wModel: BusWireT.Model) (smartHelpers: ExternalSmartHelpers) : BusWireT.Model =

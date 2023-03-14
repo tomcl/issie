@@ -647,7 +647,7 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
         else
             let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
             let union = boxUnion bb1 bb2
-            let topLeft = {Y=union.TopLeft.Y; X=x2}
+            let topLeft = {Y=union.TopLeft.Y; X=x1}
             Some {TopLeft = topLeft; H = union.H; W = x2 - x1}
 
         

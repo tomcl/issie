@@ -198,68 +198,68 @@ let getLabelScale =
 let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) //HLP23: Shaanuka
                         w h (symbol:Symbol) transform legendFontSize legendOffset=
     match symbolType with 
-    |OldSymbols ->  let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
+    | OldSymbols -> let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
                     let notDiameter = 8.
                     match comp.Type with
 
-                    |And -> let lineOne = makeLineAttr 0. comp.H
-                            let lineTwo = makeLineAttr (comp.W/2.) 0.
-                            let curveAttr = makePartArcAttr 5. (-(comp.H/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
-                            let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
-                            [makeAnyPath {X= 0; Y = 0} shape parameters]
+                    |And n->    let lineOne = makeLineAttr 0. comp.H
+                                let lineTwo = makeLineAttr (comp.W/2.) 0.
+                                let curveAttr = makePartArcAttr 5. (-(comp.H/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
+                                let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
+                                [makeAnyPath {X= 0; Y = 0} shape parameters]
 
-                    |Nand ->let notDiameter = 8.
-                            let width = (comp.W/2.)-(notDiameter)
-                            let lineOne = makeLineAttr 0. comp.H
-                            let lineTwo = makeLineAttr (width) 0.
-                            let curveAttr = makePartArcAttr 5. (-comp.H/2.) (-width) (comp.H/2.) width
-                            let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
-                            [makeAnyPath {X = 0; Y = 0} shape parameters;
-                            makeCircle (comp.W-notDiameter/2.) (comp.H/2.) {defaultCircle with R = (notDiameter/2.); Fill = parameters.Fill}]
+                    |Nand n->   let notDiameter = 8.
+                                let width = (comp.W/2.)-(notDiameter)
+                                let lineOne = makeLineAttr 0. comp.H
+                                let lineTwo = makeLineAttr (width) 0.
+                                let curveAttr = makePartArcAttr 5. (-comp.H/2.) (-width) (comp.H/2.) width
+                                let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
+                                [makeAnyPath {X = 0; Y = 0} shape parameters;
+                                makeCircle (comp.W-notDiameter/2.) (comp.H/2.) {defaultCircle with R = (notDiameter/2.); Fill = parameters.Fill}]
 
-                    |Or ->  let origin = -comp.W/6.
-                            let curveOne = makeQuadraticBezierAttr ((comp.W/2.)+origin) (comp.H/2.) origin comp.H
-                            let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
-                            let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
-                            let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
-                            [makeAnyPath {X = origin; Y = 0} shape parameters]
+                    |Or n ->    let origin = -comp.W/6.
+                                let curveOne = makeQuadraticBezierAttr ((comp.W/2.)+origin) (comp.H/2.) origin comp.H
+                                let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
+                                let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
+                                let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
+                                [makeAnyPath {X = origin; Y = 0} shape parameters]
 
-                    |Nor -> let origin = (-comp.W/6.)
-                            let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H
-                            let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)
-                            let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
-                            let orShape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
-                            [makeAnyPath {X = origin; Y = 0} orShape parameters;
-                            makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}]
+                    |Nor n ->   let origin = (-comp.W/6.)
+                                let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H
+                                let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)
+                                let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
+                                let orShape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
+                                [makeAnyPath {X = origin; Y = 0} orShape parameters;
+                                makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}]
 
-                    |Not -> let notRadius = 3.
-                            let width = comp.W-(notRadius*2.)
-                            [makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
-                            makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}]
+                    |Not ->     let notRadius = 3.
+                                let width = comp.W-(notRadius*2.)
+                                [makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
+                                makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}]
 
-                    |Xor -> let origin = -comp.W/6.
-                            let curveOne = makeQuadraticBezierAttr ((comp.W/2.)) ((comp.H/2.)) origin comp.H
-                            let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
-                            let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
-                            let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
-                            let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-5.) ((comp.H/2.)) (origin-notDiameter/2.) comp.H
-                            [makeAnyPath {X = origin; Y = 0} shape parameters; 
-                            makeAnyPath {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"}]
+                    |Xor n->    let origin = -comp.W/6.
+                                let curveOne = makeQuadraticBezierAttr ((comp.W/2.)) ((comp.H/2.)) origin comp.H
+                                let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
+                                let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
+                                let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
+                                let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-5.) ((comp.H/2.)) (origin-notDiameter/2.) comp.H
+                                [makeAnyPath {X = origin; Y = 0} shape parameters; 
+                                makeAnyPath {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"}]
 
-                    |Xnor ->let origin = -comp.W/6.
-                            let notDiameter = 8.
-                            let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H
-                            let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)
-                            let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
-                            let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter-5.) ((comp.H/2.)) (origin-notDiameter/2.) comp.H
-                            let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
-                            [makeAnyPath {X = origin; Y = 0} shape parameters; 
-                            makeAnyPath {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"};
-                            makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}]
+                    |Xnor n ->  let origin = -comp.W/6.
+                                let notDiameter = 8.
+                                let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H
+                                let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)
+                                let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
+                                let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter-5.) ((comp.H/2.)) (origin-notDiameter/2.) comp.H
+                                let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
+                                [makeAnyPath {X = origin; Y = 0} shape parameters; 
+                                makeAnyPath {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"};
+                                makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}]
 
                     |_ ->   createBiColorPolygon points colour outlineColour opacity strokeWidth comp
 
-    |_ ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp) @(addLegendText (legendOffset w h symbol) 
+    | _ ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp) @(addLegendText (legendOffset w h symbol) 
                         (getComponentLegend comp.Type transform.Rotation) "middle" "bold" (legendFontSize comp.Type))
 
 /// Draw symbol (and its label) using theme for colors, returning a list of React components 
@@ -346,8 +346,10 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=H/2.}; {X=W;Y=H/2.}|]
             | BusCompare _ |BusCompare1 _-> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*0.6;Y=H};{X=W*0.8;Y=H*0.7};{X=W;Y=H*0.7};{X=W;Y =H*0.3};{X=W*0.8;Y=H*0.3};{X=W*0.6;Y=0}|]
-            | Not | Nand | Nor | Xnor ->
+            | Not ->
                   [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
+            | Nand n | Nor n| Xnor n ->
+                  [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|] //HLP23:Shaanuka
             | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ 
             | Counter _ | CounterNoEnable _ 
             | CounterNoLoad _ | CounterNoEnableLoad _ -> 

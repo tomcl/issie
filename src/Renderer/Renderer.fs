@@ -243,6 +243,7 @@ let editMenu dispatch' =
                makeElmItem "Reorder Ports" "CmdOrCtrl+R" (fun ev -> sheetDispatch SheetT.Msg.ReorderPorts)
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
+               makeItem "OptimiseSymbol" None (fun ev -> sheetDispatch SheetT.Msg.OptimiseSymbol)
 
                
             |]

@@ -283,7 +283,7 @@ module CommonTypes
     }
         with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
     
-    
+    type ScaleFactor = { x: float; y: float }
     type ScaleAdjustment =
         | Horizontal
         | Vertical

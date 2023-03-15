@@ -806,6 +806,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | MakeChannelToggle ->
         {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none
     
+    | OptimiseSymbol ->        
+        validateSingleSelectedSymbol model
+        |> function
+            | Some (s1) -> 
+                let helpers = 
+                    { SmartSizeSymbol.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
+                model, Cmd.none
+            | None ->
+                printfn "Error: can't validate the two symbols selected to reorder ports"
+                model, Cmd.none
+        
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -837,6 +848,7 @@ let init () =
         CursorType = Default
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }
+        LastValidSymbol = None
         CurrentKeyPresses = Set.empty
         UndoList = []
         RedoList = []

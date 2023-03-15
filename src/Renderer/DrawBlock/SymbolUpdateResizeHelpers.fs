@@ -13,6 +13,9 @@ open Operators
 open SymbolHelpers
 
 /// HLP23 AUTHOR: BRYAN TAN 
+module Constants =
+    [<Literal>]
+    let smallPosOffset = 0.0001
 
 let changeSymbolCorners showCorners sym = 
     set (appearance_ >-> showCorners_) showCorners sym
@@ -71,8 +74,7 @@ let manualSymbolResize (model: Model) (compId : ComponentId) (fixedCornerLoc: XY
     let reflections =
         // hack to get the sign of the vector components from fixed point to opposite diagonal
         // without smallPosOffset diag may have a 0 element which is troublesome
-        let smallPosOffset = 0.0001
-        let diag = symbol.Pos + {X = smallPosOffset; Y = smallPosOffset} - fixedCornerLoc
+        let diag = symbol.Pos + {X = Constants.smallPosOffset; Y = Constants.smallPosOffset} - fixedCornerLoc
         let fixedToMouse = pos - fixedCornerLoc
         let vReflect = if sign diag.X <> sign fixedToMouse.X then Some (XHorizontal fixedCornerLoc.X) else None
         let hReflect = if sign diag.Y <> sign fixedToMouse.Y then Some (YVertical fixedCornerLoc.Y) else None

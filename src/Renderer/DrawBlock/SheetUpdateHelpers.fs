@@ -149,11 +149,11 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
             if notIntersectingComponents model bBox compId then [] else [compId]
 
         {model with
-             Action = nextAction
-             SnapSymbols = snapXY
-             LastMousePos = mMsg.Pos
-             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-             ErrorComponents = errorComponents},
+            Action = nextAction
+            SnapSymbols = snapXY
+            LastMousePos = mMsg.Pos
+            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+            ErrorComponents = errorComponents},
         Cmd.batch [ symbolCmd (MoveSymbols (model.SelectedComponents, moveDelta))
                     Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head)
                     symbolCmd (ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))

@@ -44,6 +44,7 @@ open Operators
         - Only Components with 2 IO ports are ordered (eg. Mux2, DeMux2, etc).    
     4) Flip the Select of Mux/Demux.
         - We flip the select if its connected to a port on another component on the same edge.
+        - And if all the Input ports are connected to the same component.
 *)
 
 /// Holds data about External Helpers required.
@@ -72,7 +73,7 @@ type Direction =
 
 /// Finds the Dominant Edge of a Symbol.
 let getSymDominantEdge (symPorts: PortInfo list) =
-    
+
     /// Checks if we have ports for an Edge.
     let edgeExists (edge: Edge) =
         symPorts |> List.exists (fun port -> port.Orientation = edge)
@@ -277,8 +278,9 @@ let swapPortIds (reorderPair: SymbolReorderPair) =
 
     [ swapIds reorderPair.Symbol; swapIds reorderPair.OtherSymbol ]
 
-/// Flips Mux Select.
-let flipMuxSel (model: BusWireT.Model) (switch: bool) (sym: Symbol) =
+/// Flips Mux Select
+/// If all its Inputs are connected to the same component and Sel is on same Edge as its connected Port.
+let flipMuxSel (model: BusWireT.Model) (sym: Symbol) (othSym: Symbol) =
 
     /// Sets of components to flip select.
     let symMatch (sym: Symbol) =
@@ -287,70 +289,86 @@ let flipMuxSel (model: BusWireT.Model) (switch: bool) (sym: Symbol) =
         | Demux2 | Demux4 | Demux8 -> Mux2
         | otherCompType -> otherCompType
 
-    /// Gets Wire Connected to Mux Sel and its Ports.
-    let getMuxSelPorts (sym: Symbol) =
-        let muxSelEdge =
-            sym.PortMaps.Order
-            |> Map.pick (fun edge ports -> if List.length ports = 0 then Some edge.Opposite else None)
+    /// Gets Ports connected to Mux/Demux's Inputs
+    let getMuxInpConn (mux: Symbol) (othSym: Symbol) =
+        let getPortInfoFromWire (wire: Wire) =
+            let getPortInfo (portId: string) =
+                { Port = getPort model.Symbol portId
+                  Orientation = getPortOrientationFrmPortIdStr model.Symbol portId }
 
-        let muxSelPort = sym.PortMaps.Order[muxSelEdge] |> List.head
+            let inpPort, outPort =
+                getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
 
-        let muxSelWire =
-            model.Wires
-            |> Map.filter (fun _ wire -> getInputPortIdStr wire.InputPort = muxSelPort)
-            |> Map.toList
-            |> List.tryHead
+            getPortInfo inpPort, getPortInfo outPort
 
-        match muxSelWire with
-        | Some(_, wire) -> Some(getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort)
-        | _ -> None
+        let inpPorts = mux.Component.InputPorts |> List.map (fun port -> port.Id)
 
-    /// Moves Mux Sel if Wire exists.
-    let moveMuxSel (sym: Symbol) =
+        getConnBtwnSyms model mux othSym
+        |> Map.filter (fun _ wire -> List.contains (getInputPortIdStr wire.InputPort) inpPorts)
+        |> Map.toList
+        |> List.map (snd >> getPortInfoFromWire)
 
-        let updateOri (portId: string) (ori: Edge) =
-            sym.PortMaps.Orientation
-            |> Map.add portId ori
+    /// Gets Mux Sel Port.
+    let getMuxSelPort (mux: Symbol) =
+        mux.PortMaps.Order
+        |> Map.pick (fun edge ports ->
+            match List.length ports = 0 with // Sel is always opposite an Edge with no Ports.
+            | true -> Some mux.PortMaps.Order[edge.Opposite]
+            | _ -> None)
+        |> List.head
+
+    /// Flips Mux Select
+    let flipSel (mux: Symbol) (othSym: Symbol) =
+
+        let updateOri (port: PortInfo) =
+            let portId, portOri = port.Port.Id, port.Orientation
+
+            mux.PortMaps.Orientation
+            |> Map.add portId portOri.Opposite
             |> set (portMaps_ >-> orientation_)
 
-        let updateOrd (portId: string) (ori: Edge) =
-            sym.PortMaps.Order
-            |> Map.add ori [ portId ]
-            |> Map.change ori.Opposite (fun ports ->
+        let updateOrd (port: PortInfo) =
+            let portId, portOri = port.Port.Id, port.Orientation
+
+            mux.PortMaps.Order
+            |> Map.add portOri.Opposite [ portId ]
+            |> Map.change portOri (fun ports ->
                 match ports with
                 | Some ports' -> List.filter (fun id -> id <> portId) ports' |> Some
                 | _ -> None)
             |> set (portMaps_ >-> order_)
 
-        match getMuxSelPorts sym with
-        | Some(selPort, othPort) ->
-            let selOrie, othOrie =
-                getPortOrientationFrmPortIdStr model.Symbol selPort, getPortOrientationFrmPortIdStr model.Symbol othPort
+        let muxInpConns = getMuxInpConn mux othSym
 
-            match (selOrie = othOrie) && switch with // Only update when Switch enabled.
-            | false -> sym
-            | _ -> (updateOrd selPort selOrie.Opposite >> updateOri selPort selOrie.Opposite) sym
-        | None -> sym
+        match muxInpConns.Length = mux.Component.InputPorts.Length with // All input ports are connected.
+        | true ->
+            let muxP, othP =
+                muxInpConns |> List.find (fun (muxP, _) -> muxP.Port.Id = getMuxSelPort mux)
 
-    match symMatch sym with
-    | Mux2 -> moveMuxSel sym
-    | _ -> sym
+            match muxP.Orientation = othP.Orientation with // Sel Port is on same Edge as Input Port.
+            | true -> (updateOrd muxP >> updateOri muxP) mux, othSym
+            | _ -> mux, othSym
+        | _ -> mux, othSym
+
+    match symMatch sym, symMatch othSym with
+    | Mux2, _ -> flipSel sym othSym
+    | _, Mux2 -> flipSel othSym sym
+    | _ -> sym, othSym
 
 /// Reorders ports so interconnecting wires do not cross.
 let reOrderPorts
     (wModel: BusWireT.Model)
     (symToOrder: Symbol)
     (otherSym: Symbol)
-    (muxFlipSwitch: bool)
     (smartHelpers: ExternalSmartHelpers)
     : BusWireT.Model =
 
     printfn $"ReorderPorts: ToOrder:{symToOrder.Component.Label}, Other:{otherSym.Component.Label}"
 
     let updatedSymbols =
-        getSymReorderPair wModel symToOrder otherSym
+        flipMuxSel wModel symToOrder otherSym
+        ||> getSymReorderPair wModel
         |> swapPortIds
-        |> List.map (flipMuxSel wModel muxFlipSwitch)   
 
     let updatedModel =
         let model = updateModelSymbols wModel updatedSymbols

@@ -848,6 +848,7 @@ let init () =
         CursorType = Default
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }
+        LastValidSymbol = None
         CurrentKeyPresses = Set.empty
         UndoList = []
         RedoList = []

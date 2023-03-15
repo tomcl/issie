@@ -28,6 +28,7 @@ open SmartHelpers
 type ExternalSmartHelpers =
     { UpdateSymbolWires: Model -> ComponentId -> Model }
 
+/// record containing all the information required to calculate the position of a port on the sheet
 type portInfo = {
     port: Port;
     sym: Symbol;
@@ -41,6 +42,8 @@ type portInfo = {
     portGap: float;
 }
 
+/// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo
+/// could not simply use getPortPos because extra the data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol
 let makePortInfo (sym: Symbol) (port: Port) =
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port

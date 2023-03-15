@@ -320,24 +320,6 @@ let flipMuxSel (model: BusWireT.Model) (sym: Symbol) (othSym: Symbol) =
     /// Flips Mux Select
     let flipSel (mux: Symbol) (othSym: Symbol) =
 
-        let updateOri (port: PortInfo) =
-            let portId, portOri = port.Port.Id, port.Orientation
-
-            mux.PortMaps.Orientation
-            |> Map.add portId portOri.Opposite
-            |> set (portMaps_ >-> orientation_)
-
-        let updateOrd (port: PortInfo) =
-            let portId, portOri = port.Port.Id, port.Orientation
-
-            mux.PortMaps.Order
-            |> Map.add portOri.Opposite [ portId ]
-            |> Map.change portOri (fun ports ->
-                match ports with
-                | Some ports' -> List.filter (fun id -> id <> portId) ports' |> Some
-                | _ -> None)
-            |> set (portMaps_ >-> order_)
-
         let muxInpConns = getMuxInpConn mux othSym
 
         match muxInpConns.Length = mux.Component.InputPorts.Length with // All input ports are connected.
@@ -346,7 +328,28 @@ let flipMuxSel (model: BusWireT.Model) (sym: Symbol) (othSym: Symbol) =
                 muxInpConns |> List.find (fun (muxP, _) -> muxP.Port.Id = getMuxSelPort mux)
 
             match muxP.Orientation = othP.Orientation with // Sel Port is on same Edge as Input Port.
-            | true -> (updateOrd muxP >> updateOri muxP) mux, othSym
+            | true ->
+                /// Update PortMap Orientation
+                let updateOri =
+                    let portId, portOri = muxP.Port.Id, muxP.Orientation
+
+                    mux.PortMaps.Orientation
+                    |> Map.add portId portOri.Opposite
+                    |> set (portMaps_ >-> orientation_)
+
+                /// Update PortMap Order
+                let updateOrd =
+                    let portId, portOri = muxP.Port.Id, muxP.Orientation
+
+                    mux.PortMaps.Order
+                    |> Map.add portOri.Opposite [ portId ]
+                    |> Map.change portOri (fun ports ->
+                        match ports with
+                        | Some ports' -> List.filter (fun id -> id <> portId) ports' |> Some
+                        | _ -> None)
+                    |> set (portMaps_ >-> order_)
+
+                (updateOrd >> updateOri) mux, othSym
             | _ -> mux, othSym
         | _ -> mux, othSym
 

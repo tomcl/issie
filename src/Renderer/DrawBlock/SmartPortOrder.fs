@@ -10,6 +10,7 @@ open DrawModelType.BusWireT
 open SmartHelpers
 open Symbol
 open Optics
+open Optic
 open Operators
 
 
@@ -28,6 +29,8 @@ open Operators
 
     Flow of the Smart Port Reordering Algorithm:
     1) We first get SymbolReorderPair information. This includes the Symbol, OtherSymbol, Ports and their Dominant Edges.
+        - Ports
+            - We ensure ports from the same net are next to each other. This allows intersecting nets to be unwrapped.
         - Dominant Edge: 
             - Heuristic calculated from a subset of Symbol's port.
             - The Direction a Symbol faces. It's an edge where a symbol has ports but no port on another edge.
@@ -38,8 +41,10 @@ open Operators
         - We force these connection pairs to avoid wire crosses.
     3) Swap ports on the the symbol to order such that connection pairs in (2) is followed.
         - There are two valid reorderings depending on how we unwrap a symbol's port. We chose one with least swaps.
-        - Only Components with 2 IO ports are ordered (eg. Mux2, DeMux2, etc).
-        - Ports are not reordered if connections from one output to multiple inputs are present. 
+        - Only Components with 2 IO ports are ordered (eg. Mux2, DeMux2, etc).    
+    4) Flip the Select of Mux/Demux.
+        - We flip the select if its connected to a port on another component on the same edge.
+        - And if all the Input ports are connected to the same component.
 *)
 
 /// Holds data about External Helpers required.
@@ -68,9 +73,12 @@ type Direction =
 
 /// Finds the Dominant Edge of a Symbol.
 let getSymDominantEdge (symPorts: PortInfo list) =
+
+    /// Checks if we have ports for an Edge.
     let edgeExists (edge: Edge) =
         symPorts |> List.exists (fun port -> port.Orientation = edge)
 
+    /// Calculates Edge with most ports.
     let modeEdge (ports: PortInfo list) =
         ports // Otherwise get Mode Edge
         |> List.countBy (fun port -> port.Orientation)
@@ -92,16 +100,17 @@ let unwrapSymPorts (domEdge: Edge) (direction: Direction) (sym: Symbol) =
 
     let order = sym.PortMaps.Order
 
-    // Rotates the starting edge of an AntiClockwise Port Ordering Clockwise
+    /// Rotates the starting edge of an AntiClockwise Port Ordering Clockwise
     let rotClkwise (n: int) =
         ([ order[Right] ] @ [ order[Top] ] @ [ order[Left] ] @ [ order[Bottom] ])
         |> List.permute (fun idx -> (idx + n) % 4)
 
-    // Gets a Clockwise Port Reordering for a Dominant Edge Anticlockwise Ordering
+    /// Gets a Clockwise Port Reordering for a Dominant Edge Anticlockwise Ordering
     let revDirection (ports: string list list) =
         let frnt, back = List.splitAt (List.length ports - 1) ports
         (List.rev frnt) @ back |> List.map List.rev |> List.concat
 
+    /// Unwraps Ports of a Symbol by dominant Edge and Direction.
     let unwrpByDirection (n: int) =
         match direction with
         | AntiClockwise -> rotClkwise n |> List.concat
@@ -126,6 +135,7 @@ let symbolMatch (sym: Symbol) =
 /// Get Ports Betweem Symbols
 let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
 
+    /// Keeps Wire if its connected between 2IO or Custom Components.
     let keepWire (wire: Wire) =
         let getPortSymbol (portId: string) =
             match isPortInSymbol portId sym with
@@ -163,7 +173,7 @@ let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
     let symPorts, otherSymPorts =
         getConnBtwnSyms model sym otherSym
         |> Map.filter (fun _ wire -> keepWire wire)
-        |> partitionWiresByNet
+        |> partitionWiresByNet // Keep Ports of the same Net together.
         |> List.map (getPortsFrmWires model >> paritionPortsBySym)
         |> List.unzip
 
@@ -249,24 +259,104 @@ let swapPortIds (reorderPair: SymbolReorderPair) =
         let tryFindSwapId (id: string) =
             Map.tryFind id swapsPortIds |> Option.defaultWith (fun () -> id)
 
-        let updatePortMapOrder (symbol: Symbol) =
+        let updatePortMapOrder =
             let newOrder =
-                symbol.PortMaps.Order |> Map.map (fun _ order -> List.map tryFindSwapId order)
+                sym.PortMaps.Order |> Map.map (fun _ order -> List.map tryFindSwapId order)
 
-            Optic.set (portMaps_ >-> order_) newOrder symbol
+            set (portMaps_ >-> order_) newOrder
 
-        let updatePortMapOrientation (symbol: Symbol) =
+        let updatePortMapOrientation =
             let newOrientation =
-                (Map.empty, symbol.PortMaps.Orientation)
+                (Map.empty, sym.PortMaps.Orientation)
                 ||> Map.fold (fun newOrien' id edge ->
                     let id = tryFindSwapId id
                     Map.add id edge newOrien')
 
-            Optic.set (portMaps_ >-> orientation_) newOrientation symbol
+            set (portMaps_ >-> orientation_) newOrientation
 
         (updatePortMapOrder >> updatePortMapOrientation) sym
 
     [ swapIds reorderPair.Symbol; swapIds reorderPair.OtherSymbol ]
+
+/// Flips Mux Select
+/// If all its Inputs are connected to the same component and Sel is on same Edge as its connected Port.
+let flipMuxSel (model: BusWireT.Model) (sym: Symbol) (othSym: Symbol) =
+
+    /// Sets of components to flip select.
+    let symMatch (sym: Symbol) =
+        match sym.Component.Type with
+        | Mux2 | Mux4 | Mux8
+        | Demux2 | Demux4 | Demux8 -> Mux2
+        | otherCompType -> otherCompType
+
+    /// Gets Ports connected to Mux/Demux's Inputs
+    let getMuxInpConn (mux: Symbol) (othSym: Symbol) =
+        let getPortInfoFromWire (wire: Wire) =
+            let getPortInfo (portId: string) =
+                { Port = getPort model.Symbol portId
+                  Orientation = getPortOrientationFrmPortIdStr model.Symbol portId }
+
+            let inpPort, outPort =
+                getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
+
+            getPortInfo inpPort, getPortInfo outPort
+
+        let inpPorts = mux.Component.InputPorts |> List.map (fun port -> port.Id)
+
+        getConnBtwnSyms model mux othSym
+        |> Map.filter (fun _ wire -> List.contains (getInputPortIdStr wire.InputPort) inpPorts)
+        |> Map.toList
+        |> List.map (snd >> getPortInfoFromWire)
+
+    /// Gets Mux Sel Port.
+    let getMuxSelPort (mux: Symbol) =
+        mux.PortMaps.Order
+        |> Map.pick (fun edge ports ->
+            match List.length ports = 0 with // Sel is always opposite an Edge with no Ports.
+            | true -> Some mux.PortMaps.Order[edge.Opposite]
+            | _ -> None)
+        |> List.head
+
+    /// Flips Mux Select
+    let flipSel (mux: Symbol) (othSym: Symbol) =
+
+        let muxInpConns = getMuxInpConn mux othSym
+
+        match muxInpConns.Length = mux.Component.InputPorts.Length with // All input ports are connected.
+        | true ->
+            let muxP, othP =
+                muxInpConns |> List.find (fun (muxP, _) -> muxP.Port.Id = getMuxSelPort mux)
+
+            match muxP.Orientation = othP.Orientation with // Sel Port is on same Edge as Input Port.
+            | true ->
+                /// Update PortMap Orientation
+                let updateOri =
+                    let portId, portOri = muxP.Port.Id, muxP.Orientation
+
+                    mux.PortMaps.Orientation
+                    |> Map.add portId portOri.Opposite
+                    |> set (portMaps_ >-> orientation_)
+
+                /// Update PortMap Order
+                let updateOrd =
+                    let portId, portOri = muxP.Port.Id, muxP.Orientation
+
+                    mux.PortMaps.Order
+                    |> Map.add portOri.Opposite [ portId ]
+                    |> Map.change portOri (fun ports ->
+                        match ports with
+                        | Some ports' -> List.filter (fun id -> id <> portId) ports' |> Some
+                        | _ -> None)
+                    |> set (portMaps_ >-> order_)
+
+                (updateOrd >> updateOri) mux, othSym
+            | _ -> mux, othSym
+        | _ -> mux, othSym
+
+    match symMatch sym, symMatch othSym with
+    | Mux2, _ -> flipSel sym othSym
+    | _, Mux2 -> flipSel othSym sym
+    | _ -> sym, othSym
 
 /// Reorders ports so interconnecting wires do not cross.
 let reOrderPorts
@@ -278,7 +368,10 @@ let reOrderPorts
 
     printfn $"ReorderPorts: ToOrder:{symToOrder.Component.Label}, Other:{otherSym.Component.Label}"
 
-    let updatedSymbols = getSymReorderPair wModel symToOrder otherSym |> swapPortIds
+    let updatedSymbols =
+        flipMuxSel wModel symToOrder otherSym
+        ||> getSymReorderPair wModel
+        |> swapPortIds
 
     let updatedModel =
         let model = updateModelSymbols wModel updatedSymbols

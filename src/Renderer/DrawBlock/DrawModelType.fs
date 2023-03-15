@@ -248,7 +248,7 @@ module SymbolT =
         | ShowCustomCorners of compList: ComponentId list
         | HideCustomCorners of compList: ComponentId list
         | ResizeSymbol of compId: ComponentId * corner: XYPos * move: XYPos
-        | ResizeSymbolDone of compId: ComponentId * corner: XYPos * move: XYPos
+        | ResizeSymbolDone of compId: ComponentId * resetSymbol: Symbol option * corner: XYPos * move: XYPos
         | SaveSymbols
         | SetTheme of ThemeType
              //------------------------Sheet interface message----------------------------//
@@ -580,6 +580,8 @@ module SheetT =
         //Theme: ThemeType
         CursorType: CursorType
         LastValidPos: XYPos
+        // HLP23 AUTHOR: BRYAN TAN
+        LastValidSymbol: SymbolT.Symbol option
         SnapSymbols: SnapXY
         SnapSegments: SnapXY
         CurrentKeyPresses: Set<string> // For manual key-press checking, e.g. CtrlC

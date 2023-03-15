@@ -593,7 +593,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         | [] ->
             {model with Action = Idle; LastValidSymbol = None},
             Cmd.batch [
-                symbolCmd (SymbolT.ResizeSymbolDone (compId, model.LastValidSymbol, fixedCornerLoc, mMsg.Pos))
+                symbolCmd (SymbolT.ResizeSymbolDone (compId, None, fixedCornerLoc, mMsg.Pos))
                 Cmd.ofMsg UpdateBoundingBoxes
                 wireCmd (BusWireT.UpdateSymbolWires compId);]
         | _ ->

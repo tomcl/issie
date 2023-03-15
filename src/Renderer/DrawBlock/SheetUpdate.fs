@@ -749,7 +749,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
-    | TestPortReorder ->
+    | ReorderPorts ->
         // Test code called from Edit menu item
         // Validate the lits of selected symbols: it muts have just 2 for
         // the test to work.
@@ -795,12 +795,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   
     
+    | ToggleSnapToNet ->
+        model, (wireCmd BusWireT.ToggleSnapToNet)
     | BeautifySheet ->  
         let helpers =
             { SmartPortOrder.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
 
         {model with Wire = SmartBeautify.smartBeautify model.Wire helpers}, Cmd.none
-
+    
+    | MakeChannelToggle ->
+        {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none
+    
     | OptimiseSymbol ->        
         validateSingleSelectedSymbol model
         |> function

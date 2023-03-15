@@ -496,6 +496,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                     wireCmd (BusWireT.CoalesceWire connId)
                     wireCmd (BusWireT.MakeJumps [ connId ] ) ]
     | Selecting ->
+        let box = model.DragToSelectBox
         let newComponents = findIntersectingComponents model model.DragToSelectBox
         let newWires = 
             BusWireUpdate.getIntersectingWires model.Wire model.DragToSelectBox
@@ -514,7 +515,8 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             SelectedWires = selectWires; 
             AutomaticScrolling = false },
         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols selectComps)
-                    wireCmd (BusWireT.SelectWires selectWires) ]
+                    wireCmd (BusWireT.SelectWires selectWires)
+                    wireCmd (BusWireT.MakeChannel box)]
 
     | InitialiseMoving compId -> 
             // not sure there is any point to running this from mouse UP this now we are not altering selection?

@@ -12,8 +12,6 @@ open DrawModelType.SymbolT
 
 /// HLP23 AUTHOR: BRYAN TAN
 
-type scaleFactor = { x: float; y: float }
-
 /// Returns the XYPos of points defining custom component 
 let getCustomSymCorners (sym: Symbol) =
     match sym.Component.Type with
@@ -29,12 +27,12 @@ let translatePoints vector (points: XYPos[]) =
     | _ -> Array.map ((+) vector) points
 
 /// Scale a point as a vector 
-let scalePoint (scale: scaleFactor) (point: XYPos) =
+let scalePoint (scale: ScaleFactor) (point: XYPos) =
     { X=point.X * scale.x; Y=point.Y * scale.y }
 
 /// Apply scaling centered at fixedPos (p0) to vector movePos (p1)
 /// In matrix operations: (p0-p1) * M + p1
-let scaleWrtFixed (scale: scaleFactor) (fixedPos: XYPos) (movePos: XYPos) = 
+let scaleWrtFixed (scale: ScaleFactor) (fixedPos: XYPos) (movePos: XYPos) = 
     movePos 
     |> (-) fixedPos
     |> scalePoint scale

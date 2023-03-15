@@ -149,11 +149,11 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
             if notIntersectingComponents model bBox compId then [] else [compId]
 
         {model with
-             Action = nextAction
-             SnapSymbols = snapXY
-             LastMousePos = mMsg.Pos
-             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-             ErrorComponents = errorComponents},
+            Action = nextAction
+            SnapSymbols = snapXY
+            LastMousePos = mMsg.Pos
+            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+            ErrorComponents = errorComponents},
         Cmd.batch [ symbolCmd (MoveSymbols (model.SelectedComponents, moveDelta))
                     Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head)
                     symbolCmd (ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
@@ -296,7 +296,9 @@ let mDownUpdate
             if not model.CtrlKeyDown then
                 model, Cmd.none
             else
-                {model with Action = ResizingSymbol (compId, fixedCornerLoc)}
+                let symbolMap = Optic.get symbols_ model
+                let symbol = symbolMap[compId]
+                {model with Action = ResizingSymbol (compId, fixedCornerLoc); LastValidSymbol = Some symbol }
                 , symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
 
         | Component compId ->
@@ -470,9 +472,16 @@ let mDragUpdate
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
     // HLP23 AUTHOR: BRYAN TAN
     | ResizingSymbol (compId, fixedCornerLoc) ->
-        model,
+        let bBox = model.BoundingBoxes[compId]
+        let errorComponents  =
+            if notIntersectingComponents model bBox compId then [] else [compId]
+        // let lastValidPos = 
+        //     if errorComponents.IsEmpty then mMsg.Pos else model.LastValidPos
+        {model with ErrorComponents = errorComponents},
         Cmd.batch [
             symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
+            Cmd.ofMsg (UpdateSingleBoundingBox compId)
+            symbolCmd (ErrorSymbols (errorComponents,[compId],false))
             wireCmd (BusWireT.UpdateSymbolWires compId);]
         
     | Panning initPos->
@@ -580,11 +589,30 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             wireCmd (BusWireT.RerouteWire portId)]
     // HLP23 AUTHOR: BRYAN TAN
     | ResizingSymbol (compId, fixedCornerLoc) -> 
-        {model with Action = Idle},
-        Cmd.batch [
-            symbolCmd (SymbolT.ResizeSymbolDone (compId, fixedCornerLoc, mMsg.Pos))
-            Cmd.ofMsg UpdateBoundingBoxes
-            wireCmd (BusWireT.UpdateSymbolWires compId);]
+        match model.ErrorComponents with 
+        | [] ->
+            {model with Action = Idle; LastValidSymbol = None},
+            Cmd.batch [
+                symbolCmd (SymbolT.ResizeSymbolDone (compId, None, fixedCornerLoc, mMsg.Pos))
+                Cmd.ofMsg UpdateBoundingBoxes
+                wireCmd (BusWireT.UpdateSymbolWires compId);]
+        | _ ->
+            let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
+            let lastValidSymbol = model.LastValidSymbol
+            {model with
+                BoundingBoxes = model.LastValidBoundingBoxes
+                Action = Idle
+                SnapSymbols = emptySnap
+                SnapSegments = emptySnap
+                AutomaticScrolling = false 
+                LastValidSymbol = None
+            },
+            Cmd.batch [ 
+                symbolCmd (SymbolT.ResizeSymbolDone (compId, model.LastValidSymbol, fixedCornerLoc, mMsg.Pos))
+                Cmd.ofMsg UpdateBoundingBoxes
+                symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
+                wireCmd (BusWireT.UpdateSymbolWires compId);
+            ]
     | _ -> model, Cmd.none
 
 /// Mouse Move Update, looks for nearby components and looks if mouse is on a port
@@ -645,6 +673,23 @@ let getVisibleScreenCentre (model : Model) : XYPos =
         X = (canvas.scrollLeft + canvas.clientWidth / 2.0) / model.Zoom
         Y = (canvas.scrollTop + canvas.clientHeight / 2.0) / model.Zoom
     }
+
+let validateSingleSelectedSymbol (model:Model) =
+    match model.SelectedComponents with
+    | [s1] as sym -> 
+        let symbols = model.Wire.Symbol.Symbols
+        let getSym sId = 
+            Map.tryFind sId symbols
+        match getSym s1 with
+        | Some s1-> 
+            printfn $"Testing with\ns1= {s1.Component.Type}"
+            Some(s1)
+        | _ -> 
+            printfn "Error: can't validate the selected symbol"
+            None
+    | _ -> 
+        printfn $"Did not select single symbol"
+        None
 
 let validateTwoSelectedSymbols (model:Model) =
         match model.SelectedComponents with

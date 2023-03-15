@@ -908,9 +908,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let helpers = { SymbolUpdateResizeHelpers.ExternalHelpers.FlipSymbol = flipSymbol }
         manualSymbolResize (hideCompCorners model) compId fixedCornerLoc pos helpers
 
-    | ResizeSymbolDone (compId, fixedCornerLoc, pos) ->
-        let newSymbol = set (appearance_ >-> showCorners_) DontShow model.Symbols[compId]
-        set (symbolOf_ compId) newSymbol model, Cmd.none
+    | ResizeSymbolDone (compId, resetSymbol, fixedCornerLoc, pos) ->
+        match resetSymbol with
+        | Some sym ->
+            set (symbolOf_ compId) sym model, Cmd.none
+        | None ->
+            let newSymbol = set (appearance_ >-> showCorners_) DontShow model.Symbols[compId]
+            set (symbolOf_ compId) newSymbol model, Cmd.none
     
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols

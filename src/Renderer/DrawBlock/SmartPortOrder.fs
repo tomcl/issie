@@ -248,16 +248,15 @@ let sortMultPorts
     (combinedOtherSymbolsOrientation: Map<string,Edge>)
     (combinedOtherSymbolsOrder: Map<Edge,string list>)
        : list<list<string * string * Edge * Edge>> =
-       connectedPortsNeeded 
-                |> List.filter (fun (_,lst) -> combinedOtherSymbolsOrientation 
-                                                                                    |> Map.containsKey (lst[0]|> (fun (x,_,_,_)->x)))
-                |> List.map (fun (_,lst)->lst)
-                |> List.map (fun y -> 
-                                                    sortByOther  (combinedOtherSymbolsOrder 
-                                                                                |> Map.find (combinedOtherSymbolsOrientation
-                                                                                                    |>Map.find (y[0] |> (fun (x,_,_,_)-> x)))) 
-                                                                        y)
-    
+      connectedPortsNeeded 
+        |> List.map (fun (e,lst) ->
+                            List.filter (fun (x,y,z,i)-> combinedOtherSymbolsOrientation |> Map.containsKey x) lst)
+        |> List.map (fun y -> 
+                                            sortByOther  (combinedOtherSymbolsOrder 
+                                                                    |> Map.find (combinedOtherSymbolsOrientation
+                                                                                    |>Map.find (y[0] |> (fun (x,_,_,_)-> x)))) 
+                                                            y)
+
 
 // Will only reorder the component with the most wires connected to it.
 // Only works if components are connected to the SymbolToReorder from the same edge.
@@ -269,7 +268,7 @@ let multipleReorderPorts
         : BusWireT.Model =
     let sModel = wModel.Symbol
 
-    printfn $"MultipleReorderPorts: Symbols:{symbols |> List.map (fun x -> x.Component.Type)}"
+    printfn $"MultipleReorderPorts: Symbols:{symbols |> List.map (fun x -> x.Component.Type, x.PortMaps.Orientation)}"
 
     let connectedPorts = wModel.Wires |> Map.toList |> List.collect (fun (_,x) -> [$"{x.InputPort}"; $"{x.OutputPort}"])
     let listofOrientationMaps = symbols |> List.map (fun x -> x.PortMaps.Orientation)
@@ -277,6 +276,7 @@ let multipleReorderPorts
     let otherSymbols =  symbols |> List.filter (fun x -> x.PortMaps.Orientation <> symOrientationList)
     let symbolToOrder=  (List.except otherSymbols symbols)[0]
 
+    printfn $"OtherSymbolOrientationList : {otherSymbols |> List.map (fun x -> x.PortMaps.Orientation)}"
     let wiresSymbolToOrder = 
         wModel.Wires 
         |> Map.toList 

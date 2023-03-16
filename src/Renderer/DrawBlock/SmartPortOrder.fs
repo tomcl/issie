@@ -203,6 +203,10 @@ let CombineOtherSymbols
                                                         Orientation= newOrientationMap}
         }
 
+let fst4 (quad:string*string*Edge*Edge) = 
+    match quad with
+    | (a,_,_,_) -> a
+
 //Creates a symbol that combines all ports of Othersymbols
 let createOtherSymbol 
     (otherSymbols: Symbol list)
@@ -210,18 +214,30 @@ let createOtherSymbol
     (connectedPortsNeeded: list<Edge * list<string * string * Edge * Edge>>)
         : Symbol =
 
-    let edgeToSortBy= 
+    let edgeToSortBy =
         connectedPortsNeeded
-        |> List.maxBy (fun (_, lst) -> lst.Length)
-        |> fst
+        |> List.filter (fun (_, ports) ->
+            otherSymbols
+            |> List.exists (fun symbol -> symbol.PortMaps.Orientation.ContainsKey (fst4 ports[0])))
+        |> List.map fst
     
-    match edgeToSortBy with
-        | Left | Right->  
+    match edgeToSortBy[0] with
+        | Left ->  
                 let SymbolsInOrder =
                     otherSymbols 
                     |> List.sortByDescending (fun x -> x.Pos.Y)
                 CombineOtherSymbols SymbolsInOrder symbolToOrder
-        | Top | Bottom ->  
+        | Right -> 
+                let SymbolsInOrder =
+                    otherSymbols 
+                    |> List.sortBy (fun x -> x.Pos.Y)
+                CombineOtherSymbols SymbolsInOrder symbolToOrder
+        | Bottom -> 
+                let SymbolsInOrder =
+                    otherSymbols 
+                    |> List.sortByDescending (fun x -> x.Pos.X)
+                CombineOtherSymbols SymbolsInOrder symbolToOrder
+        | Top ->  
                     let SymbolsInOrder =
                         otherSymbols 
                         |> List.sortBy (fun x -> x.Pos.X)
@@ -248,14 +264,15 @@ let sortMultPorts
     (combinedOtherSymbolsOrientation: Map<string,Edge>)
     (combinedOtherSymbolsOrder: Map<Edge,string list>)
        : list<list<string * string * Edge * Edge>> =
-      connectedPortsNeeded 
+    connectedPortsNeeded 
         |> List.map (fun (e,lst) ->
                             List.filter (fun (x,y,z,i)-> combinedOtherSymbolsOrientation |> Map.containsKey x) lst)
+        |> List.filter (fun x -> x<>[])
         |> List.map (fun y -> 
                                             sortByOther  (combinedOtherSymbolsOrder 
                                                                     |> Map.find (combinedOtherSymbolsOrientation
-                                                                                    |>Map.find (y[0] |> (fun (x,_,_,_)-> x)))) 
-                                                            y)
+                                                                                      |>Map.find (y[0] |> (fun (x,_,_,_)-> x)))) 
+                                                         y)
 
 
 // Will only reorder the component with the most wires connected to it.

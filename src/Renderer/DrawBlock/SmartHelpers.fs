@@ -147,6 +147,7 @@ let sortByOther
     (list2 : string list)
     (list1 : (string*string*Edge*Edge) list) 
         : (string*string*Edge*Edge) list=
+    printfn "Here2"
     list1
     |> List.sortBy (fun (x,_,_,_) -> List.findIndex (fun s -> s = x) list2)
 

@@ -212,36 +212,38 @@ let createOtherSymbol
     (otherSymbols: Symbol list)
     (symbolToOrder: Symbol)
     (connectedPortsNeeded: list<Edge * list<string * string * Edge * Edge>>)
-        : Symbol =
+        : list<Symbol> =
 
-    let edgeToSortBy =
+    let edgesToSortBy =
         connectedPortsNeeded
         |> List.filter (fun (_, ports) ->
             otherSymbols
             |> List.exists (fun symbol -> symbol.PortMaps.Orientation.ContainsKey (fst4 ports[0])))
         |> List.map fst
     
-    match edgeToSortBy[0] with
-        | Left ->  
-                let SymbolsInOrder =
-                    otherSymbols 
-                    |> List.sortByDescending (fun x -> x.Pos.Y)
-                CombineOtherSymbols SymbolsInOrder symbolToOrder
-        | Right -> 
-                let SymbolsInOrder =
-                    otherSymbols 
-                    |> List.sortBy (fun x -> x.Pos.Y)
-                CombineOtherSymbols SymbolsInOrder symbolToOrder
-        | Bottom -> 
-                let SymbolsInOrder =
-                    otherSymbols 
-                    |> List.sortByDescending (fun x -> x.Pos.X)
-                CombineOtherSymbols SymbolsInOrder symbolToOrder
-        | Top ->  
-                    let SymbolsInOrder =
-                        otherSymbols 
-                        |> List.sortBy (fun x -> x.Pos.X)
-                    CombineOtherSymbols SymbolsInOrder symbolToOrder
+    edgesToSortBy
+    |> List.map (fun x -> 
+                                match x with
+                                    | Left ->  
+                                            let SymbolsInOrder =
+                                                otherSymbols 
+                                                |> List.sortByDescending (fun x -> x.Pos.Y)
+                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
+                                    | Right -> 
+                                            let SymbolsInOrder =
+                                                otherSymbols 
+                                                |> List.sortBy (fun x -> x.Pos.Y)
+                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
+                                    | Bottom -> 
+                                            let SymbolsInOrder =
+                                                otherSymbols 
+                                                |> List.sortByDescending (fun x -> x.Pos.X)
+                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
+                                    | Top ->  
+                                                let SymbolsInOrder =
+                                                    otherSymbols 
+                                                    |> List.sortBy (fun x -> x.Pos.X)
+                                                CombineOtherSymbols SymbolsInOrder symbolT)
 
 //Groups the ports that are connected to the wires by the edge of the symbolToOrder they are on or connected to
 let groupPorts 

@@ -22,6 +22,10 @@ open SmartHelpers
     function for the wires.
 *)
 
+type BusWireHelpers = {
+    updateSymbolWires: Model -> ComponentId -> Model
+    }
+
 /// HLP23: AUTHOR Ifte
 /// reSizeSymbol takes two symbols connected by wires and resizes symbolToSize so that any wires that
 /// are nearly straight become straight
@@ -29,8 +33,8 @@ let reSizeSymbol
     (wModel: BusWireT.Model) 
     (symbolToSize: Symbol)
     (otherSymbol: Symbol) 
+    (busWireHelper: BusWireHelpers)
         : BusWireT.Model =
-    // Wire information needs to be properly updated
 
     let wireThreshold = 11.0
     let sModel = wModel.Symbol
@@ -81,99 +85,146 @@ let reSizeSymbol
             else
                 failwithf "no valid port IDs - check options"
 
-        lst @ [portPair]
+        lst @ [portPair, currWire.WId]
 
     let getWirePorts orientation connWires = 
         ([], connWires) 
         ||> List.fold (wirePortsFolder orientation)
-        |> List.sortBy snd
+        |> List.sortBy (fun elem -> fst (fst elem))
+
+    let splitPortsIds tripleLstOpt =
+        match tripleLstOpt with
+        | Some tripleLst -> 
+            let ports, ids = List.unzip tripleLst
+            Some ports, Some ids
+        | None -> None, None
 
     let pairDiff pair = fst pair - snd pair
-    let closeWireFinder threshold pair = (abs (pairDiff pair)) < threshold
+    let closeWireFinder threshold pair = 
+        let diff = abs (pairDiff pair)
+        diff < threshold && diff <> 0.0
 
-    let getFstPorts wirePorts = 
+    let getFstIdx wirePorts = 
         wirePorts 
-        |> List.tryFind (closeWireFinder wireThreshold)
+        |> List.tryFindIndex (closeWireFinder wireThreshold)
 
     let subOffset offset pair = fst pair - offset, snd pair
 
-    let getSndPorts offset wirePorts =
+    let getSndIdx offset wirePorts =
         wirePorts
         |> List.map (subOffset offset)
-        |> List.findIndexBack (closeWireFinder (2.0*wireThreshold)) 
-        |> List.item <| wirePorts
+        |> List.tryFindIndexBack (closeWireFinder (2.0*wireThreshold))
 
-    let duplicateFilter fstPair sndPair = 
-        if sndPair <> fstPair then
-            Some sndPair
+    let duplicateFilter fstIdx sndIdx = 
+        if sndIdx <> fstIdx then
+            Some sndIdx
         else
             None
 
-    let getPortSep offset fstPorts sndPorts = fst sndPorts - fst fstPorts
+    let getPortSep fstPorts sndPorts = fst sndPorts - fst fstPorts
 
     let getScale offset portSep sndPorts = (portSep - (pairDiff sndPorts - offset)) / portSep
 
-    let getNewSymbol orientation offset scale =
-        let offset' = Option.get offset
-        match orientation with
-        | Some Horizontal -> 
-            let newY = symbolToSize.Pos.Y - offset'
+    let getScaledSymbol orientation offset scale portPair =
+        match orientation, offset, portPair with
+        | Some Horizontal, Some offset', Some pair -> 
+            let newY = symbolToSize.Pos.Y - offset' - (1.0 - scale)*(symbolToSize.Pos.Y - fst pair)
             let newComp = {symbolToSize.Component with Y = newY}
             let newPos = {symbolToSize.Pos with Y = newY}
-            {symbolToSize with Pos = newPos; Component = newComp; VScale = scale}
-        | Some Vertical -> 
-            let newX = symbolToSize.Pos.X - offset'
+            {symbolToSize with Pos = newPos; Component = newComp; VScale = Some scale}
+        | Some Vertical, Some offset', Some pair -> 
+            let newX = snd pair
             let newComp = {symbolToSize.Component with X = newX}
             let newPos = {symbolToSize.Pos with X = newX}
-            {symbolToSize with Pos = newPos; Component = newComp; HScale = scale}
-        | None -> symbolToSize
+            {symbolToSize with Pos = newPos; Component = newComp; HScale = Some scale}
+        | _ -> symbolToSize
 
-    //let wireScale (model: Model) (sFactor: float) =
-    //    let mapLst = Map.toList model.Wires
-    //    let wiresLst = mapLst |> List.map (fun pair -> snd pair)
-    //    let segLst = ([], wiresLst) ||> List.fold (fun segLst wire -> List.append segLst [wire.Segments])
-    //    let segLst' = 
-    //        segLst 
-    //        |> List.map (fun lst -> [lst[0]; lst[1]; lst[2]; {lst[3] with Length = sFactor*lst[3].Length}; lst[4]; lst[5]; lst[6]])
-    //    let scaledWires = mapLst |> List.mapi (fun i pair -> 
-    //        let currWire = {(snd pair) with Segments = segLst'[i]}
-    //        fst pair, currWire
-    //        )
-    //    Map.ofList scaledWires
+    let getNewSymbol orientation offset scale portPair =
+        match scale with
+        | Some sFactor -> getScaledSymbol orientation offset sFactor portPair
+        | None -> getScaledSymbol orientation offset 1.0 portPair
+
+    let getWireMap orientation (wireIdLst: ConnectionId list option) wireIdx portPair wireMap =
+
+        let getWirePos orientation wireId pair =
+            let wirePos = wires[wireId].StartPos
+            match orientation with
+            | Horizontal -> {wirePos with Y = snd pair}
+            | Vertical -> {wirePos with X = snd pair}
+
+        match orientation, wireIdLst, wireIdx, portPair with
+        | Some ori, Some idLst, Some idx, Some pair ->
+            let wireId = idLst[idx]
+            let segs = wires[wireId].Segments
+            let newSegs = List.updateAt 3 {segs[3] with Length = 0.0} segs
+            let newWirePos = getWirePos ori wireId pair
+            Map.add wireId {wires[wireId] with Segments = newSegs; StartPos = newWirePos} wireMap
+        | _ -> 
+            printf "%A" "Defaulted to None"
+            wireMap
+
+
 
     let orientation = getOrientation symbolToSize otherSymbol
     let wireList = wires |> getWireList
 
-    let wirePorts = (orientation, wireList) 
-                    ||> Option.map2 getConnectedWires 
-                    |> Option.map2 getWirePorts orientation
+    let wirePorts, wireIdLst = 
+        (orientation, wireList) 
+        ||> Option.map2 getConnectedWires 
+        |> Option.map2 getWirePorts orientation
+        |> splitPortsIds
 
-    let fstPorts = wirePorts 
-                   |> Option.map getFstPorts 
-                   |> Option.flatten
-    let offset = fstPorts 
-                 |> Option.map pairDiff
-    let sndPorts = (offset, wirePorts) 
-                   ||> Option.map2 getSndPorts
-                   |> Option.map2 duplicateFilter fstPorts
-                   |> Option.flatten
-    let portSep = (offset, fstPorts, sndPorts) 
-                  |||> Option.map3 getPortSep
-    let scale = (offset, portSep, sndPorts) 
-                |||> Option.map3 getScale
-    let newSymbol = getNewSymbol orientation offset scale
+    let fstIdx = 
+        wirePorts
+        |> Option.map getFstIdx
+        |> Option.flatten
+    let fstPorts = 
+        (fstIdx, wirePorts)
+        ||> Option.map2 List.item 
 
-    //printf "%A" offset
-    //printf "%A" fstPorts
-    //printf "%A" sndPorts
-    //printf "%A" portSep
-    //printf "%A" scale
+    let offset = 
+        fstPorts 
+        |> Option.map pairDiff
 
-    // HLP23: this could be cleaned up using Optics - see SmartHelpers for examples
-    // Add new wires to model & new symbols to model map
-    {wModel with 
-        Symbol = {sModel with Symbols = Map.add newSymbol.Id newSymbol sModel.Symbols}
-    }
+    let sndIdx = 
+        (offset, wirePorts) 
+        ||> Option.map2 getSndIdx
+        |> Option.flatten
+        |> Option.map2 duplicateFilter fstIdx
+        |> Option.flatten
+    let sndPorts = 
+        (sndIdx, wirePorts)
+        ||> Option.map2 List.item 
+
+    let portSep = 
+        (fstPorts, sndPorts) 
+        ||> Option.map2 getPortSep
+    let scale = 
+        (offset, portSep, sndPorts) 
+        |||> Option.map3 getScale
+
+    printf "%A" offset
+    printf "%A" fstPorts
+    printf "%A" sndPorts
+    printf "%A" portSep
+    printf "%A" scale
+
+    let newSymbol = getNewSymbol orientation offset scale fstPorts
+
+    let newWires = 
+        wires
+        |> getWireMap orientation wireIdLst fstIdx fstPorts
+        |> getWireMap orientation wireIdLst sndIdx sndPorts
+
+    // Add new symbols to model map
+    let newModel = 
+        {wModel with 
+            Symbol = {sModel with Symbols = Map.add newSymbol.Id newSymbol sModel.Symbols}
+        }
+    // Add new wires to model
+    let newModel' = busWireHelper.updateSymbolWires newModel symbolToSize.Id
+
+    newModel'
 
 
 //HLP23: Shaanuka - Helper function for scaling custom component sizes

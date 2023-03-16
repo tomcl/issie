@@ -1052,7 +1052,7 @@ let init () =
         DebugIsConnected = false
         DebugMappings = [||]
         DebugDevice = None
-        Box = {WidthStart=0.;HeightStart=0.;TopLeftStart= {X=0;Y=0};StartingPos = {X=0;Y=0};ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
+        Box = {WidthStart=0.;HeightStart=0.;TopLeftStart= {X=0;Y=0};StartingPos = {X=0;Y=0};StartingMouse = {X=0;Y=0};ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
         ButtonList =[]
     }, Cmd.none
 

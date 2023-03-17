@@ -767,10 +767,10 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
 let getPortPos (sym: Symbol) (modifiedPort: Port): XYPos =
-
+    //HLP23: Shaanuka
     let checkPortPosType oldPort = 
-        match oldPort.HostId.Substring(oldPort.HostId.Length - 6) with 
-            | "inside" -> true
+        match oldPort.HostId.Substring(oldPort.HostId.Length - 6) with  
+            | "curved" -> true //curved used to identify curved port structure for Old OR gates since you can't pass Theme into getPortPos 
             | _ -> false
     let port = 
         match checkPortPosType modifiedPort with 
@@ -821,7 +821,7 @@ let inline getPortPosToRender (sym: Symbol) (port: Port) (theme: ThemeType): XYP
             getPortPos sym newPort
 
     match theme with
-    | OldSymbols -> getRenderPort {port with HostId = port.HostId + "inside"}
+    | OldSymbols -> getRenderPort {port with HostId = port.HostId + "curved"} // HLP23: curved used to identify curved port structure for Old OR gates since you can't pass Theme into getPortPos 
     | _ -> getRenderPort port
 
 let inline getPortPosModel (model: Model) (port:Port) =

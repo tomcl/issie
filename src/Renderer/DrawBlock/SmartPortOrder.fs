@@ -212,38 +212,36 @@ let createOtherSymbol
     (otherSymbols: Symbol list)
     (symbolToOrder: Symbol)
     (connectedPortsNeeded: list<Edge * list<string * string * Edge * Edge>>)
-        : list<Symbol> =
+        : Symbol =
 
-    let edgesToSortBy =
+    let edgeToSortBy =
         connectedPortsNeeded
         |> List.filter (fun (_, ports) ->
             otherSymbols
             |> List.exists (fun symbol -> symbol.PortMaps.Orientation.ContainsKey (fst4 ports[0])))
         |> List.map fst
     
-    edgesToSortBy
-    |> List.map (fun x -> 
-                                match x with
-                                    | Left ->  
-                                            let SymbolsInOrder =
-                                                otherSymbols 
-                                                |> List.sortByDescending (fun x -> x.Pos.Y)
-                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
-                                    | Right -> 
-                                            let SymbolsInOrder =
-                                                otherSymbols 
-                                                |> List.sortBy (fun x -> x.Pos.Y)
-                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
-                                    | Bottom -> 
-                                            let SymbolsInOrder =
-                                                otherSymbols 
-                                                |> List.sortByDescending (fun x -> x.Pos.X)
-                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
-                                    | Top ->  
-                                                let SymbolsInOrder =
-                                                    otherSymbols 
-                                                    |> List.sortBy (fun x -> x.Pos.X)
-                                                CombineOtherSymbols SymbolsInOrder symbolT)
+    match edgeToSortBy[0] with
+        | Left ->  
+                let SymbolsInOrder =
+                    otherSymbols 
+                    |> List.sortByDescending (fun x -> x.Pos.Y)
+                CombineOtherSymbols SymbolsInOrder symbolToOrder
+        | Right -> 
+                let SymbolsInOrder =
+                    otherSymbols 
+                    |> List.sortBy (fun x -> x.Pos.Y)
+                CombineOtherSymbols SymbolsInOrder symbolToOrder
+        | Bottom -> 
+                let SymbolsInOrder =
+                    otherSymbols 
+                    |> List.sortByDescending (fun x -> x.Pos.X)
+                CombineOtherSymbols SymbolsInOrder symbolToOrder
+        | Top ->  
+                    let SymbolsInOrder =
+                        otherSymbols 
+                        |> List.sortBy (fun x -> x.Pos.X)
+                    CombineOtherSymbols SymbolsInOrder symbolToOrder
 
 //Groups the ports that are connected to the wires by the edge of the symbolToOrder they are on or connected to
 let groupPorts 
@@ -255,7 +253,7 @@ let groupPorts
         |> List.map (fun (_,x)->(x.InputPort,x.OutputPort))
         |> sortInputOutput symbolToOrder
         |> List.collect (fun (x,y) -> match symOrientationList  |> Map.tryFind  y with
-                                                        | Some e -> [(x,y,e,e)]
+                                                        | Some e -> [(x,y,e,e)]                                                    
                                                         | None -> [] )
         |> List.groupBy (fun (_,_, e, _) -> e)
 
@@ -286,9 +284,7 @@ let multipleReorderPorts
         (symbols : Symbol list)
         : BusWireT.Model =
     let sModel = wModel.Symbol
-
     printfn $"MultipleReorderPorts: Symbols:{symbols |> List.map (fun x -> x.Component.Type, x.PortMaps.Orientation)}"
-
     let connectedPorts = wModel.Wires |> Map.toList |> List.collect (fun (_,x) -> [$"{x.InputPort}"; $"{x.OutputPort}"])
     let listofOrientationMaps = symbols |> List.map (fun x -> x.PortMaps.Orientation)
     let symOrientationList = getMaxComponent connectedPorts listofOrientationMaps
@@ -337,4 +333,3 @@ let multipleReorderPorts
         Wires = Map.ofList ListWires
         Symbol = newSmodel
     }
-

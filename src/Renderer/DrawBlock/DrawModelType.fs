@@ -399,6 +399,7 @@ module SheetT =
         WidthStart : float
         HeightStart : float
         StartingPos: XYPos
+        MovingPosButton : XYPos
         ShowBox: bool
         BoxBound: BoundingBox
         ScaleButton: Button

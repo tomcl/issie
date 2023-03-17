@@ -557,7 +557,7 @@ let mDownUpdate
                     
                     | _ -> 
                         printfn "Error components (Right)"
-                        {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
+                        {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with BoxBound ={TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}}}, 
                         Cmd.batch [
                                 symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
                                 Cmd.ofMsg SheetT.UpdateBoundingBoxes

@@ -174,10 +174,8 @@ let view
         displaySvgWithZoom model headerHeight style ( displayElements @ [ dragToSelectBox ] ) dispatch
     | (ConnectingInput _ | ConnectingOutput _),_ ->
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
-    | (MovingSymbols),_  ->
+    | (MovingSymbols | DragAndDrop),_  ->
         displaySvgWithZoom model headerHeight style ( displayElements @ snaps @ scalingBox) dispatch
-    | (DragAndDrop), _ ->
-        displaySvgWithZoom model headerHeight style ( displayElements @ snaps) dispatch
     | MovingWire _,_ -> 
         displaySvgWithZoom model headerHeight style (displayElements @ snaps) dispatch
     | Scaling , _ -> 

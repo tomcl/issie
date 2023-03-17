@@ -644,16 +644,63 @@ let validateMultipleSelectedSymbols (model:Model) =
             Some syms
         | _ -> printfn "Error less than two components selected"
                None
-     
 
-/// Geometric helper used for testing. Probably needs a better name, and to be collected with other
-/// This should perhaps be generalised for all orientations and made a helper function.
-/// However different testing may be needed, so who knows?
-/// Return the vertical channel between two bounding boxes, if they do not intersect and
-/// their vertical coordinates overlap.
-let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
+
+let halfBoundingBox (orientation: Orientation) (bb:BoundingBox)=
+    match orientation with
+    | Vertical -> {TopLeft = bb.TopLeft; W = bb.W/2.0; H = bb.H} 
+    | Horizontal -> {TopLeft = bb.TopLeft; W = bb.W; H = bb.H/2.0}
+
+
+
+let rec findChannel (model : SheetT.Model) (prevLeft : int) (prevRight : int) (orientation:Orientation) (currentComps : List<ComponentId>) =
+    let hd::tail = currentComps |> List.map (fun id -> model.BoundingBoxes[id])
+    let leftBounds = 
+        (hd, tail) 
+        ||> List.fold boxUnion 
+        |> halfBoundingBox orientation 
+    let leftComponents = 
+        [hd]@tail
+        |> List.mapi (fun i element -> element.TopLeft, currentComps[i])
+        |> List.filter (fun (pos, comp) -> SmartHelpers.isPositionInBounds leftBounds pos)
+    let rightComponents =
+        [hd]@tail
+        |> List.mapi (fun i element -> element.TopLeft, currentComps[i])
+        |> List.filter (fun element -> List.contains element leftComponents |> not)
+    match leftComponents.Length, rightComponents.Length with
+    | 0,_ -> 
+        Some <| (rightComponents |> List.map (fun e -> snd e)),
+        Some <| (rightComponents |> List.map (fun e -> snd e))
+    | _,0 ->
+        Some <| (leftComponents |> List.map (fun e -> snd e)),
+        Some <| (leftComponents |> List.map (fun e -> snd e))
+    | l,r when l = prevLeft ->
+        Some <| (leftComponents |> List.map (fun e -> snd e)),
+        Some <| (rightComponents |> List.map (fun e -> snd e))
+    | l,r -> 
+        snd <| findChannel model l r orientation ( leftComponents |> List.map (fun e -> snd e)),
+        fst <| findChannel model l r orientation (rightComponents |> List.map (fun e -> snd e))
+
+
+
+
+
+let rec getHorizontalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
+    if bb1.TopLeft.Y > bb2.TopLeft.Y then
+        getHorizontalChannel bb2 bb1
+    else
+        if bb1.TopLeft.Y + bb1.H > bb2.TopLeft.Y then
+            None //Vertical intersection
+        elif bb1.TopLeft.X > bb2.TopLeft.X + bb2.W|| bb1.TopLeft.X + bb1.W < bb2.TopLeft.X then
+            None //Symbols ar not aligned vertically
+        else 
+            let y1, y2 = bb1.TopLeft.Y + bb1.H, bb2.TopLeft.Y
+            let union = boxUnion bb1 bb2
+            let topLeft = {X = union.TopLeft.X; Y = y1}
+            Some {TopLeft = topLeft; W = union.W; H = y2 - y1}
+let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
     if bb1.TopLeft.X > bb2.TopLeft.X then
-        getChannel bb2 bb1
+        getVerticalChannel bb2 bb1
     else
         if  bb1.TopLeft.X + bb1.W > bb2.TopLeft.X then
             None // horizontal intersection
@@ -662,8 +709,23 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
         else
             let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
             let union = boxUnion bb1 bb2
-            let topLeft = {Y=union.TopLeft.Y; X=x2}
+            let topLeft = {Y=union.TopLeft.Y; X=x1}
             Some {TopLeft = topLeft; H = union.H; W = x2 - x1}
 
-        
-
+/// Geometric helper used for testing. Probably needs a better name, and to be collected with other
+/// This should perhaps be generalised for all orientations and made a helper function.
+/// However different testing may be needed, so who knows?
+/// Return the vertical channel between two bounding boxes, if they do not intersect and
+/// their vertical coordinates overlap.
+let getChannel (bb1:BoundingBox) (bb2:BoundingBox) (orientation : Orientation): Option<BoundingBox*Orientation> =
+    match orientation with
+    | Vertical ->
+        getVerticalChannel bb1 bb2
+        |> function
+            | Some vBB -> Some (vBB, Vertical)
+            | None -> None
+    | Horizontal -> 
+        getHorizontalChannel bb1 bb2 
+        |> function
+            | Some hBB -> Some (hBB, Horizontal)
+            | None -> None

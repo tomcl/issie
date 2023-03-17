@@ -828,26 +828,65 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | None -> 
                 printfn "Error: can't validate two or more symbols selected to reorder ports"
                 model, Cmd.none
-
-    | TestSmartChannel ->
+    | KeyPress CtrlL ->
+        let filteredWireList = model.SelectedWires 
+                            |> List.filter (fun element -> SmartHelpers.isWireConnectedToLabel model.Wire model.Wire.Wires[element] |> not)
+        match filteredWireList with
+        | hd::[] -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd)}, Cmd.none 
+        | hd::tl -> {model with Wire = (SmartHelpers.wireReplaceAllPopup model.Wire filteredWireList)}, Cmd.none
+        | _ -> 
+            printfn "No valid wires have been selected"
+            model, Cmd.none
+    | KeyPress CtrlAltL -> 
+        //Replaces all wires with labels without popup
+        //HLP23 AUTHOR: Klapper
+        let filteredWireList = model.SelectedWires 
+                            |> List.map (fun element -> model.Wire.Wires[element])
+                            |> List.filter (fun element -> SmartHelpers.isWireConnectedToLabel model.Wire element |> not)
+        match filteredWireList with
+        | hd::[] -> {model with Wire = SmartHelpers.replaceWireWithLabel model.Wire hd; UndoList = model.UndoList @ [model]}, Cmd.none
+        | hd::tl -> 
+            let newWireModel = (model.Wire, filteredWireList)
+                                ||> List.fold (fun state element -> SmartHelpers.replaceWireWithLabel state element)
+            {model with Wire = newWireModel; UndoList = model.UndoList @ [model]}, Cmd.none
+        | _ -> 
+            printfn "No valid wires have been selected"
+            model, Cmd.none
+    | TestSmartChannel (orient:Orientation)->
         // Test code called from Edit menu item
         // Validate the list of selected symbols: it muts have just two for
         // The test to work.
-         validateTwoSelectedSymbols model
-         |> function
-            | Some (s1,s2) ->
-                let bBoxes = model.BoundingBoxes
-                getChannel bBoxes[s1.Id] bBoxes[s2.Id]
-                |> function 
-                   | None -> 
-                        printfn "Symbols are not oriented for a vertical channel"
-                        model, Cmd.none
-                   | Some channel ->
-                        model.RedoList @ [model] |> ignore
-                        {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire}, Cmd.none
-            | None -> 
-                printfn "Error: can't validate the two symbols selected to reorder ports"
-                model, Cmd.none   
+        let filteredComps =
+             model.SelectedComponents 
+            |> List.filter (fun id -> model.Wire.Symbol.Symbols[id].Component.Type <> ComponentType.IOLabel)
+        match filteredComps with
+        | lst when lst.Length >= 2 ->
+            findChannel model -1 -1 orient filteredComps 
+            |> function
+                | Some l, Some r -> 
+                    let lhd::ltl = l |> List.map (fun id -> model.BoundingBoxes[id])
+                    let lBB = (lhd, ltl) ||> List.fold boxUnion
+                    let rhd::rtl = r |> List.map (fun id -> model.BoundingBoxes[id])
+                    let rBB = (rhd, rtl) ||> List.fold boxUnion
+                    getChannel lBB rBB orient
+                    |> function
+                            | None ->
+                                printfn "Symbols are not oriented for a vertical channel"
+                                model, Cmd.none
+                            | Some (channel, orient) ->
+                                    let newModel =  SmartChannel.smartChannelRoute orient channel {model with SelectedWires = []}
+                                    if newModel.SelectedWires.Length = 0 then
+                                        {newModel with RedoList = model.RedoList @ [model]}, Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))
+                                    else
+                                        {newModel with RedoList = model.RedoList @ [model]}, Cmd.batch [Cmd.ofMsg (KeyPress CtrlL);Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))]
+                | _, _ -> 
+                    printfn "Could not autoform channel from selected components"
+                    model, Cmd.none
+        | _ ->
+            printfn "Please select two or more symbols"
+            model, Cmd.none
+    
+
 
     //HLP23 AUTHOR Ismagilov
     //Caught message for scaling up selected components
@@ -951,11 +990,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 let init () =
     let wireModel, cmds = (BusWireUpdate.init ())
     let boundingBoxes = Symbol.getBoundingBoxes wireModel.Symbol
-
     {
         Wire = wireModel
-        PopupViewFunc = None
-        PopupDialogData = {Text=None; Int=None; Int2=None}
         BoundingBoxes = boundingBoxes
         LastValidBoundingBoxes = boundingBoxes
         SelectedComponents = []

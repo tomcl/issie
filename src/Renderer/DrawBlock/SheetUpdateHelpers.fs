@@ -698,15 +698,22 @@ let mDragUpdate
                 SelectedLabel = Some compId
             }, Cmd.ofMsg DoNothing
     | InitialiseMoving _ ->
-        let symButton = model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList |> List.head)
-        let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
-        let newPos = {X = (mMsg.Pos.X- model.Box.BoxBound.TopLeft.X) ;Y= (mMsg.Pos.Y-model.Box.BoxBound.TopLeft.Y)}
-        let newButtonPos = {X = (mMsg.Pos.X- symButton.Pos.X) ;Y= (mMsg.Pos.Y-symButton.Pos.Y)}
-        printfn "newPos: %A" newPos
-        printfn"model.Box.BoundBox.TopLeft original: %A" model.Box.BoxBound.TopLeft
-        let newModel, cmd = moveSymbols {model with  Box = {model.Box with MovingPosButton = newButtonPos;MovingPos = newPos ; StartingPos = model.Box.BoxBound.TopLeft}} mMsg
-        newModel, Cmd.batch [ cmd ]
+        if (model.SelectedComponents.Length > 2)
+        then
+                    let symButton = model.Wire.Symbol.Symbols
+                                                        |> Map.find (model.ButtonList |> List.head)
+                    let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
+                    let newPos = {X = (mMsg.Pos.X- model.Box.BoxBound.TopLeft.X) ;Y= (mMsg.Pos.Y-model.Box.BoxBound.TopLeft.Y)}
+                    let newButtonPos = {X = (mMsg.Pos.X- symButton.Pos.X) ;Y= (mMsg.Pos.Y-symButton.Pos.Y)}
+                    printfn "newPos: %A" newPos
+                    printfn"model.Box.BoundBox.TopLeft original: %A" model.Box.BoxBound.TopLeft
+                    let newModel, cmd = moveSymbols {model with  Box = {model.Box with MovingPosButton = newButtonPos;MovingPos = newPos ; StartingPos = model.Box.BoxBound.TopLeft}} mMsg
+                    newModel, Cmd.batch [ cmd ]
+        else 
+                let newModel, cmd = moveSymbols model mMsg
+                newModel, Cmd.batch [ cmd ]
+
+
     | MovingSymbols | DragAndDrop ->
         moveSymbols model mMsg
     | MovingLabel ->

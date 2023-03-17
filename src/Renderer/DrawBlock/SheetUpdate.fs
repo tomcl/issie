@@ -403,7 +403,22 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let rotmodel = 
             {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}}
 
-        let newModel = {rotmodel with BoundingBoxes = getBoundingBoxes rotmodel.Wire.Symbol}
+        let newModel = 
+         match (model.SelectedComponents.Length) with
+         | s when s < 2 -> {rotmodel with BoundingBoxes = getBoundingBoxes rotmodel.Wire.Symbol; }
+         | _ -> 
+            let block = SmartHelpers.getBlock (List.map (fun sId -> rotmodel.Wire.Symbol.Symbols.[sId]) model.SelectedComponents)
+            let newBoxPos = adjustPosForBlockRotation rotation rotmodel.Box.BoxBound.H rotmodel.Box.BoxBound.W (rotatePointAboutBlockCentre rotmodel.Box.BoxBound.TopLeft (block.Centre()) rotation)
+            let newBox = {rotmodel.Box with BoxBound = {rotmodel.Box.BoxBound with TopLeft = newBoxPos; H = rotmodel.Box.BoxBound.W; W = rotmodel.Box.BoxBound.H}}
+            match model.ButtonList with
+            | [] ->  {rotmodel with BoundingBoxes = getBoundingBoxes rotmodel.Wire.Symbol; Box = newBox}
+            | _ ->
+                let symButton =  rotmodel.Wire.Symbol.Symbols
+                                                |> Map.find (rotmodel.ButtonList |> List.head)
+                let newSymPos = {X = newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 39.5 ; Y = newBox.BoxBound.TopLeft.Y - 60.5 }
+                let symNewButton = {symButton with Pos = newSymPos; Component = {symButton.Component with X = newSymPos.X; Y = newSymPos.Y}}
+                let newSymModel = {rotmodel.Wire.Symbol with Symbols = (rotmodel.Wire.Symbol.Symbols |> Map.add symButton.Id symNewButton)}
+                {rotmodel with BoundingBoxes = getBoundingBoxes rotmodel.Wire.Symbol; Box = newBox; Wire = {rotmodel.Wire with Symbol = newSymModel}}
 
         let errorComponents =
             newModel.SelectedComponents
@@ -411,19 +426,35 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         printfn $"ErrorComponents={errorComponents}"
 
-        let nextAction = 
-            match errorComponents with
-                | [] -> 
-                    model.Action
-                | _ ->
-                    DragAndDrop
+        
+        match errorComponents with
+            | [] -> 
+                 match model.ButtonList with
+                 | [] ->
+                    {newModel with ErrorComponents = errorComponents; Action = Idle;},
+                        Cmd.batch [
+                            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                            Cmd.ofMsg DrawBox
+                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
+                 | _ -> 
+                    {newModel with ErrorComponents = errorComponents; Action = Idle;},
+                        Cmd.batch [
+                            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
+            | _ ->
+                {newModel with ErrorComponents = errorComponents; Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}},
+                    Cmd.batch [
+                        symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                        symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                        wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                        Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                    ]
 
-        {newModel with ErrorComponents = errorComponents; Action = nextAction;},
-        Cmd.batch [
-            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
-            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-            Cmd.ofMsg SheetT.UpdateBoundingBoxes
-        ]
+    
 
     | Flip orientation ->
         // model,

@@ -12,16 +12,20 @@ open Optics
 open Operators
 open SmartHelpers
 
-(* 
-    HLP23: This module will normally be used exclusively by team member doing the "smart resize symbol" 
-    part of the individual coding. During group phase work how it is used is up to the
-    group. Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
+// HLP23: AUTHOR Ifte
 
-    Normally it will update multiple wires and one symbols in the BusWire model so could use the SmartHelper 
-    function for the wires.
-*)
+//HLP23: Shaanuka - Helper function for scaling custom component sizes
+///Scales custom component size by multiplying the Symbol fields HScale and VScale by input float XScale and YScale and returns Symbol type .
+let symbolSizeScale (symbol: Symbol) xScale yScale =
+    let scales = symbol //{symbol with VScale = Some 1.; HScale = Some 1.} //Uncomment (replace 'symbol') to initialise scales to 1 if no initial value given
 
+    match scales.VScale, symbol.HScale with 
+    |Some vScale, Some hScale ->    let vScaleRes = vScale * yScale
+                                    let hScaleRes = hScale * xScale
+                                    {symbol with VScale = Some vScaleRes; HScale = Some hScaleRes}
+    |_, _ -> symbol
+
+// Helper function compiled later
 type BusWireHelpers = {
     updateSymbolWires: Model -> ComponentId -> Model
     }
@@ -44,10 +48,16 @@ let reSizeSymbol
     let getOrientation fstSym sndSym =
         let fstCorners = symbolBox fstSym
         let sndCorners = symbolBox sndSym
-        if (((snd fstCorners[0] > snd sndCorners[2]) || (snd fstCorners[2] < snd sndCorners[0])) && (fst fstCorners[0] < fst sndCorners[1]) && (fst fstCorners[1] > fst sndCorners[0])) then
+        if (((snd fstCorners[0] > snd sndCorners[2]) || (snd fstCorners[2] < snd sndCorners[0])) 
+            && (fst fstCorners[0] < fst sndCorners[1]) 
+            && (fst fstCorners[1] > fst sndCorners[0])) 
+        then
             printf "%A" "Vertical"
             Some Vertical
-        else if (((fst fstCorners[0] > fst sndCorners[1]) || (fst fstCorners[1] < fst sndCorners[0])) && (snd fstCorners[0] < snd sndCorners[2]) && (snd fstCorners[2] > snd sndCorners[0])) then
+        else if (((fst fstCorners[0] > fst sndCorners[1]) || (fst fstCorners[1] < fst sndCorners[0])) 
+                && (snd fstCorners[0] < snd sndCorners[2]) 
+                && (snd fstCorners[2] > snd sndCorners[0])) 
+        then
             printf "%A" "Horizontal"
             Some Horizontal
         else
@@ -66,7 +76,7 @@ let reSizeSymbol
         let orientationFilter ori wire = wire.InitialOrientation = ori
         connWires |> List.filter (orientationFilter orientation)
 
-    let wirePortsFolder orientation lst currWire =
+    let wirePortsMapper orientation currWire =
         let inputKey = string currWire.InputPort
         let outputKey = string currWire.OutputPort
         let inputPort = ports[inputKey]
@@ -80,24 +90,15 @@ let reSizeSymbol
         let portPair = 
             if outputPort.HostId = string symbolToSize.Id then
                 getPortCoord symbolToSize outputPort, getPortCoord otherSymbol inputPort
-            else if inputPort.HostId = string symbolToSize.Id then
-                getPortCoord symbolToSize inputPort, getPortCoord otherSymbol outputPort
             else
-                failwithf "no valid port IDs - check options"
+                getPortCoord symbolToSize inputPort, getPortCoord otherSymbol outputPort
 
-        lst @ [portPair, currWire.WId]
+        portPair
 
     let getWirePorts orientation connWires = 
-        ([], connWires) 
-        ||> List.fold (wirePortsFolder orientation)
-        |> List.sortBy (fun elem -> fst (fst elem))
-
-    let splitPortsIds tripleLstOpt =
-        match tripleLstOpt with
-        | Some tripleLst -> 
-            let ports, ids = List.unzip tripleLst
-            Some ports, Some ids
-        | None -> None, None
+        connWires
+        |> List.map (wirePortsMapper orientation)
+        |> List.sortBy (fun elem -> fst elem)
 
     let pairDiff pair = fst pair - snd pair
     let closeWireFinder threshold pair = 
@@ -131,12 +132,14 @@ let reSizeSymbol
             let newY = symbolToSize.Pos.Y - offset' - (1.0 - scale)*(symbolToSize.Pos.Y - fst pair)
             let newComp = {symbolToSize.Component with Y = newY}
             let newPos = {symbolToSize.Pos with Y = newY}
-            {symbolToSize with Pos = newPos; Component = newComp; VScale = Some scale}
+            let symbolToSize' = symbolSizeScale symbolToSize 1.0 scale
+            {symbolToSize' with Pos = newPos; Component = newComp}
         | Some Vertical, Some offset', Some pair -> 
             let newX = snd pair
             let newComp = {symbolToSize.Component with X = newX}
             let newPos = {symbolToSize.Pos with X = newX}
-            {symbolToSize with Pos = newPos; Component = newComp; HScale = Some scale}
+            let symbolToSize' = symbolSizeScale symbolToSize scale 1.0
+            {symbolToSize' with Pos = newPos; Component = newComp}
         | _ -> symbolToSize
 
     let getNewSymbol orientation offset scale portPair =
@@ -144,35 +147,15 @@ let reSizeSymbol
         | Some sFactor -> getScaledSymbol orientation offset sFactor portPair
         | None -> getScaledSymbol orientation offset 1.0 portPair
 
-    let getWireMap orientation (wireIdLst: ConnectionId list option) wireIdx portPair wireMap =
-
-        let getWirePos orientation wireId pair =
-            let wirePos = wires[wireId].StartPos
-            match orientation with
-            | Horizontal -> {wirePos with Y = snd pair}
-            | Vertical -> {wirePos with X = snd pair}
-
-        match orientation, wireIdLst, wireIdx, portPair with
-        | Some ori, Some idLst, Some idx, Some pair ->
-            let wireId = idLst[idx]
-            let segs = wires[wireId].Segments
-            let newSegs = List.updateAt 3 {segs[3] with Length = 0.0} segs
-            let newWirePos = getWirePos ori wireId pair
-            Map.add wireId {wires[wireId] with Segments = newSegs; StartPos = newWirePos} wireMap
-        | _ -> 
-            printf "%A" "Defaulted to None"
-            wireMap
-
 
 
     let orientation = getOrientation symbolToSize otherSymbol
     let wireList = wires |> getWireList
 
-    let wirePorts, wireIdLst = 
+    let wirePorts = 
         (orientation, wireList) 
         ||> Option.map2 getConnectedWires 
         |> Option.map2 getWirePorts orientation
-        |> splitPortsIds
 
     let fstIdx = 
         wirePorts
@@ -211,11 +194,6 @@ let reSizeSymbol
 
     let newSymbol = getNewSymbol orientation offset scale fstPorts
 
-    let newWires = 
-        wires
-        |> getWireMap orientation wireIdLst fstIdx fstPorts
-        |> getWireMap orientation wireIdLst sndIdx sndPorts
-
     // Add new symbols to model map
     let newModel = 
         {wModel with 
@@ -225,16 +203,3 @@ let reSizeSymbol
     let newModel' = busWireHelper.updateSymbolWires newModel symbolToSize.Id
 
     newModel'
-
-
-//HLP23: Shaanuka - Helper function for scaling custom component sizes
-
-///Scales custom component size by multiplying the Symbol fields HScale and VScale by input float XScale and YScale and returns Symbol type .
-let symbolSizeScale (symbol: Symbol) xScale yScale =
-    let scales = symbol //{symbol with VScale = Some 1.; HScale = Some 1.} //Uncomment (replace 'symbol') to initialise scales to 1 if no initial value given
-
-    match scales.VScale, symbol.HScale with 
-    |Some vScale, Some hScale ->    let vScaleRes = vScale * yScale
-                                    let hScaleRes = hScale * xScale
-                                    {symbol with VScale = Some vScaleRes; HScale = Some hScaleRes}
-    |_, _ -> symbol

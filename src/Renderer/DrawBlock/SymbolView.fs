@@ -85,8 +85,8 @@ let private portText (pos: XYPos) name edge =
 
 
 /// Print the name of each port 
-let drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symbol) = 
-    let getPortName name x = portText (getPortPosToRender symb portList[x]) name (symb.PortMaps.Orientation[portList.[x].Id])
+let drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symbol) (theme: ThemeType) = 
+    let getPortName name x = portText (getPortPosToRender symb portList[x] theme) name (symb.PortMaps.Orientation[portList.[x].Id])
     if listOfNames.Length < 1
     then []
     else 
@@ -95,11 +95,11 @@ let drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symb
         |> List.collect id
 
 /// Function to draw ports using getPortPos. The ports are equidistant     
-let drawPorts (portType: PortType) (portList: Port List) (showPorts:ShowPorts) (symb: Symbol)= 
+let drawPorts (portType: PortType) (portList: Port List) (showPorts: ShowPorts) (symb: Symbol) (theme: ThemeType)= 
     if not (portList.Length < 1) then       
         match (showPorts,portType) with
-        |(ShowBoth,_) |(ShowInput,PortType.Input) |(ShowOutput,PortType.Output) | (ShowBothForPortMovement,_) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) showPorts ))  
-        |(ShowOneTouching p, _) | (ShowOneNotTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x]) (showPorts) ) else (portCircles (getPortPosToRender symb portList[x]) ShowBothForPortMovement ))
+        |(ShowBoth,_) |(ShowInput,PortType.Input) |(ShowOutput,PortType.Output) | (ShowBothForPortMovement,_) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x] theme) showPorts ))  
+        |(ShowOneTouching p, _) | (ShowOneNotTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x] theme) (showPorts) ) else (portCircles (getPortPosToRender symb portList[x] theme) ShowBothForPortMovement ))
         |(_,_) -> []
     else []
 
@@ -547,9 +547,9 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | _ -> "14px"
 
     // Put everything together 
-    (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
-    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
-    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+    (drawPorts PortType.Output comp.OutputPorts showPorts symbol theme)
+    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol theme)
+    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol theme)
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)

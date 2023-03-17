@@ -698,7 +698,7 @@ let mDragUpdate
                 SelectedLabel = Some compId
             }, Cmd.ofMsg DoNothing
     | InitialiseMoving _ ->
-        if (model.SelectedComponents.Length > 2)
+        if (model.SelectedComponents.Length > 1)
         then
                     let symButton = model.Wire.Symbol.Symbols
                                                         |> Map.find (model.ButtonList |> List.head)

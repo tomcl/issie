@@ -160,13 +160,26 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     Cmd.ofMsg CheckAutomaticScrolling
                     wireCmd (BusWireT.UpdateWires (model.SelectedComponents, moveDelta))]
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
+        let newBox , newModel = 
+            match model.Action with 
+            | MovingSymbols -> 
+                            let symButton = model.Wire.Symbol.Symbols 
+                                                            |> Map.find (model.ButtonList |> List.head)
+                            let newButtonPos = {X= mMsg.Pos.X - model.Box.MovingPosButton.X; Y= mMsg.Pos.Y- model.Box.MovingPosButton.Y}
+                            let symNewButton = {symButton with Pos = newButtonPos; Component = {symButton.Component with X= newButtonPos.X; Y= newButtonPos.Y}}
+                            let newSymmodel = {model.Wire with Symbol = {model.Wire.Symbol with Symbols =(model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton) }} 
+                            let newBoxPos = {X= mMsg.Pos.X - model.Box.MovingPos.X; Y= mMsg.Pos.Y- model.Box.MovingPos.Y}
+                            {model.Box with BoxBound ={model.Box.BoxBound with TopLeft = newBoxPos}}, newSymmodel
+            | _ -> model.Box, model.Wire
         let errorComponents =
             model.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
-        {model with Action = nextAction ; 
+        {model with Wire = newModel;
+                    Action = nextAction ; 
                     LastMousePos = mMsg.Pos; 
-                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}; 
-                    ErrorComponents = errorComponents },
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move= mMsg.ScreenMovement}; 
+                    ErrorComponents = errorComponents
+                    Box = newBox },
         Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, mMsg.Pos - model.LastMousePos))
                     symbolCmd (SymbolT.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg UpdateBoundingBoxes
@@ -333,7 +346,7 @@ let mDownUpdate
                                                                                                                   WidthStart = startW
                                                                                                                   HeightStart= startH};
                                                                                                                   TmpModel = Some model}, Cmd.none
-
+                
                 |_ ->  
                         let msg, action = DoNothing, InitialiseMoving compId
                         if model.CtrlKeyDown || mMsg.ShiftKeyDown
@@ -433,6 +446,7 @@ let mDownUpdate
                                             symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
                                             Cmd.ofMsg SheetT.UpdateBoundingBoxes
                                     ]
+                
 
         | Connection connId ->
             let aSeg = BusWireUpdateHelpers.getClickedSegment model.Wire connId mMsg.Pos
@@ -684,8 +698,14 @@ let mDragUpdate
                 SelectedLabel = Some compId
             }, Cmd.ofMsg DoNothing
     | InitialiseMoving _ ->
+        let symButton = model.Wire.Symbol.Symbols
+                                            |> Map.find (model.ButtonList |> List.head)
         let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
-        let newModel, cmd = moveSymbols model mMsg
+        let newPos = {X = (mMsg.Pos.X- model.Box.BoxBound.TopLeft.X) ;Y= (mMsg.Pos.Y-model.Box.BoxBound.TopLeft.Y)}
+        let newButtonPos = {X = (mMsg.Pos.X- symButton.Pos.X) ;Y= (mMsg.Pos.Y-symButton.Pos.Y)}
+        printfn "newPos: %A" newPos
+        printfn"model.Box.BoundBox.TopLeft original: %A" model.Box.BoxBound.TopLeft
+        let newModel, cmd = moveSymbols {model with  Box = {model.Box with MovingPosButton = newButtonPos;MovingPos = newPos ; StartingPos = model.Box.BoxBound.TopLeft}} mMsg
         newModel, Cmd.batch [ cmd ]
     | MovingSymbols | DragAndDrop ->
         moveSymbols model mMsg

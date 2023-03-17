@@ -400,9 +400,11 @@ module SheetT =
         HeightStart : float
         StartingPos: XYPos
         StartingMouse: XYPos
+        MovingPosButton : XYPos
         ShowBox: bool
         BoxBound: BoundingBox
         ScaleButton: Button
+        MovingPos: XYPos
     }
 
     /// Used to keep mouse movement (AKA velocity) info as well as position

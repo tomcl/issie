@@ -512,7 +512,33 @@ let flipSymbolInBlock
 //Returns the new symbol after scaled about block centre.
 //HLP 23: AUTHOR Ismagilov
 let scaleSymbolInBlock
-    (Mag: float)
+    //(Mag: float)
+    (scaleType: ScaleType)
+    (block: BoundingBox)
+    (sym: Symbol) : Symbol =
+
+    let symCenter = getRotatedSymbolCentre sym
+
+    //Get x and y proportion of symbol to block
+    let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
+
+    let newCenter = 
+        match scaleType with
+            | ScaleUp ->
+                {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
+            | ScaleDown ->
+                {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
+
+    let h,w = getRotatedHAndW sym
+    let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
+    let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
+
+    {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+
+//Returns the new symbol after scaled about block centre.
+//HLP 23: AUTHOR Ismagilov
+let scaleSymbolInBlockGroup
+    (mag: float)
     //(scaleType: ScaleType)
     (block: BoundingBox)
     (sym: Symbol) : Symbol =
@@ -522,7 +548,7 @@ let scaleSymbolInBlock
     //Get x and y proportion of symbol to block
     let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
 
-    let newCenter = {X = (block.TopLeft.X-Mag) + ((block.W+(Mag*2.)) * xProp); Y = (block.TopLeft.Y-Mag) + ((block.H+(Mag*2.)) * yProp)}
+    let newCenter = {X = (block.TopLeft.X-mag) + ((block.W+(mag*2.)) * xProp); Y = (block.TopLeft.Y-mag) + ((block.H+(mag*2.)) * yProp)}
         // match scaleType with
         //     | ScaleUp ->
         //         {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
@@ -534,6 +560,7 @@ let scaleSymbolInBlock
     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+
 
 
 

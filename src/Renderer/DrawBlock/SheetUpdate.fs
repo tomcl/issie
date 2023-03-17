@@ -901,77 +901,77 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   
 
-    //HLP23 AUTHOR Ismagilov
-    //Caught message for scaling up selected components
-    // | KeyPress CtrlU -> 
-    //     printfn "Scaling up"
-    //     match model.SelectedComponents.Length with
-    //     | n when n<2 -> model, Cmd.none
-    //     | _ ->  
-    //         let scalemodel = 
-    //             {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol 10.)}}
+    // HLP23 AUTHOR Ismagilov
+    // Caught message for scaling up selected components
+    | KeyPress CtrlU -> 
+        printfn "Scaling up"
+        match model.SelectedComponents.Length with
+        | n when n<2 -> model, Cmd.none
+        | _ ->  
+            let scalemodel = 
+                {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleUp)}}
 
-    //         let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
+            let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
 
-    //         let errorComponents =
-    //             newModel.SelectedComponents
-    //             |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+            let errorComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
 
-    //         printfn $"ErrorComponents={errorComponents}"
+            printfn $"ErrorComponents={errorComponents}"
 
-    //         let nextAction = 
-    //             match errorComponents with
-    //                 | [] -> 
-    //                     Idle
+            let nextAction = 
+                match errorComponents with
+                    | [] -> 
+                        Idle
                         
-    //                 | _ ->
-    //                     DragAndDrop
-    //         {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
-    //         Cmd.batch [
-    //                 symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
-    //                 wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-    //                 Cmd.ofMsg SheetT.UpdateBoundingBoxes
-    //         ]
+                    | _ ->
+                        DragAndDrop
+            {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+            Cmd.batch [
+                    symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                    wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                    Cmd.ofMsg SheetT.UpdateBoundingBoxes
+            ]
 
 
-    // //HLP23 AUTHOR Ismagilov
-    // //Caught message for scaling down selected components
-    // | KeyPress CtrlI -> 
-    //     printfn "Scaling down"
-    //     match model.SelectedComponents.Length with
-    //     | n when n<2 -> model, Cmd.none
-    //     | _ ->  
-    //         let scalemodel = 
-    //             {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol 10.)}}
+    //HLP23 AUTHOR Ismagilov
+    //Caught message for scaling down selected components
+    | KeyPress CtrlI -> 
+        printfn "Scaling down"
+        match model.SelectedComponents.Length with
+        | n when n<2 -> model, Cmd.none
+        | _ ->  
+            let scalemodel = 
+                {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleDown)}}
 
-    //         let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
+            let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
 
-    //         let errorComponents =
-    //             newModel.SelectedComponents
-    //             |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+            let errorComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
 
-    //         let errorSelectedComponents =
-    //             newModel.SelectedComponents
-    //             |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
+            let errorSelectedComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
 
-    //         printfn $"ErrorComponents={errorComponents}"
+            printfn $"ErrorComponents={errorComponents}"
 
-    //         let nextAction = 
-    //             match errorComponents with
-    //                 | [] -> 
-    //                     Idle
-    //                 | _ ->
-    //                     DragAndDrop
+            let nextAction = 
+                match errorComponents with
+                    | [] -> 
+                        Idle
+                    | _ ->
+                        DragAndDrop
 
-    //         match errorSelectedComponents with
-    //             | [] ->
-    //                 {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
-    //                 Cmd.batch [
-    //                         symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
-    //                         wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-    //                         Cmd.ofMsg SheetT.UpdateBoundingBoxes
-    //                 ]
-    //             | _ -> model,Cmd.none
+            match errorSelectedComponents with
+                | [] ->
+                    {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+                    Cmd.batch [
+                            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                    ]
+                | _ -> model,Cmd.none
 
     //HLP23 AUTHOR Ismagilov
     //Sets the chosen style for the selected components
@@ -1048,7 +1048,7 @@ let init () =
         DebugIsConnected = false
         DebugMappings = [||]
         DebugDevice = None
-        Box = {MovingPosButton={X=0;Y=0};MovingPos={X=0;Y=0};WidthStart=0.;HeightStart=0.;TopLeftStart= {X=0;Y=0};StartingPos = {X=0;Y=0};ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
+        Box = {MovingPosButton={X=0;Y=0};MovingPos={X=0;Y=0};WidthStart=0.;StartingMouse = {X=0;Y=0};HeightStart=0.;TopLeftStart= {X=0;Y=0};StartingPos = {X=0;Y=0};ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
         ButtonList =[]
     }, Cmd.none
 

@@ -265,9 +265,14 @@ let mDownUpdate
         match List.isEmpty errorComponents with
         | false -> model, Cmd.none
         | true ->
+
+            let nextAction = match model.SelectedComponents.Length with
+                                             | s when s<2 -> Idle 
+                                             | _ -> Scaling
+
             {model with
                 BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol // TODO: Improve here in group stage when we are concerned with efficiency
-                Action = Idle
+                Action = nextAction
                 SnapSymbols = emptySnap
                 SnapSegments = emptySnap
                 UndoList = appendUndoList model.UndoList newModel
@@ -276,6 +281,7 @@ let mDownUpdate
             },
             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
                         wireCmd (BusWireT.SelectWires model.SelectedWires)
+                        Cmd.ofMsg DrawBox   
                         wireCmd (BusWireT.ResetJumps [])]
             
     | _ ->
@@ -291,12 +297,21 @@ let mDownUpdate
                 {model with Action = InitialiseMovingLabel compId},
                 Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
             | _ ->
-                {model with Action = InitialiseMovingLabel compId; ButtonList = []; Box = {model.Box with ShowBox = false}},
-                Cmd.batch [
-                    Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
-                    symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
-                    Cmd.ofMsg UpdateBoundingBoxes
-                ]
+                match model.ErrorComponents with
+                | [] ->
+                    {model with Action = InitialiseMovingLabel compId; ButtonList = []; Box = {model.Box with ShowBox = false}},
+                    Cmd.batch [
+                        Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
+                        symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                        Cmd.ofMsg UpdateBoundingBoxes
+                    ]
+                | _ ->   
+                    printfn "Error components (Right)"
+                    {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
+                    Cmd.batch [
+                            symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                    ]
               
         | InputPort (portId, portLoc) ->
             if not model.CtrlKeyDown then
@@ -321,86 +336,57 @@ let mDownUpdate
 
                 | s when s = ScaleButton ->   
                                                               let symButton = (model.Wire.Symbol.Symbols |> Map.find compId)
-                                                              let iniPos = symButton.Pos
+                                                              let iniPos = symButton.Pos //+ {X=((symButton.Component.W)/2.); Y=((symButton.Component.H)/2.)}
                                                               let TopLeft = model.Box.BoxBound.TopLeft
                                                               let startW = model.Box.BoxBound.W
                                                               let startH = model.Box.BoxBound.H
                                                               {model with Action = Scaling; Box = {model.Box with StartingPos= iniPos
+                                                                                                                  StartingMouse = mMsg.Pos
                                                                                                                   TopLeftStart=TopLeft
                                                                                                                   WidthStart = startW
                                                                                                                   HeightStart= startH};
                                                                                                                   TmpModel = Some model}, Cmd.none
-                |s when model.SelectedComponents |> List.contains compId->   
-                        printfn "HERE"
+                
+                |_ ->  
                         let msg, action = DoNothing, InitialiseMoving compId
-                        printfn $"Action: {action}"
                         if model.CtrlKeyDown || mMsg.ShiftKeyDown
                         then
                             let newComponents =
                                 if List.contains compId model.SelectedComponents
                                 then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
                                 else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
-                            {model with 
-                                SelectedComponents = newComponents; 
-                                SnapSymbols = emptySnap
-                                LastValidPos = mMsg.Pos ; 
-                                LastValidBoundingBoxes=model.BoundingBoxes ; 
-                                Action = action; LastMousePos = mMsg.Pos; 
-                                TmpModel = Some model; 
-                                PrevWireSelection = model.SelectedWires},
-                            Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); Cmd.ofMsg msg] 
-                        else
-                            let newComponents, newWires =
-                                if List.contains compId model.SelectedComponents
-                                then model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
-                                else [compId], [] // If user clicked on a new component, select that one instead
-                            let snapXY =
-                                match newComponents with
-                                | [compId] -> 
-                                    getNewSymbolSnapInfo model model.Wire.Symbol.Symbols[compId]
-                                | _ -> emptySnap
-                            {model with 
-                                SelectedComponents = newComponents; 
-                                SnapSymbols = snapXY
-                                LastValidPos = mMsg.Pos ; 
-                                LastValidBoundingBoxes=model.BoundingBoxes ; 
-                                SelectedWires = newWires; Action = action; 
-                                LastMousePos = mMsg.Pos; TmpModel = Some model},
-                            Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                                        wireCmd (BusWireT.SelectWires newWires)
-                                        Cmd.ofMsg msg]
-                | _ ->  
-                        let msg, action = DoNothing, InitialiseMoving compId
-                        printfn $"Action: {action}"
-                        if model.CtrlKeyDown || mMsg.ShiftKeyDown
-                        then
-                            let newComponents =
-                                if List.contains compId model.SelectedComponents
-                                then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
-                                else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
-                            // match model.ButtonList with
-                            // | [] ->
-                            {model with 
-                                SelectedComponents = newComponents; 
-                                SnapSymbols = emptySnap
-                                LastValidPos = mMsg.Pos ; 
-                                LastValidBoundingBoxes=model.BoundingBoxes ; 
-                                Action = action; LastMousePos = mMsg.Pos; 
-                                TmpModel = Some model; 
-                                PrevWireSelection = model.SelectedWires},
-                            Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); Cmd.ofMsg msg]
-                            // | _ -> 
-                            //     let buttonId = model.ButtonList
-                            //     {model with 
-                            //         SelectedComponents = newComponents; 
-                            //         SnapSymbols = emptySnap
-                            //         LastValidPos = mMsg.Pos ; 
-                            //         LastValidBoundingBoxes=model.BoundingBoxes ; 
-                            //         Action = action; LastMousePos = mMsg.Pos; 
-                            //         TmpModel = Some model; 
-                            //         PrevWireSelection = model.SelectedWires;
-                            //         ButtonList = []},
-                            //     Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); symbolCmd (SymbolT.DeleteSymbols buttonId);Cmd.ofMsg UpdateBoundingBoxes;Cmd.ofMsg msg]
+                            match model.ButtonList with
+                            | [] ->
+                                {model with 
+                                    SelectedComponents = newComponents; 
+                                    SnapSymbols = emptySnap
+                                    LastValidPos = mMsg.Pos ; 
+                                    LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                    Action = action; LastMousePos = mMsg.Pos; 
+                                    TmpModel = Some model; 
+                                    PrevWireSelection = model.SelectedWires},
+                                Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); Cmd.ofMsg msg]
+                            | _ -> 
+                                match model.ErrorComponents with
+                                | [] -> 
+                                    let buttonId = model.ButtonList
+                                    {model with 
+                                        SelectedComponents = newComponents; 
+                                        SnapSymbols = emptySnap
+                                        LastValidPos = mMsg.Pos ; 
+                                        LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                        Action = action; LastMousePos = mMsg.Pos; 
+                                        TmpModel = Some model; 
+                                        PrevWireSelection = model.SelectedWires;
+                                        ButtonList = []},
+                                    Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); symbolCmd (SymbolT.DeleteSymbols buttonId);Cmd.ofMsg UpdateBoundingBoxes;Cmd.ofMsg msg]
+                                | _ -> 
+                                    printfn "Error components (Right)"
+                                    {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
+                                    Cmd.batch [
+                                            symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                                    ]
                         else
                             let newComponents, newWires =
                                 if List.contains compId model.SelectedComponents
@@ -424,20 +410,43 @@ let mDownUpdate
                                             wireCmd (BusWireT.SelectWires newWires)
                                             Cmd.ofMsg msg]
                             | _ ->
-                                let buttonId = model.ButtonList
-                                {model with 
-                                    SelectedComponents = newComponents; 
-                                    SnapSymbols = snapXY
-                                    LastValidPos = mMsg.Pos ; 
-                                    LastValidBoundingBoxes=model.BoundingBoxes ; 
-                                    SelectedWires = newWires; Action = action; 
-                                    LastMousePos = mMsg.Pos; TmpModel = Some model;
-                                    ButtonList = []},
-                                Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                                            wireCmd (BusWireT.SelectWires newWires)
-                                            symbolCmd (SymbolT.DeleteSymbols buttonId)
-                                            Cmd.ofMsg UpdateBoundingBoxes
-                                            Cmd.ofMsg msg]
+                                match model.ErrorComponents with
+                                | [] ->
+                                    if (newComponents.Length = 1) then
+                                        let buttonId = model.ButtonList
+                                        {model with 
+                                            SelectedComponents = newComponents; 
+                                            SnapSymbols = snapXY
+                                            LastValidPos = mMsg.Pos ; 
+                                            LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                            SelectedWires = newWires; Action = action; 
+                                            LastMousePos = mMsg.Pos; TmpModel = Some model;
+                                            ButtonList = []},
+                                        Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
+                                                    wireCmd (BusWireT.SelectWires newWires)
+                                                    symbolCmd (SymbolT.DeleteSymbols buttonId)
+                                                    Cmd.ofMsg UpdateBoundingBoxes
+                                                    Cmd.ofMsg msg]
+                                    else 
+                                        {model with 
+                                            SelectedComponents = newComponents; 
+                                            SnapSymbols = snapXY
+                                            LastValidPos = mMsg.Pos ; 
+                                            LastValidBoundingBoxes=model.BoundingBoxes ; 
+                                            SelectedWires = newWires; Action = action; 
+                                            LastMousePos = mMsg.Pos; TmpModel = Some model;},
+                                        Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
+                                                    wireCmd (BusWireT.SelectWires newWires)
+                                                    Cmd.ofMsg UpdateBoundingBoxes
+                                                    Cmd.ofMsg msg]
+                                | _ -> 
+                                    printfn "Error components (Right)"
+                                    {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
+                                    Cmd.batch [
+                                            symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                                    ]
+                
 
         | Connection connId ->
             let aSeg = BusWireUpdateHelpers.getClickedSegment model.Wire connId mMsg.Pos
@@ -453,9 +462,18 @@ let mDownUpdate
                     if List.contains connId model.SelectedWires
                     then List.filter (fun cId -> cId <> connId) model.SelectedWires // If component selected was already in the list, remove it
                     else connId :: model.SelectedWires // If user clicked on a new component add it to the selected list
-
-                { model with SelectedWires = newWires; Action = Idle; TmpModel = Some model; PrevWireSelection = model.SelectedWires},
-                Cmd.batch [wireCmd (BusWireT.SelectWires newWires); Cmd.ofMsg msg]
+                
+                match model.ErrorComponents with
+                | [] -> 
+                    { model with SelectedWires = newWires; Action = Idle; TmpModel = Some model; PrevWireSelection = model.SelectedWires},
+                    Cmd.batch [wireCmd (BusWireT.SelectWires newWires); Cmd.ofMsg msg]
+                | _ -> 
+                        printfn "Error components (Right)"
+                        {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
+                        Cmd.batch [
+                                symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
             else
                 let snapXY = getNewSegmentSnapInfo model aSeg
                 match model.ButtonList with
@@ -473,20 +491,29 @@ let mDownUpdate
                                 Cmd.ofMsg msg]
                 | _ ->
                     let buttonId = model.ButtonList 
-                    { model with 
-                        SelectedComponents = []; 
-                        SelectedWires = [ connId ]; 
-                        SnapSegments = snapXY
-                        Action = MovingWire (aSeg.Segment.GetId()); 
-                        TmpModel = Some model
-                        ButtonList = []},
-                    Cmd.batch [ symbolCmd (SymbolT.SelectSymbols [])
-                                symbolCmd (SymbolT.DeleteSymbols buttonId)
-                                Cmd.ofMsg UpdateBoundingBoxes
-                                wireCmd (BusWireT.SelectWires [ connId ])
-                                wireCmd (BusWireT.DragSegment (aSeg.Segment.GetId(), mMsg))
-                                wireCmd (BusWireT.ResetJumps [ connId ] )
-                                Cmd.ofMsg msg]
+                    match model.ErrorComponents with
+                    | [] -> 
+                        { model with 
+                            SelectedComponents = []; 
+                            SelectedWires = [ connId ]; 
+                            SnapSegments = snapXY
+                            Action = MovingWire (aSeg.Segment.GetId()); 
+                            TmpModel = Some model
+                            ButtonList = []},
+                        Cmd.batch [ symbolCmd (SymbolT.SelectSymbols [])
+                                    symbolCmd (SymbolT.DeleteSymbols buttonId)
+                                    Cmd.ofMsg UpdateBoundingBoxes
+                                    wireCmd (BusWireT.SelectWires [ connId ])
+                                    wireCmd (BusWireT.DragSegment (aSeg.Segment.GetId(), mMsg))
+                                    wireCmd (BusWireT.ResetJumps [ connId ] )
+                                    Cmd.ofMsg msg]
+                     | _ -> 
+                        printfn "Error components (Right)"
+                        {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
+                        Cmd.batch [
+                                symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
         | Canvas ->
             let newComponents, newWires =
                 if model.CtrlKeyDown
@@ -497,10 +524,18 @@ let mDownUpdate
                 {model.DragToSelectBox with TopLeft= {X=mMsg.Pos.X; Y=mMsg.Pos.Y}}
             match model.CtrlKeyDown with
             | true ->
-
-                {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
-                Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                            wireCmd (BusWireT.SelectWires newWires) ]
+                match model.ErrorComponents with
+                | [] -> 
+                    {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
+                    Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
+                                wireCmd (BusWireT.SelectWires newWires) ]
+                | _ -> 
+                        printfn "Error components (Right)"
+                        {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
+                        Cmd.batch [
+                                symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
 
             | false ->
                 match model.ButtonList with
@@ -509,14 +544,26 @@ let mDownUpdate
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                 wireCmd (BusWireT.SelectWires newWires) ]
                 | _ ->
-                    let buttonId = model.ButtonList 
-                    {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires; ButtonList = [] },
-                    Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                                symbolCmd (SymbolT.DeleteSymbols buttonId)
-                                wireCmd (BusWireT.SelectWires newWires)
-                                Cmd.ofMsg UpdateBoundingBoxes ]
-          
+                    let buttonId = model.ButtonList
+                   
+                    match model.ErrorComponents with
+                    | [] -> 
+                        printfn "No error components (Wrong)"
+                        {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires; ButtonList = [] },
+                        Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
+                                    symbolCmd (SymbolT.DeleteSymbols buttonId)
+                                    wireCmd (BusWireT.SelectWires newWires)
+                                    Cmd.ofMsg UpdateBoundingBoxes ]
+                    
+                    | _ -> 
+                        printfn "Error components (Right)"
+                        {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
+                        Cmd.batch [
+                                symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
 
+                    
 
 /// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
 let mDragUpdate 
@@ -542,47 +589,97 @@ let mDragUpdate
                   | Some x -> x
                   | _ -> model
                 let startPos = model.Box.StartingPos
+                let startMouse = model.Box.StartingMouse
                 let startBoxPos = model.Box.TopLeftStart
                 let startWidth = model.Box.WidthStart
                 let startHeight = model.Box.HeightStart
                 let symButton =  model.Wire.Symbol.Symbols
                                             |> Map.find (model.ButtonList |> List.head)
-                let distanceMoved = sqrt((mMsg.Pos.X-startPos.X)**2 + (mMsg.Pos.Y-startPos.Y)**2)
-                match (startPos.X - mMsg.Pos.X) with
+                let distanceMoved = sqrt((mMsg.Pos.X-startMouse.X)**2 + (mMsg.Pos.Y-startMouse.Y)**2)
+                printfn "%A" distanceMoved
+                match (startMouse.X - mMsg.Pos.X) with
                 | x when x < 0. ->
-                                            let newPos = {X=startPos.X+(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
+                                            let newPos = {X=startPos.X+(distanceMoved*(1.414/2.)); Y=(startPos.Y-(distanceMoved*(1.414/2.)))}
                                             let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                            //let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-                                            let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(sqrt(2.)/2.)))
+                                            let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(1.414/2.)))
                                             let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
-                                            let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y-(distanceMoved*(sqrt(2.)/2.)))}
-                                            let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((sqrt(2.)/2.)*distanceMoved*2.) + startWidth; H = ((sqrt(2.)/2.)*distanceMoved*2.) + startHeight}}
+                                            let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y-(distanceMoved*(1.414/2.)))}
+                                            let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((1.414/2.)*distanceMoved*2.) + startWidth; H = ((1.414/2.)*distanceMoved*2.) + startHeight}}
+                                            let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
+                                            let newModel = {model with Wire = {model.Wire with Symbol = newSymModel}}
+                                            let newModel2 = {newModel with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol}
+                                            let errorComponents =
+                                                oldModel.SelectedComponents
+                                                |> List.filter (fun sId -> not (notIntersectingComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+                                            let errorSelectedComponents =
+                                                oldModel.SelectedComponents
+                                                |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+
+                                            if (newBox.BoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBox.BoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBox.BoxBound.TopLeft.Y + newBox.BoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H || errorSelectedComponents<>[]) then
+                                                {model with
+                                                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                                                            LastMousePos = mMsg.Pos
+                                                            Box = model.Box}, 
+                                                        Cmd.batch [
+                                                            Cmd.ofMsg CheckAutomaticScrolling
+                                                            wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                                                            Cmd.ofMsg UpdateBoundingBoxes
+                                                        ]
+                                            else
                                             {model with Wire = {model.Wire with Symbol = newSymModel}
                                                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                                                         LastMousePos = mMsg.Pos
+                                                        ErrorComponents = errorComponents
                                                         Box = newBox}, 
-                                            Cmd.batch [
+                                            Cmd.batch [ 
+                                                symbolCmd (SymbolT.ErrorSymbols (errorComponents,model.SelectedComponents,false))
                                                 Cmd.ofMsg CheckAutomaticScrolling
                                                 wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
                                                 Cmd.ofMsg UpdateBoundingBoxes
                                             ]
                 | x ->  
-                                let newPos = {X=startPos.X-(distanceMoved*(sqrt(2.)/2.)); Y=(startPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
+                                let newPos = {X=startPos.X-(distanceMoved*(1.414/2.)); Y=(startPos.Y+(distanceMoved*(1.414/2.)))}
                                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                //let newMap = model.Wire.Symbol.Symbols |> Map.add symNewButton.Id symNewButton
-                                let modelSymbols = (SmartRotate.scaleBlock oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(sqrt(2.)/2.)))
+                                let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(1.414/2.)))
                                 let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
-                                let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(sqrt(2.)/2.))); Y=(startBoxPos.Y+(distanceMoved*(sqrt(2.)/2.)))}
-                                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((sqrt(2.)/2.)*distanceMoved*2.) ; H = startHeight - ((sqrt(2.)/2.)*distanceMoved*2.) }}
-                                {model with Wire = {model.Wire with Symbol = newSymModel}
-                                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                            LastMousePos = mMsg.Pos
-                                            Box = newBox}, 
+                                let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y+(distanceMoved*(1.414/2.)))}
+                                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((1.414/2.)*distanceMoved*2.) ; H = startHeight - ((1.414/2.)*distanceMoved*2.) }}
+                                let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
+                                let newModel = {model with Wire = {model.Wire with Symbol = newSymModel}}
+                                let newModel2 = {newModel with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol}
+                                let errorComponents =
+                                    oldModel.SelectedComponents
+                                    |> List.filter (fun sId -> not (notIntersectingComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+                                let errorSelectedComponents =
+                                                oldModel.SelectedComponents
+                                                |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+                                printfn "%A" newBox
+                                printfn "%A" newBlock
+
+                                if (newBox.BoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBox.BoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBox.BoxBound.TopLeft.Y + newBox.BoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H || errorSelectedComponents<>[]) then
+                                    {model with
+                                                ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                                                LastMousePos = mMsg.Pos
+                                                Box = model.Box}, 
                                             Cmd.batch [
                                                 Cmd.ofMsg CheckAutomaticScrolling
                                                 wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
                                                 Cmd.ofMsg UpdateBoundingBoxes
                                             ]
+                                else
+
+                                {model with Wire = {model.Wire with Symbol = newSymModel}
+                                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                                            LastMousePos = mMsg.Pos
+                                            ErrorComponents = errorComponents
+                                            Box = newBox}, 
+                                            Cmd.batch [
+                                                symbolCmd (SymbolT.ErrorSymbols (errorComponents,model.SelectedComponents,false))
+                                                Cmd.ofMsg CheckAutomaticScrolling
+                                                wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                                                Cmd.ofMsg UpdateBoundingBoxes
+                                            ]
+                    
 
 
     | Selecting -> 

@@ -766,7 +766,7 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
 
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
-let getPortPos (sym: Symbol) (port: Port) : XYPos =
+let getPortPos (sym: Symbol) (port: Port): XYPos =
     //get ports on the same edge first
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
@@ -780,22 +780,28 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let portDimension = float ports.Length - 1.0
     //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
-    match side with
-    | Left ->
-        let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
-    | Right -> 
-        let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
-    | Bottom -> 
-        let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = 0.0 }
-    | Top ->
-        let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = 0.0 }
+    let matchSide side offset=   
+        match side with
+        | Left ->
+            let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
+            baseOffset' + {X = 0.0+offset; Y = yOffset }
+        | Right -> 
+            let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
+            baseOffset' + {X = 0.0; Y = yOffset }
+        | Bottom -> 
+            let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
+            baseOffset' + {X = xOffset; Y = 0.0 }
+        | Top ->
+            let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
+            baseOffset' + {X = xOffset; Y = 0.0 }
+
+    match sym.Component.Type, index with
+    | (Or n | Nor n | Xor n | Xnor n), (2|1) when n = Some 4 -> matchSide side 5.0
+    | (Or n | Nor n | Xor n | Xnor n), 1 when n = Some 3 -> matchSide side 5.0
+    |_ -> matchSide side 0.0
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
-let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
+let inline getPortPosToRender (sym: Symbol) (port: Port) (theme: ThemeType): XYPos =
     match sym.MovingPort with
     | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
     | _ -> 

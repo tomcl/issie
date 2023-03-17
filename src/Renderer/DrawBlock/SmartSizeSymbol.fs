@@ -17,7 +17,8 @@ open SmartHelpers
 //HLP23: Shaanuka - Helper function for scaling custom component sizes
 ///Scales custom component size by multiplying the Symbol fields HScale and VScale by input float XScale and YScale and returns Symbol type .
 let symbolSizeScale (symbol: Symbol) xScale yScale =
-    let scales = symbol //{symbol with VScale = Some 1.; HScale = Some 1.} //Uncomment (replace 'symbol') to initialise scales to 1 if no initial value given
+    let scales = symbol //{symbol with VScale = Some 1.; HScale = Some 1.} 
+                        //Uncomment (replace 'symbol') to initialise scales to 1 if no initial value given
 
     match scales.VScale, symbol.HScale with 
     |Some vScale, Some hScale ->    let vScaleRes = vScale * yScale
@@ -45,6 +46,7 @@ let reSizeSymbol
     let wires = wModel.Wires
     let ports = sModel.Ports
     
+    /// Returns corresponding orientation if symbols have overlapping X/Y coverage and returns None if both
     let getOrientation fstSym sndSym =
         let fstCorners = symbolBox fstSym
         let sndCorners = symbolBox sndSym

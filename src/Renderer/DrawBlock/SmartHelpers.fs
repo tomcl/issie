@@ -366,23 +366,18 @@ let getBlock
 let rotatePointAboutBlockCentre 
             (point:XYPos) 
             (centre:XYPos) 
-            (transform:STransform) 
             (rotation:RotationType) = 
     let relativeToCentre = (fun x->x - centre)
     let rotateAboutCentre (pointIn:XYPos) = 
         match rotation with 
         | RotateClockwise ->
-            match transform.Rotation with
-            | Degree0   -> {X = -pointIn.Y ; Y = pointIn.X}
-            | Degree270 -> {X = -pointIn.Y ; Y = pointIn.X}
-            | Degree180 -> {X = -pointIn.Y ; Y = pointIn.X}
-            | Degree90  -> {X = -pointIn.Y ; Y = pointIn.X}
+            
+            {X = -pointIn.Y ; Y = pointIn.X}
+          
         | RotateAntiClockwise ->
-            match transform.Rotation with
-            | Degree0   -> {X = pointIn.Y ; Y = -pointIn.X}
-            | Degree270 -> {X = pointIn.Y ; Y = -pointIn.X}
-            | Degree180 -> {X = pointIn.Y ; Y = -pointIn.X}
-            | Degree90  -> {X = pointIn.Y ; Y = -pointIn.X}
+            
+            {X = pointIn.Y ; Y = -pointIn.X}
+           
     let relativeToTopLeft = (fun x->x + centre)
 
     point
@@ -441,7 +436,7 @@ let rotateSymbolInBlock
     let h,w = getRotatedHAndW sym
 
     let newTopLeft = 
-        rotatePointAboutBlockCentre sym.Pos blockCentre sym.STransform rotation
+        rotatePointAboutBlockCentre sym.Pos blockCentre rotation
         |> adjustPosForBlockRotation rotation h w
 
     let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}

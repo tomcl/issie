@@ -557,7 +557,7 @@ let mDownUpdate
                     
                     | _ -> 
                         printfn "Error components (Right)"
-                        {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with BoxBound ={TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}}}, 
+                        {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false;}}, 
                         Cmd.batch [
                                 symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
                                 Cmd.ofMsg SheetT.UpdateBoundingBoxes
@@ -715,7 +715,11 @@ let mDragUpdate
 
 
     | MovingSymbols | DragAndDrop ->
+
         moveSymbols model mMsg
+  
+
+
     | MovingLabel ->
         let movingCompId =
             match model.SelectedLabel with
@@ -842,18 +846,38 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 AutomaticScrolling = false },
             wireCmd (BusWireT.MakeJumps movingWires)
         | _ ->
+            printfn "ENTERED"
             let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
-            {model with
-                BoundingBoxes = model.LastValidBoundingBoxes
-                Action = Idle
-                SnapSymbols = emptySnap
-                SnapSegments = emptySnap
-                AutomaticScrolling = false },
-            Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
-                        Cmd.ofMsg UpdateBoundingBoxes
-                        symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
-                        wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
-                        wireCmd (BusWireT.MakeJumps movingWires) ]
+            match model.SelectedComponents.Length with
+                | s when s < 2 -> 
+                    {model with
+                        BoundingBoxes = model.LastValidBoundingBoxes
+                        Action = Idle
+                        SnapSymbols = emptySnap
+                        SnapSegments = emptySnap
+                        AutomaticScrolling = false },
+                    Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
+                                Cmd.ofMsg UpdateBoundingBoxes
+                                symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
+                                wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
+                                wireCmd (BusWireT.MakeJumps movingWires) ]
+                | _ -> 
+                    {model with
+                        ErrorComponents = []
+                        ButtonList = []
+                        BoundingBoxes = model.LastValidBoundingBoxes
+                        Action = Scaling
+                        SnapSymbols = emptySnap
+                        SnapSegments = emptySnap
+                        AutomaticScrolling = false },
+                    Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
+                                symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                                Cmd.ofMsg DrawBox
+                                Cmd.ofMsg UpdateBoundingBoxes
+                                symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
+                                wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
+                                wireCmd (BusWireT.MakeJumps movingWires) ]
+            
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
             if model.TargetPortId <> "" // If a target has been found, connect a wire
@@ -883,7 +907,16 @@ let mMoveUpdate
         (mMsg: MouseT) 
             : Model * Cmd<Msg> =
     match model.Action with
-    | DragAndDrop -> moveSymbols model mMsg
+    | DragAndDrop ->
+        match model.ButtonList with
+        | [] -> 
+            moveSymbols model mMsg
+        | _ -> 
+
+            let symButton = model.Wire.Symbol.Symbols
+                                                    |> Map.find (model.ButtonList |> List.head)
+            let newSymModel = {model.Wire.Symbol with Symbols = (model.Wire.Symbol.Symbols |> Map.remove symButton.Id)}
+            (moveSymbols ({model with ButtonList = []; Box = {model.Box with ShowBox = false;}; Wire = {model.Wire with Symbol = newSymModel}}) mMsg)
     | InitialisedCreateComponent (ldcs, compType, lbl) ->
         let labelTest = 
             match compType with

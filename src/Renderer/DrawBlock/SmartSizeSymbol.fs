@@ -152,22 +152,6 @@ let reSizeSymbol
 
     let Dimension = getPortDist portsOrderedToSize Orient, getPortDist portsOrderedOther Orient
 
-
-    let Checker = 
-        getCommonWires wModel symbolToSize otherSymbol Orient 
-        |> Map.toList
-    
-    
-
-    let Checker' = 
-        match Checker.Length with
-        | 0 -> None
-        | n when n > 0 ->
-            let tmp = Checker.Item(0)
-            Some tmp
-
-    let Checker'' = offsetPorts Checker' portsOrderedToSize portsOrderedOther Orient
-
     let ScaleFactor = 
         match Dimension with
         | (Some x, Some y) -> y / x
@@ -181,13 +165,51 @@ let reSizeSymbol
         | Some LeftRight -> 
             {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.VScale)}
         | None -> symbolToSize
-        |> moveSymbol Checker''
+
 
     let wModel' = {wModel with Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}}
     
     let wires' = manageableWires |> List.collect (fun (x, y) -> [x, autoroute wModel' y]) |> Map.ofList
 
-    {wModel' with 
-        Wires = wires'
-    }
+    let wModel'' = {wModel' with  Wires = wires'}
 
+    let portsOrderedToSize', portsOrderedOther' = 
+        match Orient with
+        | Some TopBottom -> 
+            if symbolToSize.Pos.Y < otherSymbol.Pos.Y then
+                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Bottom,
+                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Top
+            else
+                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Top,
+                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Bottom
+        | Some LeftRight ->
+            if symbolToSize.Pos.X < otherSymbol.Pos.X then
+                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Right,
+                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Left
+            else 
+                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Left,
+                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Right
+        | None -> [], []
+
+    let Checker = 
+        getCommonWires wModel'' symbolToSize otherSymbol Orient 
+        |> Map.toList
+    
+    let Checker' = 
+        match Checker.Length with
+        | 0 -> None
+        | n when n > 0 ->
+            let tmp = Checker.Item(0)
+            Some tmp
+
+    let Checker'' = offsetPorts Checker' portsOrderedToSize' portsOrderedOther' Orient
+
+    let symbol'' = symbol' |> moveSymbol Checker''
+
+    let wModel''' = {wModel with Symbol = {sModel with Symbols = Map.add symbol''.Id symbol'' sModel.Symbols}}
+
+    let wires'' = manageableWires |> List.collect (fun (x, y) -> [x, autoroute wModel''' y]) |> Map.ofList
+
+    {wModel''' with
+        Wires = wires''
+    }

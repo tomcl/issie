@@ -17,14 +17,12 @@ open SmartHelpers
 //HLP23: Shaanuka - Helper function for scaling custom component sizes
 ///Scales custom component size by multiplying the Symbol fields HScale and VScale by input float XScale and YScale and returns Symbol type .
 let symbolSizeScale (symbol: Symbol) xScale yScale =
-    let scales = symbol //{symbol with VScale = Some 1.; HScale = Some 1.} 
-                        //Uncomment (replace 'symbol') to initialise scales to 1 if no initial value given
 
-    match scales.VScale, symbol.HScale with 
+    match symbol.VScale, symbol.HScale with 
     |Some vScale, Some hScale ->    let vScaleRes = vScale * yScale
                                     let hScaleRes = hScale * xScale
                                     {symbol with VScale = Some vScaleRes; HScale = Some hScaleRes}
-    |_, _ -> symbol
+    |_, _ -> {symbol with VScale = Some yScale; HScale = Some xScale}
 
 // Helper function compiled later
 type BusWireHelpers = {
@@ -137,7 +135,7 @@ let reSizeSymbol
             let symbolToSize' = symbolSizeScale symbolToSize 1.0 scale
             {symbolToSize' with Pos = newPos; Component = newComp}
         | Some Vertical, Some offset', Some pair -> 
-            let newX = snd pair
+            let newX = symbolToSize.Pos.X - offset' - (1.0 - scale)*(symbolToSize.Pos.X - fst pair)
             let newComp = {symbolToSize.Component with X = newX}
             let newPos = {symbolToSize.Pos with X = newX}
             let symbolToSize' = symbolSizeScale symbolToSize scale 1.0

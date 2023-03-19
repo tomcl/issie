@@ -181,6 +181,7 @@ let concatenateOrderLists
 let concatenateOrientationLists 
     (orientationLists: (string*Edge) list)
         : Map<string,Edge> =
+            printf "Orientation Lists: %A" orientationLists
             let folder (acc: Map<string, Edge>) (str, edge) =
                 match Map.tryFind str acc with
                 | Some existingList -> failwithf "Error: Orientation list has duplicate keys. Can't happen."
@@ -190,11 +191,14 @@ let concatenateOrientationLists
 
 //Combines all Othersymbols to get one symbol Order and Orientation map so that we can compare with the SymbolToOrder
 let CombineOtherSymbols 
-    (symbolsInOrder : Symbol list)
     (symbolToOrder: Symbol)
+    (symbolsInOrder : Symbol list)
       : Symbol =
+        printfn "Symbols in Order: %A" symbolsInOrder
         let OrderLists = symbolsInOrder |> List.map (fun x -> (x.PortMaps.Order |> Map.toList))  
+        printfn "Order Lists: %A" OrderLists
         let newOrderMap = concatenateOrderLists (List.concat OrderLists)
+        printfn "New Order Map: %A" newOrderMap
         let OrientationLists = symbolsInOrder |> List.map (fun x -> (x.PortMaps.Orientation |> Map.toList))
         let newOrientationMap = concatenateOrientationLists (List.concat OrientationLists)
 
@@ -207,43 +211,49 @@ let fst4 (quad:string*string*Edge*Edge) =
     match quad with
     | (a,_,_,_) -> a
 
+let getRelativeSymbols 
+        (symbolsList : list<Symbol>)
+        (portsNeeded: list<string * string * Edge * Edge>)
+            : list<Symbol> =
+            symbolsList
+            |> List.filter (fun symbol -> 
+                                portsNeeded |> List.map (fun x -> fst4 x)
+                                |> List.exists (fun key -> 
+                                                symbol.PortMaps.Orientation |> Map.containsKey key))
+        
+
+
 //Creates a symbol that combines all ports of Othersymbols
 let createOtherSymbol 
     (otherSymbols: Symbol list)
     (symbolToOrder: Symbol)
     (connectedPortsNeeded: list<Edge * list<string * string * Edge * Edge>>)
-        : list<Symbol> =
-
-    let edgesToSortBy =
+        : Symbol =
+    printfn "Connected Ports Needed: %A" connectedPortsNeeded
+    printfn "Other Symbols: %A" (otherSymbols |> List.map (fun x -> x.PortMaps.Orientation))
+    let symbolsInOrder =
         connectedPortsNeeded
-        |> List.filter (fun (_, ports) ->
-            otherSymbols
-            |> List.exists (fun symbol -> symbol.PortMaps.Orientation.ContainsKey (fst4 ports[0])))
-        |> List.map fst
-    
-    edgesToSortBy
-    |> List.map (fun x -> 
-                                match x with
-                                    | Left ->  
-                                            let SymbolsInOrder =
-                                                otherSymbols 
-                                                |> List.sortByDescending (fun x -> x.Pos.Y)
-                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
-                                    | Right -> 
-                                            let SymbolsInOrder =
-                                                otherSymbols 
-                                                |> List.sortBy (fun x -> x.Pos.Y)
-                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
-                                    | Bottom -> 
-                                            let SymbolsInOrder =
-                                                otherSymbols 
-                                                |> List.sortByDescending (fun x -> x.Pos.X)
-                                            CombineOtherSymbols SymbolsInOrder symbolToOrder
-                                    | Top ->  
-                                                let SymbolsInOrder =
-                                                    otherSymbols 
-                                                    |> List.sortBy (fun x -> x.Pos.X)
-                                                CombineOtherSymbols SymbolsInOrder symbolT)
+        |> List.map (fun (edge, ports) -> 
+            let filteredPorts =
+                ports
+                |> List.filter (fun (str1, _, _, _) -> 
+                    otherSymbols
+                    |> List.exists (fun symbol -> symbol.PortMaps.Orientation.ContainsKey str1))
+            (edge, filteredPorts))
+        |> List.collect (fun (x,y) -> 
+            match x with
+                | Left ->   getRelativeSymbols otherSymbols y
+                            |> List.sortByDescending (fun x -> x.Pos.Y)
+                | Right ->  
+                            getRelativeSymbols otherSymbols y 
+                            |> List.sortBy (fun x -> x.Pos.Y)
+                | Bottom -> 
+                            getRelativeSymbols otherSymbols y
+                            |> List.sortByDescending (fun x -> x.Pos.X)
+                | Top ->  
+                            getRelativeSymbols otherSymbols y 
+                            |> List.sortBy (fun x -> x.Pos.X))
+    CombineOtherSymbols symbolToOrder symbolsInOrder
 
 //Groups the ports that are connected to the wires by the edge of the symbolToOrder they are on or connected to
 let groupPorts 

@@ -158,31 +158,6 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
     |> List.filter (fun l -> fst (fst l))
     |> List.map (fun ((_, index), w) -> w, index)
 
-/// Checks if a wire intersects any symbol or not.
-/// Returns list of bounding boxes of symbols intersected by wire.
-/// HLP23: AUTHOR Jian Fu Eng (jfe20)
-let findWireSymbolIntersections (model: Model) (wire: Wire) : (ComponentId * BoundingBox) list =
-    let allSymbolBoundingBoxes = Symbol.getBoundingBoxes model.Symbol
-
-    let wireVertices =
-        segmentsToIssieVertices wire.Segments wire
-        |> List.map (fun (x, y, _) -> { X = x; Y = y })
-
-    let segVertices = List.pairwise wireVertices[1 .. wireVertices.Length - 2] // do not consider the nubs
-
-    let boxesIntersectedBySegment startPos endPos =
-        allSymbolBoundingBoxes
-        |> Map.filter (fun compID boundingBox ->
-            match segmentIntersectsBoundingBox boundingBox startPos endPos with
-            | Some _ -> true // segment intersects bounding box
-            | None -> false // no intersection
-        )
-        |> Map.toList
-
-    segVertices
-    |> List.collect (fun (startPos, endPos) -> boxesIntersectedBySegment startPos endPos)
-    |> List.distinct
-
 /// Get the start and end positions of a wire.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)
 let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =

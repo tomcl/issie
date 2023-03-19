@@ -35,9 +35,9 @@ Implemented the following Smart Routing Algorithm:
 
     1)  Check if initial autorouted wire has any intersections with symbols. 
         If yes, calculate the bounding boxes of all the intersected symbols.
-    2)  Attempt to shift the vertical seg of the 7 seg wire to buffer amount left of the left most
+    2)  Attempt to shift the vertical seg of the 7 seg wire to wireSeparationFromSymbol amount left of the left most
         bound of the intersected symbols. 
-        If there are still intersections, try shifting to the right most bound + buffer.
+        If there are still intersections, try shifting to the right most bound + wireSeparationFromSymbol.
     3)  If there are still intersections, recursively try to shift the horizontal seg of the 7 seg 
         or 9 seg wire to either the top or bottom most bound of the intersected symbols. 
         If both shifted wires still result in an intersection, compute the vertical distances between 
@@ -55,9 +55,10 @@ Implemented the following Smart Routing Algorithm:
 *)
 
 module Constants =
-    let buffer = 10.
+    let wireSeparationFromSymbol = 10.
     let maxCallsToShiftHorizontalSeg = 5
     let minWireSeparation = 10.
+    let smallOffset = 0.0001
 
 type DirectionToMove =
     | Up_
@@ -79,7 +80,7 @@ let swapBB (box: BoundingBox) (orientation: Orientation) : BoundingBox =
           H = box.W }
 
 
-let updatePos (pos: XYPos) (direction: DirectionToMove) (distanceToShift: float) : XYPos =
+let updatePos (direction: DirectionToMove) (distanceToShift: float) (pos: XYPos) : XYPos =
     match direction with
     | Up_ -> { pos with Y = pos.Y - distanceToShift }
     | Down_ -> { pos with Y = pos.Y + distanceToShift }
@@ -88,7 +89,7 @@ let updatePos (pos: XYPos) (direction: DirectionToMove) (distanceToShift: float)
 
 let rec findMinWireSeparation (model: Model) (pos: XYPos) (wire: Wire) (direction: DirectionToMove) =
     let box =
-        { TopLeft = updatePos pos Up_ (Constants.minWireSeparation / 2.)
+        { TopLeft = updatePos Up_ (Constants.minWireSeparation / 2.) pos
           W = Constants.minWireSeparation * 2.
           H = Constants.minWireSeparation * 2. }
 
@@ -98,14 +99,50 @@ let rec findMinWireSeparation (model: Model) (pos: XYPos) (wire: Wire) (directio
     | [] -> pos
     | [ (w, _) ] when w.WId = wire.WId -> pos
     | _ ->
-        let newPos = updatePos pos direction Constants.minWireSeparation
+        let newPos = updatePos direction Constants.minWireSeparation pos
         findMinWireSeparation model newPos wire direction
+
+/// Checks if a wire intersects any symbol within +/- Constants.minWireSeparation
+/// Returns list of bounding boxes of symbols intersected by wire.
+let findWireSymbolIntersections (model: Model) (wire: Wire) : (ComponentId * BoundingBox) list =
+    let allSymbolBoundingBoxes = Symbol.getBoundingBoxes model.Symbol
+
+    let wireVertices =
+        segmentsToIssieVertices wire.Segments wire
+        |> List.map (fun (x, y, _) -> { X = x; Y = y })
+
+    let segVertices = List.pairwise wireVertices[1 .. wireVertices.Length - 2] // do not consider the nubs
+
+    let boxesIntersectedBySegment startPos endPos =
+        allSymbolBoundingBoxes
+        |> Map.map (fun _compID boundingBox ->
+            { W = boundingBox.W + Constants.minWireSeparation * 2.
+              H = boundingBox.H + Constants.minWireSeparation * 2.
+              TopLeft =
+                boundingBox.TopLeft
+                |> updatePos Left_ Constants.minWireSeparation
+                |> updatePos Up_ Constants.minWireSeparation })
+        |> Map.filter (fun compID boundingBox ->
+            match compID, segmentIntersectsBoundingBox boundingBox startPos endPos with
+            | compID, _ when
+                (model.Symbol.Ports[string wire.InputPort].HostId = string compID
+                 || model.Symbol.Ports[string wire.OutputPort].HostId = string compID)
+                ->
+                false // do not consider the symbols that the wire is connected to
+            | _, Some _ -> true // segment intersects bounding box
+            | _, None -> false // no intersection
+        )
+        |> Map.toList
+
+    segVertices
+    |> List.collect (fun (startPos, endPos) -> boxesIntersectedBySegment startPos endPos)
+    |> List.distinct
 
 //------------------------------------------------------------------------//
 //--------------------------Shifting Vertical Segment---------------------//
 //------------------------------------------------------------------------//
 
-/// Try shifting vertical seg to either - buffer or + buffer of intersected symbols.
+/// Try shifting vertical seg to either - wireSeparationFromSymbol or + wireSeparationFromSymbol of intersected symbols.
 /// Returns None if no route found.
 let tryShiftVerticalSeg (model: Model) (intersectedBoxes: (ComponentId * BoundingBox) list) (wire: Wire) : Wire option =
     let wireVertices =
@@ -152,19 +189,21 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: (ComponentId * Boundin
         let viablePos =
             match dir, wire.InitialOrientation with
             | Left_, Horizontal ->
-                let initialAttemptPos = updatePos boundBox.TopLeft Left_ Constants.buffer
+                let initialAttemptPos = updatePos Left_ Constants.smallOffset boundBox.TopLeft
+
                 findMinWireSeparation model initialAttemptPos wire Left_
             | Right_, Horizontal ->
                 let initialAttemptPos =
-                    updatePos boundBox.TopLeft Right_ (boundBox.W + Constants.buffer)
+                    updatePos Right_ (boundBox.W + Constants.smallOffset) boundBox.TopLeft
 
                 findMinWireSeparation model initialAttemptPos wire Right_
             | Left_, Vertical ->
-                let initialAttemptPos = updatePos boundBox.TopLeft Up_ Constants.buffer
+                let initialAttemptPos = updatePos Up_ Constants.smallOffset boundBox.TopLeft
+
                 findMinWireSeparation model initialAttemptPos wire Up_
             | Right_, Vertical ->
                 let initialAttemptPos =
-                    updatePos boundBox.TopLeft Down_ (boundBox.W + Constants.buffer)
+                    updatePos Down_ (boundBox.W + Constants.smallOffset) boundBox.TopLeft
 
                 findMinWireSeparation model initialAttemptPos wire Down_
             | _ -> failwith "Invalid direction to shift wire"
@@ -297,10 +336,12 @@ let rec tryShiftHorizontalSeg
                 let viablePos =
                     match wire.InitialOrientation with
                     | Horizontal ->
-                        let initialAttemptPos = updatePos topBoundBox.TopLeft Up_ Constants.buffer
+                        let initialAttemptPos = updatePos Up_ Constants.smallOffset topBoundBox.TopLeft
+
                         findMinWireSeparation model initialAttemptPos wire Up_
                     | Vertical ->
-                        let initialAttemptPos = updatePos topBoundBox.TopLeft Left_ Constants.buffer
+                        let initialAttemptPos = updatePos Left_ Constants.smallOffset topBoundBox.TopLeft
+
                         findMinWireSeparation model initialAttemptPos wire Left_
 
                 match wire.InitialOrientation with
@@ -330,12 +371,12 @@ let rec tryShiftHorizontalSeg
                     match wire.InitialOrientation with
                     | Horizontal ->
                         let initialAttemptPos =
-                            updatePos bottomBoundBox.TopLeft Down_ (Constants.buffer + bottomBoundBox.H)
+                            updatePos Down_ (Constants.smallOffset + bottomBoundBox.H) bottomBoundBox.TopLeft
 
                         findMinWireSeparation model initialAttemptPos wire Down_
                     | Vertical ->
                         let initialAttemptPos =
-                            updatePos bottomBoundBox.TopLeft Right_ (Constants.buffer + bottomBoundBox.W)
+                            updatePos Right_ (Constants.smallOffset + bottomBoundBox.W) bottomBoundBox.TopLeft
 
                         findMinWireSeparation model initialAttemptPos wire Right_
 

@@ -41,7 +41,7 @@ open Operators
         - We force these connection pairs to avoid wire crosses.
     3) Swap ports on the the symbol to order such that connection pairs in (2) is followed.
         - There are two valid reorderings depending on how we unwrap a symbol's port. We chose one with least swaps.
-        - Only Components with 2 IO ports are ordered (eg. Mux2, DeMux2, etc).    
+        - Only Components with 2 IO ports on an Edge are ordered (eg. Mux2, DeMux2, etc).    
     4) Flip the Select of Mux/Demux.
         - We flip the select if its connected to a port on another component on the same edge.
         - And if all the Input ports are connected to the same component.
@@ -72,7 +72,7 @@ type Direction =
         | _ -> Clockwise
 
 /// Finds the Dominant Edge of a Symbol.
-let getSymDominantEdge (symPorts: PortInfo list) =
+let symDominantEdge (symPorts: PortInfo list) =
 
     /// Checks if we have ports for an Edge.
     let edgeExists (edge: Edge) =
@@ -133,17 +133,17 @@ let symbolMatch (sym: Symbol) =
     | otherCompType -> otherCompType
 
 /// Get Ports Betweem Symbols
-let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
+let portsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
 
     /// Keeps Wire if its connected between 2IO or Custom Components.
     let keepWire (wire: Wire) =
-        let getPortSymbol (portId: string) =
+        let symOfPort (portId: string) =
             match isPortInSymbol portId sym with
             | true -> sym
             | _ -> otherSym
 
         let keepPort (portId: string) =
-            let sym = getPortSymbol portId
+            let sym = symOfPort portId
 
             match symbolMatch sym with
             | And -> // Flip 2IO Components.
@@ -160,10 +160,10 @@ let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
         keepPort (getInputPortIdStr wire.InputPort)
         && keepPort (getOutputPortIdStr wire.OutputPort)
 
-    let paritionPortsBySym (ports: Port list) =
+    let groupPortsBySym (ports: Port list) =
         ports |> List.partition (fun port -> ComponentId port.HostId = sym.Id)
 
-    let getPortInfos (portsByNet: Port list list) =
+    let portInfos (portsByNet: Port list list) =
         portsByNet
         |> List.concat
         |> List.map (fun port ->
@@ -171,24 +171,24 @@ let getPortsBtwnSyms (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
               Orientation = getPortOrientationFrmPortIdStr model.Symbol port.Id })
 
     let symPorts, otherSymPorts =
-        getConnBtwnSyms model sym otherSym
+        connsBtwnSyms model sym otherSym
         |> Map.filter (fun _ wire -> keepWire wire)
-        |> partitionWiresByNet // Keep Ports of the same Net together.
-        |> List.map (getPortsFrmWires model >> paritionPortsBySym)
+        |> groupWiresByNet // Keep Ports of the same Net together.
+        |> List.map (portsOfWires model >> groupPortsBySym)
         |> List.unzip
 
-    [ getPortInfos symPorts; getPortInfos otherSymPorts ]
+    [ portInfos symPorts; portInfos otherSymPorts ]
     |> List.zip [ sym.Id; otherSym.Id ]
     |> Map.ofList
 
 /// Gets Symbol Reordering Information.
-let getSymReorderPair (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
+let symReorderPair (model: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) =
 
-    let portsBySym = getPortsBtwnSyms model sym otherSym
+    let portsBySym = portsBtwnSyms model sym otherSym
 
     let edgesBySym =
         [ portsBySym[sym.Id]; portsBySym[otherSym.Id] ]
-        |> List.map getSymDominantEdge
+        |> List.map symDominantEdge
         |> List.zip [ sym.Id; otherSym.Id ]
         |> Map.ofList
 
@@ -214,26 +214,26 @@ let reorderSymPorts (reorderPair: SymbolReorderPair) =
     [ (sym.Id, symPorts); (otherSym.Id, otherSymPorts) ] |> Map.ofList
 
 /// Find reordering that minimizes swaps.
-let getOptSwaps (reorderPair: SymbolReorderPair) =
+let optSwaps (reorderPair: SymbolReorderPair) =
 
     let portsOrdered = reorderSymPorts reorderPair
     let portsOrderedRev = portsOrdered |> Map.map (fun _ ports -> List.rev ports) // Use reorderSymPorts? But inefficient.
 
-    let getSwapsBySym (portsBySym: Map<ComponentId, PortInfo list>) =
+    let swapsBySym (portsBySym: Map<ComponentId, PortInfo list>) =
         let symId, othId = reorderPair.Symbol.Id, reorderPair.OtherSymbol.Id
 
-        let getSwapsForSym (symId: ComponentId) =
+        let swapsOfSym (symId: ComponentId) =
             (portsBySym[symId], reorderPair.Ports[symId])
             ||> List.zip
             |> List.map (fun (portA, portB) -> portA.Port.Id, portB.Port.Id)
             |> Map.ofList
 
-        [ getSwapsForSym symId; getSwapsForSym othId ]
+        [ swapsOfSym symId; swapsOfSym othId ]
         |> List.zip [ symId; othId ]
         |> Map.ofList
 
     let countSwaps (swapsBySym: Map<ComponentId, Map<string, string>>) =
-        let countSwapsBySym (sym: Symbol) =
+        let numSwaps (sym: Symbol) =
             let swaps', _ =
                 swapsBySym[sym.Id]
                 |> Map.toList
@@ -241,40 +241,40 @@ let getOptSwaps (reorderPair: SymbolReorderPair) =
 
             List.length swaps'
 
-        (countSwapsBySym reorderPair.Symbol) + (countSwapsBySym reorderPair.OtherSymbol)
+        (numSwaps reorderPair.Symbol) + (numSwaps reorderPair.OtherSymbol)
 
     // Pick Swaps with fewest orderings.
-    [ getSwapsBySym portsOrdered; getSwapsBySym portsOrderedRev ]
+    [ swapsBySym portsOrdered; swapsBySym portsOrderedRev ]
     |> List.map (fun swaps -> (countSwaps swaps, swaps)) // Keep as tuple to use count as Hueristic
     |> List.minBy fst
 
 // Swaps around portIds in symToOrder to minimize crossing of wires.
 let swapPortIds (reorderPair: SymbolReorderPair) =
 
-    let swapsBySym = getOptSwaps reorderPair |> snd
+    let swapsBySym = optSwaps reorderPair |> snd
 
     let swapIds (sym: Symbol) =
         let swapsPortIds = swapsBySym[sym.Id]
 
-        let tryFindSwapId (id: string) =
+        let swapId (id: string) =
             Map.tryFind id swapsPortIds |> Option.defaultWith (fun () -> id)
 
-        let updatePortMapOrder =
+        let updateOrd =
             let newOrder =
-                sym.PortMaps.Order |> Map.map (fun _ order -> List.map tryFindSwapId order)
+                sym.PortMaps.Order |> Map.map (fun _ order -> List.map swapId order)
 
             set (portMaps_ >-> order_) newOrder
 
-        let updatePortMapOrientation =
+        let updateOri =
             let newOrientation =
                 (Map.empty, sym.PortMaps.Orientation)
                 ||> Map.fold (fun newOrien' id edge ->
-                    let id = tryFindSwapId id
+                    let id = swapId id
                     Map.add id edge newOrien')
 
             set (portMaps_ >-> orientation_) newOrientation
 
-        (updatePortMapOrder >> updatePortMapOrientation) sym
+        (updateOrd >> updateOri) sym
 
     [ swapIds reorderPair.Symbol; swapIds reorderPair.OtherSymbol ]
 
@@ -290,26 +290,26 @@ let flipMuxSel (model: BusWireT.Model) (sym: Symbol) (othSym: Symbol) =
         | otherCompType -> otherCompType
 
     /// Gets Ports connected to Mux/Demux's Inputs
-    let getMuxInpConn (mux: Symbol) (othSym: Symbol) =
-        let getPortInfoFromWire (wire: Wire) =
-            let getPortInfo (portId: string) =
+    let muxInpConn (mux: Symbol) (othSym: Symbol) =
+        let portInfoFrmWire (wire: Wire) =
+            let portInfo (portId: string) =
                 { Port = getPort model.Symbol portId
                   Orientation = getPortOrientationFrmPortIdStr model.Symbol portId }
 
             let inpPort, outPort =
                 getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
 
-            getPortInfo inpPort, getPortInfo outPort
+            portInfo inpPort, portInfo outPort
 
         let inpPorts = mux.Component.InputPorts |> List.map (fun port -> port.Id)
 
-        getConnBtwnSyms model mux othSym
+        connsBtwnSyms model mux othSym
         |> Map.filter (fun _ wire -> List.contains (getInputPortIdStr wire.InputPort) inpPorts)
         |> Map.toList
-        |> List.map (snd >> getPortInfoFromWire)
+        |> List.map (snd >> portInfoFrmWire)
 
     /// Gets Mux Sel Port.
-    let getMuxSelPort (mux: Symbol) =
+    let muxSelPort (mux: Symbol) =
         mux.PortMaps.Order
         |> Map.pick (fun edge ports ->
             match List.length ports = 0 with // Sel is always opposite an Edge with no Ports.
@@ -320,12 +320,12 @@ let flipMuxSel (model: BusWireT.Model) (sym: Symbol) (othSym: Symbol) =
     /// Flips Mux Select
     let flipSel (mux: Symbol) (othSym: Symbol) =
 
-        let muxInpConns = getMuxInpConn mux othSym
+        let muxInpConns = muxInpConn mux othSym
 
         match muxInpConns.Length = mux.Component.InputPorts.Length with // All input ports are connected.
         | true ->
             let muxP, othP =
-                muxInpConns |> List.find (fun (muxP, _) -> muxP.Port.Id = getMuxSelPort mux)
+                muxInpConns |> List.find (fun (muxP, _) -> muxP.Port.Id = muxSelPort mux)
 
             match muxP.Orientation = othP.Orientation with // Sel Port is on same Edge as Input Port.
             | true ->
@@ -369,9 +369,7 @@ let reOrderPorts
     printfn $"ReorderPorts: ToOrder:{symToOrder.Component.Label}, Other:{otherSym.Component.Label}"
 
     let updatedSymbols =
-        flipMuxSel wModel symToOrder otherSym
-        ||> getSymReorderPair wModel
-        |> swapPortIds
+        flipMuxSel wModel symToOrder otherSym ||> symReorderPair wModel |> swapPortIds
 
     let updatedModel =
         let model = updateModelSymbols wModel updatedSymbols

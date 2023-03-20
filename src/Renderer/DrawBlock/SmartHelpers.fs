@@ -213,8 +213,8 @@ let isConnBtwnSyms (wire: Wire) (symA: Symbol) (symB: Symbol) : bool =
         getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
 
     match inId, outId with
-    | inId, _ when (isPortInSymbol inId symA) && (isPortInSymbol outId symB) -> true
-    | inId, _ when (isPortInSymbol inId symB) && (isPortInSymbol outId symA) -> true
+    | _ when (isPortInSymbol inId symA) && (isPortInSymbol outId symB) -> true
+    | _ when (isPortInSymbol inId symB) && (isPortInSymbol outId symA) -> true
     | _ -> false
 
 /// Gets connections between symbols.

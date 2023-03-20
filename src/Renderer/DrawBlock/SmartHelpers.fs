@@ -158,6 +158,12 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
     |> List.filter (fun l -> fst (fst l))
     |> List.map (fun ((_, index), w) -> w, index)
 
+/// Gets a Symbol from a given PortId.
+/// HLP23: Derek Lai (ddl20)
+let symbolFromPortId (wModel: BusWireT.Model) (portId: string) = 
+    let symId = wModel.Symbol.Ports[portId].HostId |> ComponentId
+    wModel.Symbol.Symbols[symId]
+
 /// Get the start and end positions of a wire.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)
 let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
@@ -189,8 +195,7 @@ let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wi
 let isPortInSymbol (portId: string) (symbol: Symbol) : bool =
     symbol.PortMaps.Orientation |> Map.containsKey portId
 
-/// Get pairs of symbols that are connected to each other.
-/// Excludes Symbols with self connections.
+/// Get pairs of unique symbols that are connected to each other.
 /// HLP23: AUTHOR dgs119
 let getConnSyms (wModel: BusWireT.Model) =
     wModel.Wires
@@ -200,35 +205,36 @@ let getConnSyms (wModel: BusWireT.Model) =
     |> List.filter (fun (symA, symB) -> symA.Id <> symB.Id)
     |> List.distinctBy (fun (symA, symB) -> Set.ofList [ symA; symB ])
 
-/// Checks if wire is connected to two given symbols. Neglects self connections.
+/// Checks if wire is connected to two given symbols.
+/// Returns false if two Symbols are the same.
 /// HLP23: AUTHOR dgs119
-let isConnBtwnSyms (wire: Wire) (symbolA: Symbol) (symbolB: Symbol) : bool =
+let isConnBtwnSyms (wire: Wire) (symA: Symbol) (symB: Symbol) : bool =
     let inId, outId =
         getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
 
     match inId, outId with
-    | inId, outId when (isPortInSymbol inId symbolA) && (isPortInSymbol outId symbolB) -> true
-    | inId, outId when (isPortInSymbol inId symbolB) && (isPortInSymbol outId symbolA) -> true
+    | inId, _ when (isPortInSymbol inId symA) && (isPortInSymbol outId symB) -> true
+    | inId, _ when (isPortInSymbol inId symB) && (isPortInSymbol outId symA) -> true
     | _ -> false
 
 /// Gets connections between symbols.
 /// HLP23: AUTHOR dgs119
-let getConnBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : Map<ConnectionId, Wire> =
-    wModel.Wires |> Map.filter (fun _ wire -> isConnBtwnSyms wire symbolA symbolB)
+let connsBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Map<ConnectionId, Wire> =
+    wModel.Wires |> Map.filter (fun _ wire -> isConnBtwnSyms wire symA symB)
 
 /// Gets Wires between symbols.
 /// HLP23: AUTHOR dgs119
-let getWiresBtwnSyms (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : Wire list =
-    getConnBtwnSyms wModel symbolA symbolB |> Map.toList |> List.map snd
+let wiresBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Wire list =
+    connsBtwnSyms wModel symA symB |> Map.toList |> List.map snd
 
 /// Filters Ports by Symbol.
 /// HLP23: AUTHOR dgs119
-let fiterPortBySym (ports: Port list) (symbol: Symbol) =
-    ports |> List.filter (fun port -> ComponentId port.HostId = symbol.Id)
+let filterPortBySym (ports: Port list) (sym: Symbol) =
+    ports |> List.filter (fun port -> ComponentId port.HostId = sym.Id)
 
 /// Gets Ports From a List of Wires.
 /// HLP23: AUTHOR dgs119
-let getPortsFrmWires (model: BusWireT.Model) (wires: Wire list) =
+let portsOfWires (model: BusWireT.Model) (wires: Wire list) =
     wires
     |> List.map (fun wire ->
         [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
@@ -236,9 +242,9 @@ let getPortsFrmWires (model: BusWireT.Model) (wires: Wire list) =
     |> List.concat
     |> List.distinct
 
-/// Groups Wires by their net.
+/// Groups Wires by the net they belong to.
 /// HLP23: AUTHOR dgs119
-let partitionWiresByNet (conns: Map<ConnectionId, Wire>) =
+let groupWiresByNet (conns: Map<ConnectionId, Wire>) =
     conns
     |> Map.toList
     |> List.groupBy (fun (_, wire) -> wire.OutputPort)

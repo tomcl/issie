@@ -626,14 +626,19 @@ let mDragUpdate
                 let startHeight = model.Box.HeightStart
                 let symButton =  model.Wire.Symbol.Symbols
                                             |> Map.find (model.ButtonList |> List.head)
+                let rotateACWButton =  model.Wire.Symbol.Symbols
+                                            |> Map.find (model.ButtonList[1])
+                let rotateCWButton =  model.Wire.Symbol.Symbols
+                                            |> Map.find (model.ButtonList[2])
                 let distanceMoved = sqrt((mMsg.Pos.X-startMouse.X)**2 + (mMsg.Pos.Y-startMouse.Y)**2)
                 printfn "%A" distanceMoved
                 match (startMouse.X - mMsg.Pos.X) with
                 | x when x < 0. ->
                                             let newPos = {X=startPos.X+(distanceMoved*(1.414/2.)); Y=(startPos.Y-(distanceMoved*(1.414/2.)))}
                                             let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
+                                            let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(57.)-(distanceMoved*(1.414/2.)); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(57.)-(distanceMoved*(1.414/2.))}}
                                             let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(1.414/2.)))
-                                            let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
+                                            let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton)}
                                             let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y-(distanceMoved*(1.414/2.)))}
                                             let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((1.414/2.)*distanceMoved*2.) + startWidth; H = ((1.414/2.)*distanceMoved*2.) + startHeight}}
                                             let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )

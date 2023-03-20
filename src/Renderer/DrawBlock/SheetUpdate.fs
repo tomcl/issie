@@ -148,10 +148,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if (model.SelectedComponents.Length < 2) then 
             (model), Cmd.none
         else
+            let rotateACWSym = {(createNewSymbol {X=box.TopLeft.X - 57.; Y=box.TopLeft.Y+(box.H/2.)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree0 ; flipped=true}}
+            let rotateCWSym = createNewSymbol {X=box.TopLeft.X+box.W+ 50.; Y=box.TopLeft.Y+(box.H/2.)} RotateButton  "RotateCW" Distinctive
             let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W+ 46.5; Y=box.TopLeft.Y-53.5} ScaleButton "ScaleButton"  Distinctive
-            let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym
-            ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id]}), Cmd.none
-    
+            let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym |> Map.add rotateACWSym.Id rotateACWSym |> Map.add rotateCWSym.Id rotateCWSym
+            ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id]}), Cmd.none
+            //Center and Radius might be unused here ^
 
             
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
@@ -1079,7 +1081,18 @@ let init () =
         DebugIsConnected = false
         DebugMappings = [||]
         DebugDevice = None
-        Box = {MovingPosButton={X=0;Y=0};MovingPos={X=0;Y=0};WidthStart=0.;StartingMouse = {X=0;Y=0};HeightStart=0.;TopLeftStart= {X=0;Y=0};StartingPos = {X=0;Y=0};ShowBox = false ; BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}; ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
+        Box = {MovingPosButton={X=0;Y=0};
+                MovingPos={X=0;Y=0};
+                WidthStart=0.;
+                StartingMouse = {X=0;Y=0};
+                HeightStart=0.;
+                TopLeftStart= {X=0;Y=0};
+                StartingPos = {X=0;Y=0};
+                ShowBox = false ;
+                BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0};
+                ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}; 
+                RotateCWButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}; 
+                RotateACWButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
         ButtonList =[]
     }, Cmd.none
 

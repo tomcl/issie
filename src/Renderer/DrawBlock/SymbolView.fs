@@ -500,6 +500,9 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
             | _, ScaleButton -> 
                                 let circle = makeCircle (10.0) (10.0){defaultCircle with R = 3.5; Fill = "Grey"}
                                 [circle]
+            | _, RotateButton ->
+                                let circle = makeCircle (10.0) (10.0){defaultCircle with R = 3.5; Fill = "Grey"}
+                                [circle]
             | _, _ -> (addLegendText 
                                 (legendOffset w h symbol) 
                                 (getComponentLegend comp.Type transform.Rotation) 
@@ -510,7 +513,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                             
     // Put everything together
     match comp.Type with
-        | ScaleButton -> shapeMaker
+        | ScaleButton | RotateButton -> shapeMaker
         | _ ->
                 (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
                 |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)

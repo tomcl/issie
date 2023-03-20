@@ -404,8 +404,8 @@ module SheetT =
         ShowBox: bool
         BoxBound: BoundingBox
         ScaleButton: Button
-        // RotateCW: Button
-        // RotateACW: Button
+        RotateCWButton: Button
+        RotateACWButton: Button
         MovingPos: XYPos
     }
 
@@ -579,7 +579,6 @@ module SheetT =
         | TestScaleUp
         | TestPortReorder2
         | TestScaleDown
-        | Scale of Mag:float
         | SetStyle of SymbolT.StyleType //HLP23: AUTHOR Ismagilov
 
 

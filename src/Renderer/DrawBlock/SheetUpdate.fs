@@ -832,8 +832,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let filteredWireList = model.SelectedWires 
                             |> List.filter (fun element -> SmartHelpers.isWireConnectedToLabel model.Wire model.Wire.Wires[element] |> not)
         match filteredWireList with
-        | hd::[] -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd)}, Cmd.none 
-        | hd::tl -> {model with Wire = (SmartHelpers.wireReplaceAllPopup model.Wire filteredWireList)}, Cmd.none
+        | hd::[] -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd); UndoList = model.UndoList @ [model]}, Cmd.none 
+        | hd::tl -> {model with Wire = (SmartHelpers.wireReplaceAllPopup model.Wire filteredWireList); UndoList = model.UndoList @ [model]}, Cmd.none
         | _ -> 
             printfn "No valid wires have been selected"
             model, Cmd.none
@@ -876,9 +876,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                             | Some (channel, orient) ->
                                     let newModel =  SmartChannel.smartChannelRoute orient channel {model with SelectedWires = []}
                                     if newModel.SelectedWires.Length = 0 then
-                                        {newModel with RedoList = model.RedoList @ [model]}, Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))
+                                        {newModel with UndoList = model.UndoList @ [model]}, Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))
                                     else
-                                        {newModel with RedoList = model.RedoList @ [model]}, Cmd.batch [Cmd.ofMsg (KeyPress CtrlL);Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))]
+                                        {newModel with UndoList = model.UndoList @ [model]}, Cmd.batch [Cmd.ofMsg (KeyPress CtrlL);Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))]
                 | _, _ -> 
                     printfn "Could not autoform channel from selected components"
                     model, Cmd.none

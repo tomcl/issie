@@ -245,10 +245,7 @@ let updateModelWires
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Returns the middle segment of a given wire</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="wireId">ConnectionId of the wire</param>
-/// <returns>The middle Segment</returns>
+///HLP 23: AUTHOR Klapper - Returns the middle segment of a given wire
 let getMiddleSegment (model : Model) (wireId:ConnectionId) =
     let wire = model.Wires[wireId]
     match wire.Segments.Length with
@@ -260,11 +257,7 @@ let getMiddleSegment (model : Model) (wireId:ConnectionId) =
 
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Checks whether the wire terminates in one of the components</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="comIdLst">List containing the ComponentId-s</param>
-/// <param name="wireId">ConnectionId of the wire</param>
-/// <returns>true or false</returns>
+///HLP 23: AUTHOR Klapper - Checks whether the wire terminates in one of the components
 let isWireTerminatingInComponents (model : BusWireT.Model) (comIdLst : List<ComponentId>) (wireId : ConnectionId) =
     let wire = model.Wires[wireId]
     let outputPort =  model.Symbol.Ports[wire.OutputPort |> function | OutputPortId s -> s]
@@ -272,21 +265,14 @@ let isWireTerminatingInComponents (model : BusWireT.Model) (comIdLst : List<Comp
 
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Checks whether the given position is inside the bounding box</summary>
-/// <param name="bound">BoundingBox</param>
-/// <param name="pos">XYPos</param>
-/// <returns>true or false</returns>
+///HLP 23: AUTHOR Klapper - Checks whether the given position is inside the bounding box
 let isPositionInBounds (bound : BoundingBox) (pos : XYPos) =
     match (pos.X >= bound.TopLeft.X, pos.X <= bound.TopLeft.X + bound.W, pos.Y >= bound.TopLeft.Y , pos.Y <= bound.TopLeft.Y + bound.H) with
     | true,true,true,true -> true
     | _ -> false
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Checks whether a wire is connected on the left or right side of a bounding box</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="bounds">BoundingBox to check against</param>
-/// <param name="wireId">Connection Id of the wire to check</param>
-/// <returns>true or false</returns>
+///HLP 23: AUTHOR Klapper - Checks whether a wire is connected on the left or right side of a bounding box
 let isWireConnectedOnLeft (model : Model) (bounds : BoundingBox) (wireId) (orientation: Orientation)=
     let wire = model.Wires[wireId]
     if orientation = Vertical then
@@ -295,29 +281,20 @@ let isWireConnectedOnLeft (model : Model) (bounds : BoundingBox) (wireId) (orien
         if isPositionInBounds {bounds with H = bounds.H / 2.0} wire.StartPos || isPositionInBounds {bounds with H = bounds.H / 2.0}  wire.EndPos then true else false
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Returns the component on the end of the wire</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="wire">Wire</param>
-/// <returns></returns>
+///HLP 23: AUTHOR Klapper - Returns the component on the end of the wire
 let getEndComponent (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     let endCompId = model.Symbol.Ports[Symbol.getInputPortIdStr wire.InputPort].HostId
     model.Symbol.Symbols[ComponentId endCompId].Component
 
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Returns the component on the start of the wire</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="wire">Wire</param>
-/// <returns></returns>
+///HLP 23: AUTHOR Klapper - Returns the component on the start of the wire
 let getStartComponent (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     let startCompId = model.Symbol.Ports[Symbol.getOutputPortIdStr wire.OutputPort].HostId
     model.Symbol.Symbols[ComponentId startCompId].Component
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Checks whether the wire is connected to a wire label</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="wire">Wire</param>
-/// <returns>true or false</returns>
+///HLP 23: AUTHOR Klapper - Checks whether the wire is connected to a wire label
 let isWireConnectedToLabel (model : Model) (wire : Wire) =
     let startComp = getStartComponent model wire
     let endComp = getEndComponent model wire
@@ -327,10 +304,7 @@ let isWireConnectedToLabel (model : Model) (wire : Wire) =
     | _ -> false
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Adds to rotations together, legacy function could be useful for later applications.</summary>
-/// <param name="deg1"> Rotation: first degree</param>
-/// <param name="deg2"> Rotation: second degree</param>
-/// <returns>The sum of the two rotations</returns>
+///HLP 23: AUTHOR Klapper - Adds to rotations together, legacy function could be useful for later applications.
 let addDegree deg1 deg2 =
     match deg1,deg2 with
     | Degree0, deg -> deg
@@ -540,10 +514,8 @@ let scaleSymbolInBlock
 
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.</summary>
-/// <param name="degree">  Roation: the desired degree which we want to rotate by</param>
-/// <param name="sym"> Symbol to be rotated</param>
-/// <returns>The rotated symbol</returns>
+/// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
+
 let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
     match degree with
     | Degree0 -> sym
@@ -589,81 +561,70 @@ let wireReplaceAllPopup (model : BusWireT.Model) (wireIdList : ConnectionId list
     let myPopup = popupWithTwoButtonsFunc title text buttonAction buttonText
     {model with PopupViewFunc = Some myPopup}
 
-/// <summary>
+
+let createLabelSymbol position label model =
+    let labelComponent = makeComponent position IOLabel (uuid()) label
+    { 
+        Pos = position
+        LabelBoundingBox = {TopLeft=position; W=0.;H=0.} // dummy, will be replaced
+        LabelHasDefaultPos = true
+        LabelRotation = None
+        Appearance =
+            {
+                HighlightLabel = false
+                ShowPorts = ShowNone
+                Colour = "rgb(120,120,120)"
+                Opacity = 1.0
+                Style = model.Symbol.Style
+            }
+        InWidth0 = None // set by BusWire
+        InWidth1 = None
+        Id = ComponentId labelComponent.Id
+        Component = labelComponent
+        Moving = false
+        PortMaps = Symbol.initPortOrientation labelComponent
+        STransform = {Rotation = Degree0; flipped = false}
+        ReversedInputPorts = Some false
+        MovingPort = None
+        IsClocked = false
+        MovingPortTarget = None
+        HScale = None
+        VScale = None
+        }
+        |> Symbol.autoScaleHAndW
+
 /// HLP 23: AUTHOR Klapper - 
 /// Function which replaces a wire with two labels directly connected to original inputs and outputs of the wire. 
-/// </summary>
-/// <param name="model"> BusWireT model</param>
-/// <param name="wire"> Wire to be replace</param>
-/// <param name="label"> What we want to call our wire</param>
-/// <returns> uniqueNumber + 1 ,BusWireT.Model with wire replaced by labels</returns>
 let replaceWireWithLabelWithName (model : DrawModelType.BusWireT.Model) (wireId : ConnectionId) (label : string) =
     let wire = model.Wires[wireId]
+
     let startComp = getStartComponent model wire
-    let endComp = getEndComponent model wire
-    let startLabelId = JSHelpers.uuid ()
     let startOrigin = Symbol.getOutputPortLocation None model.Symbol wire.OutputPort 
-    
     let (_, _, compHeight, compWidth) = getComponentProperties ComponentType.IOLabel ""
-    let  startPos, startRotation = 
-        
+    let  startPos, startRotation =
         match model.Symbol.Symbols[ComponentId startComp.Id].PortMaps.Orientation[Symbol.getOutputPortIdStr wire.OutputPort] with
         | Edge.Top ->  {X = startOrigin.X - compWidth / 2.0; Y = startOrigin.Y - 20.0}, Degree270
         | Edge.Bottom ->  {X = startOrigin.X - compWidth / 2.0; Y = startOrigin.Y + 20.0}, Degree90
         | Edge.Left ->  {X = startOrigin.X - 60.0; Y =  startOrigin.Y - compHeight / 2.0}, Degree180
         | Edge.Right -> {X = startOrigin.X + 20.0; Y =  startOrigin.Y - compHeight / 2.0},Degree0
-         
-    let startLabel = Symbol.makeComponent startPos ComponentType.IOLabel startLabelId label
 
     let endComp = getEndComponent model wire
     let endOrigin = Symbol.getInputPortLocation None model.Symbol wire.InputPort 
-    
     let  endPos, endRotation = 
-        
         match model.Symbol.Symbols[ComponentId endComp.Id].PortMaps.Orientation[Symbol.getInputPortIdStr wire.InputPort] with
         | Edge.Top ->  {X = endOrigin.X - compWidth / 2.0; Y = endOrigin.Y - 60.0}, Degree90
         | Edge.Bottom ->  {X = endOrigin.X - compWidth / 2.0; Y = endOrigin.Y + 20.0}, Degree270
         | Edge.Left ->  {X = endOrigin.X - 60.0; Y =  endOrigin.Y - compHeight / 2.0},Degree0    
         | Edge.Right -> {X = endOrigin.X + 20.0; Y =  endOrigin.Y - compHeight / 2.0} , Degree180
-    let endLabelId = JSHelpers.uuid ()
-    let endLabel = Symbol.makeComponent endPos ComponentType.IOLabel endLabelId label
-    let sym = 
-        { 
-            Pos = startPos
-            LabelBoundingBox = {TopLeft=startPos; W=0.;H=0.} // dummy, will be replaced
-            LabelHasDefaultPos = true
-            LabelRotation = None
-            Appearance =
-                {
-                    HighlightLabel = false
-                    ShowPorts = ShowNone
-                    Colour = "rgb(120,120,120)"
-                    Opacity = 1.0
-                    Style = model.Symbol.Style
-                }
-            InWidth0 = None // set by BusWire
-            InWidth1 = None
-            Id = ComponentId startLabel.Id
-            Component = startLabel
-            Moving = false
-            PortMaps = Symbol.initPortOrientation startLabel
-            STransform = {Rotation = Degree0; flipped = false}
-            ReversedInputPorts = Some false
-            MovingPort = None
-            IsClocked = false
-            MovingPortTarget = None
-            HScale = None
-            VScale = None
-            }
-            |> Symbol.autoScaleHAndW
-            
-    let startSymbol = sym |> rotateSymbolByDegree startRotation |> Symbol.autoScaleHAndW
-    let symbolModel = model.Symbol
-    let endSymbol = {sym with Pos = endPos; Id = ComponentId endLabel.Id; Component = endLabel; PortMaps = Symbol.initPortOrientation endLabel} |>  Symbol.autoScaleHAndW |> rotateSymbolByDegree endRotation 
-    let startSymbolMap = symbolModel.Symbols.Add (ComponentId startLabel.Id, startSymbol) 
-    let startNewPorts = Symbol.addToPortModel symbolModel startSymbol 
 
-    let endSymbolMap = {symbolModel with Symbols = startSymbolMap; Ports = startNewPorts}.Symbols.Add (ComponentId endLabel.Id, endSymbol) 
+    let startSymbol = createLabelSymbol startPos label model 
+                    |> rotateSymbolByDegree startRotation |> Symbol.autoScaleHAndW
+    let endSymbol = createLabelSymbol endPos label model 
+                    |> rotateSymbolByDegree endRotation 
+    let symbolModel = model.Symbol
+    let startSymbolMap = symbolModel.Symbols.Add (startSymbol.Id, startSymbol) 
+    let startNewPorts = Symbol.addToPortModel symbolModel startSymbol 
+    let endSymbolMap = {symbolModel with Symbols = startSymbolMap; Ports = startNewPorts}.Symbols.Add (endSymbol.Id, endSymbol) 
     let endNewPorts = Symbol.addToPortModel {symbolModel with Symbols = endSymbolMap; Ports = startNewPorts} endSymbol 
 
     let newModel = {model with Symbol = {symbolModel with Symbols = endSymbolMap; Ports = endNewPorts}}
@@ -680,10 +641,7 @@ let replaceWireWithLabelWithName (model : DrawModelType.BusWireT.Model) (wireId 
 
     [newStartWire; newEndWire] |>  updateModelWires newModel
 
-/// <summary>HLP23 AUTHOR: Klapper. Replaces a wire with a label with an auto generated name</summary>
-/// <param name="model"></param>
-/// <param name="wire"></param>
-/// <returns>Updated BusWireT.Model</returns>
+///HLP23 AUTHOR: Klapper. Replaces a wire with a label with an auto generated name
 let replaceWireWithLabel (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     labelNameSuggester model wire
     |> replaceWireWithLabelWithName model wire.WId

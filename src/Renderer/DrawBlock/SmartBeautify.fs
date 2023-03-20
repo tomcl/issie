@@ -31,7 +31,7 @@ let beautifyPairs (model: BusWireT.Model) (smartHelpers: ExternalSmartHelpers) =
 
     let pairs =
         getSymsToReorder model
-        |> List.sortByDescending (fun (symA, symB) -> (getSymReorderPair model symA symB) |> getOptSwaps |> fst)
+        |> List.sortByDescending (fun (symA, symB) -> (symReorderPair model symA symB) |> optSwaps |> fst)
         |> List.truncate Constants.maxPairsToBeautify
 
     (model, pairs)

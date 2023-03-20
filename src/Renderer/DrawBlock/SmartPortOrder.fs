@@ -347,46 +347,46 @@ let sheetReOrderPorts
 
     printfn $"Ordering the whole sheet"
 
-    // let sModel = wModel.Symbol
+    let sModel = wModel.Symbol
 
-    // let wireList =
-    //     wModel.Wires
-    //     |> Map.toList
-    //     |> List.map snd
+    let wireList =
+        wModel.Wires
+        |> Map.toList
+        |> List.map snd
 
-    // let symbolList = 
-    //     sModel.Symbols
-    //     |> Map.toList
-    //     |> List.map snd
+    let symbolList = 
+        sModel.Symbols
+        |> Map.toList
+        |> List.map snd
 
-    // let sModel' = 
-    //     (sModel, wireList)
-    //     ||> List.fold (fun symbol wire ->
+    let sModel' = 
+        (sModel, wireList)
+        ||> List.fold (fun symbol wire ->
 
-    //         let outputPortId = string wire.OutputPort // port id of wire exiting
-    //         let inputPortId = string wire.InputPort // port id of  wire entering
+            let outputPortId = string wire.OutputPort // port id of wire exiting
+            let inputPortId = string wire.InputPort // port id of  wire entering
 
-    //         let symbolToOrder = getSymbol symbol inputPortId
-    //         let otherSymbol = getSymbol symbol outputPortId
+            let symbolToOrder = getSymbol symbol inputPortId
+            let otherSymbol = getSymbol symbol outputPortId
 
-    //         let symbol' = changePortOrder wModel symbolToOrder otherSymbol [wire]
+            let symbol' = changePortOrder wModel symbolToOrder otherSymbol [wire]
 
-    //         {sModel with Symbols = Map.add symbol'.Id symbol' symbol.Symbols}
-    //     )
+            {sModel with Symbols = Map.add symbol'.Id symbol' symbol.Symbols}
+        )
 
-    // let newModel = 
-    //     {wModel with 
-    //         Symbol = sModel'
-    //     }
+    let newModel = 
+        {wModel with 
+            Symbol = sModel'
+        }
 
-    // //printfn " PortMaps.Order after: %A" symbol'.PortMaps.Order[Left]
+    //printfn " PortMaps.Order after: %A" symbol'.PortMaps.Order[Left]
 
-    // let wModel' = 
-    //     (newModel, symbolList)
-    //     ||> List.fold (fun model symbol ->
+    let wModel' = 
+        (newModel, symbolList)
+        ||> List.fold (fun model symbol ->
 
-    //         busWireHelper.updateSymbolWires model symbol.Id    
-    //     )
+            busWireHelper.updateSymbolWires model symbol.Id    
+        )
     
 
     wModel

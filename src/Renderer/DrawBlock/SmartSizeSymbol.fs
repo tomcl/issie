@@ -29,7 +29,7 @@ type ExternalSmartHelpers =
     { UpdateSymbolWires: Model -> ComponentId -> Model }
 
 /// record containing all the information required to calculate the position of a port on the sheet
-type portInfo = {
+type PortInfo = {
     port: Port;
     sym: Symbol;
     side: Edge;
@@ -76,7 +76,7 @@ let getOppEdgePortInfo
     (wModel: BusWireT.Model) 
     (symbolToSize: Symbol) 
     (otherSymbol: Symbol) 
-        : (portInfo * portInfo) option  =
+        : (PortInfo * PortInfo) option  =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
     let tryGetOppEdgePorts wireSyms =
@@ -91,7 +91,7 @@ let getOppEdgePortInfo
     wires 
     |> List.tryPick (fun w -> tryGetOppEdgePorts {symA=symbolToSize; symB=otherSymbol; wire=w})
 
-let alignPorts (movePInfo: portInfo) (otherPInfo: portInfo) = 
+let alignPorts (movePInfo: PortInfo) (otherPInfo: PortInfo) = 
     let getPortAbsPos pInfo = getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
     let movePortPos = getPortAbsPos movePInfo
     let otherPortPos = getPortAbsPos otherPInfo
@@ -161,4 +161,6 @@ let optimiseSymbol
     (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model =
     
+    // let test =
+    //     symbol.PortMaps
     wModel

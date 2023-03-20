@@ -347,6 +347,14 @@ let mDownUpdate
                                                                                                                   HeightStart= startH};
                                                                                                                   TmpModel = Some model}, Cmd.none
                 
+                | s when s = RotateButton -> 
+                    let Button = (model.Wire.Symbol.Symbols |> Map.find compId)
+                    match Button.STransform.flipped with
+                    | false ->
+                        model, Cmd.ofMsg (Rotate RotateClockwise)
+                    | true ->
+                        model, Cmd.ofMsg (Rotate RotateAntiClockwise)
+
                 |_ ->  
                         let msg, action = DoNothing, InitialiseMoving compId
                         if model.CtrlKeyDown || mMsg.ShiftKeyDown
@@ -636,9 +644,10 @@ let mDragUpdate
                 | x when x < 0. ->
                                             let newPos = {X=startPos.X+(distanceMoved*(1.414/2.)); Y=(startPos.Y-(distanceMoved*(1.414/2.)))}
                                             let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                            let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(57.)-(distanceMoved*(1.414/2.)); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(57.)-(distanceMoved*(1.414/2.))}}
+                                            let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(64.)-(distanceMoved*(1.414/2.)); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(64.)-(distanceMoved*(1.414/2.))}}
+                                            let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(43.)+startWidth+(distanceMoved*(1.414/2.)); Y=rotateCWButton.Pos.Y}; Component = {rotateCWButton.Component with X= startBoxPos.X+(43.)+startWidth+(distanceMoved*(1.414/2.))}}
                                             let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(1.414/2.)))
-                                            let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton)}
+                                            let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton |> Map.add rotateCWNewButton.Id rotateCWNewButton)}
                                             let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y-(distanceMoved*(1.414/2.)))}
                                             let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((1.414/2.)*distanceMoved*2.) + startWidth; H = ((1.414/2.)*distanceMoved*2.) + startHeight}}
                                             let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
@@ -676,8 +685,10 @@ let mDragUpdate
                 | x ->  
                                 let newPos = {X=startPos.X-(distanceMoved*(1.414/2.)); Y=(startPos.Y+(distanceMoved*(1.414/2.)))}
                                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
+                                let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(64.)+(distanceMoved*(1.414/2.)); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(64.)+(distanceMoved*(1.414/2.))}}
+                                let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(43.)+startWidth-(distanceMoved*(1.414/2.)); Y=rotateCWButton.Pos.Y}; Component = {rotateCWButton.Component with X= startBoxPos.X+(43.)+startWidth-(distanceMoved*(1.414/2.))}}
                                 let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(1.414/2.)))
-                                let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton)}
+                                let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton |> Map.add rotateCWNewButton.Id rotateCWNewButton)}
                                 let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y+(distanceMoved*(1.414/2.)))}
                                 let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((1.414/2.)*distanceMoved*2.) ; H = startHeight - ((1.414/2.)*distanceMoved*2.) }}
                                 let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )

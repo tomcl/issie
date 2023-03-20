@@ -404,6 +404,8 @@ module SheetT =
         ShowBox: bool
         BoxBound: BoundingBox
         ScaleButton: Button
+        // RotateCW: Button
+        // RotateACW: Button
         MovingPos: XYPos
     }
 
@@ -442,7 +444,6 @@ module SheetT =
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
         | Scaling
-        | InitScaling
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?

@@ -578,7 +578,17 @@ let view (model : Model) (dispatch : Msg -> unit) =
             Map.filter (fun _ sym -> sym.Moving) map
             |> Map.toList
             |> List.map snd
-        listMoving @ listNotMoving
+
+        let (scaleButtonIds:Symbol List) = 
+            map
+            |> Map.filter (fun _ sym -> sym.Component.Type = ScaleButton)
+            |> Map.toList
+            |> List.map snd
+
+        match scaleButtonIds with
+        | [] -> listMoving@listNotMoving
+        | _ -> (List.filter (fun x -> x.Id <> scaleButtonIds[0].Id) listMoving) @ listNotMoving @ scaleButtonIds    
+        
 
     let start = TimeHelpers.getTimeMs()
     model.Symbols

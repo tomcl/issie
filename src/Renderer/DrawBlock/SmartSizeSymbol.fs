@@ -66,9 +66,9 @@ type wireSymbols = {
 }
 
 let getPortAB wModel wireSyms =
-    let ports = getPortsFrmWires wModel [wireSyms.wire]
-    let portA = fiterPortBySym ports wireSyms.symA |> List.head
-    let portB = fiterPortBySym ports wireSyms.symB |> List.head
+    let ports = portsOfWires wModel [wireSyms.wire]
+    let portA = filterPortBySym ports wireSyms.symA |> List.head
+    let portB = filterPortBySym ports wireSyms.symB |> List.head
     portA, portB
 
 /// Try to get two ports that are on opposite edges
@@ -77,7 +77,7 @@ let getOppEdgePortInfo
     (symbolToSize: Symbol) 
     (otherSymbol: Symbol) 
         : (portInfo * portInfo) option  =
-    let wires = getWiresBtwnSyms wModel symbolToSize otherSymbol
+    let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
     let tryGetOppEdgePorts wireSyms =
         let portA, portB = getPortAB wModel wireSyms
@@ -132,7 +132,7 @@ let reSizeSymbol
     (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
-    let wires = getWiresBtwnSyms wModel symbolToSize otherSymbol
+    let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
     // try to get two ports that are on opposite edges, if none found just use any two ports
     let resizePortInfo, otherPortInfo= 

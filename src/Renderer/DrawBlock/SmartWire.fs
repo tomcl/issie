@@ -495,8 +495,10 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
         ComponentId model.Symbol.Ports[string wireToRoute.OutputPort].HostId
 
     let isRotated =
-        model.Symbol.Symbols[inputCompId].STransform.Rotation <> Degree0
-        || model.Symbol.Symbols[outputCompId].STransform.Rotation <> Degree0
+        model.Symbol.Symbols[inputCompId].STransform.Rotation = Degree90
+        || model.Symbol.Symbols[inputCompId].STransform.Rotation = Degree270
+        || model.Symbol.Symbols[outputCompId].STransform.Rotation = Degree90
+        || model.Symbol.Symbols[outputCompId].STransform.Rotation = Degree270
 
     let wireToRouteStartPos, wireToRouteEndPos = getStartAndEndWirePos wireToRoute
 
@@ -513,8 +515,9 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
     | _, _, _, true, _ -> wireToRoute // If input is on right side of output, return original wire
     | _, _, _, _, None -> wireToRoute // If wire is not in net, return original wire
     | _, _, _, _, Some(_, netlist) ->
-        // Take first wire in netlist as reference wire for snapping
-        let refWire = netlist.Head |> snd
+        // Take first wire in netlist that is not wireToRoute as reference wire for snapping
+        let refWire = netlist |> List.find (fun (_, w) -> w.WId <> wireToRoute.WId) |> snd
+
         let refWireVertices = getWireVertices refWire
 
         let _, refEndPos = getStartAndEndWirePos refWire

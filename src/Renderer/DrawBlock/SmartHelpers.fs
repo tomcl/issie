@@ -161,20 +161,9 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
 /// Used to fix bounding box with negative width and heights
 /// HLP23: Derek Lai (ddl20)
 let fixBoundingBox (box: BoundingBox): BoundingBox =
-    match box.W < 0, box.H < 0 with
-    | true, true ->
-        { box with
-            TopLeft = {X = box.TopLeft.X + box.W; Y = box.TopLeft.Y + box.H}
-            W = abs box.W; H = abs box.H }
-    | true, false ->
-        { box with
-            TopLeft = {X = box.TopLeft.X + box.W; Y = box.TopLeft.Y}
-            W = abs box.W }
-    | false, true ->
-        { box with
-            TopLeft = {X = box.TopLeft.X; Y = box.TopLeft.Y + box.H}
-            H = abs box.H }
-    | _ -> box
+    let x = min (box.TopLeft.X + box.W) box.TopLeft.X
+    let y = min (box.TopLeft.Y + box.H) box.TopLeft.Y
+    {TopLeft = {X = x; Y = y}; W = abs box.W; H = abs box.H}
 
 /// Get the start and end positions of a wire.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)

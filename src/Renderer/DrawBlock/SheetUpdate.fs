@@ -829,6 +829,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 printfn "Error: can't validate two or more symbols selected to reorder ports"
                 model, Cmd.none
     | KeyPress CtrlL ->
+        //Creates a replace wire with label popup
+        //HLP23 AUTHOR: Klapper
         let filteredWireList = model.SelectedWires 
                             |> List.filter (fun element -> SmartHelpers.isWireConnectedToLabel model.Wire model.Wire.Wires[element] |> not)
         match filteredWireList with
@@ -837,7 +839,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | _ -> 
             printfn "No valid wires have been selected"
             model, Cmd.none
-    | KeyPress CtrlAltL -> 
+    | KeyPress CtrlShiftL -> 
         //Replaces all wires with labels without popup
         //HLP23 AUTHOR: Klapper
         let filteredWireList = model.SelectedWires 
@@ -852,28 +854,30 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | _ -> 
             printfn "No valid wires have been selected"
             model, Cmd.none
-    | TestSmartChannel (orient:Orientation)->
-        // Test code called from Edit menu item
-        // Validate the list of selected symbols: it muts have just two for
-        // The test to work.
+    | FormSmartChannel (orient:Orientation)->
+        //Creates a smart channel in the orientation specified
+        //HLP23 AUTHOR: Klapper
         let filteredComps =
              model.SelectedComponents 
             |> List.filter (fun id -> model.Wire.Symbol.Symbols[id].Component.Type <> ComponentType.IOLabel)
         match filteredComps with
         | lst when lst.Length >= 2 ->
-            findChannel model -1 -1 orient filteredComps 
+            printfn "%A" lst
+            findChannel model -1 -1 orient lst 
             |> function
                 | Some l, Some r -> 
                     let lhd::ltl = l |> List.map (fun id -> model.BoundingBoxes[id])
                     let lBB = (lhd, ltl) ||> List.fold boxUnion
                     let rhd::rtl = r |> List.map (fun id -> model.BoundingBoxes[id])
                     let rBB = (rhd, rtl) ||> List.fold boxUnion
+                    printfn "%A" l
+                    printfn "%A" r
                     getChannel lBB rBB orient
                     |> function
                             | None ->
                                 printfn "Symbols are not oriented for a vertical channel"
                                 model, Cmd.none
-                            | Some (channel, orient) ->
+                            | Some channel ->
                                     let newModel =  SmartChannel.smartChannelRoute orient channel {model with SelectedWires = []}
                                     if newModel.SelectedWires.Length = 0 then
                                         {newModel with UndoList = model.UndoList @ [model]}, Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))
@@ -979,6 +983,26 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 wireCmd (BusWireT.UpdateConnectedWires compList)
                 Cmd.ofMsg UpdateBoundingBoxes
         ]
+    | TestAllTogether ->
+        validateTwoSelectedSymbols model
+         |> function 
+            | Some (s1, s2) -> 
+                            match SmartHelpers.checkCompAlignment model.Wire s1.Id s2.Id with
+                            | Some TopBottom -> model, Cmd.batch [
+                                                                        (Cmd.ofMsg (TestPortPosition))
+                                                                        (Cmd.ofMsg (KeyPress CtrlR))
+                                                                        (Cmd.ofMsg (FormSmartChannel Vertical))]
+                            | Some LeftRight -> model, Cmd.batch [
+                                                                        (Cmd.ofMsg (TestPortPosition))
+                                                                        (Cmd.ofMsg (KeyPress CtrlR))
+                                                                        (Cmd.ofMsg (FormSmartChannel Horizontal))] 
+                            | None -> 
+                                    printfn "The symbols are not aligned!" 
+                                    model, Cmd.none
+            | None -> 
+                    printfn "Please select two symbols"
+                    model, Cmd.none
+        
 
     
 

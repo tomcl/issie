@@ -723,15 +723,15 @@ let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox opt
 /// However different testing may be needed, so who knows?
 /// Return the vertical channel between two bounding boxes, if they do not intersect and
 /// their vertical coordinates overlap.
-let getChannel (bb1:BoundingBox) (bb2:BoundingBox) (orientation : Orientation): Option<BoundingBox*Orientation> =
+let getChannel (bb1:BoundingBox) (bb2:BoundingBox) (orientation : Orientation): Option<BoundingBox> =
     match orientation with
     | Vertical ->
         getVerticalChannel bb1 bb2
         |> function
-            | Some vBB -> Some (vBB, Vertical)
+            | Some vBB -> Some (vBB)
             | None -> None
     | Horizontal -> 
         getHorizontalChannel bb1 bb2 
         |> function
-            | Some hBB -> Some (hBB, Horizontal)
+            | Some hBB -> Some (hBB)
             | None -> None

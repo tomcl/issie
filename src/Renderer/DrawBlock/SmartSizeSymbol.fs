@@ -12,6 +12,7 @@ open Optics
 open Optic
 open Operators
 open SmartHelpers
+open BusWire
 
 (* 
     HLP23: This module will normally be used exclusively by team member doing the "smart resize symbol" 
@@ -42,8 +43,8 @@ type PortInfo = {
     portGap: float;
 }
 
-/// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo
-/// could not simply use getPortPos because extra the data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol
+/// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
+/// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol
 let makePortInfo (sym: Symbol) (port: Port) =
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
@@ -125,6 +126,9 @@ let alignSymbols
 /// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
 /// HLP23: when this function is written replace teh XML comment by something suitable concisely
 /// stating what it does.
+
+/// Given two connected symbols, resize the selected symbol to make the port gaps on both symbols the same.
+/// Translate the selected symbol so that the ports on both symbols align and the connecting wires become straight.
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
     (symbolToSize: Symbol) 
@@ -154,13 +158,84 @@ let reSizeSymbol
 
     smartHelpers.UpdateSymbolWires model' symbolToSize.Id
 
+// for each edge of the symbol, store a count of how many connections it has to other symbols
+type SymConnDataT = {edgeMap: Map<Edge, Map<ComponentId, int>>}
+
+let newSymConnData = 
+    let m=
+        Map.empty 
+        |> Map.add Top Map.empty
+        |> Map.add Bottom Map.empty
+        |> Map.add Left Map.empty
+        |> Map.add Right Map.empty
+    {edgeMap=m}
+
+/// for a wire and a symbol, return the edge of the symbol that the wire is connected to
+let tryWireSymEdge (wModel: Model) (wire: Wire) (symbol: Symbol) = 
+    let sPort, tPort = getSourcePort wModel wire, getTargetPort wModel wire
+    let sEdge = Map.tryFind sPort.Id symbol.PortMaps.Orientation
+    let tEdge = Map.tryFind tPort.Id symbol.PortMaps.Orientation
+    match sEdge, tEdge with
+    | Some e, None -> Some e
+    | None, Some e -> Some e
+    | _ -> None // should not happen
+
+let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) = 
+    let m = symConnData.edgeMap[edge]
+    let count = 
+        Map.tryFind cid m
+        |> Option.defaultValue 0
+        |> (+) 1
+    let m' = Map.add cid count m
+    {edgeMap = Map.add edge m' symConnData.edgeMap}
+
+type TestMapT = TestMap of Map<int, int>
+
 /// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols
 let optimiseSymbol 
     (wModel: BusWireT.Model) 
     (symbol: Symbol) 
     (smartHelpers: ExternalSmartHelpers) 
         : BusWireT.Model =
+    printfn "hello"
+
+    let updateData (symConnData: SymConnDataT) (connId: ConnectionId) (wire: Wire) =
+        let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire
+        let otherSymbol = 
+            match symS, symT with
+            | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> printfn $"{symS.Component.Label}"; Some symS
+            | _ when (symS = symbol) && (symT <> symbol) -> printfn $"{symT.Component.Label}"; Some symT
+            | _ -> None
+
+        match otherSymbol with
+        | Some sym -> 
+            let edge = tryWireSymEdge wModel wire symbol
+            match edge with
+            | Some e ->
+                printfn $"{e}";
+                updateOrInsert symConnData e sym.Id
+            | None -> symConnData // should not happen
+        | None -> symConnData
+
+    // look through all wires, if wire is connected to symbol 
+    let symConnData =
+        (newSymConnData, wModel.Wires) ||> Map.fold updateData
+
+    let hEdgeSymCount = 
+        let top = Map.toArray symConnData.edgeMap[Left]
+        let bot = Map.toArray symConnData.edgeMap[Right]
+        let both = 
+            Array.concat [top; bot]
+            |> Array.filter (fun (_, count) -> count > 1)
+            |> Array.sortBy snd
+        both
+
+    printfn $"{hEdgeSymCount}"
     
-    // let test =
-    //     symbol.PortMaps
-    wModel
+    let otherSymId = fst hEdgeSymCount[0]
+    let otherSym = get (symbolOf_ otherSymId) wModel
+
+    printfn $"{otherSym.Component.Label}"
+    
+    reSizeSymbol wModel symbol otherSym smartHelpers
+    // wModel

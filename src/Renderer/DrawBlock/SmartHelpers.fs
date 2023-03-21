@@ -23,7 +23,6 @@ open JSHelpers
 
 (*
 HOW TO USE THIS MODULE.
-
 (1) Add well-documented useful functions - see updateModelSymbols and updateModelWires
     for examples. You do not need to add performance information as in updateModelSymbols. 
     Your priority should be writing clear code. Try to avoid very inefficient implementations
@@ -150,6 +149,7 @@ let sortByOther
     (list2 : string list)
     (list1 : (string*string*Edge*Edge) list) 
         : (string*string*Edge*Edge) list=
+    printfn "Here2"
     list1
     |> List.sortBy (fun (x,_,_,_) -> List.findIndex (fun s -> s = x) list2)
 

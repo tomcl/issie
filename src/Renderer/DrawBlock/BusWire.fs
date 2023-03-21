@@ -87,7 +87,7 @@ let inline foldOverSegs folder state wire =
 /// These positions are computed on the fly and passed to the folder function. </remarks>
 /// <param name="folder"> The function to update the state given the segment start and end positions, current state and segment itself.</param>
 /// <param name="state"> The initial state.</param>
-/// <param name="wire"> The wire containing the segment list we are folding over.</param>
+/// <param name="wire"> The wire containing the segment list     we are folding over.</param>
 /// <returns> The final state value </returns>
 let inline foldOverNonZeroSegs folder state wire =
     let initPos = wire.StartPos

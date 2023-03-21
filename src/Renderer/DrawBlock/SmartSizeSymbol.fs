@@ -218,12 +218,11 @@ let sheetReSizeSymbol
         |> List.map snd
 
     let wireLstFolder model wire =
-        let sModel = wModel.Symbol
-        let portsMap = sModel.Ports
-        let inPort = portsMap[string wire.InputPort]
-        let outPort = portsMap[string wire.OutputPort]
-        let symbolToSize = sModel.Symbols[ComponentId inPort.HostId]
-        let otherSymbol = sModel.Symbols[ComponentId outPort.HostId]
+        let sModel = model.Symbol
+        let inPortId = string wire.InputPort
+        let outPortId = string wire.OutputPort
+        let symbolToSize = getSymbol sModel inPortId
+        let otherSymbol = getSymbol sModel outPortId
 
         reSizeSymbol model symbolToSize otherSymbol busWireHelper
 

@@ -21,19 +21,12 @@ type BusWireHelpers = {
     }
 
 /// HLP23: AUTHOR Ifte
-/// reArrangePorts takes two symbols connected by wires and resizes symbolToSize so that any wires that
-/// are nearly straight become straight
+/// reArrangePorts rearranges ports and aligns wires across the whole sheet
 let reArrangePorts
     (wModel: BusWireT.Model)
     (sizeHelper: SmartSizeSymbol.BusWireHelpers)
     (portHelper: SmartPortOrder.BusWireHelpers)
         : BusWireT.Model =
-
-    //let orderedModel = SmartPortOrder.reOrderPorts wModel symbolToArrange otherSymbol portHelper
-    //let symMap = orderedModel.Symbol.Symbols
-    //let symbolToArrange' = symMap[symbolToArrange.Id]
-    //let otherSymbol' = symMap[otherSymbol.Id]
-    //SmartSizeSymbol.reSizeSymbol orderedModel symbolToArrange' otherSymbol' sizeHelper
 
     (wModel, portHelper)
     ||> SmartPortOrder.sheetReOrderPorts

@@ -812,9 +812,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | Some (s1) -> 
                 let helpers = 
                     { SmartSizeSymbol.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
-                model, Cmd.none
+                {model with Wire = SmartSizeSymbol.optimiseSymbol model.Wire s1 helpers}, Cmd.none
             | None ->
-                printfn "Error: can't validate the two symbols selected to reorder ports"
+                printfn "Error: can't validate the selected symbol"
                 model, Cmd.none
         
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none

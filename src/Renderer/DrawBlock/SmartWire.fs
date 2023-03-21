@@ -147,24 +147,45 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : (ComponentId * Bou
 
     let segVertices = List.pairwise wireVertices[1 .. wireVertices.Length - 2] // do not consider the nubs
 
+    let inputCompId = model.Symbol.Ports[string wire.InputPort].HostId
+    let outputCompId = model.Symbol.Ports[string wire.OutputPort].HostId
+
+    let inputCompRotation =
+        model.Symbol.Symbols[ComponentId inputCompId].STransform.Rotation
+
+    let outputCompRotation =
+        model.Symbol.Symbols[ComponentId outputCompId].STransform.Rotation
+
+    let isConnectedToSelf = inputCompId = outputCompId
+
     let boxesIntersectedBySegment startPos endPos =
         allSymbolBoundingBoxes
-        |> Map.map (fun _compID boundingBox ->
-            { W = boundingBox.W + Constants.minWireSeparation * 2.
-              H = boundingBox.H + Constants.minWireSeparation * 2.
-              TopLeft =
-                boundingBox.TopLeft
-                |> updatePos Left_ Constants.minWireSeparation
-                |> updatePos Up_ Constants.minWireSeparation })
-        |> Map.filter (fun compID boundingBox ->
-            match compID, segmentIntersectsBoundingBox boundingBox startPos endPos with
-            | compID, _ when
-                (model.Symbol.Ports[string wire.InputPort].HostId = string compID
-                 || model.Symbol.Ports[string wire.OutputPort].HostId = string compID)
-                ->
-                false // do not consider the symbols that the wire is connected to
-            | _, Some _ -> true // segment intersects bounding box
-            | _, None -> false // no intersection
+        |> Map.map (fun compID boundingBox ->
+            let isInputComp = inputCompId = string compID
+            let isOutputComp = outputCompId = string compID
+
+            match isConnectedToSelf, isInputComp, isOutputComp, inputCompRotation with
+            | true, true, _, n when n = Degree0 || n = Degree180 ->
+                { W = boundingBox.W
+                  H = boundingBox.H + Constants.minWireSeparation * 2.
+                  TopLeft = boundingBox.TopLeft |> updatePos Up_ Constants.minWireSeparation }
+            | true, true, _, n when n = Degree90 || n = Degree270 ->
+                { W = boundingBox.W + Constants.minWireSeparation * 2.
+                  H = boundingBox.H
+                  TopLeft = boundingBox.TopLeft |> updatePos Left_ Constants.minWireSeparation }
+            | false, true, _, _ -> boundingBox
+            | false, _, true, _ -> boundingBox
+            | _ ->
+                { W = boundingBox.W + Constants.minWireSeparation * 2.
+                  H = boundingBox.H + Constants.minWireSeparation * 2.
+                  TopLeft =
+                    boundingBox.TopLeft
+                    |> updatePos Left_ Constants.minWireSeparation
+                    |> updatePos Up_ Constants.minWireSeparation })
+        |> Map.filter (fun _ boundingBox ->
+            match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+            | Some _ -> true // segment intersects bounding box
+            | None -> false // no intersection
         )
         |> Map.toList
 
@@ -462,11 +483,27 @@ let generateEndSegments (startIndex: int) (numOfSegs: int) (wire: Wire) : Segmen
             Index = i })
     |> List.updateAt (numOfSegs - 1) { wire.Segments.[numOfSegs - 1] with Length = nubLength }
 
+/// Finds the first reference wire in a net and keeps the same segment lengths
+/// as much as possible based on a heuristic.
+/// Snap to net only implemented for one orientation
 let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
-    match isWireInNet model wireToRoute, wireToRoute.Segments.Length with
-    | None, _ -> wireToRoute // If wire is not in net, return original wire
-    | _, n when n <> 5 && n <> 7 -> wireToRoute // If wire is not 5 or 7 seg, return original wire
-    | Some(_, netlist), _ ->
+
+    let inputCompId =
+        ComponentId model.Symbol.Ports[string wireToRoute.InputPort].HostId
+
+    let outputCompId =
+        ComponentId model.Symbol.Ports[string wireToRoute.OutputPort].HostId
+
+    let isRotated =
+        model.Symbol.Symbols[inputCompId].STransform.Rotation <> Degree0
+        || model.Symbol.Symbols[outputCompId].STransform.Rotation <> Degree0
+
+    match wireToRoute.Segments.Length, isRotated, wireToRoute.InitialOrientation, isWireInNet model wireToRoute with
+    | n, _, _, _ when n <> 5 && n <> 7 -> wireToRoute // If wire is not 5 or 7 seg, return original wire
+    | _, true, _, _ -> wireToRoute // If either input or output component is rotated, return original wire
+    | _, _, orientation, _ when orientation <> Horizontal -> wireToRoute // If wire is not horizontal, return original wire
+    | _, _, _, None -> wireToRoute // If wire is not in net, return original wire
+    | _, _, _, Some(_, netlist) ->
         // Take first wire in netlist as reference wire for snapping
         let refWire = netlist.Head |> snd
         let refWireVertices = getWireVertices refWire
@@ -487,14 +524,14 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
                 | true, false -> 2
                 | false, _ -> 3
 
-            match refWire.Segments.Length with
-            | 5 ->
+            match refWire.Segments.Length, wireToRouteStartPos.X < wireToRouteEndPos.X with
+            | 5, true ->
                 match firstBendPos.Y < refEndPos.Y, firstBendPos.Y > wireToRouteEndPos.Y with
                 | (true, true)
                 | (false, false) -> if wireToRouteEndPos.X < firstBendPos.X then 2 else 3
                 | _ -> simpleCase
-            | 7 -> simpleCase
-            | _ -> 0 // Not implemented for ref wires that are not 5 or 7 seg
+            | 7, true -> simpleCase
+            | _ -> 0 // Not implemented for ref wires that are not 5 or 7 seg or if the input is on right of output
 
         let newSegments =
             match numOfSegsToCopy with
@@ -525,12 +562,12 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
 
     let initialWire = (autoroute model wire)
-    // Snapping to Net only implemented for one orientation
+
+    // Snapping to Net only if model.SnapToNet toggled to be true
     let snappedToNetWire =
-        match model.SnapToNet, initialWire.InitialOrientation with
-        | false, _
-        | _, Vertical -> initialWire
-        | true, Horizontal -> snapToNet model initialWire
+        match model.SnapToNet with
+        | false -> initialWire
+        | true -> snapToNet model initialWire
 
     let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire
 

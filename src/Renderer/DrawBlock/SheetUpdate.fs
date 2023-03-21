@@ -862,7 +862,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             |> List.filter (fun id -> model.Wire.Symbol.Symbols[id].Component.Type <> ComponentType.IOLabel)
         match filteredComps with
         | lst when lst.Length >= 2 ->
-            printfn "%A" lst
             findChannel model -1 -1 orient lst 
             |> function
                 | Some l, Some r -> 
@@ -870,8 +869,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     let lBB = (lhd, ltl) ||> List.fold boxUnion
                     let rhd::rtl = r |> List.map (fun id -> model.BoundingBoxes[id])
                     let rBB = (rhd, rtl) ||> List.fold boxUnion
-                    printfn "%A" l
-                    printfn "%A" r
                     getChannel lBB rBB orient
                     |> function
                             | None ->

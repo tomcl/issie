@@ -46,7 +46,7 @@ let selectSegmentsIntersectingBoundingBox (bounds: BoundingBox) (wires: List<Wir
 //NShape : The wire crosses the channel vertically while making a '-, shape
 //LShape : The wire enters the channel sideways then takes a turn and leaves vertically
 //TooDifficult: Any other wire types which are too difficult too route in a readable sense
-type ChannelRelation = PassThrough | ZigZagCross | Originates | Terminates | StraightCross | NShape | LShape | TooDifficult 
+type ChannelRelation = PassThrough | ZigZagCross | Originates | Terminates | StraightCross | NShape | LShape | TooDifficult  | LNShape | RNShape
 
 //Helper function to further categorise wire, which are fully contained within the channel
 let process7Segment (seg: Segment) =
@@ -114,49 +114,49 @@ let sortUpDown (model : Model) (orientation : Orientation) (segs : List<Segment*
 
     
 //Specialised helper function to return the vertical segments of a NShape wire
-let createNShapePair (model : Model) (segment : Segment, posTuple) =
+let createNShapePair (model : Model) (segment : Segment) =
     match segment.Length with 
-    | x when  x >= 0.0 -> ((getSegmentFromId model (segment.Index - 1, segment.WireId),
+    | x when  x >= 0.0 -> [((getSegmentFromId model (segment.Index - 1, segment.WireId),
                             getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)),
-
-                            (getSegmentFromId model (segment.Index + 1, segment.WireId),
-                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index + 1)))
-
-    | x when x < 0.0 ->  ((getSegmentFromId model (segment.Index + 1, segment.WireId),
+                            LNShape
+                            );
+                            ((getSegmentFromId model (segment.Index + 1, segment.WireId),
                             getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index + 1)),
-
-                            (getSegmentFromId model (segment.Index - 1, segment.WireId), 
-                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)))
+                            RNShape)]
+    | x when x < 0.0 ->  [((getSegmentFromId model (segment.Index + 1, segment.WireId),
+                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)),
+                            LNShape);
+                            ((getSegmentFromId model (segment.Index - 1, segment.WireId),
+                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index + 1)),
+                            RNShape)]
 
 
 //Function which sorts out the orderin of the wires within a channel, returns the list of segments in the order which they have to be shifted
 let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<Segment*ChannelRelation>) =
+    let TooDifficult = 
+        lst 
+        |> List.filter (fun element -> snd element = TooDifficult) 
+        |> List.map fst
+
+    let handleN ((seg, postup), cShape)  =
+        if cShape = NShape then createNShapePair model (seg)
+                           else [((seg, postup), cShape)]
+
     let folder inLst outLst _type =
         inLst 
         |> List.filter (fun element -> snd element = _type)
         |> List.map fst
         |> sortUpDown model orientation
         |> List.append outLst
-
-    let segList =
-        lst
-        |> List.map (fun (segment, orient) -> (segment,
-                                             getAbsoluteSegmentPos model.Wires[segment.WireId] segment.Index),
-                                              orient)
-    let leftNList, rightNList =
-        segList
-        |> List.filter (fun element -> snd element = NShape)
-        |> List.map fst
-        |> List.map (createNShapePair model)
-        |> List.unzip
-        |> (fun (a , b) -> sortUpDown model orientation a, sortUpDown model orientation b)
-
-    let TooDifficult = lst |> List.filter (fun element -> snd element = TooDifficult) |> List.map fst
     
-    rightNList
-    |> List.append (([], [Originates; PassThrough; LShape; ZigZagCross; Terminates]) ||> List.fold (folder segList))
-    |> List.append leftNList
-    |> function
+    lst
+    |> List.map (fun (segment, orient) -> 
+        (segment,getAbsoluteSegmentPos model.Wires[segment.WireId] segment.Index),orient)
+    |> List.collect handleN
+    |> fun x ->
+        ([], [LNShape;Originates; PassThrough; LShape; ZigZagCross; Terminates; RNShape])
+        ||> List.fold (folder x)
+        |> function
         | x -> x,TooDifficult
     
 
@@ -234,7 +234,7 @@ let rec smartChannelRoute
         |> List.map (fun element -> model.Wires[element.WireId])
         |> List.append moreDiffictultWires
         |> List.map (fun element -> element.WId)
-    
+
     let finalModel = {fullModel with Wire = updatedWireModel; SelectedWires = fullModel.SelectedWires @ wireToReplaceWithLabel}
     match wireToReplaceWithLabel.Length with
     | 0 -> finalModel

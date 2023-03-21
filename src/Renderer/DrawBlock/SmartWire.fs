@@ -498,17 +498,25 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
         model.Symbol.Symbols[inputCompId].STransform.Rotation <> Degree0
         || model.Symbol.Symbols[outputCompId].STransform.Rotation <> Degree0
 
-    match wireToRoute.Segments.Length, isRotated, wireToRoute.InitialOrientation, isWireInNet model wireToRoute with
-    | n, _, _, _ when n <> 5 && n <> 7 -> wireToRoute // If wire is not 5 or 7 seg, return original wire
-    | _, true, _, _ -> wireToRoute // If either input or output component is rotated, return original wire
-    | _, _, orientation, _ when orientation <> Horizontal -> wireToRoute // If wire is not horizontal, return original wire
-    | _, _, _, None -> wireToRoute // If wire is not in net, return original wire
-    | _, _, _, Some(_, netlist) ->
+    let wireToRouteStartPos, wireToRouteEndPos = getStartAndEndWirePos wireToRoute
+
+    match
+        wireToRoute.Segments.Length,
+        isRotated,
+        wireToRoute.InitialOrientation,
+        wireToRouteStartPos.X > wireToRouteEndPos.X,
+        isWireInNet model wireToRoute
+    with
+    | n, _, _, _, _ when n <> 5 && n <> 7 -> wireToRoute // If wire is not 5 or 7 seg, return original wire
+    | _, true, _, _, _ -> wireToRoute // If either input or output component is rotated, return original wire
+    | _, _, orientation, _, _ when orientation <> Horizontal -> wireToRoute // If wire is not horizontal, return original wire
+    | _, _, _, true, _ -> wireToRoute // If input is on right side of output, return original wire
+    | _, _, _, _, None -> wireToRoute // If wire is not in net, return original wire
+    | _, _, _, _, Some(_, netlist) ->
         // Take first wire in netlist as reference wire for snapping
         let refWire = netlist.Head |> snd
         let refWireVertices = getWireVertices refWire
 
-        let wireToRouteStartPos, wireToRouteEndPos = getStartAndEndWirePos wireToRoute
         let _, refEndPos = getStartAndEndWirePos refWire
 
         let firstBendPos = refWireVertices[3]
@@ -524,14 +532,14 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
                 | true, false -> 2
                 | false, _ -> 3
 
-            match refWire.Segments.Length, wireToRouteStartPos.X < wireToRouteEndPos.X with
-            | 5, true ->
+            match refWire.Segments.Length with
+            | 5 ->
                 match firstBendPos.Y < refEndPos.Y, firstBendPos.Y > wireToRouteEndPos.Y with
                 | (true, true)
                 | (false, false) -> if wireToRouteEndPos.X < firstBendPos.X then 2 else 3
                 | _ -> simpleCase
-            | 7, true -> simpleCase
-            | _ -> 0 // Not implemented for ref wires that are not 5 or 7 seg or if the input is on right of output
+            | 7 -> simpleCase
+            | _ -> 0 // Not implemented for ref wires that are not 5 or 7 seg
 
         let newSegments =
             match numOfSegsToCopy with

@@ -321,8 +321,8 @@ let addDegree deg1 deg2 =
 
 
    
-//Returns the bounding box of a block of selected symbols, in the 'BoundingBox' type
-//HLP 23: AUTHOR Ismagilov
+///Returns the bounding box of a block of selected symbols, in the 'BoundingBox' type
+///HLP 23: AUTHOR Ismagilov
 let getBlock 
         (symbols:Symbol List) :BoundingBox = 
 
@@ -338,8 +338,8 @@ let getBlock
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
 
-//Takes a point Pos, a centre Pos, a transform and a rotation type and returns the point rotated about the centre
-//HLP23: AUTHOR Ismagilov
+///Takes a point Pos, a centre Pos, a transform and a rotation type and returns the point rotated about the centre
+///HLP23: AUTHOR Ismagilov
 let rotatePointAboutBlockCentre 
             (point:XYPos) 
             (centre:XYPos) 
@@ -367,8 +367,8 @@ let rotatePointAboutBlockCentre
     |> rotateAboutCentre
     |> relativeToTopLeft
 
-//Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre
-//HLP23: AUTHOR Ismagilov
+///Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre
+///HLP23: AUTHOR Ismagilov
 let flipPointAboutBlockCentre 
     (point:XYPos)
     (center:XYPos)
@@ -379,8 +379,8 @@ let flipPointAboutBlockCentre
     | FlipVertical -> 
         {X = point.X; Y = center.Y - (point.Y - center.Y)}
 
-//Given rotation type, original height and width, and rotated top left point, returns the new top left point.
-//HLP23: AUTHOR Ismagilov
+///Given rotation type, original height and width, and rotated top left point, returns the new top left point.
+///HLP23: AUTHOR Ismagilov
 let adjustPosForBlockRotation
         (rotation:RotationType) 
         (h: float)
@@ -393,8 +393,8 @@ let adjustPosForBlockRotation
         | RotateAntiClockwise -> { X = 0 ;Y = (float)w }
     pos - posOffset
 
-//Given flip type, original height and width, and flipped top left point, returns the new top left point.
-//HLP23: AUTHOR Ismagilov
+///Given flip type, original height and width, and flipped top left point, returns the new top left point.
+///HLP23: AUTHOR Ismagilov
 let adjustPosForBlockFlip
         (flip:FlipType) 
         (h: float)
@@ -406,10 +406,10 @@ let adjustPosForBlockFlip
         | FlipVertical -> { X = 0 ;Y = (float)h }
     pos - posOffset
 
-//Returns the new symbol after rotated about block centre.
-//Needed for overall block rotating and for CC's to maintain same shape
-//Shape changes means different block center -> divergence after many rotations 
-//HLP 23: AUTHOR Ismagilov
+///Returns the new symbol after rotated about block centre.
+///Needed for overall block rotating and for CC's to maintain same shape
+///Shape changes means different block center -> divergence after many rotations 
+///HLP 23: AUTHOR Ismagilov
 let rotateSymbolInBlock 
         (rotation: RotationType) 
         (blockCentre: XYPos)
@@ -438,9 +438,9 @@ let rotateSymbolInBlock
         Component = newComponent
     } |> calcLabelBoundingBox 
 
-//Returns the new symbol after flipped about block centre.
-//Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
-//HLP 23: AUTHOR Ismagilov
+///Returns the new symbol after flipped about block centre.
+///Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
+///HLP 23: AUTHOR Ismagilov
 let flipSymbolInBlock
     (flip: FlipType)
     (blockCentre: XYPos)
@@ -486,8 +486,8 @@ let flipSymbolInBlock
             |> rotateSymbolInBlock RotateAntiClockwise newblockCenter 
             |> rotateSymbolInBlock RotateAntiClockwise newblockCenter)
 
-//Returns the new symbol after scaled about block centre.
-//HLP 23: AUTHOR Ismagilov
+///Returns the new symbol after scaled about block centre.
+///HLP 23: AUTHOR Ismagilov
 let scaleSymbolInBlock
     (scaleType: ScaleType)
     (block: BoundingBox)
@@ -753,4 +753,34 @@ let isOverlapped
     else false
 
 
+///HLP23 AUTHOR: Klapper 
+///Returns the center point of the component
+let getComponentCenter (model: BusWireT.Model) (compId:ComponentId)  =
+    let comp = model.Symbol.Symbols[compId].Component
+    {X = comp.X + comp.W / 2.0; Y = comp.Y + comp.H / 2.0}
 
+///HLP23 AUTHOR: Klapper
+///Returns the distance between the two center points of the component
+let checkDistanceComponent (model : BusWireT.Model) (compId1 : ComponentId) (compId2 : ComponentId) =
+    euclideanDistance (getComponentCenter model compId1) (getComponentCenter model compId2)
+
+
+///HLP23 AUTHOR: Klapper
+///Returns an option aligment of the two components
+let checkCompAlignment (model : BusWireT.Model) (compId1 : ComponentId) (compId2 : ComponentId) = 
+    let comp1 = model.Symbol.Symbols[compId1].Component
+    let comp2 = model.Symbol.Symbols[compId2].Component
+    match isOverlapped comp1.X (comp1.X + comp1.W) comp2.X (comp2.X + comp2.W),
+          isOverlapped comp1.Y (comp1.Y + comp1.H) comp2.Y (comp2.Y + comp2.H) with
+    | true, false -> Some LeftRight
+    | false, true -> Some TopBottom
+    | _, _ -> None
+
+
+///HLP23 AUTHOR: Klapper
+///Returns a list of aligment and distances compared to a component
+let getDistanceAlignments (model : BusWireT.Model) (compId : ComponentId) (lstId: List<ComponentId>) = 
+    let mapper compare =
+        checkDistanceComponent model compId compare,
+        checkCompAlignment model compId compare
+    lstId |> List.map mapper

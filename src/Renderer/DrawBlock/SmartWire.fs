@@ -79,7 +79,6 @@ let swapBB (box: BoundingBox) (orientation: Orientation) : BoundingBox =
           W = box.H
           H = box.W }
 
-
 let updatePos (direction: DirectionToMove) (distanceToShift: float) (pos: XYPos) : XYPos =
     match direction with
     | Up_ -> { pos with Y = pos.Y - distanceToShift }
@@ -87,20 +86,55 @@ let updatePos (direction: DirectionToMove) (distanceToShift: float) (pos: XYPos)
     | Left_ -> { pos with X = pos.X - distanceToShift }
     | Right_ -> { pos with X = pos.X + distanceToShift }
 
-let rec findMinWireSeparation (model: Model) (pos: XYPos) (wire: Wire) (direction: DirectionToMove) =
-    let box =
-        { TopLeft = updatePos Up_ (Constants.minWireSeparation / 2.) pos
-          W = Constants.minWireSeparation * 2.
-          H = Constants.minWireSeparation * 2. }
+/// Recursively tries to find the minimum wire separation between a wire and a symbol.
+/// If attempted position is too close to another parallel wire, increment separation by Constants.minWireSeparation
+let rec findMinWireSeparation
+    (model: Model)
+    (pos: XYPos)
+    (wire: Wire)
+    (direction: DirectionToMove)
+    (movedSegOrientation: Orientation)
+    (symbolEdgeLength: float)
+    =
+    // Search for intersecting wires in a search box given by symbolEdgeLength
+    let searchH, searchW =
+        match movedSegOrientation with
+        | Horizontal -> Constants.minWireSeparation * 2., symbolEdgeLength
+        | Vertical -> symbolEdgeLength, Constants.minWireSeparation * 2.
 
-    let intersectingWires = getWiresInBox box model
+    let searchBox =
+        { TopLeft =
+            pos
+            |> updatePos Up_ (Constants.minWireSeparation / 2.)
+            |> updatePos Left_ (Constants.minWireSeparation / 2.)
+          H = searchH
+          W = searchW }
 
-    match intersectingWires with
-    | [] -> pos
-    | [ (w, _) ] when w.WId = wire.WId -> pos
-    | _ ->
+    let intersectingWires = getWiresInBox searchBox model
+    // If wires are in same net, do not need to increment wire separation
+    let wiresInSameNet = isWireInNet model wire
+
+    let isWireInNetlist (w: Wire) : bool =
+        match wiresInSameNet with
+        | None -> false
+        | Some(_, netlist) -> netlist |> List.exists (fun (_, w2) -> w2.WId = w.WId)
+
+    let rec isShiftNeeded =
+        function
+        | [] -> false
+        | (w, segIndex) :: rest ->
+            let segIndex = segIndex + if wire.InitialOrientation = Vertical then 1 else 0
+
+            match w.WId = wire.WId, isWireInNetlist w, movedSegOrientation, segIndex % 2 with
+            | false, false, movedSegOrientation, 1 when movedSegOrientation = Vertical -> true
+            | false, false, movedSegOrientation, 0 when movedSegOrientation = Horizontal -> true
+            | _ -> isShiftNeeded rest
+
+    match isShiftNeeded intersectingWires with
+    | false -> pos
+    | true ->
         let newPos = updatePos direction Constants.minWireSeparation pos
-        findMinWireSeparation model newPos wire direction
+        findMinWireSeparation model newPos wire direction movedSegOrientation symbolEdgeLength
 
 /// Checks if a wire intersects any symbol within +/- Constants.minWireSeparation
 /// Returns list of bounding boxes of symbols intersected by wire.
@@ -149,11 +183,6 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: (ComponentId * Boundin
         segmentsToIssieVertices wire.Segments wire
         |> List.map (fun (x, y, _) -> { X = x; Y = y })
 
-    let currentVerticalSegXPos =
-        match wire.InitialOrientation with
-        | Horizontal -> wireVertices[4].X
-        | Vertical -> wireVertices[4].Y
-
     let shiftVerticalSeg amountToShift =
         let newSegments =
             wire.Segments
@@ -163,15 +192,6 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: (ComponentId * Boundin
         { wire with Segments = newSegments }
 
     let tryShiftWireVert (dir: DirectionToMove) =
-        let bounds =
-            intersectedBoxes
-            |> List.map (fun (_compID, box) ->
-                let box = swapBB box wire.InitialOrientation
-
-                match dir with
-                | Left_ -> box.TopLeft.X
-                | Right_ -> box.TopLeft.X + box.W
-                | _ -> failwith "Invalid direction to shift wire")
 
         let boundBox =
             intersectedBoxes
@@ -191,24 +211,27 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: (ComponentId * Boundin
             | Left_, Horizontal ->
                 let initialAttemptPos = updatePos Left_ Constants.smallOffset boundBox.TopLeft
 
-                findMinWireSeparation model initialAttemptPos wire Left_
+                findMinWireSeparation model initialAttemptPos wire Left_ Vertical boundBox.H
             | Right_, Horizontal ->
                 let initialAttemptPos =
                     updatePos Right_ (boundBox.W + Constants.smallOffset) boundBox.TopLeft
 
-                findMinWireSeparation model initialAttemptPos wire Right_
+                findMinWireSeparation model initialAttemptPos wire Right_ Vertical boundBox.H
             | Left_, Vertical ->
                 let initialAttemptPos = updatePos Up_ Constants.smallOffset boundBox.TopLeft
 
-                findMinWireSeparation model initialAttemptPos wire Up_
+                findMinWireSeparation model initialAttemptPos wire Up_ Horizontal boundBox.W
             | Right_, Vertical ->
                 let initialAttemptPos =
-                    updatePos Down_ (boundBox.W + Constants.smallOffset) boundBox.TopLeft
+                    updatePos Down_ (boundBox.H + Constants.smallOffset) boundBox.TopLeft
 
-                findMinWireSeparation model initialAttemptPos wire Down_
+                findMinWireSeparation model initialAttemptPos wire Down_ Horizontal boundBox.W
             | _ -> failwith "Invalid direction to shift wire"
 
-        let amountToShift = viablePos.X - currentVerticalSegXPos
+        let amountToShift =
+            (swapXY viablePos wire.InitialOrientation).X
+            - (swapXY wireVertices[4] wire.InitialOrientation).X
+
         shiftVerticalSeg amountToShift
 
     let tryShiftLeftWire = tryShiftWireVert Left_
@@ -338,11 +361,11 @@ let rec tryShiftHorizontalSeg
                     | Horizontal ->
                         let initialAttemptPos = updatePos Up_ Constants.smallOffset topBoundBox.TopLeft
 
-                        findMinWireSeparation model initialAttemptPos wire Up_
+                        findMinWireSeparation model initialAttemptPos wire Up_ Horizontal topBoundBox.W
                     | Vertical ->
                         let initialAttemptPos = updatePos Left_ Constants.smallOffset topBoundBox.TopLeft
 
-                        findMinWireSeparation model initialAttemptPos wire Left_
+                        findMinWireSeparation model initialAttemptPos wire Left_ Vertical topBoundBox.H
 
                 match wire.InitialOrientation with
                 | Horizontal -> viablePos.Y
@@ -373,12 +396,12 @@ let rec tryShiftHorizontalSeg
                         let initialAttemptPos =
                             updatePos Down_ (Constants.smallOffset + bottomBoundBox.H) bottomBoundBox.TopLeft
 
-                        findMinWireSeparation model initialAttemptPos wire Down_
+                        findMinWireSeparation model initialAttemptPos wire Down_ Horizontal bottomBoundBox.W
                     | Vertical ->
                         let initialAttemptPos =
                             updatePos Right_ (Constants.smallOffset + bottomBoundBox.W) bottomBoundBox.TopLeft
 
-                        findMinWireSeparation model initialAttemptPos wire Right_
+                        findMinWireSeparation model initialAttemptPos wire Right_ Vertical bottomBoundBox.H
 
                 match wire.InitialOrientation with
                 | Horizontal -> viablePos.Y
@@ -502,10 +525,9 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
 
     let initialWire = (autoroute model wire)
-
     // Snapping to Net only implemented for one orientation
     let snappedToNetWire =
-        match model.SnapToNet, wire.InitialOrientation with
+        match model.SnapToNet, initialWire.InitialOrientation with
         | false, _
         | _, Vertical -> initialWire
         | true, Horizontal -> snapToNet model initialWire

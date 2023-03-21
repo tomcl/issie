@@ -100,15 +100,15 @@ let smartChannelRoute
             let net = currentWire.OutputPort
             let segments = currentWire.Segments
             let newPos = wireChannels[Map.find net channelDescriptor.ChannelToNetMap]
+            let addSegmentLen (ind: int) (len: float) (segments: Segment list) =
+                List.updateAt ind {segments[ind] with Length = segments[ind].Length + len} segments
             let newWire =
                 {
                     currentWire with
                         Segments =
                             segments
-                            |> List.updateAt (wireInfo.AdjustIndex-1)
-                                   {segments[wireInfo.AdjustIndex-1] with Length = segments[wireInfo.AdjustIndex-1].Length + (newPos - wireInfo.OldPosition)}
-                            |> List.updateAt (wireInfo.AdjustIndex+1)
-                                   {segments[wireInfo.AdjustIndex+1] with Length = segments[wireInfo.AdjustIndex+1].Length - (newPos - wireInfo.OldPosition)}
+                            |> addSegmentLen (wireInfo.AdjustIndex-1) (newPos - wireInfo.OldPosition)
+                            |> addSegmentLen (wireInfo.AdjustIndex+1) -(newPos - wireInfo.OldPosition)
                 }
                 
             { model with Wires = Map.add wireInfo.WId newWire model.Wires }

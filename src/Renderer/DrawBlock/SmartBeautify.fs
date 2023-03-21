@@ -72,5 +72,5 @@ let smartBeautify (wModel: BusWireT.Model) (boundingBoxes: Map<CommonTypes.Compo
     printfn "Invoked SmartBeautify Function!"
 
     wModel
-    |> beautifyComp smartHelpers boundingBoxes 
     |> beautifyPairs smartHelpers
+    |> beautifyComp smartHelpers boundingBoxes 

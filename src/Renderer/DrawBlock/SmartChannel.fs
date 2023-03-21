@@ -21,6 +21,7 @@ open Operators
     this purpose.
 *)
 
+/// WireAdjustInfo contains all of the data essential for each wire for the smartChannelRoute algorithm
 type WireAdjustInfo = {
     WId: ConnectionId
     AdjustIndex: int
@@ -28,6 +29,8 @@ type WireAdjustInfo = {
     POI: XYPos list
     Net: OutputPortId
 }
+
+/// This type contains all of the data required to do the smartChannelRoute algorithm
 type SmartWireChannel = {
     Wires: WireAdjustInfo list
     NumberChannels: int

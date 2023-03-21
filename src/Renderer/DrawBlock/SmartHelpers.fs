@@ -43,6 +43,12 @@ HOW TO USE THIS MODULE.
 
 //----------------------------------------------------------------------------------------------//
 
+/// Holds data about External Helpers required.
+/// HLP23: AUTHOR BRYAN TAN
+type ExternalSmartHelpers =
+    { UpdateSymbolWires: Model -> ComponentId -> Model
+      BoxesIntersect: BoundingBox -> BoundingBox -> bool }
+
 /// Update BusWire model with given symbols. Can also be used to add new symbols.
 /// This uses a fold on the Map to add symbols which makes it fast in the case that the number
 /// of symbols added is very small.

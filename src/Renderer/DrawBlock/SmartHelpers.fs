@@ -158,12 +158,6 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
     |> List.filter (fun l -> fst (fst l))
     |> List.map (fun ((_, index), w) -> w, index)
 
-/// Gets a Symbol from a given PortId.
-/// HLP23: Derek Lai (ddl20)
-let symbolFromPortId (wModel: BusWireT.Model) (portId: string) = 
-    let symId = wModel.Symbol.Ports[portId].HostId |> ComponentId
-    wModel.Symbol.Symbols[symId]
-
 /// Get the start and end positions of a wire.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)
 let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =

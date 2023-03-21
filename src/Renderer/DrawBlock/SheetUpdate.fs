@@ -742,8 +742,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let remainder = (Array.length model.DebugMappings) % 8
         let viewerNo = 
             match remainder with
-            |0 -> (Array.length model.DebugMappings) / 8 
-            |_ ->  (Array.length model.DebugMappings) / 8 + 1
+            | 0 -> (Array.length model.DebugMappings) / 8 
+            | _ ->  (Array.length model.DebugMappings) / 8 + 1
         
         
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
@@ -757,8 +757,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          |> function
             | Some (s1,s2) ->
                 /// HLP23: AUTHOR dgs119
-                let helpers =
-                    { SmartPortOrder.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
+                let helpers = { 
+                    SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
+                    SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
+                    
                 {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 helpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
@@ -770,9 +772,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                let helpers = 
-                    { SmartSizeSymbol.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
-                {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2 helpers}, Cmd.none
+                let helpers = { 
+                    SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
+                    SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
+
+                {model with Wire = SmartSizeSymbol.reSizeSymbolTopLevel model.Wire s1 s2 helpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
@@ -798,10 +802,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | ToggleSnapToNet ->
         model, (wireCmd BusWireT.ToggleSnapToNet)
     | BeautifySheet ->  
-        let helpers =
-            { SmartPortOrder.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
+        let helpers = {
+            SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
+            SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
 
-        {model with Wire = SmartBeautify.smartBeautify model.Wire helpers}, Cmd.none
+        {model with Wire = SmartBeautify.smartBeautify model.Wire model.BoundingBoxes helpers}, Cmd.none
     
     | MakeChannelToggle ->
         {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none
@@ -810,9 +815,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         validateSingleSelectedSymbol model
         |> function
             | Some (s1) -> 
-                let helpers = 
-                    { SmartSizeSymbol.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires }
-                {model with Wire = SmartSizeSymbol.optimiseSymbol model.Wire s1 helpers}, Cmd.none
+                let helpers = { 
+                    SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
+                    SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
+
+                {model with Wire = SmartSizeSymbol.optimiseSymbol model.Wire s1 model.BoundingBoxes helpers}, Cmd.none
             | None ->
                 printfn "Error: can't validate the selected symbol"
                 model, Cmd.none

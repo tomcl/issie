@@ -47,10 +47,6 @@ open Operators
         - And if all the Input ports are connected to the same component.
 *)
 
-/// Holds data about External Helpers required.
-type ExternalSmartHelpers = // TODO: Transfer to SmartHelpers.
-    { UpdateSymbolWires: Model -> ComponentId -> Model }
-
 /// Holds data about Port, its Edge and Location.
 type PortInfo = { Port: Port; Orientation: Edge }
 

@@ -163,25 +163,18 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
 let fixBoundingBox (box: BoundingBox): BoundingBox =
     match box.W < 0, box.H < 0 with
     | true, true ->
-        {
-            box with
-                TopLeft = {X = box.TopLeft.X + box.W; Y = box.TopLeft.Y + box.H}
-                W = abs box.W; H = abs box.H
-        }
+        { box with
+            TopLeft = {X = box.TopLeft.X + box.W; Y = box.TopLeft.Y + box.H}
+            W = abs box.W; H = abs box.H }
     | true, false ->
-        {
-            box with
-                TopLeft = {X = box.TopLeft.X + box.W; Y = box.TopLeft.Y}
-                W = abs box.W
-        }
+        { box with
+            TopLeft = {X = box.TopLeft.X + box.W; Y = box.TopLeft.Y}
+            W = abs box.W }
     | false, true ->
-        {
-            box with
-                TopLeft = {X = box.TopLeft.X; Y = box.TopLeft.Y + box.H}
-                H = abs box.H
-        }
+        { box with
+            TopLeft = {X = box.TopLeft.X; Y = box.TopLeft.Y + box.H}
+            H = abs box.H }
     | _ -> box
-
 
 /// Get the start and end positions of a wire.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)

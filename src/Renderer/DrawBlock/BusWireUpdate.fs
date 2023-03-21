@@ -234,8 +234,11 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         { model with Wires = newWires }, Cmd.none
 
     | MakeChannel (box: BoundingBox) ->
-        if model.MakeChannelToggle then
-            SmartChannel.smartChannelRoute Vertical box model, Cmd.none
+        if model.MakeChannelToggle && box.H <> 0.0 && box.W <> 0.0 then
+            let fixedBox = SmartHelpers.fixBoundingBox box
+            let orientation = if fixedBox.H > fixedBox.W then Vertical else Horizontal
+            printfn "Making %A channel %A" orientation fixedBox
+            SmartChannel.smartChannelRoute orientation fixedBox model, Cmd.none
         else
             model, Cmd.none
 

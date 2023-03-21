@@ -2,7 +2,7 @@
 
 ## Smart Channel: 
 * Wires are neatly placed with least amount of crossings 
-* Works in every direction, however you need to use two different shortcuts (CTRL + H) for horizontal (CTRL + J) for vertical, this was done to make auto detect more comforatble
+* Works in every direction, however you need to use two different shortcuts (CTRL + H) for horizontal (CTRL + J) for vertical, this was done to make auto detect better
 * Works with flipped/rotated components
 * feature - can auto detect channels out of any components (will try to place in the middle and have the biggest area without components inside)
 * feature - offers a choice to replace wires which have been too difficult to route

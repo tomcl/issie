@@ -108,9 +108,9 @@ let sortUpDown (model : Model) (orientation : Orientation) (segs : List<Segment*
 
     segs |> List.map (fun (x,y) -> (x, categoriseUpdown model orientation x), y)
     |> List.sortByDescending sorter
-    |> List.map (fun (x,y) -> fst x,y)
-    |> List.groupBy (fun (seg, posTuple) -> model.Wires[seg.WireId].OutputPort)
+    |> List.groupBy (fun ((seg, upDown), posTuple) -> model.Wires[seg.WireId].OutputPort, upDown)
     |> List.map snd
+    |> List.map (List.map (fun ((seg, _), postup) -> (seg, postup)))
 
     
 //Specialised helper function to return the vertical segments of a NShape wire

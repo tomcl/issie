@@ -164,11 +164,12 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
     |> List.filter (fun l -> fst (fst l))
     |> List.map (fun ((_, index), w) -> w, index)
 
-/// Gets a Symbol from a given PortId.
+/// Used to fix bounding box with negative width and heights
 /// HLP23: Derek Lai (ddl20)
-let symbolFromPortId (wModel: BusWireT.Model) (portId: string) = 
-    let symId = wModel.Symbol.Ports[portId].HostId |> ComponentId
-    wModel.Symbol.Symbols[symId]
+let fixBoundingBox (box: BoundingBox): BoundingBox =
+    let x = min (box.TopLeft.X + box.W) box.TopLeft.X
+    let y = min (box.TopLeft.Y + box.H) box.TopLeft.Y
+    {TopLeft = {X = x; Y = y}; W = abs box.W; H = abs box.H}
 
 /// Get the start and end positions of a wire.
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)

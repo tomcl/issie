@@ -21,80 +21,109 @@ open Operators
     this purpose.
 *)
 
+/// WireAdjustInfo contains all of the data essential for each wire for the smartChannelRoute algorithm
+type WireAdjustInfo = {
+    WId: ConnectionId
+    AdjustIndex: int
+    OldPosition: float
+    POI: XYPos list
+    Net: OutputPortId
+}
 
-// TODO:
-// Dont move wires which have two segments in the channel?
+/// This type contains all of the data required to do the smartChannelRoute algorithm
+type SmartWireChannel = {
+    Wires: WireAdjustInfo list
+    NumberChannels: int
+    ChannelToNetMap: Map<OutputPortId, int>
+}
 
 /// Automatically moves all wires which intersect the channel
 /// 1. Detects all wires in the model which pass through the channel
 /// 2. Sorts them in the ideal order so that wires are separated in the channel, if possible
-/// 3. Moves wires so that they are equidistant to one another in the channel
+/// 3. Moves wires so that they are equidistant to one another in the channel (groups wires from the same net)
 let smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 
         (model: Model) 
             : Model =
     
-    let tl = channel.TopLeft
     let extractWire (wId: ConnectionId): Wire = model.Wires[wId]
     
-    let sortWires (wires: (Wire * int) list) =
-        // Get two XY positions: one at the first bend before the wire crosses the channel
-        // as well as the one before that.
-        let wirePos =
-            List.map (fun (wire, index) ->
-                (wire.WId, index), (getWireSegmentsXY wire)[index-1..index]) wires
-    
-        let sorted (wirePos: ((ConnectionId * int) * XYPos list) list) =
+    /// Takes a list of wire infos and returns a SmartWireChannel object with all
+    /// of the fields populated.
+    let getChannelDescriptor (wireInfos: WireAdjustInfo list): SmartWireChannel =
+        let groupNets = List.groupBy (fun x -> x.Net) wireInfos
+        
+        let assignedWireList =
+            groupNets
+            |> List.collect (fun (netId, wireInfoList) ->
+                wireInfoList |> List.map (fun wireInfo -> { wireInfo with Net = netId }))
+
+        let assignedOldPosition =
             match channelOrientation with
             | Vertical ->
-                // Sort by the vertical positioning of the wire starts
-                wirePos
-                |> List.sortByDescending (fun (_, pos: XYPos list) -> pos[0].Y)
-                |> List.map (fun ((wid, ind), pos) -> (wid, ind), pos[1].X)
+                assignedWireList
+                |> List.sortByDescending (fun w -> w.POI[0].Y)
+                |> List.map (fun w -> { w with OldPosition = w.POI[1].X })
             | Horizontal ->
-                // Sort by the horizontal positioning of the wire starts
-                wirePos
-                |> List.sortBy (fun (_, pos: XYPos list) -> pos[0].Y)
-                |> List.map (fun ((wid, ind), pos) -> (wid, ind), pos[1].Y)
+                assignedWireList
+                |> List.sortBy (fun w -> w.POI[0].Y)
+                |> List.map (fun w -> { w with OldPosition = w.POI[1].Y })
                 
-        sorted wirePos
+        let channelIndexToNetMap =
+            let folder (ind, m) (ele: WireAdjustInfo) =
+                if Map.containsKey ele.Net m then
+                    ind, m
+                else
+                    ind + 1, Map.add ele.Net ind m
+                
+            ((0, Map.empty), assignedOldPosition) ||> List.fold folder
+            |> snd
+        
+        { Wires = assignedOldPosition; NumberChannels = groupNets.Length; ChannelToNetMap = channelIndexToNetMap }
 
-    // Moves all the wire IDs which are passed in from their old position to the new position in the channel
-    let moveWires (model: Model) (sortedWires: ((ConnectionId * int) * float) list) =
+    /// Takes the current model and modifies it based on the contents of the SmartWireChannel type
+    let moveWires (model: Model) (channelDescriptor: SmartWireChannel) =
         let wireChannels =
             match channelOrientation with
             | Vertical ->
-                [channel.TopLeft.X .. (channel.W / (float (sortedWires.Length+1)))
-                .. channel.TopLeft.X + channel.W][1..sortedWires.Length]
+                [channel.TopLeft.X .. (channel.W / (float (channelDescriptor.NumberChannels+1)))
+                .. channel.TopLeft.X + channel.W][1..channelDescriptor.NumberChannels]
             | Horizontal ->
-                [channel.TopLeft.Y .. (channel.H / (float (sortedWires.Length+1)))
-                .. channel.TopLeft.Y + channel.H][1..sortedWires.Length]
-        
+                [channel.TopLeft.Y .. (channel.H / (float (channelDescriptor.NumberChannels+1)))
+                .. channel.TopLeft.Y + channel.H][1..channelDescriptor.NumberChannels]
+    
         printfn "New Channels: %A" wireChannels
         
-        // In a 7 segment wire, seg index 2,3,4 are the ones which control the bend
-        let adjustWire (model: Model) (newPos: float) (((wid, index), oldPos): (ConnectionId * int) * float) =
-            // shorten or lengthen seg 2 & 4
-            let currentWire = extractWire wid
-            let currentSegments = currentWire.Segments
+        let adjustSingleWire (model: Model) (wireInfo: WireAdjustInfo) =
+            let currentWire = extractWire wireInfo.WId
+            let net = currentWire.OutputPort
+            let segments = currentWire.Segments
+            let newPos = wireChannels[Map.find net channelDescriptor.ChannelToNetMap]
+            let addSegmentLen (ind: int) (len: float) (segments: Segment list) =
+                List.updateAt ind {segments[ind] with Length = segments[ind].Length + len} segments
             let newWire =
                 {
-                    extractWire wid with
+                    currentWire with
                         Segments =
-                            currentSegments
-                            |> List.updateAt (index-1)
-                                   {currentSegments[index-1] with Length = currentSegments[index-1].Length + (newPos - oldPos)}
-                            |> List.updateAt (index+1)
-                                   {currentSegments[index+1] with Length = currentSegments[index+1].Length - (newPos - oldPos)}
+                            segments
+                            |> addSegmentLen (wireInfo.AdjustIndex-1) (newPos - wireInfo.OldPosition)
+                            |> addSegmentLen (wireInfo.AdjustIndex+1) -(newPos - wireInfo.OldPosition)
                 }
-            { model with Wires = Map.add wid newWire model.Wires }
-            
-        (model, wireChannels, sortedWires) |||> List.fold2 adjustWire
+                
+            { model with Wires = Map.add wireInfo.WId newWire model.Wires }
     
-    printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
-    
+        (model, channelDescriptor.Wires) ||> List.fold adjustSingleWire
+
+    // Take the generic function which gets wires in a box and map it to WireAdjustInfo type
+    // so that it can be used in the smart channel pipeline
     getWiresInBox channel model
-    |> sortWires
+    |> List.map (fun (wire, index) -> {
+        WId = wire.WId
+        AdjustIndex = index
+        OldPosition = 0.0
+        Net = wire.OutputPort
+        POI = (getWireSegmentsXY wire)[index-1..index]
+    })
+    |> getChannelDescriptor
     |> moveWires model
-    

@@ -8,9 +8,8 @@
 * feature - can auto detect channels out of any components 
     * will try to place in the middle and have the biggest area without components inside
 * feature - offers a choice to replace wires which have been too difficult to route
-* feature - routes wires originating from the same port together (net? wires)
-* limitation - least amount of crossing may be unachiaveble due to routing batches of wire together 
-    * trade-off: sometimes would work better with least crossing and nets routed seperately
+* feature - routes wires originating from the same port together (same net wires)
+* limitation - least amount of crossing may be unachiaveble due to routing same net wires together 
 * limitation - auto detect works only if the channel makes sense, if it doesnt it will still from a channel but it will cause undisiralbe effects
 
 ## Wire replacement with labels:

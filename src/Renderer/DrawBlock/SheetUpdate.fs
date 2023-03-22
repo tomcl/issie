@@ -768,15 +768,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 model, Cmd.none
     | TestPortPosition ->
         // Test code called from Edit menu item
-
+        // Validate the list of selected symbols: it must have just 2 for
+        // the test to work.
          /// HLP23: Ifte
          let symbolSizeHelpers: SmartSizeSymbol.BusWireHelpers = 
             {
                 updateSymbolWires = BusWireUpdate.updateSymbolWires
             }
 
-         // Validate the list of selected symbols: it must have just 2 for
-         // the test to work.
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
@@ -801,32 +800,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
-                model, Cmd.none  
-    | TestPortArrange ->
-        // Test code called from Edit menu item
-
-         /// HLP23: Ifte
-         let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
-            {
-                updateWire = BusWireUpdate.updateWire
-                updateSymbolWires = BusWireUpdate.updateSymbolWires
-            }
-         let symbolSizeHelpers: SmartSizeSymbol.BusWireHelpers = 
-            {
-                updateSymbolWires = BusWireUpdate.updateSymbolWires
-            }
-
-         // Validate the list of selected symbols: it must have just 2 for
-         // the test to work.
-         //validateTwoSelectedSymbols model
-         //|> function
-         //   | Some (s1,s2) ->
-         //       {model with Wire = SmartPortArrange.reArrangePorts model.Wire s1 s2 symbolSizeHelpers portOrderHelpers}, Cmd.none
-         //   | None -> 
-         //       printfn "Error: can't validate the two symbols selected to reorder ports"
-         //       model, Cmd.none
-
-         {model with Wire = SmartPortArrange.reArrangePorts model.Wire symbolSizeHelpers portOrderHelpers}, Cmd.none
+                model, Cmd.none   
     
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none

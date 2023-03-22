@@ -115,22 +115,6 @@ let symbolBox (symbol: Symbol) : list<float*float> =
     [topLeft; topRight; bottomLeft; bottomRight]
 
 
-/// HLP23: Author Omar & Indraneel
-/// given an input edge and symbol, return a list of all port positions for each edge on the symbol
-let portPositions (symbol: Symbol) (edge: Edge): list<float*float> = 
-    let box = symbolBox symbol
-    let x = fst box[0]
-    let y = snd box[0]
-    let w = symbol.Component.W
-    let h = symbol.Component.H
-    let numberPorts = float (symbol.PortMaps.Order[edge] |> List.length)
-    match edge with
-        | Top -> [x + w/numberPorts, y; x + w/numberPorts, y + h/numberPorts]
-        | Bottom -> [x + w/numberPorts, y + h; x + w/numberPorts, y + h/numberPorts]
-        | Left -> [x, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
-        | Right -> [x + w, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
-
-
 /// HLP23: Author Indraneel
 /// Finds all the InterConnecting Wires between 2 symbols given WireModel.Wires and the 2 symbols
 /// and a flag to get either all interconnecting wires or just wires in the direction from otherSymbol->symbolToOrder

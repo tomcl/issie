@@ -30,3 +30,14 @@ Hold `Ctrl` near a custom component to highlight its four corners. Drag a corner
 - Applies smart port reordering on 10 pairs of components that require the most swaps.
 - Applies smart size and respositioning to custom components if the operation does not cause symbols to overlap.
      - Limitation: Repositioning may move components too much. Cases which produce undesirable results have not been identified yet.
+
+## Smart Channel
+- Features
+    - Added selectrion box for vertical and horizontal channels, ususe a toggle button on command on UI
+    - Added support for channel routing wires with any number of segments & also added grouping nets together in the channel
+    - Reworked framework and added types which are easily expandable for better maintainability or if anyone wants to expand on smart channels in the future
+
+- Limitations:
+    - Will need better visual indication that we are in "make channel" mode - maybe change the selection box to be rendered in a red color
+    - Only moves one segment and does not optimise for wire crossings
+    - Currently no safety checks are being performed so if you drag a horizontal channel over vertical wire segements, it will fail in an ugly way

@@ -29,3 +29,4 @@ Hold `Ctrl` near a custom component to highlight its four corners. Drag a corner
 - Heuristic based algorithm to cleanup the whole sheet is invoked using menu dropdown (Edit > Sheet Beautify) or `CtrlOrCmd+B`.
 - Applies smart port reordering on 10 pairs of components that require the most swaps.
 - Applies smart size and respositioning to custom components if the operation does not cause symbols to overlap.
+     - Limitation: Repositioning may move components too much. Cases which produce undesirable results have not been identified yet.

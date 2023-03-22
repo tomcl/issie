@@ -272,6 +272,16 @@ module CommonTypes
             | Left -> Right
             | _ -> Left
 
+    /// Holds possible directions to sort ports.
+    /// HLP23: AUTHOR dgs119
+    type Direction =
+        | Clockwise
+        | AntiClockwise
+
+        member this.Opposite =
+            match this with
+            | Clockwise -> AntiClockwise
+            | _ -> Clockwise
 
     type BoundingBox = {
         /// Top left corner of the bounding box

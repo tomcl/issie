@@ -13,52 +13,59 @@ open SmartPortOrder
 open SmartSizeSymbol
 
 module Constants =
-    let maxPairsToBeautify = 10
-    let maxOffset = 0
-    let maxScale = { x = 0.2; y = 0.2 }
-    
+    let maxPairsToReorder = 10
 
-/// Gets Symbol Pairs to Beautify.
-let getSymsToReorder (model: BusWireT.Model) =
+/// Optimizes Symbols.
+let optimizeSyms
+    (helpers: ExternalSmartHelpers)
+    (bBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
+    (model: BusWireT.Model)
+    =
 
-    let keepSymPair (symPair: Symbol * Symbol) =
-        match symbolMatch (fst symPair), symbolMatch (snd symPair) with
-        | Custom _, Custom _
-        | Custom _, And
-        | And, Custom _ -> true
-        | _ -> false
+    let updateBBoxes (wModel: BusWireT.Model) (bBoxes: Map<ComponentId, BoundingBox>) =
+        bBoxes |> Map.map (fun sId _ -> getBoundingBox wModel.Symbol sId)
 
-    getConnSyms model |> List.filter keepSymPair    
+    let symsToResize =
+        model.Symbol.Symbols
+        |> Map.filter (fun id sym ->
+            match sym.Component.Type with
+            | Custom _ as customComp -> true
+            | _ -> false)
+        |> Map.toList
+        |> List.map snd
+        |> Set.ofList
 
-let updateBoundingBoxes (wModel: BusWireT.Model) (boundingBoxes: Map<ComponentId, BoundingBox>) = 
-    boundingBoxes |> Map.map (fun sId _ -> getBoundingBox wModel.Symbol sId)
-  
-/// Extracts Symbols to Resize.
-let symsToResize (model: BusWireT.Model) = 
-    model.Symbol.Symbols
-    |> Map.filter (fun id sym ->         
-        match sym.Component.Type with
-        | Custom _ as customComp -> true
-        | _ -> false)
-    |> Map.toList
-    |> List.map snd
+    let folder (currModel, currBB, currSet) _ =
+        let sym, newModel =
+            Set.toArray currSet
+            |> Array.map (fun sym -> sym, optimiseSymbol currModel sym currBB helpers)
+            |> Array.minBy (fun (_, m) -> totalLengthOfWires m.Wires)
 
-let beautifyComp (helpers: ExternalSmartHelpers) (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (model: BusWireT.Model) = 
-    ((model, boundingBoxes), symsToResize model)
-    ||> List.fold (fun (model', bb') sym -> 
-        let sym' = model'.Symbol.Symbols[sym.Id]
-        let model' = optimiseSymbol model' sym' bb' helpers
-        (model', updateBoundingBoxes model' bb')
-    )
-    |> fst
+        newModel, updateBBoxes newModel currBB, Set.remove sym currSet
 
-/// Beautifies Symbol Pairs.
-let beautifyPairs (smartHelpers: ExternalSmartHelpers) (model: BusWireT.Model) =
+    let model', _, _ = ((model, bBoxes, symsToResize), symsToResize) ||> Set.fold folder
 
+    model'
+
+/// Reorders Symbol.
+let reorderPairs (smartHelpers: ExternalSmartHelpers) (model: BusWireT.Model) =
+
+    // Gets Symbol Pairs to Beautify.
+    let getSymsToReorder =
+        let keepSymPair (symPair: Symbol * Symbol) =
+            match symbolMatch (fst symPair), symbolMatch (snd symPair) with
+            | Custom _, Custom _
+            | Custom _, And
+            | And, Custom _ -> true
+            | _ -> false
+
+        getConnSyms model |> List.filter keepSymPair
+
+    // Truncate pairs to reorder based on number of swaps.
     let pairs =
-        getSymsToReorder model
+        getSymsToReorder
         |> List.sortByDescending (fun (symA, symB) -> (symReorderPair model symA symB) |> optSwaps |> fst)
-        |> List.truncate Constants.maxPairsToBeautify
+        |> List.truncate Constants.maxPairsToReorder
 
     (model, pairs)
     ||> List.fold (fun model' (symA, symB) ->
@@ -67,10 +74,10 @@ let beautifyPairs (smartHelpers: ExternalSmartHelpers) (model: BusWireT.Model) =
         reOrderPorts model' symA' symB' smartHelpers)
 
 /// Header Function.
-let smartBeautify (wModel: BusWireT.Model) (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (smartHelpers: ExternalSmartHelpers) : BusWireT.Model =
+let smartBeautify
+    (wModel: BusWireT.Model)
+    (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
+    (smartHelpers: ExternalSmartHelpers)
+    : BusWireT.Model =
 
-    printfn "Invoked SmartBeautify Function!"
-
-    wModel
-    |> beautifyPairs smartHelpers
-    |> beautifyComp smartHelpers boundingBoxes 
+    wModel |> reorderPairs smartHelpers |> optimizeSyms smartHelpers boundingBoxes

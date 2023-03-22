@@ -31,7 +31,7 @@ let huggingDistance (model: Model) (wire: Wire) (symbol: Symbol) : float * float
 
     // tuple representing left and right hug distance
     let hugDistance = 
-        (snd boundaryBox[3]) - outputPortPos.Y, (snd boundaryBox[3]) - inputPortPos.Y 
+        (snd boundaryBox.BottomLeft) - outputPortPos.Y, (snd boundaryBox.BottomLeft) - inputPortPos.Y 
 
     match portPos with
         | Left -> hugDistance
@@ -84,9 +84,9 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
         | Right -> newWire
         | _ -> 
             let rightVertical = 
-                ((snd boundaryBox[3]) - inputPortPos.Y) + 10.0 + lengthAdjustment
+                ((snd boundaryBox.BottomLeft) - inputPortPos.Y) + 10.0 + lengthAdjustment
             let leftVertical = 
-                ((snd boundaryBox[3]) - outputPortPos.Y) + 8.0 + lengthAdjustment
+                ((snd boundaryBox.BottomLeft) - outputPortPos.Y) + 8.0 + lengthAdjustment
             let horizontalSeperation = 
                 match outputPortIndex with
                     | 0 -> 10.5
@@ -243,9 +243,9 @@ let replaceWithWireLabels (model: Model) (wire: Wire) (wlName: string): SmartAut
 /// returns left, middle, and right conditions for symbol intersection with wire
 let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list = 
     let symbolBox = symbolBox symbol
-    let symbolTopLeftPos = symbolBox[0]
-    let symbolTopRightPos = symbolBox[1]
-    let symbolBottomRightPos = symbolBox[3]
+    let symbolTopLeftPos = symbolBox.TopLeft
+    let symbolTopRightPos = symbolBox.TopRight
+    let symbolBottomRightPos = symbolBox.BottomLeft
     let symbolLeft = fst symbolTopLeftPos
     let symbolTop = snd symbolTopLeftPos
     let symbolBottom = snd symbolBottomRightPos
@@ -387,8 +387,8 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                     | [] -> wire
                     | symbol::symbols ->
                         let symbolBox = symbolBox symbol
-                        let symbolTopLeftPos = symbolBox[0]
-                        let symbolBottomRightPos = symbolBox[3]
+                        let symbolTopLeftPos = symbolBox.TopLeft
+                        let symbolBottomRightPos = symbolBox.BottomLeft
                         let symbolLeft = fst symbolTopLeftPos
                         let symbolRight = fst symbolBottomRightPos
                         let symbolTop = snd symbolTopLeftPos
@@ -605,8 +605,8 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                     | [] -> wire
                     | symbol::symbols ->
                         let symbolBox = symbolBox symbol
-                        let symbolTopLeftPos = symbolBox[0]
-                        let symbolBottomRightPos = symbolBox[3]
+                        let symbolTopLeftPos = symbolBox.TopLeft
+                        let symbolBottomRightPos = symbolBox.BottomLeft
                         let symbolLeft = fst symbolTopLeftPos
                         let symbolRight = fst symbolBottomRightPos
                         let symbolBottom = snd symbolBottomRightPos

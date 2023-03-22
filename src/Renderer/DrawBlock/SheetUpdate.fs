@@ -818,8 +818,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 let helpers = { 
                     SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
                     SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
-
-                {model with Wire = SmartSizeSymbol.optimiseSymbol model.Wire s1 model.BoundingBoxes helpers}, Cmd.none
+                let model'= SmartSizeSymbol.optimiseSymbol model.Wire s1 model.BoundingBoxes helpers
+                {model with Wire = model'}, Cmd.none
             | None ->
                 printfn "Error: can't validate the selected symbol"
                 model, Cmd.none

@@ -980,25 +980,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 wireCmd (BusWireT.UpdateConnectedWires compList)
                 Cmd.ofMsg UpdateBoundingBoxes
         ]
-    | TestAllTogether ->
+    | TestAllTogether orientation ->
+        //HLP23 AUTHOR: Klapper
+        //Executes port reorderin and channel formation right after each other
         validateTwoSelectedSymbols model
          |> function 
             | Some (s1, s2) -> 
-                            match SmartHelpers.checkCompAlignment model.Wire s1.Id s2.Id with
-                            | Some TopBottom -> model, Cmd.batch [
-                                                                        (Cmd.ofMsg (TestPortPosition))
-                                                                        (Cmd.ofMsg (KeyPress CtrlR))
-                                                                        (Cmd.ofMsg (FormSmartChannel Vertical))]
-                            | Some LeftRight -> model, Cmd.batch [
-                                                                        (Cmd.ofMsg (TestPortPosition))
-                                                                        (Cmd.ofMsg (KeyPress CtrlR))
-                                                                        (Cmd.ofMsg (FormSmartChannel Horizontal))] 
-                            | None -> 
-                                    printfn "The symbols are not aligned!" 
-                                    model, Cmd.none
+                model, Cmd.batch [ 
+                                        (Cmd.ofMsg (KeyPress CtrlR)) 
+                                        (Cmd.ofMsg (FormSmartChannel orientation))]
             | None -> 
-                    printfn "Please select two symbols"
-                    model, Cmd.none
+                model, Cmd.batch [ 
+                                        (Cmd.ofMsg (KeyPress CtrlT)) 
+                                        (Cmd.ofMsg (FormSmartChannel orientation))]
         
 
     

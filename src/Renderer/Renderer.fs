@@ -255,7 +255,8 @@ let editMenu dispatch' =
                makeElmItem "TestScaleUp"  "CmdorCtrl+U" (fun () -> dispatch SheetT.KeyboardMsg.CtrlU)
                makeElmItem "TestScaleDown" "CmdorCtrl+I" (fun () -> dispatch SheetT.KeyboardMsg.CtrlI)
                makeItem "TestResize" (Some"CmdOrCtrl+E") (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
-               makeItem "TestAllTogether" None (fun ev-> sheetDispatch SheetT.Msg.TestAllTogether)
+               makeItem "TestReorderChannelVertical" None (fun ev-> sheetDispatch (SheetT.Msg.TestAllTogether BusWireT.Vertical))
+               makeItem "TestReorderChannelHorizontal" None (fun ev-> sheetDispatch (SheetT.Msg.TestAllTogether BusWireT.Horizontal))
                
                
             |]

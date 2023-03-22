@@ -562,7 +562,7 @@ module SheetT =
         | TestScaleUp
         | TestPortReorder2
         | TestScaleDown
-        | TestAllTogether
+        | TestAllTogether of BusWireT.Orientation
         | SetStyle of SymbolT.StyleType //HLP23: AUTHOR Ismagilov
 
 

@@ -148,8 +148,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if (model.SelectedComponents.Length < 2) then 
             (model), Cmd.none
         else
-            let rotateACWSym = {(createNewSymbol {X=box.TopLeft.X - 57.; Y=box.TopLeft.Y+(box.H/2.)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree0 ; flipped=true}}
-            let rotateCWSym = createNewSymbol {X=box.TopLeft.X+box.W+ 50.; Y=box.TopLeft.Y+(box.H/2.)} RotateButton  "RotateCW" Distinctive
+            let createdrotateACWSym = {(createNewSymbol {X=box.TopLeft.X - 57.; Y=box.TopLeft.Y+(box.H/4.)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree0 ; flipped=true}}
+            let rotateACWSym = {createdrotateACWSym with Component = {createdrotateACWSym.Component with H = box.H/2.; W=box.H/2.}}
+            let createdrotateCWSym = createNewSymbol {X=box.TopLeft.X+box.W+ 57.; Y=box.TopLeft.Y+(box.H/4.)} RotateButton  "RotateCW" Distinctive
+            let rotateCWSym = {createdrotateCWSym with Component = {createdrotateCWSym.Component with H = box.H/2.; W=box.H/2.}}
             let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W+ 46.5; Y=box.TopLeft.Y-53.5} ScaleButton "ScaleButton"  Distinctive
             let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym |> Map.add rotateACWSym.Id rotateACWSym |> Map.add rotateCWSym.Id rotateCWSym
             ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id]}), Cmd.none

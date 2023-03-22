@@ -188,6 +188,15 @@ let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
 let getWireLength (wire: Wire) : float =
     (0., wire.Segments) ||> List.fold (fun acc seg -> acc + (abs seg.Length))
 
+/// Gets total length of a set of wires.
+/// HLP23: AUTHOR dgs119
+let totalLengthOfWires (conns: Map<ConnectionId, Wire>) = 
+    conns
+    |> Map.map(fun _ wire -> getWireLength wire)
+    |> Map.toList
+    |> List.map snd
+    |> List.sum
+
 /// Checks if a wire is part of a net.
 /// If yes, return the netlist. Otherwise, return None
 /// HLP23: AUTHOR Jian Fu Eng (jfe20)

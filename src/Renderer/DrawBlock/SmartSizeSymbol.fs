@@ -24,7 +24,7 @@ open BusWire
     function for the wires.
 *)
 
-/// record containing all the information required to calculate the position of a port on the sheet
+/// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
       sym: Symbol
@@ -38,7 +38,7 @@ type PortInfo =
       portGap: float }
 
 /// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
-/// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol
+/// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
 let makePortInfo (sym: Symbol) (port: Port) =
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
@@ -76,7 +76,7 @@ let getPortAB wModel wireSyms =
     let portB = filterPortBySym ports wireSyms.symB |> List.head
     portA, portB
 
-/// Try to get two ports that are on opposite edges
+/// Try to get two ports that are on opposite edges.
 let getOppEdgePortInfo
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
@@ -95,7 +95,10 @@ let getOppEdgePortInfo
 
     wires
     |> List.tryPick (fun w ->
-        tryGetOppEdgePorts{ symA = symbolToSize; symB = otherSymbol; wire = w })
+        tryGetOppEdgePorts
+            { symA = symbolToSize
+              symB = otherSymbol
+              wire = w })
 
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let getPortRealPos pInfo =
@@ -118,7 +121,7 @@ let alignSymbols
     (smartHelpers: ExternalSmartHelpers)
     : BusWireT.Model =
 
-    // only attempt to align symbols if they are connected by ports on parallel edges
+    // Only attempt to align symbols if they are connected by ports on parallel edges.
     match getOppEdgePortInfo wModel symbolToSize otherSymbol with
     | None -> wModel
     | Some(movePortInfo, otherPortInfo) ->
@@ -137,14 +140,19 @@ let alignSymbols
 /// stating what it does.
 /// Given two connected symbols, resize the selected symbol to make the port gaps on both symbols the same.
 /// Translate the selected symbol so that the ports on both symbols align and the connecting wires become straight.
-let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol * (XYPos * ScaleFactor)) =
+let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
-    // try to get two ports that are on opposite edges, if none found just use any two ports
+    // Try to get two ports that are on opposite edges, if none found just use any two ports.
     let resizePortInfo, otherPortInfo =
         match getOppEdgePortInfo wModel symbolToSize otherSymbol with
         | None ->
-            let pA, pB = getPortAB wModel{ symA = symbolToSize; symB = otherSymbol; wire = wires[0] }
+            let pA, pB =
+                getPortAB
+                    wModel
+                    { symA = symbolToSize
+                      symB = otherSymbol
+                      wire = wires[0] }
 
             makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
         | Some(pIA, pIB) -> (pIA, pIB)
@@ -153,18 +161,21 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
         match resizePortInfo.side with
         | Left
         | Right ->
-            otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.gap), resizePortInfo.w
+            otherPortInfo.portGap
+            * (resizePortInfo.portDimension + 2.0 * resizePortInfo.gap),
+            resizePortInfo.w
         | Top
         | Bottom ->
-            resizePortInfo.h, otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.topBottomGap)
+            resizePortInfo.h,
+            otherPortInfo.portGap
+            * (resizePortInfo.portDimension + 2.0 * resizePortInfo.topBottomGap)
 
-    let scale = { x = h / symbolToSize.Component.H; y = w / symbolToSize.Component.W;}
     let scaledSymbol = setCustomCompHW h w symbolToSize
     let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
     let offset = alignPortsOffset scaledInfo otherPortInfo
-    (moveSymbol offset scaledSymbol, (offset, scale))
+    moveSymbol offset scaledSymbol
 
-/// For UI to call ResizeSymbol
+/// For UI to call ResizeSymbol.
 let reSizeSymbolTopLevel
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
@@ -173,17 +184,17 @@ let reSizeSymbolTopLevel
     : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 
-    let scaledSymbol, _ = reSizeSymbol wModel symbolToSize otherSymbol
+    let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
 
     let model' = set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
     smartHelpers.UpdateSymbolWires model' symbolToSize.Id
 
-// for each edge of the symbol, store a count of how many connections it has to other symbols
+// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =
     { ConnMap: Map<ComponentId * Edge, int> }
 
 
-let wireSymEdge wModel wire sym = 
+let wireSymEdge wModel wire sym =
     let sPort, tPort = getSourcePort wModel wire, getTargetPort wModel wire
     let sEdge = Map.tryFind sPort.Id sym.PortMaps.Orientation
     let tEdge = Map.tryFind tPort.Id sym.PortMaps.Orientation
@@ -193,7 +204,7 @@ let wireSymEdge wModel wire sym =
     | None, Some e -> e
     | _ -> Top // Shouldn't happen.
 
-/// for a wire and a symbol, return the edge of the symbol that the wire is connected to
+/// For a wire and a symbol, return the edge of the symbol that the wire is connected to.
 let tryWireSymEdge (wModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symbol) =
     let symEdge = wireSymEdge wModel wire sym
     let otherSymEdge = wireSymEdge wModel wire otherSym
@@ -207,7 +218,7 @@ let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
     let count = Map.tryFind (cid, edge) m |> Option.defaultValue 0 |> (+) 1
     { ConnMap = Map.add (cid, edge) count m }
 
-// TODO: this is copied from Sheet.notIntersectingComponents. It requires SheetT.Model, which is not accessible from here
+// TODO: this is copied from Sheet.notIntersectingComponents. It requires SheetT.Model, which is not accessible from here.
 let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundingBoxes sym =
     let symBB = getSymbolBoundingBox sym
 
@@ -215,8 +226,7 @@ let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundin
     |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox symBB && sym.Id <> sId)
     |> Map.isEmpty
 
-/// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols
-///
+/// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
 let optimiseSymbol
     (wModel: BusWireT.Model)
     (symbol: Symbol)
@@ -229,12 +239,8 @@ let optimiseSymbol
 
         let otherSymbol =
             match symS, symT with
-            | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) ->
-                printfn $"{symS.Component.Label}"
-                Some symS
-            | _ when (symS = symbol) && (symT <> symbol) ->
-                printfn $"{symT.Component.Label}"
-                Some symT
+            | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> Some symS
+            | _ when (symS = symbol) && (symT <> symbol) -> Some symT
             | _ -> None
 
         match otherSymbol with
@@ -246,26 +252,28 @@ let optimiseSymbol
             | None -> symConnData // should not happen
         | None -> symConnData
 
-    // look through all wires to build up SymConnDataT
+    // Look through all wires to build up SymConnDataT.
     let symConnData = ({ ConnMap = Map.empty }, wModel.Wires) ||> Map.fold updateData
 
-    let tryResize (symCount: ((ComponentId * Edge) * int) array) (sym: Symbol) =
+    let tryResize (symCount: ((ComponentId * Edge) * int) array) sym =
+
         let alignSym (sym: Symbol) (otherSym: Symbol) =
-            let resizedSym, resizeData = reSizeSymbol wModel sym otherSym
+            let resizedSym = reSizeSymbol wModel sym otherSym
             let noOverlap = noSymbolOverlap smartHelpers.BoxesIntersect boundingBoxes resizedSym
 
             match noOverlap with
-            | true -> true, (resizedSym, Some resizeData) 
-            | _ -> false, (sym, None)
+            | true -> true, resizedSym
+            | _ -> false, sym
 
-        let folder (hAligned, vAligned, sym) ((cid, edge), count) =
+        let folder (hAligned, vAligned, sym) ((cid, edge), _) =
             let otherSym = get (symbolOf_ cid) wModel
+
             match hAligned, vAligned with
             | false, _ when edge = Top || edge = Bottom ->
-                let hAligned', (resizedSym, resizeData) = alignSym sym otherSym
+                let hAligned', resizedSym = alignSym sym otherSym
                 (hAligned', vAligned, resizedSym)
             | _, false when edge = Left || edge = Right ->
-                let vAligned', (resizedSym, resizeData) = alignSym sym otherSym
+                let vAligned', resizedSym = alignSym sym otherSym
                 (hAligned, vAligned', resizedSym)
             | _ -> (hAligned, vAligned, sym)
 

@@ -225,3 +225,21 @@ let updateWire (wire: Wire) (lengths: float list) : Wire =
 type SmartAutorouteResult =
     | ModelT of Model
     | WireT of Wire
+
+/// HLP23: AUTHOR Ifte
+/// Returns corresponding orientation if symbols have overlapping X/Y coverage and returns None if both
+let getOrientation fstSym sndSym =
+    let fstCorners = symbolBox fstSym
+    let sndCorners = symbolBox sndSym
+    if (((snd fstCorners[0] > snd sndCorners[2]) || (snd fstCorners[2] < snd sndCorners[0])) 
+        && (fst fstCorners[0] < fst sndCorners[1]) 
+        && (fst fstCorners[1] > fst sndCorners[0])) 
+    then
+        Some Vertical
+    else if (((fst fstCorners[0] > fst sndCorners[1]) || (fst fstCorners[1] < fst sndCorners[0])) 
+            && (snd fstCorners[0] < snd sndCorners[2]) 
+            && (snd fstCorners[2] > snd sndCorners[0])) 
+    then
+        Some Horizontal
+    else
+        None

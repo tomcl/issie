@@ -180,9 +180,11 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     | [] -> failwithf "what? Port HostId does not match any ComponentIds in model"
                     | _ -> failwithf "what? Port HostId matches multiple ComponentIds in model"
             match hostComponent.Type with
-            | Not | And | Or | Xor | Nand | Nor | Xnor ->
+            | Not->
                 // Logic gates inputs/outputs always have width 1.
                 Some 1
+            |And n | Or n | Xor n| Nand n| Nor n| Xnor n -> //HLP23: Shaanuka
+                n
             | Input w | Output w | Constant (w,_)| BusCompare (w,_)
             | BusSelection (w,_)| NbitsAdder w | NbitsXor w -> 
                 // The above components all have width specified in their

@@ -172,8 +172,10 @@ let view
     match model.Action, model.Box.ShowBox with // Display differently depending on what state Sheet is in
     | Selecting, _ ->
         displaySvgWithZoom model headerHeight style ( displayElements @ [ dragToSelectBox ] ) dispatch
-    | (ConnectingInput _ | ConnectingOutput _),_ ->
+    | (ConnectingInput _ | ConnectingOutput _),false->
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
+    | (ConnectingInput _ | ConnectingOutput _),true->
+        displaySvgWithZoom model headerHeight style ( displayElements @ scalingBox @ connectingPortsWire ) dispatch
     | DragAndDrop,_ ->
         displaySvgWithZoom model headerHeight style ( displayElements @ snaps) dispatch
     | (MovingSymbols),_  ->

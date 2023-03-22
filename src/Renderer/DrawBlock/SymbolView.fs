@@ -478,8 +478,9 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                 [|{X=W;Y=0}; {X= W;Y= 2.*H/3.;}; {X= 3.*W/4.;Y=5.*H/6.};{X=W/2.;Y= H};{X= W/4.;Y= 5.*H/6.};{X=0;Y= 2.*H/3.};{X=0;Y= 0.};{X=W/4.;Y= H/4.};{X=3.*W/4.;Y= H/4.}|]  ]   
 
         | RotateButton ->
-            [   [|{X= W/3.; Y= 7.*H/9.}; {X=0.;Y=(-H/9.)}; {X= -W/4.;Y=(H/6.)};{X= W/4.;Y=H/6.};{X= 0;Y= -H/9.};{X= 0.;Y= -W/2.};{X= 0;Y= W/2.};{X= -W/4.;Y= 0};{X= 0;Y= H/9.};{X= W/4.;Y= 0};{X= 0.001;Y= 7.*W/18.};{X= 0.001;Y= -7.*W/18.};|]
-               ]
+            [   [|{X= W/3.; Y= 7.*H/9.}; {X=0.;Y=(-H/9.)}; {X= -W/4.;Y=(H/6.)};{X= W/4.;Y=H/6.};{X= 0;Y= -H/9.};{X= 0.;Y= -W/2.};{X= 0;Y= W/2.};{X= -W/4.;Y= 0};{X= 0;Y= H/9.};{X= W/4.;Y= 0};{X= 0.001;Y= 7.*W/18.};{X= 0.001;Y= -7.*W/18.}|]
+                [|{X= 2.*W/3.; Y= 7.*H/9.}; {X=0.;Y=(-H/9.)}; {X= W/4.;Y=(H/6.)};{X= -W/4.;Y=H/6.};{X= 0;Y= -H/9.};{X= 0.001;Y= -W/2.};{X= 0.001;Y= W/2.};{X= W/4.;Y= 0};{X= 0;Y= H/9.};{X= -W/4.;Y= 0};{X= 0;Y= 7.*W/18.};{X= 0;Y= -7.*W/18.}|]
+                ]
              
         | _ -> failwith "What? Shouldn't happen"
         |> adjustCurvyPoints  
@@ -505,27 +506,22 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                                 let circle = makeCircle (10.0) (10.0){defaultCircle with R = 3.5; Fill = "Grey"}
                                 [circle]
             | _, RotateButton ->
-                                match symbol.STransform.flipped with
-                                    | true -> 
-                                        let circle = makeCircle (10.0) (10.0){defaultCircle with R = 3.5; Fill = "Grey"}
-                                        [circle]
-                                    | false -> 
+                                match symbol.STransform.Rotation with
+                                    | Degree90 -> 
                                         let curvyShape = getCurvyPoints comp.Type
-                                        let lineAttr1 = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y))
-                                        let lineAttr2 = ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y))
-                                        let lineAttr3 = ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y))
-                                        let lineAttr4 = ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
+                                        let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
                                         let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
-                                        let lineAttr5 = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y))
-                                        let lineAttr6 = ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y))
-                                        let lineAttr7 = ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
+                                        let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
                                         let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
-
-
-                                        (createAnyPath (curvyShape[0]) (lineAttr1+lineAttr2+lineAttr3+lineAttr4+arcAttr1+lineAttr5+lineAttr6+lineAttr7+arcAttr2) "yellow" strokeWidth outlineColour) 
+                                        (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "yellow" strokeWidth outlineColour) 
+                                    | _ -> 
+                                        let curvyShape = getCurvyPoints comp.Type
+                                        let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
+                                        let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
+                                        let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
+                                        let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
+                                        (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "yellow" strokeWidth outlineColour) 
                                         
-                    
-
                                         
             | _, _ -> (addLegendText 
                                 (legendOffset w h symbol) 

@@ -14,8 +14,9 @@ open SmartHelpers
 
 // HLP23: AUTHOR Ifte
 
-//HLP23: Shaanuka - Helper function for scaling custom component sizes
-///Scales custom component size by multiplying the Symbol fields HScale and VScale by input float XScale and YScale and returns Symbol type .
+///HLP23: Shaanuka - Helper function for scaling custom component sizes
+///Scales custom component size by multiplying the Symbol fields HScale and VScale by input float
+///XScale and YScale and returns Symbol type .
 let symbolSizeScale (symbol: Symbol) xScale yScale =
 
     match symbol.VScale, symbol.HScale with 
@@ -30,8 +31,8 @@ type BusWireHelpers = {
     }
 
 /// HLP23: AUTHOR Ifte
-/// reSizeSymbol takes two symbols connected by wires and resizes symbolToSize so that any wires that
-/// are nearly straight become straight
+/// reSizeSymbol takes two symbols connected by wires and resizes symbolToSize so that any wires
+/// that are nearly straight become straight
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
     (symbolToSize: Symbol)
@@ -44,7 +45,7 @@ let reSizeSymbol
     let wires = wModel.Wires
     let ports = sModel.Ports
     
-    /// Returns corresponding orientation if symbols have overlapping X/Y coverage and returns None if both
+    /// Returns corresponding orientation if symbols have overlapping X/Y coverage and None if both
     let getOrientation fstSym sndSym =
         let fstCorners = symbolBox fstSym
         let sndCorners = symbolBox sndSym
@@ -203,3 +204,28 @@ let reSizeSymbol
     let newModel' = busWireHelper.updateSymbolWires newModel symbolToSize.Id
 
     newModel'
+
+/// HLP23: AUTHOR Ifte
+/// Applies wire straightening across an entire sheet by scaling/translating symbols
+let sheetReSizeSymbol
+    (wModel: BusWireT.Model)
+    (busWireHelper: BusWireHelpers)
+        : BusWireT.Model =
+
+    let wireLst =
+        wModel.Wires
+        |> Map.toList
+        |> List.map snd
+
+    let wireLstFolder model wire =
+        let sModel = model.Symbol
+        let inPortId = string wire.InputPort
+        let outPortId = string wire.OutputPort
+        let symbolToSize = getSymbol sModel inPortId
+        let otherSymbol = getSymbol sModel outPortId
+
+        reSizeSymbol model symbolToSize otherSymbol busWireHelper
+
+
+    (wModel, wireLst)
+    ||> List.fold wireLstFolder

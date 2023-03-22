@@ -1,5 +1,5 @@
 # Changes To Original Code
-See [PR](#https://github.com/dharmilshah99/hlp23-team2/pull/40/files) for detailed changes.
+See [PR](https://github.com/dharmilshah99/hlp23-team2/pull/40/files) for detailed changes.
 
 ## `src/Renderer/Common/CommonTypes.fs`
 - Added [helper](https://github.com/dharmilshah99/hlp23-team2/blob/3d7b9095c238fc0871c6f800913f4db0c78a4d17/src/Renderer/Common/CommonTypes.fs#L261) to type `Edge` to get an opposite `Edge`.
@@ -24,5 +24,5 @@ See [PR](#https://github.com/dharmilshah99/hlp23-team2/pull/40/files) for detail
 - Added additional menu [items](https://github.com/dharmilshah99/hlp23-team2/blob/3d7b9095c238fc0871c6f800913f4db0c78a4d17/src/Renderer/Renderer.fs#L239) that perform Smart functions (eg. Beautify, Reorder, Optimize Symbol, etc).
 
 ## `src/Renderer/Renderer.fsproj`
-- Added new files in compilation order (eg. [`SymbolUpdateResizeHelpers.fs`](#https://github.com/dharmilshah99/hlp23-team2/blob/3d7b9095c238fc0871c6f800913f4db0c78a4d17/src/Renderer/Renderer.fsproj#L63)).
+- Added new files in compilation order (eg. [`SymbolUpdateResizeHelpers.fs`](https://github.com/dharmilshah99/hlp23-team2/blob/3d7b9095c238fc0871c6f800913f4db0c78a4d17/src/Renderer/Renderer.fsproj#L63)).
 

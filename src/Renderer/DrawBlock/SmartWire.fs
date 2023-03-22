@@ -99,73 +99,30 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
             updateWire wire segmentLengths
 
 
+/// create segment given a segment lengths array and wire ID
+let createSegment index segLengths wId dragBool = 
+    {
+        Index = index
+        Length = segLengths
+        WireId = wId
+        IntersectOrJumpList = []
+        Draggable = dragBool
+        Mode = RoutingMode.Auto
+    }
+
+
 /// returns a list of five new segments to create a new wire, given a segment lengths array and wire ID
 /// used in generateWireLabels to create a new wire between a wire label and symbol
 let createSegmentList (segLengths: float list) (wId: ConnectionId) : Segment list = 
-    let outputSegment: Segment = 
-        {
-            Index = 0
-            Length = segLengths[0]
-            WireId = wId
-            IntersectOrJumpList = []
-            Draggable = false
-            Mode = RoutingMode.Auto
-        }
-    let inputSegment: Segment = 
-        {
-            Index = 1
-            Length = segLengths[1]
-            WireId = wId
-            IntersectOrJumpList = []
-            Draggable = true
-            Mode = RoutingMode.Auto
-        }
-    let firstSegment: Segment = 
-        {
-            Index = 2
-            Length = segLengths[2]
-            WireId = wId
-            IntersectOrJumpList = []
-            Draggable = true
-            Mode = RoutingMode.Auto
-        }
-    let middleSegment: Segment = 
-        {
-            Index = 3
-            Length = segLengths[3]
-            WireId = wId
-            IntersectOrJumpList = []
-            Draggable = true
-            Mode = RoutingMode.Auto
-        }
-    let thirdSegment: Segment = 
-        {
-            Index = 4
-            Length = segLengths[4]
-            WireId = wId
-            IntersectOrJumpList = []
-            Draggable = true
-            Mode = RoutingMode.Auto
-        }
-    let fourthSegment: Segment = 
-        {
-            Index = 5
-            Length = segLengths[5]
-            WireId = wId
-            IntersectOrJumpList = []
-            Draggable = true
-            Mode = RoutingMode.Auto
-        }
-    let fifthSegment: Segment = 
-        {
-            Index = 6
-            Length = segLengths[6]
-            WireId = wId
-            IntersectOrJumpList = []
-            Draggable = false
-            Mode = RoutingMode.Auto
-        }
-    [outputSegment; inputSegment; firstSegment; middleSegment; thirdSegment; fourthSegment; fifthSegment]
+    let segments =
+        [ 0; 1; 2; 3; 4; 5; 6 ]
+        |> List.map (fun i ->
+            match i with
+            | 0 -> createSegment i segLengths.[i] wId false
+            | 6 -> createSegment i segLengths.[i] wId false
+            | _ -> createSegment i segLengths.[i] wId true)
+
+    segments
 
 
 /// generates a wire label name with a random number

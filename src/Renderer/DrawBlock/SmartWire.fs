@@ -369,17 +369,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
 
                 let symbolInWay =
                     symbolValues
-                    |> List.filter (fun symbol ->
-                        let conditionList = conditions model symbol wire
-                        let leftCondition = conditionList[0]
-                        let middleCondition = conditionList[1]
-                        let rightCondition = conditionList[2]
-
-                        let symbolInWay = 
-                            if middleCondition || leftCondition || rightCondition then true
-                            else false 
-                            
-                        symbolInWay)                        
+                    |> List.filter (fun symbol -> (conditions model symbol wire) |> List.reduce (||))                        
                             
                 // iterate through the list of symbols in the way and adjust the wire segments accordingly and return the wire with the adjusted segments
                 let rec adjustWireSegments wire symbolList =
@@ -415,8 +405,8 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                             
                             if leftCondition && middleCondition then 
                                 let segmentLengths = 
-                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length + 5. + (wireEndposY - symbolTop); 
-                                    wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft); wire.Segments.[3].Length - 5. - (2. * (wireTop - symbolTop));
+                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length; 
+                                    wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft); wire.Segments.[3].Length - 5. - (wireTop - symbolTop);
                                     wire.Segments.[4].Length + 10. - (symbolLeft - wireLeft); wire.Segments.[5].Length + (wireEndposY - symbolTop);
                                     wire.Segments.[6].Length ]
                                 updateWire wire segmentLengths
@@ -534,7 +524,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                                     updateWire wire segmentLengths
 
                             else    
-                                // verticalBottomCondition     2:  + 15. + (symbolBottom - bottomSegmentY), 4: - 15. - (symbolBottom - bottomSegmentY
+                                // verticalBottomCondition
                                 if wire.Segments.[3].Length > 0. then
                                     let segmentLengths = 
                                         [ wire.Segments.[0].Length; wire.Segments.[1].Length + (symbolLeft - wire.StartPos.X);
@@ -562,7 +552,6 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                 
                 if (List.length symbolInWay > 3) && (wire.Segments[4].Length > 300.0) then 
                     // if there are more than 3 symbols in the way of the wire and the wire is long enough - replace wire with wire labels
-                    // printfn "IN ROUTING - replace wire with wire labels"
                     let wireLabelName = genWireLabelName
                     replaceWithWireLabels model wire wireLabelName
 
@@ -588,16 +577,7 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
 
                 let symbolInWay =
                     symbolValues
-                    |> List.filter (fun sym ->
-                        let conditionList = conditions model sym wire
-                        let verticalCondition = conditionList[0]
-                        let horizontalCondition = conditionList[1]
-
-                        let symbolInWay = 
-                            if verticalCondition || horizontalCondition then true
-                            else false 
-
-                        symbolInWay)      
+                    |> List.filter (fun sym -> (conditions model sym wire) |> List.reduce (||))      
                             
                 // iterate through the list of symbols in the way and adjust the wire segments accordingly and return the wire with the adjusted segments
                 let rec adjustWireSegments wire symbolList =
@@ -646,8 +626,8 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
 
                             if verticalCondition then
                                 let segmentLengths = 
-                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length + 5. + (symbolRight - cornerPosX);
-                                    wire.Segments.[2].Length; wire.Segments.[3].Length - 5. - (symbolRight - cornerPosX); 
+                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length + (symbolRight - cornerPosX);
+                                    wire.Segments.[2].Length; wire.Segments.[3].Length - (symbolRight - cornerPosX); 
                                     wire.Segments.[4].Length; wire.Segments.[5].Length]
                                 updateWire wire segmentLengths
                             
@@ -662,7 +642,6 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                         let inputPort = string wire.InputPort 
                         let inputSymbol = findSymbol model wire Input |> Option.get
                         let inputPortEdge = inputSymbol.PortMaps.Orientation |> Map.find inputPort
-                        // printfn "inputportedge: %A" inputPortEdge
                         let wireSegments = 
                             match inputPortEdge with
                                 | Bottom -> newWireHorizontal
@@ -700,7 +679,6 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
         let wireLength = autoWire.Segments[4].Length
         match wireLength with
         | l when l > 600.0 -> 
-            // printfn "REPLACING WIRE LABELS IN TOP FUCNTION"
             let wireLabelName = genWireLabelName
             replaceWithWireLabels model wire wireLabelName
         | _ -> routeAroundSymbol model autoWire symbol

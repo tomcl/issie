@@ -109,6 +109,7 @@ let updateModelWires
 /// record type for symbol box coordinates
 type SymbolBoxT = { TopLeft: float * float; TopRight: float * float; BottomLeft: float * float; BottomRight: float * float }
 
+
 /// HLP23: Author Omar
 /// returns a record type for symbol box coordinates given a symbol
 let symbolBox (symbol: Symbol) : SymbolBoxT = 

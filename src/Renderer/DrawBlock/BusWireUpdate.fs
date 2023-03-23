@@ -65,6 +65,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
     let wires = filterWiresByCompMoved model compIdList
 
     // filter wires by whether the component id exists in the model
+
     let wireId = 
         let wireId' = 
             model.Wires

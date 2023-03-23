@@ -83,7 +83,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
     let newModel =
         match (updateWire model wireFound false) with // was FALSE reverse
         | ModelT newModel -> 
-            printfn "MODEL FOUND"
+            // printfn "MODEL FOUND"
             newModel
         | WireT _ -> 
             let newWires =
@@ -101,7 +101,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
                             match (Map.tryFind cId newModel.Wires) with
                             | Some wire -> wire
                             | None -> 
-                                printfn "replace wire with wire label"
+                                // printfn "replace wire with wire label"
                                 {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
                                 ))
                     elif List.contains cId wires.Outputs
@@ -113,7 +113,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
                             match (Map.tryFind cId newModel.Wires ) with
                             | Some wire -> wire
                             | None -> 
-                                printfn "replace wire with wire label"
+                                // printfn "replace wire with wire label"
                                 {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
                                 ))
                     else (cId, wire))

@@ -371,6 +371,8 @@ module BusWireT =
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
+        // HLP23: Omar
+        | WireLabelReplacement of (Model * Wire * string) // for replacing wires with wire labels
         // ------------------- Popup Dialog Management Messages----------------------//
         | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
         | ClosePopup

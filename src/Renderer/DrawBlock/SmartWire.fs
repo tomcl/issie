@@ -10,6 +10,11 @@ open SymbolUpdate
 open Optics
 open Operators
 open System 
+open PopupDrawingView
+open Fable.React
+open Fable.React.Props
+open Fulma
+
 
 // HLP23: Author Omar
 
@@ -34,8 +39,8 @@ let huggingDistance (model: Model) (wire: Wire) (symbol: Symbol) : float * float
         (snd boundaryBox.BottomLeft) - outputPortPos.Y, (snd boundaryBox.BottomLeft) - inputPortPos.Y 
 
     match portPos with
-        | Left -> hugDistance
-        | Right -> hugDistance
+        | Edge.Left -> hugDistance
+        | Edge.Right -> hugDistance
         | _ -> 0.0, 0.0
 
 
@@ -80,8 +85,8 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
 
     match portPos with
-        | Left -> newWire
-        | Right -> newWire
+        | Edge.Left -> newWire
+        | Edge.Right -> newWire
         | _ -> 
             let rightVertical = 
                 ((snd boundaryBox.BottomLeft) - inputPortPos.Y) + 10.0 + lengthAdjustment
@@ -125,12 +130,81 @@ let createSegmentList (segLengths: float list) (wId: ConnectionId) : Segment lis
     segments
 
 
-/// generates a wire label name with a random number
-let genWireLabelName : string = 
-    let random = new Random()
-    let randomNumber = random.Next(1, 199)
-    let wireLabelName = "WL" + string randomNumber
-    wireLabelName
+let wireLabelPopup (model: Model) (wire : Wire) dispatch =
+    let getText (dialogData : PopupDialogData) = 
+        Option.defaultValue "" dialogData.Text
+    let title = "Replace selected wire with Wire Label? Type 'RANDOM' to generate a random name."
+    let beforeText = fun _ -> str <| sprintf "Name of Wire Label:" // if doesnt work use just backpipe of str
+    // if wire label name is empty, generate a random name
+    let body = PopupDrawingView.dialogPopupBodyOnlyText beforeText "WL123" dispatch
+    let buttonAction = 
+        fun (dialogData : PopupDialogData) -> 
+            let inputText = getText dialogData
+            match inputText with 
+                | "RANDOM" -> 
+                    /// generates a wire label name with a random number
+                    let genWireLabelName : string = 
+                        let random = new Random()
+                        let randomNumber = random.Next(1, 400)
+                        let wireLabelName = "WL" + string randomNumber
+                        wireLabelName
+                    
+                    WireLabelReplacement (model, wire, genWireLabelName) |> dispatch
+                    dispatch ClosePopup
+                | _ -> 
+                    WireLabelReplacement (model, wire, inputText) |> dispatch
+                    dispatch ClosePopup
+
+    let buttonText = "Replace"
+    let isDisabled = 
+        fun (dialogData : PopupDialogData) -> 
+            getText dialogData |> (fun x -> x = "")
+
+    let buildPopup title body foot close extraStyle =
+        fun (dialogData : PopupDialogData) ->
+            Modal.modal [ Modal.IsActive true; Modal.CustomClass "modal1"] [
+                Modal.background [ Props [ OnClick (close dispatch)]] []
+                Modal.Card.card [ Props [
+                    Style ([
+                        OverflowY OverflowOptions.Auto
+                        OverflowX OverflowOptions.Visible
+                        UserSelect UserSelectOptions.None
+                        Width "25%"
+                        ] @ extraStyle)
+                    ] ] [
+                    Modal.Card.head [] [
+                        Modal.Card.title [] [ str title ]
+                        Delete.delete [ Delete.OnClick (close dispatch) ] []
+                    ]
+                    Modal.Card.body [Props [Style [ OverflowY OverflowOptions.Visible ;OverflowX OverflowOptions.Visible]]] [ body dispatch dialogData ]
+                    Modal.Card.foot [] [ foot dispatch dialogData ]
+                ]
+            ]
+    
+    let foot =
+        fun (dialogData : PopupDialogData) ->
+            Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsLight
+                            Button.OnClick (fun _ -> 
+                                dispatch ClosePopup
+                                ) 
+                        ] [ str "Cancel" ]
+                    ]
+                    Level.item [] [
+                        Button.button [
+                            Button.Disabled (isDisabled dialogData)
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ -> buttonAction dialogData)
+                        ] [ str buttonText ]
+                    ]
+                ]
+            ]
+    
+    buildPopup title (fun _ -> body) (fun _ -> foot) (fun dispatch _ -> dispatch ClosePopup) [] 
 
 
 /// creates wire labels near two symbols
@@ -150,18 +224,18 @@ let generateWireLabels (model: Model) (wire: Wire) (wlName: string) : SmartAutor
     
     let inputLabelPos = 
         match outputPortEdge with
-            | Left -> {X = inputPortPos.X - 40.0; Y = inputPortPos.Y}
-            | Right -> {X = inputPortPos.X + 40.0; Y = inputPortPos.Y}
-            | Bottom -> {X = inputPortPos.X; Y = inputPortPos.Y + 40.0}
+            | Edge.Left -> {X = inputPortPos.X - 40.0; Y = inputPortPos.Y}
+            | Edge.Right -> {X = inputPortPos.X + 40.0; Y = inputPortPos.Y}
+            | Edge.Bottom -> {X = inputPortPos.X; Y = inputPortPos.Y + 40.0}
             | _ -> {X = inputPortPos.X; Y = inputPortPos.Y - 40.0}
     let symbModelInput = addSymbol [] model.Symbol inputLabelPos ComponentType.IOLabel wireName
     let newInputLabelModel = {model with Symbol = (fst symbModelInput)}
 
     let outputLabelPos = 
         match inputPortEdge with
-            | Left -> {X = outputPortPos.X - 40.0; Y = outputPortPos.Y}
-            | Right -> {X = outputPortPos.X + 40.0; Y = outputPortPos.Y}
-            | Bottom -> {X = outputPortPos.X; Y = outputPortPos.Y + 40.0}
+            | Edge.Left -> {X = outputPortPos.X - 40.0; Y = outputPortPos.Y}
+            | Edge.Right -> {X = outputPortPos.X + 40.0; Y = outputPortPos.Y}
+            | Edge.Bottom -> {X = outputPortPos.X; Y = outputPortPos.Y + 40.0}
             | _ -> {X = outputPortPos.X; Y = outputPortPos.Y - 40.0}
     let symbModelOutput = addSymbol [] newInputLabelModel.Symbol outputLabelPos ComponentType.IOLabel wireName
     let newOutputLabelModel = {model with Symbol = (fst symbModelOutput)}
@@ -340,20 +414,20 @@ let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list =
         | l when l < 7 -> 
             // 2 segment wire
             match inputPortEdge with
-                | Top -> [horizTwoSegVerticalCondition; horizTwoSegHorizontalCondition]
-                | Bottom -> [horizTwoSegVerticalCondition; horizTwoSegHorizontalCondition]
-                | Right -> [verticalTwoSegVerticalCondition; verticalTwoSegHorizontalCondition]
-                | Left -> [verticalTwoSegVerticalCondition; verticalTwoSegHorizontalCondition]
+                | Edge.Top -> [horizTwoSegVerticalCondition; horizTwoSegHorizontalCondition]
+                | Edge.Bottom -> [horizTwoSegVerticalCondition; horizTwoSegHorizontalCondition]
+                | Edge.Right -> [verticalTwoSegVerticalCondition; verticalTwoSegHorizontalCondition]
+                | Edge.Left -> [verticalTwoSegVerticalCondition; verticalTwoSegHorizontalCondition]
         | _ -> 
             // 3 segment wire
             match outputPortEdge with
-                | Left -> [leftCondition; middleCondition; rightCondition]
-                | Right -> [leftCondition; middleCondition; rightCondition]
-                | Top -> [verticalTopCondition; verticalMiddleCondition; verticalBottomCondition]
-                | Bottom -> [verticalTopCondition; verticalMiddleCondition; verticalBottomCondition]
+                | Edge.Left -> [leftCondition; middleCondition; rightCondition]
+                | Edge.Right -> [leftCondition; middleCondition; rightCondition]
+                | Edge.Top -> [verticalTopCondition; verticalMiddleCondition; verticalBottomCondition]
+                | Edge.Bottom -> [verticalTopCondition; verticalMiddleCondition; verticalBottomCondition]
 
 
-/// routes wire around symbols from input port to output port
+/// routes three segment wires around symbols from input port to output port
 let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : SmartAutorouteResult = 
     let selfConnected = isSelfConnected model wire
     let routing = 
@@ -420,13 +494,14 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                             
                             elif leftCondition then
                                 let segmentLengths = 
-                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length + 5. + (symbolBottom - bottomLeftCornerY);
-                                    wire.Segments.[2].Length; wire.Segments.[3].Length - 5. - (symbolBottom - bottomLeftCornerY); 
-                                    wire.Segments.[4].Length; wire.Segments.[5].Length; wire.Segments.[6].Length ]
+                                    [ wire.Segments.[0].Length; wire.Segments.[1].Length; 
+                                    wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft); wire.Segments.[3].Length - 5. - (wireTop - symbolTop);
+                                    wire.Segments.[4].Length + 10. - (symbolLeft - wireLeft); wire.Segments.[5].Length + 5. + (wireEndposY - symbolTop);
+                                    wire.Segments.[6].Length ]
                                 updateWire wire segmentLengths
-                            
+                                
                             elif middleCondition then
-                                if inputPortEdge = Bottom then    // prevents the adjusted wire from going through the input symbol
+                                if inputPortEdge = Edge.Bottom then    // prevents the adjusted wire from going through the input symbol
                                     if (symbolBottom > wireTop) then 
                                         let segmentLengths = 
                                             [ wire.Segments.[0].Length; wire.Segments[1].Length; wire.Segments.[2].Length - 12. + (symbolLeft - wireLeft);
@@ -455,7 +530,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                                         updateWire wire segmentLengths
                             
                             else // symbol in way of RIGHT segment of wire
-                                if inputPortEdge = Bottom then    // prevents the adjusted wire from going through the input symbol
+                                if inputPortEdge = Edge.Bottom then    // prevents the adjusted wire from going through the input symbol
                                     let segmentLengths = 
                                         [ wire.Segments.[0].Length; wire.Segments.[1].Length; wire.Segments.[2].Length; wire.Segments.[3].Length + 5. + (symbolBottom - wireTop);
                                         wire.Segments.[4].Length; wire.Segments.[5].Length - 5. - (symbolBottom - wireTop); wire.Segments.[6].Length]
@@ -544,16 +619,15 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
 
                         let wireSegments = 
                             match outputPortEdge with
-                                | Left -> newWireHorizontal
-                                | Right -> newWireHorizontal
+                                | Edge.Left -> newWireHorizontal
+                                | Edge.Right -> newWireHorizontal
                                 | _ -> newWireVertical
 
                         adjustWireSegments wireSegments symbols
                 
-                if (List.length symbolInWay > 3) && (wire.Segments[4].Length > 300.0) then 
+                if (List.length symbolInWay > 3) && (wire.Segments[4].Length > 200.0) then 
                     // if there are more than 3 symbols in the way of the wire and the wire is long enough - replace wire with wire labels
-                    let wireLabelName = genWireLabelName
-                    replaceWithWireLabels model wire wireLabelName
+                    ModelT { model with PopupViewFunc = Some (wireLabelPopup model wire) } 
 
                 else 
                     let newWire = adjustWireSegments wire symbolInWay
@@ -601,7 +675,7 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                         let outputPortEdge = outputSymbol.PortMaps.Orientation |> Map.find outputPort             
 
                         let newWireHorizontal =
-                            if outputPortEdge = Left then wire
+                            if outputPortEdge = Edge.Left then wire
                             else
                                 let cornerPosX = float outputPortPos.X
                                 let cornerPosY = float inputPortPos.Y
@@ -644,17 +718,16 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                         let inputPortEdge = inputSymbol.PortMaps.Orientation |> Map.find inputPort
                         let wireSegments = 
                             match inputPortEdge with
-                                | Bottom -> newWireHorizontal
-                                | Top -> wire                                
-                                | Left -> newWireVertical
-                                | Right -> newWireVertical
+                                | Edge.Bottom -> newWireHorizontal
+                                | Edge.Top -> wire                                
+                                | Edge.Left -> newWireVertical
+                                | Edge.Right -> newWireVertical
 
                         adjustWireSegments wireSegments symbols
                 
                 if (List.length symbolInWay > 3) && (wire.Segments[4].Length > 300.0) then 
                     // if there are more than 3 symbols in the way of the wire and the wire is long enough - replace wire with wire labels
-                    let wireLabelName = genWireLabelName
-                    replaceWithWireLabels model wire wireLabelName
+                    ModelT { model with PopupViewFunc = Some (wireLabelPopup model wire) } 
 
                 else 
                     let newWire = adjustWireSegments wire symbolInWay
@@ -669,16 +742,20 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
     let symbol = findSymbol model wire Output
     let autoWire = autoroute model wire
     let segListLength = autoWire.Segments |> List.length
-    // printfn "segment info %A" wire.Segments
-    
-    if segListLength < 7 then
-        // 2 segment wire
-        routeTwoSegWires model autoWire
-    else
+    printfn "segment info %A" wire.Segments
+
+    match segListLength with
+    | l when l < 7 -> 
+         // 2 segment wire
+        let wireLength = abs autoWire.Segments[2].Length + abs autoWire.Segments[3].Length
+        match wireLength with
+        | l when l > 500.0 -> 
+            ModelT { model with PopupViewFunc = Some (wireLabelPopup model wire) } 
+        | _ -> routeTwoSegWires model autoWire
+    | _ ->
         // 3 segment wire
-        let wireLength = autoWire.Segments[4].Length
+        let wireLength = abs autoWire.Segments[4].Length
         match wireLength with
         | l when l > 600.0 -> 
-            let wireLabelName = genWireLabelName
-            replaceWithWireLabels model wire wireLabelName
+            ModelT { model with PopupViewFunc = Some (wireLabelPopup model wire) } 
         | _ -> routeAroundSymbol model autoWire symbol

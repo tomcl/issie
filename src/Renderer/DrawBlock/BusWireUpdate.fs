@@ -78,72 +78,51 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
             |> List.tryHead
 
         wireId'
-    
-    let wireFound = model.Wires[wireId |> Option.get]
-    let newModel =
-        match (updateWire model wireFound false) with // was FALSE reverse
-        | ModelT newModel -> 
-            newModel
-        | WireT _ -> 
-            let newWires =
-                model.Wires
-                |> Map.toList
-                |> List.map (fun (cId, wire) -> 
-                    if List.contains cId wires.Both //Translate wires that are connected to moving components on both sides
-                    then (cId, moveWire wire diff)
-                    elif List.contains cId wires.Inputs //Only route wires connected to ports that moved for efficiency
-                    then (cId,
-                        // HLP23: AUTHOR Omar
-                        (match (updateWire model wire true) with
-                        | WireT wire -> wire
-                        | ModelT newModel -> 
-                            match (Map.tryFind cId newModel.Wires) with
-                            | Some wire -> wire
-                            | None -> 
-                                printfn "replace wire with wire label"
-                                {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
-                                ))
-                    elif List.contains cId wires.Outputs
-                    then (cId,
-                        // HLP23: AUTHOR Omar
-                        (match (updateWire model wire false) with
-                        | WireT wire -> wire
-                        | ModelT newModel -> 
-                            match (Map.tryFind cId newModel.Wires ) with
-                            | Some wire -> wire
-                            | None -> 
-                                printfn "replace wire with wire label"
-                                {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
-                                ))
-                    else (cId, wire))
-                
+    match wireId with   // handles error from latest project23 push (wires update called when no wires exist)
+    | None -> model
+    | Some wireId ->
+        let wireFound = model.Wires[wireId]
+        let newModel =
+            match (updateWire model wireFound false) with // was FALSE reverse
+            | ModelT newModel -> 
+                newModel
+            | WireT _ -> 
+                let newWires =
+                    model.Wires
+                    |> Map.toList
+                    |> List.map (fun (cId, wire) -> 
+                        if List.contains cId wires.Both //Translate wires that are connected to moving components on both sides
+                        then (cId, moveWire wire diff)
+                        elif List.contains cId wires.Inputs //Only route wires connected to ports that moved for efficiency
+                        then (cId,
+                            // HLP23: AUTHOR Omar
+                            (match (updateWire model wire true) with
+                            | WireT wire -> wire
+                            | ModelT newModel -> 
+                                match (Map.tryFind cId newModel.Wires) with
+                                | Some wire -> wire
+                                | None -> 
+                                    {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
+                                    ))
+                        elif List.contains cId wires.Outputs
+                        then (cId,
+                            // HLP23: AUTHOR Omar
+                            (match (updateWire model wire false) with
+                            | WireT wire -> wire
+                            | ModelT newModel -> 
+                                match (Map.tryFind cId newModel.Wires ) with
+                                | Some wire -> wire
+                                | None -> 
+                                    {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
+                                    ))
+                        else (cId, wire))
+                    
+                // search list of (component * wire) for wire with Segments = [], if found, terminate and call replaceWithWireLabels which returns a model
+                // if not found, return the model with the new wires
+                let newWires': Map<ConnectionId,Wire> = newWires |> Map.ofList
+                { model with Wires = newWires' }    
 
-            /// HLP23: AUTHOR Omar 
-            /// generates a wire label name with a random number
-            /// seperate from generateWireLabelName because we need to generate a new name for each wire label
-            /// else it will be the same name as the previous wire label created using generateWireLabelName (complilation issue)
-            let genWLName : string = 
-                let random = new Random()
-                let randomNumber = random.Next(200, 499)
-                let wireLabelName = "WL" + string randomNumber
-                wireLabelName
-
-            // search list of (component * wire) for wire with Segments = [], if found, terminate and call replaceWithWireLabels which returns a model
-            // if not found, return the model with the new wires
-            let newModel' = 
-                match (List.tryFind (fun (cId, wire) -> wire.Segments = []) newWires) with
-                | Some (cId, wire) -> 
-                    let wireLabelName = genWLName
-                    match (replaceWithWireLabels model wire wireLabelName) with
-                    | ModelT newModel -> newModel
-                    | WireT _ -> model
-                | None ->
-                    let newWires' = newWires |> Map.ofList
-                    { model with Wires = newWires' }
-            
-            newModel'
-
-    newModel
+        newModel
 
 
 
@@ -224,6 +203,12 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         {model with PopupViewFunc = None}, Cmd.none
     | ShowPopup popupFun ->
         {model with PopupViewFunc = Some popupFun}, Cmd.none
+    | WireLabelReplacement(model, wire, inputText) ->
+        let genWL = replaceWithWireLabels model wire inputText
+        match genWL with
+        | ModelT newModel -> newModel, Cmd.none
+        | WireT _ -> model, Cmd.none // should never happen
+
     | Symbol sMsg ->
         // update Symbol model with a Symbol message
         let sm,sCmd = SymbolUpdate.update sMsg model.Symbol

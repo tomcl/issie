@@ -652,93 +652,51 @@ let mDragUpdate
                                             |> Map.find (model.ButtonList[2])
                 let distanceMoved = sqrt((mMsg.Pos.X-startMouse.X)**2 + (mMsg.Pos.Y-startMouse.Y)**2)
                 printfn "%A" distanceMoved
-                match (startMouse.X - mMsg.Pos.X) with
-                | x when x < 0. ->
-                                            let newPos = {X=startPos.X+(distanceMoved*(1.414/2.)); Y=(startPos.Y-(distanceMoved*(1.414/2.)))}
-                                            let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                            let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(100.)-(distanceMoved*(1.414/2.)); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(100.)-(distanceMoved*(1.414/2.))}}
-                                            let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(50.)+startWidth+(distanceMoved*(1.414/2.)); Y=rotateCWButton.Pos.Y}; Component = {rotateCWButton.Component with X= startBoxPos.X+(50.)+startWidth+(distanceMoved*(1.414/2.))}}
-                                            let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distanceMoved*(1.414/2.)))
-                                            let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton |> Map.add rotateCWNewButton.Id rotateCWNewButton)}
-                                            let newTopLeft = {X=(startBoxPos.X-(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y-(distanceMoved*(1.414/2.)))}
-                                            let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = ((1.414/2.)*distanceMoved*2.) + startWidth; H = ((1.414/2.)*distanceMoved*2.) + startHeight}}
-                                            let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
-                                            let newModel = {model with Wire = {model.Wire with Symbol = newSymModel}}
-                                            let newModel2 = {newModel with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol}
-                                            let errorComponents =
-                                                oldModel.SelectedComponents
-                                                |> List.filter (fun sId -> not (notIntersectingComponents newModel2 newModel2.BoundingBoxes[sId] sId))
-                                            let errorSelectedComponents =
-                                                oldModel.SelectedComponents
-                                                |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel2 newModel2.BoundingBoxes[sId] sId))
-
-                                            if (newBox.BoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBox.BoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBox.BoxBound.TopLeft.Y + newBox.BoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H || errorSelectedComponents<>[]) then
-                                                {model with
-                                                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                                            LastMousePos = mMsg.Pos
-                                                            Box = model.Box}, 
-                                                        Cmd.batch [
-                                                            Cmd.ofMsg CheckAutomaticScrolling
-                                                            wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
-                                                            Cmd.ofMsg UpdateBoundingBoxes
-                                                        ]
-                                            else
-                                            {model with Wire = {model.Wire with Symbol = newSymModel}
-                                                        ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                                        LastMousePos = mMsg.Pos
-                                                        ErrorComponents = errorComponents
-                                                        Box = newBox}, 
-                                            Cmd.batch [ 
-                                                symbolCmd (SymbolT.ErrorSymbols (errorComponents,model.SelectedComponents,false))
-                                                Cmd.ofMsg CheckAutomaticScrolling
-                                                wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
-                                                Cmd.ofMsg UpdateBoundingBoxes
-                                            ]
-                | x ->  
-                                let newPos = {X=startPos.X-(distanceMoved*(1.414/2.)); Y=(startPos.Y+(distanceMoved*(1.414/2.)))}
-                                let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                                let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(100.)+(distanceMoved*(1.414/2.)); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(100.)+(distanceMoved*(1.414/2.))}}
-                                let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(50.)+startWidth-(distanceMoved*(1.414/2.)); Y=rotateCWButton.Pos.Y}; Component = {rotateCWButton.Component with X= startBoxPos.X+(50.)+startWidth-(distanceMoved*(1.414/2.))}}
-                                let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol -(distanceMoved*(1.414/2.)))
-                                let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton |> Map.add rotateCWNewButton.Id rotateCWNewButton)}
-                                let newTopLeft = {X=(startBoxPos.X+(distanceMoved*(1.414/2.))); Y=(startBoxPos.Y+(distanceMoved*(1.414/2.)))}
-                                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = startWidth - ((1.414/2.)*distanceMoved*2.) ; H = startHeight - ((1.414/2.)*distanceMoved*2.) }}
-                                let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
-                                let newModel = {model with Wire = {model.Wire with Symbol = newSymModel}}
-                                let newModel2 = {newModel with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol}
-                                let errorComponents =
-                                    oldModel.SelectedComponents
-                                    |> List.filter (fun sId -> not (notIntersectingComponents newModel2 newModel2.BoundingBoxes[sId] sId))
-                                let errorSelectedComponents =
-                                                oldModel.SelectedComponents
-                                                |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel2 newModel2.BoundingBoxes[sId] sId))
-                                printfn "%A" newBox
-                                printfn "%A" newBlock
-
-                                if (newBox.BoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBox.BoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBox.BoxBound.TopLeft.Y + newBox.BoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H || errorSelectedComponents<>[]) then
-                                    {model with
-                                                ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                                LastMousePos = mMsg.Pos
-                                                Box = model.Box}, 
-                                            Cmd.batch [
-                                                Cmd.ofMsg CheckAutomaticScrolling
-                                                wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
-                                                Cmd.ofMsg UpdateBoundingBoxes
-                                            ]
-                                else
-
-                                {model with Wire = {model.Wire with Symbol = newSymModel}
-                                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                            LastMousePos = mMsg.Pos
-                                            ErrorComponents = errorComponents
-                                            Box = newBox}, 
-                                            Cmd.batch [
-                                                symbolCmd (SymbolT.ErrorSymbols (errorComponents,model.SelectedComponents,false))
-                                                Cmd.ofMsg CheckAutomaticScrolling
-                                                wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
-                                                Cmd.ofMsg UpdateBoundingBoxes
-                                            ]
+                let distMovedXY = 
+                    match (startMouse.X - mMsg.Pos.X) with
+                    | x when x < 0. -> distanceMoved*(1.414/2.)
+                    | x -> -1.*distanceMoved*(1.414/2.)
                     
+                let newPos = {X=startPos.X+(distMovedXY); Y=(startPos.Y-(distMovedXY))}
+                let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
+                let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(100.)-(distMovedXY); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(100.)-(distMovedXY)}}
+                let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(50.)+startWidth+(distMovedXY); Y=rotateCWButton.Pos.Y}; Component = {rotateCWButton.Component with X= startBoxPos.X+(50.)+startWidth+(distMovedXY)}}
+                let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distMovedXY))
+                let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton |> Map.add rotateCWNewButton.Id rotateCWNewButton)}
+                let newTopLeft = {X=(startBoxPos.X-(distMovedXY)); Y=(startBoxPos.Y-(distMovedXY))}
+                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = (distMovedXY*2.) + startWidth; H = (distMovedXY*2.) + startHeight}}
+                let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
+                let newModel = {model with Wire = {model.Wire with Symbol = newSymModel}}
+                let newModel2 = {newModel with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol}
+                let errorComponents =
+                    oldModel.SelectedComponents
+                    |> List.filter (fun sId -> not (notIntersectingComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+                let errorSelectedComponents =
+                    oldModel.SelectedComponents
+                    |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+
+                if (newBox.BoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBox.BoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBox.BoxBound.TopLeft.Y + newBox.BoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H || errorSelectedComponents<>[]) then
+                    {model with
+                                ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                                LastMousePos = mMsg.Pos
+                                Box = model.Box}, 
+                            Cmd.batch [
+                                Cmd.ofMsg CheckAutomaticScrolling
+                                wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                                Cmd.ofMsg UpdateBoundingBoxes
+                            ]
+                else
+                {newModel2 with
+                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                            LastMousePos = mMsg.Pos
+                            ErrorComponents = errorComponents
+                            Box = newBox}, 
+                Cmd.batch [ 
+                    symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel2.SelectedComponents,false))
+                    Cmd.ofMsg CheckAutomaticScrolling
+                    wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                    Cmd.ofMsg UpdateBoundingBoxes
+                ]
 
 
     | Selecting -> 

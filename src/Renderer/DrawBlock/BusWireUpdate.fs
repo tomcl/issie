@@ -64,26 +64,24 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
     let wires = filterWiresByCompMoved model compIdList
 
-    // // filter wires by whether the component id exists in the model
-    let wire = 
-        let wire' = 
+    // filter wires by whether the component id exists in the model
+    let wireId = 
+        let wireId' = 
             model.Wires
             |> Map.toList
             |> List.filter (fun (cId, wire) -> 
-                not (List.contains cId wires.Both) 
-                && not (List.contains cId wires.Inputs) 
-                && not (List.contains cId wires.Outputs))
+                (List.contains cId wires.Both) 
+                || (List.contains cId wires.Inputs) 
+                || (List.contains cId wires.Outputs))
             |> List.map fst
             |> List.tryHead
 
-        wire'
+        wireId'
     
-
-    let wireFound = model.Wires[wire |> Option.get]
+    let wireFound = model.Wires[wireId |> Option.get]
     let newModel =
         match (updateWire model wireFound false) with // was FALSE reverse
         | ModelT newModel -> 
-            // printfn "MODEL FOUND"
             newModel
         | WireT _ -> 
             let newWires =
@@ -101,7 +99,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
                             match (Map.tryFind cId newModel.Wires) with
                             | Some wire -> wire
                             | None -> 
-                                // printfn "replace wire with wire label"
+                                printfn "replace wire with wire label"
                                 {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
                                 ))
                     elif List.contains cId wires.Outputs
@@ -113,7 +111,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
                             match (Map.tryFind cId newModel.Wires ) with
                             | Some wire -> wire
                             | None -> 
-                                // printfn "replace wire with wire label"
+                                printfn "replace wire with wire label"
                                 {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
                                 ))
                     else (cId, wire))

@@ -645,14 +645,16 @@ let validateMultipleSelectedSymbols (model:Model) =
         | _ -> printfn "Error less than two components selected"
                None
 
-
+///HLP23 AUTHOR: Klapper
+///Returns the top/left half box based on orieantiation of the bounding box
 let halfBoundingBox (orientation: Orientation) (bb:BoundingBox)=
     match orientation with
     | Vertical -> {TopLeft = bb.TopLeft; W = bb.W/2.0; H = bb.H} 
     | Horizontal -> {TopLeft = bb.TopLeft; W = bb.W; H = bb.H/2.0}
 
 
-
+///HLP23 AUTHOR: Klapper
+/// Finds a channel in the desired location from arbiterly amount of components
 let rec findChannel (model : SheetT.Model) (prevLeft : int) (prevRight : int) (orientation:Orientation) (currentComps : List<ComponentId>) =
     let hd::tail = currentComps |> List.map (fun id -> model.BoundingBoxes[id])
     let leftBounds = 
@@ -684,7 +686,8 @@ let rec findChannel (model : SheetT.Model) (prevLeft : int) (prevRight : int) (o
 
 
 
-
+///HLP23 AUTHOR: Klapper 
+/// Horizontal channel from two symbols
 let rec getHorizontalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
     if bb1.TopLeft.Y > bb2.TopLeft.Y then
         getHorizontalChannel bb2 bb1
@@ -698,6 +701,9 @@ let rec getHorizontalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox o
             let union = boxUnion bb1 bb2
             let topLeft = {X = union.TopLeft.X; Y = y1}
             Some {TopLeft = topLeft; W = union.W; H = y2 - y1}
+
+///HLP23 AUTHOR: Klapper
+///Returns a vertical channel from two component
 let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
     if bb1.TopLeft.X > bb2.TopLeft.X then
         getVerticalChannel bb2 bb1
@@ -717,15 +723,15 @@ let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox opt
 /// However different testing may be needed, so who knows?
 /// Return the vertical channel between two bounding boxes, if they do not intersect and
 /// their vertical coordinates overlap.
-let getChannel (bb1:BoundingBox) (bb2:BoundingBox) (orientation : Orientation): Option<BoundingBox*Orientation> =
+let getChannel (bb1:BoundingBox) (bb2:BoundingBox) (orientation : Orientation): Option<BoundingBox> =
     match orientation with
     | Vertical ->
         getVerticalChannel bb1 bb2
         |> function
-            | Some vBB -> Some (vBB, Vertical)
+            | Some vBB -> Some (vBB)
             | None -> None
     | Horizontal -> 
         getHorizontalChannel bb1 bb2 
         |> function
-            | Some hBB -> Some (hBB, Horizontal)
+            | Some hBB -> Some (hBB)
             | None -> None

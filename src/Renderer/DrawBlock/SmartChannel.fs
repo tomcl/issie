@@ -46,7 +46,7 @@ let selectSegmentsIntersectingBoundingBox (bounds: BoundingBox) (wires: List<Wir
 //NShape : The wire crosses the channel vertically while making a '-, shape
 //LShape : The wire enters the channel sideways then takes a turn and leaves vertically
 //TooDifficult: Any other wire types which are too difficult too route in a readable sense
-type ChannelRelation = PassThrough | ZigZagCross | Originates | Terminates | StraightCross | NShape | LShape | TooDifficult 
+type ChannelRelation = PassThrough | ZigZagCross | Originates | Terminates | StraightCross | NShape | LShape | TooDifficult  | LNShape | RNShape
 
 //Helper function to further categorise wire, which are fully contained within the channel
 let process7Segment (seg: Segment) =
@@ -80,95 +80,84 @@ let categoriseWireSegments (model:Model ) (bounds: BoundingBox) (orientation : O
 type UpDown = Up | Down | Neither
 
 //Helper function to categorise whether the segment travels up or down
-let categoriseUpdown (model: Model) (seg : Segment) =
-    let wire = model.Wires[seg.WireId]
-    let starPortOrientation = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort
-    let endPortOrientation = Symbol.getInputPortOrientation model.Symbol wire.InputPort
-    let initialPositon = match seg.Length with
-                            | x when x > 0 -> Down
-                            | x when x < 0 -> Up
-                            | _ -> Neither
-    match initialPositon, (starPortOrientation = Left || endPortOrientation = Right) with
-    | initialPositon, false -> initialPositon
-    | Down, true -> Up
-    | Up, true -> Down
-    | Neither, true -> Neither
+let categoriseUpdown (model: Model) (orientation) (seg : Segment) =
+    match seg.Length with
+    | x when x > 0 -> Down
+    | x when x < 0 -> Up
+    | _ -> Neither
+
 //Function to sort out the wires within any category based on travelling up or down
-let sortUpDown (model : Model) (orientation : Orientation) (segs : List<Segment*(XYPos*XYPos)>) :  List<List<Segment*(XYPos*XYPos)>>=
-    let categorisedList = 
-        segs 
-        |> List.groupBy (fun element -> categoriseUpdown model (fst element))
-    let upLst = 
-        categorisedList 
-        |> List.filter (fun element -> fst element = Up)
-        |> List.collect snd
-        |> List.sortBy (fun element -> if orientation = Vertical then (snd (snd element)).Y else -(fst (snd element)).X )
-        |> List.groupBy (fun (seg, posTuple) -> model.Wires[seg.WireId].OutputPort)
-        |> List.map snd
-    let downList =
-        categorisedList 
-        |> List.filter (fun element -> fst element = Down)
-        |> List.collect snd
-        |> List.sortByDescending (fun element -> if orientation = Vertical then (snd (snd element)).Y else -(snd (snd element)).X )
-        |> List.groupBy (fun (seg, posTuple) -> model.Wires[seg.WireId].OutputPort)
-        |> List.map snd
-    downList @ upLst
+let sortUpDown (model : Model) (orientation : Orientation) (segs : List<Segment*(XYPos*XYPos)>) :  List<List<Segment*(XYPos*XYPos)>> =
+    let sorter ((seg : Segment, upDown: UpDown),(fstPost: XYPos, sndPos: XYPos)) =
+        let wire = model.Wires[seg.WireId]
+        let starPortOrientation = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort
+        let endPortOrientation = Symbol.getInputPortOrientation model.Symbol wire.InputPort
+        match orientation with 
+        | Vertical -> match upDown, (starPortOrientation = Left || endPortOrientation = Right) with
+                        | Up,  true -> fstPost.Y 
+                        | Up,  false -> -fstPost.Y 
+                        | Down,  true-> -sndPos.Y
+                        | Down,  false-> sndPos.Y
+                        | _ -> fstPost.Y
+        | Horizontal -> match upDown, (starPortOrientation = Bottom || endPortOrientation = Top) with
+                        | Up, true -> -sndPos.X
+                        | Up, false -> sndPos.X
+                        | Down, true -> fstPost.X
+                        | Down, false -> -fstPost.X
+                        | _ -> fstPost.Y
 
+    segs |> List.map (fun (x,y) -> (x, categoriseUpdown model orientation x), y)
+    |> List.sortByDescending sorter
+    |> List.groupBy (fun ((seg, upDown), posTuple) -> model.Wires[seg.WireId].OutputPort, upDown)
+    |> List.map snd
+    |> List.map (List.map (fun ((seg, _), postup) -> (seg, postup)))
+
+    
 //Specialised helper function to return the vertical segments of a NShape wire
-let createNShapePair (model : Model) (segment : Segment, posTuple) =
+let createNShapePair (model : Model) (segment : Segment) =
     match segment.Length with 
-    | x when  x >= 0.0 -> ((getSegmentFromId model (segment.Index - 1, segment.WireId),
+    | x when  x >= 0.0 -> [((getSegmentFromId model (segment.Index - 1, segment.WireId),
                             getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)),
-
-                            (getSegmentFromId model (segment.Index + 1, segment.WireId),
-                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index + 1)))
-
-    | x when x < 0.0 ->  ((getSegmentFromId model (segment.Index + 1, segment.WireId),
+                            LNShape
+                            );
+                            ((getSegmentFromId model (segment.Index + 1, segment.WireId),
                             getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index + 1)),
-
-                            (getSegmentFromId model (segment.Index - 1, segment.WireId), 
-                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)))
+                            RNShape)]
+    | x when x < 0.0 ->  [((getSegmentFromId model (segment.Index + 1, segment.WireId),
+                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index - 1)),
+                            LNShape);
+                            ((getSegmentFromId model (segment.Index - 1, segment.WireId),
+                            getAbsoluteSegmentPos model.Wires[segment.WireId] (segment.Index + 1)),
+                            RNShape)]
 
 
 //Function which sorts out the orderin of the wires within a channel, returns the list of segments in the order which they have to be shifted
 let generateChannelOrder (orientation : Orientation) (model : Model) (lst: List<Segment*ChannelRelation>) =
-    let segList =
-        lst
-        |> List.map (fun (segment, orient) -> (segment, getAbsoluteSegmentPos model.Wires[segment.WireId] segment.Index), orient)
-    let leftNList, rightNList =
-        segList
-        |> List.filter (fun element -> snd element = NShape)
+    let TooDifficult = 
+        lst 
+        |> List.filter (fun element -> snd element = TooDifficult) 
         |> List.map fst
-        |> List.map (createNShapePair model)
-        |> List.unzip
-        |> (fun (a , b) -> sortUpDown model orientation a, sortUpDown model orientation b)
-    let ZiggZaggList =
-        segList
-        |> List.filter (fun element -> snd element = ZigZagCross)
-        |> List.map fst
-        |> sortUpDown model orientation
-    let PassThroughList = 
-        segList 
-        |> List.filter (fun element -> snd element = PassThrough) 
+
+    let handleN ((seg, postup), cShape)  =
+        if cShape = NShape then createNShapePair model (seg)
+                           else [((seg, postup), cShape)]
+
+    let folder inLst outLst _type =
+        inLst 
+        |> List.filter (fun element -> snd element = _type)
         |> List.map fst
         |> sortUpDown model orientation
-    let OriginateList = 
-        segList 
-        |> List.filter (fun element -> snd element = Originates) 
-        |> List.map fst
-        |> sortUpDown model orientation
-    let TerminatesList = 
-        segList 
-        |> List.filter (fun element -> snd element = Terminates) 
-        |> List.map fst
-        |> sortUpDown model orientation
-    let LList =
-        segList 
-        |> List.filter (fun element -> snd element = LShape) 
-        |> List.map fst
-        |> sortUpDown model orientation
-    let TooDifficult = lst |> List.filter (fun element -> snd element = TooDifficult) |> List.map fst
-    leftNList @ OriginateList @ PassThroughList  @ LList @ ZiggZaggList  @ TerminatesList @ rightNList, TooDifficult
+        |> List.append outLst
+    
+    lst
+    |> List.map (fun (segment, orient) -> 
+        (segment,getAbsoluteSegmentPos model.Wires[segment.WireId] segment.Index),orient)
+    |> List.collect handleN
+    |> fun x ->
+        ([], [LNShape;Originates; PassThrough; LShape; ZigZagCross; Terminates; RNShape])
+        ||> List.fold (folder x)
+        |> function
+        | x -> x,TooDifficult
     
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -185,20 +174,16 @@ let isWireShiftedToMinDistance (wire : Wire) (index : int) =
 
 //Filters the wires which could not be shifted to the desired location
 let filterShiftedWires (lst : List<Wire* Segment>) =
-    let checkedList =
-        lst
-        |> List.groupBy (fun (wire, seg) -> isWireShiftedToMinDistance wire seg.Index)
-    let safeList = 
-        checkedList
-        |> List.filter (fun element -> fst element = false)
+    let filterWires (safe:bool) (lt) = 
+        lt
+        |> List.filter (fun element -> fst element = (not <| safe))
         |> List.collect snd 
         |> List.map fst
-    let unsafeList = 
-        checkedList
-        |> List.filter (fun element -> fst element = true)
-        |> List.collect snd 
-        |> List.map fst
-    unsafeList, safeList
+
+    lst
+    |> List.groupBy (fun (wire, seg) -> isWireShiftedToMinDistance wire seg.Index)
+    |> function 
+        | x -> filterWires false x, filterWires true x
 
 //Shifts wires to the correct position
 let createShiftedWires (orientation : Orientation) (model : Model) (bounds: BoundingBox) (segList : List<List<Segment*(XYPos*XYPos)>>)  = 
@@ -217,11 +202,7 @@ let createShiftedWires (orientation : Orientation) (model : Model) (bounds: Boun
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Routes the wires in a nice readable way in a channel, replaces wires with labels if it fails to route them in a neet way</summary>
-/// <param name="channelOrientation">Orientation of the channel</param>
-/// <param name="channel">Boundingbox of the channel (Note: instead of TopLeft it uses TopRight)</param>
-/// <param name="model">BusWireT.Model</param>
-/// <returns>The modified BusWireT.Model</returns>
+///HLP 23: AUTHOR Klapper - Routes the wires in a nice readable way in a channel, replaces wires with labels if it fails to route them in a neet way
 let rec smartChannelRoute 
         (channelOrientation: Orientation) 
         (channel: BoundingBox) 
@@ -253,7 +234,7 @@ let rec smartChannelRoute
         |> List.map (fun element -> model.Wires[element.WireId])
         |> List.append moreDiffictultWires
         |> List.map (fun element -> element.WId)
-    
+
     let finalModel = {fullModel with Wire = updatedWireModel; SelectedWires = fullModel.SelectedWires @ wireToReplaceWithLabel}
     match wireToReplaceWithLabel.Length with
     | 0 -> finalModel

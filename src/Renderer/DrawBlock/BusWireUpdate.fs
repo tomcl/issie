@@ -434,6 +434,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         model, Cmd.batch updatePortIdMessages
     | ReplaceWireWithLabel (wireId : ConnectionId) ->
         //Replaces a single wire with a label 
+        //HLP23 AUTHOR: Klapper
         let newModel =
             if model.PopupDialogData.Text |> Option.isSome then
                 let label = model.PopupDialogData.Text.Value
@@ -444,6 +445,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     
     | ReplaceWireListWithLabels (wireIdList : ConnectionId list) ->
         //Replaces a list of wires with labels
+        //HLP23 AUTHOR: Klapper
         let wireList = wireIdList |> List.map (fun id -> model.Wires[id])
         (model, wireList) ||> List.fold (fun state n -> replaceWireWithLabel state n), Cmd.none
 

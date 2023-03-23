@@ -474,7 +474,7 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlR | CtrlT | CtrlU | CtrlI | CtrlL | CtrlAltL
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlR | CtrlT | CtrlU | CtrlI | CtrlL | CtrlShiftL
 
 
     type WireTypeMsg =
@@ -557,11 +557,12 @@ module SheetT =
         | SetDebugDevice of string
         | TestPopUp
         | TestPortReorder
-        | TestSmartChannel of BusWireT.Orientation
+        | FormSmartChannel of BusWireT.Orientation
         | TestPortPosition
         | TestScaleUp
         | TestPortReorder2
         | TestScaleDown
+        | TestAllTogether of BusWireT.Orientation
         | SetStyle of SymbolT.StyleType //HLP23: AUTHOR Ismagilov
 
 

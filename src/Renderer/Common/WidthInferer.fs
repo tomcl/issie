@@ -144,10 +144,7 @@ let private makeOutputPortsOfLabels (components: Component list) : Map<string,Ou
             label, lst 
             |> List.map (fun comp -> getOutputPortId comp 0))
         |> Map.ofList
-
-let private getInputPortNumberList (n: int) = 
-    [n-1..0 ] 
-    |> List.map InputPortNumber 
+    
 
 /// Given a component and a set of input connection widths, check these inputs
 /// widths are as expected and try to calculate the width of the outgoing
@@ -216,18 +213,14 @@ let private calculateOutputPortsWidth
         | [None] | [Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | [Some n] -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-    | And n| Or n| Xor n| Nand n| Nor n| Xnor n ->
-        let num = Option.defaultValue 2 n
-        assertInputsSize inputConnectionsWidth num comp
-        let okWidth wOpt = match wOpt with None -> true | Some 1 -> true | _ -> false
-        let notOkWidth = okWidth >> not
-        match getWidthsForPorts inputConnectionsWidth (getInputPortNumberList num) with
-        | lst when List.exists notOkWidth lst ->
-               match List.tryFindIndex notOkWidth lst, List.find notOkWidth lst with
-               | Some badIndex, Some badWidth ->
-                    makeWidthInferErrorEqual 1 badWidth  [getConnectionIdForPort badIndex]
-               | _ -> failwithf $"This should never happen: withinferror problem with {num} input gate"
-        | _ -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
+    | And | Or | Xor | Nand | Nor | Xnor ->
+        assertInputsSize inputConnectionsWidth 2 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
+        | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
+        | [None; _] | [_; None]
+        | [Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
     | Mux2 ->
         // Mux also allowes buses.
         assertInputsSize inputConnectionsWidth 3 comp

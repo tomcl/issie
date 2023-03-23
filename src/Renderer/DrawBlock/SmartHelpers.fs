@@ -106,29 +106,18 @@ let updateModelWires
 
 
 /// HLP23: Author Omar
-/// returns a list of corner coordinates of a symbol: [upper, lower, left, right]
-let symbolBox (symbol: Symbol) : list<float*float> = 
+/// record type for symbol box coordinates
+type SymbolBoxT = { TopLeft: float * float; TopRight: float * float; BottomLeft: float * float; BottomRight: float * float }
+
+
+/// HLP23: Author Omar
+/// returns a record type for symbol box coordinates given a symbol
+let symbolBox (symbol: Symbol) : SymbolBoxT = 
     let topLeft = float symbol.Pos.X, float symbol.Pos.Y
     let topRight = (fst topLeft) + symbol.Component.W, snd topLeft
     let bottomLeft = (fst topLeft), (snd topLeft) + symbol.Component.H 
     let bottomRight = fst topRight, snd bottomLeft
-    [topLeft; topRight; bottomLeft; bottomRight]
-
-
-/// HLP23: Author Omar & Indraneel
-/// given an input edge and symbol, return a list of all port positions for each edge on the symbol
-let portPositions (symbol: Symbol) (edge: Edge): list<float*float> = 
-    let box = symbolBox symbol
-    let x = fst box[0]
-    let y = snd box[0]
-    let w = symbol.Component.W
-    let h = symbol.Component.H
-    let numberPorts = float (symbol.PortMaps.Order[edge] |> List.length)
-    match edge with
-        | Top -> [x + w/numberPorts, y; x + w/numberPorts, y + h/numberPorts]
-        | Bottom -> [x + w/numberPorts, y + h; x + w/numberPorts, y + h/numberPorts]
-        | Left -> [x, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
-        | Right -> [x + w, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
+    { TopLeft = topLeft; TopRight = topRight; BottomLeft = bottomLeft; BottomRight = bottomRight }
 
 
 /// HLP23: Author Indraneel
@@ -184,7 +173,6 @@ let findSymbolHelper (wModel: BusWireT.Model) (portId: string) =
     wModel.Symbol.Symbols
     |> Map.tryFind (ComponentId inputPortHostId)
 
-    
 
 /// HLP23: Author Omar
 /// discriminated union for the modes of the findSymbol function
@@ -225,21 +213,3 @@ let updateWire (wire: Wire) (lengths: float list) : Wire =
 type SmartAutorouteResult =
     | ModelT of Model
     | WireT of Wire
-
-/// HLP23: AUTHOR Ifte
-/// Returns corresponding orientation if symbols have overlapping X/Y coverage and returns None if both
-let getOrientation fstSym sndSym =
-    let fstCorners = symbolBox fstSym
-    let sndCorners = symbolBox sndSym
-    if (((snd fstCorners[0] > snd sndCorners[2]) || (snd fstCorners[2] < snd sndCorners[0])) 
-        && (fst fstCorners[0] < fst sndCorners[1]) 
-        && (fst fstCorners[1] > fst sndCorners[0])) 
-    then
-        Some Vertical
-    else if (((fst fstCorners[0] > fst sndCorners[1]) || (fst fstCorners[1] < fst sndCorners[0])) 
-            && (snd fstCorners[0] < snd sndCorners[2]) 
-            && (snd fstCorners[2] > snd sndCorners[0])) 
-    then
-        Some Horizontal
-    else
-        None

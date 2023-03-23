@@ -533,7 +533,6 @@ module SheetT =
         | TestSheetReorder
         | TestSmartChannel
         | TestPortPosition
-        | TestPortArrange // HLP23 Ifte
 
 
     type ReadLog = | ReadLog of int

@@ -296,18 +296,17 @@ let getInstanceOf (block: string) (instanceName: string) (ports: string array) =
     sprintf $"%s{block} %s{instanceName} (%s{portNames});\n"
 
 /// implement binary operator for two-input gate
-/// TODO - implement n-input gates
 let getVerilogBinaryOp cType op1 op2 =
     let bin opS = sprintf "%s %s %s" op1 opS op2
     let not exp = sprintf "!(%s)" exp
 
     match cType with
-    | And _ -> bin "&&"
-    | Or _ -> bin "||"
-    | Nand _ -> not <| bin "&&"
-    | Nor _ -> not <| bin "||"
-    | Xor _ -> sprintf "((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
-    | Xnor _ -> sprintf "!((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
+    | And -> bin "&&"
+    | Or -> bin "||"
+    | Nand -> not <| bin "&&"
+    | Nor -> not <| bin "||"
+    | Xor -> sprintf "((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
+    | Xnor -> sprintf "!((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
     | _ -> failwithf "operator %A not defined" cType
 
 /// get valid Verilog constant for bus of given width (may be 1)
@@ -371,7 +370,6 @@ let fastOutputDefinition (vType:VMode) (fc: FastComponent) (opn: OutputPortNumbe
     | _ -> $"wire {vDef};\n"
 
 /// Translates from a component to its Verilog description
-/// TODO - implement n-input gates
 let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     let ins i = getVPortInput fs fc (InputPortNumber i)
     let outs i = getVPortOut fc (OutputPortNumber i)
@@ -414,13 +412,13 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | Input1 _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
 
     | Not -> sprintf "assign %s = ! %s;\n" (outs 0) (ins 0)
-    | And _
-    | Or _
-    | Xor _
-    | Nand _
-    | Nor _
-    | Xnor _
-    | Xor _ -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
+    | And
+    | Or
+    | Xor
+    | Nand
+    | Nor
+    | Xnor
+    | Xor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
     | DFFE
     | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
     | Counter _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 2} ? (%s{ins 1} ? %s{ins 0} : (%s{outs 0}+1'b1)) : %s{outs 0};\n"

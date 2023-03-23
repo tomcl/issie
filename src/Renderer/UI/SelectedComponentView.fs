@@ -658,7 +658,7 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
     | _ -> failwithf "What? invalid component for lsbpos in properties"
 
 
-/// TODO - make escription proper for n-input gates
+
 let private makeDescription (comp:Component) model dispatch =
     match comp.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
@@ -689,9 +689,7 @@ let private makeDescription (comp:Component) model dispatch =
         str "To join inputs and outputs without wires."; br []
         str "To prevent an unused output from giving an error."
         ]
-    | Not ->
-        div [] [ str <| sprintf "%A gate." comp.Type ]
-    | And n| Or n| Xor n| Nand n| Nor n| Xnor n ->
+    | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | Mux2 -> div [] [ 
         str "Multiplexer with two inputs and one output." 

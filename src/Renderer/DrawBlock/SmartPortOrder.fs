@@ -339,8 +339,7 @@ let reOrderPorts
 
 
 
-/// HLP23: AUTHOR Indraneel & Ifte
-/// Applies port reordering across entire sheet
+// Will require for Group Task
 let sheetReOrderPorts 
     (wModel: BusWireT.Model) 
     (busWireHelper: BusWireHelpers)
@@ -348,39 +347,48 @@ let sheetReOrderPorts
 
     printfn $"Ordering the whole sheet"
 
-    let wIdList =
-        wModel.Wires
-        |> Map.toList
-        |> List.map fst
+    // let sModel = wModel.Symbol
 
-    let wModel' = 
-        (wModel, wIdList)
-        ||> List.fold (fun model wId ->
+    // let wireList =
+    //     wModel.Wires
+    //     |> Map.toList
+    //     |> List.map snd
 
-            let sModel = model.Symbol
-            let currWire = model.Wires[wId]
+    // let symbolList = 
+    //     sModel.Symbols
+    //     |> Map.toList
+    //     |> List.map snd
 
-            let wireList =
-                model.Wires
-                |> Map.toList
-                |> List.map snd
+    // let sModel' = 
+    //     (sModel, wireList)
+    //     ||> List.fold (fun symbol wire ->
 
-            let outputPortId = string currWire.OutputPort
-            let inputPortId = string currWire.InputPort
+    //         let outputPortId = string wire.OutputPort // port id of wire exiting
+    //         let inputPortId = string wire.InputPort // port id of  wire entering
 
-            let symbolToOrder = getSymbol sModel inputPortId
-            let otherSymbol = getSymbol sModel outputPortId
+    //         let symbolToOrder = getSymbol symbol inputPortId
+    //         let otherSymbol = getSymbol symbol outputPortId
 
-            let connWireList = findInterconnectingWires wireList sModel symbolToOrder otherSymbol 0
+    //         let symbol' = changePortOrder wModel symbolToOrder otherSymbol [wire]
 
-            let symbol = changePortOrder model symbolToOrder otherSymbol connWireList
+    //         {sModel with Symbols = Map.add symbol'.Id symbol' symbol.Symbols}
+    //     )
 
-            let sModel' = {sModel with Symbols = Map.add symbol.Id symbol sModel.Symbols}
-            let model' = {model with Symbol = sModel'}
+    // let newModel = 
+    //     {wModel with 
+    //         Symbol = sModel'
+    //     }
 
-            busWireHelper.updateSymbolWires model' symbol.Id
-        )
+    // //printfn " PortMaps.Order after: %A" symbol'.PortMaps.Order[Left]
 
-    wModel'
+    // let wModel' = 
+    //     (newModel, symbolList)
+    //     ||> List.fold (fun model symbol ->
+
+    //         busWireHelper.updateSymbolWires model symbol.Id    
+    //     )
+    
+
+    wModel
 
 

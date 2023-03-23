@@ -615,7 +615,9 @@ let getVisibleScreenCentre (model : Model) : XYPos =
         X = (canvas.scrollLeft + canvas.clientWidth / 2.0) / model.Zoom
         Y = (canvas.scrollTop + canvas.clientHeight / 2.0) / model.Zoom
     }
-
+///HLP23 AUTHOR: Rzepala
+//modified the following code, so that it's also able to validate one symbol. Needed for
+//draggable resize.
 let validateTwoSelectedSymbols (model:Model) =
         match model.SelectedComponents with
         | [s1; s2] as syms -> 
@@ -628,6 +630,16 @@ let validateTwoSelectedSymbols (model:Model) =
                 Some(s1,s2)
             | _ -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
+                None
+        | [s1] ->
+            let symbols = model.Wire.Symbol.Symbols
+            let getSym sId = 
+                Map.tryFind sId symbols
+            match getSym s1 with
+            | Some s1 ->
+                Some(s1, s1)
+            | _ -> 
+                printfn "Error: can't validate the symbol selected to reorder ports"
                 None
         | syms -> 
             printfn $"Can't test because number of selected symbols ({syms.Length}) is not 2"

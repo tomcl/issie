@@ -753,19 +753,19 @@ let isOverlapped
     else false
 
 
-///HLP23 AUTHOR: Klapper 
+///HLP23 AUTHOR: Klapper & Rzepala
 ///Returns the center point of the component
-let getComponentCenter (model: BusWireT.Model) (compId:ComponentId)  =
-    let comp = model.Symbol.Symbols[compId].Component
+let getComponentCenter  (compId : Symbol)  =
+    let comp = compId.Component
     {X = comp.X + comp.W / 2.0; Y = comp.Y + comp.H / 2.0}
 
-///HLP23 AUTHOR: Klapper
+///HLP23 AUTHOR: Klapper & Rzepala
 ///Returns the distance between the two center points of the component
-let checkDistanceComponent (model : BusWireT.Model) (compId1 : ComponentId) (compId2 : ComponentId) =
-    euclideanDistance (getComponentCenter model compId1) (getComponentCenter model compId2)
+let checkDistanceComponent (compId1 : Symbol) (compId2 : Symbol) =
+    euclideanDistance (getComponentCenter compId1) (getComponentCenter compId2)
 
 
-///HLP23 AUTHOR: Klapper
+///HLP23 AUTHOR: Klapper & Rzepala
 ///Returns an option aligment of the two components
 let checkCompAlignment (model : BusWireT.Model) (compId1 : ComponentId) (compId2 : ComponentId) = 
     let comp1 = model.Symbol.Symbols[compId1].Component
@@ -777,10 +777,15 @@ let checkCompAlignment (model : BusWireT.Model) (compId1 : ComponentId) (compId2
     | _, _ -> None
 
 
-///HLP23 AUTHOR: Klapper
-///Returns a list of aligment and distances compared to a component
-let getDistanceAlignments (model : BusWireT.Model) (compId : ComponentId) (lstId: List<ComponentId>) = 
+///HLP23 AUTHOR: Klapper & Rzepala
+///Returns a symbol which is closest to the selected symbol (by their centres)
+let getDistanceAlignments 
+    (compId : Symbol) 
+    (lstId: List<Symbol>) 
+        : float*Symbol =
     let mapper compare =
-        checkDistanceComponent model compId compare,
-        checkCompAlignment model compId compare
-    lstId |> List.map mapper
+        checkDistanceComponent  compId compare,
+        compare
+    lstId 
+    |> List.map mapper
+    |> List.minBy (fun (x, _) -> x)

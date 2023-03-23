@@ -169,7 +169,7 @@ let wireLabelPopup (model: Model) (wire : Wire) dispatch =
                         OverflowY OverflowOptions.Auto
                         OverflowX OverflowOptions.Visible
                         UserSelect UserSelectOptions.None
-                        Width "25%"
+                        Width "40%"
                         ] @ extraStyle)
                     ] ] [
                     Modal.Card.head [] [

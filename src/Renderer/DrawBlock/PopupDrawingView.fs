@@ -50,10 +50,10 @@ open CommonTypes
 open EEExtensions
 
 open DrawModelType
-
+open BusWireT
 open SheetT
 
-type Msg = SheetT.Msg
+type Msg = BusWireT.Msg
 
 
 

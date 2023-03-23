@@ -64,26 +64,25 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
     let wires = filterWiresByCompMoved model compIdList
 
-    // // filter wires by whether the component id exists in the model
+    // filter wires by whether the component id exists in the model
+
     let wireId = 
         let wireId' = 
             model.Wires
             |> Map.toList
             |> List.filter (fun (cId, wire) -> 
-                not (List.contains cId wires.Both) 
-                && not (List.contains cId wires.Inputs) 
-                && not (List.contains cId wires.Outputs))
+                (List.contains cId wires.Both) 
+                || (List.contains cId wires.Inputs) 
+                || (List.contains cId wires.Outputs))
             |> List.map fst
             |> List.tryHead
 
         wireId'
     
-
     let wireFound = model.Wires[wireId |> Option.get]
     let newModel =
         match (updateWire model wireFound false) with // was FALSE reverse
         | ModelT newModel -> 
-            printfn "MODEL FOUND"
             newModel
         | WireT _ -> 
             let newWires =

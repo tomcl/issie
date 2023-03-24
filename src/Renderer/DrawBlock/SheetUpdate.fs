@@ -805,6 +805,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
+
+    ///HLP23 AUTHORS: Ismagilov & Rzepala
+    /// updated the following function to restrict resized symbol movement, so that
+    /// there is no overlap with other symbols
     | TestPortPosition ->
         // Test code called from Edit menu item
         // Validate the lits of selected symbols: it muts have just 2 for
@@ -812,11 +816,43 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2}, Cmd.none
+                
+                let scalemodel = 
+                    if s1<> s2 then 
+                        {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2}
+                    else {model with Wire = SmartSizeSymbol.reSizeSymbolDraggable model.Wire s1}
+                    
+                let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
+                let errorComponents =
+                    newModel.SelectedComponents
+                    |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+                let errorSelectedComponents =
+                    newModel.SelectedComponents
+                    |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
+
+                printfn $"ErrorComponents={errorComponents}"
+
+                let nextAction = 
+                    match errorComponents with
+                        | [] -> 
+                            Idle
+                        | _ ->
+                            DragAndDrop
+
+                match errorSelectedComponents with
+                    | [] ->
+                        {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+                        Cmd.batch [
+                                symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                                wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
+                    | _ -> model,Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
-    
+
     | KeyPress CtrlT ->
         // Added test code to test multiple components
         // Must select 2 or more componenets for it to work

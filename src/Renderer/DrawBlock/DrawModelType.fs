@@ -388,9 +388,9 @@ module BusWireT =
     let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
 
 module SheetT =
-    // Button Stuff
-    
 
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Types needed for scaling box
     type ScalingBox = {
         TopLeftStart : XYPos
         WidthStart : float
@@ -637,6 +637,7 @@ module SheetT =
         DebugMappings: string array
         DebugIsConnected: bool
         DebugDevice: string option
+        // HLP 23: AUTHOR Khoury & Ismagilov
         Box: ScalingBox
         ButtonList : list<ComponentId>
     }

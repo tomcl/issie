@@ -107,16 +107,16 @@ let updateModelWires
 
 /// HLP23: Author Omar
 /// record type for symbol box coordinates
-type SymbolBoxT = { TopLeft: float * float; TopRight: float * float; BottomLeft: float * float; BottomRight: float * float }
+type SymbolBoxT = { TopLeft: XYPos; TopRight: XYPos; BottomLeft: XYPos; BottomRight: XYPos }
 
 
 /// HLP23: Author Omar
 /// returns a record type for symbol box coordinates given a symbol
 let symbolBox (symbol: Symbol) : SymbolBoxT = 
-    let topLeft = float symbol.Pos.X, float symbol.Pos.Y
-    let topRight = (fst topLeft) + symbol.Component.W, snd topLeft
-    let bottomLeft = (fst topLeft), (snd topLeft) + symbol.Component.H 
-    let bottomRight = fst topRight, snd bottomLeft
+    let topLeft: XYPos ={X = symbol.Pos.X; Y = symbol.Pos.Y}
+    let topRight = { X = topLeft.X + symbol.Component.W; Y = topLeft.Y}
+    let bottomLeft = {X = topLeft.X; Y = topLeft.Y + symbol.Component.H }
+    let bottomRight = {X = topRight.X; Y = bottomLeft.Y}
     { TopLeft = topLeft; TopRight = topRight; BottomLeft = bottomLeft; BottomRight = bottomRight }
 
 

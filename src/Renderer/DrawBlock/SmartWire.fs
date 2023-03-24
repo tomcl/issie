@@ -36,7 +36,7 @@ let huggingDistance (model: Model) (wire: Wire) (symbol: Symbol) : float * float
 
     // tuple representing left and right hug distance
     let hugDistance = 
-        (snd boundaryBox.BottomLeft) - outputPortPos.Y, (snd boundaryBox.BottomLeft) - inputPortPos.Y 
+        (boundaryBox.BottomLeft.Y) - outputPortPos.Y, (boundaryBox.BottomLeft.Y) - inputPortPos.Y 
 
     match portPos with
         | Edge.Left -> hugDistance
@@ -89,9 +89,9 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
         | Edge.Right -> newWire
         | _ -> 
             let rightVertical = 
-                ((snd boundaryBox.BottomLeft) - inputPortPos.Y) + 10.0 + lengthAdjustment
+                ((boundaryBox.BottomLeft.Y) - inputPortPos.Y) + 10.0 + lengthAdjustment
             let leftVertical = 
-                ((snd boundaryBox.BottomLeft) - outputPortPos.Y) + 8.0 + lengthAdjustment
+                ((boundaryBox.BottomLeft.Y) - outputPortPos.Y) + 8.0 + lengthAdjustment
             let horizontalSeperation = 
                 match outputPortIndex with
                     | 0 -> 10.5
@@ -320,10 +320,10 @@ let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list =
     let symbolTopLeftPos = symbolBox.TopLeft
     let symbolTopRightPos = symbolBox.TopRight
     let symbolBottomRightPos = symbolBox.BottomLeft
-    let symbolLeft = fst symbolTopLeftPos
-    let symbolTop = snd symbolTopLeftPos
-    let symbolBottom = snd symbolBottomRightPos
-    let symbolRight = fst symbolTopRightPos
+    let symbolLeft = symbolTopLeftPos.X
+    let symbolTop = symbolTopLeftPos.Y
+    let symbolBottom = symbolBottomRightPos.Y
+    let symbolRight = symbolTopRightPos.X
     
     let leftCornerPos = (wire.StartPos.X + wire.Segments[2].Length, wire.StartPos.Y + wire.Segments[3].Length)
     let bottomLeftCornerPos = (fst leftCornerPos, snd leftCornerPos - wire.Segments[3].Length)
@@ -453,10 +453,10 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                         let symbolBox = symbolBox symbol
                         let symbolTopLeftPos = symbolBox.TopLeft
                         let symbolBottomRightPos = symbolBox.BottomLeft
-                        let symbolLeft = fst symbolTopLeftPos
-                        let symbolRight = fst symbolBottomRightPos
-                        let symbolTop = snd symbolTopLeftPos
-                        let symbolBottom = snd symbolBottomRightPos
+                        let symbolLeft = symbolTopLeftPos.X
+                        let symbolRight = symbolBottomRightPos.X
+                        let symbolTop = symbolTopLeftPos.Y
+                        let symbolBottom = symbolBottomRightPos.Y
                         
                         let leftCornerPos = (wire.StartPos.X + wire.Segments[2].Length, wire.StartPos.Y + wire.Segments[3].Length)
                         let bottomLeftCornerPos = (fst leftCornerPos, snd leftCornerPos - wire.Segments[3].Length)
@@ -661,9 +661,9 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
                         let symbolBox = symbolBox symbol
                         let symbolTopLeftPos = symbolBox.TopLeft
                         let symbolBottomRightPos = symbolBox.BottomLeft
-                        let symbolLeft = fst symbolTopLeftPos
-                        let symbolRight = fst symbolBottomRightPos
-                        let symbolBottom = snd symbolBottomRightPos
+                        let symbolLeft = symbolTopLeftPos.X
+                        let symbolRight = symbolBottomRightPos.X
+                        let symbolBottom = symbolBottomRightPos.Y
 
                         let outputPortPos, inputPortPos =
                             Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)    

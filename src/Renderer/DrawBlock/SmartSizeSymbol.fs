@@ -30,28 +30,31 @@ type ConstantsSmartSize = {
 let OffsetSmartSize = {Distance = 50.0}
 
 let offsetPorts
-    (wire: ConnectionId * Wire)
+    (wire: (ConnectionId * Wire) option)
     (orderedPortsResize: (string * XYPos) list)
     (orderedPortsOther: (string * XYPos) list)
     (orient: OrientationS option)
         : XYPos = 
-    let PortOneId = string (snd wire).InputPort
-    let PortTwoId = string (snd wire).OutputPort
-    let TmpOne = 
-        orderedPortsResize 
-        |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
-    let CoordinateOne = TmpOne.Item(0) |> snd
-    let TmpTwo = 
-        orderedPortsOther 
-        |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
-    let CoordinateTwo = TmpTwo.Item(0) |> snd
-    let Coordinates = CoordinateTwo - CoordinateOne
+    match wire with
+    | Some x ->
+        let PortOneId = string (snd x).InputPort
+        let PortTwoId = string (snd x).OutputPort
+        let TmpOne = 
+            orderedPortsResize 
+            |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
+        let CoordinateOne = TmpOne[0] |> snd
+        let TmpTwo = 
+            orderedPortsOther 
+            |> List.filter (fun (x, _) -> x = PortOneId || x = PortTwoId)
+        let CoordinateTwo = TmpTwo[0] |> snd
+        let Coordinates = CoordinateTwo - CoordinateOne
 
-    match orient with
-    | Some TopBottom ->
-        {X = Coordinates.X; Y = 0.0}
-    | Some LeftRight ->
-        {X = 0.0; Y = Coordinates.Y}
+        match orient with
+        | Some TopBottom ->
+            {X = Coordinates.X; Y = 0.0}
+        | Some LeftRight ->
+            {X = 0.0; Y = Coordinates.Y}
+        | None -> {X = 0.0; Y = 0.0}
     | None -> {X = 0.0; Y = 0.0}
 
 
@@ -69,14 +72,15 @@ let getPortDist
     (portsOrdereds: (string * XYPos) list)
     (orient: OrientationS option)
         : float option= 
-    let ItemOne = portsOrdereds.Item(1)
-    let XYPosOne = snd ItemOne
-    let ItemZero = portsOrdereds.Item(0)
-    let XYPosZero = snd ItemZero
+    
     let l = portsOrdereds.Length
     if l = 0 then None
     elif l = 1 then None
     else 
+        let ItemOne = portsOrdereds[1]
+        let XYPosOne = snd ItemOne
+        let ItemZero = portsOrdereds[0]
+        let XYPosZero = snd ItemZero
         match orient with
         | Some TopBottom ->
             Some (XYPosOne.X - XYPosZero.X)
@@ -115,6 +119,14 @@ let relationPos
     then Some LeftRight
     else None
 
+//let checkType
+
+let getType 
+    (symbol: Symbol)
+        : string =
+    match symbol.Component.Type with
+    | Custom (CustomComponentType) -> "Custom"
+    | _ -> "Else"
 
 
 let reSizeSymbol 
@@ -122,6 +134,8 @@ let reSizeSymbol
     (symbolToSize: Symbol) 
     (otherSymbol: Symbol) 
         : BusWireT.Model =  
+    
+    printfn "%A" symbolToSize
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let manageableWires = Map.toList wModel.Wires
     let sModel = wModel.Symbol
@@ -143,38 +157,87 @@ let reSizeSymbol
                 getAllPortsFromEdgeOrdered wModel symbolToSize Orient Left,
                 getAllPortsFromEdgeOrdered wModel otherSymbol Orient Right
         | None -> [], []
-    printfn "%A" portsOrderedToSize
-    printfn "%A" portsOrderedOther
+
 
     let Dimension = getPortDist portsOrderedToSize Orient, getPortDist portsOrderedOther Orient
-    printfn "%A" Dimension
-
-    let checker = 
-        getCommonWires wModel symbolToSize otherSymbol Orient 
-        |> Map.toList
-    printfn "%A" checker
-    let Checker' = checker.Item(0)
-    let Checker'' = offsetPorts Checker' portsOrderedToSize portsOrderedOther Orient
 
     let ScaleFactor = 
         match Dimension with
-        | (x, y) -> (Scale y) / (Scale x)
-    
+        | (Some x, Some y) -> y / x
+        | (None, _) -> 1.0
+        | (_, _) -> 1.0 
     
     let symbol' = 
         match Orient with
         | Some TopBottom -> 
             {symbolToSize with HScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
+            |> calcLabelBoundingBox
         | Some LeftRight -> 
             {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.VScale)}
+            |> calcLabelBoundingBox
         | None -> symbolToSize
-        |> moveSymbol Checker''
+
 
     let wModel' = {wModel with Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}}
     
     let wires' = manageableWires |> List.collect (fun (x, y) -> [x, autoroute wModel' y]) |> Map.ofList
 
-    {wModel' with 
-        Wires = wires'
-    }
+    let wModel'' = {wModel' with  Wires = wires'}
+
+    let portsOrderedToSize', portsOrderedOther' = 
+        match Orient with
+        | Some TopBottom -> 
+            if symbolToSize.Pos.Y < otherSymbol.Pos.Y then
+                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Bottom,
+                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Top
+            else
+                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Top,
+                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Bottom
+        | Some LeftRight ->
+            if symbolToSize.Pos.X < otherSymbol.Pos.X then
+                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Right,
+                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Left
+            else 
+                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Left,
+                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Right
+        | None -> [], []
+
+    let Checker = 
+        getCommonWires wModel'' symbolToSize otherSymbol Orient 
+        |> Map.toList
+    
+    let Checker' = 
+        match Checker.Length with
+        | 0 -> None
+        | n when n > 0 ->
+            let tmp = Checker[0]
+            Some tmp
+
+    let Checker'' = offsetPorts Checker' portsOrderedToSize' portsOrderedOther' Orient
+
+    let symbol'' = symbol' |> moveSymbol Checker''|> calcLabelBoundingBox
+
+    {wModel with Symbol = {sModel with Symbols = Map.add symbol''.Id symbol'' sModel.Symbols}}
+
+    
+
+let reSizeSymbolDraggable 
+    (wModel: BusWireT.Model)
+    (symbolToSize: Symbol) 
+        : BusWireT.Model =
+    
+    let customComponentList = 
+        wModel.Symbol.Symbols 
+        |> Map.toList 
+        |> List.filter (fun (_, x) -> getType x = "Custom") 
+        |> List.map (fun (_, x) -> x)
+        |> List.filter (fun x -> x <> symbolToSize)
+    
+    let closestComponent = 
+        let tmp = getDistanceAlignments symbolToSize customComponentList
+        match tmp with
+        | (x, y) -> y
+
+    printfn "%A" closestComponent 
+    reSizeSymbol wModel symbolToSize closestComponent
 

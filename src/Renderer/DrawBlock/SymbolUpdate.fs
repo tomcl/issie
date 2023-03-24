@@ -17,6 +17,48 @@ open Operators
 open System
 
 open SymbolView
+//Helper function (because this module could not find 'SmartHelpers')
+///HLP23 AUTHOR: Rzepala
+///Returns the center point of the component
+let getComponentCenterMap (model: SymbolT.Model) (compId : ComponentId)  =
+    let symbolMap = model.Symbols |> Map.find compId
+    let comp = symbolMap.Component
+    {X = comp.X + comp.W / 2.0; Y = comp.Y + comp.H / 2.0}
+
+let getType 
+    (symbol: Symbol)
+        : string =
+    match symbol.Component.Type with
+    | Custom (CustomComponentType) -> "Custom"
+    | _ -> "Else"
+///HLP23 AUTHOR: Rzepala
+///Returns the distance between the two center points of the component
+let checkDistanceComponentMap (model: SymbolT.Model) (compId1 : ComponentId) (compId2 : ComponentId) =
+    euclideanDistance (getComponentCenterMap model compId1) (getComponentCenterMap model compId2)
+///HLP23 AUTHOR: Rzepala
+///Returns a symbol which is closest to the selected symbol (by their centres)
+let getDistanceAlignmentsMap 
+    
+    (model: SymbolT.Model)
+    (compId : ComponentId) 
+    (lstId: Map<ComponentId, Symbol>) 
+        : ComponentId =
+
+    let lstId' = 
+        lstId 
+        |> Map.toList
+        |> List.filter (fun (x, _) -> compId <> x)
+        |> List.filter (fun (_, x) -> getType x = "Custom")
+        |> List.map (fun (x, _) -> x)
+    let mapper compare =
+        checkDistanceComponentMap  model compId compare,
+        compare
+
+    lstId' 
+    |> List.map mapper
+    |> List.minBy (fun (x, _) -> x)
+    |> snd
+
 
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
 let rec extractIOPrefix (str : string) (charLst: char list) =
@@ -378,15 +420,20 @@ let inline selectSymbols model compList =
     { model with Symbols = newSymbols}
 
 /// Given a model, an error component list, a selected component id list, it updates the selected symbols' color to green if they are not selected, and changes the symbols with errors to red. It returns the updated model.
-let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
+let inline errorSymbols (model:Model) (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols = 
         model.Symbols
         |> Map.map 
             (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> set opacity_ 1.0) sym)
-            
+    ///HLP23 AUTHOR: Rzepala
+    /// modified updateSymbolStyle function to perform colouring of the nearest custom symbol  
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
-            Map.add sId (set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
+
+            let newSymbols = Map.add sId (set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
+            let closestCustom = getDistanceAlignmentsMap model sId model.Symbols      
+            Map.add closestCustom (set (appearance_ >-> colour_) "lightgreen" resetSymbols[closestCustom] ) newSymbols
+            
         else 
             Map.add sId (set (appearance_ >-> opacity_) 0.2 resetSymbols[sId]) prevSymbols
 

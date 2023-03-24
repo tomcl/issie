@@ -247,12 +247,17 @@ let editMenu dispatch' =
                menuSeparator
                makeElmItem "TestPortReorder" "CmdOrCtrl+R" (fun () -> dispatch SheetT.KeyboardMsg.CtrlR)
                makeElmItem "TestPortReorder2" "CmdOrCtrl+T" (fun () -> dispatch SheetT.KeyboardMsg.CtrlT)
-               makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
+               makeElmItem "VerticalChannel" "CmdOrCtrl+J" (fun () -> sheetDispatch (SheetT.Msg.FormSmartChannel BusWireT.Vertical))
+               makeElmItem "HorizontalChannel" "CmdOrCtrl+H" (fun () -> sheetDispatch (SheetT.Msg.FormSmartChannel BusWireT.Horizontal))
+               makeElmItem "ReplaceWithLabel" "CmdorCtrl+L" (fun () -> dispatch SheetT.KeyboardMsg.CtrlL)
+               makeElmItem "ForceReplaceLabel" "CmdorCtrl+Shift+L" (fun () -> dispatch SheetT.KeyboardMsg.CtrlShiftL)
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
                makeElmItem "TestScaleUp"  "CmdorCtrl+U" (fun () -> dispatch SheetT.KeyboardMsg.CtrlU)
                makeElmItem "TestScaleDown" "CmdorCtrl+I" (fun () -> dispatch SheetT.KeyboardMsg.CtrlI)
                makeItem "TestResize" (Some"CmdOrCtrl+E") (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
-
+               makeItem "TestReorderChannelVertical" None (fun ev-> sheetDispatch (SheetT.Msg.TestAllTogether BusWireT.Vertical))
+               makeItem "TestReorderChannelHorizontal" None (fun ev-> sheetDispatch (SheetT.Msg.TestAllTogether BusWireT.Horizontal))
+               
                
             |]
             |> ResizeArray

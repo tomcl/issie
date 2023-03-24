@@ -7,12 +7,15 @@ open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
 open SymbolUpdate
-
+open PopupDrawingView
 open Optics
 open Operators
-
+open Fable.React
+open Fable.React.Props
+open Fulma
 open SymbolUpdate
 open Symbol
+open JSHelpers
 
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
@@ -20,7 +23,6 @@ open Symbol
 
 (*
 HOW TO USE THIS MODULE.
-
 (1) Add well-documented useful functions - see updateModelSymbols and updateModelWires
     for examples. You do not need to add performance information as in updateModelSymbols. 
     Your priority should be writing clear code. Try to avoid very inefficient implementations
@@ -100,9 +102,9 @@ let GetSelectWireLength
 
         let oldWires = List.map (autoroute {wModel with Symbol = sModel}) wireList
 
-        let SelectPort = match List.isEmpty (findOrderList symOrderMap Bottom) with
-                                | true -> (findOrderList symOrderMap Top)[0]
-                                | false -> (findOrderList symOrderMap Bottom)[0]
+        let SelectPort = match List.isEmpty (findOrderList symOrderMap Edge.Bottom) with
+                                | true -> (findOrderList symOrderMap Edge.Top)[0]
+                                | false -> (findOrderList symOrderMap Edge.Bottom)[0]
 
         let newSymbol =  flipSymbol FlipVertical inputSymbol 
         let oldSelectWire = oldWires |> List.filter (fun wire -> $"{wire.InputPort}" = SelectPort || $"{wire.OutputPort}" = SelectPort)
@@ -147,6 +149,7 @@ let sortByOther
     (list2 : string list)
     (list1 : (string*string*Edge*Edge) list) 
         : (string*string*Edge*Edge) list=
+    printfn "Here2"
     list1
     |> List.sortBy (fun (x,_,_,_) -> List.findIndex (fun s -> s = x) list2)
 
@@ -242,10 +245,7 @@ let updateModelWires
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Returns the middle segment of a given wire</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="wireId">ConnectionId of the wire</param>
-/// <returns>The middle Segment</returns>
+///HLP 23: AUTHOR Klapper - Returns the middle segment of a given wire
 let getMiddleSegment (model : Model) (wireId:ConnectionId) =
     let wire = model.Wires[wireId]
     match wire.Segments.Length with
@@ -257,11 +257,7 @@ let getMiddleSegment (model : Model) (wireId:ConnectionId) =
 
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Checks whether the wire terminates in one of the components</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="comIdLst">List containing the ComponentId-s</param>
-/// <param name="wireId">ConnectionId of the wire</param>
-/// <returns>true or false</returns>
+///HLP 23: AUTHOR Klapper - Checks whether the wire terminates in one of the components
 let isWireTerminatingInComponents (model : BusWireT.Model) (comIdLst : List<ComponentId>) (wireId : ConnectionId) =
     let wire = model.Wires[wireId]
     let outputPort =  model.Symbol.Ports[wire.OutputPort |> function | OutputPortId s -> s]
@@ -269,21 +265,14 @@ let isWireTerminatingInComponents (model : BusWireT.Model) (comIdLst : List<Comp
 
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Checks whether the given position is inside the bounding box</summary>
-/// <param name="bound">BoundingBox</param>
-/// <param name="pos">XYPos</param>
-/// <returns>true or false</returns>
+///HLP 23: AUTHOR Klapper - Checks whether the given position is inside the bounding box
 let isPositionInBounds (bound : BoundingBox) (pos : XYPos) =
     match (pos.X >= bound.TopLeft.X, pos.X <= bound.TopLeft.X + bound.W, pos.Y >= bound.TopLeft.Y , pos.Y <= bound.TopLeft.Y + bound.H) with
     | true,true,true,true -> true
     | _ -> false
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Checks whether a wire is connected on the left or right side of a bounding box</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="bounds">BoundingBox to check against</param>
-/// <param name="wireId">Connection Id of the wire to check</param>
-/// <returns>true or false</returns>
+///HLP 23: AUTHOR Klapper - Checks whether a wire is connected on the left or right side of a bounding box
 let isWireConnectedOnLeft (model : Model) (bounds : BoundingBox) (wireId) (orientation: Orientation)=
     let wire = model.Wires[wireId]
     if orientation = Vertical then
@@ -292,29 +281,20 @@ let isWireConnectedOnLeft (model : Model) (bounds : BoundingBox) (wireId) (orien
         if isPositionInBounds {bounds with H = bounds.H / 2.0} wire.StartPos || isPositionInBounds {bounds with H = bounds.H / 2.0}  wire.EndPos then true else false
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Returns the component on the end of the wire</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="wire">Wire</param>
-/// <returns></returns>
+///HLP 23: AUTHOR Klapper - Returns the component on the end of the wire
 let getEndComponent (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     let endCompId = model.Symbol.Ports[Symbol.getInputPortIdStr wire.InputPort].HostId
     model.Symbol.Symbols[ComponentId endCompId].Component
 
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Returns the component on the start of the wire</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="wire">Wire</param>
-/// <returns></returns>
+///HLP 23: AUTHOR Klapper - Returns the component on the start of the wire
 let getStartComponent (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     let startCompId = model.Symbol.Ports[Symbol.getOutputPortIdStr wire.OutputPort].HostId
     model.Symbol.Symbols[ComponentId startCompId].Component
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Checks whether the wire is connected to a wire label</summary>
-/// <param name="model">BusWireT.Model</param>
-/// <param name="wire">Wire</param>
-/// <returns>true or false</returns>
+///HLP 23: AUTHOR Klapper - Checks whether the wire is connected to a wire label
 let isWireConnectedToLabel (model : Model) (wire : Wire) =
     let startComp = getStartComponent model wire
     let endComp = getEndComponent model wire
@@ -324,10 +304,7 @@ let isWireConnectedToLabel (model : Model) (wire : Wire) =
     | _ -> false
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Adds to rotations together, legacy function could be useful for later applications.</summary>
-/// <param name="deg1"> Rotation: first degree</param>
-/// <param name="deg2"> Rotation: second degree</param>
-/// <returns>The sum of the two rotations</returns>
+///HLP 23: AUTHOR Klapper - Adds to rotations together, legacy function could be useful for later applications.
 let addDegree deg1 deg2 =
     match deg1,deg2 with
     | Degree0, deg -> deg
@@ -361,6 +338,7 @@ let getBlock
     let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
+
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>
@@ -439,7 +417,6 @@ let adjustPosForBlockFlip
         | FlipVertical -> { X = 0 ;Y = (float)h }
     pos - posOffset
 
-
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.</summary>
 /// <param name="rotation">  Clockwise or Anticlockwise rotation</param>
 /// <param name="block"> Bounding box of selected components</param>
@@ -473,7 +450,6 @@ let rotateSymbolInBlock
         Component = newComponent
     } |> calcLabelBoundingBox 
 
-
 /// <summary>HLP 23: AUTHOR Ismagilov - Flip a symbol horizontally or vertically in its block.</summary>
 /// <param name="flip">  Flip horizontally or vertically</param>
 /// <param name="block"> Bounding box of selected components</param>
@@ -497,7 +473,7 @@ let flipSymbolInBlock
         currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
 
     let portOrder = 
-        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
+        (Map.empty, [Edge.Top; Edge.Left; Edge.Bottom; Edge.Right]) ||> List.fold flipPortList
         |> Map.map (fun edge order -> List.rev order)       
 
     let newSTransform = 
@@ -587,10 +563,8 @@ let scaleSymbolInBlockGroup
 
 
 
-/// <summary>HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.</summary>
-/// <param name="degree">  Roation: the desired degree which we want to rotate by</param>
-/// <param name="sym"> Symbol to be rotated</param>
-/// <returns>The rotated symbol</returns>
+/// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
+
 let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
     match degree with
     | Degree0 -> sym
@@ -601,83 +575,105 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
                    
     | Degree270 -> rotateSymbolInBlock RotateAntiClockwise {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 } sym
 
+///HLP 23: AUTHOR Klapper
+///Generates automatic labels for wires
+let labelNameSuggester (model : BusWireT.Model) (wire : Wire) =
+    (getEndComponent model wire).Label + "," + string(model.Symbol.Ports[Symbol.getInputPortIdStr wire.InputPort].PortNumber)
 
-/// <summary>
+
+///HLP 23: AUTHOR Klapper
+///Creates popup for wire label
+let wireReplacePopUp (model : BusWireT.Model) (wireId : ConnectionId)  =
+    let wire = model.Wires[wireId]
+    let title = "Replace selected wire with label"
+    let suggestedName = labelNameSuggester model wire
+    let beforeText =  $"How do you want to name your label? (Default: {suggestedName})" |> str
+    let buttonAction = 
+        fun (dispatch) -> 
+            BusWireT.Msg.ReplaceWireWithLabel wireId |> dispatch
+            BusWireT.Msg.ClosePopup |> dispatch
+    let buttonText = "Replace"
+    
+    let myPopup = popupWithTextInputAndTwoButtonsFunc title beforeText "Label name here" buttonAction buttonText
+    {model with PopupViewFunc = Some myPopup}
+
+///HLP 23: AUTHOR Klapper
+///Creates popup for bunchwire replace 
+let wireReplaceAllPopup (model : BusWireT.Model) (wireIdList : ConnectionId list) =
+    let title = "Replace all the selected wires with labels"
+    let text = "Do you want to replace all selected/unroutable wires with labels?" |> str
+    let buttonAction =
+        fun dispatch ->
+            BusWireT.Msg.ReplaceWireListWithLabels wireIdList |> dispatch
+            BusWireT.Msg.ClosePopup |> dispatch
+    let buttonText = "Yes"
+    let myPopup = popupWithTwoButtonsFunc title text buttonAction buttonText
+    {model with PopupViewFunc = Some myPopup}
+
+
+let createLabelSymbol position label model =
+    let labelComponent = makeComponent position IOLabel (uuid()) label
+    { 
+        Pos = position
+        LabelBoundingBox = {TopLeft=position; W=0.;H=0.} // dummy, will be replaced
+        LabelHasDefaultPos = true
+        LabelRotation = None
+        Appearance =
+            {
+                HighlightLabel = false
+                ShowPorts = ShowNone
+                Colour = "rgb(120,120,120)"
+                Opacity = 1.0
+                Style = model.Symbol.Style
+            }
+        InWidth0 = None // set by BusWire
+        InWidth1 = None
+        Id = ComponentId labelComponent.Id
+        Component = labelComponent
+        Moving = false
+        PortMaps = Symbol.initPortOrientation labelComponent
+        STransform = {Rotation = Degree0; flipped = false}
+        ReversedInputPorts = Some false
+        MovingPort = None
+        IsClocked = false
+        MovingPortTarget = None
+        HScale = None
+        VScale = None
+        }
+        |> Symbol.autoScaleHAndW
+
 /// HLP 23: AUTHOR Klapper - 
 /// Function which replaces a wire with two labels directly connected to original inputs and outputs of the wire. 
-/// </summary>
-/// <param name="unique_labelNb"> A unique int used for label generation</param>
-/// <param name="model"> BusWireT model</param>
-/// <param name="wire"> Wire to be replace</param>
-/// <returns> uniqueNumber + 1 ,BusWireT.Model with wire replaced by labels</returns>
-let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Model) (wire : Wire) =
-   
+let replaceWireWithLabelWithName (model : DrawModelType.BusWireT.Model) (wireId : ConnectionId) (label : string) =
+    let wire = model.Wires[wireId]
+
     let startComp = getStartComponent model wire
-    let endComp = getEndComponent model wire
-    let startLabelId = JSHelpers.uuid ()
     let startOrigin = Symbol.getOutputPortLocation None model.Symbol wire.OutputPort 
-    
     let (_, _, compHeight, compWidth) = getComponentProperties ComponentType.IOLabel ""
-    let  startPos, startRotation = 
-        
+    let  startPos, startRotation =
         match model.Symbol.Symbols[ComponentId startComp.Id].PortMaps.Orientation[Symbol.getOutputPortIdStr wire.OutputPort] with
-        | Top ->  {X = startOrigin.X - compWidth / 2.0; Y = startOrigin.Y - 20.0}, Degree270
-        | Bottom ->  {X = startOrigin.X - compWidth / 2.0; Y = startOrigin.Y + 20.0}, Degree90
-        | Left ->  {X = startOrigin.X - 60.0; Y =  startOrigin.Y - compHeight / 2.0}, Degree180
-        | Right -> {X = startOrigin.X + 20.0; Y =  startOrigin.Y - compHeight / 2.0},Degree0
-         
-    
-    let startLabel = Symbol.makeComponent startPos ComponentType.IOLabel startLabelId (endComp.Label + string(unique_labelNb))
+        | Edge.Top ->  {X = startOrigin.X - compWidth / 2.0; Y = startOrigin.Y - 20.0}, Degree270
+        | Edge.Bottom ->  {X = startOrigin.X - compWidth / 2.0; Y = startOrigin.Y + 20.0}, Degree90
+        | Edge.Left ->  {X = startOrigin.X - 60.0; Y =  startOrigin.Y - compHeight / 2.0}, Degree180
+        | Edge.Right -> {X = startOrigin.X + 20.0; Y =  startOrigin.Y - compHeight / 2.0},Degree0
 
     let endComp = getEndComponent model wire
     let endOrigin = Symbol.getInputPortLocation None model.Symbol wire.InputPort 
-    
     let  endPos, endRotation = 
-        
         match model.Symbol.Symbols[ComponentId endComp.Id].PortMaps.Orientation[Symbol.getInputPortIdStr wire.InputPort] with
-        | Top ->  {X = endOrigin.X - compWidth / 2.0; Y = endOrigin.Y - 60.0}, Degree90
-        | Bottom ->  {X = endOrigin.X - compWidth / 2.0; Y = endOrigin.Y + 20.0}, Degree270
-        | Left ->  {X = endOrigin.X - 60.0; Y =  endOrigin.Y - compHeight / 2.0},Degree0    
-        | Right -> {X = endOrigin.X + 20.0; Y =  endOrigin.Y - compHeight / 2.0} , Degree180
-    let endLabelId = JSHelpers.uuid ()
-    let endLabel = Symbol.makeComponent endPos ComponentType.IOLabel endLabelId (endComp.Label + string(unique_labelNb))
-    let sym = 
-        { 
-            Pos = startPos
-            LabelBoundingBox = {TopLeft=startPos; W=0.;H=0.} // dummy, will be replaced
-            LabelHasDefaultPos = true
-            LabelRotation = None
-            Appearance =
-                {
-                    HighlightLabel = false
-                    ShowPorts = ShowNone
-                    Colour = "rgb(120,120,120)"
-                    Opacity = 1.0
-                    Style = model.Symbol.Style
-                }
-            InWidth0 = None // set by BusWire
-            InWidth1 = None
-            Id = ComponentId startLabel.Id
-            Component = startLabel
-            Moving = false
-            PortMaps = Symbol.initPortOrientation startLabel
-            STransform = {Rotation = Degree0; flipped = false}
-            ReversedInputPorts = Some false
-            MovingPort = None
-            IsClocked = false
-            MovingPortTarget = None
-            HScale = None
-            VScale = None
-            }
-            |> Symbol.autoScaleHAndW
-            
-    let startSymbol = sym |> rotateSymbolByDegree startRotation |> Symbol.autoScaleHAndW
-    let symbolModel = model.Symbol
-    let endSymbol = {sym with Pos = endPos; Id = ComponentId endLabel.Id; Component = endLabel; PortMaps = Symbol.initPortOrientation endLabel} |>  Symbol.autoScaleHAndW |> rotateSymbolByDegree endRotation 
-    let startSymbolMap = symbolModel.Symbols.Add (ComponentId startLabel.Id, startSymbol) 
-    let startNewPorts = Symbol.addToPortModel symbolModel startSymbol 
+        | Edge.Top ->  {X = endOrigin.X - compWidth / 2.0; Y = endOrigin.Y - 60.0}, Degree90
+        | Edge.Bottom ->  {X = endOrigin.X - compWidth / 2.0; Y = endOrigin.Y + 20.0}, Degree270
+        | Edge.Left ->  {X = endOrigin.X - 60.0; Y =  endOrigin.Y - compHeight / 2.0},Degree0    
+        | Edge.Right -> {X = endOrigin.X + 20.0; Y =  endOrigin.Y - compHeight / 2.0} , Degree180
 
-    let endSymbolMap = {symbolModel with Symbols = startSymbolMap; Ports = startNewPorts}.Symbols.Add (ComponentId endLabel.Id, endSymbol) 
+    let startSymbol = createLabelSymbol startPos label model 
+                    |> rotateSymbolByDegree startRotation |> Symbol.autoScaleHAndW
+    let endSymbol = createLabelSymbol endPos label model 
+                    |> rotateSymbolByDegree endRotation 
+    let symbolModel = model.Symbol
+    let startSymbolMap = symbolModel.Symbols.Add (startSymbol.Id, startSymbol) 
+    let startNewPorts = Symbol.addToPortModel symbolModel startSymbol 
+    let endSymbolMap = {symbolModel with Symbols = startSymbolMap; Ports = startNewPorts}.Symbols.Add (endSymbol.Id, endSymbol) 
     let endNewPorts = Symbol.addToPortModel {symbolModel with Symbols = endSymbolMap; Ports = startNewPorts} endSymbol 
 
     let newModel = {model with Symbol = {symbolModel with Symbols = endSymbolMap; Ports = endNewPorts}}
@@ -685,16 +681,19 @@ let replaceWireWithLabel (unique_labelNb : int,model : DrawModelType.BusWireT.Mo
     let startLabelInputPortPos  = Symbol.getInputPortLocation None newModel.Symbol (InputPortId startSymbol.Component.InputPorts[0].Id)
     let endLabelOutputPortPos = Symbol.getOutputPortLocation None newModel.Symbol (OutputPortId endSymbol.Component.OutputPorts[0].Id)
 
-    let startSegmentList = makeInitialSegmentsList wire.WId wire.StartPos startLabelInputPortPos Left
+    let startSegmentList = makeInitialSegmentsList wire.WId wire.StartPos startLabelInputPortPos Edge.Left
     let endWireId = JSHelpers.uuid ()
-    let endSegmentList = makeInitialSegmentsList (ConnectionId endWireId) endLabelOutputPortPos wire.EndPos Right
+    let endSegmentList = makeInitialSegmentsList (ConnectionId endWireId) endLabelOutputPortPos wire.EndPos Edge.Right
     let newStartWire = {wire with InputPort = InputPortId startSymbol.Component.InputPorts[0].Id; Segments = startSegmentList} |> autoroute newModel 
 
     let newEndWire = {wire with OutputPort = OutputPortId endSymbol.Component.OutputPorts[0].Id; Segments = endSegmentList; WId = ConnectionId endWireId} |> autoroute newModel
 
-    (unique_labelNb + 1, [newStartWire; newEndWire] |>  updateModelWires newModel)
+    [newStartWire; newEndWire] |>  updateModelWires newModel
 
-
+///HLP23 AUTHOR: Klapper. Replaces a wire with a label with an auto generated name
+let replaceWireWithLabel (model : DrawModelType.BusWireT.Model) (wire : Wire) =
+    labelNameSuggester model wire
+    |> replaceWireWithLabelWithName model wire.WId
 
 ///HLP 23: AUTHOR Rzepala
 ///this function return common wires between two adjacent symbols
@@ -725,38 +724,38 @@ let getCommonWires
         if symbolToResize.Pos.Y < otherSymbol.Pos.Y then 
             manageableWires 
             |> List.filter (fun x -> 
-                (List.contains (string x.InputPort) (Map.find Bottom symbolToResize.PortMaps.Order) 
-                || List.contains (string x.OutputPort) (Map.find Bottom symbolToResize.PortMaps.Order))
-                && (List.contains (string x.InputPort) (Map.find Top otherSymbol.PortMaps.Order) 
-                || List.contains (string x.OutputPort) (Map.find Top otherSymbol.PortMaps.Order)))
+                (List.contains (string x.InputPort) (Map.find Edge.Bottom symbolToResize.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Edge.Bottom symbolToResize.PortMaps.Order))
+                && (List.contains (string x.InputPort) (Map.find Edge.Top otherSymbol.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Edge.Top otherSymbol.PortMaps.Order)))
             |> List.map (fun c -> (c.WId, c))
             |> Map.ofList
         else 
             manageableWires 
             |> List.filter (fun x -> 
-                (List.contains (string x.InputPort) (Map.find Top symbolToResize.PortMaps.Order) 
-                || List.contains (string x.OutputPort) (Map.find Top symbolToResize.PortMaps.Order))
-                && (List.contains (string x.InputPort) (Map.find Bottom otherSymbol.PortMaps.Order) 
-                || List.contains (string x.OutputPort) (Map.find Bottom otherSymbol.PortMaps.Order)))
+                (List.contains (string x.InputPort) (Map.find Edge.Top symbolToResize.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Edge.Top symbolToResize.PortMaps.Order))
+                && (List.contains (string x.InputPort) (Map.find Edge.Bottom otherSymbol.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Edge.Bottom otherSymbol.PortMaps.Order)))
             |> List.map (fun c -> (c.WId, c))
             |> Map.ofList
     | Some LeftRight->
         if symbolToResize.Pos.X > otherSymbol.Pos.X then 
             manageableWires 
             |> List.filter (fun x -> 
-                (List.contains (string x.InputPort) (Map.find Left symbolToResize.PortMaps.Order) 
-                || List.contains (string x.OutputPort) (Map.find Left symbolToResize.PortMaps.Order))
-                && (List.contains (string x.InputPort) (Map.find Right otherSymbol.PortMaps.Order) 
-                || List.contains (string x.OutputPort) (Map.find Right otherSymbol.PortMaps.Order)))
+                (List.contains (string x.InputPort) (Map.find Edge.Left symbolToResize.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Edge.Left symbolToResize.PortMaps.Order))
+                && (List.contains (string x.InputPort) (Map.find Edge.Right otherSymbol.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Edge.Right otherSymbol.PortMaps.Order)))
             |> List.map (fun c -> (c.WId, c))
             |> Map.ofList
         else 
             manageableWires 
             |> List.filter (fun x -> 
-                (List.contains (string x.InputPort) (Map.find Right symbolToResize.PortMaps.Order) 
-                || List.contains (string x.OutputPort) (Map.find Right symbolToResize.PortMaps.Order))
-                && (List.contains (string x.InputPort) (Map.find Left otherSymbol.PortMaps.Order) 
-                || List.contains (string x.OutputPort) (Map.find Left otherSymbol.PortMaps.Order)))
+                (List.contains (string x.InputPort) (Map.find Edge.Right symbolToResize.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Edge.Right symbolToResize.PortMaps.Order))
+                && (List.contains (string x.InputPort) (Map.find Edge.Left otherSymbol.PortMaps.Order) 
+                || List.contains (string x.OutputPort) (Map.find Edge.Left otherSymbol.PortMaps.Order)))
             |> List.map (fun c -> (c.WId, c))
             |> Map.ofList
     | None -> failwithf "Whatt?"
@@ -842,4 +841,73 @@ let createNewSymbolButton  (pos: XYPos) (comptype: ComponentType) (label:string)
     |> calcLabelBoundingBox
 
 
+///HLP23 AUTHOR: Klapper & Rzepala
+///Returns the center point of the component
+let getComponentCenter  (compId : Symbol)  =
+    let comp = compId.Component
+    {X = comp.X + comp.W / 2.0; Y = comp.Y + comp.H / 2.0}
 
+///HLP23 AUTHOR: Klapper & Rzepala
+///Returns the distance between the two center points of the component
+let checkDistanceComponent (compId1 : Symbol) (compId2 : Symbol) =
+    euclideanDistance (getComponentCenter compId1) (getComponentCenter compId2)
+
+
+///HLP23 AUTHOR: Klapper & Rzepala
+///Returns an option aligment of the two components
+let checkCompAlignment (model : BusWireT.Model) (compId1 : ComponentId) (compId2 : ComponentId) = 
+    let comp1 = model.Symbol.Symbols[compId1].Component
+    let comp2 = model.Symbol.Symbols[compId2].Component
+    match isOverlapped comp1.X (comp1.X + comp1.W) comp2.X (comp2.X + comp2.W),
+          isOverlapped comp1.Y (comp1.Y + comp1.H) comp2.Y (comp2.Y + comp2.H) with
+    | true, false -> Some LeftRight
+    | false, true -> Some TopBottom
+    | _, _ -> None
+
+
+///HLP23 AUTHOR: Klapper & Rzepala
+///Returns a symbol which is closest to the selected symbol (by their centres)
+let getDistanceAlignments 
+    (compId : Symbol) 
+    (lstId: List<Symbol>) 
+        : float*Symbol =
+    let lstId' = lstId |> List.filter (fun x -> compId <> x)
+    let mapper compare =
+        checkDistanceComponent  compId compare,
+        compare
+    lstId' 
+    |> List.map mapper
+    |> List.minBy (fun (x, _) -> x)
+
+
+///HLP23 AUTHOR: Rzepala
+///Returns the center point of the component
+let getComponentCenterMap (model: SymbolT.Model) (compId : ComponentId)  =
+    let symbolMap = model.Symbols |> Map.find compId
+    let comp = symbolMap.Component
+    {X = comp.X + comp.W / 2.0; Y = comp.Y + comp.H / 2.0}
+
+///HLP23 AUTHOR: Rzepala
+///Returns the distance between the two center points of the component
+let checkDistanceComponentMap (model: SymbolT.Model) (compId1 : ComponentId) (compId2 : ComponentId) =
+    euclideanDistance (getComponentCenterMap model compId1) (getComponentCenterMap model compId2)
+///HLP23 AUTHOR: Rzepala
+///Returns a symbol which is closest to the selected symbol (by their centres)
+let getDistanceAlignmentsMap 
+    (model: SymbolT.Model)
+    (compId : ComponentId) 
+    (lstId: Map<ComponentId, Symbol>) 
+        : ComponentId =
+
+    let lstId' = 
+        lstId 
+        |> Map.toList
+        |> List.filter (fun (x, _) -> compId <> x)
+        |> List.map (fun (x, _) -> x)
+    let mapper compare =
+        checkDistanceComponentMap  model compId compare,
+        compare
+    lstId' 
+    |> List.map mapper
+    |> List.minBy (fun (x, _) -> x)
+    |> snd

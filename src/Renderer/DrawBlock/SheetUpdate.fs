@@ -736,16 +736,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
-    | TestSheetReorder ->
-        // Test code called from Edit menu item
-
-        let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
-            {
-                updateWire = BusWireUpdate.updateWire
-                updateSymbolWires = BusWireUpdate.updateSymbolWires
-            }
-
-        {model with Wire = SmartPortOrder.sheetReOrderPorts model.Wire portOrderHelpers}, Cmd.none
 
     | TestPortReorder ->
         // Test code called from Edit menu item
@@ -769,7 +759,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | SingleReorder ->
         // Test code called from Edit menu item
 
-        let portOrderHelpers2: SmartPortOrder.BusWireHelpers = 
+        let portOrderHelpers2: SmartHelpers.BusWireHelpers = 
             {
                 updateWire = BusWireUpdate.updateWire
                 updateSymbolWires = BusWireUpdate.updateSymbolWires
@@ -796,7 +786,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | TestPortPosition ->
         // Test code called from Edit menu item
 
-         /// HLP23: Ifte
          let symbolSizeHelpers: SmartHelpers.BusWireHelpers = 
             {
                 updateWire = BusWireUpdate.updateWire

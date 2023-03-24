@@ -40,7 +40,6 @@ let reSizeSymbol
     let wires = wModel.Wires
     let ports = sModel.Ports
     
-
     let getWireList wires = 
         let tupleList = Map.toList wires 
         match List.length tupleList with
@@ -123,8 +122,7 @@ let reSizeSymbol
             let newPos = {symbolToSize.Pos with X = newX}
             let scalePair = 
                 match symbolToSize.LabelRotation with
-                | Some Degree90 -> scale, 1.0
-                | Some Degree270 -> scale, 1.0
+                | Some Degree90 | Some Degree270 -> scale, 1.0
                 | _ -> 1.0, scale
             let symbolToSize' = symbolSizeScale symbolToSize scalePair
             {symbolToSize' with Pos = newPos; Component = newComp}
@@ -144,7 +142,6 @@ let reSizeSymbol
         (orientation, wireList) 
         ||> Option.map2 getConnectedWires 
         |> Option.map2 getWirePorts orientation
-    printf "%A" wirePorts
 
     let fstIdx = 
         wirePorts
@@ -174,12 +171,6 @@ let reSizeSymbol
     let scale = 
         (offset, portSep, sndPorts) 
         |||> Option.map3 getScale
-
-    //printf "%A" offset
-    //printf "%A" fstPorts
-    //printf "%A" sndPorts
-    //printf "%A" portSep
-    //printf "%A" scale
 
     let newSymbol = getNewSymbol orientation offset scale fstPorts
 

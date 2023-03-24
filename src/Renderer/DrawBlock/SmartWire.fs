@@ -742,7 +742,7 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
     let symbol = findSymbol model wire Output
     let autoWire = autoroute model wire
     let segListLength = autoWire.Segments |> List.length
-    printfn "segment info %A" wire.Segments
+    // printfn "segment info %A" wire.Segments
 
     match segListLength with
     | l when l < 7 -> 

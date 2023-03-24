@@ -31,6 +31,8 @@
 * limitation - original individual scaling keypress (Ctrl + U, Ctrl + I) does not affect the UI Box created
 * limitation - on sudden quick movements when moving symbols, UI box is misaligned.
 
+## Scaling Box:
+
 ## Smart Resizing
 * By clicking Ctrl+E (or Cmd+E), the two selected components are resized
 * feature - if a resized symbol overlaps with another symbol in the canvas, placement is not allowed. Instead, the user must drag the symbol to an empty location and drop
@@ -39,3 +41,16 @@
 * feature - components can be resized even without any connections between them. However if the user wants the component to get shifted, there must me at least one connection between components.
 * limitation - dragging symbol across the canvas always highlights the closest Custom component - no CtrlDown is required.
 * limitation - does not always work with rotated symbols.
+
+## Smart Port Ordr
+* By clicking (Ctrl+R) on two components, ports are reordered.
+* Works in any orientation/rotation
+* feature - components with a select port can also be flipped if it is better to do so.
+* feature - Clicking on multiple components will and then Ctrl+T, the component with the most wire connected to it will have it's ports reordered.
+* Only selected components will be taken into account in the reordering
+* It could reorder multiple edges at a time (select components connected to each edge)
+* limitation - If an output is connected to multiple components or multiple components connected to one input the reordering with more than 2 components will have 
+undefined behavior.
+* limitation - For more than two components, it will only work if components connected to the same edge are connected from the same edge. (eg, all Right edges connected to the left Edge)
+
+

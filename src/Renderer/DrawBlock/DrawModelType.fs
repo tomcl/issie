@@ -166,7 +166,6 @@ module SymbolT =
             /// HScale & VScale modify W and H respectively if not None.
             /// Vertical symbol dimension = VScale*H etc
             /// They are currently used only on Custom Components and will not work on other omponents.
-
             VScale : float option
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
@@ -260,6 +259,13 @@ module SymbolT =
     
 module BusWireT =
 
+    /// Possible fields that may (or may not) be used in a dialog popup - these can be raised from BusWire or Sheet
+    type PopupDialogData = {
+        Text : string option;
+        Int : int option;
+        Int2: int64 option
+    }
+
     type Orientation = | Vertical | Horizontal
     
     ///
@@ -333,12 +339,16 @@ module BusWireT =
             Notifications: Option<string>
             Type : WireType
             ArrowDisplay: bool
+            PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
+            // data to populate popup (may not all be used)
+            PopupDialogData : PopupDialogData
+
         }
     
     //----------------------------Message Type-----------------------------------//
     
     /// BusWire messages: see BusWire.update for more info
-    type Msg =
+    and Msg =
         | Symbol of SymbolT.Msg // record containing messages from Symbol module
         | AddWire of (InputPortId * OutputPortId) // add a new wire between these ports to the model
         | BusWidths
@@ -360,6 +370,14 @@ module BusWireT =
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
+        // HLP23: Omar
+        | WireLabelReplacement of (Model * Wire * string) // for replacing wires with wire labels
+        // ------------------- Popup Dialog Management Messages----------------------//
+        | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
+        | ClosePopup
+        | SetPopupDialogText of string option
+        | SetPopupDialogInt of int option
+
 
     open Optics
     open Operators
@@ -446,12 +464,7 @@ module SheetT =
     type IssieInterfaceMsg =
         | ToggleArrows
 
-    /// Possible fields that may (or may not) be used in a dialog popup.
-    type PopupDialogData = {
-        Text : string option;
-        Int : int option;
-        Int2: int64 option
-    }
+
 
     type Arrange = | AlignSymbols | DistributeSymbols
 
@@ -488,11 +501,6 @@ module SheetT =
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling
         | DoNothing
-        // ------------------- Popup Dialog Management Messages----------------------//
-        | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
-        | ClosePopup
-        | SetPopupDialogText of string option
-        | SetPopupDialogInt of int option
         // ------------------- Issie Interface Messages ----------------------
         | InitialiseCreateComponent of LoadedComponent list * ComponentType * string // Need to initialise for drag-and-drop
         | FlushCommandStack
@@ -533,6 +541,7 @@ module SheetT =
         | TestSheetReorder
         | TestSmartChannel
         | TestPortPosition
+        | TestPortArrange // HLP23 Ifte
 
 
     type ReadLog = | ReadLog of int
@@ -545,9 +554,6 @@ module SheetT =
     type Model = {
         Wire: BusWireT.Model
         // function to create popup pane if present
-        PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
-        // data to populate popup (may not all be used)
-        PopupDialogData : PopupDialogData
         BoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
         LastValidBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
         SelectedLabel: CommonTypes.ComponentId option
@@ -611,5 +617,3 @@ module SheetT =
     let screenScrollPos_ = Lens.create (fun m -> m.ScreenScrollPos) (fun w m -> {m with ScreenScrollPos = w})
     let lastMousePosForSnap_ = Lens.create (fun m -> m.LastMousePosForSnap) (fun w m -> {m with LastMousePosForSnap = w})
     let canvasSize_ = Lens.create (fun m -> m.CanvasSize) (fun w m -> {m with CanvasSize = w})
-
-

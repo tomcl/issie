@@ -374,6 +374,7 @@ let displayView model dispatch =
         
         
         PopupView.viewPopup model dispatch 
+        PopupDrawingView.viewDrawingPopup model.Sheet.Wire (fun bwMsg -> dispatch (Sheet (SheetT.Msg.Wire bwMsg)))
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model dispatch

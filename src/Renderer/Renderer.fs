@@ -247,6 +247,7 @@ let editMenu dispatch' =
                makeItem "TestSheetReorder" None (fun ev -> sheetDispatch SheetT.Msg.TestSheetReorder)
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
+               makeItem "TestPortArrange" None (fun ev -> sheetDispatch SheetT.Msg.TestPortArrange) // HLP23 Ifte
 
                
             |]

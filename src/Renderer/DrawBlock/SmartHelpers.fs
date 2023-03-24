@@ -106,29 +106,18 @@ let updateModelWires
 
 
 /// HLP23: Author Omar
-/// returns a list of corner coordinates of a symbol: [upper, lower, left, right]
-let symbolBox (symbol: Symbol) : list<float*float> = 
-    let topLeft = float symbol.Pos.X, float symbol.Pos.Y
-    let topRight = (fst topLeft) + symbol.Component.W, snd topLeft
-    let bottomLeft = (fst topLeft), (snd topLeft) + symbol.Component.H 
-    let bottomRight = fst topRight, snd bottomLeft
-    [topLeft; topRight; bottomLeft; bottomRight]
+/// record type for symbol box coordinates
+type SymbolBoxT = { TopLeft: XYPos; TopRight: XYPos; BottomLeft: XYPos; BottomRight: XYPos }
 
 
-/// HLP23: Author Omar & Indraneel
-/// given an input edge and symbol, return a list of all port positions for each edge on the symbol
-let portPositions (symbol: Symbol) (edge: Edge): list<float*float> = 
-    let box = symbolBox symbol
-    let x = fst box[0]
-    let y = snd box[0]
-    let w = symbol.Component.W
-    let h = symbol.Component.H
-    let numberPorts = float (symbol.PortMaps.Order[edge] |> List.length)
-    match edge with
-        | Top -> [x + w/numberPorts, y; x + w/numberPorts, y + h/numberPorts]
-        | Bottom -> [x + w/numberPorts, y + h; x + w/numberPorts, y + h/numberPorts]
-        | Left -> [x, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
-        | Right -> [x + w, y + h/numberPorts; x + w/numberPorts, y + h/numberPorts]
+/// HLP23: Author Omar
+/// returns a record type for symbol box coordinates given a symbol
+let symbolBox (symbol: Symbol) : SymbolBoxT = 
+    let topLeft: XYPos ={X = symbol.Pos.X; Y = symbol.Pos.Y}
+    let topRight = { X = topLeft.X + symbol.Component.W; Y = topLeft.Y}
+    let bottomLeft = {X = topLeft.X; Y = topLeft.Y + symbol.Component.H }
+    let bottomRight = {X = topRight.X; Y = bottomLeft.Y}
+    { TopLeft = topLeft; TopRight = topRight; BottomLeft = bottomLeft; BottomRight = bottomRight }
 
 
 /// HLP23: Author Indraneel

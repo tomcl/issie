@@ -56,3 +56,5 @@ undefined behavior.
 * limitation - For more than two components, it will only work if components connected to the same edge are connected from the same edge. (eg, all Right edges connected to the left Edge)
 
 
+# TestReorderSmartChannel
+* By clicking this button it test reorder and smart channel together, it basically just calls them right after each other

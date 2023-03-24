@@ -298,8 +298,8 @@ let mDownUpdate
             else
                 let symbolMap = Optic.get symbols_ model
                 let symbol = symbolMap[compId]
-                {model with Action = ResizingSymbol (compId, fixedCornerLoc); LastValidSymbol = Some symbol }
-                , symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
+                {model with Action = ResizingSymbol (compId, fixedCornerLoc); LastValidSymbol = Some symbol }, 
+                symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
 
         | Component compId ->
 
@@ -475,8 +475,6 @@ let mDragUpdate
         let bBox = model.BoundingBoxes[compId]
         let errorComponents  =
             if notIntersectingComponents model bBox compId then [] else [compId]
-        // let lastValidPos = 
-        //     if errorComponents.IsEmpty then mMsg.Pos else model.LastValidPos
         {model with ErrorComponents = errorComponents},
         Cmd.batch [
             symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))

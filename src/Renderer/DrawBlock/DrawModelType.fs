@@ -549,7 +549,6 @@ module SheetT =
         | ToggleSnapToNet
         | BeautifySheet
         | MakeChannelToggle
-        | OptimiseSymbol
 
 
     type ReadLog = | ReadLog of int

@@ -20,7 +20,6 @@ open Symbol
 
 (*
 HOW TO USE THIS MODULE.
-
 (1) Add well-documented useful functions - see updateModelSymbols and updateModelWires
     for examples. You do not need to add performance information as in updateModelSymbols. 
     Your priority should be writing clear code. Try to avoid very inefficient implementations

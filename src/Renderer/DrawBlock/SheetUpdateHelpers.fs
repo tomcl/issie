@@ -666,14 +666,14 @@ let mDragUpdate
                 let newTopLeft = {X=(startBoxPos.X-(distMovedXY)); Y=(startBoxPos.Y-(distMovedXY))}
                 let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = (distMovedXY*2.) + startWidth; H = (distMovedXY*2.) + startHeight}}
                 let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
-                let newModel = {model with Wire = {model.Wire with Symbol = newSymModel}}
-                let newModel2 = {newModel with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol}
+                let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes =  Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}
+
                 let errorComponents =
                     oldModel.SelectedComponents
-                    |> List.filter (fun sId -> not (notIntersectingComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+                    |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
                 let errorSelectedComponents =
                     oldModel.SelectedComponents
-                    |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+                    |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
 
                 if (newBox.BoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBox.BoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBox.BoxBound.TopLeft.Y + newBox.BoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H || errorSelectedComponents<>[]) then
                     {model with
@@ -686,13 +686,13 @@ let mDragUpdate
                                 Cmd.ofMsg UpdateBoundingBoxes
                             ]
                 else
-                {newModel2 with
+                {newModel with
                             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                             LastMousePos = mMsg.Pos
                             ErrorComponents = errorComponents
                             Box = newBox}, 
                 Cmd.batch [ 
-                    symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel2.SelectedComponents,false))
+                    symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                     Cmd.ofMsg CheckAutomaticScrolling
                     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
                     Cmd.ofMsg UpdateBoundingBoxes

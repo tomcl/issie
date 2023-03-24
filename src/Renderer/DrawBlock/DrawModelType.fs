@@ -389,10 +389,6 @@ module BusWireT =
 
 module SheetT =
     // Button Stuff
-    type Button = {
-        Center : XYPos
-        Radius : float
-    }
 
     type ScalingBox = {
         TopLeftStart : XYPos
@@ -402,9 +398,9 @@ module SheetT =
         StartingMouse: XYPos
         ShowBox: bool
         BoxBound: BoundingBox
-        ScaleButton: Button
-        RotateCWButton: Button
-        RotateACWButton: Button
+        ScaleButton: SymbolT.Symbol Option
+        RotateCWButton: SymbolT.Symbol Option
+        RotateACWButton: SymbolT.Symbol Option
         MovingPos: XYPos List
     }
 

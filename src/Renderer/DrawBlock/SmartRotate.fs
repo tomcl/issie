@@ -23,6 +23,11 @@ open SmartHelpers
   as opposed to original rotate/flip functions.
 *)
 
+/// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>
+/// <param name="compList"> List of ComponentId's of selected components</param>
+/// <param name="model"> Current symbol model</param>
+/// <param name="rotation"> Type of rotation to do</param>
+/// <returns>New rotated symbol model</returns>
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:RotationType) = 
 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
@@ -41,6 +46,12 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+/// <summary>HLP 23: AUTHOR Ismagilov - Scales a block of symbols, returning the new symbol model</summary>
+/// <param name="compList"> List of ComponentId's of selected components</param>
+/// <param name="model"> Current symbol model</param>
+/// <param name="scale"> Type of scaling to do</param>
+/// <returns>New scaled symbol model</returns>
+//Note: This scaling is kept here as part of original individual code, and is used with Ctrl+U, Ctrl+I
 let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scale:ScaleType)=
     ///Similar structure to rotateBlock, easy to understand
 
@@ -56,6 +67,12 @@ let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scale:ScaleTyp
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+/// <summary>HLP 23: AUTHOR Ismagilov - Scales a block of symbols, returning the new symbol model</summary>
+/// <param name="compList"> List of ComponentId's of selected components</param>
+/// <param name="model"> Current symbol model</param>
+/// <param name="scale"> Type of scaling to do</param>
+/// <returns>New scaled symbol model</returns>
+//Note: This scaling is used for the new UI scaling block, and takes in a variable scale factor
 let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float)=
     //Similar structure to rotateBlock, easy to understand
 
@@ -71,6 +88,11 @@ let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+/// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
+/// <param name="compList"> List of ComponentId's of selected components</param>
+/// <param name="model"> Current symbol model</param>
+/// <param name="flip"> Type of flip to do</param>
+/// <returns>New flipped symbol model</returns>
 let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) = 
     //Similar structure to rotateBlock, easy to understand
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList

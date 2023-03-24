@@ -165,12 +165,10 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         let newBox , newModel = 
             match model.Action with 
             | MovingSymbols -> 
-                            let symButton = model.Wire.Symbol.Symbols 
-                                                    |> Map.find (model.ButtonList |> List.head)
-                            let rotateACWButton =  model.Wire.Symbol.Symbols
-                                                |> Map.find (model.ButtonList[1])
-                            let rotateCWButton =  model.Wire.Symbol.Symbols
-                                                |> Map.find (model.ButtonList[2])
+
+                            let symButton = model.Box.ScaleButton.Value
+                            let rotateACWButton =  model.Box.RotateACWButton.Value
+                            let rotateCWButton =  model.Box.RotateCWButton.Value
                             
                             let mousePosX = mMsg.Pos.X
                             let mousePosY = mMsg.Pos.Y
@@ -658,12 +656,9 @@ let mDragUpdate
                 let startBoxPos = model.Box.TopLeftStart
                 let startWidth = model.Box.WidthStart
                 let startHeight = model.Box.HeightStart
-                let symButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList |> List.head)
-                let rotateACWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[1])
-                let rotateCWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[2])
+                let symButton =  model.Box.ScaleButton.Value
+                let rotateACWButton =  model.Box.RotateACWButton.Value
+                let rotateCWButton = model.Box.RotateCWButton.Value
                 let distanceMoved = sqrt((mMsg.Pos.X-startMouse.X)**2 + (mMsg.Pos.Y-startMouse.Y)**2)
 
                 let distMovedXY = 
@@ -689,15 +684,15 @@ let mDragUpdate
                                                                       W = (distMovedXY*2.) + startWidth; 
                                                                       H = (distMovedXY*2.) + startHeight}}
                 let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
-                let newModel = {model with Wire = {model.Wire with Symbol = newSymModel}}
-                let newModel2 = {model with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol; 
-                                                    Wire = {model.Wire with Symbol = newSymModel}}
+
+                let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes =  Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}
+
                 let errorComponents =
                     oldModel.SelectedComponents
-                    |> List.filter (fun sId -> not (notIntersectingComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+                    |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
                 let errorSelectedComponents =
                     oldModel.SelectedComponents
-                    |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel2 newModel2.BoundingBoxes[sId] sId))
+                    |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
 
                 if (newBox.BoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBox.BoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBox.BoxBound.TopLeft.Y + newBox.BoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H || errorSelectedComponents<>[]) then
                     {model with
@@ -710,16 +705,18 @@ let mDragUpdate
                                 Cmd.ofMsg UpdateBoundingBoxes
                             ]
                 else
-                    {newModel2 with
-                                ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                                LastMousePos = mMsg.Pos
-                                ErrorComponents = errorComponents
-                                Box = newBox}, 
-                    Cmd.batch [ 
-                        symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel2.SelectedComponents,false))
-                        Cmd.ofMsg CheckAutomaticScrolling
-                        wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
-                        Cmd.ofMsg UpdateBoundingBoxes
+
+                {newModel with
+                            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                            LastMousePos = mMsg.Pos
+                            ErrorComponents = errorComponents
+                            Box = newBox}, 
+                Cmd.batch [ 
+                    symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                    Cmd.ofMsg CheckAutomaticScrolling
+                    wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                    Cmd.ofMsg UpdateBoundingBoxes
+
                 ]
 
 
@@ -745,12 +742,10 @@ let mDragUpdate
     | InitialiseMoving _ ->
         if (model.SelectedComponents.Length > 1)
         then
-                    let symButton = model.Wire.Symbol.Symbols
-                                                |> Map.find (model.ButtonList |> List.head)
-                    let rotateACWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[1])
-                    let rotateCWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[2])
+
+                    let symButton = model.Box.ScaleButton.Value
+                    let rotateACWButton =  model.Box.RotateACWButton.Value
+                    let rotateCWButton =  model.Box.RotateCWButton.Value
 
                     let mouseBoxDiff = {X = (mMsg.Pos.X- model.Box.BoxBound.TopLeft.X) ;Y= (mMsg.Pos.Y-model.Box.BoxBound.TopLeft.Y)}
                     let mouseButtonDiff = {X = (mMsg.Pos.X- symButton.Pos.X) ;Y= (mMsg.Pos.Y-symButton.Pos.Y)}
@@ -963,12 +958,9 @@ let mMoveUpdate
             moveSymbols model mMsg
         | _ -> 
 
-            let symButton = model.Wire.Symbol.Symbols
-                                                    |> Map.find (model.ButtonList |> List.head)
-            let rotateACWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[1])
-            let rotateCWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[2])
+            let symButton = model.Box.ScaleButton.Value
+            let rotateACWButton =  model.Box.RotateACWButton.Value
+            let rotateCWButton =  model.Box.RotateCWButton.Value
             let newSymModel = {model.Wire.Symbol with Symbols = (model.Wire.Symbol.Symbols |> Map.remove symButton.Id |> Map.remove rotateACWButton.Id |> Map.remove rotateCWButton.Id)}
             (moveSymbols ({model with ButtonList = []; Box = {model.Box with ShowBox = false;}; Wire = {model.Wire with Symbol = newSymModel}}) mMsg)
     | InitialisedCreateComponent (ldcs, compType, lbl) ->

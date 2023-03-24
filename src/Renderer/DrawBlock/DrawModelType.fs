@@ -388,13 +388,9 @@ module BusWireT =
     let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
 
 module SheetT =
+
     // HLP 23: AUTHOR Khoury & Ismagilov
     // Types needed for scaling box
-    type Button = {
-        Center : XYPos
-        Radius : float
-    }
-
     type ScalingBox = {
         TopLeftStart : XYPos
         WidthStart : float
@@ -403,9 +399,9 @@ module SheetT =
         StartingMouse: XYPos
         ShowBox: bool
         BoxBound: BoundingBox
-        ScaleButton: Button
-        RotateCWButton: Button
-        RotateACWButton: Button
+        ScaleButton: SymbolT.Symbol Option
+        RotateCWButton: SymbolT.Symbol Option
+        RotateACWButton: SymbolT.Symbol Option
         MovingPos: XYPos List
     }
 

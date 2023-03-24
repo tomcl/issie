@@ -130,13 +130,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let topleftY =  box.TopLeft.Y
             let width = box.W
             let height= box.H
-            let createdrotateACWSym = {(createNewSymbolButton {X=topleftX- 93.; Y=topleftY+((height/2. )- 12.5)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+            let createdrotateACWSym = {(createNewSymbolButton {X=topleftX- 69.5; Y=topleftY+((height/2. )- 12.5)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
             let rotateACWSym = {createdrotateACWSym with Component = {createdrotateACWSym.Component with H = 25.; W=25.}}
             let createdrotateCWSym = createNewSymbolButton {X=topleftX+width+ 57.; Y=topleftY+((height/2.)-12.5)} RotateButton  "RotateCW" Distinctive
             let rotateCWSym = {createdrotateCWSym with Component = {createdrotateCWSym.Component with H = 25.; W= 25.}}
             let buttonSym = createNewSymbolButton {X=topleftX+width+ 46.5; Y=topleftY-53.5} ScaleButton "ScaleButton"  Distinctive
             let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym |> Map.add rotateACWSym.Id rotateACWSym |> Map.add rotateCWSym.Id rotateCWSym
-            ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=topleftX+width ; Y=topleftY}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id]}), Cmd.none
+            ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = Some buttonSym; RotateCWButton= Some rotateCWSym; RotateACWButton= Some rotateACWSym}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id]}), Cmd.none
             //Center and Radius might be unused here ^
 
             
@@ -1088,9 +1088,9 @@ let init () =
                 StartingPos = {X=0;Y=0};
                 ShowBox = false ;
                 BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0};
-                ScaleButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}; 
-                RotateCWButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}; 
-                RotateACWButton = {Center= {X=0.0;Y=0.0}; Radius = 0.0}}
+                ScaleButton = None; 
+                RotateCWButton = None;
+                RotateACWButton = None;}
         ButtonList =[]
     }, Cmd.none
 

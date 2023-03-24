@@ -130,7 +130,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let topleftY =  box.TopLeft.Y
             let width = box.W
             let height= box.H
-            let createdrotateACWSym = {(createNewSymbolButton {X=topleftX- 93.; Y=topleftY+((height/2. )- 12.5)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+            let createdrotateACWSym = {(createNewSymbolButton {X=topleftX- 69.5; Y=topleftY+((height/2. )- 12.5)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
             let rotateACWSym = {createdrotateACWSym with Component = {createdrotateACWSym.Component with H = 25.; W=25.}}
             let createdrotateCWSym = createNewSymbolButton {X=topleftX+width+ 57.; Y=topleftY+((height/2.)-12.5)} RotateButton  "RotateCW" Distinctive
             let rotateCWSym = {createdrotateCWSym with Component = {createdrotateCWSym.Component with H = 25.; W= 25.}}

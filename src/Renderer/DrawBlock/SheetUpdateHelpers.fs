@@ -163,12 +163,9 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         let newBox , newModel = 
             match model.Action with 
             | MovingSymbols -> 
-                            let symButton = model.Wire.Symbol.Symbols 
-                                                            |> Map.find (model.ButtonList |> List.head)
-                            let rotateACWButton =  model.Wire.Symbol.Symbols
-                                                |> Map.find (model.ButtonList[1])
-                            let rotateCWButton =  model.Wire.Symbol.Symbols
-                                                |> Map.find (model.ButtonList[2])
+                            let symButton = model.Box.ScaleButton.Value
+                            let rotateACWButton =  model.Box.RotateACWButton.Value
+                            let rotateCWButton =  model.Box.RotateCWButton.Value
 
                             let newButtonPos = {X= mMsg.Pos.X - model.Box.MovingPos[1].X; Y= mMsg.Pos.Y- model.Box.MovingPos[1].Y}
                             let newRotCWPos = {X= mMsg.Pos.X - model.Box.MovingPos[2].X; Y= mMsg.Pos.Y- model.Box.MovingPos[2].Y}
@@ -644,12 +641,9 @@ let mDragUpdate
                 let startBoxPos = model.Box.TopLeftStart
                 let startWidth = model.Box.WidthStart
                 let startHeight = model.Box.HeightStart
-                let symButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList |> List.head)
-                let rotateACWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[1])
-                let rotateCWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[2])
+                let symButton =  model.Box.ScaleButton.Value
+                let rotateACWButton =  model.Box.RotateACWButton.Value
+                let rotateCWButton = model.Box.RotateCWButton.Value
                 let distanceMoved = sqrt((mMsg.Pos.X-startMouse.X)**2 + (mMsg.Pos.Y-startMouse.Y)**2)
                 printfn "%A" distanceMoved
                 let distMovedXY = 
@@ -717,12 +711,9 @@ let mDragUpdate
     | InitialiseMoving _ ->
         if (model.SelectedComponents.Length > 1)
         then
-                    let symButton = model.Wire.Symbol.Symbols
-                                                        |> Map.find (model.ButtonList |> List.head)
-                    let rotateACWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[1])
-                    let rotateCWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[2])
+                    let symButton = model.Box.ScaleButton.Value
+                    let rotateACWButton =  model.Box.RotateACWButton.Value
+                    let rotateCWButton =  model.Box.RotateCWButton.Value
                     //let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
                     let newPos = {X = (mMsg.Pos.X- model.Box.BoxBound.TopLeft.X) ;Y= (mMsg.Pos.Y-model.Box.BoxBound.TopLeft.Y)}
                     let newButtonPos = {X = (mMsg.Pos.X- symButton.Pos.X) ;Y= (mMsg.Pos.Y-symButton.Pos.Y)}
@@ -936,12 +927,9 @@ let mMoveUpdate
             moveSymbols model mMsg
         | _ -> 
 
-            let symButton = model.Wire.Symbol.Symbols
-                                                    |> Map.find (model.ButtonList |> List.head)
-            let rotateACWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[1])
-            let rotateCWButton =  model.Wire.Symbol.Symbols
-                                            |> Map.find (model.ButtonList[2])
+            let symButton = model.Box.ScaleButton.Value
+            let rotateACWButton =  model.Box.RotateACWButton.Value
+            let rotateCWButton =  model.Box.RotateCWButton.Value
             let newSymModel = {model.Wire.Symbol with Symbols = (model.Wire.Symbol.Symbols |> Map.remove symButton.Id |> Map.remove rotateACWButton.Id |> Map.remove rotateCWButton.Id)}
             (moveSymbols ({model with ButtonList = []; Box = {model.Box with ShowBox = false;}; Wire = {model.Wire with Symbol = newSymModel}}) mMsg)
     | InitialisedCreateComponent (ldcs, compType, lbl) ->

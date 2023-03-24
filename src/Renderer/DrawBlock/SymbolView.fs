@@ -195,6 +195,16 @@ let getSymbolRotation (symbol:Symbol) =
     | Degree90 -> 270
     | Degree180 -> 180
     | Degree270 -> 90
+
+///calculates the location of the inverter circle based on rotation angle of symbol
+let NotCircleAngleSHift (w:float) (h:float) angle notDiameter = 
+    match angle with
+    | 90 -> w/2., (h-notDiameter/2.)
+    | 180 -> (notDiameter/2.), h/2.
+    | 270 -> (w/2.),notDiameter/2.
+    | _ -> (w-notDiameter/2.),h/2.
+
+
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------- SYMBOL DRAWING -------------------------------------//
 //--------------------------------------------------------------------------------------------//
@@ -224,7 +234,8 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let angle = getSymbolRotation symbol
                                 [
                                     makeAnyPathWithTransform {X = 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
-                                    makeCircle (comp.W-notDiameter/2.) (comp.H/2.) {defaultCircle with R = (notDiameter/2.); Fill = parameters.Fill}
+                                    makeCircle (fst (NotCircleAngleSHift comp.W comp.W angle (notDiameter))) (snd (NotCircleAngleSHift 
+                                    comp.W comp.W angle (notDiameter))) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
                                 ]
 
                     |Or n ->    let origin = -comp.W/9.
@@ -243,7 +254,8 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let angle = getSymbolRotation symbol
                                 [
                                     makeAnyPathWithTransform {X = origin; Y = 0} orShape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
-                                    makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
+                                    makeCircle (fst (NotCircleAngleSHift comp.W comp.W angle (notDiameter))) (snd (NotCircleAngleSHift 
+                                    comp.W comp.W angle (notDiameter))) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
                                 ]
 
                     |Not ->     let notRadius = 3.
@@ -254,8 +266,8 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let shape = combineAnyPathAttr [lineOne; lineTwo; "Z"]
                                 [   
                                     makeAnyPathWithTransform {X = 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
-                                    //makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
-                                    makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}
+                                    makeCircle (fst (NotCircleAngleSHift comp.W comp.W angle (notRadius*2.))) (snd (NotCircleAngleSHift 
+                                    comp.W comp.W angle (notRadius*2.))) {defaultCircle with R = notRadius; Fill = parameters.Fill}
                                 ]
 
                     |Xor n->    let origin = -comp.W/9.
@@ -283,7 +295,8 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                     makeAnyPathWithTransform {X = origin; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.)); 
                                     makeAnyPathWithTransform {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"}
                                      (rotateAttr angle (comp.W/2.) (comp.H/2.));
-                                    makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
+                                    makeCircle (fst (NotCircleAngleSHift comp.W comp.W angle (notDiameter))) (snd (NotCircleAngleSHift 
+                                    comp.W comp.W angle (notDiameter))) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
                                 ]
 
                     |_ ->   createBiColorPolygon points colour outlineColour opacity strokeWidth comp

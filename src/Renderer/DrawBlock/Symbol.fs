@@ -298,7 +298,7 @@ let busSelectTitle (wob:int) (lsb:int) : string =
 ///Decodes the component type into component labels
 let getPrefix (compType:ComponentType) = 
     match compType with
-    | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
+    | Not | And _| Or _| Xor _| Nand _| Nor _| Xnor _ -> "G"
     | Mux2 -> "MUX"
     | Mux4 -> "MUX"
     | Mux8 -> "MUX"

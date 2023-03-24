@@ -736,17 +736,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
-    | TestSheetReorder ->
-        // Test code called from Edit menu item
-
-        let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
-            {
-                updateWire = BusWireUpdate.updateWire
-                updateSymbolWires = BusWireUpdate.updateSymbolWires
-            }
-
-        {model with Wire = SmartPortOrder.sheetReOrderPorts model.Wire portOrderHelpers}, Cmd.none
-
     | TestPortReorder ->
         // Test code called from Edit menu item
         // Validate the list of selected symbols: it must have just 2 for
@@ -765,6 +754,34 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
+                
+    | SingleReorder ->
+        // Test code called from Edit menu item
+
+        let portOrderHelpers2: SmartPortOrder.BusWireHelpers = 
+            {
+                updateWire = BusWireUpdate.updateWire
+                updateSymbolWires = BusWireUpdate.updateSymbolWires
+            }
+
+        let symb = 
+            match model.SelectedComponents with
+            | [s1] as syms -> 
+                let symbols = model.Wire.Symbol.Symbols
+                let getSym sId = 
+                    Map.tryFind sId symbols
+                match getSym s1 with
+                | Some s1 -> 
+                    printfn $"Testing with\ns1= {s1.Component.Type}"
+                    Some(s1)
+                | _ -> 
+                    printfn "Error: can't validate the two symbols selected to reorder ports"
+                    None
+            | syms -> 
+                printfn $"Can't test because number of selected symbols ({syms.Length}) is not 1"
+                None
+
+        {model with Wire = SmartPortOrder.singleReOrder model.Wire symb.Value portOrderHelpers2}, Cmd.none
     | TestPortPosition ->
         // Test code called from Edit menu item
 

@@ -244,8 +244,8 @@ let editMenu dispatch' =
                makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
                menuSeparator
                makeItem "TestPortReorder" None (fun ev -> sheetDispatch SheetT.Msg.TestPortReorder)
-               makeItem "TestSheetReorder" None (fun ev -> sheetDispatch SheetT.Msg.TestSheetReorder)
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
+               makeItem "SingleReOrder" None (fun ev -> sheetDispatch SheetT.Msg.SingleReorder)
                makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
                makeItem "TestPortArrange" None (fun ev -> sheetDispatch SheetT.Msg.TestPortArrange) // HLP23 Ifte
 

@@ -40,7 +40,7 @@ let findWiresInChannel channel wireList (busUpdateHelpers: BusUpdateHelpers) =
     wireList |> List.partition isIntersecting
         
 let calculateWireSpacing (channelDimension: float) (numWires: int) = 
-    let wireSpacing = 0.7 * channelDimension / (float numWires)
+    let wireSpacing = channelDimension / (float numWires + 1.0)
 
     [1..numWires]
     |> List.map (fun i -> (float i) * wireSpacing)
@@ -55,7 +55,7 @@ let findWireSpacing (channelOrientation: Orientation) (channel: BoundingBox)
 
     let tl = getCoord channelOrientation channel.TopLeft
 
-    calculateWireSpacing channel.W wireCount
+    calculateWireSpacing channel.H wireCount
     |> List.map (fun pos -> tl + pos)
 
 ///Top level function for auto-spacing wires in a bounding box
@@ -65,6 +65,15 @@ let smartChannelRoute (channelOrientation: Orientation)
     (busUpdateHelpers: BusUpdateHelpers) :Model =
 
     let tl = channel.TopLeft
+
+    let chan = channel
+    printfn "tl height is: %A" chan.H
+    printfn "tl width is: %A" chan.W
+    printfn "tl TOPLEFT is: %A" chan.TopLeft
+    
+
+
+
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
     printf "%A" channelOrientation
 
@@ -72,6 +81,8 @@ let smartChannelRoute (channelOrientation: Orientation)
         model.Wires
         |> Map.toList
  
+    printfn "wire startpos is: %A" ((snd oldWireList[0]).StartPos)
+
     let interWiresLst, otherWiresLst = findWiresInChannel channel oldWireList busUpdateHelpers
 
     let wiresInChannel = 

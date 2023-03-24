@@ -113,7 +113,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     wireCmd (BusWireT.ColorWires (pastedConnIds, HighLightColor.Thistle)) ]
                 
     // HLP 23: AUTHOR Khoury & Ismagilov
-    // Gets bounsing box dimentions and creates the necessary symbol buttons
+    // Gets bounding box dimentions and creates the necessary symbol buttons
     | DrawBox ->
         let box: BoundingBox = 
                     match model.SelectedComponents.Length with

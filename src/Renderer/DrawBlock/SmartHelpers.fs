@@ -148,7 +148,7 @@ let modelWithBestFlip
     let newSmodel = {sModel with Symbols = Map.add symbolToOrder.Id symbolToOrder sModel.Symbols}
     let symComponentType = otherSymbol.Component.Type
 
-    match CheckSelectComponent symComponentType with 
+    match isMuxDemux symComponentType with 
         | true ->
             let lengthNewSelect, lengthOldSelect , newSymbol, newModel= GetSelectWireLength  wModel wireList otherSymbol
             match lengthNewSelect < lengthOldSelect with

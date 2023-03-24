@@ -646,7 +646,6 @@ let mDragUpdate
     match model.Action with
     | MovingWire segId -> 
         snapWire model mMsg segId 
-    
     // HLP 23: AUTHOR Khoury & Ismagilov
     // New Action, when we click on scaling button and drag the components and box should scale with mouse
     | Scaling ->
@@ -673,16 +672,26 @@ let mDragUpdate
                     | _ -> -1.*distanceMoved*(1.414/2.)
                     
                 let newPos = {X=startPos.X+(distMovedXY); Y=(startPos.Y-(distMovedXY))}
-                let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(76.5)-(distMovedXY); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(76.5)-(distMovedXY)}}
-                let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(50.)+startWidth+(distMovedXY); Y=rotateCWButton.Pos.Y}; Component = {rotateCWButton.Component with X= startBoxPos.X+(50.)+startWidth+(distMovedXY)}}
+                let symNewButton = {symButton with Pos = newPos;
+                                                            Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
+                let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(76.5)-(distMovedXY); Y=rotateACWButton.Pos.Y}; 
+                                                                       Component = {rotateACWButton.Component with X= startBoxPos.X-(76.5)-(distMovedXY)}}
+                let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(50.)+startWidth+(distMovedXY); Y=rotateCWButton.Pos.Y}; 
+                                                                      Component = {rotateCWButton.Component with X= startBoxPos.X+(50.)+startWidth+(distMovedXY)}}
                 let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distMovedXY))
-                let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton |> Map.add rotateCWNewButton.Id rotateCWNewButton)}
+                let newSymModel = {modelSymbols with Symbols = 
+                                                                modelSymbols.Symbols 
+                                                                |> Map.add symNewButton.Id symNewButton 
+                                                                |> Map.add rotateACWNewButton.Id rotateACWNewButton 
+                                                                |> Map.add rotateCWNewButton.Id rotateCWNewButton}
                 let newTopLeft = {X=(startBoxPos.X-(distMovedXY)); Y=(startBoxPos.Y-(distMovedXY))}
-                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; W = (distMovedXY*2.) + startWidth; H = (distMovedXY*2.) + startHeight}}
+                let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; 
+                                                                      W = (distMovedXY*2.) + startWidth; 
+                                                                      H = (distMovedXY*2.) + startHeight}}
                 let newBlock = SmartHelpers.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
                 let newModel = {model with Wire = {model.Wire with Symbol = newSymModel}}
-                let newModel2 = {model with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol; Wire = {model.Wire with Symbol = newSymModel}}
+                let newModel2 = {model with BoundingBoxes =  Symbol.getBoundingBoxes newModel.Wire.Symbol; 
+                                                    Wire = {model.Wire with Symbol = newSymModel}}
                 let errorComponents =
                     oldModel.SelectedComponents
                     |> List.filter (fun sId -> not (notIntersectingComponents newModel2 newModel2.BoundingBoxes[sId] sId))
@@ -842,6 +851,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 symDiff newComponents model.SelectedComponents, symDiff newWires model.SelectedWires
             else 
                 newComponents, newWires
+        // HLP 23: AUTHOR Khoury & Ismagilov
         let nextAction = match selectComps.Length with
                                              | s when s<2 -> Idle 
                                              | _ -> Scaling

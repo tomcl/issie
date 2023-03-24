@@ -154,8 +154,6 @@ let reSizeSymbol
     (symbolToSize: Symbol) 
     (otherSymbol: Symbol) 
         : BusWireT.Model =  
-    
-    printfn "%A" symbolToSize
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let manageableWires = Map.toList wModel.Wires
     let sModel = wModel.Symbol

@@ -258,6 +258,9 @@ type BusWireHelpers = {
     updateSymbolWires: Model -> ComponentId -> Model
     }
 
+/// Compares Maps to check if they are
+/// equal based on distinct length
+/// returns either the oldMap or newMap
 let compareMaps (newMap: Map<_, _>) (oldMap: Map<_, _>) : Map<_, _> =
 
     let newMapList = Map.toList newMap |> List.map snd

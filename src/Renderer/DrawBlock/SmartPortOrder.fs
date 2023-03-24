@@ -271,7 +271,7 @@ let groupPorts
         |> List.map (fun (_,x)->(x.InputPort,x.OutputPort))
         |> sortInputOutput symbolToOrder
         |> List.collect (fun (x,y) -> match symOrientationList  |> Map.tryFind  y with
-                                                        | Some e -> [(x,y,e,e)]
+                                                        | Some e -> [(x,y,e,e)]                                                    
                                                         | None -> [] )
         |> List.groupBy (fun (_,_, e, _) -> e)
 
@@ -303,8 +303,9 @@ let multipleReorderPorts
     let sModel = wModel.Symbol
 
 
-    let connectedPorts = wModel.Wires |> Map.toList |> List.collect (fun (_,x) -> [typeConversionInput(x.InputPort); 
-                                                                                                       typeConversionOutput(x.OutputPort)])
+    let connectedPorts = wModel.Wires 
+                                        |> Map.toList 
+                                        |> List.collect (fun (_,x) -> [typeConversionInput(x.InputPort); typeConversionOutput(x.OutputPort)])
     let listofOrientationMaps = symbols |> List.map (fun x -> x.PortMaps.Orientation)
     let symOrientationList = getMaxComponent connectedPorts listofOrientationMaps
     let otherSymbols =  symbols |> List.filter (fun x -> x.PortMaps.Orientation <> symOrientationList)
@@ -363,6 +364,4 @@ let multipleReorderPorts
         Wires =  wiresAutorouted
         Symbol = newSmodel
     }
-
-
 

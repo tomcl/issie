@@ -344,8 +344,9 @@ let addDegree deg1 deg2 =
 
 
    
-//Returns the bounding box of a block of selected symbols, in the 'BoundingBox' type
-//HLP 23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
+/// <param name="symbols"> Selected symbols list</param>
+/// <returns>Bounding Box</returns>
 let getBlock 
         (symbols:Symbol List) :BoundingBox = 
 
@@ -361,8 +362,11 @@ let getBlock
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
 
-//Takes a point Pos, a centre Pos, a transform and a rotation type and returns the point rotated about the centre
-//HLP23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
+/// <param name="point"> Original XYPos</param>
+/// <param name="center"> The center XYPos that the point is rotated about</param>
+/// <param name="rotation"> Clockwise or Anticlockwise </param>
+/// <returns>New flipped point</returns>
 let rotatePointAboutBlockCentre 
             (point:XYPos) 
             (centre:XYPos) 
@@ -385,8 +389,11 @@ let rotatePointAboutBlockCentre
     |> rotateAboutCentre
     |> relativeToTopLeft
 
-//Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre
-//HLP23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre</summary>
+/// <param name="point"> Original XYPos</param>
+/// <param name="center"> The center XYPos that the point is flipped about</param>
+/// <param name="flip"> Horizontal or Vertical flip</param>
+/// <returns>New flipped point</returns>
 let flipPointAboutBlockCentre 
     (point:XYPos)
     (center:XYPos)
@@ -399,8 +406,8 @@ let flipPointAboutBlockCentre
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been rotated</summary>
 /// <param name="rotation"> Rotated CW or AntiCW</param>
-/// <param name="h"> Originaly height of symbol (Before flip)</param>
-/// <param name="w"> Originaly width of symbol (Before flip)</param>
+/// <param name="h"> Original height of symbol (Before rotation)</param>
+/// <param name="w"> Original width of symbol (Before rotation)</param>
 /// <param name="sym"> Symbol</param>
 /// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockRotation
@@ -417,8 +424,8 @@ let adjustPosForBlockRotation
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been flipped</summary>
 /// <param name="flip">  Flipped horizontally or vertically</param>
-/// <param name="h"> Originaly height of symbol (Before flip)</param>
-/// <param name="w"> Originaly width of symbol (Before flip)</param>
+/// <param name="h"> Original height of symbol (Before flip)</param>
+/// <param name="w"> Original width of symbol (Before flip)</param>
 /// <param name="sym"> Symbol</param>
 /// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockFlip

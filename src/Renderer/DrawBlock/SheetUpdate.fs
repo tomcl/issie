@@ -157,10 +157,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if (model.SelectedComponents.Length < 2) then 
             (model), Cmd.none
         else
-            let createdrotateACWSym = {(createNewSymbol {X=box.TopLeft.X - 93.; Y=box.TopLeft.Y+((box.H/2. )-25.)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
-            let rotateACWSym = {createdrotateACWSym with Component = {createdrotateACWSym.Component with H = 50.; W=50.}}
-            let createdrotateCWSym = createNewSymbol {X=box.TopLeft.X+box.W+ 57.; Y=box.TopLeft.Y+((box.H/2.)-25.)} RotateButton  "RotateCW" Distinctive
-            let rotateCWSym = {createdrotateCWSym with Component = {createdrotateCWSym.Component with H = 50.; W=50.}}
+            let createdrotateACWSym = {(createNewSymbol {X=box.TopLeft.X - 69.5; Y=box.TopLeft.Y+((box.H/2. )- 12.5)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+            let rotateACWSym = {createdrotateACWSym with Component = {createdrotateACWSym.Component with H = 25.; W=25.}}
+            let createdrotateCWSym = createNewSymbol {X=box.TopLeft.X+box.W+ 57.; Y=box.TopLeft.Y+((box.H/2.)- 12.5)} RotateButton  "RotateCW" Distinctive
+            let rotateCWSym = {createdrotateCWSym with Component = {createdrotateCWSym.Component with H = 25.; W=25.}}
             let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W+ 46.5; Y=box.TopLeft.Y-53.5} ScaleButton "ScaleButton"  Distinctive
             let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym |> Map.add rotateACWSym.Id rotateACWSym |> Map.add rotateCWSym.Id rotateCWSym
             ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = {Center = {X=box.TopLeft.X+box.W ; Y=box.TopLeft.Y}; Radius = 7.0}}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id]}), Cmd.none
@@ -433,13 +433,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 let rotateCWButton =  rotmodel.Wire.Symbol.Symbols
                                             |> Map.find (rotmodel.ButtonList[2])
 
-                let newRotACWPos = {X = newBox.BoxBound.TopLeft.X - 100.  ; Y = newBox.BoxBound.TopLeft.Y + ((newBox.BoxBound.H/2.)-25.) }
+                let newRotACWPos = {X = newBox.BoxBound.TopLeft.X - 76.5  ; Y = newBox.BoxBound.TopLeft.Y + ((newBox.BoxBound.H/2.)- 12.5) }
                 let rotACWNewButton = {rotateACWButton with Pos = newRotACWPos; Component = {rotateACWButton.Component with X = newRotACWPos.X; Y = newRotACWPos.Y}}
 
                 let newSymPos = {X = newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 39.5 ; Y = newBox.BoxBound.TopLeft.Y - 60.5 }
                 let symNewButton = {symButton with Pos = newSymPos; Component = {symButton.Component with X = newSymPos.X; Y = newSymPos.Y}}
 
-                let newRotCWPos = {X = newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50.  ; Y = newBox.BoxBound.TopLeft.Y + ((newBox.BoxBound.H/2.)-25.) }
+                let newRotCWPos = {X = newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50.  ; Y = newBox.BoxBound.TopLeft.Y + ((newBox.BoxBound.H/2.) - 12.5) }
                 let rotCWNewButton = {rotateCWButton with Pos = newRotCWPos; Component = {rotateCWButton.Component with X = newRotCWPos.X; Y = newRotCWPos.Y}}
 
                 let newSymModel = {rotmodel.Wire.Symbol with Symbols = (rotmodel.Wire.Symbol.Symbols |> Map.add symButton.Id symNewButton |> Map.add rotateACWButton.Id rotACWNewButton |> Map.add rotateCWButton.Id rotCWNewButton)}

@@ -45,24 +45,6 @@ let reSizeSymbol
     let wires = wModel.Wires
     let ports = sModel.Ports
     
-    /// Returns corresponding orientation if symbols have overlapping X/Y coverage and None if both
-    let getOrientation fstSym sndSym =
-        let fstCorners = symbolBox fstSym
-        let sndCorners = symbolBox sndSym
-        if (((snd fstCorners[0] > snd sndCorners[2]) || (snd fstCorners[2] < snd sndCorners[0])) 
-            && (fst fstCorners[0] < fst sndCorners[1]) 
-            && (fst fstCorners[1] > fst sndCorners[0])) 
-        then
-            printf "%A" "Vertical"
-            Some Vertical
-        else if (((fst fstCorners[0] > fst sndCorners[1]) || (fst fstCorners[1] < fst sndCorners[0])) 
-                && (snd fstCorners[0] < snd sndCorners[2]) 
-                && (snd fstCorners[2] > snd sndCorners[0])) 
-        then
-            printf "%A" "Horizontal"
-            Some Horizontal
-        else
-            None
 
     let getWireList wires = 
         let tupleList = Map.toList wires 

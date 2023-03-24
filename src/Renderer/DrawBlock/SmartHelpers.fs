@@ -215,19 +215,22 @@ type SmartAutorouteResult =
     | ModelT of Model
     | WireT of Wire
 
+
+// { TopLeft: XYPos; TopRight: XYPos; BottomLeft: XYPos; BottomRight: XYPos }
+
 /// HLP23: AUTHOR Ifte
 /// Returns corresponding orientation if symbols have overlapping X/Y coverage and returns None if both
 let getOrientation fstSym sndSym =
     let fstCorners = symbolBox fstSym
     let sndCorners = symbolBox sndSym
-    if (((snd fstCorners[0] > snd sndCorners[2]) || (snd fstCorners[2] < snd sndCorners[0])) 
-        && (fst fstCorners[0] < fst sndCorners[1]) 
-        && (fst fstCorners[1] > fst sndCorners[0])) 
+    if (((fstCorners.TopLeft.Y > sndCorners.BottomLeft.Y) || (fstCorners.BottomLeft.Y < sndCorners.TopLeft.Y)) 
+        && (fstCorners.TopLeft.X < sndCorners.TopRight.X)) 
+        && (fstCorners.TopRight.X > sndCorners.TopLeft.X) 
     then
         Some Vertical
-    else if (((fst fstCorners[0] > fst sndCorners[1]) || (fst fstCorners[1] < fst sndCorners[0])) 
-            && (snd fstCorners[0] < snd sndCorners[2]) 
-            && (snd fstCorners[2] > snd sndCorners[0])) 
+    else if (((fstCorners.TopLeft.X > sndCorners.TopRight.X) || (fstCorners.TopRight.X < sndCorners.TopLeft.X)) 
+            && (fstCorners.TopLeft.X < sndCorners.BottomLeft.Y) 
+            && (fstCorners.BottomLeft.Y > sndCorners.TopLeft.Y)) 
     then
         Some Horizontal
     else

@@ -179,8 +179,10 @@ let view
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
     | (ConnectingInput _ | ConnectingOutput _),true->
         displaySvgWithZoom model headerHeight style ( displayElements @ scalingBox @ connectingPortsWire ) dispatch
-    | DragAndDrop,_ ->
+    | DragAndDrop, false->
         displaySvgWithZoom model headerHeight style ( displayElements @ snaps) dispatch
+    | DragAndDrop, true->
+        displaySvgWithZoom model headerHeight style ( displayElements @ snaps @ scalingBox) dispatch
     | (MovingSymbols),_  ->
         displaySvgWithZoom model headerHeight style ( displayElements @ snaps @ scalingBox) dispatch
     | MovingWire _,_ -> 

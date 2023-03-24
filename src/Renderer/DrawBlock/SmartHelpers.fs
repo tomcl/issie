@@ -69,7 +69,7 @@ let updateModelSymbols
 
 
 //Helper function to GetSelectComponenet takes in a component type and returns a bool. 
-//It checks if the component is a component that contains a select port
+///Checks if the component is a component that contains a select port
 //HLP23: AUTHOR Khoury
 let CheckSelectComponent 
     (inputType : ComponentType)
@@ -83,9 +83,9 @@ let CheckSelectComponent
         | Demux8 -> true
         | _ -> false
 
-//Helper function to CheckforFlip takes a DrawModelType.SymbolT.Model, a BusWireT.Model, a list of wires, and a symbol and returns a triple of 
-//a symbol, a symbol, and a BusWireT.Model. 
-// It gets the length of teh select wire if the compenent is flipped and if it is not flipped. It returns the two length and the flipped component.
+// Helper function to CheckforFlip takes a DrawModelType.SymbolT.Model, a BusWireT.Model, a list of wires, and a symbol and returns a triple of 
+// a symbol, a symbol, and a BusWireT.Model. 
+/// Gets the length of the select wire if the compenent is flipped and if it is not flipped. It returns the two length and the flipped component.
 //HLP23: AUTHOR Khoury
 let GetSelectWireLength
     (sModel : DrawModelType.SymbolT.Model)
@@ -119,7 +119,7 @@ let GetSelectWireLength
 
             lengthNewSelect, lengthOldSelect, newSymbol, newModel
 
-//Uses helper functions to get the lengths of the select wires in all cases. Checks which one is better and returns the best performing symbols and model.
+///Gets the lengths of the select wires in all cases. Checks which one is better and returns the best performing symbols and model.
 //HLP23: AUTHOR Khoury
 let CheckforFlip  
     (sModel : DrawModelType.SymbolT.Model)
@@ -141,7 +141,7 @@ let CheckforFlip
         | false -> otherSymbol, wModel, false
 
 //Helper function to SortPorts takes in connected ports Ids (strings) and the Edges they are on in a quadruple list and a list of ports Ids (string)
-//It sorts the quadruple list by the first element of the quadruple which is the port Id of the otherSymbol with the same order as the list of ports Ids
+///Sorts the quadruple list by the first element of the quadruple which is the port Id of the otherSymbol with the same order as the list of ports Ids
 //HLP23: AUTHOR Khoury
 let sortByOther 
     (list2 : string list)
@@ -152,7 +152,7 @@ let sortByOther
     |> List.sortBy (fun (x,_,_,_) -> List.findIndex (fun s -> s = x) list2)
 
 //Helper function to SortPorts takes in a list of quadruple lists and returns an Edge
-//It gets the edge that the ports are connected to on the otherSymbol
+///Gets the edge that the ports are connected to on the otherSymbol
 //HLP23: AUTHOR Khoury
 let OtherSymbolOrientation 
     (list: (string*string*Edge*Edge) list)
@@ -162,7 +162,7 @@ let OtherSymbolOrientation
     |> List.head
 
 //Helper function to SortPorts takes in a list of quadruple lists and a symbol returns an Edge.
-//It resorts the Ports in a way that the first element is always the one of the symbolToOrder
+///Resorts the Ports in a way that the first element is always the one of the symbolToOrder
 //HLP23: AUTHOR Khoury
 let sortInputOutput 
     (symbolToOrder: Symbol)
@@ -174,8 +174,8 @@ let sortInputOutput
                 | true -> ($"{snd x}",$"{fst x}")
                 | false -> ($"{fst x}",$"{snd x}"))
 
-// Uses helper functions to sort the ports in the correct order. It returns a list of quadruple lists. 
-//Each quadruple list contains the ports that are connected to the same edges on the otherSymbol and the symbolToOrder
+/// Uses helper functions to sort the ports in the correct order. It returns a list of quadruple lists. 
+// Each quadruple list contains the ports that are connected to the same edges on the otherSymbol and the symbolToOrder
 //HLP23: AUTHOR Khoury
 let sortPorts 
     (connectedPorts:(InputPortId*OutputPortId)list)

@@ -75,6 +75,18 @@ let FixOtherSymbolPorts
 
 
 
+// let rerouteSomeWires 
+//     (wiresToAutoroute : list<ConnectionId * Wire>)
+//     (wModel : BusWireT.Model)
+//     : Map<ConnectionId, Wire> =
+//         wiresToAutoroute
+//         |> List.map (fun (id, wire) -> (id, autoroute wModel wire)) 
+//         |> List.fold (fun accMap (id, wire) -> Map.add id wire accMap) wModel.Wires
+
+
+
+
+
 //Main Function
 let reOrderPorts 
     (wModel: BusWireT.Model) 
@@ -316,12 +328,9 @@ let multipleReorderPorts
     let CombinedOtherSymbols = createOtherSymbol otherSymbols symbolToOrder connectedPortsNeeded
     let CombinedOtherSymbolsOrder = CombinedOtherSymbols.PortMaps.Order
     let CombinedOtherSymbolsOrientation = CombinedOtherSymbols.PortMaps.Orientation
+    
+    
 
-    let wiresToAutoroute = 
-                wiresSymbolToOrder
-                |> List.filter (fun (_,x) ->
-                                    CombinedOtherSymbolsOrientation |> Map.containsKey $"{x.InputPort}" ||
-                                    CombinedOtherSymbolsOrientation |> Map.containsKey $"{x.OutputPort}")
 
     
     let SortedPorts = sortMultPorts connectedPortsNeeded CombinedOtherSymbolsOrientation CombinedOtherSymbolsOrder
@@ -340,6 +349,15 @@ let multipleReorderPorts
     let newSmodel = {sModel with Symbols = sModel.Symbols 
                                                   |> Map.add newSymbolToOrder.Id newSymbolToOrder}
 
+    let wiresToAutoroute =
+        wiresSymbolToOrder
+        |> List.filter (fun (_,str) ->
+            match (symOrientationList |> Map.tryFind $"{str.InputPort}" , symOrientationList |> Map.tryFind $"{str.OutputPort}") with
+            | Some x , _ -> List.contains x edgeList
+            | _ , Some x -> List.contains x edgeList
+            | _ , _ -> false
+        )
+
     // Rerouting the wires with our new model
     // Could be replaced with smart autoroute 
     let wiresAutorouted = 
@@ -352,4 +370,6 @@ let multipleReorderPorts
         Wires =  wiresAutorouted
         Symbol = newSmodel
     }
+
+
 

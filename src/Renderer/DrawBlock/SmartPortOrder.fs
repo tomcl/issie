@@ -29,7 +29,7 @@ open SmartHelpers
 
 //The input is a quadruple of the two connected port IDs in string type by a wire and the two edges they are on respectiveley. 
 //The first string is always the port corresponding to the symbol to order
-///Sort the ports by the otherSymbol Order Ports
+///Sort the ports by the otherSymbol Order Ports 
 let getSymEdgeList
     (list: (string*string*Edge*Edge) list list)
         : Edge list =
@@ -90,6 +90,8 @@ let fixOtherSymbolPorts
 
 
 //Main Function
+///Reorders the ports of symbol by comparing with the ports of another symbol.
+/// Returns a new model with the new symbols and wires
 let reOrderPorts 
     (wModel: BusWireT.Model) 
     (symbolToOrder: Symbol) 
@@ -284,7 +286,7 @@ let groupPorts
         |> List.groupBy (fun (_,_, e, _) -> e)
 
 
-//Sorts the ports of the SymbolToOrder by the order of the ports of the new combined othercomponents
+///Sorts the ports of the SymbolToOrder by the order of the ports of the new combined othercomponents
 let sortMultPorts 
     (connectedPortsNeeded: list<Edge * list<string * string * Edge * Edge>>)
     (combinedOtherSymbolsOrientation: Map<string,Edge>)
@@ -304,6 +306,8 @@ let sortMultPorts
 // Will only reorder the component with the most wires connected to it.
 // Only works if components are connected to the SymbolToReorder from the same edge.
 // Main function for this part
+/// Reorders Ports of the aymbol with the most wires connected to it taking into consideration other selected components.
+/// Returns a model with the new ports and wires
 let multipleReorderPorts 
         (wModel: BusWireT.Model)
         (symbols : Symbol list)

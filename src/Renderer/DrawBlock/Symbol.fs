@@ -624,6 +624,8 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | NbitsAdderNoCinCout (n) -> (  2 , 1, 3.*gS  , 4.*gS)
     | Shift _ -> (  2 , 1, 3.*gS  , 4.*gS)
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Drawing the symbols needed for scaling box
     | ScaleButton -> (0,0,14.0,14.0)
     | RotateButton -> (0,0,14.0,14.0)
 

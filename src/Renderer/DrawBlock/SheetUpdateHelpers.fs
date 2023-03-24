@@ -298,8 +298,8 @@ let mDownUpdate
             else
                 let symbolMap = Optic.get symbols_ model
                 let symbol = symbolMap[compId]
-                {model with Action = ResizingSymbol (compId, fixedCornerLoc); LastValidSymbol = Some symbol }
-                , symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
+                {model with Action = ResizingSymbol (compId, fixedCornerLoc); LastValidSymbol = Some symbol }, 
+                symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
 
         | Component compId ->
 

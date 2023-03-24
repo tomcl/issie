@@ -659,7 +659,7 @@ let mDragUpdate
                     
                 let newPos = {X=startPos.X+(distMovedXY); Y=(startPos.Y-(distMovedXY))}
                 let symNewButton = {symButton with Pos = newPos; Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-                let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(100.)-(distMovedXY); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(100.)-(distMovedXY)}}
+                let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(76.5)-(distMovedXY); Y=rotateACWButton.Pos.Y}; Component = {rotateACWButton.Component with X= startBoxPos.X-(76.5)-(distMovedXY)}}
                 let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(50.)+startWidth+(distMovedXY); Y=rotateCWButton.Pos.Y}; Component = {rotateCWButton.Component with X= startBoxPos.X+(50.)+startWidth+(distMovedXY)}}
                 let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distMovedXY))
                 let newSymModel = {modelSymbols with Symbols = (modelSymbols.Symbols |> Map.add symNewButton.Id symNewButton |> Map.add rotateACWNewButton.Id rotateACWNewButton |> Map.add rotateCWNewButton.Id rotateCWNewButton)}

@@ -221,14 +221,14 @@ let smartDrawComponent (comp:Component) symbolProperties points (symbolType:Them
                     let notDiameter = 8.
                     match comp.Type with
 
-                    |And n->    let lineOne = makeLineAttr 0. comp.H
+                    |And n ->   let lineOne = makeLineAttr 0. comp.H
                                 let lineTwo = makeLineAttr (comp.W/2.) 0.
                                 let curveAttr = makePartArcAttr 5. (-(comp.H/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
                                 let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
                                 let angle = getSymbolRotation symbol
                                 [makeAnyPathWithTransform {X= 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.))]
 
-                    |Nand n->   let notDiameter = 8.
+                    |Nand n ->  let notDiameter = 8.
                                 let width = (comp.W/2.)-(notDiameter)
                                 let lineOne = makeLineAttr 0. comp.H
                                 let lineTwo = makeLineAttr (width) 0.
@@ -273,7 +273,7 @@ let smartDrawComponent (comp:Component) symbolProperties points (symbolType:Them
                                     comp.W comp.W angle (notRadius*2.))) {defaultCircle with R = notRadius; Fill = parameters.Fill}
                                 ]
 
-                    |Xor n->    let origin = -comp.W/9.
+                    |Xor n ->   let origin = -comp.W/9.
                                 let curveOne = makeQuadraticBezierAttr ((comp.W/2.)) ((comp.H/2.)) origin comp.H
                                 let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
                                 let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0

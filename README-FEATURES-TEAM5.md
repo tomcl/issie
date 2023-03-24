@@ -61,3 +61,17 @@
 * does not route around additional symbols within the channel 
 
 * if wires already exist when loading sheet, a symbol must be moved before routing will work 
+
+## Smart Rendering:
+
+* All curved gate types rendered
+* SplitWire and MergeWire legends avoid overlapping with the component
+* feature - Can select gate type from Theme in view
+* feature - can rotate new gates (rotates with port)
+
+## N-Input Gates:
+
+* Works for AND, OR, XOR, NAND, NOR, XNOR
+* feature - can select custom number of gates between 2-4
+* feature - port positions are curved for curved edge input gates (OR, XOR, NOR, XNOR)
+

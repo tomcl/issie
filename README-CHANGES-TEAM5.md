@@ -43,6 +43,18 @@ Wire Label Popups:
 
 * Added a line to Renderer.fs so that TestPortArrange appears in the edit menu 
 
+## Smart Rendering:
+
+* Mainly edited SymbolView.fs to render new components, change legend positions, render rotations and scaling.
+* Renderer.fs : added old gates and new gates option in viewMenu. Defined 
+* DrawHelpers.fs : Added helper functions for SVG generation and replaced makeAnyPath -> makeAnyPathWithTransform and makePathFromAttr ->        makePathFromAttrWithTransform to allow SVG transformations for a path.
+* CommonTypes.fs : Changed gates to n-input gates in ComponentType and defined binaryGate functions that match gates according to their input n (default = 2)
+* DrawModelType.fs : Changed Theme type to have new gates and old gates. Defined a new type "GateStyle" and added a GateStyle option to the AppearanceT type.
+* Symbol.fs : updated getPortPos and getPortPosToRender to differentiate new gates from old style gates. Also updated instances of Appearance to now gate a Gatetype option
+* Style.fs - updated pattern matching in canvasVisibleStyleList to include new and old gates for Theme type.
+* TruthtableView.fs : updated to N-input gates (e.g. and -> and n). There are warnings that I kept as requested by Dr Clarke for the N-input logic in WaveSimulation.
+
+
  
 
  

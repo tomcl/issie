@@ -195,7 +195,7 @@ module CommonTypes
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant of Width: int * ConstValue: int64 
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
-        | Not | And of int option| Or of int option| Xor of int option 
+        | Not | And of int option| Or of int option| Xor of int option //HLP23: Shaanuka
         | Nand of int option| Nor of int option | Xnor of int option | Decode4
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
@@ -215,6 +215,7 @@ module CommonTypes
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
         | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
 
+    //HLP23: Shaanuka
     /// Active pattern which matches 2-input gate component types.
     /// NB - NOT gates are not included here.
     let (|IsBinaryGate|NotBinaryGate|) cType =

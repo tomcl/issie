@@ -1122,11 +1122,8 @@ let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox opt
             let topLeft = {Y=union.TopLeft.Y; X=x1}
             Some {TopLeft = topLeft; H = union.H; W = x2 - x1}
 
-/// Geometric helper used for testing. Probably needs a better name, and to be collected with other
-/// This should perhaps be generalised for all orientations and made a helper function.
-/// However different testing may be needed, so who knows?
-/// Return the vertical channel between two bounding boxes, if they do not intersect and
-/// their vertical coordinates overlap.
+///Returns the bounding box of the channel
+/// HLP23 AUTHOR: Klapper
 let getChannel (bb1:BoundingBox) (bb2:BoundingBox) (orientation : Orientation): Option<BoundingBox> =
     match orientation with
     | Vertical ->

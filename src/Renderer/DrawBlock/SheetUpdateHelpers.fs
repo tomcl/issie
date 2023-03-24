@@ -172,6 +172,32 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     Cmd.ofMsg CheckAutomaticScrolling
                     wireCmd (BusWireT.UpdateWires (model.SelectedComponents, mMsg.Pos - model.LastMousePos))]
 
+/// Update function to resize symbols in model.SelectedComponents
+let reSizeSymbol (model: Model) (mMsg: MouseT) =
+    match model.SelectedComponents with
+    | [symId] -> // Attempt Snap-to-Grid if there is only one moving component
+        let symbol = 
+            match Map.tryFind symId model.Wire.Symbol.Symbols with
+            | Some symbol -> symbol
+            | None ->
+                failwithf "What? can't move a symbol which does not exist in the model!"
+
+        let compId = model.SelectedComponents.Head
+        let bBox = model.BoundingBoxes[compId]
+        let snapXY, moveDelta = snap2DSymbol model.AutomaticScrolling mMsg.Pos symbol model
+
+        let errorComponents  =
+            if notIntersectingComponents model bBox compId then [] else [compId]
+
+        {model with
+             SnapSymbols = snapXY
+             LastMousePos = mMsg.Pos
+             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+             ErrorComponents = errorComponents},
+        mMsg
+    | _ -> // Moving multiple symbols -> don't do snap-to-grid
+        model, mMsg
+
 /// Inputs are segment ID being dragged and new mouse position.
 /// Performs the Segment Drag operation implementing snaps.
 /// This function must be in update and creates additional commands

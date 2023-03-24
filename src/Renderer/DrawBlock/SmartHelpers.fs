@@ -173,6 +173,7 @@ let findSymbolHelper (wModel: BusWireT.Model) (portId: string) =
     wModel.Symbol.Symbols
     |> Map.tryFind (ComponentId inputPortHostId)
 
+    
 
 /// HLP23: Author Omar
 /// discriminated union for the modes of the findSymbol function
@@ -231,3 +232,9 @@ let getOrientation fstSym sndSym =
         Some Horizontal
     else
         None
+
+/// Wire update helpers which are lower in compiler order
+type BusWireHelpers = {
+    updateWire: Model -> Wire -> bool -> SmartAutorouteResult
+    updateSymbolWires: Model -> ComponentId -> Model
+    }

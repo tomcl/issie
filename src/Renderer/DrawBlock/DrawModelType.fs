@@ -166,7 +166,6 @@ module SymbolT =
             /// HScale & VScale modify W and H respectively if not None.
             /// Vertical symbol dimension = VScale*H etc
             /// They are currently used only on Custom Components and will not work on other omponents.
-
             VScale : float option
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
@@ -542,6 +541,7 @@ module SheetT =
         | TestSheetReorder
         | TestSmartChannel
         | TestPortPosition
+        | TestPortArrange // HLP23 Ifte
 
 
     type ReadLog = | ReadLog of int
@@ -617,5 +617,3 @@ module SheetT =
     let screenScrollPos_ = Lens.create (fun m -> m.ScreenScrollPos) (fun w m -> {m with ScreenScrollPos = w})
     let lastMousePosForSnap_ = Lens.create (fun m -> m.LastMousePosForSnap) (fun w m -> {m with LastMousePosForSnap = w})
     let canvasSize_ = Lens.create (fun m -> m.CanvasSize) (fun w m -> {m with CanvasSize = w})
-
-

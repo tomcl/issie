@@ -397,8 +397,12 @@ let flipPointAboutBlockCentre
     | FlipVertical -> 
         {X = point.X; Y = center.Y - (point.Y - center.Y)}
 
-//Given rotation type, original height and width, and rotated top left point, returns the new top left point.
-//HLP23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been rotated</summary>
+/// <param name="rotation"> Rotated CW or AntiCW</param>
+/// <param name="h"> Originaly height of symbol (Before flip)</param>
+/// <param name="w"> Originaly width of symbol (Before flip)</param>
+/// <param name="sym"> Symbol</param>
+/// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockRotation
         (rotation:RotationType) 
         (h: float)
@@ -411,8 +415,12 @@ let adjustPosForBlockRotation
         | RotateAntiClockwise -> { X = 0 ;Y = (float)w }
     pos - posOffset
 
-//Given flip type, original height and width, and flipped top left point, returns the new top left point.
-//HLP23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been flipped</summary>
+/// <param name="flip">  Flipped horizontally or vertically</param>
+/// <param name="h"> Originaly height of symbol (Before flip)</param>
+/// <param name="w"> Originaly width of symbol (Before flip)</param>
+/// <param name="sym"> Symbol</param>
+/// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockFlip
         (flip:FlipType) 
         (h: float)
@@ -424,10 +432,12 @@ let adjustPosForBlockFlip
         | FlipVertical -> { X = 0 ;Y = (float)h }
     pos - posOffset
 
-//Returns the new symbol after rotated about block centre.
-//Needed for overall block rotating and for CC's to maintain same shape
-//Shape changes means different block center -> divergence after many rotations 
-//HLP 23: AUTHOR Ismagilov
+
+/// <summary>HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.</summary>
+/// <param name="rotation">  Clockwise or Anticlockwise rotation</param>
+/// <param name="block"> Bounding box of selected components</param>
+/// <param name="sym"> Symbol to be rotated</param>
+/// <returns>New symbol after rotated about block centre.</returns>
 let rotateSymbolInBlock 
         (rotation: RotationType) 
         (blockCentre: XYPos)
@@ -456,16 +466,19 @@ let rotateSymbolInBlock
         Component = newComponent
     } |> calcLabelBoundingBox 
 
-//Returns the new symbol after flipped about block centre.
-//Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
-//HLP 23: AUTHOR Ismagilov
+
+/// <summary>HLP 23: AUTHOR Ismagilov - Flip a symbol horizontally or vertically in its block.</summary>
+/// <param name="flip">  Flip horizontally or vertically</param>
+/// <param name="block"> Bounding box of selected components</param>
+/// <param name="sym"> Symbol to be flipped</param>
+/// <returns>New symbol after flipped about block centre.</returns>
 let flipSymbolInBlock
     (flip: FlipType)
     (blockCentre: XYPos)
     (sym: Symbol) : Symbol =
 
     let h,w = getRotatedHAndW sym
-
+    //Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
     let newTopLeft = 
         flipPointAboutBlockCentre sym.Pos blockCentre flip
         |> adjustPosForBlockFlip flip h w
@@ -504,8 +517,11 @@ let flipSymbolInBlock
             |> rotateSymbolInBlock RotateAntiClockwise newblockCenter 
             |> rotateSymbolInBlock RotateAntiClockwise newblockCenter)
 
-//Returns the new symbol after scaled about block centre.
-//HLP 23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Scales selected symbol up or down.</summary>
+/// <param name="scaleType"> Scale up or down. Scaling distance is constant</param>
+/// <param name="block"> Bounding box of selected components</param>
+/// <param name="sym"> Symbol to be rotated</param>
+/// <returns>New symbol after scaled about block centre.</returns>
 let scaleSymbolInBlock
     //(Mag: float)
     (scaleType: ScaleType)
@@ -530,8 +546,12 @@ let scaleSymbolInBlock
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
-//Returns the new symbol after scaled about block centre.
-//HLP 23: AUTHOR Ismagilov
+
+/// <summary>HLP 23: AUTHOR Ismagilov - Scales symbol up or down. Scaling distance determined by 'mag' argument.</summary>
+/// <param name="mag">  Positive scales up, negative scales down.</param>
+/// <param name="block"> Bounding box of selected components</param>
+/// <param name="sym"> Symbol to be rotated</param>
+/// <returns>New symbol after scaled about block centre.</returns>
 let scaleSymbolInBlockGroup
     (mag: float)
     //(scaleType: ScaleType)

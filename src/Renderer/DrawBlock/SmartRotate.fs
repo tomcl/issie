@@ -42,7 +42,7 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
     )}
 
 let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scale:ScaleType)=
-    //Similar structure to rotateBlock, easy to understand
+    ///Similar structure to rotateBlock, easy to understand
 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))

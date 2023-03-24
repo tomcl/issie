@@ -188,7 +188,14 @@ let scaleCompSize (comp:Component) scaleX scaleY =
 let getLabelScale = 
     1.0 // change to whatever label size scale you want (orignila font size = 16px)
 
-
+///gets the LabelRotation from symbol and returns the integer angle of rotation
+let getSymbolRotation (symbol:Symbol) =
+    match symbol.LabelRotation with
+    | Some Degree0 -> 0
+    | Some Degree90 -> 90
+    | Some Degree180 -> 180
+    | Some Degree270 -> 270
+    | None -> 0
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------- SYMBOL DRAWING -------------------------------------//
 //--------------------------------------------------------------------------------------------//
@@ -206,7 +213,8 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let lineTwo = makeLineAttr (comp.W/2.) 0.
                                 let curveAttr = makePartArcAttr 5. (-(comp.H/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
                                 let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
-                                [makeAnyPath {X= 0; Y = 0} shape parameters]
+                                let angle = getSymbolRotation symbol
+                                [makeAnyPathWithTransform {X= 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.))]
 
                     |Nand n->   let notDiameter = 8.
                                 let width = (comp.W/2.)-(notDiameter)
@@ -222,7 +230,8 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
                                 let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
                                 let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
-                                [makeAnyPath {X = origin; Y = 0} shape parameters]
+                                let angle = getSymbolRotation symbol
+                                [makeAnyPathWithTransform {X = origin; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.))]
 
                     |Nor n ->   let origin = -comp.W/9.
                                 let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H

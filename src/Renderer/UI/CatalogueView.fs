@@ -334,22 +334,19 @@ let private createSplitWirePopup model dispatch =
 let private createNInputGatePopup (comp:ComponentType) (model:Model) dispatch = //HLP23:Shaanuka
     let title = sprintf "Create N bit input gate"
     let beforeInt =
-        fun _ -> str "How many ports should the input have?"
+        fun _ -> str "How many ports between 2-4 should the input have?"
     let intDefault = model.LastUsedDialogWidth 
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
-    let inputPortNum num =  match num with
-                            | n when n<3 -> 2
-                            | _ -> num
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData 
-            let compType = setNumBinaryGateInputs (inputPortNum inputInt) comp
+            let compType = setNumBinaryGateInputs inputInt comp
             createComponent compType "" model dispatch
             dispatch ClosePopup
 
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (dialogData : PopupDialogData) -> (getInt dialogData>4 || getInt dialogData<2)
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
     
 

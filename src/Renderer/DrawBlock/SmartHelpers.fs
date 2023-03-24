@@ -781,7 +781,7 @@ let getAllPortsFromEdgeOrdered
                         match orient with
                         | Some TopBottom -> x.X
                         | Some LeftRight -> x.Y
-                        | None -> failwithf "Whatt?")
+                        | None -> failwithf "What? Symbols are not aligned")
     |> List.map (fun (x, y) -> (x, (y + symbol.Pos)))
 
 ///HLP 23: AUTHOR Rzepala

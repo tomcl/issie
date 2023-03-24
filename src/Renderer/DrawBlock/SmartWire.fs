@@ -103,22 +103,20 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
                 wire.Segments[4].Length - horizontalSeperation; wire.Segments[5].Length; wire.Segments[6].Length; -leftVertical ]
             updateWire wire segmentLengths
 
-
-/// create segment given a segment lengths array and wire ID
-let createSegment index segLengths wId dragBool = 
-    {
-        Index = index
-        Length = segLengths
-        WireId = wId
-        IntersectOrJumpList = []
-        Draggable = dragBool
-        Mode = RoutingMode.Auto
-    }
-
-
 /// returns a list of five new segments to create a new wire, given a segment lengths array and wire ID
 /// used in generateWireLabels to create a new wire between a wire label and symbol
 let createSegmentList (segLengths: float list) (wId: ConnectionId) : Segment list = 
+/// create segment given a segment lengths array and wire ID
+    let createSegment index segLengths wId dragBool = 
+        {
+            Index = index
+            Length = segLengths
+            WireId = wId
+            IntersectOrJumpList = []
+            Draggable = dragBool
+            Mode = RoutingMode.Auto
+        }
+
     let segments =
         [ 0; 1; 2; 3; 4; 5; 6 ]
         |> List.map (fun i ->
@@ -300,19 +298,17 @@ let generateWireLabels (model: Model) (wire: Wire) (wlName: string) : SmartAutor
         |> Map.add outputWireID outputWire
     ModelT {newOutputLabelModel with Wires = wiresMap}
 
-
-/// finds wire in model by connection id
-let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
-    match model.Wires |> Map.toList |> List.tryFind (fun (_, wire) -> wire.Segments.[0].WireId = connId) with
-    | Some (_, wire) -> Some wire
-    | _ -> None
-
-
 /// replaces wire with wire labels 
 let replaceWithWireLabels (model: Model) (wire: Wire) (wlName: string): SmartAutorouteResult =
     let newWireMap = deleteWire model wire
     generateWireLabels newWireMap wire wlName
 
+    
+/// finds wire in model by connection id
+let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
+    match model.Wires |> Map.toList |> List.tryFind (fun (_, wire) -> wire.Segments.[0].WireId = connId) with
+    | Some (_, wire) -> Some wire
+    | _ -> None
 
 /// returns left, middle, and right conditions for symbol intersection with wire
 let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list = 

@@ -66,12 +66,19 @@ let smartChannelRoute (channelOrientation: Orientation)
 
     let tl = channel.TopLeft
 
-    let chan = channel
-    printfn "tl height is: %A" chan.H
-    printfn "tl width is: %A" chan.W
-    printfn "tl TOPLEFT is: %A" chan.TopLeft
-    
-
+    // search through model to return all symbols in channel bounding box
+    // let symbolsInChannel = 
+    //     model.Symbol.Symbols
+    //     |> Map.toList
+    //     |> List.filter (fun (id,symbol) -> 
+    //         let boundingBox = symbolBox symbol
+    //         let condition =  // handles horizontal channels
+    //             ((boundingBox.BottomRight.Y > channel.TopLeft.Y) && (boundingBox.BottomRight.Y < channel.TopLeft.Y + channel.H)
+    //             || (boundingBox.TopLeft.Y < channel.TopLeft.Y + channel.H) && (boundingBox.TopLeft.Y > channel.TopLeft.Y))
+    //             && ((boundingBox.TopRight.X > channel.TopLeft.X) && (boundingBox.TopRight.X < channel.TopLeft.X + channel.W)
+    //             || (boundingBox.TopLeft.X < channel.TopLeft.X + channel.W) && (boundingBox.TopLeft.X > channel.TopLeft.X))
+    //         condition)
+    //         |> List.map (fun (id,symbol) -> symbol)
 
 
     printfn $"SmartChannel: channel {channelOrientation}:(%.1f{tl.X},%.1f{tl.Y}) W=%.1f{channel.W} H=%.1f{channel.H}"
@@ -81,7 +88,7 @@ let smartChannelRoute (channelOrientation: Orientation)
         model.Wires
         |> Map.toList
  
-    printfn "wire startpos is: %A" ((snd oldWireList[0]).StartPos)
+    // printfn "wire startpos is: %A" ((snd oldWireList[0]).StartPos)
 
     let interWiresLst, otherWiresLst = findWiresInChannel channel oldWireList busUpdateHelpers
 
@@ -89,8 +96,11 @@ let smartChannelRoute (channelOrientation: Orientation)
         interWiresLst
         |> List.sortBy (fun (id,wire) -> getCoord channelOrientation wire.StartPos)
 
+    
+
     let getMiddleSegPos wire = 
         fst (getAbsoluteSegmentPos wire 3)
+
 
     let shiftedWiresList =
     
@@ -118,4 +128,10 @@ let smartChannelRoute (channelOrientation: Orientation)
         shiftedWiresList @ otherWiresLst 
         |> Map.ofList
 
+    // let condition = (channel.H / float wiresInChannel.Length) < 30.0
+    // match condition with
+    // | true -> 
+    //     // update model for each wire with using wirelabelpopup
+    //     let rec recursiveUpdate model 
+    //     { model with PopupViewFunc = Some (wireLabelPopup model wire) }  // call wire label
     {model with Wires = wMap}

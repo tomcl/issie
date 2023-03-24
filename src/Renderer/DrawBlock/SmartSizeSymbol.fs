@@ -136,7 +136,7 @@ let reSizeSymbol
     (otherSymbol: Symbol) 
         : BusWireT.Model =  
     
-
+    printfn "%A" symbolToSize
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let manageableWires = Map.toList wModel.Wires
     let sModel = wModel.Symbol
@@ -218,13 +218,9 @@ let reSizeSymbol
 
     let symbol'' = symbol' |> moveSymbol Checker''|> calcLabelBoundingBox
 
-    let wModel''' = {wModel with Symbol = {sModel with Symbols = Map.add symbol''.Id symbol'' sModel.Symbols}}
+    {wModel with Symbol = {sModel with Symbols = Map.add symbol''.Id symbol'' sModel.Symbols}}
 
-    let wires'' = manageableWires |> List.collect (fun (x, y) -> [x, autoroute wModel''' y]) |> Map.ofList
-
-    {wModel''' with
-        Wires = wires''
-    }
+    
 
 let reSizeSymbolDraggable 
     (wModel: BusWireT.Model)

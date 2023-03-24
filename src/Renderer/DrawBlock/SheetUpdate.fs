@@ -816,7 +816,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                let scalemodel = {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2}
+                
+                let scalemodel = 
+                    if s1<> s2 then 
+                        {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2}
+                    else {model with Wire = SmartSizeSymbol.reSizeSymbolDraggable model.Wire s1}
+                    
                 let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
                 let errorComponents =
                     newModel.SelectedComponents

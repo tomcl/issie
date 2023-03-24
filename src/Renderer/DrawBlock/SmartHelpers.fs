@@ -783,9 +783,43 @@ let getDistanceAlignments
     (compId : Symbol) 
     (lstId: List<Symbol>) 
         : float*Symbol =
+    let lstId' = lstId |> List.filter (fun x -> compId <> x)
     let mapper compare =
         checkDistanceComponent  compId compare,
         compare
-    lstId 
+    lstId' 
     |> List.map mapper
     |> List.minBy (fun (x, _) -> x)
+
+
+///HLP23 AUTHOR: Rzepala
+///Returns the center point of the component
+let getComponentCenterMap (model: SymbolT.Model) (compId : ComponentId)  =
+    let symbolMap = model.Symbols |> Map.find compId
+    let comp = symbolMap.Component
+    {X = comp.X + comp.W / 2.0; Y = comp.Y + comp.H / 2.0}
+
+///HLP23 AUTHOR: Rzepala
+///Returns the distance between the two center points of the component
+let checkDistanceComponentMap (model: SymbolT.Model) (compId1 : ComponentId) (compId2 : ComponentId) =
+    euclideanDistance (getComponentCenterMap model compId1) (getComponentCenterMap model compId2)
+///HLP23 AUTHOR: Rzepala
+///Returns a symbol which is closest to the selected symbol (by their centres)
+let getDistanceAlignmentsMap 
+    (model: SymbolT.Model)
+    (compId : ComponentId) 
+    (lstId: Map<ComponentId, Symbol>) 
+        : ComponentId =
+
+    let lstId' = 
+        lstId 
+        |> Map.toList
+        |> List.filter (fun (x, _) -> compId <> x)
+        |> List.map (fun (x, _) -> x)
+    let mapper compare =
+        checkDistanceComponentMap  model compId compare,
+        compare
+    lstId' 
+    |> List.map mapper
+    |> List.minBy (fun (x, _) -> x)
+    |> snd

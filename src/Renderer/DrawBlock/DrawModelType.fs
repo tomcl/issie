@@ -77,7 +77,10 @@ module SymbolT =
 
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
-    
+    /// defines style of gates
+    type GateStyle =           //HLP23: Shaanuka
+    |NewGates
+    |OldGates
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
@@ -88,7 +91,9 @@ module SymbolT =
             /// symbol color is determined by symbol selected / not selected, or if there are errors.
             Colour: string
             /// translucent symbols are used uring symbol copy operations.
-            Opacity: float  
+            Opacity: float
+
+            GateType: GateStyle option //HLP23: Shaanuka
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -99,7 +104,7 @@ module SymbolT =
         |OldSymbols //HLP23: Shaanuka
         |NewSymbols
     ///useful symbol properties used in symbolView
-    type SymbolProperties =
+    type SymbolProperties = //HLP23: Shaanuka
         {
             strokeWidth : string
             colour : string

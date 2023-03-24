@@ -57,16 +57,6 @@ type SymbolReorderPair =
       Ports: Map<ComponentId, PortInfo list>
       DominantEdges: Map<ComponentId, Edge> }
 
-/// Holds possible directions to sort ports.
-type Direction =
-    | Clockwise
-    | AntiClockwise
-
-    member this.Opposite =
-        match this with
-        | Clockwise -> AntiClockwise
-        | _ -> Clockwise
-
 /// Finds the Dominant Edge of a Symbol.
 let symDominantEdge (symPorts: PortInfo list) =
 

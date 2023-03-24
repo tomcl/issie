@@ -433,7 +433,7 @@ let inline errorSymbols (model:Model) (errorCompList,selectCompList,isDragAndDro
             let newSymbols = Map.add sId (set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
             if getType symbolSID = "Custom" then
                 let closestCustom = getDistanceAlignmentsMap model sId model.Symbols      
-                Map.add closestCustom (set (appearance_ >-> colour_) "lightgreen" resetSymbols[closestCustom] ) newSymbols
+                Map.add closestCustom (set (appearance_ >-> colour_) "lightpink" resetSymbols[closestCustom] ) newSymbols
             else 
                 newSymbols
         else 

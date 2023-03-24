@@ -30,7 +30,7 @@
 * Created UI to perform rotation and scaling on sheet using buttons. 
 * UI shows box surrounding selected components, a scaling button in the top right, and 2 rotation buttons.
 * Rotate Buttons use original smart rotate - block rotation function. Scaling button uses a slightly modified scaling function to take a variable scaling factor.
-* Buttons remain on the top of SVG, so they are not hidden by other symbols
+* Buttons remain on the top in SVG, so they are not hidden by other symbols
 * feature - Box and buttons are dynamic: they rotate and move around, as well as scale properly with the individual scaling shortcuts.
 * feature - Invalid placement handled, as well as action changes from clicking elsewhere.
 * limitation - sudden movements while moving selected symbols may mis align the box.

@@ -266,7 +266,7 @@ let groupWiresByNet (conns: Map<ConnectionId, Wire>) =
     |> List.groupBy (fun (_, wire) -> wire.OutputPort)
     |> List.map (snd >> List.map snd)
 
-/// Scales a symbol so it has the provided height and width
+/// Scales a symbol so it has the provided height and width.
 /// HLP23: AUTHOR BRYAN TAN
 let setCustomCompHW (h: float) (w: float) (sym: Symbol) =
     let hScale = w / sym.Component.W
@@ -275,3 +275,15 @@ let setCustomCompHW (h: float) (w: float) (sym: Symbol) =
     { sym with
         HScale = Some hScale
         VScale = Some vScale }
+
+/// For a wire and a symbol, return the edge of the symbol that the wire is connected to.
+/// /// HLP23: AUTHOR BRYAN TAN
+let wireSymEdge wModel wire sym =
+    let sPort, tPort = getSourcePort wModel wire, getTargetPort wModel wire
+    let sEdge = Map.tryFind sPort.Id sym.PortMaps.Orientation
+    let tEdge = Map.tryFind tPort.Id sym.PortMaps.Orientation
+
+    match sEdge, tEdge with
+    | Some e, None -> e
+    | None, Some e -> e
+    | _ -> Top // Shouldn't happen.

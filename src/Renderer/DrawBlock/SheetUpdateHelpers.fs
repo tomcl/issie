@@ -475,8 +475,6 @@ let mDragUpdate
         let bBox = model.BoundingBoxes[compId]
         let errorComponents  =
             if notIntersectingComponents model bBox compId then [] else [compId]
-        // let lastValidPos = 
-        //     if errorComponents.IsEmpty then mMsg.Pos else model.LastValidPos
         {model with ErrorComponents = errorComponents},
         Cmd.batch [
             symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
@@ -597,8 +595,6 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 Cmd.ofMsg UpdateBoundingBoxes
                 wireCmd (BusWireT.UpdateSymbolWires compId);]
         | _ ->
-            let movingWires = BusWireUpdateHelpers.getConnectedWireIds model.Wire model.SelectedComponents
-            let lastValidSymbol = model.LastValidSymbol
             {model with
                 BoundingBoxes = model.LastValidBoundingBoxes
                 Action = Idle
@@ -673,23 +669,6 @@ let getVisibleScreenCentre (model : Model) : XYPos =
         X = (canvas.scrollLeft + canvas.clientWidth / 2.0) / model.Zoom
         Y = (canvas.scrollTop + canvas.clientHeight / 2.0) / model.Zoom
     }
-
-let validateSingleSelectedSymbol (model:Model) =
-    match model.SelectedComponents with
-    | [s1] as sym -> 
-        let symbols = model.Wire.Symbol.Symbols
-        let getSym sId = 
-            Map.tryFind sId symbols
-        match getSym s1 with
-        | Some s1-> 
-            printfn $"Testing with\ns1= {s1.Component.Type}"
-            Some(s1)
-        | _ -> 
-            printfn "Error: can't validate the selected symbol"
-            None
-    | _ -> 
-        printfn $"Did not select single symbol"
-        None
 
 let validateTwoSelectedSymbols (model:Model) =
         match model.SelectedComponents with

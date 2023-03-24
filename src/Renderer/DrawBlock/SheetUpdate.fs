@@ -810,19 +810,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     
     | MakeChannelToggle ->
         {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none
-    
-    | OptimiseSymbol ->        
-        validateSingleSelectedSymbol model
-        |> function
-            | Some (s1) -> 
-                let helpers = { 
-                    SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
-                    SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
-                let model'= SmartSizeSymbol.optimiseSymbol model.Wire s1 model.BoundingBoxes helpers
-                {model with Wire = model'}, Cmd.none
-            | None ->
-                printfn "Error: can't validate the selected symbol"
-                model, Cmd.none
         
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks

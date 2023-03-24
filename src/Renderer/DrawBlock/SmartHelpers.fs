@@ -1,11 +1,14 @@
 ﻿module SmartHelpers
+
 open CommonTypes
 open DrawHelpers
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
+open Symbol
 open BusWire
 open BusWireUpdateHelpers
+open SymbolHelpers
 
 open Optics
 open Operators
@@ -40,6 +43,12 @@ HOW TO USE THIS MODULE.
 
 //----------------------------------------------------------------------------------------------//
 
+/// Holds data about External Helpers required.
+/// HLP23: AUTHOR BRYAN TAN
+type ExternalSmartHelpers =
+    { UpdateSymbolWires: Model -> ComponentId -> Model
+      BoxesIntersect: BoundingBox -> BoundingBox -> bool }
+
 /// Update BusWire model with given symbols. Can also be used to add new symbols.
 /// This uses a fold on the Map to add symbols which makes it fast in the case that the number
 /// of symbols added is very small.
@@ -49,17 +58,15 @@ HOW TO USE THIS MODULE.
 //  details. Note that Optics are probably a little bit slower than F# record update (factor of 2)
 //  however in this case it does not matter because the time taken is << the Map update time.
 /// HLP23: AUTHOR Clarke
-let updateModelSymbols 
-    (model: BusWireT.Model) 
-    (symbols: Symbol list)
-        : BusWireT.Model =
+let updateModelSymbols (model: BusWireT.Model) (symbols: Symbol list) : BusWireT.Model =
     // HLP23: note on fold implementation. symMap is both argument and result of the
     // fold function => sequential set of updates. In thsi case much more efficient than Map.map
     // over all symbols.
     // HLP23 - see also similar updateModelWires
     let symbols' =
-        (model.Symbol.Symbols,symbols)
+        (model.Symbol.Symbols, symbols)
         ||> List.fold (fun symMap symToAdd -> Map.add symToAdd.Id symToAdd symMap)
+
     Optic.set (symbol_ >-> symbols_) symbols' model
 
 /// Update BusWire model with given wires. Can also be used to add new wires.
@@ -71,34 +78,212 @@ let updateModelSymbols
 //  details. Note that Optics are probably a little bit slower than F# record update (factor of 2)
 //  however in this case it does not matter because the time taken is << the Map update time.
 /// HLP23: AUTHOR Clarke
-let updateModelWires 
-    (model: BusWireT.Model) 
-    (wiresToAdd: Wire list)
-        : BusWireT.Model =
+let updateModelWires (model: BusWireT.Model) (wiresToAdd: Wire list) : BusWireT.Model =
     //
     // HLP23: note on fold implementation. In this (typical) example Map is
-    // sequentially updated by the fold. A common and difficult to see coding mistake is to use the 
-    // original wireMap (argument of Optic map function) not the updated one (wireMap argument of 
-    // List.map folder) in the fold function! That is not possible here because both have the same 
-    // name so the inner bound updated wireMap is always what is used in the folder function. 
+    // sequentially updated by the fold. A common and difficult to see coding mistake is to use the
+    // original wireMap (argument of Optic map function) not the updated one (wireMap argument of
+    // List.map folder) in the fold function! That is not possible here because both have the same
+    // name so the inner bound updated wireMap is always what is used in the folder function.
     // This is good practice, and if you have ever debugged this type of mistake you will know it
     // is very necessary!
 
-    // HLP23: note on this use of Optics.map in a pipeline. It is more "functional" than the 
-    // equivalent implementation using a let definition and Optics.set. Is it clearer? Or less clear? 
-    // Standard logic says we should prefer the pipeline if the name of the let definition adds 
-    // nothing which is the case here. I have given you both ways of using Optics here so you can 
-    // compare the two implementations and decide. NB - you are NOT required to use Optics in your 
+    // HLP23: note on this use of Optics.map in a pipeline. It is more "functional" than the
+    // equivalent implementation using a let definition and Optics.set. Is it clearer? Or less clear?
+    // Standard logic says we should prefer the pipeline if the name of the let definition adds
+    // nothing which is the case here. I have given you both ways of using Optics here so you can
+    // compare the two implementations and decide. NB - you are NOT required to use Optics in your
     // own code.
     //
-    // HLP23: Note how multiple updates to different parts of the model can be neatly pipelined 
+    // HLP23: Note how multiple updates to different parts of the model can be neatly pipelined
     // like this using a separate Optic.map or Optic.set for each.
     //
     // HLP23: note that if the operation here was larger or part of some pipeline the
-    // 2nd argument to Optic.map - which defines the model change - could be given a name and 
+    // 2nd argument to Optic.map - which defines the model change - could be given a name and
     // turned into a local function making the Optic.map line like:
     // |> Optic.map wires_ myNameForThisWireMapUpdate
     model
-    |> Optic.map wires_ (fun wireMap  ->
-        (wireMap,wiresToAdd)
+    |> Optic.map wires_ (fun wireMap ->
+        (wireMap, wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
+
+
+/// Returns true if two 1D line segments intersect
+/// HLP23: Derek Lai (ddl20)
+let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
+    let a_min, a_max = min a1 a2, max a1 a2
+    let b_min, b_max = min b1 b2, max b1 b2
+    a_max >= b_min && b_max >= a_min
+
+/// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
+/// HLP23: Derek Lai (ddl20)
+let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
+    (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
+
+/// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
+/// HLP23: Derek Lai (ddl20)
+let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
+    let bb1Coords =
+        { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
+        { X = bb1.TopLeft.X + bb1.W
+          Y = bb1.TopLeft.Y + bb1.H }
+
+    let bb2Coords =
+        { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
+        { X = bb2.TopLeft.X + bb2.W
+          Y = bb2.TopLeft.Y + bb2.H }
+
+    overlap2D bb1Coords bb2Coords
+
+/// Retrieves XYPos of every vertex in a wire
+/// HLP23: Derek Lai (ddl20)
+let getWireSegmentsXY (wire: Wire) =
+    let tupToXY (l: (float * float)) : XYPos = { X = fst l; Y = snd l }
+
+    segmentsToIssieVertices wire.Segments wire
+    |> List.map (fun (x, y, _) -> (x, y))
+    |> List.map tupToXY
+
+/// Retrieves all wires which intersect an arbitrary bounding box & the index
+/// of the segment which intersects the box
+/// HLP23: Derek Lai (ddl20)
+let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
+    let wires = (List.ofSeq (Seq.cast model.Wires.Values))
+
+    let bottomRight =
+        { box.TopLeft with
+            X = box.TopLeft.X + box.W
+            Y = box.TopLeft.Y + box.H }
+
+    // State Tuple - (overlapping: bool, overlapping_wire_index: int)
+    let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool * int) (segment: Segment) : bool * int =
+        let overlap = overlap2D (startPos, endPos) (box.TopLeft, bottomRight)
+        (fst state || overlap), if overlap then segment.Index else snd state
+
+    List.map (fun w -> foldOverNonZeroSegs checkOverlapFolder (false, -1) w, w) wires
+    |> List.filter (fun l -> fst (fst l))
+    |> List.map (fun ((_, index), w) -> w, index)
+
+/// Used to fix bounding box with negative width and heights
+/// HLP23: Derek Lai (ddl20)
+let fixBoundingBox (box: BoundingBox): BoundingBox =
+    let x = min (box.TopLeft.X + box.W) box.TopLeft.X
+    let y = min (box.TopLeft.Y + box.H) box.TopLeft.Y
+    {TopLeft = {X = x; Y = y}; W = abs box.W; H = abs box.H}
+
+/// Get the start and end positions of a wire.
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
+let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
+    let wireVertices =
+        segmentsToIssieVertices wire.Segments wire
+        |> List.map (fun (x, y, _) -> { X = x; Y = y })
+
+    let currentStartPos = wireVertices.Head
+    let currentEndPos = wireVertices[wireVertices.Length - 2]
+
+    currentStartPos, currentEndPos
+
+/// Returns length of wire
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
+let getWireLength (wire: Wire) : float =
+    (0., wire.Segments) ||> List.fold (fun acc seg -> acc + (abs seg.Length))
+
+/// Gets total length of a set of wires.
+/// HLP23: AUTHOR dgs119
+let totalLengthOfWires (conns: Map<ConnectionId, Wire>) = 
+    conns
+    |> Map.map(fun _ wire -> getWireLength wire)
+    |> Map.toList
+    |> List.map snd
+    |> List.sum
+
+/// Checks if a wire is part of a net.
+/// If yes, return the netlist. Otherwise, return None
+/// HLP23: AUTHOR Jian Fu Eng (jfe20)
+let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wire) list) option =
+    let nets = partitionWiresIntoNets model
+
+    nets
+    |> List.tryFind (fun (outputPortID, netlist) -> wire.OutputPort = outputPortID && netlist |> List.exists (fun (connID, w) -> connID <> wire.WId))
+
+/// Checks if a port is part of a Symbol.
+/// HLP23: AUTHOR dgs119
+let isPortInSymbol (portId: string) (symbol: Symbol) : bool =
+    symbol.PortMaps.Orientation |> Map.containsKey portId
+
+/// Get pairs of unique symbols that are connected to each other.
+/// HLP23: AUTHOR dgs119
+let getConnSyms (wModel: BusWireT.Model) =
+    wModel.Wires
+    |> Map.values
+    |> Seq.toList
+    |> List.map (fun wire -> (getSourceSymbol wModel wire, getTargetSymbol wModel wire))
+    |> List.filter (fun (symA, symB) -> symA.Id <> symB.Id)
+    |> List.distinctBy (fun (symA, symB) -> Set.ofList [ symA; symB ])
+
+/// Checks if wire is connected to two given symbols.
+/// Returns false if two Symbols are the same.
+/// HLP23: AUTHOR dgs119
+let isConnBtwnSyms (wire: Wire) (symA: Symbol) (symB: Symbol) : bool =
+    let inId, outId =
+        getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
+
+    match inId, outId with
+    | _ when (isPortInSymbol inId symA) && (isPortInSymbol outId symB) -> true
+    | _ when (isPortInSymbol inId symB) && (isPortInSymbol outId symA) -> true
+    | _ -> false
+
+/// Gets connections between symbols.
+/// HLP23: AUTHOR dgs119
+let connsBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Map<ConnectionId, Wire> =
+    wModel.Wires |> Map.filter (fun _ wire -> isConnBtwnSyms wire symA symB)
+
+/// Gets Wires between symbols.
+/// HLP23: AUTHOR dgs119
+let wiresBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Wire list =
+    connsBtwnSyms wModel symA symB |> Map.toList |> List.map snd
+
+/// Filters Ports by Symbol.
+/// HLP23: AUTHOR dgs119
+let filterPortBySym (ports: Port list) (sym: Symbol) =
+    ports |> List.filter (fun port -> ComponentId port.HostId = sym.Id)
+
+/// Gets Ports From a List of Wires.
+/// HLP23: AUTHOR dgs119
+let portsOfWires (model: BusWireT.Model) (wires: Wire list) =
+    wires
+    |> List.map (fun wire ->
+        [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
+          getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
+    |> List.concat
+    |> List.distinct
+
+/// Groups Wires by the net they belong to.
+/// HLP23: AUTHOR dgs119
+let groupWiresByNet (conns: Map<ConnectionId, Wire>) =
+    conns
+    |> Map.toList
+    |> List.groupBy (fun (_, wire) -> wire.OutputPort)
+    |> List.map (snd >> List.map snd)
+
+/// Scales a symbol so it has the provided height and width.
+/// HLP23: AUTHOR BRYAN TAN
+let setCustomCompHW (h: float) (w: float) (sym: Symbol) =
+    let hScale = w / sym.Component.W
+    let vScale = h / sym.Component.H
+
+    { sym with
+        HScale = Some hScale
+        VScale = Some vScale }
+
+/// For a wire and a symbol, return the edge of the symbol that the wire is connected to.
+/// /// HLP23: AUTHOR BRYAN TAN
+let wireSymEdge wModel wire sym =
+    let sPort, tPort = getSourcePort wModel wire, getTargetPort wModel wire
+    let sEdge = Map.tryFind sPort.Id sym.PortMaps.Orientation
+    let tEdge = Map.tryFind tPort.Id sym.PortMaps.Orientation
+
+    match sEdge, tEdge with
+    | Some e, None -> e
+    | None, Some e -> e
+    | _ -> Top // Shouldn't happen.

@@ -54,11 +54,13 @@
     <Compile Include="Interface\FilesIO.fs" />
     <None Include="scss\main.scss" />
     <Compile Include="DrawBlock\DrawModelType.fs" />
+    <Compile Include="DrawBlock\SymbolHelpers.fs" />
     <Compile Include="DrawBlock\PopupDrawingView.fs" />
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
 	<Compile Include="DrawBlock\SymbolView.fs" />
 	<Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
+  <Compile Include="DrawBlock\SymbolUpdateResizeHelpers.fs" />
 	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
@@ -68,6 +70,7 @@
 	<Compile Include="DrawBlock\SmartChannel.fs" />
 	<Compile Include="DrawBlock\SmartPortOrder.fs" />
 	<Compile Include="DrawBlock\SmartSizeSymbol.fs" />
+  <Compile Include="DrawBlock\SmartBeautify.fs" />
 	<Compile Include="DrawBlock\SmartRotate.fs" />
     <Compile Include="DrawBlock\BusWireUpdate.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />

@@ -170,12 +170,23 @@ type FastData =
         | Word n -> Some n
         | BigWord n when this.Width <= 32 -> Some (uint32 n)
         | _ -> None
+
     /// can fail - for fast access to word data
     member inline this.GetQUint32 =
         match this.Dat with
         | Word n -> n
         | BigWord n when this.Width <= 32 -> uint32 n
         | _ -> failwithf $"GetQint32 Can't turn Alg into a uint32"
+
+    /// if given width <= 32 it will generate Word form FastData, otherwise BigWord.
+    static member inline MakeFastData (width: int) (data: bigint) =
+         match width with
+         | w when w <= 32 && data >= bigint 0 -> 
+            {Dat = Word (uint32 data); Width = w}
+         | w when w <= 32 && data < bigint 0 ->
+            let data = data % (bigint 2 ** w)
+            {Dat = Word (uint32 data); Width = w}
+         | w -> {Dat = BigWord data; Width = w}
 
 //-------------------------------------------------------------------------------------//
 //-----------------------------TT Algebra Types----------------------------------------//

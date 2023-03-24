@@ -750,7 +750,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | TestPortReorder ->
         // Test code called from Edit menu item
-        // Validate the lits of selected symbols: it muts have just 2 for
+        // Validate the list of selected symbols: it must have just 2 for
         // the test to work.
          /// HLP23: Indraneel
          let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
@@ -768,18 +768,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 model, Cmd.none
     | TestPortPosition ->
         // Test code called from Edit menu item
-        // Validate the lits of selected symbols: it muts have just 2 for
+        // Validate the list of selected symbols: it must have just 2 for
         // the test to work.
+         /// HLP23: Ifte
+         let symbolSizeHelpers: SmartSizeSymbol.BusWireHelpers = 
+            {
+                updateSymbolWires = BusWireUpdate.updateSymbolWires
+            }
+
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2}, Cmd.none
+                {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2 symbolSizeHelpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
     | TestSmartChannel ->
         // Test code called from Edit menu item
-        // Validate the list of selected symbols: it muts have just two for
+        // Validate the list of selected symbols: it must have just two for
         // The test to work.
          validateTwoSelectedSymbols model
          |> function

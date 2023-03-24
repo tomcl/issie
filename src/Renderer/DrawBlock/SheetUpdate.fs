@@ -939,8 +939,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | _ ->  
             let scalemodel = 
                 {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleUp)}}
-
-            let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
+            
+            let newBoxBound = {scalemodel.Box.BoxBound with TopLeft = {X = scalemodel.Box.BoxBound.TopLeft.X - 5.; Y = scalemodel.Box.BoxBound.TopLeft.Y - 5. }; H = scalemodel.Box.BoxBound.H + 10.; W = scalemodel.Box.BoxBound.W + 10.}
+            let scaleButt = scalemodel.Box.ScaleButton.Value
+            let rotateCWButt = scalemodel.Box.RotateCWButton.Value
+            let rotateACWButt = scalemodel.Box.RotateACWButton.Value
+            let newScaleButt = {scaleButt with Pos = scaleButt.Pos - {X= -5.;Y=5.}; Component = {scaleButt.Component with X = scaleButt.Component.X + 5.; Y = scaleButt.Component.Y - 5.}}
+            let newRotateCW = {rotateCWButt with Pos = rotateCWButt.Pos - {X= -5.;Y = 0}; Component = {rotateCWButt.Component with X = rotateCWButt.Component.X + 5.; Y = rotateCWButt.Component.Y}}
+            let newRotateACW = {rotateACWButt with Pos = rotateACWButt.Pos - {X=5.;Y= 0}; Component = {rotateACWButt.Component with X = rotateACWButt.Component.X - 5.; Y = rotateACWButt.Component.Y}}
+            let newModel = {scalemodel with Wire = {scalemodel.Wire with Symbol = {scalemodel.Wire.Symbol with Symbols =(scalemodel.Wire.Symbol.Symbols 
+                                                                                        |> Map.add newScaleButt.Id newScaleButt 
+                                                                                        |> Map.add newRotateCW.Id newRotateCW 
+                                                                                        |> Map.add newRotateACW.Id newRotateACW)}} ; BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol; Box = {scalemodel.Box with BoxBound = newBoxBound; ScaleButton = Some newScaleButt; RotateCWButton = Some newRotateCW; RotateACWButton = Some newRotateACW}}
 
             let errorComponents =
                 newModel.SelectedComponents
@@ -973,7 +983,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let scalemodel = 
                 {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleDown)}}
 
-            let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
+            let newBoxBound = {scalemodel.Box.BoxBound with TopLeft = {X = scalemodel.Box.BoxBound.TopLeft.X + 5.; Y = scalemodel.Box.BoxBound.TopLeft.Y + 5. }; H = scalemodel.Box.BoxBound.H - 10.; W = scalemodel.Box.BoxBound.W - 10.}
+            let scaleButt = scalemodel.Box.ScaleButton.Value
+            let rotateCWButt = scalemodel.Box.RotateCWButton.Value
+            let rotateACWButt = scalemodel.Box.RotateACWButton.Value
+            let newScaleButt = {scaleButt with Pos = scaleButt.Pos - {X= 5.;Y= -5.}; Component = {scaleButt.Component with X = scaleButt.Component.X - 5.; Y = scaleButt.Component.Y + 5.}}
+            let newRotateCW = {rotateCWButt with Pos = rotateCWButt.Pos - {X= 5.;Y = 0}; Component = {rotateCWButt.Component with X = rotateCWButt.Component.X - 5.; Y = rotateCWButt.Component.Y}}
+            let newRotateACW = {rotateACWButt with Pos = rotateACWButt.Pos - {X= -5.;Y= 0}; Component = {rotateACWButt.Component with X = rotateACWButt.Component.X + 5.; Y = rotateACWButt.Component.Y}}
+            let newModel = {scalemodel with Wire = {scalemodel.Wire with Symbol = {scalemodel.Wire.Symbol with Symbols =(scalemodel.Wire.Symbol.Symbols 
+                                                                                        |> Map.add newScaleButt.Id newScaleButt 
+                                                                                        |> Map.add newRotateCW.Id newRotateCW 
+                                                                                        |> Map.add newRotateACW.Id newRotateACW)}} ; BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol; Box = {scalemodel.Box with BoxBound = newBoxBound; ScaleButton = Some newScaleButt; RotateCWButton = Some newRotateCW; RotateACWButton = Some newRotateACW}}
+
+            let newBlock = SmartHelpers.getBlock ((List.map (fun x -> newModel.Wire.Symbol.Symbols |> Map.find x) newModel.SelectedComponents) )
+
 
             let errorComponents =
                 newModel.SelectedComponents
@@ -994,13 +1017,16 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
             match errorSelectedComponents with
                 | [] ->
-                    {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
-                    Cmd.batch [
-                            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
-                            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
-                    ]
-                | _ -> model,Cmd.none
+                    if (newBoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBoxBound.TopLeft.X + newBoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBoxBound.TopLeft.Y + newBoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H) then
+                        model,Cmd.none
+                    else
+                        {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+                        Cmd.batch [
+                                symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                                wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
+                | _ ->  model,Cmd.none
 
     //HLP23 AUTHOR Ismagilov
     //Sets the chosen style for the selected components

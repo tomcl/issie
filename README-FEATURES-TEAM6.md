@@ -26,7 +26,7 @@
 * Handles invalid placements for every operation by drag and dropping or stopping scaling, with colour highlighting.
 * Original keypress / edit menu for these operations kept (as in individual smart rotate).
 
-## Scaling Box:
+## Scaling & Rotation UI Box:
 * Created UI to perform rotation and scaling on sheet using buttons. 
 * UI shows box surrounding selected components, a scaling button in the top right, and 2 rotation buttons.
 * Rotate Buttons use original smart rotate - block rotation function. Scaling button uses a slightly modified scaling function to take a variable scaling factor.

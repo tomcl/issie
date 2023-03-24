@@ -399,12 +399,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             match model.ButtonList with
             | [] ->  {rotmodel with BoundingBoxes = getBoundingBoxes rotmodel.Wire.Symbol; Box = newBox}
             | _ ->
-                let symButton =  rotmodel.Wire.Symbol.Symbols
-                                                |> Map.find (rotmodel.ButtonList |> List.head)
-                let rotateACWButton =  rotmodel.Wire.Symbol.Symbols
-                                            |> Map.find (rotmodel.ButtonList[1])
-                let rotateCWButton =  rotmodel.Wire.Symbol.Symbols
-                                            |> Map.find (rotmodel.ButtonList[2])
+                let symButton =  rotmodel.Box.ScaleButton.Value
+                let rotateACWButton =  rotmodel.Box.RotateACWButton.Value
+                let rotateCWButton =  rotmodel.Box.RotateCWButton.Value
 
                 let newRotACWPos = {X = newBox.BoxBound.TopLeft.X - 76.5  ; Y = newBox.BoxBound.TopLeft.Y + ((newBox.BoxBound.H/2.)- 12.5) }
                 let rotACWNewButton = {rotateACWButton with Pos = newRotACWPos; Component = {rotateACWButton.Component with X = newRotACWPos.X; Y = newRotACWPos.Y}}
@@ -418,7 +415,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 let newSymModel = {rotmodel.Wire.Symbol with Symbols = (rotmodel.Wire.Symbol.Symbols |> Map.add symButton.Id symNewButton |> Map.add rotateACWButton.Id rotACWNewButton |> Map.add rotateCWButton.Id rotCWNewButton)}
 
                 let tmpmodel = 
-                    {rotmodel with Box = newBox; Wire = {rotmodel.Wire with Symbol = newSymModel}}
+                    {rotmodel with Box = {newBox with ScaleButton = Some symNewButton; RotateCWButton= Some rotCWNewButton; RotateACWButton= Some rotACWNewButton}; Wire = {rotmodel.Wire with Symbol = newSymModel}}
                 {tmpmodel with BoundingBoxes = getBoundingBoxes tmpmodel.Wire.Symbol; }
         printfn "ButtonIds: %A" model.ButtonList
         let errorComponents =

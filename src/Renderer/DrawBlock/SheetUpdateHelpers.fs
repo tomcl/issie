@@ -192,7 +192,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                                                                                                                     |> Map.add symRotCWButton.Id symRotCWButton 
                                                                                                                     |> Map.add symRotACWButton.Id symRotACWButton)}} 
                             let newBoxPos = {X= mousePosX - model.Box.MovingPos[0].X; Y= mMsg.Pos.Y- model.Box.MovingPos[0].Y}
-                            {model.Box with BoxBound ={model.Box.BoxBound with TopLeft = newBoxPos}}, newSymModel
+                            {model.Box with BoxBound ={model.Box.BoxBound with TopLeft = newBoxPos}; ScaleButton = Some symNewButton; RotateCWButton = Some symRotCWButton; RotateACWButton = Some symRotACWButton}, newSymModel
 
             | _ -> model.Box, model.Wire
         let errorComponents =
@@ -710,7 +710,7 @@ let mDragUpdate
                             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                             LastMousePos = mMsg.Pos
                             ErrorComponents = errorComponents
-                            Box = newBox}, 
+                            Box = {newBox with ScaleButton = Some symNewButton; RotateACWButton = Some rotateACWNewButton; RotateCWButton = Some rotateCWNewButton}}, 
                 Cmd.batch [ 
                     symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                     Cmd.ofMsg CheckAutomaticScrolling

@@ -19,14 +19,6 @@ open System
 //----------------------Helper functions that need SmartRoute etc------------------//
 //---------------------------------------------------------------------------------//
 
-/// HLP23: AUTHOR Omar
-/// Checks if the wire still exists in mode.Wires
-// if it does not, then it has been deleted by the smartRoute and we should return the new model
-let checkWireExists (model : Model) (wire : Wire) : SmartAutorouteResult =
-    match (Map.tryFind wire.WId model.Wires) with
-    | Some wire -> WireT wire
-    | None -> ModelT model
-
 /// Returns a re-routed wire from the given model.
 /// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
 /// Reverse indicates if the wire should be processed in reverse, 
@@ -65,7 +57,6 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
     let wires = filterWiresByCompMoved model compIdList
 
     // filter wires by whether the component id exists in the model
-
     let wireId = 
         let wireId' = 
             model.Wires
@@ -78,7 +69,8 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
             |> List.tryHead
 
         wireId'
-    match wireId with   // handles error from latest project23 push (wires update called when no wires exist)
+        
+    match wireId with   // handles error from wires update called when no wires exist
     | None -> model
     | Some wireId ->
         let wireFound = model.Wires[wireId]

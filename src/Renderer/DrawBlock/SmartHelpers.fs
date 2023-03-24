@@ -10,6 +10,7 @@ open BusWireUpdateHelpers
 open Optics
 open Operators
 
+
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -111,7 +112,7 @@ type SymbolBoxT = { TopLeft: XYPos; TopRight: XYPos; BottomLeft: XYPos; BottomRi
 
 
 /// HLP23: Author Omar
-/// returns a record type for symbol box coordinates given a symbol
+/// returns a record type for a symbol's box coordinates given the symbol
 let symbolBox (symbol: Symbol) : SymbolBoxT = 
     let topLeft: XYPos ={X = symbol.Pos.X; Y = symbol.Pos.Y}
     let topRight = { X = topLeft.X + symbol.Component.W; Y = topLeft.Y}
@@ -191,16 +192,6 @@ let findSymbol (model: Model) (wire: Wire) (mode: findSymbolMode) : Symbol optio
 
 
 /// HLP23: Author Omar
-/// deletes wire from model by filtering out the wire
-let deleteWire (model: Model) (wire: Wire) : Model = 
-    let newWires =
-        model.Wires
-        |> Map.filter (fun id w -> wire.WId <> id)
-    
-    {model with Wires = newWires}
-
-
-/// HLP23: Author Omar
 /// returns a new wire with updated segments based on the given list of segment lengths
 let updateWire (wire: Wire) (lengths: float list) : Wire = 
     let newSegments = 
@@ -209,14 +200,14 @@ let updateWire (wire: Wire) (lengths: float list) : Wire =
     
     {wire with Segments = newSegments}
 
+
 /// HLP23: Author Omar
 /// discriminated union for return type of the smart autoroute function and other SmartWire functions
+/// Used in the SmartWire module and BusWireUpdate module
 type SmartAutorouteResult =
     | ModelT of Model
     | WireT of Wire
 
-
-// { TopLeft: XYPos; TopRight: XYPos; BottomLeft: XYPos; BottomRight: XYPos }
 
 /// HLP23: AUTHOR Ifte
 /// Returns corresponding orientation if symbols have overlapping X/Y coverage and returns None if both
@@ -229,15 +220,18 @@ let getOrientation fstSym sndSym =
     then
         Some Vertical
     else if (((fstCorners.TopLeft.X > sndCorners.TopRight.X) || (fstCorners.TopRight.X < sndCorners.TopLeft.X)) 
-            && (fstCorners.TopLeft.X < sndCorners.BottomLeft.Y) 
+            && (fstCorners.TopLeft.Y < sndCorners.BottomLeft.Y) 
             && (fstCorners.BottomLeft.Y > sndCorners.TopLeft.Y)) 
     then
         Some Horizontal
     else
         None
 
+
+/// HLP23: AUTHOR Ifte
 /// Wire update helpers which are lower in compiler order
 type BusWireHelpers = {
     updateWire: Model -> Wire -> bool -> SmartAutorouteResult
     updateSymbolWires: Model -> ComponentId -> Model
     }
+

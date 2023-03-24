@@ -20,3 +20,13 @@
 * feature - Can be forced to skip popup and just replace wire(s) with auto generated name(s) (CTRL + SHIFT + L)
 * feature - If only one wire is selected it can be named by user or can use generated name if no imputs have been made
 * feature - For clarity reason cannot replace wire already connected to a label
+
+## Smart Rotate:
+* Created UI to perform rotation and scaling on sheet using buttons. 
+* Blocks of selected symbols can be Rotated, Flipped or Scaled about the block center. Wires autorouted too.
+* Handles invalid placements for every operation, as well as state changes after clicking elsewhere.
+* Original keypress / edit menu for these operations kept (as in individual smart rotate). UI uses a slightly modified scaling function.
+* feature - UI created for scaling and rotation when more than 1 symbol selected.
+* feature - Correct handling of invalid placement and operations with highlighting / drag and drop states.
+* limitation - original individual scaling keypress (Ctrl + U, Ctrl + I) does not affect the UI Box created
+* limitation - on sudden quick movements when moving symbols, UI box is misaligned.

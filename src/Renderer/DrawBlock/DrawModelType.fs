@@ -97,6 +97,11 @@ module SymbolT =
         |Light
         |Colourful
 
+    ///This defines the two options for logic gates HLP23HannahShewan
+    type SymbolType =
+        | Old
+        | New 
+
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
@@ -200,6 +205,8 @@ module SymbolT =
         OutputPortsConnected: Map<OutputPortId, int>
 
         Theme: ThemeType
+        
+        SymbolType : SymbolType 
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -242,6 +249,7 @@ module SymbolT =
         | MovePortDone of portId: string * move: XYPos
         | SaveSymbols
         | SetTheme of ThemeType
+        | SetSymbolType of SymbolType
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
 

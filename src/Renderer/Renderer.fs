@@ -155,8 +155,6 @@ let viewMenu dispatch =
     let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
     
-    
-    
     let symbolDispatch msg = busWireDispatch (BusWireT.Msg.Symbol msg)
 
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
@@ -187,11 +185,22 @@ let viewMenu dispatch =
             )
         ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
+
         makeMenu false "Wire Type" [
             makeItem "Jump wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
             makeItem "Radiussed wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
             makeItem "Modern wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
         ]
+
+        makeMenu false "Symbol Type" [
+            makeItem "IEEE Form" None (fun ev ->
+                symbolDispatch (SymbolT.Msg.SetSymbolType SymbolT.SymbolType.Old)   //HLP23 HannahShewan
+            )
+            makeItem "Box Form" None (fun ev -> 
+                symbolDispatch (SymbolT.Msg.SetSymbolType SymbolT.SymbolType.New)  //HLP23 HannahShewan
+            ) 
+            ]
+
         menuSeparator
         makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
         menuSeparator

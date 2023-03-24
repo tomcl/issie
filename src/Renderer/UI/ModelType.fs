@@ -409,7 +409,7 @@ type Msg =
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
     | ExecCmdAsynch of Elmish.Cmd<Msg>
     | SendSeqMsgAsynch of seq<Msg>
-
+    | SetSymbolTypeUserData of DrawModelType.SymbolT.SymbolType
 
 //================================//
 // Componenents loaded from files //

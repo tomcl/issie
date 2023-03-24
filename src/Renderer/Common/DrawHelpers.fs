@@ -198,10 +198,6 @@ let makeLine (x1: 'a) (y1: 'b) (x2: 'c) (y2: 'd) (lineParameters: Line) =
             SVGAttr.StrokeDasharray lineParameters.StrokeDashArray
     ] []
 
-///make path attributes for or-shape. Hannah Shewan HLP23
-let makeOrShape (h_1:float) (h_2:float) (w_1: float) (w_2: float)= 
-    $"M 0 0 C 0 0 {w_1} {h_1} 0 {h_2} 
-    C {w_2} {h_2} {w_2} 0 0 0"
 
 /// Makes path attributes for a horizontal upwards-pointing arc radius r
 let makeArcAttr r =
@@ -261,6 +257,11 @@ let makePolygon (points: string) (polygonParameters: Polygon) =
             SVGAttr.FillOpacity polygonParameters.FillOpacity
     ] []
     
+
+///Makes ReactElement of three arcs orientated in the shape of an OR gate, useful for OR/XOR/NXOR/NOR. Hannah Shewan HLP23
+let makeOr parameters = 
+    ($"M0 40 A60 40 0 0 0 55 20 A60 40 0 0 0 0 0   M0 0 A15 20 0 0 1 0 40", parameters) ||> makePathFromAttr;
+
 
 /// Makes a circle ReactElement
 let makeCircle (centreX: float) (centreY: float) (circleParameters: Circle) =

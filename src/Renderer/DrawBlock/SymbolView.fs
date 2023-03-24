@@ -178,11 +178,12 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> relativeToTopLeft
 
 ///create symbols in IEEE form
-let createComponent (comp:Component) (colour:string) (outlineColour:string) (opacity:float) (strokeWidth:string) (points:string) (strokeColor: string) (ieee: bool)= 
+let createComponent (comp:Component) (colour:string) (outlineColour:string) (opacity:float) (strokeWidth:string) (points:string) (strokeColor: string) (symbolType: SymbolType) : ReactElement List= 
     let parameters:Path = {Stroke = "Black" ; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
-    match ieee with
-    | false -> createBiColorPolygon points colour strokeColor opacity strokeWidth comp;
-    | true ->     
+    
+    match symbolType with
+    | New -> createBiColorPolygon points colour strokeColor opacity strokeWidth comp;
+    | Old ->     
         match comp.Type with 
         |And -> [makePolygon ($"0,0 20, 0 20, {comp.H} 0, {comp.H}") {defaultPolygon with Fill = parameters.Fill};
                 makeAnyPath {X = 20; Y=0} (makeLineAttr 0 comp.H) {parameters with Stroke = parameters.Fill; StrokeWidth = "1.5px"};
@@ -194,15 +195,15 @@ let createComponent (comp:Component) (colour:string) (outlineColour:string) (opa
                 makeCircle (20.0 + 26.0) (comp.H/2.0) {defaultCircle with R = 3; Fill = parameters.Fill};
                 ]
         |Not -> [makePolygon ($"0,20 30,0 0,-20") {defaultPolygon with Fill=parameters.Fill};
-                makeCircle 34.0 0.0 {defaultCircle with R=4; Fill=parameters.Fill}] //to do : move label 
-        |Or -> [makeAnyPath {X = 0; Y = comp.H} (makeOrShape 20.0 40.0 15.0 30.0) parameters];
-        |Nor -> [makeAnyPath {X = 0; Y = comp.H} (makeOrShape 20.0 40.0 15.0 30.0) parameters;
-                 makeCircle 26 (comp.H/2.0) {defaultCircle with R = 3; Fill=parameters.Fill}]
-        |Xor -> [makeAnyPath {X = 0; Y = comp.H} (makeOrShape 20.0 40.0 15.0 30.0) parameters;
-                makeAnyPath {X = -5; Y= 0} (makePartArcAttr 40.0 0.0 2.0 (5.0 - comp.H) -1.0) {parameters with Fill = "None"; StrokeWidth = "1.5px"}]
-        |Xnor -> [makeAnyPath {X = 0; Y = comp.H} (makeOrShape 20.0 40.0 15.0 30.0) parameters;
-                makeAnyPath {X = -5; Y= 0} (makePartArcAttr 40.0 0.0 2.0 (5.0 - comp.H) -1.0) {parameters with Fill = "None"; StrokeWidth = "1.5px"};
-                makeCircle 26 (comp.H/2.0) {defaultCircle with R=3 ; Fill = parameters.Fill}]
+                makeCircle 34.0 0.0 {defaultCircle with R=4; Fill=parameters.Fill}]  
+        |Or -> [makeOr parameters];
+        |Nor -> [makeOr parameters;
+                 makeCircle 58 20 {defaultCircle with R = 3; Fill=parameters.Fill}]
+        |Xor -> [makeOr parameters;
+                 makeAnyPath {X = -5.0; Y= 0.0} ($"C-5 0 20 20 -5 40") {parameters with Fill = "None"; StrokeWidth = "1.5px"};]
+        |Xnor -> [makeOr parameters;
+                makeAnyPath {X = -5.0; Y= 0.0} ($"C-5 0 20 20 -5 40") {parameters with Fill = "None"; StrokeWidth = "1.5px"};
+               makeCircle 58 20 {defaultCircle with R = 3; Fill=parameters.Fill}]
         | _ -> createBiColorPolygon points colour strokeColor opacity strokeWidth comp;
 
 //--------------------------------------------------------------------------------------------//
@@ -211,7 +212,7 @@ let createComponent (comp:Component) (colour:string) (outlineColour:string) (opa
 
 /// Draw symbol (and its label) using theme for colors, returning a list of React components 
 /// implementing all of the text and shapes needed.
-let drawSymbol (symbol:Symbol) (theme:ThemeType) =
+let drawSymbol (symbol:Symbol) (theme:ThemeType) (symbolType: SymbolType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
@@ -473,22 +474,20 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
-    let ieee = true
-
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
     |> List.append (addLegendText //TO DO: get an extra field in and/or/not gates that determine whether they're ieee/new labels. let this affect the label.
                         (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation ieee) //move this step to inside create_component
+                        (getComponentLegend comp.Type transform.Rotation symbolType) //move this step to inside create_component
                         "middle" 
                         "bold" 
                         (legendFontSize comp.Type))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createComponent comp colour outlineColour opacity strokeWidth points colour ieee)
+    |> List.append (createComponent comp colour outlineColour opacity strokeWidth points colour symbolType)
 
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//
@@ -500,6 +499,7 @@ type private RenderSymbolProps =
         Dispatch : Dispatch<Msg>
         key: string
         Theme: ThemeType
+        SymbolType : SymbolType
     }
 
 /// View for one symbol. Using FunctionComponent.Of to improve efficiency 
@@ -512,7 +512,7 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol props.Theme)
+                (drawSymbol props.Symbol props.Theme props.SymbolType)
             
         , "Symbol"
         , equalsButFunctions
@@ -554,6 +554,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
                 Dispatch = dispatch
                 key = id
                 Theme = model.Theme
+                SymbolType = model.SymbolType 
             }
     )
     |> ofList
@@ -564,5 +565,5 @@ let init () =
     { 
         Symbols = Map.empty; CopiedSymbols = Map.empty
         Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty; Theme = Colourful
+        OutputPortsConnected = Map.empty; Theme = Colourful ; SymbolType = Old
     }, Cmd.none

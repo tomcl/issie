@@ -334,10 +334,10 @@ let getPrefix (compType:ComponentType) =
 
 //HLP23 Hannah Shewan
 // Text to be put inside different Symbols depending on their ComponentType
-let getComponentLegend (componentType:ComponentType) (rotation:Rotation) (ieee: bool) =
-    match ieee with
-        | true -> ""
-        | false ->  
+let getComponentLegend (componentType:ComponentType) (rotation:Rotation) (symbolType: SymbolType) =
+    match symbolType with
+        | Old -> ""
+        | New ->  
             match componentType with
             | And | Nand-> "&"
             | Or | Nor-> "≥1"

@@ -15,6 +15,14 @@ open SmartHelpers
 
 // HLP23 AUTHOR: Khoury
 // Start of HLP23: SmartPortOrder 
+(* 
+    There are two main functions in this module:
+    1. reOrderPorts: This function works for 2 selected components and reordered their ports
+    2. multipleReorderPorts: This function works for more than two components. It reorders the ports of 
+    the component with the most wires connected to it and takes into account other selected components
+*)
+
+
 
 
 // Helper functions for SmartPortOrder

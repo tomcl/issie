@@ -71,7 +71,7 @@ let updateModelSymbols
 
 
 //Helper function to GetSelectComponenet takes in a component type and returns a bool. 
-///Checks if the component is a component that contains a select port
+///Checks if the component contains a select port 
 //HLP23: AUTHOR Khoury
 let isMuxDemux 
     (inputType : ComponentType)
@@ -106,7 +106,7 @@ let typeConversionOutput
 // a symbol and a model. 
 /// Gets the length of the select wire if the compenent is flipped and if it is not flipped. It returns the two length and the flipped component.
 //HLP23: AUTHOR Khoury
-let GetSelectWireLength
+let getSelectWireLength
     (wModel: BusWireT.Model)
     (wireList: Wire list)
     (inputSymbol : Symbol)
@@ -153,7 +153,7 @@ let modelWithBestFlip
 
     match isMuxDemux symComponentType with 
         | true ->
-            let lengthNewSelect, lengthOldSelect , newSymbol, newModel= GetSelectWireLength  wModel wireList otherSymbol
+            let lengthNewSelect, lengthOldSelect , newSymbol, newModel= getSelectWireLength  wModel wireList otherSymbol
             match lengthNewSelect < lengthOldSelect with
                | true -> newSymbol, newModel, true
                | false -> otherSymbol, wModel, false 
@@ -173,7 +173,7 @@ let sortByOther
 //Helper function to SortPorts takes in a list of quadruple lists and returns an Edge
 ///Gets the edge that the ports are connected to on the otherSymbol
 //HLP23: AUTHOR Khoury
-let OtherSymbolOrientation 
+let otherSymbolOrientation 
     (list: (string*string*Edge*Edge) list)
         : Edge =
     list 
@@ -218,7 +218,7 @@ let sortPorts
     |> List.map (fun (_, group) -> List.map (fun (e1, e2, x, y) -> (x,y,e1,e2)) group)
     |> List.map (fun x -> 
                                             sortByOther  (otherOrderMaps 
-                                                                      |> Map.find (OtherSymbolOrientation x))x)
+                                                                      |> Map.find (otherSymbolOrientation x))x)
 
 /// Update BusWire model with given wires. Can also be used to add new wires.
 /// This uses a fold on the Map to add wires which makes it fast in the case that the number

@@ -22,16 +22,17 @@
 * feature - For clarity reason cannot replace wire already connected to a label
 
 ## Smart Rotate:
-* Created UI to perform rotation and scaling on sheet using buttons. 
 * Blocks of selected symbols can be Rotated, Flipped or Scaled about the block center. Wires autorouted too.
-* Handles invalid placements for every operation, as well as state changes after clicking elsewhere.
-* Original keypress / edit menu for these operations kept (as in individual smart rotate). UI uses a slightly modified scaling function.
-* feature - UI created for scaling and rotation when more than 1 symbol selected.
-* feature - Correct handling of invalid placement and operations with highlighting / drag and drop states.
-* limitation - original individual scaling keypress (Ctrl + U, Ctrl + I) does not affect the UI Box created
-* limitation - on sudden quick movements when moving symbols, UI box is misaligned.
+* Handles invalid placements for every operation by drag and dropping or stopping scaling, with colour highlighting.
+* Original keypress / edit menu for these operations kept (as in individual smart rotate).
 
-## Scaling Box:
+## Scaling & Rotation UI Box:
+* Created UI to perform rotation and scaling on sheet using buttons. 
+* UI shows box surrounding selected components, a scaling button in the top right, and 2 rotation buttons.
+* Rotate Buttons use original smart rotate - block rotation function. Scaling button uses a slightly modified scaling function to take a variable scaling factor.
+* feature - Box and buttons are dynamic: they rotate and move around, as well as scale properly with the individual scaling shortcuts.
+* feature - Invalid placement handled, as well as action changes from clicking elsewhere.
+* limitation - sudden movements while moving selected symbols may mis align the box.
 
 ## Smart Resizing
 * By clicking Ctrl+E (or Cmd+E), the two selected components are resized

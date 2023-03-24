@@ -41,3 +41,14 @@ Hold `Ctrl` near a custom component to highlight its four corners. Drag a corner
     - Will need better visual indication that we are in "make channel" mode - maybe change the selection box to be rendered in a red color
     - Only moves one segment and does not optimise for wire crossings
     - Currently no safety checks are being performed so if you drag a horizontal channel over vertical wire segements, it will fail in an ugly way
+
+## Smart Wire
+- Features
+    - When routing a wire, it will first try to snap to an existing wire in the same net (if any). Subsequently, it will perform symbol avoidance to ensure no intersections with any symbols.
+    - When routing a wire around a symbol that already has existing wires routed around it, there will be additional wire separation added to ensure that only wires from the same net will hug.
+    - The snapping to net feature can be toggled with `Ctrl+T` or from the menu options.
+
+- Limitations
+    - Snapping to net only works for the common case of non-rotated symbols and when input is on the left of the output.
+    - Symbol avoidance works for all orientations.
+    - Variable wire separation around symbols only work on 1 segment of the wire.

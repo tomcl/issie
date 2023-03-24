@@ -190,12 +190,11 @@ let getLabelScale =
 
 ///gets the LabelRotation from symbol and returns the integer angle of rotation
 let getSymbolRotation (symbol:Symbol) =
-    match symbol.LabelRotation with
-    | Some Degree0 -> 0
-    | Some Degree90 -> 90
-    | Some Degree180 -> 180
-    | Some Degree270 -> 270
-    | None -> 0
+    match symbol.STransform.Rotation with
+    | Degree0 -> 0
+    | Degree90 -> 270
+    | Degree180 -> 180
+    | Degree270 -> 90
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------- SYMBOL DRAWING -------------------------------------//
 //--------------------------------------------------------------------------------------------//
@@ -222,8 +221,11 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let lineTwo = makeLineAttr (width) 0.
                                 let curveAttr = makePartArcAttr 5. (-comp.H/2.) (-width) (comp.H/2.) width
                                 let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
-                                [makeAnyPath {X = 0; Y = 0} shape parameters;
-                                makeCircle (comp.W-notDiameter/2.) (comp.H/2.) {defaultCircle with R = (notDiameter/2.); Fill = parameters.Fill}]
+                                let angle = getSymbolRotation symbol
+                                [
+                                    makeAnyPathWithTransform {X = 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                    makeCircle (comp.W-notDiameter/2.) (comp.H/2.) {defaultCircle with R = (notDiameter/2.); Fill = parameters.Fill}
+                                ]
 
                     |Or n ->    let origin = -comp.W/9.
                                 let curveOne = makeQuadraticBezierAttr ((comp.W/2.)+origin) (comp.H/2.) origin comp.H
@@ -238,13 +240,23 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)
                                 let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
                                 let orShape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
-                                [makeAnyPath {X = origin; Y = 0} orShape parameters;
-                                makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}]
+                                let angle = getSymbolRotation symbol
+                                [
+                                    makeAnyPathWithTransform {X = origin; Y = 0} orShape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                    makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
+                                ]
 
                     |Not ->     let notRadius = 3.
                                 let width = comp.W-(notRadius*2.)
-                                [makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
-                                makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}]
+                                let angle = getSymbolRotation symbol
+                                let lineOne = makeLineAttr 0. comp.H
+                                let lineTwo = makeLineAttr ((comp.W)-(notRadius*2.)) (-comp.H/2.)
+                                let shape = combineAnyPathAttr [lineOne; lineTwo; "Z"]
+                                [   
+                                    makeAnyPathWithTransform {X = 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                    //makePolygon ($"0,0 {width},{comp.H/2.} 0,{comp.H}") {defaultPolygon with Fill = parameters.Fill};
+                                    makeCircle (width+notRadius) (comp.H/2.) {defaultCircle with R = notRadius; Fill = parameters.Fill}
+                                ]
 
                     |Xor n->    let origin = -comp.W/9.
                                 let curveOne = makeQuadraticBezierAttr ((comp.W/2.)) ((comp.H/2.)) origin comp.H
@@ -252,8 +264,12 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
                                 let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
                                 let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-5.) ((comp.H/2.)) (origin-notDiameter/2.) comp.H
-                                [makeAnyPath {X = origin; Y = 0} shape parameters; 
-                                makeAnyPath {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"}]
+                                let angle = getSymbolRotation symbol
+                                [
+                                    makeAnyPathWithTransform {X = origin; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.)); 
+                                    makeAnyPathWithTransform {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"} 
+                                     (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                ]
 
                     |Xnor n ->  let origin = -comp.W/9.
                                 let notDiameter = 8.
@@ -262,9 +278,13 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                 let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
                                 let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter-5.) ((comp.H/2.)) (origin-notDiameter/2.) comp.H
                                 let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
-                                [makeAnyPath {X = origin; Y = 0} shape parameters; 
-                                makeAnyPath {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"};
-                                makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}]
+                                let angle = getSymbolRotation symbol
+                                [
+                                    makeAnyPathWithTransform {X = origin; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.)); 
+                                    makeAnyPathWithTransform {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"}
+                                     (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                    makeCircle (comp.W-notDiameter/2.) (comp.H/2.0) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
+                                ]
 
                     |_ ->   createBiColorPolygon points colour outlineColour opacity strokeWidth comp
 

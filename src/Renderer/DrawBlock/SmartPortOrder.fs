@@ -205,7 +205,7 @@ let changePortOrder (wModel: BusWireT.Model)
     let sModel = wModel.Symbol
 
     printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label} {symbolToOrder.Id }, Other:{otherSymbol.Component.Label}"
-
+ 
     let updatedSymbol = 
         (symbolToOrder, interWires)
         ||> List.fold (fun symbol wire -> 
@@ -234,14 +234,14 @@ let changePortOrder (wModel: BusWireT.Model)
 
                 printfn " Port Index: %A  %A" outputPortIndex indexChange
                 printfn "PortMapList' is: %A" newPortMapList'
-
+              
                 let newOrder = 
                     symbol.PortMaps.Order
                         |> Map.add inputEdge newPortMapList'
 
                 newOrder
             
-            { symbol with PortMaps = { symbol.PortMaps with Order = newPortMapOrder } }
+            { symbol with PortMaps = { symbol.PortMaps with Order = newPortMapOrder} }
             )
 
     updatedSymbol
@@ -278,6 +278,25 @@ type BusWireHelpers = {
     updateSymbolWires: Model -> ComponentId -> Model
     }
 
+let compareMaps (newMap: Map<_, _>) (oldMap: Map<_, _>) : Map<_, _> =
+
+    let newMapList = Map.toList newMap |> List.map snd
+    let oldMapList = Map.toList oldMap |> List.map snd
+
+    if List.length newMapList = List.length oldMapList then
+        let areEqual =
+            Seq.forall2 (fun newList oldList -> (List.distinct newList).Length = (List.distinct oldList).Length) newMapList oldMapList
+
+        if areEqual then 
+            newMap 
+        else 
+            printfn "Error Succesfully handled"
+            oldMap
+    else
+        printfn "Error Succesfully handled"
+        oldMap
+
+                
 /// Main Function that is called from issie
 let reOrderPorts 
     (wModel: BusWireT.Model) 
@@ -286,9 +305,10 @@ let reOrderPorts
     (busWireHelper: BusWireHelpers)
         : BusWireT.Model =
 
-    printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label} {symbolToOrder.Id }, Other:{otherSymbol.Component.Label}"
+    printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label}, Other:{otherSymbol.Component.Label}"
 
     let sModel = wModel.Symbol
+    let OriginalPortMap = symbolToOrder.PortMaps.Order
 
     let wireList =
         wModel.Wires
@@ -304,13 +324,18 @@ let reOrderPorts
     | n when n > 1 ->
      
         let symbol' = changePortOrder wModel symbolToOrder otherSymbol wiresToOrder
+        let symbolPortMap' = symbol'.PortMaps.Order
+        
+        let PortMap = compareMaps symbolPortMap' OriginalPortMap
+        let symbol'' = { symbol' with PortMaps = { symbol'.PortMaps with Order = PortMap} }
 
         let newModel = 
             {wModel with 
-                Symbol = {sModel with Symbols = Map.add symbol'.Id symbol' sModel.Symbols}
+                Symbol = {sModel with Symbols = Map.add symbol'.Id symbol'' sModel.Symbols}
             }
 
         let wModel' = busWireHelper.updateSymbolWires newModel symbol'.Id
+     
         wModel'
     | _ ->
         printfn " No Wires between SymToOrder and otherSym"
@@ -320,23 +345,40 @@ let reOrderPorts
 
 
 
-    
+/// HLP23: Indraneel
+/// Applies port reordering across entire sheet
+let singleReOrder 
+    (wModel: BusWireT.Model) 
+    (symbolToOrder: Symbol)
+    (busWireHelper: BusWireHelpers)
+        : BusWireT.Model =
+
+    printfn $"Ordering the Single Component {symbolToOrder.Component.Label}"
+    let sModel = wModel.Symbol
+
+    let wireList =
+        wModel.Wires
+        |> Map.toList
+        |> List.map snd
 
 
+    let inputSymbols = 
+        wireList 
+        |> List.collect(fun value ->
 
+        let outputPortHostId = ComponentId  sModel.Ports[string value.OutputPort].HostId
+        [sModel.Symbols[outputPortHostId]]
+        )
 
-// Code that maybe useful in the future
+        |> List.distinct
 
-// let updatePortMapList (sym:Symbol) (index:int) (portId:string) (edge:Edge) (newInputList: list<string>) =
-//     //let PortMapOrder = sym.PortMaps.Order
-//     let portMapOrder = newInputList
+    let wModel' = 
+        (wModel, inputSymbols)
+        ||> List.fold (fun model otherSymbol ->   
+            reOrderPorts model symbolToOrder otherSymbol busWireHelper
+        )
 
-//     match tryUpdateAt index portId newInputList  with
-//     | Some newList -> newList
-//     | None -> 
-//         printfn "Index out of range"
-//         newInputList
-
+    wModel'
 
 
 /// HLP23: AUTHOR Indraneel & Ifte

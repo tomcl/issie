@@ -210,6 +210,7 @@ let makePartArcAttr r h1 d1 h2 d2 =
 
 
 //HLP23: Shaanuka
+
 /// makes a line segment offset dx,dy
 let makeLineAttr dx dy =
     $"l %.3f{dx} %.3f{dy}"
@@ -222,10 +223,22 @@ let makeCubicBezierAttr x1 y1 x2 y2 x3 y3 =
 
 ///Sequentially combines list of input attr
 let combineAnyPathAttr (attrList: string List) = 
-    attrList |> List.reduce((+))
+    attrList 
+    |> List.reduce((+))
+///rotation from centre point of path
+let rotateAttr (angle:int) (centreX:float) (centreY:float) =
+    $"rotate({angle} {centreX} {centreY})"
 
-
-
+let makePathFromAttrWithTransform (attr:string) (pathParameters: Path) transform = //This should replace old makePathFromAttr
+    path [
+        D attr
+        SVGAttr.Stroke pathParameters.Stroke
+        SVGAttr.StrokeWidth pathParameters.StrokeWidth
+        SVGAttr.StrokeDasharray pathParameters.StrokeDashArray
+        SVGAttr.StrokeLinecap pathParameters.StrokeLinecap
+        SVGAttr.Fill pathParameters.Fill
+        SVGAttr.Transform transform
+    ] []
 
 let makePathFromAttr (attr:string) (pathParameters: Path) =
     path [
@@ -244,6 +257,12 @@ let makeAnyPath (startingPoint: XYPos) (pathAttr:string) (pathParameters: Path) 
     let x1, y1 = startingPoint.X, startingPoint.Y
     let dAttr = sprintf "M %f %f %s" x1 y1 pathAttr
     makePathFromAttr dAttr pathParameters
+
+///Makes a path ReactElement, points are to be given as an XYPos record element with transform
+let makeAnyPathWithTransform (startingPoint: XYPos) (pathAttr:string) (pathParameters: Path) transform= //should replace makeAnyPath
+    let x1, y1 = startingPoint.X, startingPoint.Y
+    let dAttr = sprintf "M %f %f %s" x1 y1 pathAttr
+    makePathFromAttrWithTransform dAttr pathParameters transform 
 
 /// Makes a path ReactElement, points are to be given as an XYPos record element.
 /// Please note that this function is designed to create ONLY "Move to - Bézier Curve"

@@ -429,11 +429,13 @@ let inline errorSymbols (model:Model) (errorCompList,selectCompList,isDragAndDro
     /// modified updateSymbolStyle function to perform colouring of the nearest custom symbol  
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
-
+            let symbolSID = Map.find sId prevSymbols
             let newSymbols = Map.add sId (set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
-            let closestCustom = getDistanceAlignmentsMap model sId model.Symbols      
-            Map.add closestCustom (set (appearance_ >-> colour_) "lightgreen" resetSymbols[closestCustom] ) newSymbols
-            
+            if getType symbolSID = "Custom" then
+                let closestCustom = getDistanceAlignmentsMap model sId model.Symbols      
+                Map.add closestCustom (set (appearance_ >-> colour_) "lightgreen" resetSymbols[closestCustom] ) newSymbols
+            else 
+                newSymbols
         else 
             Map.add sId (set (appearance_ >-> opacity_) 0.2 resetSymbols[sId]) prevSymbols
 

@@ -802,5 +802,44 @@ let isOverlapped
     then true
     else false
 
+// HLP 23: AUTHOR Khoury & Ismagilov
+// Function taken from Symbol.fs and modified to not use loaded components 
+/// Creates a new symbol used for the button symbol because it does not take loaded components as an argument
+let createNewSymbolButton  (pos: XYPos) (comptype: ComponentType) (label:string) modelStyle =
+    let id = JSHelpers.uuid ()
+    let comp = makeComponent pos comptype id label
+    let transform = {Rotation= Degree0; flipped= false}
+
+    { 
+      Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
+      LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
+      LabelHasDefaultPos = false
+      LabelRotation = None
+      Appearance =
+          {
+            HighlightLabel = false
+            ShowPorts = ShowNone
+            Colour = "Black"
+            Opacity = 1.0
+            Style = modelStyle
+          }
+      InWidth0 = None // set by BusWire
+      InWidth1 = None
+      Id = ComponentId id
+      Component = comp
+      Moving = false
+      PortMaps = initPortOrientation comp
+      STransform = transform
+      ReversedInputPorts = Some false
+      MovingPort = None
+      IsClocked = false
+      MovingPortTarget = None
+      HScale = None
+      VScale = None
+      
+    }
+    |> autoScaleHAndW
+    |> calcLabelBoundingBox
+
 
 

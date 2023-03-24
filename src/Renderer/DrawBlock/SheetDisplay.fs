@@ -149,6 +149,9 @@ let view
         let selectionBox = { defaultPolygon with Stroke = "Black"; StrokeWidth = "0.1px"; Fill = "Blue"; FillOpacity = 0.05 }
 
         makePolygon polygonPoints selectionBox
+    
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Creates the scaling Box element
     let scalingBox = 
             let {BoundingBox.TopLeft = {X=fX; Y=fY}; H=fH; W=fW} = model.Box.BoxBound
             match model.SelectedComponents.Length with

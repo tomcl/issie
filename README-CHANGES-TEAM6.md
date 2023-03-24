@@ -5,3 +5,7 @@
 
 * Change SheetUpdate -> Rotate & Flip messages. Now replaced with smart rotate functionality so working with single and multiple components.
 * SymbolView symbol re-rendering detects changes in 'StyleType' (for curvy shapes)
+* Changed the function "validateTwoSelectedSymbols" to also validate 1 symbol. Needed for smartResizingDraggable in <SheetUpdateHelpers.fs>
+* Added type OrientationS to <Symbol.fs>
+* Changed TestPortPosition in <SheetUpdate.fs>
+

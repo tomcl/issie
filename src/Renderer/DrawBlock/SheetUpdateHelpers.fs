@@ -11,6 +11,7 @@ open Sheet
 open SheetSnap
 open SheetDisplay
 open DrawHelpers
+open SmartHelpers
 open Browser
 
 
@@ -148,11 +149,11 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
             if notIntersectingComponents model bBox compId then [] else [compId]
 
         {model with
-             Action = nextAction
-             SnapSymbols = snapXY
-             LastMousePos = mMsg.Pos
-             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-             ErrorComponents = errorComponents},
+            Action = nextAction
+            SnapSymbols = snapXY
+            LastMousePos = mMsg.Pos
+            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+            ErrorComponents = errorComponents},
         Cmd.batch [ symbolCmd (MoveSymbols (model.SelectedComponents, moveDelta))
                     Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head)
                     symbolCmd (ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
@@ -290,6 +291,15 @@ let mDownUpdate
                 let  portIdstr = match portId with | OutputPortId x -> x
                 {model with Action = MovingPort portIdstr}
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
+        // HLP23 AUTHOR: BRYAN TAN
+        | ComponentCorner (compId, fixedCornerLoc, _) ->
+            if not model.CtrlKeyDown then
+                model, Cmd.none
+            else
+                let symbolMap = Optic.get symbols_ model
+                let symbol = symbolMap[compId]
+                {model with Action = ResizingSymbol (compId, fixedCornerLoc); LastValidSymbol = Some symbol }, 
+                symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
 
         | Component compId ->
 
@@ -383,7 +393,8 @@ let mDragUpdate
         let dragCursor = 
             match model.Action with
             | MovingLabel _ -> Grabbing
-            | MovingSymbols _ -> CursorType.ClickablePort
+            | MovingSymbols _ -> ClickablePort
+            | ResizingSymbol _ -> GrabWire
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
     match model.Action with
@@ -459,6 +470,18 @@ let mDragUpdate
 
     | MovingPort portId->
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
+    // HLP23 AUTHOR: BRYAN TAN
+    | ResizingSymbol (compId, fixedCornerLoc) ->
+        let bBox = model.BoundingBoxes[compId]
+        let errorComponents  =
+            if notIntersectingComponents model bBox compId then [] else [compId]
+        {model with ErrorComponents = errorComponents},
+        Cmd.batch [
+            symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
+            Cmd.ofMsg (UpdateSingleBoundingBox compId)
+            symbolCmd (ErrorSymbols (errorComponents,[compId],false))
+            wireCmd (BusWireT.UpdateSymbolWires compId);]
+        
     | Panning initPos->
         let sPos = initPos - mMsg.ScreenPage
         model, Cmd.ofMsg (Msg.UpdateScrollPos sPos)
@@ -480,6 +503,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                     wireCmd (BusWireT.CoalesceWire connId)
                     wireCmd (BusWireT.MakeJumps [ connId ] ) ]
     | Selecting ->
+        let box = model.DragToSelectBox
         let newComponents = findIntersectingComponents model model.DragToSelectBox
         let newWires = 
             BusWireUpdate.getIntersectingWires model.Wire model.DragToSelectBox
@@ -498,7 +522,8 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             SelectedWires = selectWires; 
             AutomaticScrolling = false },
         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols selectComps)
-                    wireCmd (BusWireT.SelectWires selectWires) ]
+                    wireCmd (BusWireT.SelectWires selectWires)
+                    wireCmd (BusWireT.MakeChannel box)]
 
     | InitialiseMoving compId -> 
             // not sure there is any point to running this from mouse UP this now we are not altering selection?
@@ -560,6 +585,30 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             symbolCmd (SymbolT.MovePortDone (portId, mMsg.Pos))
             wireCmd (BusWireT.UpdateSymbolWires symbol);
             wireCmd (BusWireT.RerouteWire portId)]
+    // HLP23 AUTHOR: BRYAN TAN
+    | ResizingSymbol (compId, fixedCornerLoc) -> 
+        match model.ErrorComponents with 
+        | [] ->
+            {model with Action = Idle; LastValidSymbol = None},
+            Cmd.batch [
+                symbolCmd (SymbolT.ResizeSymbolDone (compId, None, fixedCornerLoc, mMsg.Pos))
+                Cmd.ofMsg UpdateBoundingBoxes
+                wireCmd (BusWireT.UpdateSymbolWires compId);]
+        | _ ->
+            {model with
+                BoundingBoxes = model.LastValidBoundingBoxes
+                Action = Idle
+                SnapSymbols = emptySnap
+                SnapSegments = emptySnap
+                AutomaticScrolling = false 
+                LastValidSymbol = None
+            },
+            Cmd.batch [ 
+                symbolCmd (SymbolT.ResizeSymbolDone (compId, model.LastValidSymbol, fixedCornerLoc, mMsg.Pos))
+                Cmd.ofMsg UpdateBoundingBoxes
+                symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
+                wireCmd (BusWireT.UpdateSymbolWires compId);
+            ]
     | _ -> model, Cmd.none
 
 /// Mouse Move Update, looks for nearby components and looks if mouse is on a port
@@ -589,21 +638,28 @@ let mMoveUpdate
                     symbolCmd (SymbolT.PasteSymbols [ newCompId ]) ]
     | _ ->
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
-
+        
+        // HLP23 AUTHOR: BRYAN TAN
+        let ctrlPressed = Set.contains "CONTROL" model.CurrentKeyPresses
         let newCursor =
             match model.CursorType, model.Action with
             | Spinner,_ -> Spinner
             | _ ->
                 match mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos with // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
-                | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
+                | InputPort (_, p) | OutputPort (_, p) -> ClickablePort // Change cursor if on port
+                // | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
                 | Label _ -> GrabLabel
                 | Connection _ -> GrabWire
                 | Component _ -> GrabSymbol
+                | ComponentCorner (_,_,idx) when ctrlPressed -> 
+                    match (idx % 2) with
+                    | 0 -> ResizeNWSE
+                    | _ -> ResizeNESW
                 | _ -> Default
         let newModel = { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement} } 
         
-        if Set.contains "CONTROL" model.CurrentKeyPresses then
-            newModel , symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents)
+        if ctrlPressed then
+            newModel , Cmd.batch [symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents); symbolCmd (SymbolT.ShowCustomCorners nearbyComponents)]
         else 
             newModel, symbolCmd (SymbolT.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
 
@@ -636,19 +692,31 @@ let validateTwoSelectedSymbols (model:Model) =
 /// However different testing may be needed, so who knows?
 /// Return the vertical channel between two bounding boxes, if they do not intersect and
 /// their vertical coordinates overlap.
-let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
+let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox * Orientation) option =
     if bb1.TopLeft.X > bb2.TopLeft.X then
         getChannel bb2 bb1
     else
-        if  bb1.TopLeft.X + bb1.W > bb2.TopLeft.X then
-            None // horizontal intersection
-        elif bb1.TopLeft.Y > bb2.TopLeft.Y + bb2.H || bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y then
+        if overlap2DBox bb1 bb2 then
+            None // boxes intersect, invalid channel
+        elif (bb1.TopLeft.Y > bb2.TopLeft.Y + bb2.H || bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y)
+             && bb2.TopLeft.X > bb1.TopLeft.X + bb1.W then
             None // symbols are not aligned vertically
-        else
-            let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X // horizontal channel
+        // Vertical Channel
+        elif bb2.TopLeft.X > bb1.TopLeft.X + bb1.W then
+            let x1, x2 = bb1.TopLeft.X + bb1.W, bb2.TopLeft.X 
             let union = boxUnion bb1 bb2
-            let topLeft = {Y=union.TopLeft.Y; X=x1}
-            Some {TopLeft = topLeft; H = union.H; W = x2 - x1}
-
-        
+            let topLeft = { Y=union.TopLeft.Y; X=x1 }
+            Some ( { TopLeft = topLeft; H = union.H; W = x2 - x1 }, Vertical )
+        // Horizontal Channel
+        else
+            let union = boxUnion bb1 bb2
+            if bb1.TopLeft.Y + bb1.H < bb2.TopLeft.Y then // bb2 below bb1
+                let y1, y2 = bb1.TopLeft.Y + bb1.H, bb2.TopLeft.Y
+                let topLeft = { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y + bb1.H }
+                Some ( { TopLeft = topLeft; H = y2 - y1; W = union.W }, Horizontal )
+            else // bb2 above bb1
+                let y1, y2 = bb1.TopLeft.Y, bb2.TopLeft.Y + bb2.H
+                let topLeft = { X = union.TopLeft.X; Y = bb2.TopLeft.Y + bb2.H }
+                Some ( { TopLeft = topLeft; H = y1 - y2; W = union.W }, Horizontal )
+                
 

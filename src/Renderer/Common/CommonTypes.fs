@@ -258,7 +258,30 @@ module CommonTypes
     type STransform = {Rotation: Rotation; flipped: bool}
     
     /// Represents the sides of a component
-    type Edge = | Top | Bottom | Left | Right
+    type Edge =
+        | Top
+        | Bottom
+        | Left
+        | Right
+        
+        /// HLP23: AUTHOR dgs119
+        member this.Opposite =
+            match this with
+            | Top -> Bottom
+            | Bottom -> Top
+            | Left -> Right
+            | _ -> Left
+
+    /// Holds possible directions to sort ports.
+    /// HLP23: AUTHOR dgs119
+    type Direction =
+        | Clockwise
+        | AntiClockwise
+
+        member this.Opposite =
+            match this with
+            | Clockwise -> AntiClockwise
+            | _ -> Clockwise
 
     type BoundingBox = {
         /// Top left corner of the bounding box
@@ -270,7 +293,7 @@ module CommonTypes
     }
         with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
     
-    
+    type ScaleFactor = { x: float; y: float }
     type ScaleAdjustment =
         | Horizontal
         | Vertical

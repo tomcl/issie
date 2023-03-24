@@ -149,12 +149,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | PortMovementStart ->
         match model.Action with
-        | Idle -> {model with CtrlKeyDown = true}, symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents) 
+        | Idle -> 
+            {model with CtrlKeyDown = true}, 
+            Cmd.batch 
+                [
+                    symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)
+                    symbolCmd (SymbolT.ShowCustomCorners model.NearbyComponents)
+                ]
         | _ -> model, Cmd.none
 
     | PortMovementEnd ->
         match model.Action with
-        | Idle -> {model with CtrlKeyDown = false}, symbolCmd (SymbolT.ShowPorts model.NearbyComponents)
+        | Idle -> 
+            {model with CtrlKeyDown = false}, 
+            Cmd.batch 
+                [
+                    symbolCmd (SymbolT.ShowPorts model.NearbyComponents)
+                    symbolCmd (SymbolT.HideCustomCorners model.NearbyComponents)
+                ]
         | _ -> {model with CtrlKeyDown = false}, Cmd.none
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
@@ -730,21 +742,26 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let remainder = (Array.length model.DebugMappings) % 8
         let viewerNo = 
             match remainder with
-            |0 -> (Array.length model.DebugMappings) / 8 
-            |_ ->  (Array.length model.DebugMappings) / 8 + 1
+            | 0 -> (Array.length model.DebugMappings) / 8 
+            | _ ->  (Array.length model.DebugMappings) / 8 + 1
         
         
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
-    | TestPortReorder ->
+    | ReorderPorts ->
         // Test code called from Edit menu item
         // Validate the lits of selected symbols: it muts have just 2 for
         // the test to work.
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2}, Cmd.none
+                /// HLP23: AUTHOR dgs119
+                let helpers = { 
+                    SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
+                    SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
+                    
+                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 helpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
@@ -755,7 +772,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2}, Cmd.none
+                let helpers = { 
+                    SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
+                    SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
+
+                {model with Wire = SmartSizeSymbol.reSizeSymbolTopLevel model.Wire s1 s2 helpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
@@ -770,15 +791,26 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 getChannel bBoxes[s1.Id] bBoxes[s2.Id]
                 |> function 
                    | None -> 
-                        printfn "Symbols are not oriented for a vertical channel"
+                        printfn "Symbols are not oriented for any channel"
                         model, Cmd.none
-                   | Some channel ->
-                        {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire}, Cmd.none
+                   | Some (channel, orient) ->
+                        {model with Wire = SmartChannel.smartChannelRoute orient channel model.Wire}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none   
     
+    | ToggleSnapToNet ->
+        model, (wireCmd BusWireT.ToggleSnapToNet)
+    | BeautifySheet ->  
+        let helpers = {
+            SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
+            SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
 
+        {model with Wire = SmartBeautify.smartBeautify model.Wire model.BoundingBoxes helpers}, Cmd.none
+    
+    | MakeChannelToggle ->
+        {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none
+        
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -810,6 +842,7 @@ let init () =
         CursorType = Default
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }
+        LastValidSymbol = None
         CurrentKeyPresses = Set.empty
         UndoList = []
         RedoList = []

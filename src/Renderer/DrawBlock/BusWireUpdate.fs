@@ -1,4 +1,4 @@
-﻿module BusWireUpdate
+module BusWireUpdate
 
 open CommonTypes
 open Elmish
@@ -89,6 +89,8 @@ let init () =
         Notifications = None
         Type = Constants.initialWireType
         ArrowDisplay = Constants.initialArrowDisplay
+        SnapToNet = true
+        MakeChannelToggle = false
     } , Cmd.none
 
 
@@ -230,6 +232,15 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 )
 
         { model with Wires = newWires }, Cmd.none
+
+    | MakeChannel (box: BoundingBox) ->
+        if model.MakeChannelToggle && box.H <> 0.0 && box.W <> 0.0 then
+            let fixedBox = SmartHelpers.fixBoundingBox box
+            let orientation = if fixedBox.H > fixedBox.W then Vertical else Horizontal
+            printfn "Making %A channel %A" orientation fixedBox
+            SmartChannel.smartChannelRoute orientation fixedBox model, Cmd.none
+        else
+            model, Cmd.none
 
     | DeleteWires (connectionIds : list<ConnectionId>) ->
         // deletes wires from model, then runs bus inference
@@ -441,6 +452,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 Map.add wid wire' wires)
 
         {model with Wires = newWires}, Cmd.none
+    | ToggleSnapToNet ->
+        {model with SnapToNet = not model.SnapToNet}, Cmd.none
 
 
 //---------------------------------------------------------------------------------//        

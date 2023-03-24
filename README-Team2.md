@@ -71,7 +71,6 @@ symbol B in bottom right quadrant with output port facing down, with other symbo
     - `getStartAndEndWirePos`: Return the start and end positions of a wire.
 - `SmartWire.fs`
     - Module that implements smart wire autoroute algorithm.
-
 # Smart Channel
 Derek Lai (ddl20)
 
@@ -80,4 +79,3 @@ Derek Lai (ddl20)
 - `SmartHelpers.fs` - To add helpers which detect overlap.
 - `SheetUpdate.fs` - To add horizontal channel generation.
 - `SheetUpdateHelpers.fs` - To add horizontal channel generation.
-

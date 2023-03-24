@@ -289,7 +289,6 @@ let sortMultPorts
 
 // Will only reorder the component with the most wires connected to it.
 // Only works if components are connected to the SymbolToReorder from the same edge.
-// All Components connected to that edge of the symbolToOrder should be selected or it will not work.
 // Main function for this part
 let multipleReorderPorts 
         (wModel: BusWireT.Model)
@@ -318,6 +317,12 @@ let multipleReorderPorts
     let CombinedOtherSymbolsOrder = CombinedOtherSymbols.PortMaps.Order
     let CombinedOtherSymbolsOrientation = CombinedOtherSymbols.PortMaps.Orientation
 
+    let wiresToAutoroute = 
+                wiresSymbolToOrder
+                |> List.filter (fun (_,x) ->
+                                    CombinedOtherSymbolsOrientation |> Map.containsKey $"{x.InputPort}" ||
+                                    CombinedOtherSymbolsOrientation |> Map.containsKey $"{x.OutputPort}")
+
     
     let SortedPorts = sortMultPorts connectedPortsNeeded CombinedOtherSymbolsOrientation CombinedOtherSymbolsOrder
                                                                                  
@@ -336,15 +341,15 @@ let multipleReorderPorts
                                                   |> Map.add newSymbolToOrder.Id newSymbolToOrder}
 
     // Rerouting the wires with our new model
-    let wiresToOrder = List.map (autoroute {wModel with Symbol = newSmodel}) (wModel.Wires |> Map.toList |> List.map (fun (_,x) -> x))
-
-
-    // getting the new wires with their Ids
-    let ListWires = List.zip (wModel.Wires |> Map.toList |> List.map (fun (y,_)->y)) wiresToOrder
+    // Could be replaced with smart autoroute 
+    let wiresAutorouted = 
+                            wiresToAutoroute
+                            |> List.map (fun (id, wire) -> (id, autoroute {wModel with Symbol = newSmodel} wire)) 
+                            |> List.fold (fun accMap (id, wire) -> Map.add id wire accMap) wModel.Wires
 
 
     {wModel with 
-        Wires = Map.ofList ListWires
+        Wires =  wiresAutorouted
         Symbol = newSmodel
     }
 

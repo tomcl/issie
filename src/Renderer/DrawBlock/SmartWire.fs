@@ -10,7 +10,6 @@ open SymbolUpdate
 open Optics
 open Operators
 open System 
-open PopupDrawingView
 open Fable.React
 open Fable.React.Props
 open Fulma
@@ -103,10 +102,11 @@ let sameSymbolRouting (model: Model) (wire: Wire) : Wire =
                 wire.Segments[4].Length - horizontalSeperation; wire.Segments[5].Length; wire.Segments[6].Length; -leftVertical ]
             updateWire wire segmentLengths
 
+
 /// returns a list of five new segments to create a new wire, given a segment lengths array and wire ID
 /// used in generateWireLabels to create a new wire between a wire label and symbol
 let createSegmentList (segLengths: float list) (wId: ConnectionId) : Segment list = 
-/// create segment given a segment lengths array and wire ID
+    // create segment given a segment lengths array and wire ID
     let createSegment index segLengths wId dragBool = 
         {
             Index = index
@@ -127,7 +127,8 @@ let createSegmentList (segLengths: float list) (wId: ConnectionId) : Segment lis
 
     segments
 
-
+/// wire label popup function for wire label replacement, which accepts a wire label name from text input
+/// if wire label name entered is "RANDOM", a random wire label name is generated
 let wireLabelPopup (model: Model) (wire : Wire) dispatch =
     let getText (dialogData : PopupDialogData) = 
         Option.defaultValue "" dialogData.Text
@@ -205,7 +206,8 @@ let wireLabelPopup (model: Model) (wire : Wire) dispatch =
     buildPopup title (fun _ -> body) (fun _ -> foot) (fun dispatch _ -> dispatch ClosePopup) [] 
 
 
-/// creates wire labels near two symbols
+/// creates wire labels near the two symbols originally connected by a wire
+/// wire label name is passed in as a string
 let generateWireLabels (model: Model) (wire: Wire) (wlName: string) : SmartAutorouteResult = 
     let inputPort = wire.InputPort
     let outputPort = wire.OutputPort
@@ -298,17 +300,20 @@ let generateWireLabels (model: Model) (wire: Wire) (wlName: string) : SmartAutor
         |> Map.add outputWireID outputWire
     ModelT {newOutputLabelModel with Wires = wiresMap}
 
-/// replaces wire with wire labels 
+
+
+/// Top level fucntion for replacing wires with wire labels
+/// deletes wire and generates wire labels
 let replaceWithWireLabels (model: Model) (wire: Wire) (wlName: string): SmartAutorouteResult =
+    // deletes wire from model by filtering out the wire
+    let deleteWire (model: Model) (wire: Wire) : Model = 
+        let newWires =
+            model.Wires
+            |> Map.filter (fun id w -> wire.WId <> id)
+        {model with Wires = newWires}
+
     let newWireMap = deleteWire model wire
     generateWireLabels newWireMap wire wlName
-
-
-/// finds wire in model by connection id
-let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
-    match model.Wires |> Map.toList |> List.tryFind (fun (_, wire) -> wire.Segments.[0].WireId = connId) with
-    | Some (_, wire) -> Some wire
-    | _ -> None
 
 /// returns left, middle, and right conditions for symbol intersection with wire
 let conditions (model: Model) (symbol: Symbol) (wire: Wire) : bool list = 
@@ -631,7 +636,7 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
     
     routing
 
-/// 2 (visable) segment wire routing
+/// routes two segment wires around symbols from input port to output port
 let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult = 
     let selfConnected = isSelfConnected model wire
     let routing = 
@@ -734,11 +739,11 @@ let routeTwoSegWires (model: Model) (wire: Wire) : SmartAutorouteResult =
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
+/// return type is a union type of SmartAutorouteResult which is either a Wire or a Model
 let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =     
     let symbol = findSymbol model wire Output
     let autoWire = autoroute model wire
     let segListLength = autoWire.Segments |> List.length
-    // printfn "segment info %A" wire.Segments
 
     match segListLength with
     | l when l < 7 -> 

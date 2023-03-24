@@ -71,7 +71,7 @@ let updateModelSymbols
 //Helper function to GetSelectComponenet takes in a component type and returns a bool. 
 ///Checks if the component is a component that contains a select port
 //HLP23: AUTHOR Khoury
-let CheckSelectComponent 
+let isMuxDemux 
     (inputType : ComponentType)
         : bool =
     match inputType with
@@ -82,6 +82,23 @@ let CheckSelectComponent
         | Demux4 -> true
         | Demux8 -> true
         | _ -> false
+
+/// Converts the input port ID to a string
+//HLP23: AUTHOR Khoury
+let typeConversionInput
+    (input:InputPortId)
+    : string =
+    match input with
+     | InputPortId x -> x
+
+/// Converts the output port ID to a string
+//HLP23: AUTHOR Khoury
+let typeConversionOutput
+    (input:OutputPortId)
+    : string =
+    match input with
+     | OutputPortId x -> x
+    
 
 // Helper function to CheckforFlip takes a DrawModelType.SymbolT.Model, a BusWireT.Model, a list of wires, and a symbol and returns a quad of two floats
 // a symbol and a model. 
@@ -104,7 +121,8 @@ let GetSelectWireLength
                                 | false -> (findOrderList symOrderMap Bottom)[0]
 
         let newSymbol =  flipSymbol FlipVertical inputSymbol 
-        let oldSelectWire = oldWires |> List.filter (fun wire -> $"{wire.InputPort}" = SelectPort || $"{wire.OutputPort}" = SelectPort)
+        let oldSelectWire = oldWires |> List.filter (fun wire -> typeConversionInput(wire.InputPort) = SelectPort || 
+                                                                                   typeConversionOutput(wire.OutputPort) = SelectPort)
 
         if List.isEmpty oldSelectWire then 
             0.0, 0.0, inputSymbol, wModel
@@ -120,7 +138,7 @@ let GetSelectWireLength
 
 ///Gets the lengths of the select wires in all cases. Checks which one is better and returns the best performing symbols and model.
 //HLP23: AUTHOR Khoury
-let CheckforFlip  
+let modelWithBestFlip  
     (sModel : DrawModelType.SymbolT.Model)
     (wireList: Wire list)
     (wModel: BusWireT.Model)
@@ -133,7 +151,7 @@ let CheckforFlip
 
     match CheckSelectComponent symComponentType with 
         | true ->
-            let lengthNewSelect, lengthOldSelect , newSymbol, newModel= GetSelectWireLength newSmodel wModel wireList otherSymbol
+            let lengthNewSelect, lengthOldSelect , newSymbol, newModel= GetSelectWireLength  wModel wireList otherSymbol
             match lengthNewSelect < lengthOldSelect with
                | true -> newSymbol, newModel, true
                | false -> otherSymbol, wModel, false 

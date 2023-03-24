@@ -11,9 +11,7 @@ open SmartWire
 open Optics
 open Operators
 
-// HLP23: AUTHOR Omar
 open SmartHelpers
-open System
 
 //---------------------------------------------------------------------------------//
 //----------------------Helper functions that need SmartRoute etc------------------//
@@ -69,7 +67,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
             |> List.tryHead
 
         wireId'
-        
+
     match wireId with   // handles error from wires update called when no wires exist
     | None -> model
     | Some wireId ->

@@ -1,11 +1,8 @@
 ﻿module SmartHelpers
 open CommonTypes
-open DrawHelpers
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
-open BusWire
-open BusWireUpdateHelpers
 
 open Optics
 open Operators
@@ -175,7 +172,6 @@ let findSymbolHelper (wModel: BusWireT.Model) (portId: string) =
     |> Map.tryFind (ComponentId inputPortHostId)
 
     
-
 /// HLP23: Author Omar
 /// discriminated union for the modes of the findSymbol function
 type findSymbolMode = Input| Output

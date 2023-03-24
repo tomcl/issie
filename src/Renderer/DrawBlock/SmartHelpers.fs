@@ -83,17 +83,16 @@ let CheckSelectComponent
         | Demux8 -> true
         | _ -> false
 
-// Helper function to CheckforFlip takes a DrawModelType.SymbolT.Model, a BusWireT.Model, a list of wires, and a symbol and returns a triple of 
-// a symbol, a symbol, and a BusWireT.Model. 
+// Helper function to CheckforFlip takes a DrawModelType.SymbolT.Model, a BusWireT.Model, a list of wires, and a symbol and returns a quad of two floats
+// a symbol and a model. 
 /// Gets the length of the select wire if the compenent is flipped and if it is not flipped. It returns the two length and the flipped component.
 //HLP23: AUTHOR Khoury
 let GetSelectWireLength
-    (sModel : DrawModelType.SymbolT.Model)
     (wModel: BusWireT.Model)
     (wireList: Wire list)
     (inputSymbol : Symbol)
         : float*float*Symbol*BusWireT.Model=
-
+        let sModel = wModel.Symbol
         let symOrderMap = inputSymbol.PortMaps.Order 
         let findOrderList map edge = map |> Map.find edge
 

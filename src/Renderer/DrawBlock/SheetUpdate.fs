@@ -27,41 +27,7 @@ module node = Node.Api
 importReadUart 
 
 open Symbol
-let createNewSymbol  (pos: XYPos) (comptype: ComponentType) (label:string) modelStyle =
-    let id = JSHelpers.uuid ()
-    let comp = makeComponent pos comptype id label
-    let transform = {Rotation= Degree0; flipped= false}
 
-    { 
-      Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
-      LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
-      LabelHasDefaultPos = false
-      LabelRotation = None
-      Appearance =
-          {
-            HighlightLabel = false
-            ShowPorts = ShowNone
-            Colour = "Black"
-            Opacity = 1.0
-            Style = modelStyle
-          }
-      InWidth0 = None // set by BusWire
-      InWidth1 = None
-      Id = ComponentId id
-      Component = comp
-      Moving = false
-      PortMaps = initPortOrientation comp
-      STransform = transform
-      ReversedInputPorts = Some false
-      MovingPort = None
-      IsClocked = false
-      MovingPortTarget = None
-      HScale = None
-      VScale = None
-      
-    }
-    |> autoScaleHAndW
-    |> calcLabelBoundingBox
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     /// check things that might not have been correctly completed in the last update and if so do them
@@ -145,7 +111,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     symbolCmd (SymbolT.PasteSymbols pastedCompIds)
                     wireCmd (BusWireT.SelectWires [])
                     wireCmd (BusWireT.ColorWires (pastedConnIds, HighLightColor.Thistle)) ]
-    
+                
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Gets bounsing box dimentions and creates the necessary symbol buttons
     | DrawBox ->
         let box: BoundingBox = 
                     match model.SelectedComponents.Length with
@@ -157,11 +125,16 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if (model.SelectedComponents.Length < 2) then 
             (model), Cmd.none
         else
-            let createdrotateACWSym = {(createNewSymbol {X=box.TopLeft.X - 69.5; Y=box.TopLeft.Y+((box.H/2. )- 12.5)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+
+            let topleftX =  box.TopLeft.X 
+            let topleftY =  box.TopLeft.Y
+            let width = box.W
+            let height= box.H
+            let createdrotateACWSym = {(createNewSymbolButton {X=topleftX- 93.; Y=topleftY+((height/2. )- 12.5)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
             let rotateACWSym = {createdrotateACWSym with Component = {createdrotateACWSym.Component with H = 25.; W=25.}}
-            let createdrotateCWSym = createNewSymbol {X=box.TopLeft.X+box.W+ 57.; Y=box.TopLeft.Y+((box.H/2.)- 12.5)} RotateButton  "RotateCW" Distinctive
-            let rotateCWSym = {createdrotateCWSym with Component = {createdrotateCWSym.Component with H = 25.; W=25.}}
-            let buttonSym = createNewSymbol {X=box.TopLeft.X+box.W+ 46.5; Y=box.TopLeft.Y-53.5} ScaleButton "ScaleButton"  Distinctive
+            let createdrotateCWSym = createNewSymbolButton {X=topleftX+width+ 57.; Y=topleftY+((height/2.)-12.5)} RotateButton  "RotateCW" Distinctive
+            let rotateCWSym = {createdrotateCWSym with Component = {createdrotateCWSym.Component with H = 25.; W= 25.}}
+            let buttonSym = createNewSymbolButton {X=topleftX+width+ 46.5; Y=topleftY-53.5} ScaleButton "ScaleButton"  Distinctive
             let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym |> Map.add rotateACWSym.Id rotateACWSym |> Map.add rotateCWSym.Id rotateCWSym
             ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = Some buttonSym; RotateCWButton= Some rotateCWSym; RotateACWButton= Some rotateACWSym}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id]}), Cmd.none
             //Center and Radius might be unused here ^

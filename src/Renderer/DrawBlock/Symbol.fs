@@ -668,17 +668,24 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     let comp = makeComponent pos comptype id label
     let transform = {Rotation= Degree0; flipped= false}
 
+    let (gateStyle:GateStyle option) =
+        match theme with
+        |OldSymbols -> Some OldGates
+        |NewSymbols -> Some NewGates
+        | _ -> None
+
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
       LabelHasDefaultPos = true
       LabelRotation = None
-      Appearance =
+      Appearance = //HLP23: Shaanuka
           {
             HighlightLabel = false
             ShowPorts = ShowNone
             Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
+            GateType = gateStyle
           }
       InWidth0 = None // set by BusWire
       InWidth1 = None
@@ -762,22 +769,16 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
     else    
         {X = 0.; Y = 0.}
 
-    
+
 
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
-let getPortPos (sym: Symbol) (modifiedPort: Port): XYPos =
-    //HLP23: Shaanuka
-    let checkPortPosType oldPort = 
-        match oldPort.HostId.Substring(oldPort.HostId.Length - 6) with  
-            | "curved" -> true //curved used to identify curved port structure for Old OR gates since you can't pass Theme into getPortPos 
-            | _ -> false
-    let port = 
-        match checkPortPosType modifiedPort with 
-        | true ->  {modifiedPort with HostId = modifiedPort.HostId.Remove(modifiedPort.HostId.Length - 6)}
-        | _ ->      modifiedPort
+let getPortPos (sym: Symbol) (port: Port): XYPos =                                                                            
+    let isOldSymb =                                 //HLP23: Shaanuka 
+        match sym.Appearance.GateType with
+        |Some OldGates -> true
+        |_ -> false
         
-    let isOldSymb = checkPortPosType modifiedPort
     //get ports on the same edge first
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
@@ -813,16 +814,11 @@ let getPortPos (sym: Symbol) (modifiedPort: Port): XYPos =
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
 let inline getPortPosToRender (sym: Symbol) (port: Port) (theme: ThemeType): XYPos =    //HLP23: Shaanuka
-    let getRenderPort newPort = 
-        match sym.MovingPort with
-        | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
-        | _ -> 
-            //printfn "symbol %A portDimension %A" sym.Component.Type (getPortPos sym port)
-            getPortPos sym newPort
-
     match theme with
-    | OldSymbols -> getRenderPort {port with HostId = port.HostId + "curved"} // HLP23: curved used to identify curved port structure for Old OR gates since you can't pass Theme into getPortPos 
-    | _ -> getRenderPort port
+    | OldSymbols -> let newAppearance ={sym.Appearance with GateType = Some OldGates}
+                    getPortPos {sym with Appearance = newAppearance} port
+    | _ ->  let newAppearance ={sym.Appearance with GateType = Some NewGates}
+            getPortPos {sym with Appearance = newAppearance} port
 
 let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port

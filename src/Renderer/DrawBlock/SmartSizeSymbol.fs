@@ -17,18 +17,13 @@ open SmartHelpers
 ///HLP23: Shaanuka - Helper function for scaling custom component sizes
 ///Scales custom component size by multiplying the Symbol fields HScale and VScale by input float
 ///XScale and YScale and returns Symbol type .
-let symbolSizeScale (symbol: Symbol) xScale yScale =
+let symbolSizeScale (symbol: Symbol) (xScale,yScale) =
 
     match symbol.VScale, symbol.HScale with 
     |Some vScale, Some hScale ->    let vScaleRes = vScale * yScale
                                     let hScaleRes = hScale * xScale
                                     {symbol with VScale = Some vScaleRes; HScale = Some hScaleRes}
     |_, _ -> {symbol with VScale = Some yScale; HScale = Some xScale}
-
-// Helper function compiled later
-type BusWireHelpers = {
-    updateSymbolWires: Model -> ComponentId -> Model
-    }
 
 /// HLP23: AUTHOR Ifte
 /// reSizeSymbol takes two symbols connected by wires and resizes symbolToSize so that any wires
@@ -115,13 +110,23 @@ let reSizeSymbol
             let newY = symbolToSize.Pos.Y - offset' - (1.0 - scale)*(symbolToSize.Pos.Y - fst pair)
             let newComp = {symbolToSize.Component with Y = newY}
             let newPos = {symbolToSize.Pos with Y = newY}
-            let symbolToSize' = symbolSizeScale symbolToSize 1.0 scale
+            let scalePair = 
+                match symbolToSize.LabelRotation with
+                | Some Degree90 -> scale, 1.0
+                | Some Degree270 -> scale, 1.0
+                | _ -> 1.0, scale
+            let symbolToSize' = symbolSizeScale symbolToSize scalePair
             {symbolToSize' with Pos = newPos; Component = newComp}
         | Some Vertical, Some offset', Some pair -> 
             let newX = symbolToSize.Pos.X - offset' - (1.0 - scale)*(symbolToSize.Pos.X - fst pair)
             let newComp = {symbolToSize.Component with X = newX}
             let newPos = {symbolToSize.Pos with X = newX}
-            let symbolToSize' = symbolSizeScale symbolToSize scale 1.0
+            let scalePair = 
+                match symbolToSize.LabelRotation with
+                | Some Degree90 -> scale, 1.0
+                | Some Degree270 -> scale, 1.0
+                | _ -> 1.0, scale
+            let symbolToSize' = symbolSizeScale symbolToSize scalePair
             {symbolToSize' with Pos = newPos; Component = newComp}
         | _ -> symbolToSize
 
@@ -139,6 +144,7 @@ let reSizeSymbol
         (orientation, wireList) 
         ||> Option.map2 getConnectedWires 
         |> Option.map2 getWirePorts orientation
+    printf "%A" wirePorts
 
     let fstIdx = 
         wirePorts
@@ -146,7 +152,7 @@ let reSizeSymbol
         |> Option.flatten
     let fstPorts = 
         (fstIdx, wirePorts)
-        ||> Option.map2 List.item 
+        ||> Option.map2 List.item
 
     let offset = 
         fstPorts 
@@ -169,11 +175,11 @@ let reSizeSymbol
         (offset, portSep, sndPorts) 
         |||> Option.map3 getScale
 
-    printf "%A" offset
-    printf "%A" fstPorts
-    printf "%A" sndPorts
-    printf "%A" portSep
-    printf "%A" scale
+    //printf "%A" offset
+    //printf "%A" fstPorts
+    //printf "%A" sndPorts
+    //printf "%A" portSep
+    //printf "%A" scale
 
     let newSymbol = getNewSymbol orientation offset scale fstPorts
 
@@ -191,7 +197,7 @@ let reSizeSymbol
 /// Applies wire straightening across an entire sheet by scaling/translating symbols
 let sheetReSizeSymbol
     (wModel: BusWireT.Model)
-    (busWireHelper: BusWireHelpers)
+    (busWireHelper: SmartHelpers.BusWireHelpers)
         : BusWireT.Model =
 
     let wireLst =

@@ -272,11 +272,6 @@ let findInterconnectingWires (wireList:List<Wire>) (sModel)
         )
 
 
-/// Some helpers which are lower in compiler order
-type BusWireHelpers = {
-    updateWire: Model -> Wire -> bool -> SmartAutorouteResult
-    updateSymbolWires: Model -> ComponentId -> Model
-    }
 
 /// Main Function that is called from issie
 let reOrderPorts 
@@ -343,7 +338,7 @@ let reOrderPorts
 /// Applies port reordering across entire sheet
 let sheetReOrderPorts 
     (wModel: BusWireT.Model) 
-    (busWireHelper: BusWireHelpers)
+    (busWireHelper: SmartHelpers.BusWireHelpers)
         : BusWireT.Model =
 
     printfn $"Ordering the whole sheet"

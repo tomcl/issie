@@ -10,24 +10,14 @@ open DrawModelType.BusWireT
 open Symbol
 open Optics
 open Operators
-open SmartHelpers
-
-// HLP23: AUTHOR Ifte
-
-// Helper function compiled later
-type BusWireHelpers = {
-    updateWire: Model -> Wire -> bool -> SmartAutorouteResult
-    updateSymbolWires: Model -> ComponentId -> Model
-    }
 
 /// HLP23: AUTHOR Ifte
 /// reArrangePorts rearranges ports and aligns wires across the whole sheet
 let reArrangePorts
     (wModel: BusWireT.Model)
-    (sizeHelper: SmartSizeSymbol.BusWireHelpers)
-    (portHelper: SmartPortOrder.BusWireHelpers)
+    (wireHelper: SmartHelpers.BusWireHelpers)
         : BusWireT.Model =
 
-    (wModel, portHelper)
+    (wModel, wireHelper)
     ||> SmartPortOrder.sheetReOrderPorts
-    |> SmartSizeSymbol.sheetReSizeSymbol <| sizeHelper
+    |> SmartSizeSymbol.sheetReSizeSymbol <| wireHelper

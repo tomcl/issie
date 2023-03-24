@@ -739,7 +739,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | TestSheetReorder ->
         // Test code called from Edit menu item
 
-        let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
+        let portOrderHelpers: SmartHelpers.BusWireHelpers = 
             {
                 updateWire = BusWireUpdate.updateWire
                 updateSymbolWires = BusWireUpdate.updateSymbolWires
@@ -752,7 +752,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // Validate the list of selected symbols: it must have just 2 for
         // the test to work.
          /// HLP23: Indraneel
-         let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
+         let portOrderHelpers: SmartHelpers.BusWireHelpers = 
             {
                 updateWire = BusWireUpdate.updateWire
                 updateSymbolWires = BusWireUpdate.updateSymbolWires
@@ -769,8 +769,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // Test code called from Edit menu item
 
          /// HLP23: Ifte
-         let symbolSizeHelpers: SmartSizeSymbol.BusWireHelpers = 
+         let symbolSizeHelpers: SmartHelpers.BusWireHelpers = 
             {
+                updateWire = BusWireUpdate.updateWire
                 updateSymbolWires = BusWireUpdate.updateSymbolWires
             }
 
@@ -805,27 +806,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // Test code called from Edit menu item
 
          /// HLP23: Ifte
-         let portOrderHelpers: SmartPortOrder.BusWireHelpers = 
+         let busWireHelpers: SmartHelpers.BusWireHelpers = 
             {
                 updateWire = BusWireUpdate.updateWire
                 updateSymbolWires = BusWireUpdate.updateSymbolWires
             }
-         let symbolSizeHelpers: SmartSizeSymbol.BusWireHelpers = 
-            {
-                updateSymbolWires = BusWireUpdate.updateSymbolWires
-            }
 
-         // Validate the list of selected symbols: it must have just 2 for
-         // the test to work.
-         //validateTwoSelectedSymbols model
-         //|> function
-         //   | Some (s1,s2) ->
-         //       {model with Wire = SmartPortArrange.reArrangePorts model.Wire s1 s2 symbolSizeHelpers portOrderHelpers}, Cmd.none
-         //   | None -> 
-         //       printfn "Error: can't validate the two symbols selected to reorder ports"
-         //       model, Cmd.none
-
-         {model with Wire = SmartPortArrange.reArrangePorts model.Wire symbolSizeHelpers portOrderHelpers}, Cmd.none
+         {model with Wire = SmartPortArrange.reArrangePorts model.Wire busWireHelpers }, Cmd.none
     
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none

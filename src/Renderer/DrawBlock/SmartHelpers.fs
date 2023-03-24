@@ -229,7 +229,7 @@ let getOrientation fstSym sndSym =
     then
         Some Vertical
     else if (((fstCorners.TopLeft.X > sndCorners.TopRight.X) || (fstCorners.TopRight.X < sndCorners.TopLeft.X)) 
-            && (fstCorners.TopLeft.X < sndCorners.BottomLeft.Y) 
+            && (fstCorners.TopLeft.Y < sndCorners.BottomLeft.Y) 
             && (fstCorners.BottomLeft.Y > sndCorners.TopLeft.Y)) 
     then
         Some Horizontal

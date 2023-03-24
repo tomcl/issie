@@ -305,7 +305,7 @@ let reOrderPorts
     (busWireHelper: BusWireHelpers)
         : BusWireT.Model =
 
-    printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label} {symbolToOrder.Id }, Other:{otherSymbol.Component.Label}"
+    printfn $"ReorderPorts: ToOrder:{symbolToOrder.Component.Label}, Other:{otherSymbol.Component.Label}"
 
     let sModel = wModel.Symbol
     let OriginalPortMap = symbolToOrder.PortMaps.Order
@@ -353,7 +353,7 @@ let singleReOrder
     (busWireHelper: BusWireHelpers)
         : BusWireT.Model =
 
-    printfn $"Ordering the Single Component"
+    printfn $"Ordering the Single Component {symbolToOrder.Component.Label}"
     let sModel = wModel.Symbol
 
     let wireList =
@@ -372,11 +372,10 @@ let singleReOrder
 
         |> List.distinct
 
-
     let wModel' = 
         (wModel, inputSymbols)
         ||> List.fold (fun model otherSymbol ->   
-            reOrderPorts wModel symbolToOrder otherSymbol busWireHelper
+            reOrderPorts model symbolToOrder otherSymbol busWireHelper
         )
 
     wModel'

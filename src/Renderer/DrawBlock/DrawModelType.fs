@@ -98,6 +98,16 @@ module SymbolT =
         |Colourful
         |OldSymbols //HLP23: Shaanuka
         |NewSymbols
+    ///useful symbol properties used in symbolView
+    type SymbolProperties =
+        {
+            strokeWidth : string
+            colour : string
+            outlineColour: string
+            opacity: float
+            width: float
+            height: float
+        }
 
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})

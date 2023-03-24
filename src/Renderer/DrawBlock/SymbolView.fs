@@ -180,13 +180,11 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> relativeToTopLeft
 
 //HLP23: Shaanuka
-///Change rendered scale of component's width and height
-let scaleCompSize (comp:Component) scaleX scaleY = 
-    let newComp = {comp with W = comp.W*scaleX; H = comp.H*scaleY}
-    newComp
 
-let getLabelScale = 
-    1.0 // change to whatever label size scale you want (orignila font size = 16px)
+///helper function to scale legend size
+let getlegendScale =
+    let scale = 1.0
+    scale // change to whatever label size scale you want (orignila font size = 16px)
 
 ///gets the LabelRotation from symbol and returns the integer angle of rotation
 let getSymbolRotation (symbol:Symbol) =
@@ -211,10 +209,15 @@ let NotCircleAngleSHift (w:float) (h:float) angle notDiameter =
 //HLP23: Shaanuka
 /// Draws component in either new IEEE style with legends or old curved style without legends, returns list of react elements
 /// depending on theme and component
-let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour opacity (symbolType:ThemeType) //HLP23: Shaanuka
-                        w h (symbol:Symbol) transform legendFontSize legendOffset=
+let smartDrawComponent (comp:Component) symbolProperties points (symbolType:ThemeType) (symbol:Symbol) transform legendFontSize legendOffset =
     match symbolType with 
-    | OldSymbols -> let parameters = {Stroke = "Black"; StrokeWidth = strokeWidth; StrokeDashArray = ""; StrokeLinecap = "round"; Fill = colour}
+    | OldSymbols -> let parameters ={
+                                        Stroke = "Black";
+                                        StrokeWidth = symbolProperties.strokeWidth;
+                                        StrokeDashArray = "";
+                                        StrokeLinecap = "round";
+                                        Fill = symbolProperties.colour
+                                    }
                     let notDiameter = 8.
                     match comp.Type with
 
@@ -299,10 +302,11 @@ let smartDrawComponent (comp:Component) strokeWidth points colour outlineColour 
                                     comp.W comp.W angle (notDiameter))) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
                                 ]
 
-                    |_ ->   createBiColorPolygon points colour outlineColour opacity strokeWidth comp
+                    |_ ->   createBiColorPolygon points symbolProperties.colour symbolProperties.outlineColour 
+                                                 symbolProperties.opacity symbolProperties.strokeWidth comp
 
-    | _ ->  (createBiColorPolygon points colour outlineColour opacity strokeWidth comp) @(addLegendText (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) "middle" "bold" (legendFontSize comp.Type))
+    | _ ->  (createBiColorPolygon points symbolProperties.colour symbolProperties.outlineColour symbolProperties.opacity symbolProperties.strokeWidth comp) 
+            @(addLegendText (legendOffset symbolProperties.width symbolProperties.height symbol) (getComponentLegend comp.Type transform.Rotation) "middle" "bold" (legendFontSize comp.Type))
 
 /// Draw symbol (and its label) using theme for colors, returning a list of React components 
 /// implementing all of the text and shapes needed.
@@ -518,13 +522,11 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | IOLabel -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"
-    
-
 
     //HLP23: Shaanuka - change label size by scale factor + offset for mergewire and splitwire labels
     /// to deal with the label
     let addComponentLabel (comp: Component) transform colour = 
-        let scale = getLabelScale
+        let scale = getlegendScale
         let weight = Constants.componentLabelStyle.FontWeight // bold or normal
         let style = {Constants.componentLabelStyle with FontWeight = weight}
         let scaledLabelFontSize = Constants.labelFontSizeInPixels * scale
@@ -588,6 +590,16 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
+    let symbolProperties  =
+        {
+            strokeWidth = strokeWidth;
+            colour = colour;
+            outlineColour = outlineColour;
+            opacity = opacity; 
+            width = w;
+            height = h;
+
+        }
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol theme)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol theme)
@@ -595,7 +607,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (smartDrawComponent comp strokeWidth points colour outlineColour opacity theme w h symbol transform legendFontSize legendOffset) //HLP23: Shaanuka
+    |> List.append (smartDrawComponent comp symbolProperties points theme symbol transform legendFontSize legendOffset) //HLP23: Shaanuka
 
 
 //----------------------------------------------------------------------------------------//

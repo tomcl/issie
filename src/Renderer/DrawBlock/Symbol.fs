@@ -762,7 +762,7 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
     else    
         {X = 0.; Y = 0.}
 
-    
+
 
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol

@@ -31,10 +31,11 @@ type ConstantsSmartSize = {
 let OffsetSmartSize = {Distance = 50.0}
 
 let offsetPorts
-    (wire: (ConnectionId * Wire) option)
     (orderedPortsResize: (string * XYPos) list)
     (orderedPortsOther: (string * XYPos) list)
     (orient: OrientationS option)
+    (wire: (ConnectionId * Wire) option)
+
         : XYPos = 
     match wire with
     | Some x ->
@@ -120,8 +121,6 @@ let relationPos
     then Some LeftRight
     else None
 
-//let checkType
-
 let getType 
     (symbol: Symbol)
         : string =
@@ -129,6 +128,27 @@ let getType
     | Custom (CustomComponentType) -> "Custom"
     | _ -> "Else"
 
+let portDist 
+    (wModel: BusWireT.Model) 
+    (symbolToSize: Symbol) 
+    (otherSymbol: Symbol) 
+    (orient: OrientationS option)=
+        match orient with
+        | Some TopBottom -> 
+            if symbolToSize.Pos.Y < otherSymbol.Pos.Y then
+                getAllPortsFromEdgeOrdered wModel symbolToSize orient Bottom,
+                getAllPortsFromEdgeOrdered wModel otherSymbol orient Top
+            else
+                getAllPortsFromEdgeOrdered wModel symbolToSize orient Top,
+                getAllPortsFromEdgeOrdered wModel otherSymbol orient Bottom
+        | Some LeftRight ->
+            if symbolToSize.Pos.X < otherSymbol.Pos.X then
+                getAllPortsFromEdgeOrdered wModel symbolToSize orient Right,
+                getAllPortsFromEdgeOrdered wModel otherSymbol orient Left
+            else 
+                getAllPortsFromEdgeOrdered wModel symbolToSize orient Left,
+                getAllPortsFromEdgeOrdered wModel otherSymbol orient Right
+        | None -> [], []
 
 let reSizeSymbol 
     (wModel: BusWireT.Model) 
@@ -140,41 +160,28 @@ let reSizeSymbol
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
     let manageableWires = Map.toList wModel.Wires
     let sModel = wModel.Symbol
-    let Orient = relationPos symbolToSize otherSymbol
+    let orient = relationPos symbolToSize otherSymbol
+    //I tried to implement the function proposed in my individual feedback (Rzepala), 
+    //But no matter what I did, it always seemed to produce the scaling factor of 1.0
+    //In the end, I decided to leave the working solution.
     let portsOrderedToSize, portsOrderedOther = 
-        match Orient with
-        | Some TopBottom -> 
-            if symbolToSize.Pos.Y < otherSymbol.Pos.Y then
-                getAllPortsFromEdgeOrdered wModel symbolToSize Orient Bottom,
-                getAllPortsFromEdgeOrdered wModel otherSymbol Orient Top
-            else
-                getAllPortsFromEdgeOrdered wModel symbolToSize Orient Top,
-                getAllPortsFromEdgeOrdered wModel otherSymbol Orient Bottom
-        | Some LeftRight ->
-            if symbolToSize.Pos.X < otherSymbol.Pos.X then
-                getAllPortsFromEdgeOrdered wModel symbolToSize Orient Right,
-                getAllPortsFromEdgeOrdered wModel otherSymbol Orient Left
-            else 
-                getAllPortsFromEdgeOrdered wModel symbolToSize Orient Left,
-                getAllPortsFromEdgeOrdered wModel otherSymbol Orient Right
-        | None -> [], []
+        portDist wModel symbolToSize otherSymbol orient
 
+    let dimension = getPortDist portsOrderedToSize orient, getPortDist portsOrderedOther orient
 
-    let Dimension = getPortDist portsOrderedToSize Orient, getPortDist portsOrderedOther Orient
-
-    let ScaleFactor = 
-        match Dimension with
+    let scaleFactor = 
+        match dimension with
         | (Some x, Some y) -> y / x
         | (None, _) -> 1.0
         | (_, _) -> 1.0 
     
     let symbol' = 
-        match Orient with
+        match orient with
         | Some TopBottom -> 
-            {symbolToSize with HScale = Some (ScaleFactor * Scale symbolToSize.HScale)}
+            {symbolToSize with HScale = Some (scaleFactor * Scale symbolToSize.HScale)}
             |> calcLabelBoundingBox
         | Some LeftRight -> 
-            {symbolToSize with VScale = Some (ScaleFactor * Scale symbolToSize.VScale)}
+            {symbolToSize with VScale = Some (scaleFactor * Scale symbolToSize.VScale)}
             |> calcLabelBoundingBox
         | None -> symbolToSize
 
@@ -186,37 +193,18 @@ let reSizeSymbol
     let wModel'' = {wModel' with  Wires = wires'}
 
     let portsOrderedToSize', portsOrderedOther' = 
-        match Orient with
-        | Some TopBottom -> 
-            if symbolToSize.Pos.Y < otherSymbol.Pos.Y then
-                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Bottom,
-                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Top
-            else
-                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Top,
-                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Bottom
-        | Some LeftRight ->
-            if symbolToSize.Pos.X < otherSymbol.Pos.X then
-                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Right,
-                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Left
-            else 
-                getAllPortsFromEdgeOrdered wModel'' symbol' Orient Left,
-                getAllPortsFromEdgeOrdered wModel'' otherSymbol Orient Right
-        | None -> [], []
+        portDist wModel'' symbol' otherSymbol orient
 
-    let Checker = 
-        getCommonWires wModel'' symbolToSize otherSymbol Orient 
+    let offset = 
+        getCommonWires wModel'' symbolToSize otherSymbol orient 
         |> Map.toList
-    
-    let Checker' = 
-        match Checker.Length with
-        | 0 -> None
-        | n when n > 0 ->
-            let tmp = Checker[0]
-            Some tmp
+        |> function 
+            | [hd] -> Some hd
+            | hd::tl -> Some hd
+            | [] -> None
+        |> offsetPorts  portsOrderedToSize' portsOrderedOther' orient
 
-    let Checker'' = offsetPorts Checker' portsOrderedToSize' portsOrderedOther' Orient
-
-    let symbol'' = symbol' |> moveSymbol Checker''|> calcLabelBoundingBox
+    let symbol'' = symbol' |> moveSymbol offset |> calcLabelBoundingBox
 
     {wModel with Symbol = {sModel with Symbols = Map.add symbol''.Id symbol'' sModel.Symbols}}
 

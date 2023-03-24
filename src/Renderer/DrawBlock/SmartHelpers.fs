@@ -9,6 +9,13 @@ open BusWireUpdateHelpers
 
 open Optics
 open Operators
+open SheetCreator
+open System 
+open PopupDrawingView
+open Fable.React
+open Fable.React.Props
+open Fulma
+open SymbolUpdate
 
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
@@ -241,3 +248,4 @@ type BusWireHelpers = {
     updateWire: Model -> Wire -> bool -> SmartAutorouteResult
     updateSymbolWires: Model -> ComponentId -> Model
     }
+

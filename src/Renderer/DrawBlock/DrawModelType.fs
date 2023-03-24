@@ -538,10 +538,10 @@ module SheetT =
         | DebugPause
         | SetDebugDevice of string
         | TestPortReorder
-        | TestSheetReorder
         | TestSmartChannel
         | TestPortPosition
-        | TestPortArrange // HLP23 Ifte
+        | TestPortArrange
+        | SingleReorder
 
 
     type ReadLog = | ReadLog of int

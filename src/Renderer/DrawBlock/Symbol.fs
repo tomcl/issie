@@ -766,7 +766,18 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
 
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
-let getPortPos (sym: Symbol) (port: Port) : XYPos =
+let getPortPos (sym: Symbol) (modifiedPort: Port): XYPos =
+    //HLP23: Shaanuka
+    let checkPortPosType oldPort = 
+        match oldPort.HostId.Substring(oldPort.HostId.Length - 6) with  
+            | "curved" -> true //curved used to identify curved port structure for Old OR gates since you can't pass Theme into getPortPos 
+            | _ -> false
+    let port = 
+        match checkPortPosType modifiedPort with 
+        | true ->  {modifiedPort with HostId = modifiedPort.HostId.Remove(modifiedPort.HostId.Length - 6)}
+        | _ ->      modifiedPort
+        
+    let isOldSymb = checkPortPosType modifiedPort
     //get ports on the same edge first
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
@@ -780,27 +791,38 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let portDimension = float ports.Length - 1.0
     //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
-    match side with
-    | Left ->
-        let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
-    | Right -> 
-        let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
-    | Bottom -> 
-        let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = 0.0 }
-    | Top ->
-        let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = 0.0 }
+    let matchSide side offset=   
+        match side with
+        | Left ->
+            let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
+            baseOffset' + {X = 0.0+offset; Y = yOffset }
+        | Right -> 
+            let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
+            baseOffset' + {X = 0.0; Y = yOffset }
+        | Bottom -> 
+            let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
+            baseOffset' + {X = xOffset; Y = 0.0 }
+        | Top ->
+            let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
+            baseOffset' + {X = xOffset; Y = 0.0 }
+
+    match sym.Component.Type, index, isOldSymb with
+    | (Or n | Nor n | Xor n | Xnor n), (2|1), true when n = Some 4 -> matchSide side 5.0
+    | (Or n | Nor n | Xor n | Xnor n), 1, true when n = Some 3 -> matchSide side 5.0
+    |_ -> matchSide side 0.0
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
-let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
-    match sym.MovingPort with
-    | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
-    | _ -> 
-        //printfn "symbol %A portDimension %A" sym.Component.Type (getPortPos sym port)
-        getPortPos sym port
+let inline getPortPosToRender (sym: Symbol) (port: Port) (theme: ThemeType): XYPos =    //HLP23: Shaanuka
+    let getRenderPort newPort = 
+        match sym.MovingPort with
+        | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
+        | _ -> 
+            //printfn "symbol %A portDimension %A" sym.Component.Type (getPortPos sym port)
+            getPortPos sym newPort
+
+    match theme with
+    | OldSymbols -> getRenderPort {port with HostId = port.HostId + "curved"} // HLP23: curved used to identify curved port structure for Old OR gates since you can't pass Theme into getPortPos 
+    | _ -> getRenderPort port
 
 let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port

@@ -63,13 +63,71 @@ open CommonTypes
             | e -> 
                 printfn "HELP: exception in SimpleJson.stringify %A" e
                 "Error in stringify"
+
+        let typeChangeFun (cType:Json option) =
+            match cType with
+            | Some (JString s) ->
+                match s with
+                | "And" | "Or" | "Nand" |"Nor" |"Xor" | "Xnor" ->
+                    [s, JNumber 2]
+                    |> Map.ofList
+                    |> JObject
+                    |> Some
+                | _ -> cType // no change
+            | Some (JObject jMap) ->
+                match Map.toList jMap with
+                | _ -> cType // no change
+            | _ -> cType // no change
+        let compMods (jSonL: Json) = 
+            match jSonL with
+            | JObject jMap ->
+                Map.change "Type" typeChangeFun jMap
+                |> JObject
+            | x -> x
+
+        let modifyJsonSavedInfo (info: Json) =
+            printf "Starting modifications..."
+            match info with
+            | JObject jMap ->
+                jMap
+                |> Map.tryFind "NewCanvasWithFileWaveSheetInfoAndNewConns"
+                |> function 
+                    | Some (Json.JArray ([ 
+                        Json.JArray [
+                            Json.JArray comps;
+                            (Json.JArray conns as jConns)
+                            ]; 
+                        savedwaveInfo
+                        sheetInfo
+                        time
+                        ] as jList)) ->
+                        printfn "Running modifications on components..."
+                        let comps' =
+                            comps
+                            |> List.map compMods
+                            |> Json.JArray
+                        let jsonPayload =
+                            jList
+                            |> List.updateAt 0 (Json.JArray [ comps'; jConns])
+                            |> Json.JArray
+                        ["NewCanvasWithFileWaveSheetInfoAndNewConns", jsonPayload]
+                        |> Map.ofList
+                        |> JObject
+                    | _ -> info
+            | _ -> info
+
+        let jsonStringToStateModified (jsonString : string) =
+            jsonString
+            |> SimpleJson.parse
+            |> modifyJsonSavedInfo
+            |> Json.tryConvertFromJsonAs<SavedInfo>
         
         let jsonStringToState (jsonString : string) =
              Json.tryParseAs<LegacyCanvasState> jsonString
              |> (function
                     | Ok state -> Ok (CanvasOnly state)
                     | Error _ ->
-                        match Json.tryParseAs<SavedInfo> jsonString with
+                        match jsonStringToStateModified jsonString with
                         | Ok state -> Ok state
                         | Error str -> 
                             match Json.tryParseAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
@@ -78,6 +136,8 @@ open CommonTypes
                             | Error str -> 
                                 printfn "Error in Json parse of %s : %s" jsonString str
                                 Error str)
+
+
 
 
 

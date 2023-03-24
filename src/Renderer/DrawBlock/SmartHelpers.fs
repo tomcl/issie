@@ -321,8 +321,9 @@ let addDegree deg1 deg2 =
 
 
    
-///Returns the bounding box of a block of selected symbols, in the 'BoundingBox' type
-///HLP 23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
+/// <param name="symbols"> Selected symbols list</param>
+/// <returns>Bounding Box</returns>
 let getBlock 
         (symbols:Symbol List) :BoundingBox = 
 
@@ -338,28 +339,27 @@ let getBlock
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
 
-///Takes a point Pos, a centre Pos, a transform and a rotation type and returns the point rotated about the centre
-///HLP23: AUTHOR Ismagilov
+
+/// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
+/// <param name="point"> Original XYPos</param>
+/// <param name="center"> The center XYPos that the point is rotated about</param>
+/// <param name="rotation"> Clockwise or Anticlockwise </param>
+/// <returns>New flipped point</returns>
 let rotatePointAboutBlockCentre 
             (point:XYPos) 
             (centre:XYPos) 
-            (transform:STransform) 
             (rotation:RotationType) = 
     let relativeToCentre = (fun x->x - centre)
     let rotateAboutCentre (pointIn:XYPos) = 
         match rotation with 
         | RotateClockwise ->
-            match transform.Rotation with
-            | Degree0   -> {X = -pointIn.Y ; Y = pointIn.X}
-            | Degree270 -> {X = -pointIn.Y ; Y = pointIn.X}
-            | Degree180 -> {X = -pointIn.Y ; Y = pointIn.X}
-            | Degree90  -> {X = -pointIn.Y ; Y = pointIn.X}
+            
+            {X = -pointIn.Y ; Y = pointIn.X}
+          
         | RotateAntiClockwise ->
-            match transform.Rotation with
-            | Degree0   -> {X = pointIn.Y ; Y = -pointIn.X}
-            | Degree270 -> {X = pointIn.Y ; Y = -pointIn.X}
-            | Degree180 -> {X = pointIn.Y ; Y = -pointIn.X}
-            | Degree90  -> {X = pointIn.Y ; Y = -pointIn.X}
+            
+            {X = pointIn.Y ; Y = -pointIn.X}
+           
     let relativeToTopLeft = (fun x->x + centre)
 
     point
@@ -367,8 +367,11 @@ let rotatePointAboutBlockCentre
     |> rotateAboutCentre
     |> relativeToTopLeft
 
-///Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre
-///HLP23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre</summary>
+/// <param name="point"> Original XYPos</param>
+/// <param name="center"> The center XYPos that the point is flipped about</param>
+/// <param name="flip"> Horizontal or Vertical flip</param>
+/// <returns>New flipped point</returns>
 let flipPointAboutBlockCentre 
     (point:XYPos)
     (center:XYPos)
@@ -379,8 +382,12 @@ let flipPointAboutBlockCentre
     | FlipVertical -> 
         {X = point.X; Y = center.Y - (point.Y - center.Y)}
 
-///Given rotation type, original height and width, and rotated top left point, returns the new top left point.
-///HLP23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been rotated</summary>
+/// <param name="rotation"> Rotated CW or AntiCW</param>
+/// <param name="h"> Original height of symbol (Before rotation)</param>
+/// <param name="w"> Original width of symbol (Before rotation)</param>
+/// <param name="sym"> Symbol</param>
+/// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockRotation
         (rotation:RotationType) 
         (h: float)
@@ -393,8 +400,12 @@ let adjustPosForBlockRotation
         | RotateAntiClockwise -> { X = 0 ;Y = (float)w }
     pos - posOffset
 
-///Given flip type, original height and width, and flipped top left point, returns the new top left point.
-///HLP23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been flipped</summary>
+/// <param name="flip">  Flipped horizontally or vertically</param>
+/// <param name="h"> Original height of symbol (Before flip)</param>
+/// <param name="w"> Original width of symbol (Before flip)</param>
+/// <param name="sym"> Symbol</param>
+/// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockFlip
         (flip:FlipType) 
         (h: float)
@@ -406,10 +417,11 @@ let adjustPosForBlockFlip
         | FlipVertical -> { X = 0 ;Y = (float)h }
     pos - posOffset
 
-///Returns the new symbol after rotated about block centre.
-///Needed for overall block rotating and for CC's to maintain same shape
-///Shape changes means different block center -> divergence after many rotations 
-///HLP 23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.</summary>
+/// <param name="rotation">  Clockwise or Anticlockwise rotation</param>
+/// <param name="block"> Bounding box of selected components</param>
+/// <param name="sym"> Symbol to be rotated</param>
+/// <returns>New symbol after rotated about block centre.</returns>
 let rotateSymbolInBlock 
         (rotation: RotationType) 
         (blockCentre: XYPos)
@@ -418,7 +430,7 @@ let rotateSymbolInBlock
     let h,w = getRotatedHAndW sym
 
     let newTopLeft = 
-        rotatePointAboutBlockCentre sym.Pos blockCentre sym.STransform rotation
+        rotatePointAboutBlockCentre sym.Pos blockCentre rotation
         |> adjustPosForBlockRotation rotation h w
 
     let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
@@ -438,16 +450,18 @@ let rotateSymbolInBlock
         Component = newComponent
     } |> calcLabelBoundingBox 
 
-///Returns the new symbol after flipped about block centre.
-///Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
-///HLP 23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Flip a symbol horizontally or vertically in its block.</summary>
+/// <param name="flip">  Flip horizontally or vertically</param>
+/// <param name="block"> Bounding box of selected components</param>
+/// <param name="sym"> Symbol to be flipped</param>
+/// <returns>New symbol after flipped about block centre.</returns>
 let flipSymbolInBlock
     (flip: FlipType)
     (blockCentre: XYPos)
     (sym: Symbol) : Symbol =
 
     let h,w = getRotatedHAndW sym
-
+    //Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
     let newTopLeft = 
         flipPointAboutBlockCentre sym.Pos blockCentre flip
         |> adjustPosForBlockFlip flip h w
@@ -486,9 +500,13 @@ let flipSymbolInBlock
             |> rotateSymbolInBlock RotateAntiClockwise newblockCenter 
             |> rotateSymbolInBlock RotateAntiClockwise newblockCenter)
 
-///Returns the new symbol after scaled about block centre.
-///HLP 23: AUTHOR Ismagilov
+/// <summary>HLP 23: AUTHOR Ismagilov - Scales selected symbol up or down.</summary>
+/// <param name="scaleType"> Scale up or down. Scaling distance is constant</param>
+/// <param name="block"> Bounding box of selected components</param>
+/// <param name="sym"> Symbol to be rotated</param>
+/// <returns>New symbol after scaled about block centre.</returns>
 let scaleSymbolInBlock
+    //(Mag: float)
     (scaleType: ScaleType)
     (block: BoundingBox)
     (sym: Symbol) : Symbol =
@@ -498,7 +516,7 @@ let scaleSymbolInBlock
     //Get x and y proportion of symbol to block
     let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
 
-    let newCenter =
+    let newCenter = 
         match scaleType with
             | ScaleUp ->
                 {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
@@ -510,6 +528,37 @@ let scaleSymbolInBlock
     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+
+
+/// <summary>HLP 23: AUTHOR Ismagilov - Scales symbol up or down. Scaling distance determined by 'mag' argument.</summary>
+/// <param name="mag">  Positive scales up, negative scales down.</param>
+/// <param name="block"> Bounding box of selected components</param>
+/// <param name="sym"> Symbol to be rotated</param>
+/// <returns>New symbol after scaled about block centre.</returns>
+let scaleSymbolInBlockGroup
+    (mag: float)
+    //(scaleType: ScaleType)
+    (block: BoundingBox)
+    (sym: Symbol) : Symbol =
+
+    let symCenter = getRotatedSymbolCentre sym
+
+    //Get x and y proportion of symbol to block
+    let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
+
+    let newCenter = {X = (block.TopLeft.X-mag) + ((block.W+(mag*2.)) * xProp); Y = (block.TopLeft.Y-mag) + ((block.H+(mag*2.)) * yProp)}
+        // match scaleType with
+        //     | ScaleUp ->
+        //         {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
+        //     | ScaleDown ->
+        //         {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
+
+    let h,w = getRotatedHAndW sym
+    let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
+    let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
+
+    {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+
 
 
 
@@ -737,6 +786,45 @@ let isOverlapped
     elif secondEnd < firstEnd && secondEnd > firstBegin
     then true
     else false
+
+// HLP 23: AUTHOR Khoury & Ismagilov
+// Function taken from Symbol.fs and modified to not use loaded components 
+/// Creates a new symbol used for the button symbol because it does not take loaded components as an argument
+let createNewSymbolButton  (pos: XYPos) (comptype: ComponentType) (label:string) modelStyle =
+    let id = JSHelpers.uuid ()
+    let comp = makeComponent pos comptype id label
+    let transform = {Rotation= Degree0; flipped= false}
+
+    { 
+      Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
+      LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
+      LabelHasDefaultPos = false
+      LabelRotation = None
+      Appearance =
+          {
+            HighlightLabel = false
+            ShowPorts = ShowNone
+            Colour = "Black"
+            Opacity = 1.0
+            Style = modelStyle
+          }
+      InWidth0 = None // set by BusWire
+      InWidth1 = None
+      Id = ComponentId id
+      Component = comp
+      Moving = false
+      PortMaps = initPortOrientation comp
+      STransform = transform
+      ReversedInputPorts = Some false
+      MovingPort = None
+      IsClocked = false
+      MovingPortTarget = None
+      HScale = None
+      VScale = None
+      
+    }
+    |> autoScaleHAndW
+    |> calcLabelBoundingBox
 
 
 ///HLP23 AUTHOR: Klapper & Rzepala

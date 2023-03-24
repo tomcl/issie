@@ -280,6 +280,8 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | NbitSpreader _ ->
                 [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
+            // | ScaleButton -> 
+            //         [|{X=H/2.; Y=W/2.};{X=H/2.0;Y=0.}|]
             | _ -> [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
 
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
@@ -474,6 +476,11 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                 [|{X=0;Y=H}; {X= 0;Y=2.*H/3.;}; {X= W/4.;Y=W/6.};{X=W/2.;Y=0};{X= 3.*W/4.;Y=W/6.};{X=W;Y= 2.*H/3.};{X=W;Y= H};{X=3.*W/4.;Y= 3.*H/4.};{X=W/4.;Y= 3.*H/4.}|]
                 [|{X=W;Y=H}; {X=2.*W/3.;Y=H}; {X=W/6.;Y=3.*H/4.};{X=0;Y=H/2.};{X= W/6.;Y=H/4.};{X=2.*W/3.;Y= 0};{X= W;Y=0};{X= 3.*W/4.;Y=H/4.};{X= 3.*W/4.;Y=3.*H/4.}|]
                 [|{X=W;Y=0}; {X= W;Y= 2.*H/3.;}; {X= 3.*W/4.;Y=5.*H/6.};{X=W/2.;Y= H};{X= W/4.;Y= 5.*H/6.};{X=0;Y= 2.*H/3.};{X=0;Y= 0.};{X=W/4.;Y= H/4.};{X=3.*W/4.;Y= H/4.}|]  ]   
+
+        | RotateButton ->
+            [   [|{X= W/3.; Y= 7.*H/9.}; {X=0.;Y=(-H/9.)}; {X= -W/4.;Y=(H/6.)};{X= W/4.;Y=H/6.};{X= 0;Y= -H/9.};{X= 0.;Y= -W/2.};{X= 0;Y= W/2.};{X= -W/4.;Y= 0};{X= 0;Y= H/9.};{X= W/4.;Y= 0};{X= 0.001;Y= 7.*W/18.};{X= 0.001;Y= -7.*W/18.}|]
+                [|{X= 2.*W/3.; Y= 7.*H/9.}; {X=0.;Y=(-H/9.)}; {X= W/4.;Y=(H/6.)};{X= -W/4.;Y=H/6.};{X= 0;Y= -H/9.};{X= 0.001;Y= -W/2.};{X= 0.001;Y= W/2.};{X= W/4.;Y= 0};{X= 0;Y= H/9.};{X= -W/4.;Y= 0};{X= 0;Y= 7.*W/18.};{X= 0;Y= -7.*W/18.}|]
+                ]
              
         | _ -> failwith "What? Shouldn't happen"
         |> adjustCurvyPoints  
@@ -495,7 +502,27 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                                 let arcAttr3 = makePathAttr  curvyShape[7] curvyShape[8] curvyShape[0]
 
                                 (createAnyPath curvyShape[0] (arcAttr1+arcAttr2+arcAttr3) colour strokeWidth outlineColour) 
-
+            | _, ScaleButton -> 
+                                let circle = makeCircle (10.0) (10.0){defaultCircle with R = 3.5; Fill = "Grey"}
+                                [circle]
+            | _, RotateButton ->
+                                match symbol.STransform.Rotation with
+                                    | Degree90 -> 
+                                        let curvyShape = getCurvyPoints comp.Type
+                                        let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
+                                        let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
+                                        let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
+                                        let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
+                                        (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
+                                    | _ -> 
+                                        let curvyShape = getCurvyPoints comp.Type
+                                        let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
+                                        let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
+                                        let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
+                                        let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
+                                        (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
+                                        
+                                        
             | _, _ -> (addLegendText 
                                 (legendOffset w h symbol) 
                                 (getComponentLegend comp.Type transform.Rotation) 
@@ -504,16 +531,19 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
                                 (legendFontSize comp.Type))
                                 |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
                             
-    // Put everything together 
-    (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
-    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
-    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addComponentLabel comp transform labelcolour)
-    |> List.append (additions)
-    |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    //HLP23: Author Ismagilov
-    //Now call shapemaker. Labels are only done to the correct style of component
-    |> List.append (shapeMaker)
+    // Put everything together
+    match comp.Type with
+        | ScaleButton | RotateButton -> shapeMaker
+        | _ ->
+                (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
+                |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
+                |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+                |> List.append (addComponentLabel comp transform labelcolour)
+                |> List.append (additions)
+                |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
+                //HLP23: Author Ismagilov
+                //Now call shapemaker. Labels are only done to the correct style of component
+                |> List.append (shapeMaker)
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//
 //----------------------------------------------------------------------------------------//
@@ -571,7 +601,19 @@ let view (model : Model) (dispatch : Msg -> unit) =
             Map.filter (fun _ sym -> sym.Moving) map
             |> Map.toList
             |> List.map snd
-        listMoving @ listNotMoving
+
+        let (scaleButtons:Symbol List) = 
+            map
+            |> Map.filter (fun _ sym -> sym.Component.Type = ScaleButton || sym.Component.Type = RotateButton)
+            |> Map.toList
+            |> List.map snd
+
+        let buttonIds= List.map (fun x -> x.Id) scaleButtons
+
+        match scaleButtons with
+        | [] -> listMoving@listNotMoving
+        | _ -> (List.filter (fun x -> not( List.contains x.Id buttonIds)) listMoving) @ listNotMoving @ scaleButtons 
+        
 
     let start = TimeHelpers.getTimeMs()
     model.Symbols

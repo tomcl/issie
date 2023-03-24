@@ -155,6 +155,8 @@ module CommonTypes
         // less memory efficient.
         Data : Map<int64,int64>
     }
+        
+
 
     type InitMemData = 
         | FromData // old method (from data field)
@@ -213,6 +215,9 @@ module CommonTypes
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
         | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
+        // HLP 23: AUTHOR Khoury & Ismagilov
+        | ScaleButton
+        | RotateButton
 
 
     /// Active pattern which matches 2-input gate component types.

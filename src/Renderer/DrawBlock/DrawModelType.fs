@@ -406,11 +406,29 @@ module BusWireT =
 
 module SheetT =
 
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Types needed for scaling box
+    type ScalingBox = {
+        TopLeftStart : XYPos
+        WidthStart : float
+        HeightStart : float
+        StartingPos: XYPos
+        StartingMouse: XYPos
+        ShowBox: bool
+        BoxBound: BoundingBox
+        ScaleButton: SymbolT.Symbol Option
+        RotateCWButton: SymbolT.Symbol Option
+        RotateACWButton: SymbolT.Symbol Option
+        MovingPos: XYPos List
+    }
+
     /// Used to keep mouse movement (AKA velocity) info as well as position
     type XYPosMov = {
         Pos: XYPos
         Move: XYPos
-        }
+    }
+    
+
     
     let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
     let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
@@ -438,6 +456,7 @@ module SheetT =
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
+        | Scaling
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
@@ -506,6 +525,7 @@ module SheetT =
     }
 
     type Msg =
+        | DrawBox 
         | Wire of BusWireT.Msg
         | KeyPress of KeyboardMsg
         | ToggleGrid
@@ -622,7 +642,10 @@ module SheetT =
         DebugMappings: string array
         DebugIsConnected: bool
         DebugDevice: string option
-        }
+        // HLP 23: AUTHOR Khoury & Ismagilov
+        Box: ScalingBox
+        ButtonList : list<ComponentId>
+    }
     
     open Operators
     let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})

@@ -11,6 +11,7 @@ open Optics
 open Operators  
 open Sheet
 open SheetSnap
+open SmartHelpers
 
 /// This actually writes to the DOM a new scroll position.
 /// In the special case that DOM has not yel been created it does nothing.
@@ -148,7 +149,15 @@ let view
         let selectionBox = { defaultPolygon with Stroke = "Black"; StrokeWidth = "0.1px"; Fill = "Blue"; FillOpacity = 0.05 }
 
         makePolygon polygonPoints selectionBox
-
+    
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Creates the scaling Box element
+    let scalingBox = 
+            let {BoundingBox.TopLeft = {X=fX; Y=fY}; H=fH; W=fW} = model.Box.BoxBound
+            match model.SelectedComponents.Length with
+            | s when s<2 -> [makeAnyPath {X=0;Y=0} (makeLineAttr 0.0 0.0) defaultPath] @ [makeCircle 0.0 0.0 {defaultCircle with R=0.0}]
+            | _ -> [makeAnyPath {X=fX+50.0+fW;Y=(fY-46.5)} ((makeLineAttr 0.0 (fH+96.5))+(makeLineAttr -(fW+100.0) 0)+(makeLineAttr 0.0 (-(fH)-100.0))+(makeLineAttr (fW+96.5) 0.0)) {defaultPath with StrokeDashArray="4,4"}]
+    
     let connectingPortsWire =
         let connectPortsLine = { defaultLine with Stroke = "Green"; StrokeWidth = "2.0px"; StrokeDashArray = "5, 5" }
         let {XYPos.X = x1; Y = y1}, {XYPos.X = x2; Y = y2} = model.ConnectPortsLine
@@ -163,17 +172,23 @@ let view
 
     // uncomment the display model react for visbility of all snaps
     let snaps = snapIndicatorLineX @ snapIndicatorLineY // snapDisplay model
-
-    match model.Action with // Display differently depending on what state Sheet is in
-    | Selecting ->
+    match model.Action, model.Box.ShowBox with // Display differently depending on what state Sheet is in
+    | Selecting, _ ->
         displaySvgWithZoom model headerHeight style ( displayElements @ [ dragToSelectBox ] ) dispatch
-    | ConnectingInput _ | ConnectingOutput _ ->
+    | (ConnectingInput _ | ConnectingOutput _),false->
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
-    | MovingSymbols | DragAndDrop ->
+    | (ConnectingInput _ | ConnectingOutput _),true->
+        displaySvgWithZoom model headerHeight style ( displayElements @ scalingBox @ connectingPortsWire ) dispatch
+    | DragAndDrop,_ ->
         displaySvgWithZoom model headerHeight style ( displayElements @ snaps) dispatch
-    | MovingWire _ -> 
+    | (MovingSymbols),_  ->
+        displaySvgWithZoom model headerHeight style ( displayElements @ snaps @ scalingBox) dispatch
+    | MovingWire _,_ -> 
         displaySvgWithZoom model headerHeight style (displayElements @ snaps) dispatch
-    | _ ->
+    | Scaling , _ -> 
+        displaySvgWithZoom model headerHeight style ( displayElements @  scalingBox ) dispatch
+    | _ , true-> 
+        displaySvgWithZoom model headerHeight style ( displayElements @  scalingBox ) dispatch
+    | _ , _->
         displaySvgWithZoom model headerHeight style displayElements dispatch
     |> TimeHelpers.instrumentInterval "SheetView" start
-

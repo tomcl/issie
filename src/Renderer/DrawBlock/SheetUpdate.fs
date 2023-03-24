@@ -787,6 +787,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // Test code called from Edit menu item
         // Validate the list of selected symbols: it must have just two for
         // The test to work.
+         let portOrderHelpers: SmartChannel.BusUpdateHelpers = 
+            {
+                wireIntersectsBoundingBox = BusWireUpdate.wireIntersectsBoundingBox
+            }
+
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
@@ -797,7 +802,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         printfn "Symbols are not oriented for a vertical channel"
                         model, Cmd.none
                    | Some channel ->
-                        {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire}, Cmd.none
+                        {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire portOrderHelpers}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none  

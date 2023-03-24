@@ -478,9 +478,10 @@ let routeAroundSymbol (model: Model) (wire: Wire) (symbol: Symbol Option) : Smar
                             let rightCondition = conditionList[2]
                             
                             if leftCondition && middleCondition then 
+                                printfn "left and middle"
                                 let segmentLengths = 
                                     [ wire.Segments.[0].Length; wire.Segments.[1].Length; 
-                                    wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft); wire.Segments.[3].Length - 5. - (wireTop - symbolTop);
+                                    wire.Segments.[2].Length - 10. + (symbolLeft - wireLeft); wire.Segments.[3].Length - (wireTop - symbolTop);
                                     wire.Segments.[4].Length + 10. - (symbolLeft - wireLeft); wire.Segments.[5].Length + (wireEndposY - symbolTop);
                                     wire.Segments.[6].Length ]
                                 updateWire wire segmentLengths
@@ -742,14 +743,14 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
     let symbol = findSymbol model wire Output
     let autoWire = autoroute model wire
     let segListLength = autoWire.Segments |> List.length
-    // printfn "segment info %A" wire.Segments
+    printfn "segment info %A" wire.Segments
 
     match segListLength with
     | l when l < 7 -> 
          // 2 segment wire
         let wireLength = abs autoWire.Segments[2].Length + abs autoWire.Segments[3].Length
         match wireLength with
-        | l when l > 500.0 -> 
+        | l when l > 800.0 -> 
             ModelT { model with PopupViewFunc = Some (wireLabelPopup model wire) } 
         | _ -> routeTwoSegWires model autoWire
     | _ ->

@@ -303,7 +303,7 @@ let replaceWithWireLabels (model: Model) (wire: Wire) (wlName: string): SmartAut
     let newWireMap = deleteWire model wire
     generateWireLabels newWireMap wire wlName
 
-    
+
 /// finds wire in model by connection id
 let findWire (model: Model) (connId: ConnectionId) : Option<Wire> =
     match model.Wires |> Map.toList |> List.tryFind (fun (_, wire) -> wire.Segments.[0].WireId = connId) with
@@ -752,6 +752,6 @@ let smartAutoroute (model: Model) (wire: Wire): SmartAutorouteResult =
         // 3 segment wire
         let wireLength = abs autoWire.Segments[4].Length
         match wireLength with
-        | l when l > 600.0 -> 
+        | l when l > 500.0 -> 
             ModelT { model with PopupViewFunc = Some (wireLabelPopup model wire) } 
         | _ -> routeAroundSymbol model autoWire symbol

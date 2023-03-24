@@ -30,3 +30,12 @@
 * feature - Correct handling of invalid placement and operations with highlighting / drag and drop states.
 * limitation - original individual scaling keypress (Ctrl + U, Ctrl + I) does not affect the UI Box created
 * limitation - on sudden quick movements when moving symbols, UI box is misaligned.
+
+## Smart Resizing
+* By clicking Ctrl+E (or Cmd+E), the two selected components are resized
+* feature - if a resized symbol overlaps with another symbol in the canvas, placement is not allowed. Instead, the user must drag the symbol to an empty location and drop
+* feature - works with flipped channels
+* feature - a symbol can be dragged along the canvas and the Custom symbol closest to it will get selected for resizing. Actually, it is the symbol being dragged, that will get resized, according to the standard rules (like Ctrl+E). The user still has to click Ctrl+E in order to perform the resizing action. We found it gives the user more control.
+* feature - components can be resized even without any connections between them. However if the user wants the component to get shifted, there must me at least one connection between components.
+* limitation - dragging symbol across the canvas always highlights the closest Custom component - no CtrlDown is required.
+* limitation - does not always work with rotated symbols.

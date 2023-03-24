@@ -1007,7 +1007,9 @@ let getVisibleScreenCentre (model : Model) : XYPos =
         X = (canvas.scrollLeft + canvas.clientWidth / 2.0) / model.Zoom
         Y = (canvas.scrollTop + canvas.clientHeight / 2.0) / model.Zoom
     }
-
+///HLP23 AUTHOR: Rzepala
+//modified the following code, so that it's also able to validate one symbol. Needed for
+//draggable resize.
 let validateTwoSelectedSymbols (model:Model) =
         match model.SelectedComponents with
         | [s1; s2] as syms -> 
@@ -1020,6 +1022,16 @@ let validateTwoSelectedSymbols (model:Model) =
                 Some(s1,s2)
             | _ -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
+                None
+        | [s1] ->
+            let symbols = model.Wire.Symbol.Symbols
+            let getSym sId = 
+                Map.tryFind sId symbols
+            match getSym s1 with
+            | Some s1 ->
+                Some(s1, s1)
+            | _ -> 
+                printfn "Error: can't validate the symbol selected to reorder ports"
                 None
         | syms -> 
             printfn $"Can't test because number of selected symbols ({syms.Length}) is not 2"
@@ -1036,10 +1048,50 @@ let validateMultipleSelectedSymbols (model:Model) =
             Some syms
         | _ -> printfn "Error less than two components selected"
                None
-     
+
+///HLP23 AUTHOR: Klapper
+///Returns the top/left half box based on orieantiation of the bounding box
+let halfBoundingBox (orientation: Orientation) (bb:BoundingBox)=
+    match orientation with
+    | Vertical -> {TopLeft = bb.TopLeft; W = bb.W/2.0; H = bb.H} 
+    | Horizontal -> {TopLeft = bb.TopLeft; W = bb.W; H = bb.H/2.0}
+
+
+///HLP23 AUTHOR: Klapper
+/// Finds a channel in the desired location from arbiterly amount of components
+let rec findChannel (model : SheetT.Model) (prevLeft : int) (prevRight : int) (orientation:Orientation) (currentComps : List<ComponentId>) =
+    let hd::tail = currentComps |> List.map (fun id -> model.BoundingBoxes[id])
+    let leftBounds = 
+        (hd, tail) 
+        ||> List.fold boxUnion 
+        |> halfBoundingBox orientation 
+    let leftComponents = 
+        [hd]@tail
+        |> List.mapi (fun i element -> element.TopLeft, currentComps[i])
+        |> List.filter (fun (pos, comp) -> SmartHelpers.isPositionInBounds leftBounds pos)
+    let rightComponents =
+        [hd]@tail
+        |> List.mapi (fun i element -> element.TopLeft, currentComps[i])
+        |> List.filter (fun element -> List.contains element leftComponents |> not)
+    match leftComponents.Length, rightComponents.Length with
+    | 0,_ -> 
+        Some <| (rightComponents |> List.map (fun e -> snd e)),
+        Some <| (rightComponents |> List.map (fun e -> snd e))
+    | _,0 ->
+        Some <| (leftComponents |> List.map (fun e -> snd e)),
+        Some <| (leftComponents |> List.map (fun e -> snd e))
+    | l,r when l = prevLeft ->
+        Some <| (leftComponents |> List.map (fun e -> snd e)),
+        Some <| (rightComponents |> List.map (fun e -> snd e))
+    | l,r -> 
+        snd <| findChannel model l r orientation ( leftComponents |> List.map (fun e -> snd e)),
+        fst <| findChannel model l r orientation (rightComponents |> List.map (fun e -> snd e))
 
 
 
+
+///HLP23 AUTHOR: Klapper 
+/// Horizontal channel from two symbols
 let rec getHorizontalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
     if bb1.TopLeft.Y > bb2.TopLeft.Y then
         getHorizontalChannel bb2 bb1
@@ -1053,6 +1105,9 @@ let rec getHorizontalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox o
             let union = boxUnion bb1 bb2
             let topLeft = {X = union.TopLeft.X; Y = y1}
             Some {TopLeft = topLeft; W = union.W; H = y2 - y1}
+
+///HLP23 AUTHOR: Klapper
+///Returns a vertical channel from two component
 let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox option =
     if bb1.TopLeft.X > bb2.TopLeft.X then
         getVerticalChannel bb2 bb1
@@ -1072,11 +1127,15 @@ let rec getVerticalChannel (bb1:BoundingBox) (bb2:BoundingBox) : BoundingBox opt
 /// However different testing may be needed, so who knows?
 /// Return the vertical channel between two bounding boxes, if they do not intersect and
 /// their vertical coordinates overlap.
-let getChannel (bb1:BoundingBox) (bb2:BoundingBox) : Option<BoundingBox*Orientation> =
-    let vChannel = getVerticalChannel bb1 bb2
-    let hChannel = getHorizontalChannel bb1 bb2 
-    match vChannel, hChannel with
-    | Some vBB, Some hBB -> None //Should not happen
-    | Some vBB, None -> Some (vBB, Vertical)
-    | None, Some hBB -> Some (hBB, Horizontal)
-    | None, None -> None
+let getChannel (bb1:BoundingBox) (bb2:BoundingBox) (orientation : Orientation): Option<BoundingBox> =
+    match orientation with
+    | Vertical ->
+        getVerticalChannel bb1 bb2
+        |> function
+            | Some vBB -> Some (vBB)
+            | None -> None
+    | Horizontal -> 
+        getHorizontalChannel bb1 bb2 
+        |> function
+            | Some hBB -> Some (hBB)
+            | None -> None

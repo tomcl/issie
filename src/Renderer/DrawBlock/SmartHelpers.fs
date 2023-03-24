@@ -647,21 +647,7 @@ let replaceWireWithLabel (model : DrawModelType.BusWireT.Model) (wire : Wire) =
     |> replaceWireWithLabelWithName model wire.WId
 
 ///HLP 23: AUTHOR Rzepala
-///this function return common wires between two adjacent symbols
-///for example for the given configuration of two symbols:
-///
-/// ------------
-/// |          |
-/// |          |
-/// |          |        ---------------------------
-/// |          |        |                         |
-/// |          |        |                         |
-/// ------------        |                         |
-///                     |                         |
-///                     ---------------------------
-///
-/// it should return all the wires between the right side of the
-/// left symbol and the left side of the right symbol
+///this function return common wires between two adjacent sides of two symbols
 let getCommonWires 
     (wModel: BusWireT.Model)
     (symbolToResize: Symbol)

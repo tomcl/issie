@@ -332,7 +332,7 @@ let instrumentTime (intervalName: string) (intervalStartTime: float) =
             then updateThreshold 
             else threshold 
         if interval > threshold then
-            printfn "%s" $"{intervalName}: %.1f{interval}ms"
+            eprintfn "%s" $"{intervalName}: %.1f{interval}ms"
     | Aggregate agg ->
         let interval = getTimeMs() - intervalStartTime
         let agg = updateAgg intervalName interval agg

@@ -9,19 +9,10 @@ import {
   JsonHelpers_SavedInfo__get_getWaveInfo,
 } from "./temp/src/Renderer/Common/Helpers.js";
 import { parseDiagramSignature } from "./temp/src/Renderer/NewSimulator/Extractor.js";
-import {
-  CCForm,
-  LoadedComponent,
-} from "./temp/src/Renderer/Common/CommonTypes.js";
-import {
-  FSharpList,
-} from "./temp/fable_modules/fable-library.4.0.0-theta-018/List.js";
-import {
-  length as seqLength,
-} from "./temp/fable_modules/fable-library.4.0.0-theta-018/Seq.js";
-import {
-  SimulationError,
-} from "./temp/src/Renderer/NewSimulator/SimulatorTypes.js";
+import { CCForm, LoadedComponent } from "./temp/src/Renderer/Common/CommonTypes.js";
+import { FSharpList } from "./temp/fable_modules/fable-library.4.0.0-theta-018/List.js";
+import { length as seqLength } from "./temp/fable_modules/fable-library.4.0.0-theta-018/Seq.js";
+import { SimulationError } from "./temp/src/Renderer/NewSimulator/SimulatorTypes.js";
 // New Simulator
 import { startCircuitSimulation as newStartCircuitSimulation } from "./temp/src/Renderer/NewSimulator/Simulator.js";
 import { runFastSimulation as newRunFastSimulation } from "./temp/src/Renderer/NewSimulator/Fast/FastRun.js";
@@ -53,19 +44,14 @@ const transportList = {
       format.simple(),
       format.timestamp(),
       format.printf(({ level, message, label, timestamp }) => {
-        return `${timestamp} [${
-          `${label}`.padEnd(15, " ")
-        }] ${level}: ${message}`;
+        return `${timestamp} [${`${label}`.padEnd(15, " ")}] ${level}: ${message}`;
       }),
     ),
   }),
 };
 
 const logger = createLogger({
-  transports: [
-    transportList.file,
-    transportList.console,
-  ],
+  transports: [transportList.file, transportList.console],
 });
 
 function tryLoadStateFromPath(filePath) {
@@ -150,9 +136,9 @@ function tryLoadComponentFromPath(filePath) {
     );
   } catch (err) {
     console.error(
-      `Can't load component ${
-        getBaseNameNoExtension(filePath)
-      } because of Error: ${err}`,
+      `Can't load component ${getBaseNameNoExtension(
+        filePath,
+      )} because of Error: ${err}`,
     );
   }
 }
@@ -162,9 +148,7 @@ function loadAllComponentFiles(folderPath) {
   try {
     files = readdirSync(folderPath).filter((file) => extname(file) === ".dgm");
   } catch (err) {
-    console.error(
-      `Error reading Issie project directory at ${folderPath}: ${err}`,
-    );
+    console.error(`Error reading Issie project directory at ${folderPath}: ${err}`);
   }
   return files.map((file) => {
     // NOTE: fileNameIsBad checking is skipped
@@ -176,36 +160,37 @@ function loadAllComponentFiles(folderPath) {
 }
 
 function extracContentOfDrivers(drivers) {
-  return drivers.map((driver) => {
-    if (driver == undefined || driver == null) return undefined;
-    return {
-      index: driver.Index,
-      width: driver.DriverWidth,
-      data: driver.DriverData.Step.map(
-        (data) => data.Dat.fields[0],
-      ),
-    };
-  }).filter((el) => el !== undefined);
+  return drivers
+    .map((driver) => {
+      if (driver == undefined || driver == null) return undefined;
+      return {
+        index: driver.Index,
+        width: driver.DriverWidth,
+        data: driver.DriverData.Step.map((data) => data.Dat.fields[0]),
+      };
+    })
+    .filter((el) => el !== undefined);
 }
 
 function extracContentOfDriversFData(drivers) {
-  return drivers.map((driver) => {
-    if (driver == undefined || driver == null) return undefined;
-    return {
-      index: driver.Index,
-      width: driver.DriverWidth,
-      data: driver.DriverData.Step.map(
-        (data) => data.fields[0].Dat.fields[0],
-      ),
-    };
-  }).filter((el) => el !== undefined);
+  return drivers
+    .map((driver) => {
+      if (driver == undefined || driver == null) return undefined;
+      return {
+        index: driver.Index,
+        width: driver.DriverWidth,
+        data: driver.DriverData.Step.map((data) => data.fields[0].Dat.fields[0]),
+      };
+    })
+    .filter((el) => el !== undefined);
 }
 
 function drivers2String(drivers) {
-  return drivers.map((driver) =>
-    `Driver [Index=${driver.index}, width=${driver.width}] : [${
-      driver.data.join(", ")
-    }]`
+  return drivers.map(
+    (driver) =>
+      `Driver [Index=${driver.index}, width=${driver.width}] : [${driver.data.join(
+        ", ",
+      )}]`,
   );
 }
 
@@ -281,10 +266,10 @@ function simulationFactory(
       message: `runFastSimulation() took ${toPrecision(time)} milliseconds.`,
       detail: {
         ...detail,
-        "testcase": diagramName,
-        "simulator": simulator.type,
-        "execTime": time,
-        "numComps": numComps,
+        testcase: diagramName,
+        simulator: simulator.type,
+        execTime: time,
+        numComps: numComps,
       },
     });
     return {

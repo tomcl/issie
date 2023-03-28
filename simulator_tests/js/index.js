@@ -11,6 +11,8 @@ import {
   transportList,
 } from "./utils.js";
 
+import { FSharpList_get_Empty } from "./temp/fable_modules/fable-library.4.0.0-theta-018/List.js";
+
 const test = (
   testcasesPath,
   simulationArraySize,
@@ -19,14 +21,13 @@ const test = (
   testNumber,
   simulatior,
 ) => {
-  const details = { "function": "runFastSimulation" };
+  const details = { function: "runFastSimulation" };
 
   const loadedComponents = loadAllComponentFiles(testcasesPath);
 
-  const ldcs = loadedComponents.reduceRight(
-    (tail, head) => (new FSharpList(head, tail)),
-    void 0,
-  );
+  const ldcs = loadedComponents.reduce((tail, head) => {
+    return new FSharpList(head, tail);
+  }, FSharpList_get_Empty());
 
   const runSimulation = simulationFactory(
     ldcs,
@@ -40,11 +41,13 @@ const test = (
 
   const simulationResult = runSimulation(simulatior, topComp);
 
-  console.log(JSON.stringify({
-    time: simulationResult.time,
-    values: drivers2String(simulationResult.result),
-    numComps: simulationResult.numComps,
-  }));
+  console.log(
+    JSON.stringify({
+      time: simulationResult.time,
+      values: drivers2String(simulationResult.result),
+      numComps: simulationResult.numComps,
+    }),
+  );
 };
 
 const main = () => {

@@ -16,7 +16,7 @@ describe("runFastSimulation()", function () {
   const lastStepNeeded = 2000;
   const timeOut = null;
 
-  const details = { "function": "runFastSimulation" };
+  const details = { function: "runFastSimulation" };
 
   const loadedComponents = loadAllComponentFiles(testcasesPath);
   logger.verbose({
@@ -27,7 +27,7 @@ describe("runFastSimulation()", function () {
     detail: details,
   });
   const ldcs = loadedComponents.reduceRight(
-    (tail, head) => (new FSharpList(head, tail)),
+    (tail, head) => new FSharpList(head, tail),
     void 0,
   );
 
@@ -63,34 +63,31 @@ describe("runFastSimulation()", function () {
   });
 
   // Geometric mean of execution times of all test cases for both simulators
-  const [avgExecTimeNew, avgExecTimeOld] = ["new", "old"].map(
-    (simulator, i) => {
-      const avgExecTime = Math.sqrt(
-        execTimes.reduce((a, b) => a * b[i], 1),
-        execTimes.length,
-      );
-      logger.info({
-        label: "test bench",
-        message:
-          `Geometric mean of execution times of ${simulator} runFastSimulation(): ${
-            toPrecision(avgExecTime)
-          }`,
-        detail: {
-          ...details,
-          "type": "geometric mean",
-          "value": avgExecTime,
-          simulator,
-        },
-      });
-      return avgExecTime;
-    },
-  );
+  const [avgExecTimeNew, avgExecTimeOld] = ["new", "old"].map((simulator, i) => {
+    const avgExecTime = Math.sqrt(
+      execTimes.reduce((a, b) => a * b[i], 1),
+      execTimes.length,
+    );
+    logger.info({
+      label: "test bench",
+      message: `Geometric mean of execution times of ${simulator} runFastSimulation(): ${toPrecision(
+        avgExecTime,
+      )}`,
+      detail: {
+        ...details,
+        type: "geometric mean",
+        value: avgExecTime,
+        simulator,
+      },
+    });
+    return avgExecTime;
+  });
 
   logger.info({
     label: "test bench",
-    message: `New runFastSimulation() is ${
-      toPrecision((avgExecTimeOld - avgExecTimeNew) / avgExecTimeOld * 100)
-    }% faster`,
+    message: `New runFastSimulation() is ${toPrecision(
+      ((avgExecTimeOld - avgExecTimeNew) / avgExecTimeOld) * 100,
+    )}% faster`,
     detail: details,
   });
 });

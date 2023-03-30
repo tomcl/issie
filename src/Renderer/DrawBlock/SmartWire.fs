@@ -508,27 +508,33 @@ let rec tryShiftHorizontalSeg
         let currentStartPos, currentEndPos = getStartAndEndWirePos wire
 
         let shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength =
+
+            let moveHorizSegment vertSegIndex segments =
+                segments
+                |> changeSegment (vertSegIndex - 1) firstVerticalSegLength 
+                |> changeSegment (vertSegIndex + 1) secondVerticalSegLength
+
             let newSegments =
                 match wire.Segments.Length with
                 | 5
                 | 6 ->
                     wire.Segments
-                    |> changeSegment 1 firstVerticalSegLength 
-                    |> changeSegment 3 secondVerticalSegLength
+                    |> moveHorizSegment 2 
+                    
                 | 7 ->
                     // Change into a 5 segment wire
                     wire.Segments[..4]
-                    |> changeSegment 1 firstVerticalSegLength 
+                    |> moveHorizSegment 2
                     |> changeSegment 2 (wire.Segments.[2].Length + wire.Segments.[4].Length)
-                    |> changeSegment 3 secondVerticalSegLength
                     |> List.updateAt 4 { wire.Segments.[6] with Index = 4 }
+
                 | 9 ->
                     // Change segments index 1,3,5,7. Leave rest as is
                     wire.Segments
                     |> changeSegment 1 0.
-                    |> changeSegment 3 firstVerticalSegLength
-                    |> changeSegment 5 secondVerticalSegLength
+                    |> moveHorizSegment 4
                     |> changeSegment 7 0.
+
                 | _ -> wire.Segments
 
             { wire with Segments = newSegments }
@@ -543,8 +549,8 @@ let rec tryShiftHorizontalSeg
 
             let boundFun, offsetOfBox, otherDir = 
                 match direction with 
-                | Up_ -> List.maxBy, (fun _ -> 0.), Left_ 
-                | Down_ -> List.minBy, getWOrH, Right_ 
+                | Up_ -> List.minBy, (fun _ -> 0.), Left_ 
+                | Down_ -> List.maxBy, getOppositeWOrH, Right_ 
                 | _ -> failwithf "What? Can't happen"
 
             let boundBox =
@@ -554,8 +560,9 @@ let rec tryShiftHorizontalSeg
             let bound =
                 let offset = Constants.smallOffset + offsetOfBox boundBox
                 let otherOrientation = match orientation with | Horizontal -> direction | Vertical -> otherDir
+
                 let initialAttemptPos = updatePos direction offset boundBox.TopLeft
-                findMinWireSeparation model initialAttemptPos wire direction orientation (getWOrH boundBox)      
+                findMinWireSeparation model initialAttemptPos wire otherDir orientation (getWOrH boundBox)      
                 |> getOppositeXOrY
 
             let firstVerticalSegLength, secondVerticalSegLength =

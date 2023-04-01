@@ -58,7 +58,7 @@ module Constants =
     let wireSeparationFromSymbol = 7. // must be smaller than Buswire.nubLength
     let maxCallsToShiftHorizontalSeg = 5
     let minWireSeparation = 7. // must be smaller than Buswire.nubLength
-    let smallOffset = 0.0001
+    let smallOffset = 0.1
 
 type DirectionToMove =
     | Up_
@@ -222,7 +222,6 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
         { wire with Segments = newSegments }
 
     let tryShiftWireVert (dir: DirectionToMove) =
-
         let boundBox =
             intersectedBoxes
             |> List.sortWith (fun box1 box2 ->
@@ -509,10 +508,9 @@ let rec tryShiftHorizontalSeg
 
         let shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength =
 
-            let moveHorizSegment vertSegIndex segments =
-                segments
-                |> changeSegment (vertSegIndex - 1) firstVerticalSegLength 
-                |> changeSegment (vertSegIndex + 1) secondVerticalSegLength
+            let moveHorizSegment vertSegIndex =
+                changeSegment (vertSegIndex - 1) firstVerticalSegLength 
+                >> changeSegment (vertSegIndex + 1) secondVerticalSegLength
 
             let newSegments =
                 match wire.Segments.Length with
@@ -547,27 +545,32 @@ let rec tryShiftHorizontalSeg
             let getWOrH = fun (box:BoundingBox) -> match orientation with |Horizontal -> box.W | Vertical -> box.H
             let getOppositeWOrH = fun (box:BoundingBox) -> match orientation with |Horizontal -> box.H | Vertical -> box.W
 
-            let boundFun, offsetOfBox, otherDir = 
+            let offsetOfBox, otherDir = 
                 match direction with 
-                | Up_ -> List.minBy, (fun _ -> 0.), Left_ 
-                | Down_ -> List.maxBy, getOppositeWOrH, Right_ 
+                | Up_ -> (fun _ -> 0.), Left_ 
+                | Down_ -> (fun box -> getOppositeWOrH box) , Right_ 
                 | _ -> failwithf "What? Can't happen"
 
             let boundBox =
                 intersectedBoxes
-                |>  boundFun ( fun box -> getOppositeXOrY box.TopLeft)
+                |>  match direction with
+                    | Down_ -> List.maxBy (fun box -> getOppositeXOrY box.TopLeft + getOppositeWOrH box)
+                    | Up_ -> List.minBy (fun box -> getOppositeXOrY box.TopLeft)
+                    | _ -> failwithf "What? Can't happen"
 
             let bound =
-                let offset = Constants.smallOffset + offsetOfBox boundBox
+                let offset =  Constants.smallOffset + offsetOfBox boundBox
                 let otherOrientation = match orientation with | Horizontal -> direction | Vertical -> otherDir
-
-                let initialAttemptPos = updatePos direction offset boundBox.TopLeft
-                findMinWireSeparation model initialAttemptPos wire otherDir orientation (getWOrH boundBox)      
+                let initialAttemptPos = updatePos otherOrientation offset boundBox.TopLeft
+                //findMinWireSeparation model initialAttemptPos wire otherDir orientation (getWOrH boundBox)
+                initialAttemptPos
                 |> getOppositeXOrY
 
             let firstVerticalSegLength, secondVerticalSegLength =
                 bound - getOppositeXOrY currentStartPos, getOppositeXOrY currentEndPos - bound
-            shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength            
+
+
+            shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength
 
         let goodWire dir = 
             let shiftedWire = shiftedWire dir
@@ -590,8 +593,7 @@ let rec tryShiftHorizontalSeg
             |> List.map (maxVertDistanceFromBox intersectedBoxes wire.InitialOrientation)
             |> tryMaxDistance
             |> (function
-                | None
-          
+                | None         
                 | Some (Above _) ->
                     tryShiftHorizontalSeg model downIntersections downShiftedWire
                 | Some (Below _)  ->
@@ -708,7 +710,8 @@ let rec tryShiftHorizontalSegOld
                     | Horizontal ->
                         let initialAttemptPos = updatePos Up_ Constants.smallOffset topBoundBox.TopLeft
 
-                        findMinWireSeparation model initialAttemptPos wire Up_ Horizontal topBoundBox.W
+                        //findMinWireSeparation model initialAttemptPos wire Up_ Horizontal topBoundBox.W
+                        initialAttemptPos
                     | Vertical ->
                         let initialAttemptPos = updatePos Left_ Constants.smallOffset topBoundBox.TopLeft
 
@@ -748,7 +751,8 @@ let rec tryShiftHorizontalSegOld
                         let initialAttemptPos =
                             updatePos Right_ (Constants.smallOffset + bottomBoundBox.W) bottomBoundBox.TopLeft
 
-                        findMinWireSeparation model initialAttemptPos wire Right_ Vertical bottomBoundBox.H
+                        //findMinWireSeparation model initialAttemptPos wire Right_ Vertical bottomBoundBox.H
+                        initialAttemptPos
 
                 match wire.InitialOrientation with
                 | Horizontal -> viablePos.Y
@@ -758,11 +762,9 @@ let rec tryShiftHorizontalSegOld
                 match wire.InitialOrientation with
                 | Horizontal -> bottomBound - currentStartPos.Y, currentEndPos.Y - bottomBound
                 | Vertical -> bottomBound - currentStartPos.X, currentEndPos.X - bottomBound
-
             shiftWireHorizontally firstVerticalSegLength secondVerticalSegLength
 
         let upShiftedWireIntersections = findWireSymbolIntersections model tryShiftUpWire
-
         let downShiftedWireIntersections =
             findWireSymbolIntersections model tryShiftDownWire
 

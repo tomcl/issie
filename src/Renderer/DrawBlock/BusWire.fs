@@ -133,25 +133,22 @@ let getNonZeroAbsSegments (wire: Wire) : ASegment list =
     |> snd
     |> List.rev
 
-/// Return filtered absolute segment list from a wire: segmentss must have non-zero length and 
-/// orientation as orientation. If includeNubs=false leave out the two "nubs" at each end of the Segment list
-let getAbsSegmentsWithOrientation (includeNubs) (orientation: Orientation) (wire: Wire) : ASegment list =
-    let excludeSeg (seg:Segment) = seg.IsZero() || seg.Index = 0 || seg.Index = wire.Segments.Length
+/// Return filtered absolute segment list from a wire.
+/// includeSegment determines whether a given segment is included in the output list.
+/// NB this is more efficient than generating the whole lits and then filtering.
+let getFilteredAbsSegments includeSegment (wire: Wire) : ASegment list =
     let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
         {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
     (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
-    ||> List.fold (fun (posDir, aSegL) seg -> 
-            let nextASeg = convertToAbs posDir seg
-            let posDir' = nextASeg.End, switchOrientation (snd posDir)
-            match  (snd posDir), orientation, excludeSeg seg with 
-            | Horizontal, Horizontal, false 
-            | Vertical, Vertical, false -> 
-                posDir', (nextASeg :: aSegL)
-            | _ ->
-                posDir', aSegL)                
+    ||> List.fold (fun ((pos,ori), aSegL) seg -> 
+            let nextASeg = convertToAbs (pos,ori) seg
+            let posDir' = nextASeg.End, switchOrientation ori
+            match includeSegment ori seg with 
+            | true -> posDir', (nextASeg :: aSegL)
+            | false -> posDir', aSegL)                
     |> snd
-    |> (fun segs -> if includeNubs || orientation <> wire.InitialOrientation then segs else segs[1..segs.Length-1])
     |> List.rev
+
 type Wire with 
         member inline this.EndOrientation =
             match this.Segments.Length % 2, this.InitialOrientation with 

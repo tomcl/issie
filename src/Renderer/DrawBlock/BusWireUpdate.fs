@@ -135,7 +135,10 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             }
             |> smartAutoroute model
         
-        let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ newWire.WId) newWire model)
+        let newModel = 
+            model
+            |> Optic.set (wireOf_ newWire.WId) newWire
+            |> updateWireSegmentJumpsAndSeparations
         
         newModel, Cmd.ofMsg BusWidths
     
@@ -336,7 +339,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     | MakeJumps connIds ->
         // recalculates (slowly) wire jumps after a drag operation
         printfn $"Making jumps with {connIds.Length} connections"
-        let newModel = updateWireSegmentJumps connIds model
+        let newModel = updateWireSegmentJumpsAndSeparations model
         newModel, Cmd.none
 
     | ResetModel -> 
@@ -411,7 +414,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     | UpdateWireDisplayType (style: WireType) ->
         {model with Type = style }
-        |> updateWireSegmentJumps []
+        |> updateWireSegmentJumpsAndSeparations
         |> (fun model -> model,Cmd.none)
 
     | ToggleArrowDisplay  ->

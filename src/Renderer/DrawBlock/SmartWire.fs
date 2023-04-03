@@ -59,6 +59,8 @@ module Constants =
     let maxCallsToShiftHorizontalSeg = 5
     let minWireSeparation = 7. // must be smaller than Buswire.nubLength
     let smallOffset = 0.1
+    let localitySize = 12.
+    let maxSegmentSeparation = 15.
 
 type DirectionToMove =
     | Up_
@@ -103,9 +105,13 @@ type Locality = {
     Fix: float option
     Segments: int list
     Bound: Bound
+    SearchLimit: float
     }
+
+
  
 module Separate =
+    open Constants
     /// convert a segment into a fixed or movable line (of given orientation)
     let segmentToLine (ori: Orientation) (seg: ASegment) : Line =
         let order a b = if a < b then {MinB = a; MaxB = b} else {MinB = b; MaxB = a}
@@ -115,6 +121,10 @@ module Separate =
 
     let moveSegment (index: int) (posDelta: float) (wire: Wire) =
         let segs = wire.Segments
+        if index < 1 || index > segs.Length - 2 then
+            failwithf $"What? trying to move segment {index} of a wire length {segs.Length}"
+//        if abs posDelta > 0.01 then 
+//            printf $"""moving segment {index} pd={posDelta} in wire {segs |> List.mapi (fun i seg -> i,seg.Length)}"""
         { wire with 
             Segments = 
                 segs
@@ -130,9 +140,19 @@ module Separate =
                 match ori with
                 | Horizontal -> seg.Start.Y
                 | Vertical -> seg.Start.X
-            let segIndex, wId = seg.GetId()
+            let segIndex = seg.Segment.Index
+            let wid = seg.Segment.WireId
+            let getPosFromWires (wires:Map<ConnectionId,Wire>) =
+                let wire = wires[wid]
+                let seg' = 
+                    wire
+                    |> getAbsSegments
+                    |> fun segs -> segs[segIndex]
+                match ori with | Vertical -> seg'.Start.X | Horizontal -> seg'.Start.Y
+//            printf $"Before move pos: {getPosFromWires wires}"
             let updateWire = Option.map (moveSegment segIndex (newP - oldP))
-            Map.change wId updateWire wires
+            Map.change seg.Segment.WireId updateWire wires
+//            |> (fun wires -> printf $"New Pos: {getPosFromWires wires}"; wires)
 
     /// convert a symbol BoundingBox into two fixed lines (of given orientation)
     let bBoxToLines (ori:Orientation) (box:BoundingBox) : Line list =
@@ -147,15 +167,9 @@ module Separate =
     let makeLines (ori: Orientation) (model:Model) =
         let segLines = 
             ([], model.Wires)
-            ||> Map.fold (fun (lines: Line list) wId wire ->
-                getNonZeroAbsSegments wire
-                |> (fun (aSegL:ASegment list) -> 
-                    match ori = wire.InitialOrientation with
-                    | true -> 1
-                    | false -> 2
-                    |> (fun o -> 
-                       [o..2..wire.Segments.Length-2]
-                       |> List.map (fun i -> segmentToLine ori aSegL[i])))
+            ||> Map.fold (fun (lines: Line list) _ wire ->
+                getAbsSegmentsWithOrientation false ori wire
+                |> List.map (segmentToLine ori)
                 |> (fun wireLines -> wireLines @ lines))
         let symLines =
             model.Symbol.Symbols
@@ -165,11 +179,77 @@ module Separate =
                 |> bBoxToLines ori)
         symLines @ segLines
 
+
+    type End = Upper | Lower
+  
+    /// Returns integers +/- 1 indicating direction of wire leaving ends of line.
+    /// Pair returned is MaxB, MinB end of line
+    let inline turnDirs (line: Line) (wires: Map<ConnectionId,Wire>)=
+        match line.Seg with
+        | None -> failwithf "What? Expected Some segment - not None"
+        | Some aSeg ->
+            let seg = aSeg.Segment
+            let wSegs =wires[seg.WireId].Segments
+            // s1 is segment at MaxB end of line
+            let s1,s2 = 
+                if seg.Length > 0 then
+                    wSegs[seg.Index+1], wSegs[seg.Index-1]
+                else
+                    wSegs[seg.Index-1], wSegs[seg.Index+1]
+            (sign s1.Length), (sign s2.Length)
+
+    /// +1 if line1.P > line2.P for zero crossings.
+    /// -1 if line1.P < line2.P for zero crossings.
+    /// 0 if line1.P and line2.P have one crossing.
+    let  numCrossingsSign (line1:Line) (line2:Line) (wires: Map<ConnectionId,Wire>) =
+        let (max1,min1),(max2,min2) = turnDirs line1 wires, turnDirs line2 wires
+        // if line1.P > line2.P then a +1 line1 turnDir or a -1 line2 turnDir from an inner endpoint
+        // will NOT cause a crossing. -1 will cause a crossing.
+        // The match sums the two inner turnDirs, inverting sign if they come from a line2
+        // turning. Dividing this by 2 gives the required answer!
+        // NB this is simpler than expected since it does not matter what order the two inner ends are
+        // in - which makes identifying them (as one of the MaxB and one of the MinB ends) easier.
+        match line1.B.MinB > line2.B.MinB, line1.B.MaxB < line2.B.MaxB with
+        | true, true -> min1+max1
+        | true, false -> min1-max2
+        | false, true -> -min2+max1
+        | false, false -> -min2+max2
+        |> (fun n -> n / 2)
+            
+        
+
+    let orderToMinimiseCrossings (model:Model) (indexes:int list) (lines: Line array) =
+        if indexes.Length = 1 then
+            indexes
+        else
+            let wires = model.Wires
+            let numIndexes = indexes.Length
+            let indexesA = indexes |> Array.ofList
+            let findIndexKey Array.findIndex ((=) index) indexesA
+            let sortOrderA = 
+                (let arr = Array.create numIndexes 0
+                for i in [0..numIndexes-1] do
+                    for j in [0..i-1] do
+                        let num = numCrossingsSign lines[i] lines[j] wires
+                        arr[indexes[i]] <- arr[indexes[i]] + num
+                        arr[indexes[j]] <- arr[indexes[j]] - num
+                arr)
+                
+            let sortFun i j = 
+                let iK = findIndexKey i
+                let jK = findIndexKey j
+                sortOrderA[i] - sortOrderA[j]
+            List.sortBy sortFun indexes
+
+                    
+            
+
     let separateSegmentChanges (orientation: Orientation) (model: Model) =
         /// true if bounds of Lines l1 and l2 overlap
         let hasOverlap (b1:Bound) (b2:Bound) =
             inMiddleOf b1.MinB b2.MinB b1.MaxB ||
-            inMiddleOf b1.MinB b2.MaxB b1.MinB
+            inMiddleOf b1.MinB b2.MaxB b1.MinB ||
+            inMiddleOf b2.MinB b1.MinB b2.MaxB
 
         /// union of two bounds b1 and b2. b1 & b2 must overlap
         let boundUnion (b1: Bound) (b2:Bound) =
@@ -181,65 +261,83 @@ module Separate =
             |> Array.sortBy (fun line -> line.P)
             |> Array.mapi (fun i line -> {line with Index = i})
 
+        //Array.iteri (fun i item -> if Option.isSome item.Seg then printfn $"LINE={i}:{item}") lines
+
         let lineIsGrouped = Array.create lines.Length false
 
         lines 
         |> Array.iteri (fun i line -> if line.IsFixed then lineIsGrouped[i] <- true)           
 
-        let checkLocality (spaceNeeded:float) (index: int) (lines: Line array)  =
-            let nextIndex i = i + sign spaceNeeded
-            let p0 = lines[index].P
-            let initLocality = {Fix=None; Segments=[]; Bound=lines[index].B }
-            let rec check i (spaceNeeded:float) loc =
+        let expandLocality (index: int) (offset: float) (bound:Bound) (lines: Line array)  =
+            let searchDir = sign offset
+            let nextIndex i = i + searchDir
+            let line = lines[index]
+            let initLoc = {Fix = None; Bound = bound; Segments = [index]; SearchLimit = lines[index].P + offset}
+            let rec expand i loc =
                 if (i < 0 || i >= lines.Length) then 
                     loc
                 elif not (hasOverlap loc.Bound lines[i].B) then 
-                    check (nextIndex i) spaceNeeded loc
+//                    printfn $"Skipping {i} - no overlap"
+                    expand (nextIndex i) loc
                 else
                     match lines[i] with
-                    | {P=p} when abs (p - p0) > spaceNeeded -> 
+                    | {P=p} when p * float searchDir > loc.SearchLimit * float searchDir-> 
+//                        printfn $"Skipping {i} - distance={abs (p - p0)} > {abs spaceNeeded}"
                         loc
                     | {IsFixed=true; P = p} -> 
                         {loc with Fix = Some p}
                     | {IsFixed=false; Seg = aSeg; B=b} -> 
                         if lineIsGrouped[i] then 
-                            check (nextIndex i) spaceNeeded loc
+                            expand (nextIndex i) loc
                         else
-                            check 
+//                            printfn $"Adding {i} to locality..."
+                            expand 
                               (nextIndex i) 
-                              (spaceNeeded + float (sign spaceNeeded) * Constants.minWireSeparation) 
                               {
                                 loc with 
+                                    SearchLimit = loc.SearchLimit + offset 
                                     Segments = i :: loc.Segments;
                                     Bound = boundUnion loc.Bound b
                               }
-            check index spaceNeeded initLocality
+            expand index initLoc
 
         let makeSegGroup loc1 loc2 index =
-            let segs = loc1.Segments @ [index] @ loc2.Segments
+            let segs = 
+                loc1.Segments @ [index] @ loc2.Segments 
+                |> List.distinct
+                |> orderToMinimiseCrossings model indexes lines
+            if segs.Length > 1 then
+                printfn $"** Grouping: {segs} **"
             segs |> List.iter (fun i -> lineIsGrouped[i] <- true)
             let spreadout start sep = 
                 [1..segs.Length] 
                 |> List.map (fun i -> start + sep * (float i))
                 |> List.zip (segs |> List.map (fun i -> lines[i]))
+//                |> (fun lst -> (lst |> List.iter (fun (seg,p) -> printf $"Move: {seg.P} -> {p}"));lst)
             match loc1.Fix,loc2.Fix, segs.Length with
             | Some bMax, Some bMin, n ->
-                spreadout bMin ((bMax - bMin) / (float n + 2.))
+//                printfn $"Channel: {bMin} - {bMax} segs: {segs |> List.map (fun n -> n, lines[n].P)}"
+                spreadout bMin ((bMax - bMin) / (float n + 1.))
             | None, Some bMin, _ ->
-                spreadout bMin Constants.minWireSeparation
-            | Some bMax, None, n -> spreadout (bMax - (float n+2.)) Constants.minWireSeparation
+//                printfn $"Change with %.2f{bMin} Min Fix: {segs}"
+                spreadout bMin maxSegmentSeparation
+            | Some bMax, None, n -> 
+//                printfn $"Change with Max %.2f{bMax} Fix: {segs}"
+                spreadout (bMax - (float n+1.)*maxSegmentSeparation) maxSegmentSeparation
             | None, None, 1 -> [] // no change
             | None, None, n -> 
-                let start = (lines[0].P + lines[n-1].P) / 2. - (float n + 2.) * Constants.minWireSeparation
-                spreadout start Constants.minWireSeparation
+                let start = (lines[segs[0]].P + lines[segs[n-1]].P) / 2. - (float n + 1.) * maxSegmentSeparation / 2.
+//                printfn $"Change with no Fix: {segs}"
+                spreadout start maxSegmentSeparation
 
         let rec segGroups()  =
             let unGroupedIndex = Array.tryFindIndex ((=) false) lineIsGrouped
             match unGroupedIndex with
             | None -> []
             | Some nextIndex -> 
-                let loc1 = checkLocality Constants.minWireSeparation nextIndex lines
-                let loc2 = checkLocality -Constants.minWireSeparation nextIndex lines
+                //printfn $"found {nextIndex}"
+                let loc1 = expandLocality nextIndex localitySize lines[nextIndex].B lines
+                let loc2 = expandLocality  (List.max (nextIndex :: loc1.Segments)) -localitySize loc1.Bound lines
                 makeSegGroup loc1 loc2 nextIndex :: segGroups()
         segGroups() 
         |> List.concat
@@ -248,16 +346,28 @@ module Separate =
     let changeModelFromGroups (ori: Orientation) (model: Model) (changes: (Line * float) list) =
         let wires = 
             (model.Wires, changes)
-            ||> List.fold (fun wires (line, newP) -> moveLine ori newP line wires )
+            ||> List.fold (fun wires (line, newP) -> 
+                let seg = Option.get line.Seg
+                printfn $"Line {line.Index} {line.P} ->{newP}"
+                moveLine ori newP line wires )
         Optic.set wires_ wires model
 
     let separateModelOneWay  (ori: Orientation) (model: Model) =
+        printfn $"**********Checking {ori} segments**********"
         separateSegmentChanges ori model
         |> changeModelFromGroups ori model
 
-    let separateModel = separateModelOneWay Vertical >> separateModelOneWay Horizontal
+    let separateModel = 
+        (fun model -> printfn "Starting separate..."; model)
+        >> separateModelOneWay Vertical 
+        >> separateModelOneWay Horizontal
      
-            
+
+let updateWireSegmentJumpsAndSeparations model =
+    model
+    |> Separate.separateModel
+    |> (BusWireUpdateHelpers.updateWireSegmentJumps [])
+           
 
             
 

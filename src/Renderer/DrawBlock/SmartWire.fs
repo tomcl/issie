@@ -59,7 +59,7 @@ module Constants =
     let maxCallsToShiftHorizontalSeg = 5
     let minWireSeparation = 7. // must be smaller than Buswire.nubLength
     let smallOffset = 0.1
-    let localitySize = 12.
+    let minSegmentSeparation = 12.
     let maxSegmentSeparation = 15.
 
 type DirectionToMove =
@@ -126,14 +126,19 @@ module Separate =
         Index: int // index in lines array of this Line.
         }
 
+
     /// Used to cluster together overlapping and adjacent lines into a group that 
     /// can be spread out. This is the parameter in a tail recursion used to do the clustering
     type Locality = {
-        Fix: float option // if clustering is stopped by a barrier
+        UpperFix: float option // if clustering is stopped by a barrier
+        LowerFix: float option // if clustering is stopped by a barrier
         Segments: int list // list of movable lines found (which will be spread out)
         Bound: Bound // union of bounds of all segments found so far
-        SearchLimit: float // how far do we need to search before ending the current cluster.
+        SearchStart: float // starting point for current search, used to calculate search limits
         }
+
+    type LocSearchDir = Upwards | Downwards of Locality
+
     open Constants
 
     /// move segment by amount posDelta in direction perpendicular to segment - + => X or y increases.
@@ -184,7 +189,8 @@ module Separate =
     let hasOverlap (b1:Bound) (b2:Bound) =
         inMiddleOf b1.MinB b2.MinB b1.MaxB ||
         inMiddleOf b1.MinB b2.MaxB b1.MinB ||
-        inMiddleOf b2.MinB b1.MinB b2.MaxB
+        inMiddleOf b2.MinB b1.MinB b2.MaxB ||
+        inMiddleOf b1.MinB ((b2.MinB + b2.MaxB) / 2.) b1.MaxB
 
     /// union of two bounds b1 and b2. b1 & b2 must overlap
     let boundUnion (b1: Bound) (b2:Bound) =
@@ -289,55 +295,96 @@ module Separate =
     /// terminates given large gap or a fixed boundary segments are not allowed to move across.
     let expandLocality 
             (index: int) 
-            (offset: float) 
-            (bound:Bound) 
-            (lines: Line array)  
-            (lineIsGrouped: bool array) =
-        let searchDir = sign offset
-        let nextIndex i = i + searchDir
-        let line = lines[index]
-        let initLoc = {Fix = None; Bound = bound; Segments = [index]; SearchLimit = lines[index].P + offset}
+            (searchDir: LocSearchDir)  
+            (lines: Line array)  =
+        let nextIndex i = i + match searchDir with | Upwards -> 1 | _ -> -1
+        let searchSign a  = match searchDir with | Upwards -> a | _ -> -a
+        let searchGt a b = match searchDir with | Upwards -> a > b | _ -> a < b
+        let initLoc, lowestIndex = 
+            match searchDir with
+            | Upwards -> {UpperFix = None; LowerFix=None; Bound = lines[index].B; Segments = [index]; SearchStart = lines[index].P}, None
+            | Downwards loc ->
+                let index = List.max loc.Segments
+                {loc with Segments = [index]; SearchStart = lines[index].P}, Some (List.min loc.Segments)
         let rec expand i loc =
+            let nSegs = float loc.Segments.Length
+            let segSearchLimit = loc.SearchStart + nSegs * searchSign maxSegmentSeparation
             if (i < 0 || i >= lines.Length) then 
                 loc
             elif not (hasOverlap loc.Bound lines[i].B) then 
                 expand (nextIndex i) loc
             else
                 match lines[i] with
-                | {P=p} when p * float searchDir > loc.SearchLimit * float searchDir-> 
-                    loc
                 | {IsFixed=true; P = p} -> 
-                    {loc with Fix = Some p}
-                | {IsFixed=false; Seg = aSeg; B=b} -> 
-                    if lineIsGrouped[i] then 
-                        expand (nextIndex i) loc
-                    else
+                    match searchDir with | Upwards -> {loc with UpperFix = Some p} | _-> {loc with LowerFix = Some p} // fixed boundary
+                | {IsFixed=false; Seg = aSeg; B=b; P = p} when searchGt p segSearchLimit -> loc
+                | {IsFixed=false; Seg = aSeg; B=b; P = p} ->
+                    match lowestIndex with 
+                    | Some index when i < index ->
+                        loc // past starting point
+                    | _ ->
                         expand 
                             (nextIndex i) 
                             {
                             loc with 
-                                SearchLimit = loc.SearchLimit + offset 
-                                Segments = i :: loc.Segments;
+                                Segments =  i :: loc.Segments;
                                 Bound = boundUnion loc.Bound b
                             }
         expand index initLoc
 
-    /// function which given the 3 parts of a locality search works out how to
+    let createLocalities (lines: Line array) =
+        let lineIsGrouped = Array.create lines.Length false
+        let rec localities lines lineIsGrouped =
+            match Array.tryFindIndex ((=) false) lineIsGrouped with
+            | None -> []
+            | Some nextIndex ->
+                // to find a cluster of overlapping segments search forward first until there is a gap
+                let loc1 = expandLocality nextIndex Upwards lines
+                // now, using the (larger) union of bounds fond searching forward, search backwards. This may find
+                // extra lines due to larger bound and in any case will search at least a little way beyond the initial
+                // start - enough to see if there is a second barrier.
+                // note that every segment can only be grouped once, so this search will not pick up previously clustered
+                // segments when searching backwards.
+                let loc2 = expandLocality (List.max loc1.Segments) (Downwards loc1) lines
+                loc2.Segments
+                |> List.filter (fun index -> 
+                    if not lineIsGrouped[index] then 
+                        lineIsGrouped[index] <- true
+                        true
+                    else // ensure a segment cannot be grouped twice
+                        false)                
+                |> fun segs -> {loc2 with Segments = segs} :: localities lines lineIsGrouped
+        localities lines lineIsGrouped
+
+    let mergeLocs (loc1: Locality) (loc2: Locality) =
+        failwithf "not implemented"
+
+    let mergeLocalities (lines: Line array) (locL : Locality list) =
+        let rec merge  (mergedLocs: Locality list) (locL : Locality list) =
+            match mergedLocs, locL with
+            | mLocs, [] -> mLocs // no localities to merge!
+            | [], loc :: locs -> merge [loc] locs
+            | currLoc :: mLocL , loc:: locL ->
+                match currLoc.UpperFix with
+                | Some upperB -> merge (loc :: currLoc :: mLocL) locL
+                | None -> merge (mergeLocs currLoc loc @ mLocL) locL
+        merge [] locL
+
+    /// function which given the 3 parts of a locality works out how to
     /// spread out the contained segments optimally, spacing them from other segments and symbols.
     /// Return value is a list of segments, represented as Lines, paired with where they move.
-    let makeSegGroup loc1 loc2 index model lines (lineIsGrouped: bool array) =
+    let getSegChanges model lines loc=
         let segs = 
-            loc1.Segments @ [index] @ loc2.Segments 
+            loc.Segments
             |> List.distinct
             |> orderToMinimiseCrossings model lines
         if segs.Length > 1 then
             printfn $"** Grouping: {segs} **"
-        segs |> List.iter (fun i -> lineIsGrouped[i] <- true)
         let spreadout start sep = 
             [1..segs.Length] 
             |> List.map (fun i -> start + sep * (float i))
             |> List.zip (segs |> List.map (fun i -> lines[i]))
-        match loc1.Fix,loc2.Fix, segs.Length with
+        match loc.UpperFix,loc.LowerFix, segs.Length with
         | Some bMax, Some bMin, n ->
             spreadout bMin ((bMax - bMin) / (float n + 1.))
         | None, Some bMin, _ ->
@@ -356,31 +403,8 @@ module Separate =
     /// For segments in each Locality work out the best segment separation perpendicular to segment direction
     /// based on fixed boundaries - manual segments or symbol edges. 
     /// Return required segment positions as a list of pairs of Line and new P value for that line. 
-    let getSegmentChanges model (lines:Line array) =
-
-        /// Mutable array used to record which segments have been grouped into Locality structures
-        /// Locality search continues untill all movable segments have been assigned to a unique locality
-        let lineIsGrouped = Array.create lines.Length false
-
-        // initialise mutable array
-        lines |> Array.iteri (fun i line -> if line.IsFixed then lineIsGrouped[i] <- true)
-
-        let rec segGroups model  =
-            let unGroupedIndex = Array.tryFindIndex ((=) false) lineIsGrouped
-            match unGroupedIndex with
-            | None -> []
-            | Some nextIndex -> 
-                // to find a cluster of overlapping segments search forward first until there is a gap
-                let loc1 = expandLocality nextIndex localitySize lines[nextIndex].B lines lineIsGrouped
-                // now, using the (larger) union of bounds fond searching forward, search backwards. this may find
-                // extra lines due to larger bound and in any case will search at least a little way beyond the initial
-                // start - enough to see if there is a second barrier.
-                // note that every segment can only be grouped once, so this search cannot pick up previously clustered
-                // segments when searching backwards.
-                let loc2 = expandLocality  (List.max (nextIndex :: loc1.Segments)) -localitySize loc1.Bound lines lineIsGrouped
-                makeSegGroup loc1 loc2 nextIndex model lines lineIsGrouped :: segGroups model
-        segGroups model 
-        |> List.concat
+    let changeSegments model lines =
+        createLocalities
 
     /// Given a list of segment changes of given orientation apply them to the model
     let adjustSegmentsInModel (ori: Orientation) (model: Model) (changes: (Line * float) list) =
@@ -393,14 +417,18 @@ module Separate =
 
     /// perform complete model tidy up for segments of given orientation
     let separateModelOneOrientation  (ori: Orientation) (model: Model) =
+        printf $"{ori} Separation starting..."
         makeLines ori model
-        |> getSegmentChanges model
+        |> fun lines -> 
+            createLocalities lines
+            |> mergeLocalities lines
+            |> List.collect (getSegChanges model lines)
         |> adjustSegmentsInModel ori model
 
     /// perform complete model tidy up for all orientations
     let separateModel = 
         separateModelOneOrientation Vertical 
-        >> separateModelOneOrientation Horizontal
+        //>> separateModelOneOrientation Horizontal
      
 /// Top-level function to replace updateWireSegmentJumps
 /// and call the new tidyup code as well. This should
@@ -649,29 +677,29 @@ module v3 =
     //------------------------------------------------------------------------------------------------------------------------------//
     //---------------------------------------------------Implementation-------------------------------------------------------------//
     //------------------------------------------------------------------------------------------------------------------------------//
-    // return Some max distance above or below, if one exists, or None
-    let tryMaxDistance  (distances: VertDistFromBoundingBox option list) =
+    // return max distance above or below
+    let tryMaxDistance  (distances: VertDistFromBoundingBox list) =
         match distances with
-        | [] -> None
-        | _  -> List.maxBy (function | Some (Above d) | Some (Below d) -> d | None -> -infinity) distances
+        | [] -> Above 0.
+        | _  -> List.maxBy (function | Above d | Below d -> d) distances
 
-    /// returns the maximum vertical distance of pos from intersectedBoxes as a VertDistFromBoundingBox or None if there are no intersections
+    /// returns the maximum vertical distance of pos from intersectedBoxes as a VertDistFromBoundingBox or Above 0. if are no intersections
     let maxVertDistanceFromBox
         (intersectedBoxes: BoundingBox list)
         (wireOrientation: Orientation)
         (pos: XYPos)
-        : VertDistFromBoundingBox option =
+        : VertDistFromBoundingBox  =
 
         let isCloseToBoxHoriz (box: BoundingBox) (pos: XYPos) = inMiddleOrEndOf box.TopLeft.X pos.X (box.TopLeft.X + box.W)
 
-        let getVertDistanceToBox (pos: XYPos) (box: BoundingBox) : VertDistFromBoundingBox option list =
+        let getVertDistanceToBox (pos: XYPos) (box: BoundingBox) : VertDistFromBoundingBox list =
             (swapXY pos wireOrientation, swapBB box wireOrientation)
             ||> (fun pos box ->
                 if isCloseToBoxHoriz box pos then
                     if pos.Y > box.TopLeft.Y then
-                        [pos.Y - box.TopLeft.Y |> Above |> Some]
+                        [pos.Y - box.TopLeft.Y |> Above]
                     else
-                        [box.TopLeft.Y - pos.Y + box.H |> Below |> Some]
+                        [box.TopLeft.Y - pos.Y + box.H |> Below]
                 else [])
 
         intersectedBoxes
@@ -774,11 +802,9 @@ module v3 =
                 |> List.map (maxVertDistanceFromBox intersectedBoxes wire.InitialOrientation)
                 |> tryMaxDistance
                 |> (function
-                    | None
-          
-                    | Some (Above _) ->
+                    | Above _ ->
                         tryShiftHorizontalSegAlt model downIntersections downShiftedWire
-                    | Some (Below _)  ->
+                    | Below _  ->
                         tryShiftHorizontalSegAlt model upIntersections upShiftedWire)
 
 

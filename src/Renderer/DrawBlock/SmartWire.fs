@@ -198,20 +198,21 @@ module SeparateSegments =
     //-----------------------------------------UTILITY FUNCTIONS---------------------------------------//
     //-------------------------------------------------------------------------------------------------//
 
-    /// true if bounds of Lines l1 and l2 overlap
+    /// true if bounds b1 and b2 overlap
     let hasOverlap (b1: Bound) (b2: Bound) =
         inMiddleOrEndOf b1.MinB b2.MinB b1.MaxB
         || inMiddleOrEndOf b1.MinB b2.MaxB b1.MinB
         || inMiddleOrEndOf b2.MinB b1.MinB b2.MaxB
     //inMiddleOrEndOf b1.MinB ((b2.MinB + b2.MaxB) / 2.) b1.MaxB
 
-    /// union of two bounds b1 and b2. b1 & b2 must overlap
+    /// Union of two bounds b1 and b2. b1 & b2 must overlap,
+    /// otherwise the inclusive interval containing b1 and b2 is returned.
     let boundUnion (b1: Bound) (b2: Bound) =
         { MinB = min b1.MinB b2.MinB
           MaxB = max b1.MaxB b2.MaxB }
 
 
-    /// move segment by amount posDelta in direction perpendicular to segment - + => X or y increases.
+    /// Move segment by amount posDelta in direction perpendicular to segment - + => X or y increases.
     /// movement is by changing lengths of two segments on either side.
     /// will fail if called to change a nub at either end of a wire (nubs cannot move).
     let moveSegment (index: int) (posDelta: float) (wire: Wire) =
@@ -324,7 +325,6 @@ module SeparateSegments =
         |> List.toArray
         |> Array.sortBy (fun line -> line.P)
         |> Array.mapi (fun i line -> { line with Index = i })
-    //|> (fun lines -> Array.iteri (fun i line -> printf $"Line {i} P={line.P} Fixed={line.IsFixed}") lines; lines)
 
     //-------------------------------------------------------------------------------------------------//
     //-----------------------------------------SEGMENT ORDERING----------------------------------------//
@@ -390,7 +390,8 @@ module SeparateSegments =
             | false, true -> -min2 + max1
             | false, false -> -min2 + max2
             |> (fun n -> n / 2)
-        // if two segment ends have the same P value and turn towards each other
+        // if two segment ends have the same Bound (MaxB or MinB) value and turn towards each other
+        // still experimental (the negative weighting of this perhaps means it should be the otehr way round)?
         let maybeMeeting =
             linesMaybeMeeting (max1, line1.B.MaxB, line1.P) (max2, line2.B.MaxB, line2.P)
             || linesMaybeMeeting (max1, line1.B.MaxB, line1.P) (min2, line2.B.MinB, line2.P)

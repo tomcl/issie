@@ -30,7 +30,8 @@ module Constants =
     /// default arrow display
     let initialArrowDisplay = true
     let jumpRadius: float = 5.
-    /// The minimum length of the initial segments (nubs) leaving the ports
+    /// The minimum length of the initial segments (nubs) leaving the ports.
+    /// Must be larger than SmartWire.minWireSeparation
     let nubLength: float = 8.
     /// The standard radius of a radial wire corner
     let cornerRadius: float  = 7. 

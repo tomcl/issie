@@ -62,9 +62,8 @@ module Constants =
     let smallOffset = 0.0001
     let minSegmentSeparation = 12.
     let maxSegmentSeparation = 15.
-    /// positive weight determines how much Issie tries to avoid wire "meeting" overlaps.
-    /// > 2 => more than it tries to avoid single wire crossings.
-    let maybeMeetingWeight = 0.1
+    /// lines within this distance of each other are considered to overlap
+    let overlapTolerance = 2.
 
 type DirectionToMove =
     | Up_
@@ -109,10 +108,10 @@ module SeparateSegments =
      - spread out overlapping wire segments
      - order wire segments to minimise crossings
      - order wire segments to minimise overlaps
+     - allow same-net segments to overlap
 
      Does not implement:
-     - make same-net wires overlap if possible
-     - does not re-order ports on custom components, or flip other components. That would be an obvious and quite easy 
+     - re-order ports on custom components, or flip other components. That would be an obvious and quite easy 
        extension.
      *)
 
@@ -125,15 +124,34 @@ module SeparateSegments =
     /// Used to capture the 1D coordinates of the two ends of a line. (see Line).
     type Bound = { MinB: float; MaxB: float }
 
+    
+    type LineId = LineId of int
+    with member this.Index = match this with | LineId i -> i
+
+    type LType = 
+        /// a non-segment fixed (symbol boundary) barrier
+        | FIXED  
+        /// a movable line segment
+        | NORMSEG 
+        /// a segment which is a fixed barrier in clustering but can change after.
+        | FIXEDSEG 
+        /// a fixed segment which has been manually routed and can never move
+        | FIXEDMANUALSEG
+        /// a segment linked to another on the same net which is not clustered
+        | LINKEDSEG
+
     /// Used to represent a line on the canvas, e.g. a wire segment or symbol edge.
     /// The array of lines will all have the same orientation - so optimisation is done in two phases
     /// for vertical and horizontal segments.
     type Line =
         { P: float // the coordinate X or Y perpendicular to the line.
           B: Bound // the two "other" coordinates
-          IsFixed: bool // if fixed it forms a barrier (e.g. for a channel)
-          Seg: ASegment option // if the line comes from a wire segment this references the segment and wire
-          Index: int } // index in lines array of this Line.
+          Seg1: ASegment option // if the line comes from a wire segment this references the segment and wire
+          LType: LType
+          SameNetLink: Line list
+          Wid: ConnectionId
+          PortId: OutputPortId
+          Lid: LineId } // index in lines array of this Line.
 
 
     /// Used to cluster together overlapping and adjacent lines into a group that
@@ -193,19 +211,49 @@ module SeparateSegments =
         | Some u, None when u < upperS pts -> u - widthS loc
         | _ -> lowerS pts
 
+    //-------------------------------------------------------------------------------------------------//
+    //--------------------------------LOW-LEVEL PRINTING (returns strings)-----------------------------//
+    //-------------------------------------------------------------------------------------------------//
+
+
+    let pOpt (x: 'a option) = match x with | None -> "None" | Some x -> $"^{x}^"
+
+    let pLineType (line:Line) = $"{line.LType}"
+
+    let pLine (line:Line) = 
+        $"|L{line.Lid.Index}.P=%.0f{line.P}.{pLineType line}:B=%.0f{line.B.MinB}-%.0f{line.B.MaxB}|"
+
+    let pLines (lineA: Line array) =
+        $"""{lineA |> Array.map (fun line -> pLine line) |> String.concat "\n"}"""
+
+    let pCluster (loc:Cluster) =
+        $"Cluster:<{pOpt loc.LowerFix}-{loc.Segments}-{pOpt loc.UpperFix}>"
+
+    let pAllCluster (lines: Line array) (loc:Cluster) =
+        $"""Cluster:<L={pOpt loc.LowerFix}-{loc.Segments |> List.map (fun n -> pLine lines[n]) |> String.concat ","}-U={pOpt loc.UpperFix}>"""
+
 
     //-------------------------------------------------------------------------------------------------//
     //-----------------------------------------UTILITY FUNCTIONS---------------------------------------//
     //-------------------------------------------------------------------------------------------------//
 
-    /// true if bounds b1 and b2 overlap
+    let rec tryFindIndexInArray (searchStart: LineId) (dir: int) (predicate: 'T -> bool) (giveUp: 'T -> bool) (arr: 'T array) =
+        if searchStart.Index < 0 || searchStart.Index > arr.Length - 1 then
+            None
+        else
+            match predicate arr[searchStart.Index], giveUp arr[searchStart.Index] with
+            | _, true -> None
+            | true, _ -> Some searchStart
+            | false, _ -> tryFindIndexInArray (LineId(searchStart.Index + dir)) dir predicate giveUp arr
+            
+
+    /// true if bounds b1 and b2 overlap or are exactly adjacent
     let hasOverlap (b1: Bound) (b2: Bound) =
         inMiddleOrEndOf b1.MinB b2.MinB b1.MaxB
         || inMiddleOrEndOf b1.MinB b2.MaxB b1.MinB
         || inMiddleOrEndOf b2.MinB b1.MinB b2.MaxB
-    //inMiddleOrEndOf b1.MinB ((b2.MinB + b2.MaxB) / 2.) b1.MaxB
 
-    /// Union of two bounds b1 and b2. b1 & b2 must overlap,
+    /// Union of two bounds b1 and b2. b1 & b2 must overlap or be adjacent,
     /// otherwise the inclusive interval containing b1 and b2 is returned.
     let boundUnion (b1: Bound) (b2: Bound) =
         { MinB = min b1.MinB b2.MinB
@@ -230,7 +278,7 @@ module SeparateSegments =
     /// Change wires to move a wire segment represented by line to the given new value of P coordinate.
     /// P is X or Y according to ori.
     let moveLine (ori: Orientation) (newP: float) (line: Line) (wires: Map<ConnectionId, Wire>) =
-        match line.Seg with
+        match line.Seg1 with
         | None -> failwithf "Can't move Line {line} - it is not a segment"
         | Some seg ->
             let oldP =
@@ -247,28 +295,41 @@ module SeparateSegments =
     //---------------------------------LINE ARRAY CREATION FROM MODEL----------------------------------//
     //-------------------------------------------------------------------------------------------------//
 
+    /// return wire and segment index of line, if it is a segment
+    let lineToWire (model: Model) (line:Line)  : (Wire * int) option =
+        match line.Seg1 with
+        | Some seg ->
+            let (int,wid) = seg.Segment.GetId()
+            let wire = model.Wires[wid]
+            Some (wire,int)
+        | None -> None
+        
 
     /// Convert a segment into a fixed or movable line (of given orientation).
-    let segmentToLine (fix: bool) (ori: Orientation) (seg: ASegment) : Line =
+    let segmentToLine (lType: LType) (ori: Orientation) (wire:Wire) (seg: ASegment) : Line =
         let order a b =
             if a < b then
                 { MinB = a; MaxB = b }
             else
                 { MinB = b; MaxB = a }
 
-        match ori with
-        | Horizontal ->
+        let line: Line =
             { P = seg.Start.Y
               B = order seg.Start.X seg.End.X
-              IsFixed = fix
-              Seg = Some seg
-              Index = 0 }
+              LType = lType
+              Seg1 = Some seg
+              SameNetLink = []
+              Wid = wire.WId
+              PortId = wire.OutputPort
+              Lid = LineId 0 }
+
+        match ori with
+        | Horizontal ->
+            line
         | Vertical ->
-            { P = seg.Start.X
-              B = order seg.Start.Y seg.End.Y
-              IsFixed = fix
-              Seg = Some seg
-              Index = 0 }
+            {line with 
+                P = seg.Start.X; 
+                B = order seg.Start.Y seg.End.Y}
 
     /// Convert a symbol BoundingBox into two fixed lines (of given orientation).
     let bBoxToLines (ori: Orientation) (box: BoundingBox) : Line list =
@@ -282,10 +343,42 @@ module SeparateSegments =
               B =
                 { MinB = minB + smallOffset
                   MaxB = maxB - smallOffset }
-              IsFixed = true
-              Seg = None
-              Index = 0 })
+              LType = FIXED
+              Seg1 = None
+              SameNetLink = []
+              Wid = ConnectionId ""
+              PortId = OutputPortId ""
+              Lid = LineId 0 })
 
+    /// Where two segments are on the same Net and on top of each other we muct NEVER separate them.
+    /// This function links such segments, and marks all except the head one with ClusterSegment = false, 
+    /// so that the clustering algorithm will ignore them.
+    let linkSameNetLines (lines: Line list) : Line list =
+        /// input: list of lines all in the same Net (same outputPort)
+        /// output: similar list, with lines that are on top of each other and in different wires linked
+        let linkSameNetGroup (lines: Line list) =
+            let lines = List.toArray lines
+            /// if needed, link lines[b] to lines[a] mutating elements in lines array for efficiency
+            let tryToLink (a:int) (b:int) =
+                let la, lb = lines[a], lines[b]
+                if la.LType = NORMSEG && la.Wid <> lb.Wid && close la.P lb.P && hasOverlap la.B lb.B  then
+                    lines[b] <- 
+                        { lb with
+                            LType = LINKEDSEG}
+                    lines[a] <- 
+                        { la with
+                            B = boundUnion la.B lb.B;
+                            SameNetLink = lines[b] :: lines[a].SameNetLink}                    
+            // in this loop the first lines[a] in each linkable set links all the set, setting ClusterSegment = false
+            // Linked lines are then skipped.
+            for a in [0..lines.Length-1] do
+                for b in [a+1..lines.Length-1] do
+                    tryToLink a b
+            Array.toList lines
+
+        lines
+        |> List.groupBy (fun line -> line.PortId)
+        |> List.collect (fun (port, lines) -> linkSameNetGroup lines)
 
     /// Make all lines, fixed and movable, of given orientation from wires and symbols in Model
     /// ori - orientation of Lines (P coord is reverse of this)
@@ -306,14 +399,22 @@ module SeparateSegments =
                 |> List.map (fun aSeg ->
                     let segs = wire.Segments
                     let seg = aSeg.Segment
-
-                    let isFixed =
-                        seg.Mode = Manual
-                        || seg.Index = 2 && segs[ 1 ].IsZero()
-                        || seg.Index = segs.Length - 3 && segs[ segs.Length - 2 ].IsZero()
-
-                    segmentToLine isFixed ori aSeg)
+                    let lType =
+                        match seg.Mode, seg.Index=2, seg.Index=segs.Length-3 with
+                        | Manual , _ , _ -> 
+                            FIXEDMANUALSEG
+                        | _ , true , _ when segs[ 1 ].IsZero() -> 
+                            FIXEDSEG
+                        | _ , _ , true when  segs[ segs.Length - 2 ].IsZero() -> 
+                            FIXEDSEG
+                        | _ -> 
+                            NORMSEG
+                    segmentToLine lType ori wire aSeg)
                 |> (fun wireLines -> wireLines @ lines))
+                |> linkSameNetLines
+
+
+
 
         /// Lines coming from the bounding boxes of symbols
         let symLines =
@@ -324,7 +425,8 @@ module SeparateSegments =
         symLines @ segLines
         |> List.toArray
         |> Array.sortBy (fun line -> line.P)
-        |> Array.mapi (fun i line -> { line with Index = i })
+        |> Array.mapi (fun i line -> { line with Lid = LineId i })
+        //|>  (fun arr -> printf "%s" (pLines arr); arr)
 
     //-------------------------------------------------------------------------------------------------//
     //-----------------------------------------SEGMENT ORDERING----------------------------------------//
@@ -334,7 +436,7 @@ module SeparateSegments =
     /// Returns integers +/- 1 indicating direction of wire leaving ends of line segment.
     /// Pair returned is MaxB, MinB end of line
     let inline turnDirs (line: Line) (wires: Map<ConnectionId, Wire>) =
-        match line.Seg with
+        match line.Seg1 with
         | None -> failwithf "What? Expected Some segment - not None"
         | Some aSeg ->
             let seg = aSeg.Segment
@@ -354,22 +456,21 @@ module SeparateSegments =
     // The functions tests two segment ends - one from each wire - for whether the
     // segments connected to the ends (and therefore turning one direction or the other)
     // might overlap.
-    /// Return true if two wires turn towards each other (and therefore might overlap).
+    /// Return +1. if two wires turn towards each other (and therefore might overlap), else -1.
     /// turnDir1, turnDir2 - direction in which turns go.
-    /// bound1, bound2 - the MinB or MaxB bound of each end - which muts be close.
+    /// bound1, bound2 - the MinB or MaxB bound of each end - which must be close.
     /// The P value of each segment.
     let inline linesMaybeMeeting
         ((turnDir1, bound1, p1): int * float * float)
         ((turnDir2, bound2, p2): int * float * float)
-        : bool =
-        // if the two segment ends line up
-        close bound1 bound2
-        &&
+        : float =
+        // if the two segment ends do not line up return 0.
         // and the two segments that join turn towards eachother
-        match p1 > p2, turnDir1, turnDir2 with
-        | true, -1, 1
-        | false, 1, -1 -> true
-        | _ -> false
+        match close bound1 bound2,  p1 > p2, turnDir1, turnDir2 with
+        | false, _, _, _ -> 0.
+        | _, true, -1, 1
+        | _, false, 1, -1 -> 1.
+        | _ -> -1.
 
 
     /// +1 if line1.P > line2.P for zero crossings.
@@ -394,12 +495,12 @@ module SeparateSegments =
         // still experimental (the negative weighting of this perhaps means it should be the otehr way round)?
         let maybeMeeting =
             linesMaybeMeeting (max1, line1.B.MaxB, line1.P) (max2, line2.B.MaxB, line2.P)
-            || linesMaybeMeeting (max1, line1.B.MaxB, line1.P) (min2, line2.B.MinB, line2.P)
-            || linesMaybeMeeting (min1, line1.B.MinB, line1.P) (max2, line2.B.MaxB, line2.P)
-            || linesMaybeMeeting (min1, line1.B.MinB, line1.P) (min2, line2.B.MinB, line2.P)
+            + linesMaybeMeeting (max1, line1.B.MaxB, line1.P) (min2, line2.B.MinB, line2.P)
+            + linesMaybeMeeting (min1, line1.B.MinB, line1.P) (max2, line2.B.MaxB, line2.P)
+            + linesMaybeMeeting (min1, line1.B.MinB, line1.P) (min2, line2.B.MinB, line2.P)
 
-        printfn $"line1 = {line1.Index}, line2 = {line2.Index}. MaybeMeeting = {maybeMeeting}"
-        float crossingsNumSign - maybeMeetingWeight * (if maybeMeeting then 1. else -1.)
+        //printfn $"line1 = {line1.Index}, line2 = {line2.Index}. MaybeMeeting = {maybeMeeting}"
+        float crossingsNumSign + maybeMeeting 
 
     /// segL is a list of lines array indexes representing segments found close together.
     /// Return the list ordered in such a way that wire crossings are minimised if the
@@ -439,21 +540,11 @@ module SeparateSegments =
     /// When given a segment index search for nearby segments to be considered with it as a single cluster
     /// for spreading out. To be included segments must be close enough and overlapping. Search
     /// terminates given large gap or a fixed boundary segments are not allowed to move across.
-    let expandCluster (isGroupedA: bool array) (index: int) (searchDir: LocSearchDir) (lines: Line array) =
+    let expandCluster (groupableA: bool array) (index: int) (searchDir: LocSearchDir) (lines: Line array) =
         let nextIndex i =
             match searchDir with
             | Upwards -> i + 1
             | _ -> i - 1
-
-        let searchSign a =
-            match searchDir with
-            | Upwards -> a
-            | _ -> -a
-
-        let searchGt a b =
-            match searchDir with
-            | Upwards -> a > b
-            | _ -> a < b
 
         let searchStart = lines[index].P
 
@@ -474,23 +565,18 @@ module SeparateSegments =
 
             if (i < 0 || i >= lines.Length) then
                 loc
-            elif not (hasOverlap loc.Bound lines[i].B) || (not lines[i].IsFixed && isGroupedA[i]) then
+            elif (not  (hasOverlap loc.Bound lines[i].B)) || (not groupableA[i] && (lines[i].LType <> FIXED)) then
                 expand (nextIndex i) loc
             else
-                //printf $"lines[{i}]= IsFixed={lines[i].IsFixed} P={lines[i].P}"
-                match lines[i] with
-                | { IsFixed = true; P = p } ->
+                let p = lines[i].P
+                match lines[i].LType with
+                | FIXED | FIXEDMANUALSEG | FIXEDSEG ->
+                    let p = lines[i].P
                     match searchDir with
                     | Upwards -> { loc with UpperFix = Some p }
                     | _ -> { loc with LowerFix = Some p } // fixed boundary
-                | { IsFixed = false
-                    Seg = aSeg
-                    B = b
-                    P = p } when abs (p - searchStart) > maxSegmentSeparation * nSegs + smallOffset -> loc
-                | { IsFixed = false
-                    Seg = aSeg
-                    B = b
-                    P = p } ->
+                | _ when abs (p - searchStart) > maxSegmentSeparation * nSegs + smallOffset -> loc
+                | _ ->
                     match lowestDownwardsIndex with
                     | Some index when i < index -> expand (nextIndex i) loc // past starting point, so can't add segments, but still check for a Fix
                     | _ ->
@@ -498,10 +584,9 @@ module SeparateSegments =
                             (nextIndex i)
                             { loc with
                                 Segments = i :: loc.Segments
-                                Bound = boundUnion loc.Bound b }
+                                Bound = boundUnion loc.Bound lines[i].B }
 
         expand (nextIndex index) initLoc
-
 
     /// Scan through segments in P order creating a list of local Clusters.
     /// Within one cluster segments are adjacent and overlapping. Note that
@@ -511,17 +596,18 @@ module SeparateSegments =
     /// clusters are identified.
     /// Every segment must be part of a unique cluster.
     let makeClusters (lines: Line array) =
-        let lineIsGroupedA =
-            Array.init lines.Length (fun i -> lines[i].IsFixed || Option.isNone lines[i].Seg)
+        /// true if corresponding line can be grouped in a cluster as a segment
+        let groupableA =
+            Array.init lines.Length (fun i ->lines[i].LType = NORMSEG)
 
-        let lineIsGrouped seg = lineIsGroupedA[seg]
-        let expandCluster = expandCluster lineIsGroupedA
+        let groupable seg = groupableA[seg]
+        let expandCluster = expandCluster groupableA
 
-        let filterGroupedSegments (loc: Cluster) =
-            { loc with Segments = List.filter (lineIsGrouped >> not) loc.Segments }
+        let keepOnlyGroupableSegments (loc: Cluster) =
+            { loc with Segments = List.filter groupable loc.Segments }
 
         let rec getClusters lines =
-            match Array.tryFindIndex ((=) false) lineIsGroupedA with
+            match Array.tryFindIndex ((=) true) groupableA with
             | None -> []
             | Some nextIndex ->
                 // to find a cluster of overlapping segments search forward first until there is a gap
@@ -561,13 +647,15 @@ module SeparateSegments =
                          failwithf "What? nextIndex has got lost from loc2!")
 
                     [ loc2 ]
-                |> List.map filterGroupedSegments
+                |> List.map keepOnlyGroupableSegments
                 |> List.filter (fun loc -> loc.Segments <> [])
                 |> (fun newLocs ->
                     newLocs
-                    |> List.iter (fun loc -> loc.Segments |> List.iter (fun seg -> lineIsGroupedA[seg] <- true))
+                    |> List.iter (fun loc -> 
+                        //printf "%s" (pAllCluster lines loc)
+                        loc.Segments |> List.iter (fun seg -> groupableA[seg] <- false))
 
-                    if not (lineIsGrouped nextIndex) then
+                    if groupable nextIndex then
                         failwithf "Error: infinite loop detected in cluster find code"
 
                     newLocs @ getClusters lines)
@@ -583,7 +671,7 @@ module SeparateSegments =
             [ loc1; loc2 ] // do not merge
         else
             // Bound and SearchStart fields are no longer used.
-            printfn $"Merging!  {loc1.Segments} {upperB lines loc1}{lowerB lines loc2}"
+            // printf $"Merging:\n{pAllCluster lines loc1}\n{pAllCluster lines loc2}"
 
             [ { loc1 with
                   UpperFix = loc2.UpperFix
@@ -651,15 +739,68 @@ module SeparateSegments =
             //printf $"spread {nSeg} from middle bmax= {bMax}, bMin={bMin}"
             spreadFromMiddle idealMidpoint maxSep
 
+
     /// Given a list of segment changes of given orientation apply them to the model
     let adjustSegmentsInModel (ori: Orientation) (model: Model) (changes: (Line * float) list) =
+        let changes =
+            changes 
+            |> List.collect (fun (line, p) ->
+                if line.SameNetLink = [] then 
+                    [line,p]
+                else
+                    line.SameNetLink |> List.iteri (fun i lin -> printfn $"{line.Lid.Index}({i}): Linked net: {lin.Lid.Index},{lin.P} -> {p}")
+                    [(line,p)] @ (line.SameNetLink |> List.map (fun line2 -> line2,p)))
         let wires =
             (model.Wires, changes)
             ||> List.fold (fun wires (line, newP) ->
-                let seg = Option.get line.Seg
+                let seg = Option.get line.Seg1
                 moveLine ori newP line wires)
 
         Optic.set wires_ wires model
+
+    /// Segments which could be moved, but would make an extra segment if moved, are marked Fixed
+    /// and not moved by the normal cluster-based separation functions.
+    /// This function looks at these segments and moves them a little in the special case that they
+    /// overlap. It is called after the main segment separation is complete.
+    let separateFixedSegments (ori: Orientation) (model: Model) =
+        /// direction from line which has maximum available P space, up to maxOffset,
+        /// Return value is space available - negative if more space is in negative direction.
+        let getSpacefromLine (lines: Line array) (line: Line) (excludeLine: Line) (maxOffset: float) =
+            let p = line.P
+            let find offset dir = 
+                tryFindIndexInArray 
+                    (LineId(line.Lid.Index + dir)) 
+                    dir 
+                    (fun line2 -> hasOverlap line2.B line.B && line2.Lid <> excludeLine.Lid ) 
+                    (fun l1 -> abs (l1.P - p) > 2. * offset) 
+                    lines
+            match find maxOffset 1, find maxOffset -1 with
+            | None, _ -> maxOffset
+            | _, None -> -maxOffset
+            | Some a, Some b -> 
+                if abs (lines[a.Index].P - p) > abs (lines[b.Index].P - p) then 
+                    lines[a.Index].P - p
+                else 
+                    lines[b.Index].P - p
+
+        makeLines ori model
+        |> (fun lines -> 
+            Array.pairwise lines
+            |> Array.filter (fun (line1, line2) -> 
+                    line1.LType = FIXEDSEG && line2.LType = FIXEDSEG &&
+                    abs (line1.P - line2.P) < overlapTolerance &&
+                    line1.PortId <> line2.PortId &&
+                    hasOverlap line1.B line2.B)
+            |> Array.map (fun (line1, line2) ->
+                let space1 = getSpacefromLine lines line1 line2 2*maxSegmentSeparation
+                let space2 = getSpacefromLine lines line2 line1 2*maxSegmentSeparation
+                if abs space1 > abs space2 then
+                    line1, line1.P + space1 * 0.5
+                else
+                    line2, line1.P + space2 * 0.5)
+            |> List.ofArray)
+        |> adjustSegmentsInModel ori model
+                
 
     //-------------------------------------------------------------------------------------------------//
     //----------------------------------------TOP LEVEL FUNCTIONS--------------------------------------//
@@ -679,8 +820,13 @@ module SeparateSegments =
     let separateAndOrderModelSegments =
         separateModelSegmentsOneOrientation Vertical
         >> separateModelSegmentsOneOrientation Horizontal
+        //>> separateFixedSegments Vertical 
+        //>> separateFixedSegments Horizontal
+
         >> separateModelSegmentsOneOrientation Vertical // repeat vertical separation since moved segments may now group
+        >> separateFixedSegments Vertical 
         >> separateModelSegmentsOneOrientation Horizontal // as above
+        >> separateFixedSegments Horizontal
 
 /// Top-level function to replace updateWireSegmentJumps
 /// and call the new tidyup code as well. This should

@@ -64,6 +64,12 @@ module Constants =
     let maxSegmentSeparation = 15.
     /// lines within this distance of each other are considered to overlap
     let overlapTolerance = 2.
+    /// corners with max length edge large rthan this are not removed
+    let maxCornerSize = 100.
+    /// How close are segment extensions caused by corner removal allowed to
+    /// get to other elements? Maybe needs to be smaller than some otehr things for
+    /// successful corner removal?
+    let extensionTolerance = 3.
 
 type DirectionToMove =
     | Up_
@@ -140,12 +146,14 @@ module SeparateSegments =
         /// a segment linked to another on the same net which is not clustered
         | LINKEDSEG
 
+
     /// Used to represent a line on the canvas, e.g. a wire segment or symbol edge.
     /// The array of lines will all have the same orientation - so optimisation is done in two phases
     /// for vertical and horizontal segments.
     type Line =
         { P: float // the coordinate X or Y perpendicular to the line.
           B: Bound // the two "other" coordinates
+          Orientation: Orientation
           Seg1: ASegment option // if the line comes from a wire segment this references the segment and wire
           LType: LType
           SameNetLink: Line list
@@ -169,11 +177,71 @@ module SeparateSegments =
         | Upwards
         | Downwards of Cluster
 
+    type Extension = {    
+        ExtOri: Orientation
+        ExtB: Bound
+        ExtP: float
+        }
+
+    /// Defines a wire corner that could be removed.
+    /// the two removed segments are [StartSeg+1..EndSeg-1]
+    /// In addition, StartSeg and EndSeg have Length changed.
+    type WireCorner = {
+        /// Wire on which the corner lies
+        Wire: Wire
+        /// index of segment immediately before the two deleted segments
+        StartSeg: int
+        /// change in length of StartSeg needed to remove the corner
+        StartSegChange: float
+        /// change in length of EndSeg needed to remove the corner
+        EndSegChange: float // EndSeg = StartSeg + 3
+        /// orientation of StartSeg. EndSeg has opposite orientation.
+        StartSegOrientation: Orientation
+        }
+
+    type LineInfo = {
+        /// Vertical lines
+        VLines: Line array
+        /// Horizontal lines
+        HLines: Line array
+        /// map from wire IDs to wires
+        WireMap: Map<ConnectionId,Wire>
+        /// map from segment IDs to lines
+        LineMap: Map<int*ConnectionId, LineId>}
+
+
+
 
     //-------------------------------------------------------------------------------------------------//
     //--------------------------------HELPERS USED IN CLUSTERING SEGMENTS------------------------------//
     //-------------------------------------------------------------------------------------------------//
 
+    /// get the horizontal length of the visible segment emerging from a port
+    let getVisibleNubLength (atEnd: bool) (wire: Wire) =
+        let segs = wire.Segments
+        let getLength i =
+            if atEnd then
+                segs.Length - 1 - i
+            else
+                i
+            |> (fun index -> segs[index].Length)
+        if (getLength 1) < smallOffset then
+            getLength 2 + getLength 0
+        else
+            getLength 0
+
+    let segmentIsNubExtension (wire: Wire) (segIndex: int) =
+        let segs = wire.Segments
+        let nSegs = segs.Length
+        let lastSeg = nSegs-1
+        let revSeg n = segs[lastSeg-n]
+        match segIndex, lastSeg-segIndex with
+        | 0, _ | _, 0 -> true
+        | 2, _ when segs[1].IsZero() -> true
+        |_, 2 when  (revSeg 1).IsZero() -> true
+        | _ -> false
+        
+                
 
     /// Get the segment indexes within a Cluster (loc)
     let inline segPL (lines: Line array) loc =
@@ -215,13 +283,33 @@ module SeparateSegments =
     //--------------------------------LOW-LEVEL PRINTING (returns strings)-----------------------------//
     //-------------------------------------------------------------------------------------------------//
 
+    let pWire (wire: Wire) =
+        let segs = wire.Segments
+        let nSegs = segs.Length
+        let aSegs = getAbsSegments wire
+        let pASeg (aSeg:ASegment) =
+            let vec = aSeg.End - aSeg.Start
+            if aSeg.IsZero() then
+                "S0"
+            else
+                match getSegmentOrientation aSeg.Start aSeg.End, aSeg.Segment.Length > 0 with
+                | Vertical, true -> "Dn"
+                | Vertical, false -> "Up"
+                | Horizontal,true -> "Rt"
+                | Horizontal, false -> "Lt"
+                |> (fun s -> s + $"%.0f{abs aSeg.Segment.Length}")
+
+        let pSegs = aSegs |> List.map pASeg |> String.concat "-"
+
+        sprintf $"W{nSegs}:{wire.InitialOrientation}->{pSegs}"
 
     let pOpt (x: 'a option) = match x with | None -> "None" | Some x -> $"^{x}^"
 
     let pLineType (line:Line) = $"{line.LType}"
 
     let pLine (line:Line) = 
-        $"|L{line.Lid.Index}.P=%.0f{line.P}.{pLineType line}:B=%.0f{line.B.MinB}-%.0f{line.B.MaxB}|"
+        let ori = match line.Orientation with | Horizontal -> "H" | Vertical -> "V"
+        $"|{ori}L{line.Lid.Index}.P=%.0f{line.P}.{pLineType line}:B=%.0f{line.B.MinB}-%.0f{line.B.MaxB}|"
 
     let pLines (lineA: Line array) =
         $"""{lineA |> Array.map (fun line -> pLine line) |> String.concat "\n"}"""
@@ -230,7 +318,8 @@ module SeparateSegments =
         $"Cluster:<{pOpt loc.LowerFix}-{loc.Segments}-{pOpt loc.UpperFix}>"
 
     let pAllCluster (lines: Line array) (loc:Cluster) =
-        $"""Cluster:<L={pOpt loc.LowerFix}-{loc.Segments |> List.map (fun n -> pLine lines[n]) |> String.concat ","}-U={pOpt loc.UpperFix}>"""
+        let oris = match lines[0].Orientation with | Horizontal -> "Horiz" | Vertical -> "Vert"
+        $"""Cluster-{oris}:<L={pOpt loc.LowerFix}-{loc.Segments |> List.map (fun n -> pLine lines[n]) |> String.concat ","}-U={pOpt loc.UpperFix}>"""
 
 
     //-------------------------------------------------------------------------------------------------//
@@ -252,6 +341,12 @@ module SeparateSegments =
         inMiddleOrEndOf b1.MinB b2.MinB b1.MaxB
         || inMiddleOrEndOf b1.MinB b2.MaxB b1.MinB
         || inMiddleOrEndOf b2.MinB b1.MinB b2.MaxB
+
+    /// true if bounds b1 and b2 overlap or are exactly adjacent
+    let hasNearOverlap (tolerance: float) (b1: Bound) (b2: Bound) =
+        inMiddleOf (b1.MinB-tolerance) b2.MinB (b1.MaxB+tolerance)
+        || inMiddleOf (b1.MinB-tolerance)  b2.MaxB (b1.MinB+tolerance)
+        || inMiddleOf (b2.MinB-tolerance) b1.MinB (b2.MaxB+tolerance)
 
     /// Union of two bounds b1 and b2. b1 & b2 must overlap or be adjacent,
     /// otherwise the inclusive interval containing b1 and b2 is returned.
@@ -315,6 +410,7 @@ module SeparateSegments =
 
         let line: Line =
             { P = seg.Start.Y
+              Orientation = ori
               B = order seg.Start.X seg.End.X
               LType = lType
               Seg1 = Some seg
@@ -343,6 +439,7 @@ module SeparateSegments =
               B =
                 { MinB = minB + smallOffset
                   MaxB = maxB - smallOffset }
+              Orientation = ori
               LType = FIXED
               Seg1 = None
               SameNetLink = []
@@ -435,7 +532,7 @@ module SeparateSegments =
 
     /// Returns integers +/- 1 indicating direction of wire leaving ends of line segment.
     /// Pair returned is MaxB, MinB end of line
-    let inline turnDirs (line: Line) (wires: Map<ConnectionId, Wire>) =
+    let turnDirs (line: Line) (wires: Map<ConnectionId, Wire>) =
         match line.Seg1 with
         | None -> failwithf "What? Expected Some segment - not None"
         | Some aSeg ->
@@ -460,7 +557,7 @@ module SeparateSegments =
     /// turnDir1, turnDir2 - direction in which turns go.
     /// bound1, bound2 - the MinB or MaxB bound of each end - which must be close.
     /// The P value of each segment.
-    let inline linesMaybeMeeting
+    let linesMaybeMeeting
         ((turnDir1, bound1, p1): int * float * float)
         ((turnDir2, bound2, p2): int * float * float)
         : float =
@@ -562,10 +659,13 @@ module SeparateSegments =
 
         let rec expand i loc =
             let nSegs = float loc.Segments.Length
+            //printf $"""Expanding: {if i >= 0 && float i < lines.Length then  pLine lines[i] else "OOB"} {pCluster loc}"""
 
-            if (i < 0 || i >= lines.Length) then
+            if (i < 0 || i >= lines.Length) || abs (lines[i].P - searchStart) > maxSegmentSeparation * (nSegs+1.) + smallOffset then
+                //if i >= 0 && i < lines.Length then 
+                    //printf $"Gapped:{abs (lines[i].P - searchStart)} {maxSegmentSeparation * nSegs + smallOffset} "
                 loc
-            elif (not  (hasOverlap loc.Bound lines[i].B)) || (not groupableA[i] && (lines[i].LType <> FIXED)) then
+            elif not  (hasOverlap loc.Bound lines[i].B) then
                 expand (nextIndex i) loc
             else
                 let p = lines[i].P
@@ -574,9 +674,11 @@ module SeparateSegments =
                     let p = lines[i].P
                     match searchDir with
                     | Upwards -> { loc with UpperFix = Some p }
-                    | _ -> { loc with LowerFix = Some p } // fixed boundary
-                | _ when abs (p - searchStart) > maxSegmentSeparation * nSegs + smallOffset -> loc
-                | _ ->
+                    | _ -> { loc with LowerFix = Some p } // fixed boundary 
+                | LINKEDSEG ->
+                    expand (nextIndex i) loc
+
+                | NORMSEG ->
                     match lowestDownwardsIndex with
                     | Some index when i < index -> expand (nextIndex i) loc // past starting point, so can't add segments, but still check for a Fix
                     | _ ->
@@ -650,15 +752,15 @@ module SeparateSegments =
                 |> List.map keepOnlyGroupableSegments
                 |> List.filter (fun loc -> loc.Segments <> [])
                 |> (fun newLocs ->
-                    newLocs
-                    |> List.iter (fun loc -> 
-                        //printf "%s" (pAllCluster lines loc)
-                        loc.Segments |> List.iter (fun seg -> groupableA[seg] <- false))
+                        newLocs
+                        |> List.iter (fun loc -> 
+                            //printf "%s" (pAllCluster lines loc)
+                            loc.Segments |> List.iter (fun seg -> groupableA[seg] <- false))
 
-                    if groupable nextIndex then
-                        failwithf "Error: infinite loop detected in cluster find code"
+                        if groupable nextIndex then
+                            failwithf "Error: infinite loop detected in cluster find code"
 
-                    newLocs @ getClusters lines)
+                        newLocs @ getClusters lines)
 
         getClusters lines
 
@@ -800,7 +902,277 @@ module SeparateSegments =
                     line2, line1.P + space2 * 0.5)
             |> List.ofArray)
         |> adjustSegmentsInModel ori model
-                
+    
+    //-------------------------------------------------------------------------------------------------//
+    //--------------------------------------WIRE ARTIFACT CLEANUP--------------------------------------//
+    //-------------------------------------------------------------------------------------------------//
+    (*
+        The segment-based optimisations can sometimes leave wires in a non-optimal state with too many
+        corners. This code scans down each 9 segment wire and attempts to remove redundant corners:
+
+        ----              ------           ------               ----
+           |      ==>          |                |         ===>     |
+           ---                 |              ---                  |
+             |                 |              |                    |
+    
+        Note that these two cases are the same: two consecutive turns are removed and a 3rd turn is moved 
+        as required to keep wires joining.
+
+        The optimised wire can be accepted as long as 
+        (1) it does not go inside or too close to symbols
+        (2) it does not go too close to other wires.
+
+    *)
+    /// Return the index of the Line with the smallest value of P > p
+    /// Use binary earch for speed.
+    let findInterval (lines: Line array) ( p: float): int =
+        let rec find above below =
+            if above - below < 2 then above
+            else
+                let mid = (above + below) / 2
+                if lines[mid].P < p then
+                    find above mid
+                else
+                    find mid below
+        find (lines.Length - 1) 0
+
+    /// Return true if there is no overlap between line and lines array (with exception of excludedLine).
+    /// All lines are the same type (parallel)
+    let checkExtensionNoOverlap 
+            (overlap: float) 
+            (ext: Extension)
+            (excludedWire: ConnectionId) 
+            (info: LineInfo) : bool =
+        let lines =
+            match ext.ExtOri with
+            | Horizontal -> info.HLines
+            | Vertical -> info.VLines
+        let b = ext.ExtB
+        let p = ext.ExtP
+        let iMin = findInterval lines (p - overlap)
+        let rec check i =
+            if i >= lines.Length || i < 0  || lines[i].P > p + overlap then 
+                true
+            elif lines[i].Wid = excludedWire || not (hasNearOverlap overlap b lines[i].B) then
+                check (i+1)
+            else
+                false
+        check iMin
+        |> (fun x -> printf $"No overlap: {x}"; x)
+
+
+    /// Return true if there is no crossing symbol boundary between line 
+    /// and lines array (with exception of excludedLine).
+    /// Lines and excludedLine or opposite orientation from line
+    let checkExtensionNoCrossings 
+            (overlap: float) 
+            (ext: Extension)
+            (excludedWire: ConnectionId) 
+            (info: LineInfo) : bool =
+
+        let lines =
+            match ext.ExtOri with
+            | Horizontal -> info.VLines
+            | Vertical -> info.HLines
+        let b = ext.ExtB
+        let p = ext.ExtP
+        let iMin = findInterval lines (b.MinB - overlap)
+        let rec check i =
+            let otherLine = lines[i]
+            let b = otherLine.B
+            if i >= lines.Length || i < 0 || otherLine.P > b.MaxB + overlap then 
+                true
+            elif lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = FIXED) then
+                check (i+1)
+            else
+                printf $"cross: {pLine lines[i]} p={p} b={b}"
+                false
+        check iMin
+        |> (fun x -> printf $"no cross: Line:{x} p={p} b = {b}"; x)
+
+
+    /// Process the symbols and wires in Model generating arrays of Horizontal and Vertical lines.
+    /// In addition the inverse map is generated which can map each segmnet to the corresponding Line if that
+    /// exists.
+    /// Note that Lines reference segments, which contain wire Id and segment Index and can therefore be used to
+    /// reference the corresponding wire via the model.Wires map.
+    let makeLineInfo (model:Model) : LineInfo =
+    
+            let hLines = makeLines Horizontal model
+            let vLines = makeLines Vertical model
+            let wireMap = model.Wires
+            let lineMap =
+                Array.append hLines vLines
+                |> Array.collect (fun line -> 
+                    match line.Seg1 with
+                    | None -> [||]
+                    | Some aSeg -> 
+                     [| aSeg.Segment.GetId(), line.Lid |] )
+                |> Map.ofArray
+            {
+                HLines = hLines
+                VLines = vLines
+                WireMap = wireMap
+                LineMap = lineMap
+            }
+    
+    /// Return true if the given segment length change is allowed.
+    /// If the new segment creates a part line segment
+    /// that did not previouly exist this is checked for overlap
+    /// with symbols and other wires.
+    let isSegmentExtensionOk
+            (info: LineInfo)
+            (wire: Wire)
+            (start: int)
+            (ori: Orientation)
+            (lengthChange: float)
+                : bool =
+        let seg = wire.Segments[start]
+        let len = seg.Length
+        let aSegStart, aSegEnd = getAbsoluteSegmentPos wire start
+        let p, endC, startC =
+            match ori with
+            | Vertical -> aSegStart.X, aSegEnd.Y, aSegStart.Y
+            | Horizontal -> aSegStart.Y, aSegEnd.X, aSegStart.X
+        printf "isOK: %s" (pWire wire)
+        /// check there is room for the proposed segment extension
+        let extensionhasRoomOnSheet b1 b2 =
+            let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min b1 b2; MaxB = max b1 b2}}
+            checkExtensionNoOverlap extensionTolerance extension wire.WId info &&
+            checkExtensionNoCrossings extensionTolerance extension wire.WId info
+
+
+        match sign (lengthChange + len) = sign len, abs (lengthChange + len) < abs len with
+        | true, true ->
+            true // nothing to do because line is made shorter.
+        | true,false ->
+            //printfn $"lengthChange={lengthChange} len={len}"
+            extensionhasRoomOnSheet (endC+lengthChange) endC
+        | false, _ ->
+            if not (segmentIsNubExtension wire start) then
+                //printf $"allowing start={start} wire={pWire wire}"
+                extensionhasRoomOnSheet (endC+lengthChange) startC                
+            else
+                false
+
+    /// Return the list of wire corners found in given wire with all corner
+    /// edges smaller than cornerSizeLimit. A wire can have at most one corner.
+    let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCorner list =
+        let segs = wire.Segments
+        let nSegs = wire.Segments.Length
+        printf $"Find: {pWire wire}"
+        let pickStartOfCorner (start:int) =
+            printf $"Pick (start={start}): {pWire wire}"
+            let seg = segs[start]    
+            if segs[start].IsZero() || segs[start+3].IsZero() then 
+                printf "zero seg - cancelled"
+                None
+            else
+                let deletedSeg1,deletedSeg2 = segs[start+1], segs[start+2]
+                let hasManualSegment = List.exists (fun i -> segs[i].Mode = Manual) [start..start+3]
+                let hasLongSegment = max (abs deletedSeg1.Length) (abs deletedSeg2.Length) > cornerSizeLimit
+                if hasManualSegment || hasLongSegment then 
+                    printf "manual or long - cancelled"
+                    None
+                else
+                    let ori = wire.InitialOrientation
+                    let startSegOrientation = if seg.Index % 2 = 0 then ori else switchOrientation ori
+                    let change1 = deletedSeg2.Length
+                    let change2 = deletedSeg1.Length
+                    if isSegmentExtensionOk info wire start ori change1 &&
+                       isSegmentExtensionOk info wire (start+3)  (switchOrientation ori) change2
+                    then
+                        {
+                            Wire = wire
+                            StartSeg = start
+                            StartSegOrientation = startSegOrientation
+                            StartSegChange = change1
+                            EndSegChange = change2
+                        } |> Some
+                    else
+                        None
+                        
+
+        // Wire corners cannot start on zero-length segments (that would introduce
+        // an extra bend). The 4 segments changed by the corner cannot be manually
+        // routed.
+        [1..nSegs-5]
+        |> List.tryPick pickStartOfCorner
+        |> function | None -> [] | Some x -> [x]
+
+    /// Change LineInfo removing a corner from a wire.
+    /// TODO: currently only WireMap changes
+    let removeCorner (info: LineInfo) (wc: WireCorner): LineInfo =
+        let removeSegments start num (segments: Segment list) =
+            segments
+            |> List.removeManyAt start num
+            |> (List.mapi (fun i seg -> if i > start - 1 then {seg with Index = i} else seg))
+
+        printf $"**Removing corner: visible nub={getVisibleNubLength false wc.Wire}, {getVisibleNubLength true wc.Wire} **"
+        let addLengthToSegment (delta:float) (seg: Segment)=
+            {seg with Length = seg.Length + delta}
+        let wire' = 
+            wc.Wire.Segments
+            |> List.updateAt wc.StartSeg (addLengthToSegment wc.StartSegChange wc.Wire.Segments[wc.StartSeg])
+            |> List.updateAt (wc.StartSeg + 3) (addLengthToSegment wc.EndSegChange wc.Wire.Segments[wc.StartSeg + 3])
+            |> removeSegments (wc.StartSeg+1) 2
+            |> (fun segs -> {wc.Wire with Segments = segs})
+        {info with WireMap = Map.add wire'.WId wire' info.WireMap}
+
+    /// Return model with corners identified and removed where possible. 
+    /// Corners are artifacts - usually small - which give wires more visible segments than is needed.
+    let removeModelCorners (model: Model) =
+        let info = makeLineInfo model
+        printf $"H:\n{pLines info.HLines}"
+        printf $"H:\n{pLines info.HLines}"
+
+        let wires = model.Wires
+        let corners =
+            wires
+            |> Map.values
+            |> Seq.toList
+            |> List.collect (findWireCorner info maxCornerSize)
+        (info, corners)
+        ||> List.fold removeCorner
+        |> (fun info' -> Optic.set wires_ info'.WireMap model)       
+    
+    /// Return None, or Some wire' where wire' is wire with spikes removed.
+    /// Spikes segments that turn back on previous ones (with a zero-length segment in between).
+    /// Optimised for the case that there are no spikes and None is returned.
+    let removeWireSpikes (wire: Wire) : Wire option =
+        let segs = wire.Segments
+        (None, segs)
+        ||> List.fold (fun segsOpt seg ->
+            let n = seg.Index
+            let segs = Option.defaultValue segs segsOpt
+            let nSeg = segs.Length
+            if n > nSeg - 3 || not (segs[n+1].IsZero()) || sign segs[n].Length = sign segs[n+2].Length then 
+                segsOpt
+            else
+                let newSegN = {segs[n] with Length = segs[n].Length + segs[n+2].Length}
+                let lastSegs = 
+                    segs[n+3..nSeg-1]
+                    
+                [
+                    segs[0..n-1]
+                    [newSegN]
+                    (List.mapi (fun i seg -> {seg with Index = i + n + 1}) lastSegs)
+                ]
+                |> List.concat
+                |> Some)  
+        |> Option.map (fun segs ->
+                printf $"Despiked wire {pWire wire}"
+                {wire with Segments = segs})
+
+    /// return model with all wire spikes removed
+    let removeModelSpikes (model: Model) =
+        (model.Wires, model.Wires)
+        ||> Map.fold (fun wires wid wire ->
+            match removeWireSpikes wire with
+            | None -> wires
+            | Some wire' -> Map.add wid wire' wires)
+        |> (fun wires -> {model with Wires = wires})
+
 
     //-------------------------------------------------------------------------------------------------//
     //----------------------------------------TOP LEVEL FUNCTIONS--------------------------------------//
@@ -808,25 +1180,24 @@ module SeparateSegments =
 
     /// Perform complete segment ordering and separation for segments of given orientation.
     let separateModelSegmentsOneOrientation (ori: Orientation) (model: Model) =
-        //printf $"{ori} Separation starting..."
         makeLines ori model
         |> fun lines ->
             makeClusters lines
+            //|> List.map (fun p -> (printf "%s" (pAllCluster lines p)); p)
             //|> mergeLocalities lines // merging does not seem necessary?
             |> List.collect (calcSegPositions model lines)
         |> adjustSegmentsInModel ori model
+        //|> removeModelSpikes
 
     /// Perform complete segment separation and ordering for all orientations
     let separateAndOrderModelSegments =
         separateModelSegmentsOneOrientation Vertical
         >> separateModelSegmentsOneOrientation Horizontal
-        //>> separateFixedSegments Vertical 
-        //>> separateFixedSegments Horizontal
-
         >> separateModelSegmentsOneOrientation Vertical // repeat vertical separation since moved segments may now group
-        >> separateFixedSegments Vertical 
         >> separateModelSegmentsOneOrientation Horizontal // as above
+        >> separateFixedSegments Vertical 
         >> separateFixedSegments Horizontal
+        >> removeModelCorners
 
 /// Top-level function to replace updateWireSegmentJumps
 /// and call the new tidyup code as well. This should

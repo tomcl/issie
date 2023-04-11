@@ -11,7 +11,7 @@ import {
   transportList,
 } from "./utils.js";
 
-import { FSharpList_get_Empty } from "./temp/fable_modules/fable-library.4.0.0-theta-018/List.js";
+import { FSharpList_get_Empty } from "./temp/fable_modules/fable-library.4.0.5/List.js";
 
 const test = (
   testcasesPath,

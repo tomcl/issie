@@ -10,8 +10,8 @@ import {
 } from "./temp/src/Renderer/Common/Helpers.js";
 import { parseDiagramSignature } from "./temp/src/Renderer/NewSimulator/Extractor.js";
 import { CCForm, LoadedComponent } from "./temp/src/Renderer/Common/CommonTypes.js";
-import { FSharpList } from "./temp/fable_modules/fable-library.4.0.0-theta-018/List.js";
-import { length as seqLength } from "./temp/fable_modules/fable-library.4.0.0-theta-018/Seq.js";
+import { FSharpList } from "./temp/fable_modules/fable-library.4.0.5/List.js";
+import { length as seqLength } from "./temp/fable_modules/fable-library.4.0.5/Seq.js";
 import { SimulationError } from "./temp/src/Renderer/NewSimulator/SimulatorTypes.js";
 // New Simulator
 import { startCircuitSimulation as newStartCircuitSimulation } from "./temp/src/Renderer/NewSimulator/Simulator.js";
@@ -136,9 +136,9 @@ function tryLoadComponentFromPath(filePath) {
     );
   } catch (err) {
     console.error(
-      `Can't load component ${getBaseNameNoExtension(
-        filePath,
-      )} because of Error: ${err}`,
+      `Can't load component ${getBaseNameNoExtension(filePath)} because of Error: ${
+        err.stack
+      }`,
     );
   }
 }

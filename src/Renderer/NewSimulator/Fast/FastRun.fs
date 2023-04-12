@@ -109,7 +109,7 @@ let private printComps (step: int) (fs: FastSimulation) =
 /// Create arrays of components in corrected format for efficient reduction
 /// Combinational components are ordered: clokced, constant, global input components are
 /// separated.
-let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : FastSimulation =
+let private orderCombinationalComponents (fs: FastSimulation) : FastSimulation =
     let startTime = getTimeMs ()
     let mutable readyToReduce: FastComponent list = []
     let mutable orderedComps: FastComponent list = fs.FConstantComps |> Array.toList
@@ -128,16 +128,6 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         propagateEval fc
 
     let initInput (fc: FastComponent) =
-        let inputVal: uint32 =
-            match fc.FType with
-            | Input1(w, defaultVal) ->
-                match defaultVal with
-                | Some defaultVal -> defaultVal
-                | None -> 0
-            | _ ->
-                printf "non-input type component in initInput"
-                0
-            |> uint32
         //printfn "Init input..."
         fc.InputLinks[0].Step
         |> Array.iteri (fun i _ ->
@@ -162,10 +152,6 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 | Some arr -> arr.Step[0] <- RamState mem
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
-                let initD =
-                    match Map.tryFind 0L mem.Data with
-                    | Some n -> convertInt64ToFastData w n
-                    | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
                 vec.Step[0] <- convertIntToFastData w 0u
             | RAM1 _, _
@@ -210,21 +196,11 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
             fc.Touched <- true
             propagateEval fc)
 
-    let orderedSet =
-        orderedComps
-        |> List.toArray
-        |> Array.map (fun co -> co.fId)
-        |> Set
-
     instrumentTime "orderCombinationalComponents" startTime
 
     { fs with FOrderedComps = orderedComps |> Array.ofList |> Array.rev }
 
-let private orderCombinationalComponentsFData
-    (numSteps: int)
-    (fs: FastSimulation)
-    : FastSimulation
-    =
+let private orderCombinationalComponentsFData (fs: FastSimulation) : FastSimulation =
     let startTime = getTimeMs ()
     let mutable readyToReduce: FastComponent list = []
     let mutable orderedComps: FastComponent list = fs.FConstantComps |> Array.toList
@@ -244,16 +220,6 @@ let private orderCombinationalComponentsFData
         propagateEval fc
 
     let initInput (fc: FastComponent) =
-        let inputVal: uint32 =
-            match fc.FType with
-            | Input1(w, defaultVal) ->
-                match defaultVal with
-                | Some defaultVal -> defaultVal
-                | None -> 0
-            | _ ->
-                printf "non-input type component in initInput"
-                0
-            |> uint32
         //printfn "Init input..."
         fc.InputLinksFData[0].Step
         |> Array.iteri (fun i _ ->
@@ -278,10 +244,6 @@ let private orderCombinationalComponentsFData
                 | Some arr -> arr.Step[0] <- RamState mem
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
-                let initD =
-                    match Map.tryFind 0L mem.Data with
-                    | Some n -> convertInt64ToFastData w n
-                    | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
                 vec.Step[0] <- Data(convertIntToFastData w 0u)
             | RAM1 _, _
@@ -325,12 +287,6 @@ let private orderCombinationalComponentsFData
             orderedComps <- fc :: orderedComps
             fc.Touched <- true
             propagateEval fc)
-
-    let orderedSet =
-        orderedComps
-        |> List.toArray
-        |> Array.map (fun co -> co.fId)
-        |> Set
 
     instrumentTime "orderCombinationalComponents" startTime
 
@@ -529,7 +485,7 @@ let buildFastSimulation
 
     gather
     |> createFastArrays fs
-    |> orderCombinationalComponents simulationArraySize
+    |> orderCombinationalComponents
     |> checkAndValidate
     |> Result.map addWavesToFastSimulation
 
@@ -539,7 +495,6 @@ let buildFastSimulationFData
     (graph: SimulationGraph)
     : Result<FastSimulation, SimulationError>
     =
-    eprintfn "===== Building fast simulation"
     let gather = gatherSimulation graph
 
     let fs =
@@ -549,7 +504,7 @@ let buildFastSimulationFData
 
     gather
     |> createFastArrays fs
-    |> orderCombinationalComponentsFData simulationArraySize
+    |> orderCombinationalComponentsFData
     |> checkAndValidateFData
     |> Result.map addWavesToFastSimulationFData
 

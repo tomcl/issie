@@ -920,6 +920,14 @@ type StepArray<'T> =
       mutable Step: 'T array
       Index: int }
 
+// This is a special version of StepArray that is used for inputs and outputs of FastComponents
+// Generic
+type FastStepArray<'T> =
+    {
+      // this field is mutable to allow resizing
+      mutable Step: 'T array
+      Index: int }
+
 type FastComponent =
     { fId: FComponentId
       cId: ComponentId

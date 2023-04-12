@@ -10,42 +10,37 @@ TEST_CASES_PATH=${1:-"../testcases"}
 
 test_cases=($(ls ${TEST_CASES_PATH}/*.dgm))
 
-function geometric_mean() {
-	node -p "Math.pow([$(printf '%s,' ${@})].reduce((acc,v)=>acc*v,1),1/${#test_cases[@]})"
-}
+mkdir -p output
 
-printf "%18s, %7s, %11s, %6s, %24s, %24s, %25s, %25s\n" "Test Case" "Result" "#Components" "#Steps" "Avg Execution Time (New)" "Avg Execution Time (Old)" "Avg Execution Speed (New)" "Avg Execution Speed (Old)"
+printf "%18s, %7s, %11s, %9s, %6s, %23s, %28s\n" "Test Case" "Result" "#Components" "StepArray" "#Steps" "Avg Execution Time (ms)" "Avg Speed (comp * step / ms)"
 
 passed_test=0
 
 # component * step / millisecond
-speed_list_new=()
-speed_list_old=()
+speed_list=()
 
 NODE_OPTIONS=""
 NODE_ARGS=(${SIMULATION_ARRAY_SIZE} ${LAST_STEP_NEEDED} ${TEST_CASES_PATH})
 
 for i in $(seq 0 $((${#test_cases[@]} - 1))); do
-	result_new=$(node ${NODE_OPTIONS} index.js new ${i} ${NODE_ARGS[@]} 2>/dev/null)
-	result_old=$(node ${NODE_OPTIONS} index.js old ${i} ${NODE_ARGS[@]} 2>/dev/null)
+	output=output/$(basename ${test_cases[$i]}).out
+	node ${NODE_OPTIONS} index.js ${i} ${NODE_ARGS[@]} 2>/dev/null | tail -n 1 > "${output}"
 
-	time_new=$(echo "${result_new}" | jq .time)
-	time_old=$(echo "${result_old}" | jq .time)
+	time=$(cat "${output}" | jq .time)
 
-	values_new=$(echo "${result_new}" | jq -cS .values)
-	values_old=$(echo "${result_old}" | jq -cS .values)
+	result=$(cat "${output}" | jq -cS .result)
 
-	num_comps=$(echo "${result_new}" | jq .numComps)
+	num_comps=$(cat "${output}" | jq .numComps)
 
-	speed_new=$(node -p "${LAST_STEP_NEEDED}/${time_new}/${num_comps}")
-	speed_old=$(node -p "${LAST_STEP_NEEDED}/${time_old}/${num_comps}")
+	speed=$(node -p "${LAST_STEP_NEEDED}/${time}/${num_comps}")
 
 	test_cases_name=$(basename ${test_cases[$i]} .dgm)
 
-	if diff <(echo "${values_new}") <(echo "${values_old}"); then
-		printf "%18s, %6s, %11d, %6d, %24f, %24f, %25.3f, %25.3f\n" ${test_cases_name} "✅ PASS" ${num_comps} ${LAST_STEP_NEEDED} ${time_new} ${time_old} ${speed_new} ${speed_old}
-		speed_list_new+=($speed_new)
-		speed_list_old+=($speed_old)
+	ref=$(cat "reference/$(basename ${test_cases[$i]}).ref" | jq -cS .)
+
+	if diff <(echo "${result}") <(echo "${ref}"); then
+		printf "%18s, %6s, %11d, %9d, %6d, %23f, %28.3f\n" ${test_cases_name} "✅ PASS" ${num_comps} ${SIMULATION_ARRAY_SIZE} ${LAST_STEP_NEEDED} ${time} ${speed}
+		speed_list+=($speed)
 		passed_test=$((passed_test + 1))
 	else
 		printf "%15s, %6s, , ," ${test_cases_name} "❌ FAIL"
@@ -56,12 +51,6 @@ echo >&2
 printf "Passed %d/%d tests\n" ${passed_test} ${#test_cases[@]} >&2
 
 if [ ${passed_test} -eq ${#test_cases[@]} ]; then
-	geo_mean_new=$(geometric_mean "${speed_list_new[@]}")
-	geo_mean_old=$(geometric_mean "${speed_list_old[@]}")
-	improvement=$(node -p "${geo_mean_new}/${geo_mean_old}")
-	printf "Geometric mean of speed of new simulator is %6.3f\n" ${geo_mean_new} >&2
-	printf "Geometric mean of speed of old simulator is %6.3f\n" ${geo_mean_old} >&2
-	printf "x%.3f speed up\n" ${improvement} >&2
 	exit 0
 fi
 

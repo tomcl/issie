@@ -177,7 +177,7 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
 let getSymbolColour compType clocked (theme:ThemeType) =
     match theme with
     | White | Light -> "lightgray"
-    | Colourful ->
+    | _ ->
         match compType with
         | Register _ | RegisterE _ 
         | ROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _ 
@@ -284,7 +284,7 @@ let busSelectTitle (wob:int) (lsb:int) : string =
 ///Decodes the component type into component labels
 let getPrefix (compType:ComponentType) = 
     match compType with
-    | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
+    | Not | And _| Or _| Xor _| Nand _| Nor _| Xnor _ -> "G"
     | Mux2 -> "MUX"
     | Mux4 -> "MUX"
     | Mux8 -> "MUX"
@@ -322,9 +322,9 @@ let getPrefix (compType:ComponentType) =
 // Text to be put inside different Symbols depending on their ComponentType
 let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     match componentType with
-    | And | Nand-> "&"
-    | Or | Nor-> "≥1"
-    | Xor | Xnor -> "=1"
+    | And _ | Nand _ -> "&"
+    | Or _ | Nor _ -> "≥1"
+    | Xor _ | Xnor _ -> "=1"
     | Not -> "1"
     | Decode4 -> "Decode"
     | NbitsAdder n | NbitsAdderNoCin n
@@ -581,12 +581,16 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     // match statement for each component type. the output is a 4-tuple that is used as an input to makecomponent (see below)
     // 4-tuple of the form ( number of input ports, number of output ports, Height, Width)
     let gS = float Constants.gridSize
+    let inpPort x = 
+        match x with
+        | Some n -> n
+        | _ -> 2
     match compType with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
-    | And | Or | Nand | Nor | Xor | Xnor ->  (2 , 1, 1.5*gS , 1.5*gS) 
+    | And n| Or n| Nand n| Nor n| Xor n| Xnor n->  (inpPort n , 1, 1.5*gS , 1.5*gS) 
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
@@ -664,17 +668,24 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     let comp = makeComponent pos comptype id label
     let transform = {Rotation= Degree0; flipped= false}
 
+    let (gateStyle:GateStyle option) =
+        match theme with
+        |OldSymbols -> Some OldGates
+        |NewSymbols -> Some NewGates
+        | _ -> None
+
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
       LabelHasDefaultPos = true
       LabelRotation = None
-      Appearance =
+      Appearance = //HLP23: Shaanuka
           {
             HighlightLabel = false
             ShowPorts = ShowNone
             Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
+            GateType = gateStyle
           }
       InWidth0 = None // set by BusWire
       InWidth1 = None
@@ -758,11 +769,16 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
     else    
         {X = 0.; Y = 0.}
 
-    
+
 
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
-let getPortPos (sym: Symbol) (port: Port) : XYPos =
+let getPortPos (sym: Symbol) (port: Port): XYPos =                                                                            
+    let isOldSymb =                                 //HLP23: Shaanuka 
+        match sym.Appearance.GateType with
+        |Some OldGates -> true
+        |_ -> false
+        
     //get ports on the same edge first
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
@@ -776,27 +792,33 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let portDimension = float ports.Length - 1.0
     //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
-    match side with
-    | Left ->
-        let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
-    | Right -> 
-        let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
-    | Bottom -> 
-        let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = 0.0 }
-    | Top ->
-        let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = 0.0 }
+    let matchSide side offset=   
+        match side with
+        | Left ->
+            let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
+            baseOffset' + {X = 0.0+offset; Y = yOffset }
+        | Right -> 
+            let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
+            baseOffset' + {X = 0.0; Y = yOffset }
+        | Bottom -> 
+            let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
+            baseOffset' + {X = xOffset; Y = 0.0 }
+        | Top ->
+            let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
+            baseOffset' + {X = xOffset; Y = 0.0 }
+
+    match sym.Component.Type, index, isOldSymb with
+    | (Or n | Nor n | Xor n | Xnor n), (2|1), true when n = Some 4 -> matchSide side 5.0
+    | (Or n | Nor n | Xor n | Xnor n), 1, true when n = Some 3 -> matchSide side 5.0
+    |_ -> matchSide side 0.0
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
-let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
-    match sym.MovingPort with
-    | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
-    | _ -> 
-        //printfn "symbol %A portDimension %A" sym.Component.Type (getPortPos sym port)
-        getPortPos sym port
+let inline getPortPosToRender (sym: Symbol) (port: Port) (theme: ThemeType): XYPos =    //HLP23: Shaanuka
+    match theme with
+    | OldSymbols -> let newAppearance ={sym.Appearance with GateType = Some OldGates}
+                    getPortPos {sym with Appearance = newAppearance} port
+    | _ ->  let newAppearance ={sym.Appearance with GateType = Some NewGates}
+            getPortPos {sym with Appearance = newAppearance} port
 
 let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port

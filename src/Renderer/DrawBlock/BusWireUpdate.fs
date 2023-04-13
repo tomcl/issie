@@ -7,8 +7,156 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
+open SmartWire
 open Optics
 open Operators
+
+open SmartHelpers
+
+//---------------------------------------------------------------------------------//
+//----------------------Helper functions that need SmartRoute etc------------------//
+//---------------------------------------------------------------------------------//
+
+/// Returns a re-routed wire from the given model.
+/// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
+/// Reverse indicates if the wire should be processed in reverse, 
+/// used when an input port (end of wire) is moved.s
+// HLP23: AUTHOR Omar - Changes: modified return type and return of updateWire
+let updateWire (model : Model) (wire : Wire) (reverse : bool) : SmartAutorouteResult =
+    let newPort = 
+        match reverse with
+        | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort
+        | false -> Symbol.getOutputPortLocation None model.Symbol wire.OutputPort
+    
+    let partial =
+        if reverse then
+            partialAutoroute model (reverseWire wire) newPort true
+            |> Option.map reverseWire
+        else 
+            partialAutoroute model wire newPort false
+    
+    // HLP23: AUTHOR Omar
+    let smartRoute = smartAutoroute model wire
+    let updateWire' = 
+        match smartRoute with
+        | WireT wire -> 
+            let res = partial |> Option.defaultValue wire
+            WireT res
+        | ModelT newModel -> ModelT newModel
+    updateWire'
+
+/// Re-routes the wires in the model based on a list of components that have been altered.
+/// If the wire input and output ports are both in the list of moved components, 
+/// it does not re-route wire but instead translates it.
+/// Keeps manual wires manual (up to a point).
+/// Otherwise it will auto-route wires connected to components that have moved
+let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =    
+
+    let wires = filterWiresByCompMoved model compIdList
+
+    // filter wires by whether the component id exists in the model
+    let wireId = 
+        let wireId' = 
+            model.Wires
+            |> Map.toList
+            |> List.filter (fun (cId, wire) -> 
+                (List.contains cId wires.Both) 
+                || (List.contains cId wires.Inputs) 
+                || (List.contains cId wires.Outputs))
+            |> List.map fst
+            |> List.tryHead
+
+        wireId'
+
+    match wireId with   // handles error from wires update called when no wires exist
+    | None -> model
+    | Some wireId ->
+        let wireFound = model.Wires[wireId]
+        let newModel =
+            match (updateWire model wireFound false) with // was FALSE reverse
+            | ModelT newModel -> 
+                newModel
+            | WireT _ -> 
+                let newWires =
+                    model.Wires
+                    |> Map.toList
+                    |> List.map (fun (cId, wire) -> 
+                        if List.contains cId wires.Both //Translate wires that are connected to moving components on both sides
+                        then (cId, moveWire wire diff)
+                        elif List.contains cId wires.Inputs //Only route wires connected to ports that moved for efficiency
+                        then (cId,
+                            // HLP23: AUTHOR Omar
+                            (match (updateWire model wire true) with
+                            | WireT wire -> wire
+                            | ModelT newModel -> 
+                                match (Map.tryFind cId newModel.Wires) with
+                                | Some wire -> wire
+                                | None -> 
+                                    {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
+                                    ))
+                        elif List.contains cId wires.Outputs
+                        then (cId,
+                            // HLP23: AUTHOR Omar
+                            (match (updateWire model wire false) with
+                            | WireT wire -> wire
+                            | ModelT newModel -> 
+                                match (Map.tryFind cId newModel.Wires ) with
+                                | Some wire -> wire
+                                | None -> 
+                                    {wire with Segments = []} // if present when we search for the wire, call replaceWithWireLabels
+                                    ))
+                        else (cId, wire))
+                    
+                // search list of (component * wire) for wire with Segments = [], if found, terminate and call replaceWithWireLabels which returns a model
+                // if not found, return the model with the new wires
+                let newWires': Map<ConnectionId,Wire> = newWires |> Map.ofList
+                { model with Wires = newWires' }    
+
+        newModel
+
+
+
+let updateSymbolWires (model: Model) (compId: ComponentId) =
+    let wires = filterWiresByCompMoved model [compId]
+    
+    let newWires =
+        model.Wires
+        |> Map.toList
+        |> List.map (fun (cId, wire) ->
+            if List.contains cId wires.Both then // Update wires that are connected on both sides
+                cId, (
+                    // HLP23: AUTHOR Omar
+                    match (updateWire model wire true) with
+                    | WireT wire -> wire
+                    | ModelT newModel -> 
+                        newModel.Wires.[cId]
+                    |> fun wire -> 
+                        // HLP23: AUTHOR Omar
+                        match (updateWire model wire false) with
+                        | WireT wire -> wire
+                        | ModelT newModel -> 
+                            newModel.Wires.[cId])
+            elif List.contains cId wires.Inputs then 
+                cId, 
+                // HLP23: AUTHOR Omar
+                match (updateWire model wire true) with
+                | WireT wire -> wire
+                | ModelT newModel -> 
+                    newModel.Wires.[cId]
+            elif List.contains cId wires.Outputs then
+                cId, 
+                // HLP23: AUTHOR Omar
+                match (updateWire model wire false) with
+                | WireT wire -> wire
+                | ModelT newModel -> 
+                    newModel.Wires.[cId]
+            else cId, wire)
+        |> Map.ofList
+    { model with Wires = newWires}
+
+//---------------------------------------------------------------------------------//
+//------------------------------BusWire Init & Update functions--------------------//
+//---------------------------------------------------------------------------------//
 
 /// Initialises an empty BusWire Model
 let init () = 
@@ -23,6 +171,9 @@ let init () =
         Notifications = None
         Type = Constants.initialWireType
         ArrowDisplay = Constants.initialArrowDisplay
+        PopupViewFunc = None
+        PopupDialogData = {Text=None; Int=None; Int2=None}
+
     } , Cmd.none
 
 
@@ -31,6 +182,23 @@ let init () =
 let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     match msg with
+    | SetPopupDialogInt n ->
+        let data = {model.PopupDialogData with Int = n}
+        {model with PopupDialogData = data}, Cmd.none
+    | SetPopupDialogText txt ->
+        let data = {model.PopupDialogData with Text = txt}
+        {model with PopupDialogData = data}, Cmd.none
+    | SetPopupDialogText _ 
+    | ClosePopup ->
+        {model with PopupViewFunc = None}, Cmd.none
+    | ShowPopup popupFun ->
+        {model with PopupViewFunc = Some popupFun}, Cmd.none
+    | WireLabelReplacement(model, wire, inputText) ->
+        let genWL = replaceWithWireLabels model wire inputText
+        match genWL with
+        | ModelT newModel -> newModel, Cmd.none
+        | WireT _ -> model, Cmd.none // should never happen
+
     | Symbol sMsg ->
         // update Symbol model with a Symbol message
         let sm,sCmd = SymbolUpdate.update sMsg model.Symbol
@@ -65,11 +233,15 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 StartPos = { X = 0; Y = 0 }
                 InitialOrientation = Horizontal
             }
-            |> autoroute model
+            |> smartAutoroute model
         
-        let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ newWire.WId) newWire model)
-        
-        newModel, Cmd.ofMsg BusWidths
+        // HLP23: AUTHOR Omar
+        match newWire with
+        | WireT wire -> 
+            let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ wire.WId) wire model)
+            newModel, Cmd.ofMsg BusWidths
+        | ModelT model -> 
+            model, Cmd.ofMsg BusWidths
     
     | BusWidths ->
         // (1) Call Issie bus inference
@@ -306,7 +478,10 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                         if b then
                             wire
                         else
-                            updateWire model wire inOut)
+                            // HLP23: AUTHOR Omar
+                            match (updateWire model wire inOut) with
+                            | WireT wire -> wire
+                            | ModelT newModel -> newModel.Wires.[connId])
                 connId,
                 { 
                     WId = ConnectionId conn.Id
@@ -371,10 +546,15 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let newWires =
             (model.Wires, wiresToReroute)
             ||> List.fold (fun wires (wid, wire) ->
-                let wire' = updateWire model wire (rerouteInputEnd wire)
+                let wire' = 
+                    // HLP23: AUTHOR Omar
+                    match (updateWire model wire (rerouteInputEnd wire)) with
+                    | WireT wire -> wire
+                    | ModelT newModel -> newModel.Wires.[wid]
                 Map.add wid wire' wires)
 
         {model with Wires = newWires}, Cmd.none
+
 
 //---------------------------------------------------------------------------------//        
 //---------------------------Other interface functions-----------------------------//
@@ -413,6 +593,7 @@ let getClickedWire (wModel : Model) (pos : XYPos) (n : float) : ConnectionId Opt
 /// Updates the model to have new wires between pasted components
 let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list<ConnectionId>) =
     let oldCompIds = Symbol.getCopiedSymbols wModel.Symbol
+
     let pastedWires =
         let createNewWire (oldWire : Wire) : list<Wire> =
             let newId = ConnectionId(JSHelpers.uuid())
@@ -432,8 +613,12 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
                             OutputPort = OutputPortId newOutputPort;
                             Segments = segmentList;
                             StartPos = portOnePos;
-                    }
-                    |> autoroute wModel
+                    } // HLP23: AUTHOR Omar
+                    |>  smartAutoroute wModel
+                        |> function
+                            | WireT wire -> wire
+                            | ModelT _ -> failwith "Expected a WireT value."
+
                 ]
             | None -> []
 
@@ -451,5 +636,6 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
         |> List.map fst
 
     { wModel with Wires = newWireMap }, pastedConnIds
+
 
 

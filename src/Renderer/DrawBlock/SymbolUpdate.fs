@@ -461,6 +461,7 @@ let createSymbol ldcs theme prevSymbols comp =
                     // ShowOutputPorts = false //do not show output ports initially
                     Colour = getSymbolColour comp.Type clocked theme
                     Opacity = 1.0
+                    GateType = Some NewGates
                 }
                 Id = ComponentId comp.Id
                 Component = {comp with H=h ; W = w}

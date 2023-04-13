@@ -18,6 +18,7 @@ open Fable.SimpleJson
 open JSHelpers
 open Sheet.SheetInterface
 open DrawModelType
+open SymbolView
 
 importSideEffects "./scss/main.css"
 
@@ -185,6 +186,12 @@ let viewMenu dispatch =
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
             )
+            makeItem "New Symbols" None (fun ev -> 
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.NewSymbols) 
+            )
+            makeItem "Old Symbols" None (fun ev -> 
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.OldSymbols)
+            ) //HLP23: Shaanuka
         ]
         makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
         makeMenu false "Wire Type" [
@@ -208,6 +215,7 @@ let editMenu dispatch' =
     let sheetDispatch sMsg = dispatch' (Sheet sMsg)
     let dispatch = SheetT.KeyPress >> sheetDispatch
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
+    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
 
     jsOptions<MenuItemConstructorOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- Some MenuItemType.Submenu
@@ -234,6 +242,14 @@ let editMenu dispatch' =
                makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
                makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
                makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
+               menuSeparator
+               makeItem "TestPortReorder" None (fun ev -> sheetDispatch SheetT.Msg.TestPortReorder)
+               makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
+               makeItem "SingleReOrder" None (fun ev -> sheetDispatch SheetT.Msg.SingleReorder)
+               makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
+               makeItem "TestPortArrange" None (fun ev -> sheetDispatch SheetT.Msg.TestPortArrange) // HLP23 Ifte
+
+               
             |]
             |> ResizeArray
             |> U2.Case1

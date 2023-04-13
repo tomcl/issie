@@ -198,7 +198,6 @@ let makeLine (x1: 'a) (y1: 'b) (x2: 'c) (y2: 'd) (lineParameters: Line) =
             SVGAttr.StrokeDasharray lineParameters.StrokeDashArray
     ] []
 
-
 /// Makes path attributes for a horizontal upwards-pointing arc radius r
 let makeArcAttr r =
     $"a %.2f{r} %.2f{r} 0 0 0 %.3f{2.0*r} 0"
@@ -209,9 +208,37 @@ let makePartArcAttr r h1 d1 h2 d2 =
     let flag = if d1 > 0.0 then 1 else 0
     $"a %.2f{r} %.2f{r} %.2f{rot} 0 {flag} %.3f{d1+d2} %.3f{h1-h2}"
 
+
+//HLP23: Shaanuka
+
 /// makes a line segment offset dx,dy
 let makeLineAttr dx dy =
     $"l %.3f{dx} %.3f{dy}"
+/// makes bezier curve with 1 turning point x1 y1
+let makeQuadraticBezierAttr x1 y1 x2 y2 = 
+    $"Q {x1} {y1} {x2} {y2}"
+/// makes bezier curve with 2 turning points x1 y1 x2 y2
+let makeCubicBezierAttr x1 y1 x2 y2 x3 y3 = 
+    $"C {x1} {y1} {x2} {y2} {x3} {y3}"
+
+///Sequentially combines list of input attr
+let combineAnyPathAttr (attrList: string List) = 
+    attrList 
+    |> List.reduce((+))
+///rotation from centre point of path
+let rotateAttr (angle:int) (centreX:float) (centreY:float) =
+    $"rotate({angle} {centreX} {centreY})"
+
+let makePathFromAttrWithTransform (attr:string) (pathParameters: Path) transform = //This should replace old makePathFromAttr
+    path [
+        D attr
+        SVGAttr.Stroke pathParameters.Stroke
+        SVGAttr.StrokeWidth pathParameters.StrokeWidth
+        SVGAttr.StrokeDasharray pathParameters.StrokeDashArray
+        SVGAttr.StrokeLinecap pathParameters.StrokeLinecap
+        SVGAttr.Fill pathParameters.Fill
+        SVGAttr.Transform transform
+    ] []
 
 let makePathFromAttr (attr:string) (pathParameters: Path) =
     path [
@@ -230,6 +257,12 @@ let makeAnyPath (startingPoint: XYPos) (pathAttr:string) (pathParameters: Path) 
     let x1, y1 = startingPoint.X, startingPoint.Y
     let dAttr = sprintf "M %f %f %s" x1 y1 pathAttr
     makePathFromAttr dAttr pathParameters
+
+///Makes a path ReactElement, points are to be given as an XYPos record element with transform
+let makeAnyPathWithTransform (startingPoint: XYPos) (pathAttr:string) (pathParameters: Path) transform= //should replace makeAnyPath
+    let x1, y1 = startingPoint.X, startingPoint.Y
+    let dAttr = sprintf "M %f %f %s" x1 y1 pathAttr
+    makePathFromAttrWithTransform dAttr pathParameters transform 
 
 /// Makes a path ReactElement, points are to be given as an XYPos record element.
 /// Please note that this function is designed to create ONLY "Move to - Bézier Curve"

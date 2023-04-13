@@ -4,13 +4,33 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 
-
 open CommonTypes
 open DrawHelpers
 open DrawModelType.SymbolT
 open Symbol
 
+(*
+    HLP23: This module will normally be used exclusively by team member doing the "smart rendering" part of the 
+    individual coding. During group phase work how it is used is up to the
+    group. Normally chnages will be to drawSymbol and the code used by this. OTHER changes to the rendering code
+    are possible but you should check before doing anything. renderSymbol is not all well written, but it uses
+    React cacheing (the Props of FunctionComponent.Of are used as a key so that the whole render function (which
+    calls drawSymbol) is only re-executed when renderSymbolProps change. This means that normally drawSymbol is not
+    called whenever the view function is evaluated - crucial to keeping view function time down!
+    
+    
+    HLP23: There is a lot of code here. For assessment, changes to existing code, or new functions,
+    MUST be documented by HLP23:AUTHOR even if from the smart rendering assigned student, so that new code
+    can easily distinguished from old. (Git can also help with this, but it is not totally reliable)
+    Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
+    comment as in SmartHelpers.
 
+    HLP23: the existing drawSymbol code is imperfect. Many issues, note for example repeated pipelined
+    use of append to join different elements together which is inefficient and less readable.
+    HLP23: the code here does not use helpers consistently or in all suitable places.
+*)
+
+//HLP23: Shaanuka
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
 
 /// Text adding function with many parameters (such as bold, position and text)
@@ -65,8 +85,8 @@ let private portText (pos: XYPos) name edge =
 
 
 /// Print the name of each port 
-let drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symbol) = 
-    let getPortName name x = portText (getPortPosToRender symb portList[x]) name (symb.PortMaps.Orientation[portList.[x].Id])
+let drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symbol) (theme: ThemeType) = 
+    let getPortName name x = portText (getPortPosToRender symb portList[x] theme) name (symb.PortMaps.Orientation[portList.[x].Id])
     if listOfNames.Length < 1
     then []
     else 
@@ -75,11 +95,11 @@ let drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symb
         |> List.collect id
 
 /// Function to draw ports using getPortPos. The ports are equidistant     
-let drawPorts (portType: PortType) (portList: Port List) (showPorts:ShowPorts) (symb: Symbol)= 
+let drawPorts (portType: PortType) (portList: Port List) (showPorts: ShowPorts) (symb: Symbol) (theme: ThemeType)= 
     if not (portList.Length < 1) then       
         match (showPorts,portType) with
-        |(ShowBoth,_) |(ShowInput,PortType.Input) |(ShowOutput,PortType.Output) | (ShowBothForPortMovement,_) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) showPorts ))  
-        |(ShowOneTouching p, _) | (ShowOneNotTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x]) (showPorts) ) else (portCircles (getPortPosToRender symb portList[x]) ShowBothForPortMovement ))
+        |(ShowBoth,_) |(ShowInput,PortType.Input) |(ShowOutput,PortType.Output) | (ShowBothForPortMovement,_) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x] theme) showPorts ))  
+        |(ShowOneTouching p, _) | (ShowOneNotTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x] theme) (showPorts) ) else (portCircles (getPortPosToRender symb portList[x] theme) ShowBothForPortMovement ))
         |(_,_) -> []
     else []
 
@@ -92,10 +112,13 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
         |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {defaultLine with Stroke="DodgerBlue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
         |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
 
+//------------------------------------------------------------------------------------------------//
+//------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS------------------------------//
+//------------------------------------------------------------------------------------------------//
 
-//------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS-------------------------------------
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
+
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
@@ -125,6 +148,8 @@ let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Li
 /// Takes points, height and width of original shape and returns the points for it given a rotation / flipped status.
 /// Degree0 rotation has TopLeft = top left coordinate of the outline, which is a box of dimensions W X H.
 /// Rotation rotates the box about its centre point, keeping TopLeft fixed.
+
+
 let rotatePoints (points) (centre:XYPos) (transform:STransform) = 
     let offset = 
             match transform.Rotation with
@@ -154,10 +179,137 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> flipIfNecessary
     |> relativeToTopLeft
 
+//HLP23: Shaanuka
+
+///helper function to scale legend size
+let getlegendScale =
+    let scale = 1.0
+    scale // change to whatever label size scale you want (orignila font size = 16px)
+
+///gets the LabelRotation from symbol and returns the integer angle of rotation
+let getSymbolRotation (symbol:Symbol) =
+    match symbol.STransform.Rotation with
+    | Degree0 -> 0
+    | Degree90 -> 270
+    | Degree180 -> 180
+    | Degree270 -> 90
+
+///calculates the location of the inverter circle based on rotation angle of symbol
+let NotCircleAngleSHift (w:float) (h:float) angle notDiameter = 
+    match angle with
+    | 90 -> w/2., (h-notDiameter/2.)
+    | 180 -> (notDiameter/2.), h/2.
+    | 270 -> (w/2.),notDiameter/2.
+    | _ -> (w-notDiameter/2.),h/2.
 
 
-/// --------------------------------------- SYMBOL DRAWING ------------------------------------------------------ ///  
+//--------------------------------------------------------------------------------------------//
+//--------------------------------------- SYMBOL DRAWING -------------------------------------//
+//--------------------------------------------------------------------------------------------//
+//HLP23: Shaanuka
+/// Draws component in either new IEEE style with legends or old curved style without legends, returns list of react elements
+/// depending on theme and component
+let smartDrawComponent (comp:Component) symbolProperties points (symbolType:ThemeType) (symbol:Symbol) transform legendFontSize legendOffset =
+    match symbolType with 
+    | OldSymbols -> let parameters ={
+                                        Stroke = "Black";
+                                        StrokeWidth = symbolProperties.strokeWidth;
+                                        StrokeDashArray = "";
+                                        StrokeLinecap = "round";
+                                        Fill = symbolProperties.colour
+                                    }
+                    let notDiameter = 8.
+                    match comp.Type with
 
+                    |And n ->   let lineOne = makeLineAttr 0. comp.H
+                                let lineTwo = makeLineAttr (comp.W/2.) 0.
+                                let curveAttr = makePartArcAttr 5. (-(comp.H/2.)) (-(comp.W/2.)) (comp.H/2.) (comp.W/2.)
+                                let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
+                                let angle = getSymbolRotation symbol
+                                [makeAnyPathWithTransform {X= 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.))]
+
+                    |Nand n ->  let notDiameter = 8.
+                                let width = (comp.W/2.)-(notDiameter)
+                                let lineOne = makeLineAttr 0. comp.H
+                                let lineTwo = makeLineAttr (width) 0.
+                                let curveAttr = makePartArcAttr 5. (-comp.H/2.) (-width) (comp.H/2.) width
+                                let shape = combineAnyPathAttr [lineOne; lineTwo; curveAttr; "Z"]
+                                let angle = getSymbolRotation symbol
+                                [
+                                    makeAnyPathWithTransform {X = 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                    makeCircle (fst (NotCircleAngleSHift comp.W comp.W angle (notDiameter))) (snd (NotCircleAngleSHift 
+                                    comp.W comp.W angle (notDiameter))) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
+                                ]
+
+                    |Or n ->    let origin = -comp.W/9.
+                                let curveOne = makeQuadraticBezierAttr ((comp.W/2.)+origin) (comp.H/2.) origin comp.H
+                                let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
+                                let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
+                                let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
+                                let angle = getSymbolRotation symbol
+                                [makeAnyPathWithTransform {X = origin; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.))]
+
+                    |Nor n ->   let origin = -comp.W/9.
+                                let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H
+                                let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)
+                                let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
+                                let orShape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
+                                let angle = getSymbolRotation symbol
+                                [
+                                    makeAnyPathWithTransform {X = origin; Y = 0} orShape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                    makeCircle (fst (NotCircleAngleSHift comp.W comp.W angle (notDiameter))) (snd (NotCircleAngleSHift 
+                                    comp.W comp.W angle (notDiameter))) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
+                                ]
+
+                    |Not ->     let notRadius = 3.
+                                let width = comp.W-(notRadius*2.)
+                                let angle = getSymbolRotation symbol
+                                let lineOne = makeLineAttr 0. comp.H
+                                let lineTwo = makeLineAttr ((comp.W)-(notRadius*2.)) (-comp.H/2.)
+                                let shape = combineAnyPathAttr [lineOne; lineTwo; "Z"]
+                                [   
+                                    makeAnyPathWithTransform {X = 0; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                    makeCircle (fst (NotCircleAngleSHift comp.W comp.W angle (notRadius*2.))) (snd (NotCircleAngleSHift 
+                                    comp.W comp.W angle (notRadius*2.))) {defaultCircle with R = notRadius; Fill = parameters.Fill}
+                                ]
+
+                    |Xor n ->   let origin = -comp.W/9.
+                                let curveOne = makeQuadraticBezierAttr ((comp.W/2.)) ((comp.H/2.)) origin comp.H
+                                let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H comp.W (comp.H/2.)
+                                let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
+                                let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
+                                let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-5.) ((comp.H/2.)) (origin-notDiameter/2.) comp.H
+                                let angle = getSymbolRotation symbol
+                                [
+                                    makeAnyPathWithTransform {X = origin; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.)); 
+                                    makeAnyPathWithTransform {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"} 
+                                     (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                ]
+
+                    |Xnor n ->  let origin = -comp.W/9.
+                                let notDiameter = 8.
+                                let curveOne = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter) ((comp.H/2.)) origin comp.H
+                                let curveTwo = makeQuadraticBezierAttr (comp.W/1.5) comp.H (comp.W-notDiameter) (comp.H/2.)
+                                let curveThree = makeQuadraticBezierAttr ((comp.W/1.5)) 0 origin 0
+                                let outerCurve = makeQuadraticBezierAttr ((comp.W/2.)-notDiameter-5.) ((comp.H/2.)) (origin-notDiameter/2.) comp.H
+                                let shape = combineAnyPathAttr [curveOne; curveTwo; curveThree]
+                                let angle = getSymbolRotation symbol
+                                [
+                                    makeAnyPathWithTransform {X = origin; Y = 0} shape parameters (rotateAttr angle (comp.W/2.) (comp.H/2.)); 
+                                    makeAnyPathWithTransform {X= origin-notDiameter/2.; Y= 0} outerCurve {parameters with Fill = "None"; StrokeWidth = "1.3px"}
+                                     (rotateAttr angle (comp.W/2.) (comp.H/2.));
+                                    makeCircle (fst (NotCircleAngleSHift comp.W comp.W angle (notDiameter))) (snd (NotCircleAngleSHift 
+                                    comp.W comp.W angle (notDiameter))) {defaultCircle with R = notDiameter/2.; Fill = parameters.Fill}
+                                ]
+
+                    |_ ->   createBiColorPolygon points symbolProperties.colour symbolProperties.outlineColour 
+                                                 symbolProperties.opacity symbolProperties.strokeWidth comp
+
+    | _ ->  (createBiColorPolygon points symbolProperties.colour symbolProperties.outlineColour symbolProperties.opacity symbolProperties.strokeWidth comp) 
+            @(addLegendText (legendOffset symbolProperties.width symbolProperties.height symbol) (getComponentLegend comp.Type transform.Rotation) "middle" "bold" (legendFontSize comp.Type))
+
+/// Draw symbol (and its label) using theme for colors, returning a list of React components 
+/// implementing all of the text and shapes needed.
 let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
@@ -240,8 +392,10 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=H/2.}; {X=W;Y=H/2.}|]
             | BusCompare _ |BusCompare1 _-> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*0.6;Y=H};{X=W*0.8;Y=H*0.7};{X=W;Y=H*0.7};{X=W;Y =H*0.3};{X=W*0.8;Y=H*0.3};{X=W*0.6;Y=0}|]
-            | Not | Nand | Nor | Xnor -> 
-                [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
+            | Not ->
+                  [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
+            | Nand n | Nor n| Xnor n ->
+                  [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|] //HLP23:Shaanuka
             | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ 
             | Counter _ | CounterNoEnable _ 
             | CounterNoLoad _ | CounterNoEnableLoad _ -> 
@@ -258,18 +412,33 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
 
 
     let additions =       // Helper function to add certain characteristics on specific symbols (inverter, enables, clocks)
-        let mergeWiresTextPos =
-            let textPoints = rotatePoints [|{X=W/5.;Y=H/6.+2.};{X=W/5.;Y=H*5./6.+2.};{X=W*0.75;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
-            match transform.Rotation with
-            | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
-            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
-            | _ -> textPoints
-        let splitWiresTextPos =
-            let textPoints = rotatePoints [|{X=W*0.75;Y=H/6.+2.};{X=W*0.75;Y=H*5./6.+2.};{X=W/4.;Y=H/2.+2.}|] {X=W/2.;Y=H/2.} transform
-            match transform.Rotation with
-            | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
-            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
-            | _ -> textPoints
+        //HLP23: Shaanuka
+        /// Merged function for SplitWire and MergeWire to place text in set non-coflicting areas then swap positions when rotated
+        let splitMergeWireTextPos (comp:Component) = 
+            let midX = W/2.
+            let midY = H/2.
+            let mirrorPos isX (pos:XYPos) = 
+                match isX with
+                |true -> {pos with X = midX+(-((pos.X-midX)))} 
+                |_ -> {pos with Y = midY+(-((pos.Y-midY)))}
+
+            let posOne = {X=W/2.-40.;Y=H/6.+5.}
+            let posTwo = {X=W/2.-30.;Y=H/2.+24.}
+            let posThree = {X= midX+39.;Y=H/6.+5.}
+            let textPoints = [|posOne; posTwo; posThree|]
+            match comp.Type with
+            |MergeWires _-> match transform.Rotation with
+                             | Degree270 -> [|posThree; posOne; posTwo|]
+                             | Degree180 -> [|mirrorPos true posTwo ; mirrorPos true posOne; mirrorPos true posThree|]
+                             | Degree90 -> [|mirrorPos false posOne ; mirrorPos false posThree; mirrorPos false posTwo|]
+                             | _ -> textPoints
+
+            |_ ->           match transform.Rotation with
+                            | Degree90 -> [|posThree; posOne; posTwo|]
+                            | Degree180 -> [|mirrorPos true posTwo ; mirrorPos true posOne; mirrorPos true posThree|]
+                            | Degree270 -> [|mirrorPos false posOne ; mirrorPos false posThree; mirrorPos false posTwo|]
+                            | _ -> textPoints
+
         let NbitSpreaderTextPos =
             let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.7;Y=H/2.+4.}|] {X=W/2.;Y=H/2.} transform
             match transform.Rotation with
@@ -294,7 +463,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             let values = [(midt,0);(msb,midb);(msb,0)]
             List.fold (fun og i ->
                 og @ mergeSplitLine 
-                        mergeWiresTextPos[i] 
+                        ((splitMergeWireTextPos comp)[i]) //HLP23: Shaanuka
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
         | NbitSpreader n -> 
@@ -315,7 +484,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
             let values = [(midt,0);(msb,midb);(msb,0)]
             List.fold (fun og i -> 
                 og @ mergeSplitLine 
-                        splitWiresTextPos[i] 
+                        ((splitMergeWireTextPos comp)[i]) //HLP23: Shaanuka
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
@@ -353,26 +522,31 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | IOLabel -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"
-    
 
-
+    //HLP23: Shaanuka - change label size by scale factor + offset for mergewire and splitwire labels
     /// to deal with the label
     let addComponentLabel (comp: Component) transform colour = 
+        let scale = getlegendScale
         let weight = Constants.componentLabelStyle.FontWeight // bold or normal
         let style = {Constants.componentLabelStyle with FontWeight = weight}
+        let scaledLabelFontSize = Constants.labelFontSizeInPixels * scale
         let box = symbol.LabelBoundingBox
         let margin = 
             match comp.Type with
             | BusSelection _ | IOLabel -> Constants.thinComponentLabelOffsetDistance
             | _ -> Constants.componentLabelOffsetDistance
 
+        let pos = 
+            
+            match comp.Type with 
+            |MergeWires|SplitWire _ -> (box.TopLeft - symbol.Pos + {X=margin+5.;Y=margin+5.} + Constants.labelCorrection)
+            |_ -> (box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection)
 
-        let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
-        let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
+        let text = addStyledText {style with DominantBaseline="hanging"; FontSize = $"{scaledLabelFontSize}px"} (pos) comp.Label
         match Constants.testShowLabelBoundingBoxes, colour with
         | false, "lightgreen" ->
-            let x,y = pos.X - margin*0.8, pos.Y - margin*0.8
-            let w,h = box.W - margin*0.4, box.H - margin * 0.4
+            let x,y = (pos.X - (margin*0.8)), (pos.Y - (margin*0.8))
+            let w,h = (box.W - (margin*0.4))*scale, (box.H - (margin* 0.4) + scaledLabelFontSize/2.)
             let polyStyle = {defaultPolygon with Fill = "lightgreen"; StrokeWidth = "0"}
             let poly = makePolygon $"{x},{y} {x+w},{y} {x+w},{y+h} {x},{y+h}" polyStyle 
             [ poly ; text ]
@@ -389,10 +563,6 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                     makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
             text :: corners
 
-
-
- 
-            
     let labelcolour = outlineColor symbol.Appearance.Colour
     let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
         let pMap = symbol.PortMaps.Order
@@ -420,31 +590,30 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
+    let symbolProperties  =
+        {
+            strokeWidth = strokeWidth;
+            colour = colour;
+            outlineColour = outlineColour;
+            opacity = opacity; 
+            width = w;
+            height = h;
+
+        }
     // Put everything together 
-    (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
-    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
-    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addLegendText 
-                        (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) 
-                        "middle" 
-                        "bold" 
-                        (legendFontSize comp.Type))
+    (drawPorts PortType.Output comp.OutputPorts showPorts symbol theme)
+    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol theme)
+    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol theme)
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+    |> List.append (smartDrawComponent comp symbolProperties points theme symbol transform legendFontSize legendOffset) //HLP23: Shaanuka
 
 
+//----------------------------------------------------------------------------------------//
+//---------------------------------View Function for Symbols------------------------------//
+//----------------------------------------------------------------------------------------//
 
-let init () = 
-    { 
-        Symbols = Map.empty; CopiedSymbols = Map.empty
-        Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty; Theme = Colourful
-    }, Cmd.none
-
-//----------------------------View Function for Symbols----------------------------//
 type private RenderSymbolProps =
     {
         Symbol : Symbol 
@@ -453,7 +622,8 @@ type private RenderSymbolProps =
         Theme: ThemeType
     }
 
-/// View for one symbol. Using FunctionComponent.Of to improve efficiency (not printing all symbols but only those that are changing)
+/// View for one symbol. Using FunctionComponent.Of to improve efficiency 
+/// (not printing all symbols but only those that are changing).
 let private renderSymbol =
     
     FunctionComponent.Of(
@@ -509,3 +679,10 @@ let view (model : Model) (dispatch : Msg -> unit) =
     |> ofList
     |> TimeHelpers.instrumentInterval "SymbolView" start
 
+/// init function for initial Symbol Model
+let init () = 
+    { 
+        Symbols = Map.empty; CopiedSymbols = Map.empty
+        Ports = Map.empty ; InputPortsConnected= Set.empty
+        OutputPortsConnected = Map.empty; Theme = Colourful
+    }, Cmd.none

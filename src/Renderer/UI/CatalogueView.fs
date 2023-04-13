@@ -331,6 +331,25 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
+let private createNInputGatePopup (comp:ComponentType) (model:Model) dispatch = //HLP23:Shaanuka
+    let title = sprintf "Create N bit input gate"
+    let beforeInt =
+        fun _ -> str "How many ports between 2-4 should the input have?"
+    let intDefault = model.LastUsedDialogWidth 
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData 
+            let compType = setNumBinaryGateInputs inputInt comp
+            createComponent compType "" model dispatch
+            dispatch ClosePopup
+
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> (getInt dialogData>4 || getInt dialogData<2)
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+    
+
 /// two react text lines in red
 let private twoErrorLines errMsg1 errMsg2 =
     span [Style [Color Red]] [str errMsg1; br []; str errMsg2; br [] ]
@@ -825,12 +844,12 @@ let viewCatalogue model dispatch =
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
-                          catTip1 "And"  (fun _ -> createCompStdLabel And model dispatch) "Output is 1 if both the two inputs are 1"
-                          catTip1 "Or"   (fun _ -> createCompStdLabel Or model dispatch) "Output is 1 if either of the two inputs are 1"
-                          catTip1 "Xor"  (fun _ -> createCompStdLabel Xor model dispatch) "Output is 1 if the two inputs have different values"
-                          catTip1 "Nand" (fun _ -> createCompStdLabel Nand model dispatch) "Output is 0 if both the two inputs are 1"
-                          catTip1 "Nor"  (fun _ -> createCompStdLabel Nor model dispatch) "Output is 0 if either of the two inputs are 1"
-                          catTip1 "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) "Output is 1 if the two inputs have the same values"]
+                          catTip1 "And"  (fun _ -> createNInputGatePopup (And None) model dispatch) "Output is 1 if both the two inputs are 1"
+                          catTip1 "Or"   (fun _ -> createNInputGatePopup (Or  None) model dispatch) "Output is 1 if either of the two inputs are 1"
+                          catTip1 "Xor"  (fun _ -> createNInputGatePopup (Xor None) model dispatch) "Output is 1 if the two inputs have different values"
+                          catTip1 "Nand" (fun _ -> createNInputGatePopup (Nand None) model dispatch) "Output is 0 if both the two inputs are 1"
+                          catTip1 "Nor"  (fun _ -> createNInputGatePopup (Nor None) model dispatch) "Output is 0 if either of the two inputs are 1"
+                          catTip1 "Xnor" (fun _ -> createNInputGatePopup (Xnor None) model dispatch) "Output is 1 if the two inputs have the same values"]
                     makeMenuGroup
                         "Mux / Demux"
                         [ catTip1 "2-Mux" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"

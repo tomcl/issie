@@ -10,6 +10,8 @@ open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open SheetUpdateHelpers
 open Sheet
+open SheetSnap
+open SheetDisplay
 open Optics
 open FilesIO
 open FSharp.Core
@@ -29,7 +31,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     /// Mostly thsi is a hack to deal with the fact that dependent state is held separately rather than
     /// being derived fucntionally from the state it depends on, so it muts be explicitly updated.
     /// TODO: add something to check whether wires need updating
-
     let postUpdateChecks (model: Model) =
         // Executed every update so performance is important.
         // Since normally state will be correct it is only necessary to make the checking
@@ -735,6 +736,107 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
+
+    | TestPortReorder ->
+        // Test code called from Edit menu item
+        // Validate the list of selected symbols: it must have just 2 for
+        // the test to work.
+         /// HLP23: Indraneel
+         let portOrderHelpers: SmartHelpers.BusWireHelpers = 
+            {
+                updateWire = BusWireUpdate.updateWire
+                updateSymbolWires = BusWireUpdate.updateSymbolWires
+            }
+
+         validateTwoSelectedSymbols model
+         |> function
+            | Some (s1,s2) ->
+                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 portOrderHelpers}, Cmd.none
+            | None -> 
+                printfn "Error: can't validate the two symbols selected to reorder ports"
+                model, Cmd.none
+                
+    | SingleReorder ->
+        // Test code called from Edit menu item
+
+        let portOrderHelpers2: SmartHelpers.BusWireHelpers = 
+            {
+                updateWire = BusWireUpdate.updateWire
+                updateSymbolWires = BusWireUpdate.updateSymbolWires
+            }
+
+        let symb = 
+            match model.SelectedComponents with
+            | [s1] as syms -> 
+                let symbols = model.Wire.Symbol.Symbols
+                let getSym sId = 
+                    Map.tryFind sId symbols
+                match getSym s1 with
+                | Some s1 -> 
+                    printfn $"Testing with\ns1= {s1.Component.Type}"
+                    Some(s1)
+                | _ -> 
+                    printfn "Error: can't validate the two symbols selected to reorder ports"
+                    None
+            | syms -> 
+                printfn $"Can't test because number of selected symbols ({syms.Length}) is not 1"
+                None
+
+        {model with Wire = SmartPortOrder.singleReOrder model.Wire symb.Value portOrderHelpers2}, Cmd.none
+    | TestPortPosition ->
+        // Test code called from Edit menu item
+
+         let symbolSizeHelpers: SmartHelpers.BusWireHelpers = 
+            {
+                updateWire = BusWireUpdate.updateWire
+                updateSymbolWires = BusWireUpdate.updateSymbolWires
+            }
+
+         // Validate the list of selected symbols: it must have just 2 for
+         // the test to work.
+         validateTwoSelectedSymbols model
+         |> function
+            | Some (s1,s2) ->
+                {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2 symbolSizeHelpers}, Cmd.none
+            | None -> 
+                printfn "Error: can't validate the two symbols selected to reorder ports"
+                model, Cmd.none
+    | TestSmartChannel ->
+        // Test code called from Edit menu item
+        // Validate the list of selected symbols: it must have just two for
+        // The test to work.
+         let portOrderHelpers: SmartChannel.BusUpdateHelpers = 
+            {
+                wireIntersectsBoundingBox = BusWireUpdate.wireIntersectsBoundingBox
+            }
+
+         validateTwoSelectedSymbols model
+         |> function
+            | Some (s1,s2) ->
+                let bBoxes = model.BoundingBoxes
+                getChannel bBoxes[s1.Id] bBoxes[s2.Id]
+                |> function 
+                   | None -> 
+                        printfn "Symbols are not oriented for a vertical channel"
+                        model, Cmd.none
+                   | Some channel ->
+                        {model with Wire = SmartChannel.smartChannelRoute Vertical channel model.Wire portOrderHelpers}, Cmd.none
+            | None -> 
+                printfn "Error: can't validate the two symbols selected to reorder ports"
+                model, Cmd.none  
+    | TestPortArrange ->
+        // Test code called from Edit menu item
+
+         /// HLP23: Ifte
+         let busWireHelpers: SmartHelpers.BusWireHelpers = 
+            {
+                updateWire = BusWireUpdate.updateWire
+                updateSymbolWires = BusWireUpdate.updateSymbolWires
+            }
+
+         {model with Wire = SmartPortArrange.reArrangePorts model.Wire busWireHelpers }, Cmd.none
+    
+
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -746,8 +848,6 @@ let init () =
 
     {
         Wire = wireModel
-        PopupViewFunc = None
-        PopupDialogData = {Text=None; Int=None; Int2=None}
         BoundingBoxes = boundingBoxes
         LastValidBoundingBoxes = boundingBoxes
         SelectedComponents = []
@@ -788,6 +888,3 @@ let init () =
         DebugMappings = [||]
         DebugDevice = None
     }, Cmd.none
-
-
-

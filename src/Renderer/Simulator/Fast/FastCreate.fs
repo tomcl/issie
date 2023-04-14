@@ -156,7 +156,7 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | NbitsNot w
     | NbitsOr w
     | NbitSpreader w
-    | NbitsXor w 
+    | NbitsXor(w,_) 
     | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
         -> putW0 w
     | NbitsAdder w | NbitsAdderNoCin w ->

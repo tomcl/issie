@@ -121,7 +121,7 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
             bitLimsString (0, 0)
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor w | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  
+        | NbitsXor(w, _) | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  
         | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w ->
             bitLimsString (w - 1, 0)
         | Shift(w,m,tp) -> bitLimsString (w - 1, 0)
@@ -187,7 +187,7 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
             bitLimsString (0, 0)
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor w | NbitsAnd w | NbitsOr w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w 
+        | NbitsXor(w,_) | NbitsAnd w | NbitsOr w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w 
         | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w | Counter w |CounterNoEnable w |CounterNoLoad w |CounterNoEnableLoad w->
             bitLimsString (w - 1, 0)
 

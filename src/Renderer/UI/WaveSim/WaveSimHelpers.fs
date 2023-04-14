@@ -330,7 +330,8 @@ let getCompDetails fs wave =
         | NbitsAdder n | NbitsAdderNoCin n 
         | NbitsAdderNoCout n | NbitsAdderNoCinCout n     
             -> $"{n} bit adder",false
-        | NbitsXor n -> $"{n} XOR gates",false
+        | NbitsXor (n,None) -> $"{n} XOR gates",false
+        | NbitsXor(n, Some Multiply) -> $"{n} bit multiply",false
         | NbitsAnd n -> $"{n} AND gates",false
         | NbitsNot n -> $"{n} Not gates",false
         | NbitSpreader n -> $"1 -> {n} bits spreader",false

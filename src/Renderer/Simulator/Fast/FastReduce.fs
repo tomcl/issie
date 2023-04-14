@@ -656,16 +656,20 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 put1 <| Alg out1
             |_ ->
                 put0 <| Alg out0
-    | NbitsXor numberOfBits ->
+    | NbitsXor(numberOfBits, op) ->
         //let A, B = ins 0, ins 1
         match ins 0, ins 1 with
         | Data A, Data B ->
             let outDat =
                 match A.Dat, B.Dat with
                 | BigWord a, BigWord b ->
-                    BigWord (a ^^^ b)
+                    BigWord (match op with 
+                                | None -> a ^^^ b
+                                | Some Multiply -> (a * b) &&& ((bigint 1 <<< A.Width) - bigint 1))
                 | Word a, Word b -> 
-                    Word (a ^^^ b)
+                    Word (match op with 
+                                | None -> a ^^^ b
+                                | Some Multiply -> (a * b) &&& ((1u <<< A.Width) - 1u))
                 | a,b -> 
                     failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
 

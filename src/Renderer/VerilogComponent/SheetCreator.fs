@@ -270,7 +270,7 @@ let buildExpressionComponent (rhs:ExpressionT) width =
         match rhs.Type with
         | "negation" -> (NbitsNot width)  
         | "bitwise_OR" -> (NbitsOr width)
-        | "bitwise_XOR" -> (NbitsXor width)
+        | "bitwise_XOR" -> (NbitsXor (width, None))
         | "bitwise_AND" -> (NbitsAnd width)
         | "additive" -> (NbitsAdder width)
         | "conditional_cond" -> (Mux2)

@@ -485,11 +485,16 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let sum = outs 0
         $"assign %s{sum} = %s{a} + %s{b} ;\n"
     
-    | NbitsXor n ->
+    | NbitsXor (n, None) ->
         let a = ins 0
         let b = ins 1
         let xor = outs 0
         $"assign {xor} = {a} ^ {b};\n"
+    | NbitsXor (n, Some Multiply) ->
+        let a = ins 0
+        let b = ins 1
+        let xor = outs 0
+        $"assign {xor} = {a} * {b};\n"
     | NbitsAnd n ->
         let a = ins 0
         let b = ins 1

@@ -176,7 +176,7 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
     
 let getSymbolColour compType clocked (theme:ThemeType) =
     match theme with
-    | White | Light -> "lightgray"
+    | White | Light  -> "lightgray"
     | Colourful ->
         match compType with
         | Register _ | RegisterE _ 
@@ -624,6 +624,10 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | NbitsAdderNoCinCout (n) -> (  2 , 1, 3.*gS  , 4.*gS)
     | Shift _ -> (  2 , 1, 3.*gS  , 4.*gS)
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Drawing the symbols needed for scaling box
+    | ScaleButton -> (0,0,14.0,14.0)
+    | RotateButton -> (0,0,14.0,14.0)
 
 /// make a completely new component
 let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:string) : Component =
@@ -658,7 +662,7 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
 
 
 /// Function to generate a new symbol
-let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
+let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) modelStyle =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
@@ -675,6 +679,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
             ShowPorts = ShowNone
             Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
+            Style = modelStyle
           }
       InWidth0 = None // set by BusWire
       InWidth1 = None
@@ -689,6 +694,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       MovingPortTarget = None
       HScale = None
       VScale = None
+      
     }
     |> autoScaleHAndW
     |> calcLabelBoundingBox
@@ -758,7 +764,24 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
     else    
         {X = 0.; Y = 0.}
 
-    
+//When symbol is curvy, gives the new offset of the port (due to indent in shape of symbol)
+//HLP23: Author Ismagilov
+let getCurvePortOffset (sym:Symbol) (side:Edge) (h:float) (w:float) =  
+    match side with
+    | Left -> match sym.STransform.Rotation, sym.STransform.flipped with
+                | Degree0, false -> {X = w/8.; Y=0.}
+                | Degree180, true -> {X = w/8.; Y=0}
+                | _ -> {X = 0.; Y=0.}
+    | Right -> match sym.STransform.Rotation, sym.STransform.flipped with
+                | Degree180, false -> {X = -w/8.; Y=0.}
+                | Degree0, true -> {X = -w/8.; Y=0.}
+                | _ -> {X = 0.; Y=0.}
+    | Top -> match sym.STransform.Rotation with
+                | Degree270 -> {X = 0.; Y=h/8.}
+                | _ -> {X = 0.; Y=0.}
+    | Bottom -> match sym.STransform.Rotation with
+                | Degree90 -> {X = 0.; Y= -h/8.}
+                | _ -> {X = 0.; Y=0.}
 
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
@@ -774,21 +797,35 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
     let baseOffset' = baseOffset + getMuxSelOffset sym side
     let portDimension = float ports.Length - 1.0
+    let comp = sym.Component
     //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
+
+    //Get offset of pos if symbol is curvy
+    //HLP23: Author Ismagilov
+    let curveOffset =
+            match sym.Appearance.Style, comp.Type with
+            | Distinctive, Or -> getCurvePortOffset sym side h w           
+            | _ , _-> {X=0.; Y=0.}
+
+    //Fixing port position of curvy symbol by adding curve offset
+    //HLP23: Author Ismagilov
     match side with
     | Left ->
         let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
+        baseOffset' + {X = 0.0; Y = yOffset } + curveOffset
     | Right -> 
+
         let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
-        baseOffset' + {X = 0.0; Y = yOffset }
+        baseOffset' + {X = 0.0; Y = yOffset } + curveOffset
     | Bottom -> 
+       
         let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = 0.0 }
+        baseOffset' + {X = xOffset; Y = 0.0} + curveOffset
     | Top ->
+    
         let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
-        baseOffset' + {X = xOffset; Y = 0.0 }
+        baseOffset' + {X = xOffset; Y = 0.0} + curveOffset
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
 let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =

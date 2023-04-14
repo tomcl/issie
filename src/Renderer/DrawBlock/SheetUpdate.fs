@@ -10,6 +10,8 @@ open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open SheetUpdateHelpers
 open Sheet
+open SheetSnap
+open SheetDisplay
 open Optics
 open FilesIO
 open FSharp.Core
@@ -18,10 +20,13 @@ open Fable.Core.JsInterop
 open BuildUartHelpers
 open Node.ChildProcess
 open Node
+open SmartHelpers
 
 module node = Node.Api
 
-importReadUart
+importReadUart 
+
+open Symbol
 
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
@@ -66,11 +71,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             |> Set.toList
 
         // let inputPorts, outputPorts = BusWire.getPortIdsOfWires model.Wire wireUnion
-        { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model ; RedoList = [] },
-        Cmd.batch [ wireCmd (BusWireT.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
-                    symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
-                    Cmd.ofMsg UpdateBoundingBoxes
-                  ]
+        match model.ButtonList with
+        | [] -> 
+            { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model ; RedoList = [] },
+            Cmd.batch [ wireCmd (BusWireT.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
+                        symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
+                        Cmd.ofMsg UpdateBoundingBoxes
+                    ]
+        | _ -> 
+            { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model ; RedoList = []; ButtonList = []; Box = {model.Box with ShowBox = false} },
+            Cmd.batch [ wireCmd (BusWireT.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
+                        symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
+                        symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                        Cmd.ofMsg UpdateBoundingBoxes
+                    ]
     | KeyPress CtrlS -> // For Demo, Add a new square in upper left corner
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
         Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes; symbolCmd SymbolT.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
@@ -97,7 +111,35 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     symbolCmd (SymbolT.PasteSymbols pastedCompIds)
                     wireCmd (BusWireT.SelectWires [])
                     wireCmd (BusWireT.ColorWires (pastedConnIds, HighLightColor.Thistle)) ]
+                
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Gets bounding box dimentions and creates the necessary symbol buttons
+    | DrawBox ->
+        let box: BoundingBox = 
+                    match model.SelectedComponents.Length with
+                     | s when s<2 -> model.Box.BoxBound
+                     | _  -> 
+                                let myList =  model.SelectedComponents
+                                                            |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+                                myList |> getBlock
+        if (model.SelectedComponents.Length < 2) then 
+            (model), Cmd.none
+        else
 
+            let topleftX =  box.TopLeft.X 
+            let topleftY =  box.TopLeft.Y
+            let width = box.W
+            let height= box.H
+            let createdrotateACWSym = {(createNewSymbolButton {X=topleftX- 69.5; Y=topleftY+((height/2. )- 12.5)} RotateButton  "RotateACW" Distinctive) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+            let rotateACWSym = {createdrotateACWSym with Component = {createdrotateACWSym.Component with H = 25.; W=25.}}
+            let createdrotateCWSym = createNewSymbolButton {X=topleftX+width+ 57.; Y=topleftY+((height/2.)-12.5)} RotateButton  "RotateCW" Distinctive
+            let rotateCWSym = {createdrotateCWSym with Component = {createdrotateCWSym.Component with H = 25.; W= 25.}}
+            let buttonSym = createNewSymbolButton {X=topleftX+width+ 46.5; Y=topleftY-53.5} ScaleButton "ScaleButton"  Distinctive
+            let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym |> Map.add rotateACWSym.Id rotateACWSym |> Map.add rotateCWSym.Id rotateCWSym
+            ({model with Box = {model.Box with BoxBound = box; ShowBox = true; ScaleButton = Some buttonSym; RotateCWButton= Some rotateCWSym; RotateACWButton= Some rotateACWSym}; Wire= {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}; ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id]}), Cmd.none
+            //Center and Radius might be unused here ^
+
+            
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with
         | DragAndDrop ->
@@ -333,22 +375,120 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | RotateLabels ->
         rotateSelectedLabelsClockwise model
-    
+
     | Rotate rotation ->
-        model,
+        // model,
+        // Cmd.batch [
+        //     symbolCmd (SymbolT.RotateLeft(model.SelectedComponents, rotation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+        //     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+        //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
+        // ]
+
+        //Replaced normal rotation, so individual and block rotation is correct
+        //HLP23: Author Ismagilov
+        let rotmodel = 
+            {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}}
+
+        let newModel = 
+         match (model.SelectedComponents.Length) with
+         | s when s < 2 -> {rotmodel with BoundingBoxes = getBoundingBoxes rotmodel.Wire.Symbol; }
+         | _ -> 
+            let block = SmartHelpers.getBlock (List.map (fun sId -> rotmodel.Wire.Symbol.Symbols.[sId]) model.SelectedComponents)
+            let newBoxPos = adjustPosForBlockRotation rotation rotmodel.Box.BoxBound.H rotmodel.Box.BoxBound.W (rotatePointAboutBlockCentre rotmodel.Box.BoxBound.TopLeft (block.Centre()) rotation)
+            let newBox = {rotmodel.Box with BoxBound = {rotmodel.Box.BoxBound with TopLeft = newBoxPos; H = rotmodel.Box.BoxBound.W; W = rotmodel.Box.BoxBound.H}}
+            match model.ButtonList with
+            | [] ->  {rotmodel with BoundingBoxes = getBoundingBoxes rotmodel.Wire.Symbol; Box = newBox}
+            | _ ->
+                let symButton =  rotmodel.Box.ScaleButton.Value
+                let rotateACWButton =  rotmodel.Box.RotateACWButton.Value
+                let rotateCWButton =  rotmodel.Box.RotateCWButton.Value
+
+                let newRotACWPos = {X = newBox.BoxBound.TopLeft.X - 76.5  ; Y = newBox.BoxBound.TopLeft.Y + ((newBox.BoxBound.H/2.)- 12.5) }
+                let rotACWNewButton = {rotateACWButton with Pos = newRotACWPos; Component = {rotateACWButton.Component with X = newRotACWPos.X; Y = newRotACWPos.Y}}
+
+                let newSymPos = {X = newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 39.5 ; Y = newBox.BoxBound.TopLeft.Y - 60.5 }
+                let symNewButton = {symButton with Pos = newSymPos; Component = {symButton.Component with X = newSymPos.X; Y = newSymPos.Y}}
+
+                let newRotCWPos = {X = newBox.BoxBound.TopLeft.X + newBox.BoxBound.W + 50.  ; Y = newBox.BoxBound.TopLeft.Y + ((newBox.BoxBound.H/2.) - 12.5) }
+                let rotCWNewButton = {rotateCWButton with Pos = newRotCWPos; Component = {rotateCWButton.Component with X = newRotCWPos.X; Y = newRotCWPos.Y}}
+
+                let newSymModel = {rotmodel.Wire.Symbol with Symbols = (rotmodel.Wire.Symbol.Symbols |> Map.add symButton.Id symNewButton |> Map.add rotateACWButton.Id rotACWNewButton |> Map.add rotateCWButton.Id rotCWNewButton)}
+
+                let tmpmodel = 
+                    {rotmodel with Box = {newBox with ScaleButton = Some symNewButton; RotateCWButton= Some rotCWNewButton; RotateACWButton= Some rotACWNewButton}; Wire = {rotmodel.Wire with Symbol = newSymModel}}
+                {tmpmodel with BoundingBoxes = getBoundingBoxes tmpmodel.Wire.Symbol; }
+        printfn "ButtonIds: %A" model.ButtonList
+        let errorComponents =
+            newModel.SelectedComponents
+            |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+        printfn $"ErrorComponents={errorComponents}"
+
+        
+        match errorComponents with
+            | [] -> 
+                 match model.ButtonList with
+                 | [] ->
+                    {newModel with ErrorComponents = errorComponents; Action = Idle;},
+                        Cmd.batch [
+                            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                            Cmd.ofMsg DrawBox
+                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
+                 | _ -> 
+                    {newModel with ErrorComponents = errorComponents; Action = Idle;},
+                        Cmd.batch [
+                            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
+            | _ ->
+                {newModel with ErrorComponents = errorComponents; Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}},
+                    Cmd.batch [
+                        symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
+                        symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                        wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                        Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                    ]
+
+    
+
+    | Flip orientation ->
+        // model,
+        // Cmd.batch [
+        //     symbolCmd (SymbolT.Flip(model.SelectedComponents,orientation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+        //     wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+        //     Cmd.ofMsg SheetT.UpdateBoundingBoxes
+        // ]
+
+        //Replaced normal flipping, so individual and block flipping is correct
+        //HLP23: Author Ismagilov
+        let flipmodel = 
+            {model with Wire = {model.Wire with Symbol = (SmartRotate.flipBlock model.SelectedComponents model.Wire.Symbol orientation)}}
+
+        let newModel = {flipmodel with BoundingBoxes = getBoundingBoxes flipmodel.Wire.Symbol}
+
+        let errorComponents =
+            newModel.SelectedComponents
+            |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+        printfn $"ErrorComponents={errorComponents}"
+
+        let nextAction = 
+            match errorComponents with
+                | [] -> 
+                    newModel.Action
+                | _ ->
+                    DragAndDrop
+
+        {newModel with ErrorComponents = errorComponents; Action = nextAction},
         Cmd.batch [
-            symbolCmd (SymbolT.RotateLeft(model.SelectedComponents, rotation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+            symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+            wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
             Cmd.ofMsg SheetT.UpdateBoundingBoxes
         ]
 
-    | Flip orientation ->
-        model,
-        Cmd.batch [
-            symbolCmd (SymbolT.Flip(model.SelectedComponents,orientation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
-            Cmd.ofMsg SheetT.UpdateBoundingBoxes
-        ]
     | SaveSymbols ->
         model, symbolCmd SymbolT.SaveSymbols
 
@@ -735,6 +875,272 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
+    | KeyPress CtrlR ->
+        // Test code called from Edit menu item
+        // Validate the lits of selected symbols: it muts have just 2 for
+        // the test to work.
+         validateTwoSelectedSymbols model
+         |> function
+            | Some (s1,s2) ->
+                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2}, Cmd.none
+            | None -> 
+                printfn "Error: can't validate the two symbols selected to reorder ports"
+                model, Cmd.none
+
+    ///HLP23 AUTHORS: Ismagilov & Rzepala
+    /// updated the following function to restrict resized symbol movement, so that
+    /// there is no overlap with other symbols
+    | TestPortPosition ->
+        // Test code called from Edit menu item
+        // Validate the lits of selected symbols: it muts have just 2 for
+        // the test to work.
+         validateTwoSelectedSymbols model
+         |> function
+            | Some (s1,s2) ->
+                
+                let scalemodel = 
+                    if s1<> s2 then 
+                        {model with Wire = SmartSizeSymbol.reSizeSymbol model.Wire s1 s2}
+                    else {model with Wire = SmartSizeSymbol.reSizeSymbolDraggable model.Wire s1}
+                    
+                let newModel = {scalemodel with BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol}
+                let errorComponents =
+                    newModel.SelectedComponents
+                    |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+                let errorSelectedComponents =
+                    newModel.SelectedComponents
+                    |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
+
+                printfn $"ErrorComponents={errorComponents}"
+
+                let nextAction = 
+                    match errorComponents with
+                        | [] -> 
+                            Idle
+                        | _ ->
+                            DragAndDrop
+
+                match errorSelectedComponents with
+                    | [] ->
+                        {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+                        Cmd.batch [
+                                symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                                wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
+                    | _ -> model,Cmd.none
+            | None -> 
+                printfn "Error: can't validate the two symbols selected to reorder ports"
+                model, Cmd.none
+
+    | KeyPress CtrlT ->
+        // Added test code to test multiple components
+        // Must select 2 or more componenets for it to work
+        //HLP23 AUTHOR: Khoury
+         validateMultipleSelectedSymbols model
+         |> function
+            | Some s -> 
+                {model with Wire = SmartPortOrder.multipleReorderPorts model.Wire s}, Cmd.none
+            | None -> 
+                printfn "Error: can't validate two or more symbols selected to reorder ports"
+                model, Cmd.none
+    | KeyPress CtrlL ->
+        //Creates a replace wire with label popup
+        //HLP23 AUTHOR: Klapper
+        let filteredWireList = model.SelectedWires 
+                            |> List.filter (fun element -> SmartHelpers.isWireConnectedToLabel model.Wire model.Wire.Wires[element] |> not)
+        match filteredWireList with
+        | hd::[] -> {model with Wire = (SmartHelpers.wireReplacePopUp model.Wire hd); UndoList = model.UndoList @ [model]}, Cmd.none 
+        | hd::tl -> {model with Wire = (SmartHelpers.wireReplaceAllPopup model.Wire filteredWireList); UndoList = model.UndoList @ [model]}, Cmd.none
+        | _ -> 
+            printfn "No valid wires have been selected"
+            model, Cmd.none
+    | KeyPress CtrlShiftL -> 
+        //Replaces all wires with labels without popup
+        //HLP23 AUTHOR: Klapper
+        let filteredWireList = model.SelectedWires 
+                            |> List.map (fun element -> model.Wire.Wires[element])
+                            |> List.filter (fun element -> SmartHelpers.isWireConnectedToLabel model.Wire element |> not)
+        match filteredWireList with
+        | hd::[] -> {model with Wire = SmartHelpers.replaceWireWithLabel model.Wire hd; UndoList = model.UndoList @ [model]}, Cmd.none
+        | hd::tl -> 
+            let newWireModel = (model.Wire, filteredWireList)
+                                ||> List.fold (fun state element -> SmartHelpers.replaceWireWithLabel state element)
+            {model with Wire = newWireModel; UndoList = model.UndoList @ [model]}, Cmd.none
+        | _ -> 
+            printfn "No valid wires have been selected"
+            model, Cmd.none
+    | FormSmartChannel (orient:Orientation)->
+        //Creates a smart channel in the orientation specified
+        //HLP23 AUTHOR: Klapper
+        let filteredComps =
+             model.SelectedComponents 
+            |> List.filter (fun id -> model.Wire.Symbol.Symbols[id].Component.Type <> ComponentType.IOLabel)
+        match filteredComps with
+        | lst when lst.Length >= 2 ->
+            findChannel model -1 -1 orient lst 
+            |> function
+                | Some l, Some r -> 
+                    let lhd::ltl = l |> List.map (fun id -> model.BoundingBoxes[id])
+                    let lBB = (lhd, ltl) ||> List.fold boxUnion
+                    let rhd::rtl = r |> List.map (fun id -> model.BoundingBoxes[id])
+                    let rBB = (rhd, rtl) ||> List.fold boxUnion
+                    getChannel lBB rBB orient
+                    |> function
+                            | None ->
+                                printfn "Symbols are not oriented for a vertical channel"
+                                model, Cmd.none
+                            | Some channel ->
+                                    let newModel =  SmartChannel.smartChannelRoute orient channel {model with SelectedWires = []}
+                                    if newModel.SelectedWires.Length = 0 then
+                                        {newModel with UndoList = model.UndoList @ [model]}, Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))
+                                    else
+                                        {newModel with UndoList = model.UndoList @ [model]}, Cmd.batch [Cmd.ofMsg (KeyPress CtrlL);Cmd.ofMsg (SheetT.ColourSelection <| (l @ r , [], HighLightColor.Yellow))]
+                | _, _ -> 
+                    printfn "Could not autoform channel from selected components"
+                    model, Cmd.none
+        | _ ->
+            printfn "Please select two or more symbols"
+            model, Cmd.none
+    
+
+
+    // HLP23 AUTHOR Ismagilov
+    // Caught message for scaling up selected components
+    | KeyPress CtrlU -> 
+        printfn "Scaling up"
+        match model.SelectedComponents.Length with
+        | n when n<2 -> model, Cmd.none
+        | _ ->  
+            let scalemodel = 
+                {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleUp)}}
+            
+            let newBoxBound = {scalemodel.Box.BoxBound with TopLeft = {X = scalemodel.Box.BoxBound.TopLeft.X - 5.; Y = scalemodel.Box.BoxBound.TopLeft.Y - 5. }; H = scalemodel.Box.BoxBound.H + 10.; W = scalemodel.Box.BoxBound.W + 10.}
+            let scaleButt = scalemodel.Box.ScaleButton.Value
+            let rotateCWButt = scalemodel.Box.RotateCWButton.Value
+            let rotateACWButt = scalemodel.Box.RotateACWButton.Value
+            let newScaleButt = {scaleButt with Pos = scaleButt.Pos - {X= -5.;Y=5.}; Component = {scaleButt.Component with X = scaleButt.Component.X + 5.; Y = scaleButt.Component.Y - 5.}}
+            let newRotateCW = {rotateCWButt with Pos = rotateCWButt.Pos - {X= -5.;Y = 0}; Component = {rotateCWButt.Component with X = rotateCWButt.Component.X + 5.; Y = rotateCWButt.Component.Y}}
+            let newRotateACW = {rotateACWButt with Pos = rotateACWButt.Pos - {X=5.;Y= 0}; Component = {rotateACWButt.Component with X = rotateACWButt.Component.X - 5.; Y = rotateACWButt.Component.Y}}
+            let newModel = {scalemodel with Wire = {scalemodel.Wire with Symbol = {scalemodel.Wire.Symbol with Symbols =(scalemodel.Wire.Symbol.Symbols 
+                                                                                        |> Map.add newScaleButt.Id newScaleButt 
+                                                                                        |> Map.add newRotateCW.Id newRotateCW 
+                                                                                        |> Map.add newRotateACW.Id newRotateACW)}} ; BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol; Box = {scalemodel.Box with BoxBound = newBoxBound; ScaleButton = Some newScaleButt; RotateCWButton = Some newRotateCW; RotateACWButton = Some newRotateACW}}
+
+            let errorComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+            printfn $"ErrorComponents={errorComponents}"
+
+            let nextAction = 
+                match errorComponents with
+                    | [] -> 
+                        Idle
+                        
+                    | _ ->
+                        DragAndDrop
+            {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+            Cmd.batch [
+                    symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                    wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                    Cmd.ofMsg SheetT.UpdateBoundingBoxes
+            ]
+
+
+    //HLP23 AUTHOR Ismagilov
+    //Caught message for scaling down selected components
+    | KeyPress CtrlI -> 
+        printfn "Scaling down"
+        match model.SelectedComponents.Length with
+        | n when n<2 -> model, Cmd.none
+        | _ ->  
+            let scalemodel = 
+                {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleDown)}}
+
+            let newBoxBound = {scalemodel.Box.BoxBound with TopLeft = {X = scalemodel.Box.BoxBound.TopLeft.X + 5.; Y = scalemodel.Box.BoxBound.TopLeft.Y + 5. }; H = scalemodel.Box.BoxBound.H - 10.; W = scalemodel.Box.BoxBound.W - 10.}
+            let scaleButt = scalemodel.Box.ScaleButton.Value
+            let rotateCWButt = scalemodel.Box.RotateCWButton.Value
+            let rotateACWButt = scalemodel.Box.RotateACWButton.Value
+            let newScaleButt = {scaleButt with Pos = scaleButt.Pos - {X= 5.;Y= -5.}; Component = {scaleButt.Component with X = scaleButt.Component.X - 5.; Y = scaleButt.Component.Y + 5.}}
+            let newRotateCW = {rotateCWButt with Pos = rotateCWButt.Pos - {X= 5.;Y = 0}; Component = {rotateCWButt.Component with X = rotateCWButt.Component.X - 5.; Y = rotateCWButt.Component.Y}}
+            let newRotateACW = {rotateACWButt with Pos = rotateACWButt.Pos - {X= -5.;Y= 0}; Component = {rotateACWButt.Component with X = rotateACWButt.Component.X + 5.; Y = rotateACWButt.Component.Y}}
+            let newModel = {scalemodel with Wire = {scalemodel.Wire with Symbol = {scalemodel.Wire.Symbol with Symbols =(scalemodel.Wire.Symbol.Symbols 
+                                                                                        |> Map.add newScaleButt.Id newScaleButt 
+                                                                                        |> Map.add newRotateCW.Id newRotateCW 
+                                                                                        |> Map.add newRotateACW.Id newRotateACW)}} ; BoundingBoxes = getBoundingBoxes scalemodel.Wire.Symbol; Box = {scalemodel.Box with BoxBound = newBoxBound; ScaleButton = Some newScaleButt; RotateCWButton = Some newRotateCW; RotateACWButton = Some newRotateACW}}
+
+            let newBlock = SmartHelpers.getBlock ((List.map (fun x -> newModel.Wire.Symbol.Symbols |> Map.find x) newModel.SelectedComponents) )
+
+
+            let errorComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+
+            let errorSelectedComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
+
+            printfn $"ErrorComponents={errorComponents}"
+
+            let nextAction = 
+                match errorComponents with
+                    | [] -> 
+                        Idle
+                    | _ ->
+                        DragAndDrop
+
+            match errorSelectedComponents with
+                | [] ->
+                    if (newBoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBoxBound.TopLeft.X + newBoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBoxBound.TopLeft.Y + newBoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H) then
+                        model,Cmd.none
+                    else
+                        {newModel with ErrorComponents = errorComponents; Action = nextAction}, 
+                        Cmd.batch [
+                                symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
+                                wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
+                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        ]
+                | _ ->  model,Cmd.none
+
+    //HLP23 AUTHOR Ismagilov
+    //Sets the chosen style for the selected components
+    | SetStyle (style:StyleType) ->
+        let syms = model.Wire.Symbol.Symbols
+        let compList = 
+            syms
+            |> Map.toList
+            |> List.map (fun (key, _) -> key)
+
+        let resetSymbols = 
+            syms
+            |> Map.map 
+                (fun _ sym ->  
+                    {sym with Appearance = {sym.Appearance with Style=style}}
+                )
+        {model with Wire = {model.Wire with Symbol = {model.Wire.Symbol with Style = style; Symbols = resetSymbols}}; },
+        Cmd.batch  [ 
+                wireCmd (BusWireT.UpdateConnectedWires compList)
+                Cmd.ofMsg UpdateBoundingBoxes
+        ]
+    | TestAllTogether orientation ->
+        //HLP23 AUTHOR: Klapper
+        //Executes port reorderin and channel formation right after each other
+        validateTwoSelectedSymbols model
+         |> function 
+            | Some (s1, s2) -> 
+                model, Cmd.batch [ 
+                                        (Cmd.ofMsg (KeyPress CtrlR)) 
+                                        (Cmd.ofMsg (FormSmartChannel orientation))]
+            | None -> 
+                model, Cmd.batch [ 
+                                        (Cmd.ofMsg (KeyPress CtrlT)) 
+                                        (Cmd.ofMsg (FormSmartChannel orientation))]
+        
+
+    
+
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -743,11 +1149,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 let init () =
     let wireModel, cmds = (BusWireUpdate.init ())
     let boundingBoxes = Symbol.getBoundingBoxes wireModel.Symbol
-
     {
         Wire = wireModel
-        PopupViewFunc = None
-        PopupDialogData = {Text=None; Int=None; Int2=None}
         BoundingBoxes = boundingBoxes
         LastValidBoundingBoxes = boundingBoxes
         SelectedComponents = []
@@ -787,7 +1190,18 @@ let init () =
         DebugIsConnected = false
         DebugMappings = [||]
         DebugDevice = None
+        Box = {MovingPos= [];
+                WidthStart=0.;
+                StartingMouse = {X=0;Y=0};
+                HeightStart=0.;
+                TopLeftStart= {X=0;Y=0};
+                StartingPos = {X=0;Y=0};
+                ShowBox = false ;
+                BoxBound = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0};
+                ScaleButton = None; 
+                RotateCWButton = None;
+                RotateACWButton = None;}
+        ButtonList =[]
     }, Cmd.none
-
 
 

@@ -58,6 +58,7 @@ let init() = {
         LastUsedDirectory = None
         RecentProjects = None
         Theme = SymbolT.ThemeType.Colourful
+        Style = SymbolT.StyleType.Rectangular
         }
     LastChangeCheckTime = 0.
     // Diagram = new Draw2dWrapper()
@@ -374,12 +375,13 @@ let displayView model dispatch =
         
         
         PopupView.viewPopup model dispatch 
+        PopupDrawingView.viewDrawingPopup model.Sheet.Wire (fun bwMsg -> dispatch (Sheet (SheetT.Msg.Wire bwMsg)))
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model dispatch
 
         if model.PopupDialogData.Progress = None then
-            Sheet.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
+            SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
         
         // transient pop-ups
         Notifications.viewNotifications model dispatch

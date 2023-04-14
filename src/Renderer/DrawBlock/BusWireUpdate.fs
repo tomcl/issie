@@ -7,8 +7,75 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
+open SmartWire
+open SmartHelpers
 open Optics
 open Operators
+
+//---------------------------------------------------------------------------------//
+//----------------------Helper functions that need SmartRoute etc------------------//
+//---------------------------------------------------------------------------------//
+/// Returns a re-routed wire from the given model.
+/// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
+/// Reverse indicates if the wire should be processed in reverse, 
+/// used when an input port (end of wire) is moved.
+let updateWire (model : Model) (wire : Wire) (reverse : bool) =
+    let newPort = 
+        match reverse with
+        | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort
+        | false -> Symbol.getOutputPortLocation None model.Symbol wire.OutputPort
+    if reverse then
+        partialAutoroute model (reverseWire wire) newPort true
+        |> Option.map reverseWire
+    else 
+        partialAutoroute model wire newPort false
+    |> Option.defaultValue (smartAutoroute model wire)
+/// Re-routes the wires in the model based on a list of components that have been altered.
+/// If the wire input and output ports are both in the list of moved components, 
+/// it does not re-route wire but instead translates it.
+/// Keeps manual wires manual (up to a point).
+/// Otherwise it will auto-route wires connected to components that have moved
+let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
+
+    let wires = filterWiresByCompMoved model compIdList
+
+    let newWires =
+        model.Wires
+        |> Map.toList
+        |> List.map (fun (cId, wire) -> 
+            if List.contains cId wires.Both //Translate wires that are connected to moving components on both sides
+            then (cId, moveWire wire diff)
+            elif List.contains cId wires.Inputs //Only route wires connected to ports that moved for efficiency
+            then (cId, updateWire model wire true)
+            elif List.contains cId wires.Outputs
+            then (cId, updateWire model wire false)
+            else (cId, wire))
+        |> Map.ofList
+
+    { model with Wires = newWires }
+
+let updateSymbolWires (model: Model) (compId: ComponentId) =
+    let wires = filterWiresByCompMoved model [compId]
+    
+    let newWires =
+        model.Wires
+        |> Map.toList
+        |> List.map (fun (cId, wire) ->
+            if List.contains cId wires.Both then // Update wires that are connected on both sides
+                cId, (
+                    updateWire model wire true 
+                    |> fun wire -> updateWire model wire false)
+            elif List.contains cId wires.Inputs then 
+                cId, updateWire model wire true
+            elif List.contains cId wires.Outputs then
+                cId, updateWire model wire false
+            else cId, wire)
+        |> Map.ofList
+    { model with Wires = newWires }
+
+//---------------------------------------------------------------------------------//
+//------------------------------BusWire Init & Update functions--------------------//
+//---------------------------------------------------------------------------------//
 
 /// Initialises an empty BusWire Model
 let init () = 
@@ -23,6 +90,8 @@ let init () =
         Notifications = None
         Type = Constants.initialWireType
         ArrowDisplay = Constants.initialArrowDisplay
+        PopupViewFunc = None
+        PopupDialogData = {Text=None; Int=None; Int2=None}
     } , Cmd.none
 
 
@@ -31,6 +100,17 @@ let init () =
 let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     match msg with
+    | SetPopupDialogInt n ->
+        let data = {model.PopupDialogData with Int = n}
+        {model with PopupDialogData = data}, Cmd.none
+    | SetPopupDialogText txt ->
+        let data = {model.PopupDialogData with Text = txt}
+        {model with PopupDialogData = data}, Cmd.none
+    | SetPopupDialogText _ 
+    | ClosePopup ->
+        {model with PopupViewFunc = None}, Cmd.none
+    | ShowPopup popupFun ->
+        {model with PopupViewFunc = Some popupFun}, Cmd.none
     | Symbol sMsg ->
         // update Symbol model with a Symbol message
         let sm,sCmd = SymbolUpdate.update sMsg model.Symbol
@@ -65,7 +145,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 StartPos = { X = 0; Y = 0 }
                 InitialOrientation = Horizontal
             }
-            |> autoroute model
+            |> smartAutoroute model
         
         let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ newWire.WId) newWire model)
         
@@ -352,6 +432,22 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 inputPorts @ outputPorts
                 |> List.map (Msg.RerouteWire >> Cmd.ofMsg))
         model, Cmd.batch updatePortIdMessages
+    | ReplaceWireWithLabel (wireId : ConnectionId) ->
+        //Replaces a single wire with a label 
+        //HLP23 AUTHOR: Klapper
+        let newModel =
+            if model.PopupDialogData.Text |> Option.isSome then
+                let label = model.PopupDialogData.Text.Value
+                replaceWireWithLabelWithName model wireId label
+            else
+                replaceWireWithLabel model model.Wires[wireId]
+        {newModel with PopupDialogData = {Text = None; Int = None; Int2 = None}}, Cmd.none
+    
+    | ReplaceWireListWithLabels (wireIdList : ConnectionId list) ->
+        //Replaces a list of wires with labels
+        //HLP23 AUTHOR: Klapper
+        let wireList = wireIdList |> List.map (fun id -> model.Wires[id])
+        (model, wireList) ||> List.fold (fun state n -> replaceWireWithLabel state n), Cmd.none
 
     | RerouteWire (portId: string) ->
         // parially or fully autoroutes wires connected to port
@@ -375,6 +471,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 Map.add wid wire' wires)
 
         {model with Wires = newWires}, Cmd.none
+
 
 //---------------------------------------------------------------------------------//        
 //---------------------------Other interface functions-----------------------------//
@@ -433,7 +530,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
                             Segments = segmentList;
                             StartPos = portOnePos;
                     }
-                    |> autoroute wModel
+                    |> smartAutoroute wModel
                 ]
             | None -> []
 

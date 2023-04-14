@@ -10,6 +10,23 @@ open DrawHelpers
 open DrawModelType.SymbolT
 open Symbol
 
+(* HLP23: AUTHOR Ismagilov
+
+Have implemented working style property, and changing of And and Or gate appearance, working with Rotation, Flip and Scaling.
+
+Created a property 'Style' of StyleType in DrawModelType.SymbolT.Model and DrawModelType.SymbolT.Appearance 
+    Style is changed through view menu -> style (added functionality in renderer.fs)
+    Message is caught in SheetUpdate, to access BusWire Update Connected Wires Command after (port offsets changed)
+
+Used in SymbolT.Model to initialise states, detect changes in render function and give correct shape/ports 
+of styled gate in the drawSymbol Function.
+
+Used in Symbol.Appearance to give correct port adjustments in symbol.fs. See symbol.fs -> GetPortPos function.
+Can also then be used in SheetUpdate to only change style of components that have a curvy shape, 
+minimising match traversal later on when checking for styles. (match Appearance.Style rather than model.Style, comp.Type)
+
+*)
+
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
 
@@ -92,10 +109,20 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
         |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {defaultLine with Stroke="DodgerBlue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
         |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
 
+//------------------------------------------------------------------------------------------------//
+//------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS------------------------------//
+//------------------------------------------------------------------------------------------------//
 
-//------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS-------------------------------------
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
+
+//Function to create any path, combining multiple attributes of different paths.
+//HLP23 Author: Ismagilov
+let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour = 
+    [makeAnyPath startingPoint pathAttr {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]
+
+let createPath (startingPoint: XYPos) (startingControlPoint: XYPos) (endingControlPoint: XYPos) (endingPoint: XYPos) =
+    [makePath startingPoint startingControlPoint endingControlPoint endingPoint {defaultPath with StrokeWidth = "5px"; Stroke = "black"}]
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
@@ -155,10 +182,13 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> relativeToTopLeft
 
 
+//--------------------------------------------------------------------------------------------//
+//--------------------------------------- SYMBOL DRAWING -------------------------------------//
+//--------------------------------------------------------------------------------------------//
 
-/// --------------------------------------- SYMBOL DRAWING ------------------------------------------------------ ///  
-
-let drawSymbol (symbol:Symbol) (theme:ThemeType) =
+/// Draw symbol (and its label) using theme for colors, returning a list of React components 
+/// implementing all of the text and shapes needed.
+let drawSymbol (symbol:Symbol) (theme:ThemeType) (style:StyleType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
@@ -250,8 +280,10 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | NbitSpreader _ ->
                 [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
-            | _ -> 
-                [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
+            // | ScaleButton -> 
+            //         [|{X=H/2.; Y=W/2.};{X=H/2.0;Y=0.}|]
+            | _ -> [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
+
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
         |> toString 
 
@@ -389,10 +421,6 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
                     makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
             text :: corners
 
-
-
- 
-            
     let labelcolour = outlineColor symbol.Appearance.Colour
     let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
         let pMap = symbol.PortMaps.Order
@@ -420,40 +448,119 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
         | Custom _ -> "16px"
         | _ -> "14px"
 
-    // Put everything together 
-    (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
-    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
-    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addLegendText 
-                        (legendOffset w h symbol) 
-                        (getComponentLegend comp.Type transform.Rotation) 
-                        "middle" 
-                        "bold" 
-                        (legendFontSize comp.Type))
-    |> List.append (addComponentLabel comp transform labelcolour)
-    |> List.append (additions)
-    |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
-    |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
 
+    //chooses the shape of curvy components so flip and rotations are correct
+    //HLP23: Author Ismagilov
+    let adjustCurvyPoints (points:XYPos[] List) = 
+        match transform.Rotation,transform.flipped with 
+            | Degree0, false -> points[0]
+            | Degree0, true -> points[2]
+            | Degree90, _-> points[1]
+            | Degree180, true -> points[0]
+            | Degree180, false -> points[2]
+            | Degree270,_ -> points[3]
 
+    //Given the component, will give a list of XYPos used to draw the curvy version of the component
+    //Each list is points representing different rotation of the component
+    //Each item in list is commented for the corresponding component
+    //HLP23: Author Ismagilov
+    let getCurvyPoints (comp:ComponentType) =
+        match comp with 
+        | And -> // 0: Starting Point, 1: Arc Attributes, 2,3,4,5: Line Attributes
+            [   [|{X=W/2.;Y=H}; {X=0.;Y=(-H/2.)}; {X=0;Y=(H/2.)};{X= -W/2.;Y=0};{X=0.;Y= H};{X=W/2.;Y=0}|]
+                [|{X=0;Y=H/2.}; {X= H/2.;Y=0;}; {X= H/2.;Y=0};{X= 0;Y= H/2.};{X= -W;Y= 0};{X=0;Y= -H/2.}|]
+                [|{X=W/2.;Y=0}; {X=0.;Y=(H/2.)}; {X=0;Y=(-H/2.)};{X= W/2.;Y=0};{X=0.;Y= -H};{X= -W/2.;Y=0}|]
+                [|{X=0;Y=H/2.}; {X= 0.;Y= 0;}; {X= H;Y=0};{X= 0;Y= -H/2.};{X= -W;Y= 0};{X=0;Y= H/2.}|]        ]
+        | Or -> // 0: Starting Point, 1,2,3: Path Attributes, 4,5,6: Path Attributes, 7,8,0: Path Attributes
+            [   [|{X=0;Y= 0}; {X= 2.*W/3.;Y= 0}; {X= 5.*W/6.;Y= H/4.};{X=W;Y= H/2.};{X=5.*W/6.;Y= 3.*H/4.}; {X= 2.*W/3.;Y= H}; {X= 0; Y=H}; {X=W/4.;Y=3.*H/4.};{X=W/4.;Y=H/4.}|]
+                [|{X=0;Y=H}; {X= 0;Y=2.*H/3.;}; {X= W/4.;Y=W/6.};{X=W/2.;Y=0};{X= 3.*W/4.;Y=W/6.};{X=W;Y= 2.*H/3.};{X=W;Y= H};{X=3.*W/4.;Y= 3.*H/4.};{X=W/4.;Y= 3.*H/4.}|]
+                [|{X=W;Y=H}; {X=2.*W/3.;Y=H}; {X=W/6.;Y=3.*H/4.};{X=0;Y=H/2.};{X= W/6.;Y=H/4.};{X=2.*W/3.;Y= 0};{X= W;Y=0};{X= 3.*W/4.;Y=H/4.};{X= 3.*W/4.;Y=3.*H/4.}|]
+                [|{X=W;Y=0}; {X= W;Y= 2.*H/3.;}; {X= 3.*W/4.;Y=5.*H/6.};{X=W/2.;Y= H};{X= W/4.;Y= 5.*H/6.};{X=0;Y= 2.*H/3.};{X=0;Y= 0.};{X=W/4.;Y= H/4.};{X=3.*W/4.;Y= H/4.}|]  ]   
 
-let init () = 
-    { 
-        Symbols = Map.empty; CopiedSymbols = Map.empty
-        Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty; Theme = Colourful
-    }, Cmd.none
+        | RotateButton ->
+            [   [|{X= W/3.; Y= 7.*H/9.}; {X=0.;Y=(-H/9.)}; {X= -W/4.;Y=(H/6.)};{X= W/4.;Y=H/6.};{X= 0;Y= -H/9.};{X= 0.;Y= -W/2.};{X= 0;Y= W/2.};{X= -W/4.;Y= 0};{X= 0;Y= H/9.};{X= W/4.;Y= 0};{X= 0.001;Y= 7.*W/18.};{X= 0.001;Y= -7.*W/18.}|]
+                [|{X= 2.*W/3.; Y= 7.*H/9.}; {X=0.;Y=(-H/9.)}; {X= W/4.;Y=(H/6.)};{X= -W/4.;Y=H/6.};{X= 0;Y= -H/9.};{X= 0.001;Y= -W/2.};{X= 0.001;Y= W/2.};{X= W/4.;Y= 0};{X= 0;Y= H/9.};{X= -W/4.;Y= 0};{X= 0;Y= 7.*W/18.};{X= 0;Y= -7.*W/18.}|]
+                ]
+             
+        | _ -> failwith "What? Shouldn't happen"
+        |> adjustCurvyPoints  
 
-//----------------------------View Function for Symbols----------------------------//
+    //Creates the shape & labels, depending on the style set by user
+    //HLP23: Author Ismagilov
+    let shapeMaker = 
+        match style,comp.Type with
+            | Distinctive, And -> 
+                                let curvyShape = getCurvyPoints comp.Type
+                                let arcAttr  = makePartArcAttr (H/2.) (curvyShape[1].Y) (curvyShape[1].X) (curvyShape[2].Y) (curvyShape[2].X)
+                                let lineAttr = ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)+(makeLineAttr curvyShape[4].X curvyShape[4].Y)+(makeLineAttr (curvyShape[5].X) curvyShape[5].Y))
+
+                                (createAnyPath (curvyShape[0]) (arcAttr+lineAttr) colour strokeWidth outlineColour) 
+            | Distinctive, Or ->
+                                let curvyShape = getCurvyPoints comp.Type
+                                let arcAttr1  = makePathAttr (curvyShape[1]) (curvyShape[2]) (curvyShape[3])
+                                let arcAttr2  = makePathAttr   (curvyShape[4]) (curvyShape[5]) (curvyShape[6])
+                                let arcAttr3 = makePathAttr  curvyShape[7] curvyShape[8] curvyShape[0]
+
+                                (createAnyPath curvyShape[0] (arcAttr1+arcAttr2+arcAttr3) colour strokeWidth outlineColour) 
+            | _, ScaleButton -> 
+                                let circle = makeCircle (10.0) (10.0){defaultCircle with R = 3.5; Fill = "Grey"}
+                                [circle]
+            | _, RotateButton ->
+                                match symbol.STransform.Rotation with
+                                    | Degree90 -> 
+                                        let curvyShape = getCurvyPoints comp.Type
+                                        let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
+                                        let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
+                                        let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
+                                        let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
+                                        (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
+                                    | _ -> 
+                                        let curvyShape = getCurvyPoints comp.Type
+                                        let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
+                                        let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
+                                        let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
+                                        let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
+                                        (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
+                                        
+                                        
+            | _, _ -> (addLegendText 
+                                (legendOffset w h symbol) 
+                                (getComponentLegend comp.Type transform.Rotation) 
+                                "middle" 
+                                "bold" 
+                                (legendFontSize comp.Type))
+                                |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+                            
+    // Put everything together
+    match comp.Type with
+        | ScaleButton | RotateButton -> shapeMaker
+        | _ ->
+                (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
+                |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
+                |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+                |> List.append (addComponentLabel comp transform labelcolour)
+                |> List.append (additions)
+                |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
+                //HLP23: Author Ismagilov
+                //Now call shapemaker. Labels are only done to the correct style of component
+                |> List.append (shapeMaker)
+//----------------------------------------------------------------------------------------//
+//---------------------------------View Function for Symbols------------------------------//
+//----------------------------------------------------------------------------------------//
+
+//Added StyleType to detect style change on Symbol.Model (Called in SheetUpdate.fs)
+//HLP23: Author Ismagilov
 type private RenderSymbolProps =
     {
         Symbol : Symbol 
         Dispatch : Dispatch<Msg>
         key: string
         Theme: ThemeType
+        Style: StyleType
     }
 
-/// View for one symbol. Using FunctionComponent.Of to improve efficiency (not printing all symbols but only those that are changing)
+/// View for one symbol. Using FunctionComponent.Of to improve efficiency 
+/// (not printing all symbols but only those that are changing).
 let private renderSymbol =
     
     FunctionComponent.Of(
@@ -462,7 +569,9 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol props.Theme)
+                //HLP23: Author Ismagilov
+                //Passing Model Style to drawSymbol
+                (drawSymbol props.Symbol props.Theme props.Style)
             
         , "Symbol"
         , equalsButFunctions
@@ -492,7 +601,19 @@ let view (model : Model) (dispatch : Msg -> unit) =
             Map.filter (fun _ sym -> sym.Moving) map
             |> Map.toList
             |> List.map snd
-        listMoving @ listNotMoving
+
+        let (scaleButtons:Symbol List) = 
+            map
+            |> Map.filter (fun _ sym -> sym.Component.Type = ScaleButton || sym.Component.Type = RotateButton)
+            |> Map.toList
+            |> List.map snd
+
+        let buttonIds= List.map (fun x -> x.Id) scaleButtons
+
+        match scaleButtons with
+        | [] -> listMoving@listNotMoving
+        | _ -> (List.filter (fun x -> not( List.contains x.Id buttonIds)) listMoving) @ listNotMoving @ scaleButtons 
+        
 
     let start = TimeHelpers.getTimeMs()
     model.Symbols
@@ -504,8 +625,21 @@ let view (model : Model) (dispatch : Msg -> unit) =
                 Dispatch = dispatch
                 key = id
                 Theme = model.Theme
+                //HLP23: Author Ismagilov
+                //Adding Style to Render Props
+                Style = model.Style
             }
     )
     |> ofList
     |> TimeHelpers.instrumentInterval "SymbolView" start
 
+/// init function for initial Symbol Model
+let init () = 
+    { 
+        Symbols = Map.empty; CopiedSymbols = Map.empty
+        Ports = Map.empty ; InputPortsConnected= Set.empty
+        OutputPortsConnected = Map.empty; Theme = Colourful;
+        //HLP23: Author Ismagilov
+        //Default style to rectangular
+        Style = Rectangular
+    }, Cmd.none

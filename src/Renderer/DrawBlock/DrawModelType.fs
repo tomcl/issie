@@ -11,6 +11,10 @@ open Node.ChildProcess
 
 //--------------------------COMMON TYPES------------------------------//
 
+type WhichDimension = Widths | Heights
+///HLP23 AUTHOR: Rzepala
+///This type is used to infer whether two symbols are next to each other or one above another
+type OrientationS = TopBottom | LeftRight
 /// Static 1D data defining position range within which the currently moved thing will "snap"
 /// to fixed point (Snap).
 type SnapData = {
@@ -59,6 +63,11 @@ module SymbolT =
     type FlipType =  FlipHorizontal | FlipVertical
     type RotationType = RotateClockwise | RotateAntiClockwise
 
+    //Used in scaling in SmartRotate
+    //HLP23: AUTHOR Ismagilov
+    type ScaleType = ScaleUp | ScaleDown
+
+
     /// Wraps around the input and output port id types
     type PortId = | InputId of InputPortId | OutputId of OutputPortId
 
@@ -78,6 +87,12 @@ module SymbolT =
     /// data here changes how the symbol looks but has no other effect
     type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
     
+    //Used for SmartRender
+    //HLP23: AUTHOR Ismagilov
+    type StyleType = 
+        |Rectangular
+        |Distinctive
+
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
@@ -89,6 +104,10 @@ module SymbolT =
             Colour: string
             /// translucent symbols are used uring symbol copy operations.
             Opacity: float  
+
+            //HLP23: AUTHOR Ismagilov
+            Style: StyleType
+
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -97,13 +116,13 @@ module SymbolT =
         |Light
         |Colourful
 
+   
     let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
-
-
+ 
     /// Represents a symbol, that contains a component and all the other information needed to render it
     type Symbol =
         {
@@ -200,6 +219,10 @@ module SymbolT =
         OutputPortsConnected: Map<OutputPortId, int>
 
         Theme: ThemeType
+
+        //HLP23: AUTHOR Ismagilov
+        Style: StyleType
+
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -256,6 +279,13 @@ module SymbolT =
     //------------------------------------------------------------------------//
     
 module BusWireT =
+
+    /// Possible fields that may (or may not) be used in a dialog popup - these can be raised from BusWire or Sheet
+    type PopupDialogData = {
+        Text : string option;
+        Int : int option;
+        Int2: int64 option
+    }
 
     type Orientation = | Vertical | Horizontal
     
@@ -330,12 +360,15 @@ module BusWireT =
             Notifications: Option<string>
             Type : WireType
             ArrowDisplay: bool
+            PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
+            // data to populate popup (may not all be used)
+            PopupDialogData : PopupDialogData
         }
     
     //----------------------------Message Type-----------------------------------//
     
-    /// BusWire messages: see BusWire.update for more info
-    type Msg =
+    /// BusWire messages: see BusWire.upd   ate for more info
+    and Msg =
         | Symbol of SymbolT.Msg // record containing messages from Symbol module
         | AddWire of (InputPortId * OutputPortId) // add a new wire between these ports to the model
         | BusWidths
@@ -357,6 +390,13 @@ module BusWireT =
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
+               // ------------------- Popup Dialog Management Messages----------------------//
+        | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
+        | ClosePopup
+        | SetPopupDialogText of string option
+        | SetPopupDialogInt of int option
+        | ReplaceWireWithLabel of ConnectionId 
+        | ReplaceWireListWithLabels of List<ConnectionId>
 
     open Optics
     open Operators
@@ -367,12 +407,30 @@ module BusWireT =
 
 module SheetT =
 
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Types needed for scaling box
+    type ScalingBox = {
+        TopLeftStart : XYPos
+        WidthStart : float
+        HeightStart : float
+        StartingPos: XYPos
+        StartingMouse: XYPos
+        ShowBox: bool
+        BoxBound: BoundingBox
+        ScaleButton: SymbolT.Symbol Option
+        RotateCWButton: SymbolT.Symbol Option
+        RotateACWButton: SymbolT.Symbol Option
+        MovingPos: XYPos List
+    }
+
     /// Used to keep mouse movement (AKA velocity) info as well as position
     type XYPosMov = {
         Pos: XYPos
         Move: XYPos
-        }
+    }
+    
 
+    
     let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
     let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
 
@@ -399,6 +457,7 @@ module SheetT =
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
+        | Scaling
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
@@ -435,7 +494,8 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlR | CtrlT | CtrlU | CtrlI | CtrlL | CtrlShiftL
+
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -443,12 +503,6 @@ module SheetT =
     type IssieInterfaceMsg =
         | ToggleArrows
 
-    /// Possible fields that may (or may not) be used in a dialog popup.
-    type PopupDialogData = {
-        Text : string option;
-        Int : int option;
-        Int2: int64 option
-    }
 
     type Arrange = | AlignSymbols | DistributeSymbols
 
@@ -472,6 +526,7 @@ module SheetT =
     }
 
     type Msg =
+        | DrawBox 
         | Wire of BusWireT.Msg
         | KeyPress of KeyboardMsg
         | ToggleGrid
@@ -485,11 +540,6 @@ module SheetT =
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling
         | DoNothing
-        // ------------------- Popup Dialog Management Messages----------------------//
-        | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
-        | ClosePopup
-        | SetPopupDialogText of string option
-        | SetPopupDialogInt of int option
         // ------------------- Issie Interface Messages ----------------------
         | InitialiseCreateComponent of LoadedComponent list * ComponentType * string // Need to initialise for drag-and-drop
         | FlushCommandStack
@@ -526,6 +576,17 @@ module SheetT =
         | DebugContinue
         | DebugPause
         | SetDebugDevice of string
+        | TestPopUp
+        | TestPortReorder
+        | FormSmartChannel of BusWireT.Orientation
+        | TestPortPosition
+        | TestScaleUp
+        | TestPortReorder2
+        | TestScaleDown
+        | TestAllTogether of BusWireT.Orientation
+        | SetStyle of SymbolT.StyleType //HLP23: AUTHOR Ismagilov
+
+
 
     type ReadLog = | ReadLog of int
 
@@ -537,9 +598,6 @@ module SheetT =
     type Model = {
         Wire: BusWireT.Model
         // function to create popup pane if present
-        PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
-        // data to populate popup (may not all be used)
-        PopupDialogData : PopupDialogData
         BoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
         LastValidBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
         SelectedLabel: CommonTypes.ComponentId option
@@ -585,7 +643,10 @@ module SheetT =
         DebugMappings: string array
         DebugIsConnected: bool
         DebugDevice: string option
-        }
+        // HLP 23: AUTHOR Khoury & Ismagilov
+        Box: ScalingBox
+        ButtonList : list<ComponentId>
+    }
     
     open Operators
     let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})

@@ -665,6 +665,8 @@ let private makeDescription (comp:Component) model dispatch =
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ -> failwithf "Legacy Input component types should never occur"
     | Input1 _ -> str "Input."
+    | RotateButton -> str ""
+    | ScaleButton -> str ""
     | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | Viewer _ -> str "Viewer."

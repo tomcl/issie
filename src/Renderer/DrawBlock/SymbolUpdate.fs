@@ -16,6 +16,50 @@ open Optic
 open Operators
 open System
 
+open SymbolView
+//Helper function (because this module could not find 'SmartHelpers')
+///HLP23 AUTHOR: Rzepala
+///Returns the center point of the component
+let getComponentCenterMap (model: SymbolT.Model) (compId : ComponentId)  =
+    let symbolMap = model.Symbols |> Map.find compId
+    let comp = symbolMap.Component
+    {X = comp.X + comp.W / 2.0; Y = comp.Y + comp.H / 2.0}
+
+let getType 
+    (symbol: Symbol)
+        : string =
+    match symbol.Component.Type with
+    | Custom (CustomComponentType) -> "Custom"
+    | _ -> "Else"
+///HLP23 AUTHOR: Rzepala
+///Returns the distance between the two center points of the component
+let checkDistanceComponentMap (model: SymbolT.Model) (compId1 : ComponentId) (compId2 : ComponentId) =
+    euclideanDistance (getComponentCenterMap model compId1) (getComponentCenterMap model compId2)
+///HLP23 AUTHOR: Rzepala
+///Returns a symbol which is closest to the selected symbol (by their centres)
+let getDistanceAlignmentsMap 
+    
+    (model: SymbolT.Model)
+    (compId : ComponentId) 
+    (lstId: Map<ComponentId, Symbol>) 
+        : ComponentId =
+
+    let lstId' = 
+        lstId 
+        |> Map.toList
+        |> List.filter (fun (x, _) -> compId <> x)
+        |> List.filter (fun (_, x) -> getType x = "Custom")
+        |> List.map (fun (x, _) -> x)
+    let mapper compare =
+        checkDistanceComponentMap  model compId compare,
+        compare
+
+    lstId' 
+    |> List.map mapper
+    |> List.minBy (fun (x, _) -> x)
+    |> snd
+
+
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
 let rec extractIOPrefix (str : string) (charLst: char list) =
     let len = String.length str
@@ -284,7 +328,7 @@ let getEquivalentCopiedPorts (model: Model) (copiedIds) (pastedIds) (InputPortId
 
 /// Creates and adds a symbol into model, returns the updated model and the component id
 let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
-    let newSym = createNewSymbol ldcs pos compType lbl model.Theme
+    let newSym = createNewSymbol ldcs pos compType lbl model.Theme model.Style
     let newPorts = addToPortModel model newSym
     let newSymModel = Map.add newSym.Id newSym model.Symbols
     { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
@@ -376,15 +420,22 @@ let inline selectSymbols model compList =
     { model with Symbols = newSymbols}
 
 /// Given a model, an error component list, a selected component id list, it updates the selected symbols' color to green if they are not selected, and changes the symbols with errors to red. It returns the updated model.
-let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
+let inline errorSymbols (model:Model) (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols = 
         model.Symbols
         |> Map.map 
             (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> set opacity_ 1.0) sym)
-            
+    ///HLP23 AUTHOR: Rzepala
+    /// modified updateSymbolStyle function to perform colouring of the nearest custom symbol  
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
-            Map.add sId (set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
+            let symbolSID = Map.find sId prevSymbols
+            let newSymbols = Map.add sId (set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
+            if getType symbolSID = "Custom" then
+                let closestCustom = getDistanceAlignmentsMap model sId model.Symbols      
+                Map.add closestCustom (set (appearance_ >-> colour_) "lightpink" resetSymbols[closestCustom] ) newSymbols
+            else 
+                newSymbols
         else 
             Map.add sId (set (appearance_ >-> opacity_) 0.2 resetSymbols[sId]) prevSymbols
 
@@ -427,7 +478,7 @@ let inline colorSymbols (model: Model) compList colour =
     { model with Symbols = newSymbols }
 
 /// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
-let createSymbol ldcs theme prevSymbols comp =
+let createSymbol ldcs theme style prevSymbols comp  =
         let clocked = isClocked [] ldcs comp
         let portMaps = 
             match comp.SymbolInfo with
@@ -461,6 +512,7 @@ let createSymbol ldcs theme prevSymbols comp =
                     // ShowOutputPorts = false //do not show output ports initially
                     Colour = getSymbolColour comp.Type clocked theme
                     Opacity = 1.0
+                    Style = style
                 }
                 Id = ComponentId comp.Id
                 Component = {comp with H=h ; W = w}
@@ -487,7 +539,7 @@ let createSymbol ldcs theme prevSymbols comp =
 /// Given a model and a list of components, it creates and adds the symbols containing the specified components and returns the updated model.
 let loadComponents loadedComponents model comps=
     let symbolMap =
-        (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents model.Theme)
+        (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents model.Theme model.Style )
     let addPortsToModel currModel _ sym =
         { currModel with Ports = addToPortModel currModel sym }
         
@@ -902,7 +954,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> Map.map 
                 (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
-
 
 
 // ----------------------interface to Issie----------------------------- //

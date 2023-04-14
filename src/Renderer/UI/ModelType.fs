@@ -432,6 +432,7 @@ type UserData = {
     ArrowDisplay: bool
     WireType: DrawModelType.BusWireT.WireType
     Theme: DrawModelType.SymbolT.ThemeType
+    Style: DrawModelType.SymbolT.StyleType
     }
 
 type SpinnerState =

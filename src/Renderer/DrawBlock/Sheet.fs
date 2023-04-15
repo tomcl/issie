@@ -374,7 +374,7 @@ let moveCircuit moveDelta (model: Model) =
     model
     |> Optic.map symbol_ (Symbol.moveSymbols moveDelta)
     |> Optic.map wire_ (BusWire.moveWires moveDelta)
-    |> Optic.map wire_ SmartWire.updateWireSegmentJumpsAndSeparations
+    |> Optic.map wire_ BusWireSeparate.updateWireSegmentJumpsAndSeparations
 
 /// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
 let getWindowParasToFitBox model (box: BoundingBox)  =

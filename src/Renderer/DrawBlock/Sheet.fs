@@ -522,14 +522,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
         |> List.fold (&&) true
     wVisible && cVisible
 
-/// Calculates if two bounding boxes intersect by comparing corner coordinates of each box
-let boxesIntersect (box1: BoundingBox) (box2: BoundingBox) =
-    // Requires min and max since H & W can be negative, i.e. we don't know which corner is which automatically
-    // Boxes intersect if there is overlap in both x and y coordinates 
-    min box1.TopLeft.X (box1.TopLeft.X + box1.W) < max box2.TopLeft.X (box2.TopLeft.X + box2.W)
-    && min box2.TopLeft.X (box2.TopLeft.X + box2.W) < max box1.TopLeft.X (box1.TopLeft.X + box1.W)
-    && min box1.TopLeft.Y (box1.TopLeft.Y + box1.H) < max box2.TopLeft.Y (box2.TopLeft.Y + box2.H)
-    && min box2.TopLeft.Y (box2.TopLeft.Y + box2.H) < max box1.TopLeft.Y (box1.TopLeft.Y + box1.H)
+
     
 /// Finds all components that touch a bounding box (which is usually the drag-to-select box)
 let findIntersectingComponents (model: Model) (box1: BoundingBox) =

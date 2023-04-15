@@ -756,12 +756,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                /// HLP23: AUTHOR dgs119
-                let helpers = { 
-                    SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
-                    SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
-                    
-                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2 helpers}, Cmd.none
+                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
@@ -772,11 +767,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
          validateTwoSelectedSymbols model
          |> function
             | Some (s1,s2) ->
-                let helpers = { 
-                    SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
-                    SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
-
-                {model with Wire = SmartSizeSymbol.reSizeSymbolTopLevel model.Wire s1 s2 helpers}, Cmd.none
+                {model with Wire = SmartSizeSymbol.reSizeSymbolTopLevel model.Wire s1 s2}, Cmd.none
             | None -> 
                 printfn "Error: can't validate the two symbols selected to reorder ports"
                 model, Cmd.none
@@ -802,11 +793,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | ToggleSnapToNet ->
         model, (wireCmd BusWireT.ToggleSnapToNet)
     | BeautifySheet ->  
-        let helpers = {
-            SmartHelpers.ExternalSmartHelpers.UpdateSymbolWires = BusWireUpdate.updateSymbolWires
-            SmartHelpers.ExternalSmartHelpers.BoxesIntersect = boxesIntersect }
-
-        {model with Wire = SmartBeautify.smartBeautify model.Wire model.BoundingBoxes helpers}, Cmd.none
+        {model with Wire = SmartBeautify.smartBeautify model.Wire model.BoundingBoxes}, Cmd.none
     
     | MakeChannelToggle ->
         {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none

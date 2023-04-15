@@ -118,7 +118,6 @@ let alignSymbols
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
     (otherSymbol: Symbol)
-    (smartHelpers: ExternalSmartHelpers)
     : BusWireT.Model =
 
     // Only attempt to align symbols if they are connected by ports on parallel edges.
@@ -128,17 +127,13 @@ let alignSymbols
         let offset = alignPortsOffset movePortInfo otherPortInfo
         let symbol' = moveSymbol offset symbolToSize
         let model' = set (symbolOf_ symbolToSize.Id) symbol' wModel
-        smartHelpers.UpdateSymbolWires model' symbolToSize.Id
+        SmartWire.updateSymbolWires model' symbolToSize.Id
 
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
 /// HLP23: It should work out the interconnecting wires (wires) from
-////the two symbols, wModel.Wires and sModel.Ports
+/// the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
-/// HLP23: when this function is written replace teh XML comment by something suitable concisely
-/// stating what it does.
-/// Given two connected symbols, resize the selected symbol to make the port gaps on both symbols the same.
-/// Translate the selected symbol so that the ports on both symbols align and the connecting wires become straight.
 let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
@@ -171,14 +166,13 @@ let reSizeSymbolTopLevel
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
     (otherSymbol: Symbol)
-    (smartHelpers: ExternalSmartHelpers)
     : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 
     let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
 
     let model' = set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
-    smartHelpers.UpdateSymbolWires model' symbolToSize.Id
+    SmartWire.updateSymbolWires model' symbolToSize.Id
 
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =
@@ -211,7 +205,6 @@ let optimiseSymbol
     (wModel: BusWireT.Model)
     (symbol: Symbol)
     (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
-    (smartHelpers: ExternalSmartHelpers)
     : BusWireT.Model =
 
     // If a wire connects the target symbol to another symbol, note which edge it is connected to
@@ -240,7 +233,7 @@ let optimiseSymbol
 
         let alignSym (sym: Symbol) (otherSym: Symbol) =
             let resizedSym = reSizeSymbol wModel sym otherSym
-            let noOverlap = noSymbolOverlap smartHelpers.BoxesIntersect boundingBoxes resizedSym
+            let noOverlap = noSymbolOverlap DrawHelpers.boxesIntersect boundingBoxes resizedSym
 
             match noOverlap with
             | true -> true, resizedSym
@@ -270,4 +263,4 @@ let optimiseSymbol
         tryResize symCount symbol
 
     let model' = set (symbolOf_ symbol.Id) scaledSymbol wModel
-    smartHelpers.UpdateSymbolWires model' symbol.Id
+    SmartWire.updateSymbolWires model' symbol.Id

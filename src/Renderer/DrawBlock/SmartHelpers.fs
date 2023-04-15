@@ -43,21 +43,10 @@ HOW TO USE THIS MODULE.
 
 //----------------------------------------------------------------------------------------------//
 
-/// Holds data about External Helpers required.
-/// HLP23: AUTHOR BRYAN TAN
-type ExternalSmartHelpers =
-    { UpdateSymbolWires: Model -> ComponentId -> Model
-      BoxesIntersect: BoundingBox -> BoundingBox -> bool }
 
 /// Update BusWire model with given symbols. Can also be used to add new symbols.
 /// This uses a fold on the Map to add symbols which makes it fast in the case that the number
 /// of symbols added is very small.
-//  Performance scales as O(M*log2(N)) - M = number of symbols added, N = number of existing
-//  Symbols. Changing large maps is relatively expensive hence the care here.
-//  This function uses best practice for nested record update with Optics. See Wiki for
-//  details. Note that Optics are probably a little bit slower than F# record update (factor of 2)
-//  however in this case it does not matter because the time taken is << the Map update time.
-/// HLP23: AUTHOR Clarke
 let updateModelSymbols (model: BusWireT.Model) (symbols: Symbol list) : BusWireT.Model =
     // HLP23: note on fold implementation. symMap is both argument and result of the
     // fold function => sequential set of updates. In thsi case much more efficient than Map.map
@@ -72,36 +61,7 @@ let updateModelSymbols (model: BusWireT.Model) (symbols: Symbol list) : BusWireT
 /// Update BusWire model with given wires. Can also be used to add new wires.
 /// This uses a fold on the Map to add wires which makes it fast in the case that the number
 /// of wires added is small.
-//  Performance scales as O(M*log2(N)) - M = number of wires added, N = number of existing
-//  wires. Changing large maps is relatively expensive hence the care here.
-//  This function uses best practice for nested record update with Optics. See Wiki for
-//  details. Note that Optics are probably a little bit slower than F# record update (factor of 2)
-//  however in this case it does not matter because the time taken is << the Map update time.
-/// HLP23: AUTHOR Clarke
 let updateModelWires (model: BusWireT.Model) (wiresToAdd: Wire list) : BusWireT.Model =
-    //
-    // HLP23: note on fold implementation. In this (typical) example Map is
-    // sequentially updated by the fold. A common and difficult to see coding mistake is to use the
-    // original wireMap (argument of Optic map function) not the updated one (wireMap argument of
-    // List.map folder) in the fold function! That is not possible here because both have the same
-    // name so the inner bound updated wireMap is always what is used in the folder function.
-    // This is good practice, and if you have ever debugged this type of mistake you will know it
-    // is very necessary!
-
-    // HLP23: note on this use of Optics.map in a pipeline. It is more "functional" than the
-    // equivalent implementation using a let definition and Optics.set. Is it clearer? Or less clear?
-    // Standard logic says we should prefer the pipeline if the name of the let definition adds
-    // nothing which is the case here. I have given you both ways of using Optics here so you can
-    // compare the two implementations and decide. NB - you are NOT required to use Optics in your
-    // own code.
-    //
-    // HLP23: Note how multiple updates to different parts of the model can be neatly pipelined
-    // like this using a separate Optic.map or Optic.set for each.
-    //
-    // HLP23: note that if the operation here was larger or part of some pipeline the
-    // 2nd argument to Optic.map - which defines the model change - could be given a name and
-    // turned into a local function making the Optic.map line like:
-    // |> Optic.map wires_ myNameForThisWireMapUpdate
     model
     |> Optic.map wires_ (fun wireMap ->
         (wireMap, wiresToAdd)
@@ -287,3 +247,313 @@ let wireSymEdge wModel wire sym =
     | Some e, None -> e
     | None, Some e -> e
     | _ -> Top // Shouldn't happen.
+
+
+
+
+//-------------------------------------------------------------------------------------------------//
+//------------------------TYPES USED INTERNALLY FOR SEPARATION AND ORDERING------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+module Constants =
+    let wireSeparationFromSymbol = 7. // must be smaller than Buswire.nubLength
+    let maxCallsToShiftHorizontalSeg = 5
+    /// Must be smaller than Buswire.nubLength
+    let minWireSeparation = 7.
+    let smallOffset = 0.0001
+    let minSegmentSeparation = 12.
+    let maxSegmentSeparation = 15.
+    /// lines within this distance of each other are considered to overlap
+    let overlapTolerance = 2.
+    /// corners with max length edge large rthan this are not removed
+    let maxCornerSize = 100.
+    /// How close are segment extensions caused by corner removal allowed to
+    /// get to other elements? Maybe needs to be smaller than some otehr things for
+    /// successful corner removal?
+    let extensionTolerance = 3.
+
+type DirectionToMove =
+    | Up_
+    | Down_
+    | Left_
+    | Right_
+
+let swapXY (pos: XYPos) (orientation: Orientation) : XYPos =
+    match orientation with
+    | Horizontal -> pos
+    | Vertical -> { X = pos.Y; Y = pos.X }
+
+let swapBB (box: BoundingBox) (orientation: Orientation) : BoundingBox =
+    match orientation with
+    | Horizontal -> box
+    | Vertical -> { 
+            TopLeft = swapXY box.TopLeft orientation
+            W = box.H
+            H = box.W }
+
+let updatePos (direction: DirectionToMove) (distanceToShift: float) (pos: XYPos) : XYPos =
+    match direction with
+    | Up_ -> { pos with Y = pos.Y - distanceToShift }
+    | Down_ -> { pos with Y = pos.Y + distanceToShift }
+    | Left_ -> { pos with X = pos.X - distanceToShift }
+    | Right_ -> { pos with X = pos.X + distanceToShift }
+
+
+/// Used to capture the 1D coordinates of the two ends of a line. (see Line).
+type Bound = { MinB: float; MaxB: float }
+
+    
+type LineId = LineId of int
+with member this.Index = match this with | LineId i -> i
+
+type LType = 
+    /// a non-segment fixed (symbol boundary) barrier
+    | FIXED  
+    /// a movable line segment
+    | NORMSEG 
+    /// a segment which is a fixed barrier in clustering but can change after.
+    | FIXEDSEG 
+    /// a fixed segment which has been manually routed and can never move
+    | FIXEDMANUALSEG
+    /// a segment linked to another on the same net which is not clustered
+    | LINKEDSEG
+
+
+/// Used to represent a line on the canvas, e.g. a wire segment or symbol edge.
+/// The array of lines will all have the same orientation - so optimisation is done in two phases
+/// for vertical and horizontal segments.
+type Line =
+    { 
+        P: float // the coordinate X or Y perpendicular to the line.
+        B: Bound // the two "other" coordinates
+        Orientation: Orientation
+        Seg1: ASegment option // if the line comes from a wire segment this references the segment and wire
+        LType: LType
+        SameNetLink: Line list
+        Wid: ConnectionId
+        PortId: OutputPortId
+        Lid: LineId } // index in lines array of this Line.
+
+
+/// Used to cluster together overlapping and adjacent lines into a group that
+/// can be spread out. This is the parameter in a tail recursion used to do the clustering
+type Cluster =
+    { 
+        UpperFix: float option // if clustering is stopped by a barrier
+        LowerFix: float option // if clustering is stopped by a barrier
+        Segments: int list // list of movable lines found (which will be spread out)
+        Bound: Bound } // union of bounds of all segments found so far
+
+/// Controls direction of Cluster search in expandCluster.
+/// Search is upwards first and then downwards so downwards search takes a Cluster
+/// (generated from upwards search) as parameter.
+type LocSearchDir =
+    | Upwards
+    | Downwards of Cluster
+
+type Extension = {    
+    ExtOri: Orientation
+    ExtB: Bound
+    ExtP: float
+    }
+
+/// Defines a wire corner that could be removed.
+/// the two removed segments are [StartSeg+1..EndSeg-1]
+/// In addition, StartSeg and EndSeg have Length changed.
+type WireCorner = {
+    /// Wire on which the corner lies
+    Wire: Wire
+    /// index of segment immediately before the two deleted segments
+    StartSeg: int
+    /// change in length of StartSeg needed to remove the corner
+    StartSegChange: float
+    /// change in length of EndSeg needed to remove the corner
+    EndSegChange: float // EndSeg = StartSeg + 3
+    /// orientation of StartSeg. EndSeg has opposite orientation.
+    StartSegOrientation: Orientation
+    }
+
+type LineInfo = {
+    /// Vertical lines
+    VLines: Line array
+    /// Horizontal lines
+    HLines: Line array
+    /// map from wire IDs to wires
+    WireMap: Map<ConnectionId,Wire>
+    /// map from segment IDs to lines
+    LineMap: Map<int*ConnectionId, LineId>}
+
+
+//-------------------------------------------------------------------------------------------------//
+//--------------------------------HELPERS USED IN CLUSTERING SEGMENTS------------------------------//
+//-------------------------------------------------------------------------------------------------//
+open Constants
+/// get the horizontal length of the visible segment emerging from a port
+let getVisibleNubLength (atEnd: bool) (wire: Wire) =
+    let segs = wire.Segments
+    let getLength i =
+        if atEnd then
+            segs.Length - 1 - i
+        else
+            i
+        |> (fun index -> segs[index].Length)
+    if (getLength 1) < smallOffset then
+        getLength 2 + getLength 0
+    else
+        getLength 0
+
+let segmentIsNubExtension (wire: Wire) (segIndex: int) =
+    let segs = wire.Segments
+    let nSegs = segs.Length
+    let lastSeg = nSegs-1
+    let revSeg n = segs[lastSeg-n]
+    match segIndex, lastSeg-segIndex with
+    | 0, _ | _, 0 -> true
+    | 2, _ when segs[1].IsZero() -> true
+    |_, 2 when  (revSeg 1).IsZero() -> true
+    | _ -> false
+        
+                
+
+/// Get the segment indexes within a Cluster (loc)
+let inline segPL (lines: Line array) loc =
+    loc.Segments |> (List.map (fun n -> lines[n].P))
+
+/// ideal (max) width of segments in loc
+let inline widthS (loc: Cluster) =
+    float loc.Segments.Length * maxSegmentSeparation
+
+/// ideal upper bound in P direction of segments with P value in pts.
+let inline upperS pts =
+    (List.min pts + List.max pts) / 2.
+    + float pts.Length * maxSegmentSeparation / 2.
+
+/// ideal lower bound in P direction of segments with P value in pts
+let inline lowerS pts =
+    (List.min pts + List.max pts) / 2.
+    - float pts.Length * maxSegmentSeparation / 2.
+
+/// ideal upper bound in P direction of loc including possible fixed constraint
+let inline upperB (lines: Line array) (loc: Cluster) =
+    let pts = segPL lines loc
+
+    match loc.UpperFix, loc.LowerFix with
+    | Some u, _ -> u
+    | None, Some l when l > lowerS pts -> l + widthS loc
+    | _ -> upperS pts
+
+/// ideal lower bound in P direction of loc including possible fixed constraint
+let inline lowerB (lines: Line array) loc =
+    let pts = segPL lines loc
+
+    match loc.UpperFix, loc.LowerFix with
+    | _, Some l -> l
+    | Some u, None when u < upperS pts -> u - widthS loc
+    | _ -> lowerS pts
+
+//-------------------------------------------------------------------------------------------------//
+//--------------------------------LOW-LEVEL PRINTING (returns strings)-----------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+let pWire (wire: Wire) =
+    let segs = wire.Segments
+    let nSegs = segs.Length
+    let aSegs = getAbsSegments wire
+    let pASeg (aSeg:ASegment) =
+        let vec = aSeg.End - aSeg.Start
+        if aSeg.IsZero() then
+            "S0"
+        else
+            match getSegmentOrientation aSeg.Start aSeg.End, aSeg.Segment.Length > 0 with
+            | Vertical, true -> "Dn"
+            | Vertical, false -> "Up"
+            | Horizontal,true -> "Rt"
+            | Horizontal, false -> "Lt"
+            |> (fun s -> s + $"%.0f{abs aSeg.Segment.Length}")
+
+    let pSegs = aSegs |> List.map pASeg |> String.concat "-"
+
+    sprintf $"W{nSegs}:{wire.InitialOrientation}->{pSegs}"
+
+let pOpt (x: 'a option) = match x with | None -> "None" | Some x -> $"^{x}^"
+
+let pLineType (line:Line) = $"{line.LType}"
+
+let pLine (line:Line) = 
+    let ori = match line.Orientation with | Horizontal -> "H" | Vertical -> "V"
+    $"|{ori}L{line.Lid.Index}.P=%.0f{line.P}.{pLineType line}:B=%.0f{line.B.MinB}-%.0f{line.B.MaxB}|"
+
+let pLines (lineA: Line array) =
+    $"""{lineA |> Array.map (fun line -> pLine line) |> String.concat "\n"}"""
+
+let pCluster (loc:Cluster) =
+    $"Cluster:<{pOpt loc.LowerFix}-{loc.Segments}-{pOpt loc.UpperFix}>"
+
+let pAllCluster (lines: Line array) (loc:Cluster) =
+    let oris = match lines[0].Orientation with | Horizontal -> "Horiz" | Vertical -> "Vert"
+    $"""Cluster-{oris}:<L={pOpt loc.LowerFix}-{loc.Segments |> List.map (fun n -> pLine lines[n]) |> String.concat ","}-U={pOpt loc.UpperFix}>"""
+
+
+//-------------------------------------------------------------------------------------------------//
+//-----------------------------------------UTILITY FUNCTIONS---------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+let rec tryFindIndexInArray (searchStart: LineId) (dir: int) (predicate: 'T -> bool) (giveUp: 'T -> bool) (arr: 'T array) =
+    if searchStart.Index < 0 || searchStart.Index > arr.Length - 1 then
+        None
+    else
+        match predicate arr[searchStart.Index], giveUp arr[searchStart.Index] with
+        | _, true -> None
+        | true, _ -> Some searchStart
+        | false, _ -> tryFindIndexInArray (LineId(searchStart.Index + dir)) dir predicate giveUp arr
+            
+
+/// true if bounds b1 and b2 overlap or are exactly adjacent
+let hasOverlap (b1: Bound) (b2: Bound) =
+    inMiddleOrEndOf b1.MinB b2.MinB b1.MaxB
+    || inMiddleOrEndOf b1.MinB b2.MaxB b1.MinB
+    || inMiddleOrEndOf b2.MinB b1.MinB b2.MaxB
+
+/// true if bounds b1 and b2 overlap or are exactly adjacent
+let hasNearOverlap (tolerance: float) (b1: Bound) (b2: Bound) =
+    inMiddleOf (b1.MinB-tolerance) b2.MinB (b1.MaxB+tolerance)
+    || inMiddleOf (b1.MinB-tolerance)  b2.MaxB (b1.MinB+tolerance)
+    || inMiddleOf (b2.MinB-tolerance) b1.MinB (b2.MaxB+tolerance)
+
+/// Union of two bounds b1 and b2. b1 & b2 must overlap or be adjacent,
+/// otherwise the inclusive interval containing b1 and b2 is returned.
+let boundUnion (b1: Bound) (b2: Bound) =
+    {   MinB = min b1.MinB b2.MinB
+        MaxB = max b1.MaxB b2.MaxB }
+
+
+/// Move segment by amount posDelta in direction perpendicular to segment - + => X or y increases.
+/// movement is by changing lengths of two segments on either side.
+/// will fail if called to change a nub at either end of a wire (nubs cannot move).
+let moveSegment (index: int) (posDelta: float) (wire: Wire) =
+    let segs = wire.Segments
+
+    if index < 1 || index > segs.Length - 2 then
+        failwithf $"What? trying to move segment {index} of a wire length {segs.Length}"
+
+    { wire with
+        Segments =
+            segs
+            |> List.updateAt (index - 1) { segs[index - 1] with Length = segs[index - 1].Length + posDelta }
+            |> List.updateAt (index + 1) { segs[index + 1] with Length = segs[index + 1].Length - posDelta } }
+
+/// Change wires to move a wire segment represented by line to the given new value of P coordinate.
+/// P is X or Y according to ori.
+let moveLine (ori: Orientation) (newP: float) (line: Line) (wires: Map<ConnectionId, Wire>) =
+    match line.Seg1 with
+    | None -> failwithf "Can't move Line {line} - it is not a segment"
+    | Some seg ->
+        let oldP =
+            match ori with
+            | Horizontal -> seg.Start.Y
+            | Vertical -> seg.Start.X
+
+        let segIndex = seg.Segment.Index
+        let wid = seg.Segment.WireId
+        let updateWire = Option.map (moveSegment segIndex (newP - oldP))
+        Map.change seg.Segment.WireId updateWire wires

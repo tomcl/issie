@@ -17,7 +17,6 @@ module Constants =
 
 /// Optimizes Symbols.
 let optimizeSyms
-    (helpers: ExternalSmartHelpers)
     (bBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
     (model: BusWireT.Model)
     =
@@ -38,7 +37,7 @@ let optimizeSyms
     let folder (currModel, currBB, currSet) _ =
         let sym, newModel =
             Set.toArray currSet
-            |> Array.map (fun sym -> sym, optimiseSymbol currModel sym currBB helpers)
+            |> Array.map (fun sym -> sym, optimiseSymbol currModel sym currBB)
             |> Array.minBy (fun (_, m) -> totalLengthOfWires m.Wires)
 
         newModel, updateBBoxes newModel currBB, Set.remove sym currSet
@@ -48,7 +47,7 @@ let optimizeSyms
     model'
 
 /// Reorders Symbol.
-let reorderPairs (smartHelpers: ExternalSmartHelpers) (model: BusWireT.Model) =
+let reorderPairs (model: BusWireT.Model) =
 
     // Gets Symbol Pairs to Beautify.
     let getSymsToReorder =
@@ -71,13 +70,12 @@ let reorderPairs (smartHelpers: ExternalSmartHelpers) (model: BusWireT.Model) =
     ||> List.fold (fun model' (symA, symB) ->
         let syms' = model'.Symbol.Symbols
         let symA', symB' = syms'[symA.Id], syms'[symB.Id]
-        reOrderPorts model' symA' symB' smartHelpers)
+        reOrderPorts model' symA' symB')
 
 /// Header Function.
 let smartBeautify
     (wModel: BusWireT.Model)
     (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
-    (smartHelpers: ExternalSmartHelpers)
     : BusWireT.Model =
 
-    wModel |> reorderPairs smartHelpers |> optimizeSyms smartHelpers boundingBoxes
+    wModel |> reorderPairs |> optimizeSyms boundingBoxes

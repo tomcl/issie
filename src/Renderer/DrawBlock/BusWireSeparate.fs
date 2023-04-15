@@ -812,6 +812,7 @@ let removeWireSpikes (wire: Wire) : Wire option =
 
 /// return model with all wire spikes removed
 let removeModelSpikes (model: Model) =
+    printf "Removing spikes"
     (model.Wires, model.Wires)
     ||> Map.fold (fun wires wid wire ->
         match removeWireSpikes wire with
@@ -836,7 +837,7 @@ let separateModelSegmentsOneOrientation (ori: Orientation) (model: Model) =
     //|> removeModelSpikes
 
 /// Perform complete segment separation and ordering for all orientations
-let separateAndOrderModelSegments =
+let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) =
     separateModelSegmentsOneOrientation Vertical
     >> separateModelSegmentsOneOrientation Horizontal
     >> separateModelSegmentsOneOrientation Vertical // repeat vertical separation since moved segments may now group
@@ -844,12 +845,6 @@ let separateAndOrderModelSegments =
     >> separateFixedSegments Vertical 
     >> separateFixedSegments Horizontal
     >> removeModelCorners
+    >> removeModelSpikes
 
-/// Top-level function to replace updateWireSegmentJumps
-/// and call the new tidyup code as well. This should
-/// run when significant circuit wiring chnages have been made
-/// e.g. at the end of symbol drags.
-let updateWireSegmentJumpsAndSeparations model =
-    model
-    |> separateAndOrderModelSegments
-    |> (BusWireUpdateHelpers.updateWireSegmentJumps [])
+

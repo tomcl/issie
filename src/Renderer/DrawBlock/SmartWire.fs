@@ -539,7 +539,7 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
 //---------------------------------------------Top-level Wire Routing Functions------------------------------//
 //-----------------------------------------------------------------------------------------------------------//
 
-/// Returns a re-routed wire from the given model.
+/// Returns a single re-routed wire from the given model.
 /// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
 /// Reverse indicates if the wire should be processed in reverse, 
 /// used when an input port (end of wire) is moved.
@@ -554,6 +554,7 @@ let updateWire (model : Model) (wire : Wire) (reverse : bool) =
     else 
         partialAutoroute model wire newPort false
     |> Option.defaultValue (smartAutoroute model wire)
+
 /// Re-routes the wires in the model based on a list of components that have been altered.
 /// If the wire input and output ports are both in the list of moved components, 
 /// it does not re-route wire but instead translates it.
@@ -578,6 +579,15 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
     { model with Wires = newWires }
 
+/// Top-level function to replace updateWireSegmentJumps
+/// and call the Segment separate code as well. This should
+/// run when significant circuit wiring chnages have been made
+/// e.g. at the end of symbol drags.
+let updateWireSegmentJumpsAndSeparations wires model  =
+    model
+    |> BusWireSeparate.separateAndOrderModelSegments wires
+    |> BusWireUpdateHelpers.updateWireSegmentJumps []
+
 let updateSymbolWires (model: Model) (compId: ComponentId) =
     let wires = filterWiresByCompMoved model [compId]
     
@@ -596,3 +606,5 @@ let updateSymbolWires (model: Model) (compId: ComponentId) =
             else cId, wire)
         |> Map.ofList
     { model with Wires = newWires }
+    |> updateWireSegmentJumpsAndSeparations (Map.keys newWires |> Seq.toList)
+

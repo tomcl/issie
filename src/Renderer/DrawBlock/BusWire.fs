@@ -32,7 +32,7 @@ module Constants =
     let jumpRadius: float = 5.
     /// The minimum length of the initial segments (nubs) leaving the ports.
     /// Must be larger than SmartWire.minWireSeparation
-    let nubLength: float = 8.
+    let nubLength: float = 10.
     /// The standard radius of a radial wire corner
     let cornerRadius: float  = 7. 
     /// The standard radius of a modern wire connect circle

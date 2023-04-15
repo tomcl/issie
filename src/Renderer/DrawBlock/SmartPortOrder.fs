@@ -345,7 +345,6 @@ let reOrderPorts
     (wModel: BusWireT.Model)
     (symToOrder: Symbol)
     (otherSym: Symbol)
-    (smartHelpers: ExternalSmartHelpers)
     : BusWireT.Model =
 
     printfn $"ReorderPorts: ToOrder:{symToOrder.Component.Label}, Other:{otherSym.Component.Label}"
@@ -357,6 +356,6 @@ let reOrderPorts
         let model = updateModelSymbols wModel updatedSymbols
 
         (model, updatedSymbols)
-        ||> List.fold (fun model' symbol -> smartHelpers.UpdateSymbolWires model' symbol.Id)
+        ||> List.fold (fun model' symbol -> SmartWire.updateSymbolWires model' symbol.Id)
 
     updatedModel

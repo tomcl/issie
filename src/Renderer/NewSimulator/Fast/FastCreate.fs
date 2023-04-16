@@ -152,7 +152,7 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | NbitsNot w
     | NbitsOr w
     | NbitSpreader w
-    | NbitsXor w
+    | NbitsXor(w, _)
     | NbitsAdderNoCout w
     | NbitsAdderNoCinCout w -> putW0 w
     | NbitsAdder w
@@ -809,7 +809,8 @@ let rec createInitFastCompPhaseFData
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]
         let fc = createFastComponentFData numSteps comp ap
-        eprintfn $"Created fast component {comp.Type} with {fc.NumMissingInputValues} missing inputs"
+        eprintfn
+            $"Created fast component {comp.Type} with {fc.NumMissingInputValues} missing inputs"
 
         let fc = { fc with FullName = g.getFullName fid; SheetName = g.getSheetName fid }
 

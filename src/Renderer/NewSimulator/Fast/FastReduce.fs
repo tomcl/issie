@@ -794,14 +794,24 @@ let fastReduceFData
                 put0 <| Alg out0
                 put1 <| Alg out1
             | _ -> put0 <| Alg out0
-    | NbitsXor numberOfBits ->
+    | NbitsXor(numberOfBits, op) ->
         //let A, B = ins 0, ins 1
         match ins 0, ins 1 with
         | Data A, Data B ->
             let outDat =
                 match A.Dat, B.Dat with
-                | BigWord a, BigWord b -> BigWord(a ^^^ b)
-                | Word a, Word b -> Word(a ^^^ b)
+                | BigWord a, BigWord b ->
+                    BigWord(
+                        match op with
+                        | None -> a ^^^ b
+                        | Some Multiply -> (a * b) &&& ((bigint 1 <<< A.Width) - bigint 1)
+                    )
+                | Word a, Word b ->
+                    Word(
+                        match op with
+                        | None -> a ^^^ b
+                        | Some Multiply -> (a * b) &&& ((1u <<< A.Width) - 1u)
+                    )
                 | a, b ->
                     failwithf
                         $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
@@ -810,12 +820,11 @@ let fastReduceFData
         | Alg exp, Data { Dat = (Word num); Width = w }
         | Data { Dat = (Word num); Width = w }, Alg exp ->
             let minusOne = (2.0 ** w) - 1.0 |> uint32
-
             if num = minusOne then
                 put0 <| Alg(UnaryExp(NotOp, exp))
             //Alg (BinaryExp(UnaryExp(NegOp,exp),SubOp,DataLiteral {Dat = Word 1u; Width=w}))
             else
-                let numExp = (packBitFData num).toExp
+                let numExp = (Data <| (packBit num)).toExp
                 put0 <| Alg(BinaryExp(exp, AddOp, numExp))
         | A, B ->
             let aExp, bExp = A.toExp, B.toExp
@@ -1958,17 +1967,26 @@ let fastReduce
             put1 cout
         | _ -> put0 sum
 
-    | NbitsXor numberOfBits ->
+    | NbitsXor(numberOfBits, op) ->
         let A, B = ins 0, ins 1
-
         let outDat =
             match A.Dat, B.Dat with
-            | BigWord a, BigWord b -> BigWord(a ^^^ b)
-            | Word a, Word b -> Word(a ^^^ b)
+            | BigWord a, BigWord b ->
+                BigWord(
+                    match op with
+                    | None -> a ^^^ b
+                    | Some Multiply -> (a * b) &&& ((bigint 1 <<< A.Width) - bigint 1)
+                )
+            | Word a, Word b ->
+                Word(
+                    match op with
+                    | None -> a ^^^ b
+                    | Some Multiply -> (a * b) &&& ((1u <<< A.Width) - 1u)
+                )
             | a, b ->
                 failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
 
-        put0 { A with Dat = outDat }
+        put0 <| { A with Dat = outDat }
 
     | NbitsOr numberOfBits ->
         let A, B = ins 0, ins 1

@@ -10,6 +10,10 @@ module CanvasStateAnalyser
 open CommonTypes
 open SimulatorTypes
 open BusWidthInferer
+open Fable.Core
+
+[<Emit("if (process.env.NODE_TRACE == 1) { process.stdout.write(new Error($0).stack); }")>]
+let trace (x: string) : unit = jsNative
 
 // -- Checks performed
 //
@@ -495,6 +499,8 @@ let checkCustomComponentsOk
 /// This function relies on the bus inferer, but also makes sure that all widths
 /// can be inferred.
 let private checkConnectionsWidths (canvasState: CanvasState) : SimulationError option =
+    trace "Checking connections widths."
+
     let convertConnId (ConnectionId cId) = ConnectionId cId
     let convertError (err: WidthInferError) : SimulationError =
         { Msg = err.Msg

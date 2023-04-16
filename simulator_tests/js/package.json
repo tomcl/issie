@@ -6,6 +6,7 @@
   "main": "test.js",
   "scripts": {
     "compile": "dotnet fable . --outDir temp --sourceMaps --noCache",
+    "watch-compile": "dotnet fable watch . --outDir temp --sourceMaps",
     "test": "mocha"
   },
   "author": "Yujie Wang",

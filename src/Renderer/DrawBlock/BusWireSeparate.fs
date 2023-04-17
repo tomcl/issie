@@ -1,13 +1,10 @@
 ﻿module BusWireSeparate
 open CommonTypes
-open Elmish
-open DrawHelpers
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
 open SmartHelpers
-
 open Optics
 open Operators
 
@@ -16,7 +13,7 @@ open Operators
 //*****************************************************************************************************//
 
 (*-----------------------------------------------------------------------------------------------------
-    this code implements a sheet beautify function that is designed to be called at the end of a symbol drag, 
+    This code implements a sheet beautify function that is designed to be called at the end of a symbol drag, 
     wire creation, etc, after smart autoroute. Therefore it has time to analyse the whole circuit and make changes. 
  
     Currently implements:
@@ -26,9 +23,11 @@ open Operators
     - allow same-net segments to overlap
 
     Does not implement:
-    - re-order ports on custom components, or flip other components. That would be an obvious and quite easy 
+    - Re-order ports on custom components, or flip other components. That would be an obvious and quite easy 
     extension.
-    *)
+    - Chunk together same net segments with manually routed ones in a way that makes manual movement
+    - of overlapped nets simple. Not clear what is the coorrect UI for this
+  -----------------------------------------------------------------------------------------------------*)
 
 open SmartHelpers.Constants // for easy access to SmartWire Constant definitions
 
@@ -37,7 +36,10 @@ open SmartHelpers.Constants // for easy access to SmartWire Constant definitions
 //-------------------------------------------------------------------------------------------------//
 
 /// return wire and segment index of line, if it is a segment
-let lineToWire (model: Model) (line:Line)  : (Wire * int) option =
+let lineToWire 
+        (model: Model) 
+        (line:Line)  
+            : (Wire * int) option =
     match line.Seg1 with
     | Some seg ->
         let (int,wid) = seg.Segment.GetId()
@@ -47,7 +49,12 @@ let lineToWire (model: Model) (line:Line)  : (Wire * int) option =
     
 
 /// Convert a segment into a fixed or movable line (of given orientation).
-let segmentToLine (lType: LType) (ori: Orientation) (wire:Wire) (seg: ASegment) : Line =
+let segmentToLine 
+        (lType: LType) 
+        (ori: Orientation) 
+        (wire:Wire) 
+        (seg: ASegment) 
+            : Line =
     let order a b =
         if a < b then
             { MinB = a; MaxB = b }
@@ -127,8 +134,9 @@ let linkSameNetLines (lines: Line list) : Line list =
 /// Make all lines, fixed and movable, of given orientation from wires and symbols in Model
 /// ori - orientation of Lines (P coord is reverse of this)
 let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model) =
+
     /// Which segments in wires are included as Lines?
-    let selectSegments (ori: Orientation) (wire: Wire) (orient: Orientation) (seg: Segment) =
+    let selectSegments (wire: Wire) (orient: Orientation) (seg: Segment) =
         let numSegs = wire.Segments.Length
         ori = orient && seg.Index <> 0 && seg.Index <> numSegs - 1 && not (seg.IsZero()) //|| (segN -1).IsZero() || (segN 1).IsZero())
 
@@ -141,7 +149,7 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
         ||> Map.fold (fun (lines: Line list) _ wire ->
             let wireIsRoutable = List.contains wire.WId wiresToRoute
             //printf $"WIRE={pWire wire}"
-            getFilteredAbsSegments (selectSegments ori wire) wire
+            getFilteredAbsSegments (selectSegments wire) wire
             |> List.map (fun aSeg ->
                 let segs = wire.Segments
                 let seg = aSeg.Segment
@@ -149,7 +157,7 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
                     match wireIsRoutable, seg.Mode, seg.Index=2, seg.Index=segs.Length-3 with
                     | _, Manual , _ , _
                     | false, _, _, _ ->
-                        printf $"\n**Wire {pWire wire} is manual**\n"
+                        //printf $"\n**Wire {pWire wire} is manual**\n"
                         FIXEDMANUALSEG
                     | _, _ , true , _ when segs[ 1 ].IsZero() -> 
                         FIXEDSEG
@@ -160,9 +168,6 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
                 segmentToLine lType ori wire aSeg)
             |> (fun wireLines -> wireLines @ lines))
             //|> linkSameNetLines
-
-
-
 
     /// Lines coming from the bounding boxes of symbols
     let symLines =
@@ -176,10 +181,10 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
     |> Array.mapi (fun i line -> { line with Lid = LineId i })
     //|>  (fun arr -> printf "%s" (pLines arr); arr)
 
+
 //-------------------------------------------------------------------------------------------------//
 //-----------------------------------------SEGMENT ORDERING----------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-
 
 /// Returns integers +/- 1 indicating direction of wire leaving ends of line segment.
 /// Pair returned is MaxB, MinB end of line
@@ -201,31 +206,16 @@ let turnDirs (line: Line) (wires: Map<ConnectionId, Wire>) =
 
         sign len1, sign len2
 
-// The functions tests two segment ends - one from each wire - for whether the
-// segments connected to the ends (and therefore turning one direction or the other)
-// might overlap.
-/// Return +1. if two wires turn towards each other (and therefore might overlap), else -1.
-/// turnDir1, turnDir2 - direction in which turns go.
-/// bound1, bound2 - the MinB or MaxB bound of each end - which must be close.
-/// The P value of each segment.
-let linesMaybeMeeting
-    ((turnDir1, bound1, p1): int * float * float)
-    ((turnDir2, bound2, p2): int * float * float)
-    : float =
-    // if the two segment ends do not line up return 0.
-    // and the two segments that join turn towards eachother
-    match close bound1 bound2,  p1 > p2, turnDir1, turnDir2 with
-    | false, _, _, _ -> 0.
-    | _, true, -1, 1
-    | _, false, 1, -1 -> 1.
-    | _ -> -1.
-
 
 /// +1 if line1.P > line2.P for zero crossings.
 /// -1 if line1.P < line2.P for zero crossings.
 /// 0 if line1.P and line2.P have one crossing.
-let numCrossingsSignAndMaybeOverlaps (model: Model) (line1: Line) (line2: Line) (wires: Map<ConnectionId, Wire>) =
-    //let line1, line2 = if line1.P > line2.P then line1, line2 else line2, line1
+let numCrossingsSignAndMaybeOverlaps 
+        (model: Model) 
+        (line1: Line) 
+        (line2: Line) 
+        (wires: Map<ConnectionId, Wire>) 
+            : int =
     let (max1, min1), (max2, min2) = turnDirs line1 wires, turnDirs line2 wires
     // if line1.P > line2.P then a +1 line1 turnDir or a -1 line2 turnDir from an inner endpoint
     // will NOT cause a crossing. -1 will cause a crossing.
@@ -303,7 +293,7 @@ let orderToMinimiseCrossings (model: Model) (lines: Line array) (segL: int list)
 /// When given a segment index search for nearby segments to be considered with it as a single cluster
 /// for spreading out. To be included segments must be close enough and overlapping. Search
 /// terminates given large gap or a fixed boundary segments are not allowed to move across.
-let expandCluster (groupableA: bool array) (index: int) (searchDir: LocSearchDir) (lines: Line array) =
+let expandCluster (index: int) (searchDir: LocSearchDir) (lines: Line array) =
     let nextIndex i =
         match searchDir with
         | Upwards -> i + 1
@@ -364,13 +354,12 @@ let expandCluster (groupableA: bool array) (index: int) (searchDir: LocSearchDir
 /// Segments within each cluster will be repositioned and reordered after
 /// clusters are identified.
 /// Every segment must be part of a unique cluster.
-let makeClusters (lines: Line array) =
+let makeClusters (lines: Line array) : Cluster list =
     /// true if corresponding line can be grouped in a cluster as a segment
     let groupableA =
         Array.init lines.Length (fun i ->lines[i].LType = NORMSEG)
 
     let groupable seg = groupableA[seg]
-    let expandCluster = expandCluster groupableA
 
     let keepOnlyGroupableSegments (loc: Cluster) =
         { loc with Segments = List.filter groupable loc.Segments }
@@ -466,7 +455,7 @@ let mergeLocalities (lines: Line array) (locL: Cluster list) =
 /// Return value is a list of segments, represented as Lines, paired with where they move.
 /// lines is the source list of lines (vertical or horizontal according to which is being processed).
 /// model is the Buswire model needed to access wires.
-let calcSegPositions model lines loc =
+let calcSegPositions model lines (loc: Cluster) =
     let segs = loc.Segments |> List.distinct |> orderToMinimiseCrossings model lines
     // if segs.Length > 1 then
     // printfn $"** Grouping: {segs |> List.map (fun i -> i, lines[i].P)} **"
@@ -510,7 +499,11 @@ let calcSegPositions model lines loc =
 
 
 /// Given a list of segment changes of given orientation apply them to the model
-let adjustSegmentsInModel (ori: Orientation) (model: Model) (changes: (Line * float) list) =
+let adjustSegmentsInModel 
+        (ori: Orientation) 
+        (model: Model) 
+        (changes: (Line * float) list) 
+            : Model =
     let changes =
         changes 
         |> List.collect (fun (line, p) ->
@@ -556,7 +549,7 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
     |> (fun lines -> 
         Array.pairwise lines
         |> Array.filter (fun (line1, line2) -> 
-                printfn $"Checking {pLine line1} {pLine line2}"
+                //printfn $"Checking {pLine line1} {pLine line2}"
                 (line1.LType = FIXEDSEG && line2.LType = FIXEDSEG) &&
                 abs (line1.P - line2.P) < overlapTolerance &&
                 line1.PortId <> line2.PortId &&
@@ -564,13 +557,14 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
         |> Array.map (fun (line1, line2) ->
             let space1 = getSpacefromLine lines line1 line2 2*maxSegmentSeparation
             let space2 = getSpacefromLine lines line2 line1 2*maxSegmentSeparation
-            printfn $"***Changing {pLine line1} {pLine line2} {space1},{space2}***"
+            //printfn $"***Changing {pLine line1} {pLine line2} {space1},{space2}***"
             if abs space1 > abs space2 then
                 line1, line1.P + space1 * 0.5
             else
                 line2, line1.P + space2 * 0.5)
         |> List.ofArray)
     |> adjustSegmentsInModel ori model
+
     
 //-------------------------------------------------------------------------------------------------//
 //--------------------------------------WIRE ARTIFACT CLEANUP--------------------------------------//
@@ -710,7 +704,6 @@ let isSegmentExtensionOk
         checkExtensionNoOverlap extensionTolerance extension wire.WId info &&
         checkExtensionNoCrossings extensionTolerance extension wire.WId info
 
-
     match sign (lengthChange + len) = sign len, abs (lengthChange + len) < abs len with
     | true, true ->
         true // nothing to do because line is made shorter.
@@ -759,9 +752,7 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
                         EndSegChange = change2
                     } |> Some
                 else
-                    None
-                        
-
+                    None                        
     // Wire corners cannot start on zero-length segments (that would introduce
     // an extra bend). The 4 segments changed by the corner cannot be manually
     // routed.
@@ -849,7 +840,9 @@ let removeModelSpikes (model: Model) =
 //-------------------------------------------------------------------------------------------------//
 
 /// Perform complete segment ordering and separation for segments of given orientation.
+/// wires: set of wires allowed to be moved.
 let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orientation) (model: Model) =
+    //printf $"""Wires:\n {wires |> List.map (fun wid -> pWire model.Wires[wid]) |> String.concat "\n"}"""
     makeLines wires ori model
     |> fun lines ->
         //printf "%s" (pLines lines)
@@ -858,27 +851,31 @@ let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orienta
         //|> mergeLocalities lines // merging does not seem necessary?
         |> List.collect (calcSegPositions model lines)
     |> adjustSegmentsInModel ori model
-    //|> removeModelSpikes
 
-/// Perform complete segment separation and ordering for all orientations
-let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) =
-//    fun model -> 
-        let separateSegments = separateModelSegmentsOneOrientation wiresToRoute
-        separateSegments Vertical //model
-        >> separateSegments Horizontal
-        //>> separateSegments Vertical // as above
-        //>> separateSegments Horizontal // a final vertical check allows ordering to work nicely in almost all cases
-        >> separateSegments Vertical // repeat vertical separation since moved segments may now group
-        >> separateSegments Horizontal // as above
-        >> separateSegments Vertical // a final vertical check allows ordering to work nicely in almost all cases
-        >> separateFixedSegments wiresToRoute Horizontal // as above
+/// Perform complete wire segment separation and ordering for all orientations.
+/// wiresToRoute: set of wires to have segments separated and ordered
+let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) : Model -> Model =
 
-        >> separateFixedSegments wiresToRoute Vertical // repeat vertical separation since moved segments may now group
-        >> separateFixedSegments wiresToRoute Horizontal // as above
+    /// convenience abbreviation
+    let separate = separateModelSegmentsOneOrientation wiresToRoute
 
-    //>> separateFixedSegments wiresToRoute Vertical 
-    //>> separateFixedSegments wiresToRoute Horizontal
-    //>> removeModelCorners wiresToRoute
-    //>> removeModelSpikes
+    // In theory one run Vert and Horiz of separate should be enough. However multiple runs work better
+    // chunking togetherclusters that should be connected etc.
+    // TODO: revisit this and see how necessary it is.
 
+    //separate Vertical >>
+    separate Horizontal >>
+    separate Vertical >> // as above
+    separate Horizontal >> // a final vertical check allows ordering to work nicely in almost all cases
+    separate Vertical >> // repeat vertical separation since moved segments may now group
 
+    // after normal separation there may be "fixed" segments which should be separated because they overlap
+    // one run for Vert and then Horiz segments is enough for this
+    // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
+    separateFixedSegments wiresToRoute Horizontal >> // as above
+    separateFixedSegments wiresToRoute Vertical >> // repeat vertical separation since moved segments may now group
+
+    // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
+    // this code attempts to remove sucg corners if it can be done while keeping routing ok
+
+    removeModelCorners wiresToRoute // code to clean up some non-optimal routing 

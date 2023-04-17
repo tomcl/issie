@@ -149,6 +149,7 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
                     match wireIsRoutable, seg.Mode, seg.Index=2, seg.Index=segs.Length-3 with
                     | _, Manual , _ , _
                     | false, _, _, _ ->
+                        printf $"\n**Wire {pWire wire} is manual**\n"
                         FIXEDMANUALSEG
                     | _, _ , true , _ when segs[ 1 ].IsZero() -> 
                         FIXEDSEG
@@ -260,17 +261,10 @@ let numCrossingsSignAndMaybeOverlaps (model: Model) (line1: Line) (line2: Line) 
         | true, false ->  min1 , -max2
         | false, true ->  -min2 , max1
         | false, false -> -min2 , - max2
-        |> (fun (minC, maxC) -> float (checkMinCross * minC + checkMaxCross * maxC))
-        //|> (fun n -> if line1.P > line2.P then n else -n)
-    // if two segment ends have the same Bound (MaxB or MinB) value and turn towards each other
-    // still experimental (the negative weighting of this perhaps means it should be the otehr way round)?
-    let maybeMeeting =
-        linesMaybeMeeting (max1, line1.B.MaxB, line1.P) (max2, line2.B.MaxB, line2.P)
-        + linesMaybeMeeting (max1, line1.B.MaxB, line1.P) (min2, line2.B.MinB, line2.P)
-        + linesMaybeMeeting (min1, line1.B.MinB, line1.P) (max2, line2.B.MaxB, line2.P)
-        + linesMaybeMeeting (min1, line1.B.MinB, line1.P) (min2, line2.B.MinB, line2.P)
+        |> (fun (minC, maxC) -> checkMinCross * minC + checkMaxCross * maxC)
 
-    float crossingsNumSign - 0. * maybeMeeting 
+
+    crossingsNumSign 
 
 /// segL is a list of lines array indexes representing segments found close together.
 /// Return the list ordered in such a way that wire crossings are minimised if the
@@ -296,7 +290,7 @@ let orderToMinimiseCrossings (model: Model) (lines: Line array) (segL: int list)
                     let afterSegs = 
                         segs
                         |> List.takeWhile (fun orderedSeg -> 
-                            numCrossingsSignAndMaybeOverlaps model newSeg orderedSeg wires > -smallOffset) 
+                            numCrossingsSignAndMaybeOverlaps model newSeg orderedSeg wires >= 0) 
                     afterSegs @ [newSeg] @ segs[afterSegs.Length..segs.Length-1])
             |> List.map (fun line -> match line.Lid with LineId n -> n)
         let sortFunA = Array.init orderedSegs.Length (fun i -> List.findIndex (fun seg -> seg = segA[i]) orderedSegs)
@@ -562,13 +556,15 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
     |> (fun lines -> 
         Array.pairwise lines
         |> Array.filter (fun (line1, line2) -> 
-                line1.LType = FIXEDSEG && line2.LType = FIXEDSEG &&
+                printfn $"Checking {pLine line1} {pLine line2}"
+                (line1.LType = FIXEDSEG && line2.LType = FIXEDSEG) &&
                 abs (line1.P - line2.P) < overlapTolerance &&
                 line1.PortId <> line2.PortId &&
                 hasOverlap line1.B line2.B)
         |> Array.map (fun (line1, line2) ->
             let space1 = getSpacefromLine lines line1 line2 2*maxSegmentSeparation
             let space2 = getSpacefromLine lines line2 line1 2*maxSegmentSeparation
+            printfn $"***Changing {pLine line1} {pLine line2} {space1},{space2}***"
             if abs space1 > abs space2 then
                 line1, line1.P + space1 * 0.5
             else
@@ -870,9 +866,13 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) =
         let separateSegments = separateModelSegmentsOneOrientation wiresToRoute
         separateSegments Vertical //model
         >> separateSegments Horizontal
+        //>> separateSegments Vertical // as above
+        //>> separateSegments Horizontal // a final vertical check allows ordering to work nicely in almost all cases
         >> separateSegments Vertical // repeat vertical separation since moved segments may now group
         >> separateSegments Horizontal // as above
         >> separateSegments Vertical // a final vertical check allows ordering to work nicely in almost all cases
+        >> separateFixedSegments wiresToRoute Horizontal // as above
+
         >> separateFixedSegments wiresToRoute Vertical // repeat vertical separation since moved segments may now group
         >> separateFixedSegments wiresToRoute Horizontal // as above
 

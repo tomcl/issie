@@ -1,48 +1,18 @@
 ﻿module SmartHelpers
 
 open CommonTypes
-open DrawHelpers
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open Symbol
 open BusWire
 open BusWireUpdateHelpers
-open SymbolHelpers
-
 open Optics
 open Operators
 
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
 //-----------------------------------------------------------------------------------------------//
-
-(*
-HOW TO USE THIS MODULE.
-
-(1) Add well-documented useful functions - see updateModelSymbols and updateModelWires
-    for examples. You do not need to add performance information as in updateModelSymbols. 
-    Your priority should be writing clear code. Try to avoid very inefficient implementations
-    if possible (e.g. 100X slower than a similar complexity solution), but do not worry 
-    about this.
-(2) Note from my examples distinction between XML documentation and additional details
-    in header comments.
-(3) HLP23: Note comments here labelled "HLP23" which are for HLP23 class and would be deleted in
-    production (Group phase) code.
-(2) HLP23: Each function must have a single author specified by "HLP23: AUTHOR" in an XML comment
-    as in my example: give name as Family name only (unique within teams).
-(3) HLP23: Inform other members that you have written a function they could maybe use.
-(4) HLP23: If two people end up with near-identical functions here team phase can rationalise if
-    needed normally you are expected to share when this makes code writing faster.
-(5) Note best practice here using Optics for nested record update. This is NOT curently required
-    in Issie but used appropriately results in better code. Use it if you are comfortable doing so.
-(5) Note on qualifying types: do this when not doing it would be ambiguous - e.g. here
-    the BusWire and Symbol Model types.
-(6) Note on code layout. A limit of 100 characters per line is used here. Seems about right.
-*)
-
-//----------------------------------------------------------------------------------------------//
-
 
 /// Update BusWire model with given symbols. Can also be used to add new symbols.
 /// This uses a fold on the Map to add symbols which makes it fast in the case that the number
@@ -66,7 +36,6 @@ let updateModelWires (model: BusWireT.Model) (wiresToAdd: Wire list) : BusWireT.
     |> Optic.map wires_ (fun wireMap ->
         (wireMap, wiresToAdd)
         ||> List.fold (fun wireMap wireToAdd -> Map.add wireToAdd.WId wireToAdd wireMap))
-
 
 /// Returns true if two 1D line segments intersect
 /// HLP23: Derek Lai (ddl20)
@@ -249,8 +218,6 @@ let wireSymEdge wModel wire sym =
     | _ -> Top // Shouldn't happen.
 
 
-
-
 //-------------------------------------------------------------------------------------------------//
 //------------------------TYPES USED INTERNALLY FOR SEPARATION AND ORDERING------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -271,18 +238,20 @@ module Constants =
     /// get to other elements? Maybe needs to be smaller than some otehr things for
     /// successful corner removal?
     let extensionTolerance = 3.
-
+/// Screen direction in which objects are moved
 type DirectionToMove =
     | Up_
     | Down_
     | Left_
     | Right_
 
+/// swap X and Y coordinates if orientation = Vertical
 let swapXY (pos: XYPos) (orientation: Orientation) : XYPos =
     match orientation with
     | Horizontal -> pos
     | Vertical -> { X = pos.Y; Y = pos.X }
 
+/// swap X & Y coordinats in BB if orientation is vertical
 let swapBB (box: BoundingBox) (orientation: Orientation) : BoundingBox =
     match orientation with
     | Horizontal -> box
@@ -291,6 +260,7 @@ let swapBB (box: BoundingBox) (orientation: Orientation) : BoundingBox =
             W = box.H
             H = box.W }
 
+/// Return new poistion moved the the direction and amount shown.
 let updatePos (direction: DirectionToMove) (distanceToShift: float) (pos: XYPos) : XYPos =
     match direction with
     | Up_ -> { pos with Y = pos.Y - distanceToShift }
@@ -302,10 +272,12 @@ let updatePos (direction: DirectionToMove) (distanceToShift: float) (pos: XYPos)
 /// Used to capture the 1D coordinates of the two ends of a line. (see Line).
 type Bound = { MinB: float; MaxB: float }
 
-    
+/// Protected type for Line IDs    
 type LineId = LineId of int
 with member this.Index = match this with | LineId i -> i
 
+/// Type of Line: note that this is correlated with whether line is a 
+/// segment or a symbol edge
 type LType = 
     /// a non-segment fixed (symbol boundary) barrier
     | FIXED  
@@ -373,6 +345,8 @@ type WireCorner = {
     StartSegOrientation: Orientation
     }
 
+/// Some operations need to work on Horizontal and Vertical lines together.
+/// This captures the static information needed to do this.
 type LineInfo = {
     /// Vertical lines
     VLines: Line array
@@ -388,7 +362,8 @@ type LineInfo = {
 //--------------------------------HELPERS USED IN CLUSTERING SEGMENTS------------------------------//
 //-------------------------------------------------------------------------------------------------//
 open Constants
-/// get the horizontal length of the visible segment emerging from a port
+
+/// Get the horizontal length of the visible segment emerging from a port
 let getVisibleNubLength (atEnd: bool) (wire: Wire) =
     let segs = wire.Segments
     let getLength i =
@@ -402,7 +377,8 @@ let getVisibleNubLength (atEnd: bool) (wire: Wire) =
     else
         getLength 0
 
-let segmentIsNubExtension (wire: Wire) (segIndex: int) =
+/// Return true if the segment extends a wire parallel with a nub (wire end).
+let segmentIsNubExtension (wire: Wire) (segIndex: int) : bool =
     let segs = wire.Segments
     let nSegs = segs.Length
     let lastSeg = nSegs-1
@@ -412,8 +388,6 @@ let segmentIsNubExtension (wire: Wire) (segIndex: int) =
     | 2, _ when segs[1].IsZero() -> true
     |_, 2 when  (revSeg 1).IsZero() -> true
     | _ -> false
-        
-                
 
 /// Get the segment indexes within a Cluster (loc)
 let inline segPL (lines: Line array) loc =
@@ -451,44 +425,56 @@ let inline lowerB (lines: Line array) loc =
     | Some u, None when u < upperS pts -> u - widthS loc
     | _ -> lowerS pts
 
+
 //-------------------------------------------------------------------------------------------------//
 //--------------------------------LOW-LEVEL PRINTING (returns strings)-----------------------------//
 //-------------------------------------------------------------------------------------------------//
 
+/// Return string to display a wire
 let pWire (wire: Wire) =
     let segs = wire.Segments
     let nSegs = segs.Length
     let aSegs = getAbsSegments wire
     let pASeg (aSeg:ASegment) =
+        let isMan = 
+            match aSeg.Segment.Mode with | Manual -> "M" | Auto -> "A"
         let vec = aSeg.End - aSeg.Start
         if aSeg.IsZero() then
-            "S0"
+            isMan + ".S0"
         else
             match getSegmentOrientation aSeg.Start aSeg.End, aSeg.Segment.Length > 0 with
             | Vertical, true -> "Dn"
             | Vertical, false -> "Up"
             | Horizontal,true -> "Rt"
             | Horizontal, false -> "Lt"
-            |> (fun s -> s + $"%.0f{abs aSeg.Segment.Length}")
+            |> (fun s -> isMan + "." + s + $"%.0f{abs aSeg.Segment.Length}")
 
     let pSegs = aSegs |> List.map pASeg |> String.concat "-"
 
     sprintf $"W{nSegs}:{wire.InitialOrientation}->{pSegs}"
 
+/// Return string to display an Option
 let pOpt (x: 'a option) = match x with | None -> "None" | Some x -> $"^{x}^"
 
+/// Return string to display the type of a Line
 let pLineType (line:Line) = $"{line.LType}"
 
+/// Return string to display a Line
 let pLine (line:Line) = 
     let ori = match line.Orientation with | Horizontal -> "H" | Vertical -> "V"
     $"|{ori}L{line.Lid.Index}.P=%.0f{line.P}.{pLineType line}:B=%.0f{line.B.MinB}-%.0f{line.B.MaxB}|"
 
+/// Return string to display an array of Lines
 let pLines (lineA: Line array) =
     $"""{lineA |> Array.map (fun line -> pLine line) |> String.concat "\n"}"""
 
+/// Return string to display a Cluster (compactly).
+/// See also pAllCluster.
 let pCluster (loc:Cluster) =
     $"Cluster:<{pOpt loc.LowerFix}-{loc.Segments}-{pOpt loc.UpperFix}>"
 
+/// Return string to display a Cluster (long form).
+/// See also pCluster.
 let pAllCluster (lines: Line array) (loc:Cluster) =
     let oris = match lines[0].Orientation with | Horizontal -> "Horiz" | Vertical -> "Vert"
     $"""Cluster-{oris}:<L={pOpt loc.LowerFix}-{loc.Segments |> List.map (fun n -> pLine lines[n]) |> String.concat ","}-U={pOpt loc.UpperFix}>"""
@@ -498,6 +484,9 @@ let pAllCluster (lines: Line array) (loc:Cluster) =
 //-----------------------------------------UTILITY FUNCTIONS---------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 
+/// Linear search in an array from searchStart in a direction dir = +1/-1 from searchStart.
+/// Give up and return None if giveUp is true.
+/// Return first location for which predicate is true.
 let rec tryFindIndexInArray (searchStart: LineId) (dir: int) (predicate: 'T -> bool) (giveUp: 'T -> bool) (arr: 'T array) =
     if searchStart.Index < 0 || searchStart.Index > arr.Length - 1 then
         None
@@ -508,33 +497,33 @@ let rec tryFindIndexInArray (searchStart: LineId) (dir: int) (predicate: 'T -> b
         | false, _ -> tryFindIndexInArray (LineId(searchStart.Index + dir)) dir predicate giveUp arr
             
 
-/// true if bounds b1 and b2 overlap or are exactly adjacent
+/// True if bounds b1 and b2 overlap or are exactly adjacent
 let hasOverlap (b1: Bound) (b2: Bound) =
     inMiddleOrEndOf b1.MinB b2.MinB b1.MaxB
     || inMiddleOrEndOf b1.MinB b2.MaxB b1.MinB
     || inMiddleOrEndOf b2.MinB b1.MinB b2.MaxB
 
-/// true if bounds b1 and b2 overlap or are exactly adjacent
+/// True if bounds b1 and b2 overlap or are exactly adjacent
 let hasNearOverlap (tolerance: float) (b1: Bound) (b2: Bound) =
     inMiddleOf (b1.MinB-tolerance) b2.MinB (b1.MaxB+tolerance)
     || inMiddleOf (b1.MinB-tolerance)  b2.MaxB (b1.MinB+tolerance)
     || inMiddleOf (b2.MinB-tolerance) b1.MinB (b2.MaxB+tolerance)
 
-/// Union of two bounds b1 and b2. b1 & b2 must overlap or be adjacent,
-/// otherwise the inclusive interval containing b1 and b2 is returned.
+/// Return union of two bounds b1 and b2. b1 & b2 must overlap or be adjacent.
+/// Otherwise the inclusive interval containing b1 and b2 is returned.
 let boundUnion (b1: Bound) (b2: Bound) =
     {   MinB = min b1.MinB b2.MinB
         MaxB = max b1.MaxB b2.MaxB }
 
 
 /// Move segment by amount posDelta in direction perpendicular to segment - + => X or y increases.
-/// movement is by changing lengths of two segments on either side.
-/// will fail if called to change a nub at either end of a wire (nubs cannot move).
+/// Movement is by changing lengths of two segments on either side.
+/// Will fail if called to change a nub at either end of a wire (nubs cannot move).
 let moveSegment (index: int) (posDelta: float) (wire: Wire) =
     let segs = wire.Segments
 
     if index < 1 || index > segs.Length - 2 then
-        failwithf $"What? trying to move segment {index} of a wire length {segs.Length}"
+        failwithf $"What? moveSegment is trying to move segment {index} of a wire length {segs.Length}"
 
     { wire with
         Segments =

@@ -545,24 +545,32 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
             else 
                 lines[b.Index].P - p
 
-    makeLines wiresToRoute ori model
-    |> (fun lines -> 
-        Array.pairwise lines
-        |> Array.filter (fun (line1, line2) -> 
+    let allLines = makeLines wiresToRoute ori model
+    allLines
+    |> Array.filter (fun line -> line.LType = FIXEDSEG)
+    |> (fun checkedLines ->
+        checkedLines
+        |> Array.toSeq
+        |> Seq.collect ( fun line1 ->
+           checkedLines
+           |> Array.toSeq
+           |> Seq.filter (fun line2 ->
                 //printfn $"Checking {pLine line1} {pLine line2}"
-                (line1.LType = FIXEDSEG && line2.LType = FIXEDSEG) &&
+                line1.Lid < line2.Lid &&
                 abs (line1.P - line2.P) < overlapTolerance &&
                 line1.PortId <> line2.PortId &&
                 hasOverlap line1.B line2.B)
-        |> Array.map (fun (line1, line2) ->
-            let space1 = getSpacefromLine lines line1 line2 2*maxSegmentSeparation
-            let space2 = getSpacefromLine lines line2 line1 2*maxSegmentSeparation
-            //printfn $"***Changing {pLine line1} {pLine line2} {space1},{space2}***"
-            if abs space1 > abs space2 then
-                line1, line1.P + space1 * 0.5
-            else
-                line2, line1.P + space2 * 0.5)
-        |> List.ofArray)
+           |> Seq.map (fun line2 ->
+                //printf "Changing..."
+                let space1 = getSpacefromLine allLines line1 line2 2*maxSegmentSeparation
+                let space2 = getSpacefromLine allLines line2 line1 2*maxSegmentSeparation
+                if space1 < overlapTolerance && space2 < overlapTolerance then
+                    printf "WARNING: No space for fixed segment shifting overlap"
+                if abs space1 > abs space2 then
+                    line1, line1.P + space1 * 0.5
+                else
+                    line2, line1.P + space2 * 0.5)))
+    |> List.ofSeq
     |> adjustSegmentsInModel ori model
 
     
@@ -687,35 +695,23 @@ let makeLineInfo (wiresToRoute: ConnectionId list) (model:Model) : LineInfo =
 let isSegmentExtensionOk
         (info: LineInfo)
         (wire: Wire)
-        (start: int)
+        (segNum: int)
         (ori: Orientation)
-        (lengthChange: float)
+        (newLength: float)
             : bool =
-    let seg = wire.Segments[start]
+    let seg = wire.Segments[segNum]
     let len = seg.Length
-    let aSegStart, aSegEnd = getAbsoluteSegmentPos wire start
-    let p, endC, startC =
+    let aSegStart, _ = getAbsoluteSegmentPos wire segNum
+    let p, startC =
         match ori with
-        | Vertical -> aSegStart.X, aSegEnd.Y, aSegStart.Y
-        | Horizontal -> aSegStart.Y, aSegEnd.X, aSegStart.X
+        | Vertical -> aSegStart.X, aSegStart.Y
+        | Horizontal -> aSegStart.Y, aSegStart.X
     /// check there is room for the proposed segment extension
-    let extensionhasRoomOnSheet b1 b2 =
-        let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min b1 b2; MaxB = max b1 b2}}
-        checkExtensionNoOverlap extensionTolerance extension wire.WId info &&
-        checkExtensionNoCrossings extensionTolerance extension wire.WId info
+    let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min startC startC+newLength; MaxB = max startC startC+newLength}}
+    //printf $"P=%.0f{extension.ExtP}, ori={extension.ExtOri}, B=%A{extension.ExtB}"
+    checkExtensionNoOverlap extensionTolerance extension wire.WId info &&
+    checkExtensionNoCrossings extensionTolerance extension wire.WId info
 
-    match sign (lengthChange + len) = sign len, abs (lengthChange + len) < abs len with
-    | true, true ->
-        true // nothing to do because line is made shorter.
-    | true,false ->
-        //printfn $"lengthChange={lengthChange} len={len}"
-        extensionhasRoomOnSheet (endC+lengthChange) endC
-    | false, _ ->
-        if not (segmentIsNubExtension wire start) then
-            //printf $"allowing start={start} wire={pWire wire}"
-            extensionhasRoomOnSheet (endC+lengthChange) startC                
-        else
-            false
 
 /// Return the list of wire corners found in given wire with all corner
 /// edges smaller than cornerSizeLimit. A wire can have at most one corner.
@@ -739,17 +735,18 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
             else
                 let ori = wire.InitialOrientation
                 let startSegOrientation = if seg.Index % 2 = 0 then ori else switchOrientation ori
-                let change1 = deletedSeg2.Length
-                let change2 = deletedSeg1.Length
-                if isSegmentExtensionOk info wire start ori change1 &&
-                    isSegmentExtensionOk info wire (start+3)  (switchOrientation ori) change2
+                let newLength1 = seg.Length + deletedSeg2.Length
+                let newLength2 = -deletedSeg1.Length
+                if isSegmentExtensionOk info wire start startSegOrientation newLength1 &&
+                    isSegmentExtensionOk info wire (start+3)  (switchOrientation startSegOrientation) newLength2
                 then
+                    //printfn "found corner on line"
                     {
                         Wire = wire
                         StartSeg = start
                         StartSegOrientation = startSegOrientation
-                        StartSegChange = change1
-                        EndSegChange = change2
+                        StartSegChange = deletedSeg2.Length
+                        EndSegChange = deletedSeg1.Length
                     } |> Some
                 else
                     None                        
@@ -873,9 +870,9 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) : Model -> M
     // one run for Vert and then Horiz segments is enough for this
     // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
     separateFixedSegments wiresToRoute Horizontal >> // as above
-    separateFixedSegments wiresToRoute Vertical >> // repeat vertical separation since moved segments may now group
+    separateFixedSegments wiresToRoute Vertical  // repeat vertical separation since moved segments may now group
 
     // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
     // this code attempts to remove sucg corners if it can be done while keeping routing ok
 
-    removeModelCorners wiresToRoute // code to clean up some non-optimal routing 
+    >> removeModelCorners wiresToRoute // code to clean up some non-optimal routing 

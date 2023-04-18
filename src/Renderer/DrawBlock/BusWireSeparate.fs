@@ -754,7 +754,7 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
     // Wire corners cannot start on zero-length segments (that would introduce
     // an extra bend). The 4 segments changed by the corner cannot be manually
     // routed.
-    [1..nSegs-5]
+    [1..nSegs-6]
     |> List.tryPick pickStartOfCorner
     |> function | None -> [] | Some x -> [x]
 

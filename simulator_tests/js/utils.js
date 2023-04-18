@@ -7,14 +7,14 @@ import {
   JsonHelpers_SavedInfo__get_getTimeStamp,
   JsonHelpers_SavedInfo__get_getWaveInfo,
 } from "./temp/src/Renderer/Common/Helpers.js";
-import { parseDiagramSignature } from "./temp/src/Renderer/NewSimulator/Extractor.js";
+import { parseDiagramSignature } from "./temp/src/Renderer/Simulator/Extractor.js";
 import { CCForm, LoadedComponent } from "./temp/src/Renderer/Common/CommonTypes.js";
 import { FSharpList } from "./temp/fable_modules/fable-library.4.0.5/List.js";
 import { length as seqLength } from "./temp/fable_modules/fable-library.4.0.5/Seq.js";
-import { SimulationError } from "./temp/src/Renderer/NewSimulator/SimulatorTypes.js";
+import { SimulationError } from "./temp/src/Renderer/Simulator/SimulatorTypes.js";
 // Simulator
-import { startCircuitSimulation } from "./temp/src/Renderer/NewSimulator/Simulator.js";
-import { runFastSimulation } from "./temp/src/Renderer/NewSimulator/Fast/FastRun.js";
+import { startCircuitSimulation } from "./temp/src/Renderer/Simulator/Simulator.js";
+import { runFastSimulation } from "./temp/src/Renderer/Simulator/Fast/FastRun.js";
 
 const toPrecision = (num) => num.toPrecision(3);
 

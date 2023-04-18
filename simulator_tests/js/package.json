@@ -3,16 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "test.js",
+  "main": "index.js",
   "scripts": {
     "compile": "dotnet fable . --outDir temp --sourceMaps --noCache",
-    "watch-compile": "dotnet fable watch . --outDir temp --sourceMaps",
-    "test": "mocha"
+    "watch-compile": "dotnet fable watch . --outDir temp --sourceMaps"
   },
   "author": "Yujie Wang",
   "license": "ISC",
   "dependencies": {
-    "mocha": "^10.2.0",
     "winston": "^3.8.2"
   }
 }

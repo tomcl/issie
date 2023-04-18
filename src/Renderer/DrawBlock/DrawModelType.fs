@@ -1,6 +1,6 @@
 ﻿module DrawModelType
 
-
+open Fable.Core
 open CommonTypes
 open DrawHelpers
 open Fable.React
@@ -56,10 +56,13 @@ module SymbolT =
     open Optics.Operators
 
     /// Represents the orientation of a wire segment or symbol flip
+    [<StringEnum>]
     type FlipType =  FlipHorizontal | FlipVertical
+    [<StringEnum>]
     type RotationType = RotateClockwise | RotateAntiClockwise
 
     /// Wraps around the input and output port id types
+
     type PortId = | InputId of InputPortId | OutputId of OutputPortId
 
     /// data structures defining where ports are put on symbol boundary
@@ -266,6 +269,7 @@ module SymbolT =
     
 module BusWireT =
 
+    [<StringEnum>]
     type Orientation = | Vertical | Horizontal
     
     ///
@@ -275,6 +279,8 @@ module BusWireT =
     type WireType = Radial | Modern | Jump
     
     /// Represents how a wire segment is currently being routed
+
+    [<StringEnum>]
     type RoutingMode = Manual | Auto
     
     /// Used to represent a segment in a wire

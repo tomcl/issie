@@ -35,6 +35,7 @@ open SmartHelpers.Constants // for easy access to SmartWire Constant definitions
 //---------------------------------LINE ARRAY CREATION FROM MODEL----------------------------------//
 //-------------------------------------------------------------------------------------------------//
 
+
 /// return wire and segment index of line, if it is a segment
 let lineToWire 
         (model: Model) 
@@ -851,28 +852,32 @@ let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orienta
 
 /// Perform complete wire segment separation and ordering for all orientations.
 /// wiresToRoute: set of wires to have segments separated and ordered
-let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) : Model -> Model =
+let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
+        /// convenience abbreviation
+        let wiresToRoute = model.Wires |> Map.keys |> Seq.toList
+        let separate = separateModelSegmentsOneOrientation wiresToRoute
 
-    /// convenience abbreviation
-    let separate = separateModelSegmentsOneOrientation wiresToRoute
+        // In theory one run Vert and Horiz of separate should be enough. However multiple runs work better
+        // chunking togetherclusters that should be connected etc.
+        // TODO: revisit this and see how necessary it is.
 
-    // In theory one run Vert and Horiz of separate should be enough. However multiple runs work better
-    // chunking togetherclusters that should be connected etc.
-    // TODO: revisit this and see how necessary it is.
+        //separate Vertical >>
+       
+        separate Horizontal model
+        |> separate Vertical // as above
+        |> separate Horizontal  // a final vertical check allows ordering to work nicely in almost all cases
+        |> separate Vertical  // repeat vertical separation since moved segments may now group
 
-    //separate Vertical >>
-    separate Horizontal >>
-    separate Vertical >> // as above
-    separate Horizontal >> // a final vertical check allows ordering to work nicely in almost all cases
-    separate Vertical >> // repeat vertical separation since moved segments may now group
+        // after normal separation there may be "fixed" segments which should be separated because they overlap
+        // one run for Vert and then Horiz segments is enough for this
+        // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
+        |> separateFixedSegments wiresToRoute Horizontal  // as above
+        |> separateFixedSegments wiresToRoute Vertical  // repeat vertical separation since moved segments may now group
 
-    // after normal separation there may be "fixed" segments which should be separated because they overlap
-    // one run for Vert and then Horiz segments is enough for this
-    // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
-    separateFixedSegments wiresToRoute Horizontal >> // as above
-    separateFixedSegments wiresToRoute Vertical  // repeat vertical separation since moved segments may now group
+        // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
+        // this code attempts to remove sucg corners if it can be done while keeping routing ok
 
-    // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
-    // this code attempts to remove sucg corners if it can be done while keeping routing ok
+        //|> removeModelCorners wiresToRoute // code to clean up some non-optimal routing 
 
-    >> removeModelCorners wiresToRoute // code to clean up some non-optimal routing 
+
+

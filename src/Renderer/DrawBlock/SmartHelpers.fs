@@ -1,5 +1,6 @@
 ﻿module SmartHelpers
 
+open Fable.Core
 open CommonTypes
 open DrawModelType
 open DrawModelType.SymbolT
@@ -239,6 +240,8 @@ module Constants =
     /// successful corner removal?
     let extensionTolerance = 3.
 /// Screen direction in which objects are moved
+
+[<StringEnum>]
 type DirectionToMove =
     | Up_
     | Down_
@@ -272,12 +275,15 @@ let updatePos (direction: DirectionToMove) (distanceToShift: float) (pos: XYPos)
 /// Used to capture the 1D coordinates of the two ends of a line. (see Line).
 type Bound = { MinB: float; MaxB: float }
 
-/// Protected type for Line IDs    
+/// Protected type for Line IDs 
+[<Erase>]
 type LineId = LineId of int
 with member this.Index = match this with | LineId i -> i
 
 /// Type of Line: note that this is correlated with whether line is a 
 /// segment or a symbol edge
+
+[<StringEnum>]
 type LType = 
     /// a non-segment fixed (symbol boundary) barrier
     | FIXED  
@@ -319,6 +325,7 @@ type Cluster =
 /// Controls direction of Cluster search in expandCluster.
 /// Search is upwards first and then downwards so downwards search takes a Cluster
 /// (generated from upwards search) as parameter.
+
 type LocSearchDir =
     | Upwards
     | Downwards of Cluster

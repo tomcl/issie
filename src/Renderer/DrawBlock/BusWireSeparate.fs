@@ -857,16 +857,20 @@ let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orienta
 /// Perform complete wire segment separation and ordering for all orientations.
 /// wiresToRoute: set of wires to have segments separated and ordered
 let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
-        /// convenience abbreviation
+
+        // Currently: separate all wires - not just those (in wiresToRoute0 that have been
+        // have changed. this prevents unrouted segments from pinning new segments.
+        // TODO: see whetehr something better can be worked out,a nd whetehr routing segments
+        // can be done interactively.
         let wiresToRoute = model.Wires |> Map.keys |> Seq.toList
+
+        /// convenience abbreviation
         let separate = separateModelSegmentsOneOrientation wiresToRoute
 
         // In theory one run Vertical and Horizontal of separate should be enough. However multiple runs work better
         // chunking togetherclusters that should be connected etc.
         // TODO: revisit this and see how necessary it is.
 
-        //separate Vertical >>
-       
         separate Horizontal model // separate all horizontal wire segments
         |> separate Vertical // separate all vertical wire segments
         |> separate Horizontal // a final pair of checks allows ordering and "chunking" to work nicely in almost all cases

@@ -255,7 +255,7 @@ module CommonTypes
     // --------------- Types needed for symbol ---------------- //
     /// Represents the rotation of a symbol in degrees, Degree0 is the default symbol rotation.
     /// Angle is anticlockwise
-    [<StringEnum>]
+   
     type Rotation = | Degree0 | Degree90 | Degree180 | Degree270
     
     /// Stores the rotation and the flip of the symbol, flipped false by default

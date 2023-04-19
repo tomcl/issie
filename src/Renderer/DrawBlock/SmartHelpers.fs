@@ -299,7 +299,7 @@ type LType =
 
 /// Used to represent a line on the canvas, e.g. a wire segment or symbol edge.
 /// The array of lines will all have the same orientation - so optimisation is done in two phases
-/// for vertical and horizontal segments.
+/// for vertical and horizontal segments. Each phase optimises one half of the segments.
 type Line =
     { 
         P: float // the coordinate X or Y perpendicular to the line.

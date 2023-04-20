@@ -704,6 +704,7 @@ let isSegmentExtensionOk
         (ori: Orientation)
         (newLength: float)
             : bool =
+    let segs = wire.Segments
     let seg = wire.Segments[segNum]
     let len = seg.Length
     let aSegStart, _ = getAbsoluteSegmentPos wire segNum
@@ -714,8 +715,13 @@ let isSegmentExtensionOk
     /// check there is room for the proposed segment extension
     let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min startC startC+newLength; MaxB = max startC startC+newLength}}
     //printf $"P=%.0f{extension.ExtP}, ori={extension.ExtOri}, B=%A{extension.ExtB}"
-    checkExtensionNoOverlap extensionTolerance extension wire.WId info &&
-    checkExtensionNoCrossings extensionTolerance extension wire.WId info
+    if segNum = 2 && segs[1].IsZero() && sign segs[0].Length <> sign newLength ||
+       segNum = segs.Length - 3 && segs[segs.Length-2].IsZero() && sign segs[segs.Length-1].Length <> sign newLength
+    then
+        false // in this case a segment must backtrack from a nub - a bad idea
+    else
+        checkExtensionNoOverlap extensionTolerance extension wire.WId info &&
+        checkExtensionNoCrossings extensionTolerance extension wire.WId info
 
 
 /// Return the list of wire corners found in given wire with all corner

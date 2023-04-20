@@ -183,7 +183,7 @@ let saveStateInSimulation
 
 /// Extract circuit data from inputs and return a checked SimulationData object or an error
 /// SimulationData has some technical debt, it wraps FastSimulation adding some redundant data
-let rec startCircuitSimulation
+let startCircuitSimulation
     (simulationArraySize: int)
     (diagramName: string)
     (canvasState: CanvasState)

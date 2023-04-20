@@ -199,6 +199,14 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
     stepArrayIndex <- stepArrayIndex + 1
     { Step = arr; Index = stepArrayIndex }
 
+let makeUInt32IOArray (arr: uint32 array) : UInt32IOArray =
+    stepArrayIndex <- stepArrayIndex + 1
+    { Step = arr; Index = stepArrayIndex }
+
+let makeBigIntIOArray (arr: bigint array) : BigIntIOArray =
+    stepArrayIndex <- stepArrayIndex + 1
+    { Step = arr; Index = stepArrayIndex }
+
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
 let createFastComponent
@@ -218,15 +226,33 @@ let createFastComponent
         |> Array.map (fun n -> Array.create maxArraySize emptyFastData)
         |> Array.map makeStepArray
 
-    let inps =
-        let dat =
-            match accessPath, sComp.Type with
-            // top-level input needs special inputs because they can't be calculated
-            | [], Input1(width, defaultVal) -> List.replicate width Zero
-            | _ -> []
-
+    let insUInt32 =
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun i -> (Array.create maxArraySize dat))
+        |> Array.map (fun _ -> Array.empty)
+        |> Array.map makeUInt32IOArray
+
+    let insBigInt =
+        [| 0 .. inPortNum - 1 |]
+        |> Array.map (fun _ -> Array.empty)
+        |> Array.map makeBigIntIOArray
+
+    let outsUInt32 =
+        sComp.OutputWidths
+        |> Array.map (fun w ->
+            if w > 32 then
+                Array.empty
+            else
+                Array.zeroCreate maxArraySize)
+        |> Array.map makeUInt32IOArray
+
+    let outsBigInt =
+        sComp.OutputWidths
+        |> Array.map (fun w ->
+            if w > 32 then
+                Array.zeroCreate maxArraySize
+            else
+                Array.empty)
+        |> Array.map makeBigIntIOArray
 
     let state =
         if couldBeSynchronousComponent sComp.Type then
@@ -249,6 +275,7 @@ let createFastComponent
             ipn
 
     { OutputWidth = getOutputWidths sComp (Array.create outPortNum None)
+      OutputWidths = sComp.OutputWidths
       State = Option.map makeStepArray state
       SimComponent = sComp
       fId = fId
@@ -260,10 +287,14 @@ let createFastComponent
       DrivenComponents = []
       NumMissingInputValues = reduceIfHybrid sComp inPortNum
       InputLinks = ins
-      InputLinksFData = [||]
+      InputLinksUInt32 = insUInt32
+      InputLinksBigInt = insBigInt
+      InputLinksFData = Array.empty
       InputDrivers = Array.create inPortNum None
       Outputs = outs
-      OutputsFData = [||]
+      OutputsUInt32 = outsUInt32
+      OutputsBigInt = outsBigInt
+      OutputsFData = Array.empty
       FullName = ""
       FLabel = extractLabel sComp.Label
       VerilogOutputName = Array.create outPortNum ""
@@ -290,15 +321,33 @@ let createFastComponentFData
         |> Array.map (fun n -> Array.create maxArraySize (Data emptyFastData))
         |> Array.map makeStepArray
 
-    let inps =
-        let dat =
-            match accessPath, sComp.Type with
-            // top-level input needs special inputs because they can't be calculated
-            | [], Input1(width, defaultVal) -> List.replicate width Zero
-            | _ -> []
-
+    let insUInt32 =
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun i -> (Array.create maxArraySize dat))
+        |> Array.map (fun _ -> Array.empty)
+        |> Array.map makeUInt32IOArray
+
+    let insBigInt =
+        [| 0 .. inPortNum - 1 |]
+        |> Array.map (fun _ -> Array.empty)
+        |> Array.map makeBigIntIOArray
+
+    let outsUInt32 =
+        sComp.OutputWidths
+        |> Array.map (fun w ->
+            if w > 32 then
+                Array.empty
+            else
+                Array.zeroCreate maxArraySize)
+        |> Array.map makeUInt32IOArray
+
+    let outsBigInt =
+        sComp.OutputWidths
+        |> Array.map (fun w ->
+            if w > 32 then
+                Array.zeroCreate maxArraySize
+            else
+                Array.empty)
+        |> Array.map makeBigIntIOArray
 
     let state =
         if couldBeSynchronousComponent sComp.Type then
@@ -321,6 +370,7 @@ let createFastComponentFData
             ipn
 
     { OutputWidth = getOutputWidths sComp (Array.create outPortNum None)
+      OutputWidths = sComp.OutputWidths
       State = Option.map makeStepArray state
       SimComponent = sComp
       fId = fId
@@ -331,10 +381,14 @@ let createFastComponentFData
       Touched = false
       DrivenComponents = []
       NumMissingInputValues = reduceIfHybrid sComp inPortNum
-      InputLinks = [||]
+      InputLinks = Array.empty
+      InputLinksUInt32 = insUInt32
+      InputLinksBigInt = insBigInt
       InputLinksFData = ins
       InputDrivers = Array.create inPortNum None
-      Outputs = [||]
+      Outputs = Array.empty
+      OutputsUInt32 = outsUInt32
+      OutputsBigInt = outsBigInt
       OutputsFData = outs
       FullName = ""
       FLabel = extractLabel sComp.Label
@@ -779,6 +833,15 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
                 m, Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) mc
             else
                 Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) m, mc)
+
+    let debugPrint (comps: Map<(ComponentId * ComponentId list), FastComponent>) =
+        comps
+        |> Map.values
+        |> List.ofSeq
+        |> List.iter (fun c ->
+            printfn "%A | %-30A | %-30A | %A" c.Id c.FType c.FullName c.OutputWidths)
+
+    debugPrint comps // NOTE - for debugging only
 
     let customOutLookup =
         g.CustomOutputCompLinks

@@ -561,8 +561,8 @@ let makeSimDataSelected
                         (correctComps, correctConns)
                         selLoadedComponents
                 with
-                | Some e -> Some(Error e, (correctComps, correctConns))
-                | None ->
+                | Some e, _ -> Some(Error e, (correctComps, correctConns))
+                | None, _ ->
                     let sim =
                         startCircuitSimulationFData
                             2

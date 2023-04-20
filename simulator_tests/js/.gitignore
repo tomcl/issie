@@ -6,5 +6,6 @@
 *.txt
 *.cpuprofile
 *.heapprofile
+*.cfg
 
 .fake

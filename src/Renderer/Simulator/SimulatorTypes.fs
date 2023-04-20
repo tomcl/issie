@@ -63,6 +63,8 @@ type SimulationComponent =
       // Mapping from each output port number to all of the ports and
       // Components connected to that port.
       Outputs: Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
+      // Width of each output port, this is used to generate the correct
+      OutputWidths: int array
       // this is MUTABLE and used only during clock tick change propagation
       // location n = true => the output (of a synchronous component) has been
       // propagated in propagateStateChanges. Location n corresponds to
@@ -920,6 +922,12 @@ type StepArray<'T> =
       mutable Step: 'T array
       Index: int }
 
+// IOArrays that are used to store data for inputs and outputs of FastComponents
+// uint32 is used for data that is 32 bits or less
+// bigint is used for data that is wider than 32 bits
+type UInt32IOArray = { Step: uint32 array; Index: int }
+type BigIntIOArray = { Step: bigint array; Index: int }
+
 // This is a special version of StepArray that is used for inputs and outputs of FastComponents
 // Generic
 type FastStepArray<'T> =
@@ -935,11 +943,16 @@ type FastComponent =
       State: StepArray<SimulationComponentState> option
       mutable Active: bool
       OutputWidth: int option array
+      OutputWidths: int array
       InputLinksFData: StepArray<FData> array
       InputLinks: StepArray<FastData> array
+      InputLinksUInt32: UInt32IOArray array
+      InputLinksBigInt: BigIntIOArray array
       InputDrivers: (FComponentId * OutputPortNumber) option array
       OutputsFData: StepArray<FData> array
       Outputs: StepArray<FastData> array
+      OutputsUInt32: UInt32IOArray array
+      OutputsBigInt: BigIntIOArray array
       SimComponent: SimulationComponent
       AccessPath: ComponentId list
       FullName: string
@@ -951,9 +964,7 @@ type FastComponent =
       mutable NumMissingInputValues: int
       // these fields are used only by the Verilog output code
       mutable VerilogOutputName: string array
-      mutable VerilogComponentName: string
-
-    }
+      mutable VerilogComponentName: string }
 
     member inline this.GetInputFData (epoch) (InputPortNumber n) =
         this.InputLinksFData[n].Step[epoch]

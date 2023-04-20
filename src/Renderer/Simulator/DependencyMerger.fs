@@ -151,6 +151,7 @@ let private buildDependencyMap
     let dependenciesRes =
         loadedDependencies
         |> List.map (fun dep ->
+            printfn "Building dependency %s" dep.Name // NOTE - for debugging only
             dep.Name, runCanvasStateChecksAndBuildGraph dep.CanvasState loadedDependencies)
     // Check if any dependency has given an error.
     let hasError (name, res) =

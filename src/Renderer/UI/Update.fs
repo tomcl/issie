@@ -381,7 +381,21 @@ let update (msg : Msg) oldModel =
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none
         | _ -> sheetMsg sMsg model
-    // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
+    | SynchroniseCanvas ->
+        // used after drawblock components are centred on load to enusre that Issie CanvasState is updated
+        // This may be needed if Ctrl/w on load moves the whole draw block sheet circuit to centre it.
+        // in this case we do not want the save button to be active, because moving the circuit is not a "real" change
+        // updating loaded component CanvasState to equal draw bloack canvasstate will ensure the button stays inactive.
+        let canvas = model.Sheet.GetCanvasState ()
+        printf "synchronising canvas..."
+        // this should disable the saev button by making loadedcomponent and draw blokc canvas the same
+        model
+        |> Optic.map openLoadedComponentOfModel_ (fun ldc -> {ldc with CanvasState = canvas})
+        |> (fun model -> 
+            printf $"findChange model after sycnh = '{findChange model}'"       
+            model, Cmd.none)
+        
+    // special messages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w ->
         {model with WaveSimViewerWidth = w}, Cmd.none
@@ -747,6 +761,7 @@ let update (msg : Msg) oldModel =
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project ->
+        printf $"Setting project with component: '{project.OpenFileName}'"
         model
         |> set currentProj_ (Some project) 
         |> set (popupDialogData_ >-> projectPath_) project.ProjectPath, Cmd.none

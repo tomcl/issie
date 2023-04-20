@@ -185,8 +185,7 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
             }
 
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
-
-            JSDiagramMsg (SetHasUnsavedChanges false)
+            SynchroniseCanvas
             SetIsLoading false 
             if finishUI then FinishUICmd else DoNothing
 
@@ -203,7 +202,7 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
     // the order in which messages get processed is problematic here - and the solution ad hoc - a better
     // solution would be to understand exactly what determines event order in the event queue
     dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
-    dispatch <| JSDiagramMsg (SetHasUnsavedChanges false)
+    dispatch SynchroniseCanvas
     
 /// Return LoadedComponents with sheet name updated according to setFun.
 /// Do not update model. 
@@ -468,6 +467,8 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
     }
     |> SetProject // this message actually changes the project in model
     |> dispatch
+    dispatch SynchroniseCanvas
+    
 
 /// Open the specified file, saving the current file if needed.
 /// Creates messages sufficient to do all necessary model and diagram change
@@ -1216,7 +1217,7 @@ let viewTopMenu model dispatch =
                       Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Button.button
-                                    ((if model.SavedSheetIsOutOfDate then 
+                                    ((if model.SavedSheetIsOutOfDate  then 
                                         []
                                        else
                                         [ Button.Color IsLight ]) @

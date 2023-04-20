@@ -49,6 +49,7 @@ let shortDWSM (ws: WaveSimModel) =
 let shortDisplayMsg (msg:Msg) =
     match msg with
     | ShowExitDialog -> None
+    | SynchroniseCanvas -> None
     | Sheet sheetMsg -> shortDSheetMsg sheetMsg
     | JSDiagramMsg (InitCanvas _ )-> Some "JSDiagramMsg.InitCanvas"
     | JSDiagramMsg _ -> None

@@ -520,8 +520,8 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
     // Snapping to Net only if model.SnapToNet toggled to be true
     let snappedToNetWire =
         match model.SnapToNet with
-        | false -> initialWire
-        | true -> snapToNet model initialWire
+        | _ -> initialWire // do not snap
+        //| true -> snapToNet model initialWire
 
     let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire
 

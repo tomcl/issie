@@ -714,12 +714,16 @@ let isSegmentExtensionOk
         | Horizontal -> aSegStart.Y, aSegStart.X
     /// check there is room for the proposed segment extension
     let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min startC startC+newLength; MaxB = max startC startC+newLength}}
-    //printf $"P=%.0f{extension.ExtP}, ori={extension.ExtOri}, B=%A{extension.ExtB}"
+    // printf $"P=%.0f{extension.ExtP}, ori={extension.ExtOri}, B=%A{extension.ExtB}"
+    // a aero-length segment means the two segments on either side of it are parallel and may overlap.
+    // if we chnage teh length of a segment next to a zero-length segment we must ensure that it does not double back on itself.
+    // usually that will mean coming thr wrong wau out of a component edge (inside the component)!
     if segNum = 2 && segs[1].IsZero() && sign segs[0].Length <> sign newLength ||
        segNum = segs.Length - 3 && segs[segs.Length-2].IsZero() && sign segs[segs.Length-1].Length <> sign newLength
     then
         false // in this case a segment must backtrack from a nub - a bad idea
     else
+        // finally, check whetehr the new extended segments overlap or cross other segments or symbol edges.
         checkExtensionNoOverlap extensionTolerance extension wire.WId info &&
         checkExtensionNoCrossings extensionTolerance extension wire.WId info
 
@@ -730,24 +734,32 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
     let segs = wire.Segments
     let nSegs = wire.Segments.Length
     //printf $"Find: {pWire wire}"
-    let pickStartOfCorner (start:int) =
+    let pickStartOfCorner (start:int) : WireCorner option =
+        // the "corner" consists of segments start, start=1, start+2,start+3
+        // start+1, start+2 segments are deleted, replaced by extensions of segments start and start +3
+        // this function determines whether wire as a corner at index start, and if so returns
+        // Some wc where wc data structure represnets the Corner.
+
         //printf $"Pick (start={start}): {pWire wire}"
         let seg = segs[start]    
-        if segs[start].IsZero() || segs[start+3].IsZero() then 
+        if segs[start].IsZero() || segs[start+3].IsZero() then  // we don't want to extend a zero-length segment - it would not simplify the wire
             //printf "zero seg - cancelled"
             None
         else
             let deletedSeg1,deletedSeg2 = segs[start+1], segs[start+2]
             let hasManualSegment = List.exists (fun i -> segs[i].Mode = Manual) [start..start+3]
             let hasLongSegment = max (abs deletedSeg1.Length) (abs deletedSeg2.Length) > cornerSizeLimit
-            if hasManualSegment || hasLongSegment then 
+            if hasManualSegment || hasLongSegment || deletedSeg1.IsZero() || deletedSeg2.IsZero() then 
+                // segments which are very long maybe should not be removed - perhaps there is some reson for them?
+                // "manual" segments are never chnaged by the wire separation and routing - the user has said they should
+                // be as they are.
                 //printf "manual or long - cancelled"
                 None
             else
                 let ori = wire.InitialOrientation
                 let startSegOrientation = if seg.Index % 2 = 0 then ori else switchOrientation ori
                 let newLength1 = seg.Length + deletedSeg2.Length
-                let newLength2 = -deletedSeg1.Length
+                let newLength2 = deletedSeg1.Length - segs[start+3].Length
                 if isSegmentExtensionOk info wire start startSegOrientation newLength1 &&
                     isSegmentExtensionOk info wire (start+3)  (switchOrientation startSegOrientation) newLength2
                 then
@@ -764,7 +776,7 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
     // Wire corners cannot start on zero-length segments (that would introduce
     // an extra bend). The 4 segments changed by the corner cannot be manually
     // routed.
-    [1..nSegs-6]
+    [0.. nSegs-5]
     |> List.tryPick pickStartOfCorner
     |> function | None -> [] | Some x -> [x]
 

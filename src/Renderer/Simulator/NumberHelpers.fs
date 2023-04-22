@@ -178,7 +178,7 @@ let rec bigValToString (radix: NumberBase) (x: System.Numerics.BigInteger) =
     else
         match radix with
         | Dec
-        | SDec -> /// can't know if sign is negative in this case
+        | SDec -> // can't know if sign is negative in this case
             x.ToString()
         | Bin
         | Hex ->

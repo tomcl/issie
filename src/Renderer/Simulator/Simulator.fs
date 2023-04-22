@@ -188,8 +188,8 @@ let rec startCircuitSimulation
     : Result<SimulationData, SimulationError>
     =
 
-    /// Tune for performance of initial zero-length simulation versus longer run.
-    /// Probably this is not critical.
+    // Tune for performance of initial zero-length simulation versus longer run.
+    // Probably this is not critical.
     match runCanvasStateChecksAndBuildGraph canvasState loadedDependencies with
     | Error err -> Error err
     | Ok graph ->

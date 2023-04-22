@@ -456,7 +456,7 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
 
         doSimulation ()
 
-/// Run a fast simulation for a given number of steps building it from the graph
+// Run a fast simulation for a given number of steps building it from the graph
 (*
 let runSimulationZeroInputs 
         (timeOut: float option)

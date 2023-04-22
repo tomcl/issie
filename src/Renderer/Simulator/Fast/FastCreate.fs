@@ -561,6 +561,7 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
     let waveComps =
         (fs.FComps, fs.FCustomComps)
         ||> Map.fold (fun s fid fc -> Map.add fid fc s)
+    printf $"add waves 1: numStepArray = {fs.NumStepArrays}"
     // Add WaveComps
     // Create null driver array large enough for all created step arrays
     // each step array is given a sequentially generated id as it is created
@@ -572,6 +573,7 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
     // by wave component ports.
     // One array can be referenced by multiple ports.
     // The mutable changes to fs.Drivers here are write-once, from None to Some array.
+    |> (fun x -> printf "add waves 2"; x)
     |> (fun fs -> {fs with WaveIndex = addWaveIndexAndDrivers waveComps fs})
 
         
@@ -579,7 +581,7 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
     
 let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
     let numSteps = simulationArraySize
-    stepArrayIndex <- -1
+    stepArrayIndex <- 0
     let start = getTimeMs()
     printfn $"Creating init fast comp phase of sim with {numSteps} array size"
     let makeFastComp fid =

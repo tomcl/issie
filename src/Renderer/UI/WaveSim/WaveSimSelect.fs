@@ -205,9 +205,9 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
             let labelWidth = FastRun.extractFastSimulationWidth fastSim (drivingComp.Id,snd drivingComp.fId) (OutputPortNumber 0)
             //printfn "label width fdone"
             match labelWidth with
-            | None ->
+            | 0 ->
                 failwithf $"What? Can't find width for IOLabel {comp.FLabel}$ "
-            | Some width ->
+            | width ->
                 bitLimsString (width - 1, 0)
 
         | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"

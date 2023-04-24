@@ -99,15 +99,14 @@ let InputDefaultsEqualInputs fs (model:Model) =
     let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[tick % fs.MaxArraySize])
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].FastDataStep[tick % fs.MaxArraySize])
     |> Map.values
     |> Seq.forall (fun (cid, currentValue) -> 
-            match currentValue with
-            | Data fd when Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) -> 
-                let newDefault = int (convertFastDataToInt32 fd)
+            if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
+                let newDefault = int (convertFastDataToInt32 currentValue)
                 let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
                 match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
-            | _ -> true)
+            else true)
             
 
 let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
@@ -123,18 +122,15 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[tick % fs.MaxArraySize])
+    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].FastDataStep[tick % fs.MaxArraySize])
     |> Map.values
     |> Seq.iter (fun (cid, currentValue) -> 
-            match currentValue with
-            | Data fd  -> 
-                let newDefault = convertFastDataToInt32 fd
-                SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
-                |> Optic.map DrawModelType.SheetT.symbol_ 
-                |> Optic.map ModelType.sheet_
-                |> UpdateModel
-                |> dispatch
-            | _ -> () // should never happen
+            let newDefault = convertFastDataToInt32 currentValue
+            SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
+            |> Optic.map DrawModelType.SheetT.symbol_ 
+            |> Optic.map ModelType.sheet_
+            |> UpdateModel
+            |> dispatch
         )
     |> ignore
         

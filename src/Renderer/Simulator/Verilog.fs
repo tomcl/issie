@@ -333,7 +333,7 @@ let getVPortOut (fc: FastComponent) (OutputPortNumber opn) = fc.VerilogOutputNam
 let getVPortOutWithSlice (fc: FastComponent) (opn: OutputPortNumber) =
     let name = getVPortOut fc opn
     let (OutputPortNumber n) = opn
-    let width = Option.get fc.OutputWidth[n]
+    let width = fc.OutputWidths[n]
 
     match width with
     | 1 -> $"%s{name}"
@@ -385,10 +385,10 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     let idNum = name |> String.split [| '_' |] |> Array.last
 
     let outW i =
-        match fc.OutputWidth[i] with
-        | Some n when n > 64 -> failwithf "Sorry - Verilog output does not yet work for busses > 64 bit. Output failed"
-        | Some n -> n
-        | None -> failwithf "Can't find output width for output port %d of %A\n" i fc.FullName
+        match fc.OutputWidths[i] with
+        | n when n > 64 -> failwithf "Sorry - Verilog output does not yet work for busses > 64 bit. Output failed"
+        | 0 -> failwithf "Can't find output width for output port %d of %A\n" i fc.FullName
+        | n -> n
 
     let inW i =
         let (fid, OutputPortNumber opn) =
@@ -396,10 +396,10 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
             | Some x -> x
             | None -> failwithf "Can't find input driver for port %d of %s" i fc.FullName
 
-        fs.FComps[fid].OutputWidth[opn]
+        fs.FComps[fid].OutputWidths[opn]
         |> function
-            | Some n -> n
-            | None -> failwithf "Can't find output width for output port %d of %A\n" opn fs.FComps[fid]
+            | 0 -> failwithf "Can't find output width for output port %d of %A\n" opn fs.FComps[fid]
+            | n -> n
 
     let demuxOutput (outputPort: string) (selectPort: string) (w: int) =
         if outputPort = selectPort then
@@ -636,7 +636,7 @@ let getInitialSimulationBlock (vType: VMode) (fs: FastSimulation) =
     let inDefs =
         fs.FGlobalInputComps
         |> Array.map (fun fc ->
-            let width = Option.get fc.OutputWidth[0]
+            let width = fc.OutputWidths[0]
             let sigName = fc.VerilogOutputName[0]
             $"assign {sigName} = {makeBits width 0uL};")
         |> String.concat "\n"
@@ -651,7 +651,7 @@ let getInitialSimulationBlock (vType: VMode) (fs: FastSimulation) =
             let sigName = fc.VerilogOutputName[0]
 
             let hexWidth =
-                let w = Option.get fc.OutputWidth[0]
+                let w = fc.OutputWidths[0]
 
                 if w <= 0 then
                     failwithf $"Unexpected width ({w})in verilog output for {fc.FullName}"
@@ -708,10 +708,10 @@ let getDebugController (profile: CompilationProfile) (fs: FastSimulation) =
             match fc.FType with
             | Viewer _ -> true
             | _ -> false)
-        |> Array.map (fun fc -> getVPortOut fc (OutputPortNumber 0), Array.get fc.OutputWidth 0)
+        |> Array.map (fun fc -> getVPortOut fc (OutputPortNumber 0), fc.OutputWidths[0])
         |> Array.collect (function
-            | (_, None) -> [||]
-            | (name, Some width) ->
+            | (_, 0) -> [||]
+            | (name, width) ->
                 [ 0 .. width - 1 ]
                 |> List.toArray
                 |> Array.map (fun i -> $"{name}[{i}]"))

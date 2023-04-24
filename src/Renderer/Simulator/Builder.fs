@@ -356,6 +356,54 @@ let private findOutputWidths (canvasState: CanvasState) (connsWidth: Connections
     |> Map.ofList // keep unqiue outputs
     |> Map.toArray
 
+// Find out width of outputs of components from ConnectionsWidth map. Map<ConnectionId, "Width" option> -> Map<(ComponentId * "PortNumber"), "Width">
+let private findOutputWidths (canvasState: CanvasState) (connsWidth: ConnectionsWidth) =
+    let comps, conns = canvasState
+
+    // NOTE -get rid of Option as we know that all widths are valid at this point
+    let connsWidth =
+        connsWidth
+        |> Map.toList
+        |> List.map (fun (ConnectionId k, w) -> k, (w |> Option.get))
+
+    let IOLabelsAsOutput =
+        conns
+        |> List.map (fun conn -> conn.Id, conn.Target.HostId)
+        |> List.map (fun (connId, compId) ->
+            connsWidth
+            |> List.tryFind (fun (id, w) -> connId = id)
+            |> function
+                | Some(_, w) -> (compId, 0), w
+                | None -> failwithf "what? connection %A not found" connId)
+
+    let inline findComp (id: string) =
+        comps
+        |> List.tryFind (fun c -> c.Id = id)
+        |> Option.get
+
+    let inline findOutputNumber comp portId =
+        comp.OutputPorts
+        |> List.tryFind (fun p -> p.Id = portId)
+        |> Option.get
+        |> fun p -> p.PortNumber
+        |> Option.get
+
+    connsWidth
+    |> List.map (fun (id, w) ->
+        match conns |> List.tryFind (fun conn -> conn.Id = id) with
+        | None -> failwithf "what? connection %A not found" id
+        | Some conn -> (conn, w))
+    |> List.map (fun (conn, w) ->
+        match conn.Source.PortNumber with
+        | Some pn -> (conn.Source.HostId, pn), w
+        | None ->
+            let comp = findComp conn.Source.HostId
+            let pn = findOutputNumber comp conn.Source.Id
+            (conn.Source.HostId, pn), w)
+    |> List.append IOLabelsAsOutput
+    |> Map.ofList // keep unqiue outputs
+    |> Map.toArray
+
 /// Validate a diagram and generate its simulation graph.
 let runCanvasStateChecksAndBuildGraph
     (canvasState: CanvasState)

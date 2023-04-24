@@ -1408,7 +1408,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             | 0, _ -> failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
             | w, 0 ->
                 if w < 33 then
-                    Data { Dat = Word 0u; Width = w }
+                    { Dat = Word 0u; Width = w }
                 else
                     Data { Dat = BigWord(bigint 0); Width = w }
             | w, _ -> comp.Outputs[n].FDataStep[simStepOld]

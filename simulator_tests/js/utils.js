@@ -175,7 +175,7 @@ function runSimulation(
   // inspect FastSimulation
   {
     const deepCopy = lodash.cloneDeep(fs);
-    %DebugPrint(fs.FOrderedComps[0].Outputs[0].UInt32Step);
+    % DebugPrint(fs.FOrderedComps[0].Outputs[0].UInt32Step);
   }
   // warm up the JIT compiler
   for (let i = 0; i < warmupIterations; i++) {

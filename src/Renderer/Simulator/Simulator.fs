@@ -180,7 +180,7 @@ let saveStateInSimulation
 
 /// Extract circuit data from inputs and return a checked SimulationData object or an error
 /// SimulationData has some technical debt, it wraps FastSimulation adding some redundant data
-let rec startCircuitSimulation
+let startCircuitSimulation
     (simulationArraySize: int)
     (diagramName: string)
     (canvasState: CanvasState)
@@ -206,6 +206,56 @@ let rec startCircuitSimulation
             | None ->
                 try
                     match FastRun.buildFastSimulation simulationArraySize diagramName graph with
+                    | Ok fs ->
+                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
+
+                        Ok
+                            { FastSim = fs
+                              Graph = graph // NB graph is now not initialised with data
+                              Inputs = inputs
+                              Outputs = outputs
+                              IsSynchronous = hasSynchronousComponents graph
+                              NumberBase = Hex
+                              ClockTickNumber = 0 }
+                    | Error e -> Error e
+                with e ->
+                    printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
+
+                    Error
+                        { Msg = sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
+                          InDependency = None
+                          ComponentsAffected = []
+                          ConnectionsAffected = [] }
+                |> Result.map (fun sd ->
+                    //Fast.compareFastWithGraph sd |> ignore
+                    sd)
+
+let startCircuitSimulationFData
+    (simulationArraySize: int)
+    (diagramName: string)
+    (canvasState: CanvasState)
+    (loadedDependencies: LoadedComponent list)
+    : Result<SimulationData, SimulationError>
+    =
+
+    // Tune for performance of initial zero-length simulation versus longer run.
+    // Probably this is not critical.
+    match runCanvasStateChecksAndBuildGraph canvasState loadedDependencies with
+    | Error err -> Error err
+    | Ok graph ->
+        match mergeDependencies diagramName graph canvasState loadedDependencies with
+        | Error err -> Error err
+        | Ok graph ->
+            // Simulation graph is fully merged with dependencies.
+            // Perform checks on it
+            let components, connections = canvasState
+            let inputs, outputs = getSimulationIOs components
+
+            match analyseSimulationGraph diagramName graph connections with
+            | Some err -> Error err
+            | None ->
+                try
+                    match FastRun.buildFastSimulationFData simulationArraySize diagramName graph with
                     | Ok fs ->
                         let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
 

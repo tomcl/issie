@@ -158,14 +158,19 @@ let private getDefaultState compType =
     | CounterNoLoad w
     | CounterNoEnableLoad w -> RegisterState <| convertIntToFastData w 0u
     | RAM1 memory
-    | AsyncRAM1 memory -> RamState memory // The RamState content may change during
-// the simulation.
+    | AsyncRAM1 memory -> RamState memory // The RamState content may change during the simulation.
+
+let compType t =
+    match t with
+    | Custom c -> c.Name
+    | _ -> t.ToString()
 
 /// Build a simulation component.
 let private buildSimulationComponent
     (sourceToTargetPort: Map<OutputPortId, (ComponentId * InputPortId) list>)
     (portIdToPortNumber: Map<InputPortId, InputPortNumber>)
     (comp: Component)
+    (outputWidths: int array)
     : SimulationComponent
     =
     // Remove portIds and use portNumbers instead.
@@ -206,11 +211,18 @@ let private buildSimulationComponent
             Map.empty.Add(InputPortNumber 0, List.replicate width Zero)
         | _ -> Map.empty
 
+    let outputWidths =
+        match comp.Type with
+        | Output width
+        | Viewer width -> [| width |]
+        | _ -> outputWidths
+
     { Id = ComponentId comp.Id
       Type = comp.Type
       Label = ComponentLabel comp.Label
       Inputs = inputs
       Outputs = outputs
+      OutputWidths = outputWidths
       CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.
       State = getDefaultState comp.Type }
 
@@ -256,18 +268,89 @@ let getLabelConnections (comps: Component list) (conns: Connection list) =
         |> List.map (fun (i, co) -> copyConnection dConn co i))
 
 /// Transforms a canvas state into a simulation graph.
-let private buildSimulationGraph (canvasState: CanvasState) : (SimulationGraph) =
+let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (SimulationGraph) =
     let components, connections' = canvasState
     let labConns = getLabelConnections components connections'
     let connections = labConns @ connections'
     let sourceToTargetPort = buildSourceToTargetPortMap connections
-    let portIdToPortNumber = mapInputPortIdToPortNumber components
+    let portIdToPortNumber: Map<InputPortId, InputPortNumber> =
+        mapInputPortIdToPortNumber components
     let mapper = buildSimulationComponent sourceToTargetPort portIdToPortNumber
 
+    let debugPrint =
+        printfn "Building Simulation Graph"
+        List.map (fun (id, comp) ->
+            printfn
+                "Built sComp %A │ %-30A │ %-25A │ %A"
+                comp.Id
+                (match comp.Type with
+                 | Custom c -> c.Name
+                 | t -> sprintf "%A" t)
+                comp.Label
+                (comp.OutputWidths |> Array.toList)
+            (id, comp))
+
     components
-    |> List.map (fun comp -> ComponentId comp.Id, mapper comp)
+    |> List.map (fun comp ->
+        // find output widths for this component
+        let ws =
+            outputWidths
+            |> Array.filter (fun ((id, _), w) -> id = comp.Id)
+            |> Array.map (fun ((_, pn), w) -> (pn, w))
+            |> Array.sortBy fst
+            |> Array.map snd
+        ComponentId comp.Id, mapper comp ws)
+    |> debugPrint // NOTE - for debugging only
     |> Map.ofList
     |> (fun m -> m)
+
+// Find out width of outputs of components from ConnectionsWidth map. Map<ConnectionId, "Width" option> -> Map<(ComponentId * "PortNumber"), "Width">
+let private findOutputWidths (canvasState: CanvasState) (connsWidth: ConnectionsWidth) =
+    let comps, conns = canvasState
+
+    // NOTE -get rid of Option as we know that all widths are valid at this point
+    let connsWidth =
+        connsWidth
+        |> Map.toList
+        |> List.map (fun (ConnectionId k, w) -> k, (w |> Option.get))
+
+    let IOLabelsAsOutput =
+        conns
+        |> List.map (fun conn -> conn.Id, conn.Target.HostId)
+        |> List.map (fun (connId, compId) ->
+            connsWidth
+            |> List.tryFind (fun (id, w) -> connId = id)
+            |> function
+                | Some(_, w) -> (compId, 0), w
+                | None -> failwithf "what? connection %A not found" connId)
+
+    let inline findComp (id: string) =
+        comps
+        |> List.tryFind (fun c -> c.Id = id)
+        |> Option.get
+
+    let inline findOutputNumber comp portId =
+        comp.OutputPorts
+        |> List.tryFind (fun p -> p.Id = portId)
+        |> Option.get
+        |> fun p -> p.PortNumber
+        |> Option.get
+
+    connsWidth
+    |> List.map (fun (id, w) ->
+        match conns |> List.tryFind (fun conn -> conn.Id = id) with
+        | None -> failwithf "what? connection %A not found" id
+        | Some conn -> (conn, w))
+    |> List.map (fun (conn, w) ->
+        match conn.Source.PortNumber with
+        | Some pn -> (conn.Source.HostId, pn), w
+        | None ->
+            let comp = findComp conn.Source.HostId
+            let pn = findOutputNumber comp conn.Source.Id
+            (conn.Source.HostId, pn), w)
+    |> List.append IOLabelsAsOutput
+    |> Map.ofList // keep unqiue outputs
+    |> Map.toArray
 
 /// Validate a diagram and generate its simulation graph.
 let runCanvasStateChecksAndBuildGraph
@@ -276,5 +359,9 @@ let runCanvasStateChecksAndBuildGraph
     : Result<SimulationGraph, SimulationError>
     =
     match analyseState canvasState loadedComponents with
-    | Some err -> Error err
-    | None -> Ok <| buildSimulationGraph canvasState
+    | Some err, _ -> Error err
+    | None, Some connectionsWidth ->
+        let outputsWidth = findOutputWidths canvasState connectionsWidth
+        Ok
+        <| buildSimulationGraph canvasState outputsWidth
+    | None, None -> failwith "This should not happen, connections width should be available if no error was found."

@@ -532,10 +532,10 @@ let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> 
                 Some (Error e, (selComps,selConns))
             | Ok (correctComps,correctConns) ->
                 match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
-                | Some e -> Some (Error e, (correctComps,correctConns))
-                | None ->
+                | Some e, _ -> Some(Error e, (correctComps, correctConns))
+                | None, _ ->
                     let sim =
-                        startCircuitSimulation
+                        startCircuitSimulationFData
                             2
                             project.OpenFileName 
                             (correctComps,correctConns) 

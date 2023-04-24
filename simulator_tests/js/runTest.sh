@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+
+set -e
+
 NODE_OPTIONS=()
 NODE_OPTIONS+="--enable-source-maps" # Enable JS to F# source maps
 # NODE_OPTIONS+="--allow-natives-syntax" # Enable V8 natives syntax
@@ -15,6 +19,7 @@ SIMULATION_ARRAY_SIZE=500
 SIMULATION_STEPS=2000
 TEST_CASES_DIR=${1:-"../testcases"}
 TEST_CASE=${2:-0}
+CHECK_REF=${3:-0}
 
 # 0             addsub
 # 1          aludecode
@@ -41,5 +46,25 @@ TEST_CASE=${2:-0}
 
 export NODE_TRACE=1
 
-node "${NODE_OPTIONS[@]}" "${JS_SCRIPT}" "${TEST_CASE}" "${SIMULATION_ARRAY_SIZE}" "${SIMULATION_STEPS}" "${TEST_CASES_DIR}" |
-	tail -n 1
+if [ ${CHECK_REF} -eq 1 ]; then
+	output=$(node "${NODE_OPTIONS[@]}" "${JS_SCRIPT}" "${TEST_CASE}" "${SIMULATION_ARRAY_SIZE}" "${SIMULATION_STEPS}" "${TEST_CASES_DIR}" 2>/dev/null | tail -n 1)
+	name=$(echo "${output}" | jq -r .sheetName)
+
+	if [ -z "${name}" ]; then
+		echo "❌ FAIL"
+		exit 1
+	fi
+
+	result=$(echo "${output}" | jq -cSr .result)
+	ref=$(cat "reference/${name}.dgm.ref" | jq -cSr .result)
+	echo "Checking result from ${name}..."
+
+	if diff <(echo "${result}") <(echo "${ref}"); then
+		echo "✅ PASS"
+	else
+		echo "❌ FAIL"
+	fi
+else
+	node "${NODE_OPTIONS[@]}" "${JS_SCRIPT}" "${TEST_CASE}" "${SIMULATION_ARRAY_SIZE}" "${SIMULATION_STEPS}" "${TEST_CASES_DIR}"
+	# 2>/dev/null | tail -n 1
+fi

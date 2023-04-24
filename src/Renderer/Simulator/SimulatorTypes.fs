@@ -63,6 +63,7 @@ type SimulationComponent =
       // Mapping from each output port number to all of the ports and
       // Components connected to that port.
       Outputs: Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
+      OutputWidths: int array
       // this is MUTABLE and used only during clock tick change propagation
       // location n = true => the output (of a synchronous component) has been
       // propagated in propagateStateChanges. Location n corresponds to
@@ -950,11 +951,9 @@ type FData =
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs
-type StepArray<'T> =
-    {
-      // this field is mutable to allow resizing
-      mutable Step: 'T array
-      Index: int }
+type StepArray<'T> = { Step: 'T array; Index: int }
+
+type IOArray = { FDataStep: FData array; FastDataStep: FastData array; Index: int }
 
 type FastComponent =
     { fId: FComponentId
@@ -962,10 +961,10 @@ type FastComponent =
       FType: ComponentType
       State: StepArray<SimulationComponentState> option
       mutable Active: bool
-      OutputWidth: int option array
-      InputLinks: StepArray<FData> array
+      OutputWidths: int array
+      InputLinks: IOArray array
       InputDrivers: (FComponentId * OutputPortNumber) option array
-      Outputs: StepArray<FData> array
+      Outputs: IOArray array
       SimComponent: SimulationComponent
       AccessPath: ComponentId list
       FullName: string
@@ -979,13 +978,17 @@ type FastComponent =
       mutable VerilogOutputName: string array
       mutable VerilogComponentName: string }
 
-    member inline this.GetInput (epoch) (InputPortNumber n) = this.InputLinks[n].Step[epoch]
+    member inline this.GetInput (epoch) (InputPortNumber n) = this.InputLinks[n].FastDataStep[epoch]
+    member inline this.GetInputFData (epoch) (InputPortNumber n) = this.InputLinks[n].FDataStep[epoch]
 
     member this.ShortId =
         let (ComponentId sid, ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
 
-    member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs[n].Step[ epoch ] <- dat
+    member inline this.PutOutput (epoch) (OutputPortNumber n) dat =
+        this.Outputs[n].FastDataStep[ epoch ] <- dat
+    member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =
+        this.Outputs[n].FDataStep[ epoch ] <- dat
     member inline this.Id = this.SimComponent.Id
     member inline this.SubSheet = this.SheetName[0 .. this.SheetName.Length - 2]
 
@@ -1017,9 +1020,6 @@ type FastSimulation =
     {
         // last step number (starting from 0) which is simulated.
         mutable ClockTick: int
-        // The step number of the last step that can be simulated in the
-        // current simulation outputs
-        mutable MaxStepNum: int
         // Maximum size of simulation arrays - after which they form a circular buffer
         MaxArraySize: int
         // top-level inputs to the simulation
@@ -1065,16 +1065,6 @@ type FastSimulation =
         /// The root sheet being simulated
         SimulatedTopSheet: string
     }
-
-    member this.getSimulationData (step: int) ((cid, ap): FComponentId) (opn: OutputPortNumber) =
-        let (OutputPortNumber n) = opn
-
-        match Map.tryFind (cid, ap) this.FComps with
-        | Some fc -> fc.Outputs[n].Step[step]
-        | None ->
-            match Map.tryFind ((cid, ap), opn) this.FCustomOutputCompLookup with
-            | Some fid -> this.FComps[fid].Outputs[0].Step[step]
-            | None -> failwithf "What? can't find %A in the fast simulation data" (cid, ap)
 
 /// GatherTemp is the output type used to accumulate lists of data links when recursively exploring SimulationGraph
 /// as first step in flattening it.
@@ -1184,29 +1174,3 @@ let extractLabel (label: ComponentLabel) =
 let mapKeys (map: Map<'a, 'b>) = Map.keys map |> Array.ofSeq
 let mapValues (map: Map<'a, 'b>) = Map.values map |> Array.ofSeq
 let mapItems (map: Map<'a, 'b>) = Map.toArray map
-
-let getFastOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
-    let (OutputPortNumber n) = opn
-
-    match fc.Outputs[n].Step[0] with
-    | Data fd -> fd.Width
-    | Alg exp -> getAlgExpWidth exp
-
-let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPort: OutputPortNumber) =
-    match driverComp.Type with
-    | Custom _ ->
-        let customFId: FComponentId = driverComp.Id, []
-
-        let customOutput =
-            Map.tryFind (customFId, driverPort) fs.FCustomOutputCompLookup
-            |> function
-                | Some x -> x
-                | None -> failwithf "Cannot find custom component %A in fast simulation" (customFId, driverPort)
-#if ASSERTS
-        Helpers.assertThat
-            (Map.containsKey customOutput fs.FComps)
-            (sprintf "Help: can't find custom component output in fast Simulation")
-#endif
-        customOutput, OutputPortNumber 0
-
-    | _ -> (driverComp.Id, []), driverPort

@@ -132,31 +132,14 @@ function loadAllComponentFiles(folderPath) {
 }
 
 // For FastData
-// function comps2String(fs) {
-//   return fs.FOrderedComps.map((comp) => {
-//     return {
-//       compType: comp.FType,
-//       fullName: comp.FullName,
-//       outputs: comp.Outputs.map((output) =>
-//         output.Step.map(
-//           (step) => step.Dat.fields[0]
-//           // .toString(2)
-//           // .padStart(step.fields[0].Width, "0")
-//         )
-//       ),
-//     };
-//   });
-// }
-
-// For FData
 function comps2String(fs) {
   return fs.FOrderedComps.map((comp) => {
     return {
       compType: comp.FType,
       fullName: comp.FullName,
       outputs: comp.Outputs.map((output) =>
-        output.Step.map(
-          (step) => step.fields[0].Dat.fields[0],
+        output.FastDataStep.map(
+          (step) => step.Dat.fields[0],
           // .toString(2)
           // .padStart(step.fields[0].Width, "0")
         ),

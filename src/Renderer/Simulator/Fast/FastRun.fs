@@ -115,7 +115,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
             |> uint32
         //printfn "Init input..."
         fc.InputLinks[0].FastDataStep
-        |> Array.iteri (fun i _ -> fc.InputLinks[0].FastDataStep[ i ] <- convertIntToFastData fc.OutputWidths[0] 0u)
+        |> Array.iteri (fun i _ -> fc.InputLinks[0].FastDataStep[ i ] <- convertIntToFastData (fc.OutputWidth 0) 0u)
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
@@ -128,7 +128,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 fc.Touched <- true
                 propagateEval fc
 
-            match fc.FType, fc.OutputWidths[i] with
+            match fc.FType, (fc.OutputWidth i) with
             | RAM1 mem, w
             | AsyncRAM1 mem, w ->
                 match fc.State with
@@ -216,7 +216,7 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
             |> uint32
         //printfn "Init input..."
         fc.InputLinks[0].FDataStep
-        |> Array.iteri (fun i _ -> fc.InputLinks[0].FDataStep[ i ] <- Data(convertIntToFastData fc.OutputWidths[0] 0u))
+        |> Array.iteri (fun i _ -> fc.InputLinks[0].FDataStep[ i ] <- Data(convertIntToFastData (fc.OutputWidth 0) 0u))
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
@@ -229,7 +229,7 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
                 fc.Touched <- true
                 propagateEval fc
 
-            match fc.FType, fc.OutputWidths[i] with
+            match fc.FType, (fc.OutputWidth i) with
             | RAM1 mem, w
             | AsyncRAM1 mem, w ->
                 match fc.State with
@@ -337,11 +337,11 @@ let checkAndValidate (fs: FastSimulation) =
     else
         activeComps
         |> Array.iter (fun fc ->
-            fc.OutputWidths
-            |> Array.iteri (fun i opn ->
+            fc.Outputs
+            |> Array.iteri (fun i output ->
                 let data = fc.Outputs[i].FastDataStep[0]
 
-                match data.Width, fc.OutputWidths[i] with
+                match data.Width, output.Width with
                 | n, m when n <> m ->
                     failwithf
                         "Inconsistent simulation data %A data found on signal output width %d from %A %s:%d"
@@ -412,11 +412,11 @@ let checkAndValidateFData (fs: FastSimulation) =
     else
         activeComps
         |> Array.iter (fun fc ->
-            fc.OutputWidths
-            |> Array.iteri (fun i opn ->
+            fc.Outputs
+            |> Array.iteri (fun i output ->
                 let data = fc.Outputs[i].FDataStep[0]
 
-                match data.Width, fc.OutputWidths[i] with
+                match data.Width, output.Width with
                 | n, m when n <> m ->
                     failwithf
                         "Inconsistent simulation data %A data found on signal output width %d from %s:%d"
@@ -817,7 +817,7 @@ let getFLabel (fs: FastSimulation) (fId: FComponentId) =
 
 let extractFastSimulationWidth (fs: FastSimulation) (fid: FComponentId) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    fs.FComps[fid].OutputWidths[n]
+    fs.FComps[fid].OutputWidth n
 
 /// Extract all Viewer components with names and wire widths. Used by legacy code.
 let extractViewers (simulationData: SimulationData) : ((string * string) * int * FSInterface) list =
@@ -838,7 +838,7 @@ let extractViewers (simulationData: SimulationData) : ((string * string) * int *
     viewers
     |> Map.toList
     |> List.map (fun (fid, fc) ->
-        let width = fc.OutputWidths[0]
+        let width = fc.OutputWidth 0
         getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))
 
 let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project option) =

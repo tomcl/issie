@@ -113,6 +113,77 @@ let getPortNumbers (sc: SimulationComponent) =
 
     ins, outs
 
+let compType t =
+    match t with
+    | Custom c -> c.Name
+    | _ -> t.ToString()
+
+let useBigInt (fc: FastComponent) =
+    match fc.FType with
+    // 1-bit components
+    | Not
+    | And
+    | Or
+    | Xor
+    | Nand
+    | Nor
+    | Xnor
+    | DFF
+    | DFFE -> false
+    // N-bits components
+    | Constant(w, _)
+    | Constant1(w, _, _)
+    | Input w
+    | Input1(w, _)
+    | Output w
+    | Viewer w
+    | NbitsAnd w
+    | NbitsOr w
+    | NbitsNot w
+    | NbitsAdder w
+    | NbitsAdderNoCin w
+    | NbitsAdderNoCout w
+    | NbitsAdderNoCinCout w
+    | NbitSpreader w
+    | NbitsXor(w, _)
+    | Register w
+    | RegisterE w
+    | Counter w
+    | CounterNoLoad w
+    | CounterNoEnable w
+    | CounterNoEnableLoad w
+    | BusCompare(w, _)
+    | BusCompare1(w, _, _) -> w > 32
+    // Components with implicit width
+    | IOLabel
+    | Mux2
+    | Mux4
+    | Mux8
+    | Demux2
+    | Demux4
+    | Demux8 -> fc.OutputWidth 0 > 32
+    // Components with variable width
+    | MergeWires
+    | SplitWire _
+    | BusSelection _ -> fc.InputWidth 0 > 32
+    | AsyncROM1 m
+    | ROM1 m
+    | RAM1 m
+    | AsyncRAM1 m ->
+        match m.WordWidth > 32, m.AddressWidth > 32 with
+        | false, false -> false
+        | false, true -> true
+        | true, false -> true
+        | true, true -> true
+    // Custom components
+    | Custom c -> false // NOTE - custom components will not be reduced, so we don't need to worry about their width
+    // Legacy components
+    | Decode4
+    | Shift _
+    | AsyncROM _
+    | ROM _
+    | RAM _ -> failwith "Legacy components, not Implemented"
+
 let mutable stepArrayIndex = -1
 
 let makeStepArray (arr: 'T array) : StepArray<'T> =
@@ -121,26 +192,30 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
 
 let makeIOArray size =
     stepArrayIndex <- stepArrayIndex + 1
-    { FastDataStep = Array.create size emptyFastData
-      FDataStep = Array.create 2 (Data <| emptyFastData) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
+    { FDataStep = Array.create 2 (Data <| emptyFastData) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
+      FastDataStep = Array.create size emptyFastData
+      UInt32Step = Array.create size 0u
+      BigIntStep = Array.create size 0I
+      Width = 0
       Index = stepArrayIndex }
 
 let makeIOArrayW w size =
     stepArrayIndex <- stepArrayIndex + 1
     match w with
     | w when w <= 32 ->
-        { FastDataStep = Array.create size { Width = w; Dat = Word 0u }
-          FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
+        { FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
+          FastDataStep = Array.create size { Width = w; Dat = Word 0u }
+          UInt32Step = Array.create size 0u
+          BigIntStep = Array.create size 0I
+          Width = w
           Index = stepArrayIndex }
     | _ ->
-        { FastDataStep = Array.create size { Width = w; Dat = BigWord 0I }
-          FDataStep = Array.create 2 (Data <| { Width = w; Dat = BigWord 0I }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
+        { FDataStep = Array.create 2 (Data <| { Width = w; Dat = BigWord 0I }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
+          FastDataStep = Array.create size { Width = w; Dat = BigWord 0I }
+          UInt32Step = Array.create size 0u
+          BigIntStep = Array.create size 0I
+          Width = w
           Index = stepArrayIndex }
-
-let compType t =
-    match t with
-    | Custom c -> c.Name
-    | _ -> t.ToString()
 
 /// create a FastComponent data structure with data arrays from a SimulationComponent.
 /// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
@@ -178,7 +253,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
         else
             ipn
 
-    { OutputWidths = sComp.OutputWidths
+    { UseBigInt = false
       State = Option.map makeStepArray state
       SimComponent = sComp
       fId = fId
@@ -324,8 +399,8 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
         let addWidth w optDriver =
             Option.map (fun d -> { d with DriverWidth = w }) optDriver
 
-        fc.OutputWidths[pn]
-        |> (fun w -> f.Drivers[index] <- addWidth w f.Drivers[index])
+        fc.Outputs[pn]
+        |> (fun output -> f.Drivers[index] <- addWidth output.Width f.Drivers[index])
 
     let ioLabelIsActive fc =
         f.FIOActive[ComponentLabel fc.FLabel, snd fc.fId].fId

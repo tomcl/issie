@@ -953,7 +953,18 @@ type FData =
 /// and outputs
 type StepArray<'T> = { Step: 'T array; Index: int }
 
-type IOArray = { FDataStep: FData array; FastDataStep: FastData array; Index: int }
+// [<Struct>] // TODO - check whether fable optimzed Struct
+type IOArray =
+    { FDataStep: FData array
+      FastDataStep: FastData array
+      UInt32Step: uint32 array
+      BigIntStep: bigint array
+      Width: int
+      Index: int }
+
+type BigIntState =
+    { InputIsBigInt: bool array // NOTE - whether each input uses BigInt or UInt32
+      OutputIsBigInt: bool array }
 
 type FastComponent =
     { fId: FComponentId
@@ -961,7 +972,8 @@ type FastComponent =
       FType: ComponentType
       State: StepArray<SimulationComponentState> option
       mutable Active: bool
-      OutputWidths: int array
+      UseBigInt: bool
+      //   BigIntState: BigIntState option // TODO - Uncomment this
       InputLinks: IOArray array
       InputDrivers: (FComponentId * OutputPortNumber) option array
       Outputs: IOArray array
@@ -978,14 +990,23 @@ type FastComponent =
       mutable VerilogOutputName: string array
       mutable VerilogComponentName: string }
 
-    member inline this.GetInput (epoch) (InputPortNumber n) = this.InputLinks[n].FastDataStep[epoch]
+    member inline this.InputWidth(n) = this.InputLinks[n].Width
+    member inline this.OutputWidth(n) = this.Outputs[n].Width
+
+    member inline this.GetInputUInt32 (epoch) (InputPortNumber n) = this.InputLinks[n].UInt32Step[epoch]
+    member inline this.GetInputBigInt (epoch) (InputPortNumber n) = this.InputLinks[n].BigIntStep[epoch]
+    member inline this.GetInputFastData (epoch) (InputPortNumber n) = this.InputLinks[n].FastDataStep[epoch]
     member inline this.GetInputFData (epoch) (InputPortNumber n) = this.InputLinks[n].FDataStep[epoch]
 
     member this.ShortId =
         let (ComponentId sid, ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
 
-    member inline this.PutOutput (epoch) (OutputPortNumber n) dat =
+    member inline this.PutOutputUInt32 (epoch) (OutputPortNumber n) dat =
+        this.Outputs[n].UInt32Step[ epoch ] <- dat
+    member inline this.PutOutputBigInt (epoch) (OutputPortNumber n) dat =
+        this.Outputs[n].BigIntStep[ epoch ] <- dat
+    member inline this.PutOutputFastData (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].FastDataStep[ epoch ] <- dat
     member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].FDataStep[ epoch ] <- dat

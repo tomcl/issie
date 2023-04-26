@@ -897,18 +897,52 @@ let getBits (msb: int) (lsb: int) (f: FastData) =
 
         { Dat = dat; Width = outW }
 
-let appendBits (fMS: FastData) (fLS: FastData) : FastData =
-    let ms = fMS.Dat
-    let ls = fMS.Dat
-    let w = fMS.Width + fLS.Width
+let getBitsFromUInt32 (msb: int) (lsb: int) (x: uint32) =
+    let outW = msb - lsb + 1
+    let outWMask32 =
+        if outW = 32 then
+            0xFFFFFFFFu
+        else
+            ((1u <<< outW) - 1u)
+#if ASSERTS
+    Helpers.assertThat
+        (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+        (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+#endif
+    let bits = (x >>> lsb) &&& outWMask32
+    bits
 
-    let dat =
-        match ms, ls with
-        | Word x1, Word x2 when w <= 32 -> Word((x1 <<< fLS.Width) + x2)
-        | Word x1, Word x2 -> BigWord((bigint x1 <<< fLS.Width) + bigint x2)
-        | _ -> BigWord((fMS.GetBigInt <<< fLS.Width) ||| fLS.GetBigInt)
+let getBitsFromBigInt (msb: int) (lsb: int) (x: bigint) =
+    let outW = msb - lsb + 1
+#if ASSERTS
+    Helpers.assertThat
+        (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+        (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+#endif
+    let mask = bigIntMask outW
+    let bits = (x >>> lsb) &&& mask
+    //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
+    bits &&& bigIntMask outW
 
-    { Dat = dat; Width = w }
+let getBitsFromBigIntToUInt32 (msb: int) (lsb: int) (x: bigint) =
+    let outW = msb - lsb + 1
+    let outWMask32 =
+        if outW = 32 then
+            0xFFFFFFFFu
+        else
+            ((1u <<< outW) - 1u)
+#if ASSERTS
+    Helpers.assertThat
+        (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+        (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+#endif
+    let mask = bigIntMask outW
+    let bits = (x >>> lsb) &&& mask
+    //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
+    if bits < 0I || bits >= (1I <<< 32) then
+        printf $"""HELP! weird bits = {bits.ToString("X")} mask = {mask} msb,lsb = ({msb},{lsb})"""
+
+    (uint32 bits) &&& outWMask32
 
 //---------------------------------------------------------------------------------------//
 //--------------------------------Fast Simulation Data Structure-------------------------//
@@ -956,7 +990,6 @@ type StepArray<'T> = { Step: 'T array; Index: int }
 // [<Struct>] // TODO - check whether fable optimzed Struct
 type IOArray =
     { FDataStep: FData array
-      FastDataStep: FastData array
       UInt32Step: uint32 array
       BigIntStep: bigint array
       Width: int
@@ -972,8 +1005,8 @@ type FastComponent =
       FType: ComponentType
       State: StepArray<SimulationComponentState> option
       mutable Active: bool
-      UseBigInt: bool
-      //   BigIntState: BigIntState option // TODO - Uncomment this
+      mutable UseBigInt: bool
+      mutable BigIntState: BigIntState option // This is only used for components that have variable input/output widths
       InputLinks: IOArray array
       InputDrivers: (FComponentId * OutputPortNumber) option array
       Outputs: IOArray array
@@ -995,7 +1028,6 @@ type FastComponent =
 
     member inline this.GetInputUInt32 (epoch) (InputPortNumber n) = this.InputLinks[n].UInt32Step[epoch]
     member inline this.GetInputBigInt (epoch) (InputPortNumber n) = this.InputLinks[n].BigIntStep[epoch]
-    member inline this.GetInputFastData (epoch) (InputPortNumber n) = this.InputLinks[n].FastDataStep[epoch]
     member inline this.GetInputFData (epoch) (InputPortNumber n) = this.InputLinks[n].FDataStep[epoch]
 
     member this.ShortId =
@@ -1006,8 +1038,6 @@ type FastComponent =
         this.Outputs[n].UInt32Step[ epoch ] <- dat
     member inline this.PutOutputBigInt (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].BigIntStep[ epoch ] <- dat
-    member inline this.PutOutputFastData (epoch) (OutputPortNumber n) dat =
-        this.Outputs[n].FastDataStep[ epoch ] <- dat
     member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].FDataStep[ epoch ] <- dat
     member inline this.Id = this.SimComponent.Id

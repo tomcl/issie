@@ -118,7 +118,7 @@ let compType t =
     | Custom c -> c.Name
     | _ -> t.ToString()
 
-let useBigInt (fc: FastComponent) =
+let findBigIntState (fc: FastComponent) =
     match fc.FType with
     // 1-bit components
     | Not
@@ -129,7 +129,7 @@ let useBigInt (fc: FastComponent) =
     | Nor
     | Xnor
     | DFF
-    | DFFE -> false
+    | DFFE -> false, None
     // N-bits components
     | Constant(w, _)
     | Constant1(w, _, _)
@@ -153,7 +153,7 @@ let useBigInt (fc: FastComponent) =
     | CounterNoEnable w
     | CounterNoEnableLoad w
     | BusCompare(w, _)
-    | BusCompare1(w, _, _) -> w > 32
+    | BusCompare1(w, _, _) -> w > 32, None
     // Components with implicit width
     | IOLabel
     | Mux2
@@ -161,22 +161,36 @@ let useBigInt (fc: FastComponent) =
     | Mux8
     | Demux2
     | Demux4
-    | Demux8 -> fc.OutputWidth 0 > 32
+    | Demux8 -> fc.OutputWidth 0 > 32, None
     // Components with variable width
-    | MergeWires
-    | SplitWire _
-    | BusSelection _ -> fc.InputWidth 0 > 32
+    | MergeWires ->
+        fc.InputWidth 0 > 32
+        || fc.InputWidth 1 > 32
+        || fc.OutputWidth 0 > 32,
+        Some
+            { InputIsBigInt = [| fc.InputWidth 0 > 32; fc.InputWidth 1 > 32 |]
+              OutputIsBigInt = [| fc.OutputWidth 0 > 32 |] }
+    | SplitWire _ ->
+        fc.InputWidth 0 > 32,
+        Some
+            { InputIsBigInt = [| fc.InputWidth 0 > 32 |]
+              OutputIsBigInt = [| fc.OutputWidth 0 > 32; fc.OutputWidth 1 > 32 |] }
+    | BusSelection _ ->
+        fc.InputWidth 0 > 32,
+        Some
+            { InputIsBigInt = [| fc.InputWidth 0 > 32 |]
+              OutputIsBigInt = [| fc.OutputWidth 0 > 32 |] }
     | AsyncROM1 m
     | ROM1 m
     | RAM1 m
     | AsyncRAM1 m ->
         match m.WordWidth > 32, m.AddressWidth > 32 with
-        | false, false -> false
-        | false, true -> true
-        | true, false -> true
-        | true, true -> true
+        | false, false -> false, None
+        | false, true -> true, Some { InputIsBigInt = [| true |]; OutputIsBigInt = [| false |] }
+        | true, false -> true, Some { InputIsBigInt = [| false |]; OutputIsBigInt = [| true |] }
+        | true, true -> true, Some { InputIsBigInt = [| true |]; OutputIsBigInt = [| true |] }
     // Custom components
-    | Custom c -> false // NOTE - custom components will not be reduced, so we don't need to worry about their width
+    | Custom c -> false, None // NOTE - custom components will not be reduced, so we don't need to worry about their width
     // Legacy components
     | Decode4
     | Shift _
@@ -193,7 +207,6 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
 let makeIOArray size =
     stepArrayIndex <- stepArrayIndex + 1
     { FDataStep = Array.create 2 (Data <| emptyFastData) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-      FastDataStep = Array.create size emptyFastData
       UInt32Step = Array.create size 0u
       BigIntStep = Array.create size 0I
       Width = 0
@@ -204,14 +217,12 @@ let makeIOArrayW w size =
     match w with
     | w when w <= 32 ->
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-          FastDataStep = Array.create size { Width = w; Dat = Word 0u }
           UInt32Step = Array.create size 0u
           BigIntStep = Array.create size 0I
           Width = w
           Index = stepArrayIndex }
     | _ ->
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = BigWord 0I }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-          FastDataStep = Array.create size { Width = w; Dat = BigWord 0I }
           UInt32Step = Array.create size 0u
           BigIntStep = Array.create size 0I
           Width = w
@@ -253,7 +264,8 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
         else
             ipn
 
-    { UseBigInt = false
+    { UseBigInt = false // dump value, will be set when Input Widths are avaiable after linkFastComponents
+      BigIntState = None // dump value, will be set when Input Widths are avaiable after linkFastComponents
       State = Option.map makeStepArray state
       SimComponent = sComp
       fId = fId
@@ -686,4 +698,13 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
 
     reLinkIOLabels f
     instrumentTime "linkFastComponents" start
+    f
+
+// This function is called after linkFastComponents (when width of IO of all components are resolved) to resolve the UseBigInt and BigIntState fields of all components
+let determineBigIntState (f: FastSimulation) =
+    f.FComps
+    |> Map.iter (fun _ fc ->
+        let (u, state) = findBigIntState fc
+        fc.UseBigInt <- u
+        fc.BigIntState <- state)
     f

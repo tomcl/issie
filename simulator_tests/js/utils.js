@@ -131,19 +131,15 @@ function loadAllComponentFiles(folderPath) {
   });
 }
 
-// For FastData
+// For UInt32Arrays and BigIntArrays
 function comps2String(fs) {
   return fs.FOrderedComps.map((comp) => {
     return {
       compType: comp.FType,
       fullName: comp.FullName,
-      outputs: comp.Outputs.map((output) =>
-        output.FastDataStep.map(
-          (step) => step.Dat.fields[0],
-          // .toString(2)
-          // .padStart(step.fields[0].Width, "0")
-        ),
-      ),
+      outputs: comp.Outputs.map((output) => {
+        return Object.values(output.Width > 32 ? output.BigIntStep : output.UInt32Step);
+      }),
     };
   });
 }

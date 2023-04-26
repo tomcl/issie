@@ -354,6 +354,10 @@ let convertFastDataToInt64 (d: FastData) =
             b
         |> uint64
 
+let convertBigIntToUInt64 (w: int) (b: bigint) =
+    if w > 64 then b % (1I <<< 64) else b
+    |> uint64
+
 /// convert to a bigint - always works. Bits < width will be correct.
 let convertFastDataToBigint (d: FastData) =
     match d.Dat with
@@ -372,6 +376,21 @@ let convertFastDataToInt32 (d: FastData) =
     match d.Dat with
     | Word n -> int32 n
     | BigWord n -> int32 (n &&& bigint 0xffffffff)
+
+let convertBigIntToInt32 (b: bigint) = int32 (b &&& bigint 0xffffffff)
+
+let convertInt64ToUInt32 (width: int) (n: int64) =
+    let n' = uint64 n
+    let mask =
+        if width = 32 then
+            0xFFFFFFFFu
+        else
+            (1u <<< width) - 1u
+    uint32 n' &&& mask
+
+let convertInt64ToBigInt (width: int) (n: int64) =
+    let n' = uint64 n
+    bigint n' % (1I <<< width)
 
 let rec convertFastDataToWireData (fastDat: FastData) =
     let big64ToWire width big =
@@ -429,7 +448,7 @@ let cDigitInt (ch:char) =
     | _ -> None
 
 let convertUInt64 (stringToConvert: string) =
-    let rec pow64 n = 
+    let rec pow64 n =
     let getRadixNum (radix:int) (ns: int option list) =
         if Seq.forall (function | Some n -> n < radix && n >= 0 | None -> false) ns
         then Some (List.sumBy (fun n -> uint64 n + ))
@@ -438,7 +457,7 @@ let convertUInt64 (stringToConvert: string) =
     let s = EEExtensions.String.trim (EEExtensions.String.toUpper stringToConvert)
     if EEExtensions.String.startsWith "0X" s then
         let hexDigits = s[2..s.Length-1]
-        let convDigits = hexDigits |> List.map cDigitInt 
+        let convDigits = hexDigits |> List.map cDigitInt
         if checkRadix 16
 
 *)

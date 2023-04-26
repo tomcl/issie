@@ -588,13 +588,11 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
     /// Write is always 1 cycle after WEN=1 and address.
     /// Read is 1 (0) cycles after address for sync (asynch) memories.
     let addReadWrite (fc:FastComponent) (step:int) (mem: Map<int64,int64>) =
-        let getFastData (fd: FastData) =
-            match fd with
-            | { Dat = _ ; Width = 0 } -> 
-                printfn $"Help! Can'd find data from {fd}"
-                int64 <| -1
-            | { Dat = Word w; Width = _ } -> int64 w
-            | { Dat = BigWord bw; Width = _ } -> int64 bw
+        let getInt64 (a: IOArray) step =
+            let w = a.Width
+            match w with
+            | w when w > 32 -> int64 <| convertBigIntToUInt64 w a.BigIntStep[step]
+            | _ -> int64 <| a.UInt32Step[step]
 
         let readStep =
             match fc.FType with
@@ -602,26 +600,24 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             | ROM1 _ | RAM1 _ -> step - 1
             | _ -> failwithf $"What? {fc.FullName} should be a memory component"
 
-        let addrSteps step = fc.InputLinks[0].FastDataStep[step]
+        let addrSteps step = getInt64 fc.InputLinks[0] step
 
         let readOpt =
             match step, fc.FType with
             | 0,ROM1 _ | 0, RAM1 _ -> None
             | _ -> 
                 addrSteps readStep
-                |> getFastData
                 |> Some
         let writeOpt =
             match step, fc.FType with
             | _, ROM1 _ 
             | _, AsyncROM1 _
             | 0, _ -> None
-            | _, RAM1 _ | _, AsyncRAM1 _ when getFastData fc.InputLinks[2].FastDataStep[step-1] = 1L -> 
+            | _, RAM1 _ | _, AsyncRAM1 _ when getInt64 fc.InputLinks[2] (step-1) = 1L -> 
                 addrSteps (step-1)
                 |> Some
             | _ ->  
                 None
-            |> Option.map getFastData
 
         /// Mark addr in memory map as being rType
         /// if addr does not exist - create it

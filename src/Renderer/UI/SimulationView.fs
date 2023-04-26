@@ -87,27 +87,25 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
 let InputDefaultsEqualInputs fs (model:Model) =
-    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
-        let comp = sym.Component
-        let comp' = 
-            let ct =
-                match comp.Type with 
-                | Input1(w,defVal) -> Input1(w,Some newDefault)
-                | x -> x
-            {comp with Type = ct}
-        {sym with Component = comp'}
     let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].FastDataStep[tick % fs.MaxArraySize])
+    |> Map.map (fun fid fc ->
+        let cid = fst fid
+        if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
+            let newDefault =
+                if fc.OutputWidth 0 > 32 then
+                    convertBigIntToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+                else
+                    int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+            let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
+            match typ with
+            | Input1(_, Some d) -> d = newDefault
+            | _ -> newDefault = 0
+        else
+            true)
     |> Map.values
-    |> Seq.forall (fun (cid, currentValue) -> 
-            if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
-                let newDefault = int (convertFastDataToInt32 currentValue)
-                let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
-                match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
-            else true)
-            
+    |> Seq.forall id
 
 let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
@@ -122,20 +120,21 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].FastDataStep[tick % fs.MaxArraySize])
-    |> Map.values
-    |> Seq.iter (fun (cid, currentValue) -> 
-            let newDefault = convertFastDataToInt32 currentValue
-            SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
-            |> Optic.map DrawModelType.SheetT.symbol_ 
-            |> Optic.map ModelType.sheet_
-            |> UpdateModel
-            |> dispatch
-        )
+    |> Map.map (fun fid fc ->
+        let cid = fst fid
+        let newDefault =
+            if fc.OutputWidth 0 > 32 then
+                convertBigIntToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+            else
+                int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+        SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid
+        |> Optic.map DrawModelType.SheetT.symbol_
+        |> Optic.map ModelType.sheet_
+        |> UpdateModel
+        |> dispatch)
     |> ignore
-        
-       
-    
+
+
 //----------------------------View level simulation helpers------------------------------------//
 
 

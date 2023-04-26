@@ -27,7 +27,7 @@ let private isValidFData (fd: FData) =
     | Data d -> d <> emptyFastData
     | _ -> false
 
-let private isValidData (fd: FastData) = fd.Width <> 0
+let private isValidData (fd: IOArray) = fd.Width <> 0
 
 /// True if the component is combinational
 let inline isComb (comp: FastComponent) =
@@ -54,8 +54,9 @@ let printComp (fs: FastSimulation) (step: int) (fc: FastComponent) =
           "    "
           (fc.InputLinks
            |> Array.map (fun (arr: IOArray) ->
-               arr.FastDataStep.Length > 0
-               && isValidData arr.FastDataStep[step])
+               ((arr.UInt32Step.Length > 0)
+                || (arr.BigIntStep.Length > 0))
+               && isValidData arr)
            |> Array.map (function
                | true -> "*"
                | false -> "X")
@@ -114,8 +115,9 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 0
             |> uint32
         //printfn "Init input..."
-        fc.InputLinks[0].FastDataStep
-        |> Array.iteri (fun i _ -> fc.InputLinks[0].FastDataStep[ i ] <- convertIntToFastData (fc.OutputWidth 0) 0u)
+        // REVIEW - Input initialisation is no longer required
+        // fc.InputLinks[0].FastDataStep
+        // |> Array.iteri (fun i _ -> fc.InputLinks[0].FastDataStep[ i ] <- convertIntToFastData (fc.OutputWidth 0) 0u)
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
@@ -140,8 +142,13 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                     | Some n -> convertInt64ToFastData w n
                     | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
-                vec.FastDataStep[0] <- convertIntToFastData w 0u
-            | _, w -> vec.FastDataStep[0] <- convertIntToFastData w 0u)
+                match vec.Width with
+                | w when w <= 32 -> vec.UInt32Step[0] <- 0u
+                | w -> vec.BigIntStep[0] <- 0I
+            | _, w ->
+                match vec.Width with
+                | w when w <= 32 -> vec.UInt32Step[0] <- 0u
+                | w -> vec.BigIntStep[0] <- 0I)
 
     /// print function for debugging
     let pp (fL: FastComponent array) =
@@ -339,21 +346,20 @@ let checkAndValidate (fs: FastSimulation) =
         |> Array.iter (fun fc ->
             fc.Outputs
             |> Array.iteri (fun i output ->
-                let data = fc.Outputs[i].FastDataStep[0]
+                let width = fc.Outputs[i].Width
 
-                match data.Width, output.Width with
+                match width, output.Width with
                 | n, m when n <> m ->
                     failwithf
-                        "Inconsistent simulation data %A data found on signal output width %d from %A %s:%d"
-                        data
+                        "Inconsistent simulation data width found on signal output width %d from %A %s:%d"
                         m
                         fc.FType
                         fc.FullName
                         i
                 | 0, _ ->
                     failwithf
-                        "Unexpected output data %A found on initialised component %A %s:%d"
-                        data
+                        "Unexpected output data width %A found on initialised component %A %s:%d"
+                        width
                         fc.FType
                         fc.FullName
                         i
@@ -473,6 +479,7 @@ let buildFastSimulation
         emptyFastSimulation diagramName
         |> createInitFastCompPhase simulationArraySize gather
         |> linkFastComponents gather
+        |> determineBigIntState // This step is not needed for TruthTable
 
     gather
     |> createFastArrays fs
@@ -509,14 +516,10 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
         fastSim.FGlobalInputComps
         |> Array.iter (fun fc ->
             let vec = fc.Outputs[0]
-            vec.FastDataStep[step] <- vec.FastDataStep[step - 1])
-
-let private propagateInputsFromLastStepFData (step: int) (fastSim: FastSimulation) =
-    if step > 0 then
-        fastSim.FGlobalInputComps
-        |> Array.iter (fun fc ->
-            let vec = fc.Outputs[0]
-            vec.FDataStep[step] <- vec.FDataStep[step - 1])
+            if vec.Width > 32 then
+                vec.BigIntStep[step] <- vec.BigIntStep[step - 1]
+            else
+                vec.UInt32Step[step] <- vec.UInt32Step[step - 1])
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
@@ -529,9 +532,10 @@ let private stepSimulation (fs: FastSimulation) =
 
 /// sets the mutable simulation data for a given input at a given time step
 let private setSimulationInput (cid: ComponentId) (fd: FastData) (step: int) (fs: FastSimulation) =
-    match Map.tryFind (cid, []) fs.FComps with
-    | Some fc -> fc.Outputs[0].FastDataStep[ step % fs.MaxArraySize ] <- fd
-    | None -> failwithf "Can't find %A in FastSim" cid
+    match Map.tryFind (cid, []) fs.FComps, fd.Width with
+    | Some fc, w when w > 32 -> fc.Outputs[0].BigIntStep[ step % fs.MaxArraySize ] <- fd.GetBigInt
+    | Some fc, w -> fc.Outputs[0].UInt32Step[ step % fs.MaxArraySize ] <- fd.GetQUint32
+    | None, _ -> failwithf "Can't find %A in FastSim" cid
 
 let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (fs: FastSimulation) =
     match Map.tryFind (cid, []) fs.FComps with
@@ -587,14 +591,26 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
         match fc.AccessPath with
         | [] ->
             match fc.FType with
-            | DFF _
-            | DFFE _
-            | Register _
-            | RegisterE _
-            | Counter _
-            | CounterNoEnable _
-            | CounterNoLoad _
-            | CounterNoEnableLoad _ -> [| fc, RegisterState fc.Outputs[0].FastDataStep[step % fastSim.MaxArraySize] |]
+            | Register w
+            | RegisterE w
+            | Counter w
+            | CounterNoEnable w
+            | CounterNoLoad w
+            | CounterNoEnableLoad w when w > 32 ->
+                [| fc,
+                   RegisterState
+                       { Dat = BigWord(fc.Outputs[0].BigIntStep[step % fastSim.MaxArraySize])
+                         Width = w } |]
+            | DFF
+            | DFFE ->
+                [| fc, RegisterState { Dat = Word(fc.Outputs[0].UInt32Step[step % fastSim.MaxArraySize]); Width = 1 } |]
+            | Register w
+            | RegisterE w
+            | Counter w
+            | CounterNoEnable w
+            | CounterNoLoad w
+            | CounterNoEnableLoad w ->
+                [| fc, RegisterState { Dat = Word(fc.Outputs[0].UInt32Step[step % fastSim.MaxArraySize]); Width = w } |]
             | ROM1 state -> [| fc, RamState state |]
             | RAM1 _
             | AsyncRAM1 _ ->
@@ -701,22 +717,27 @@ let rec extractFastSimulationOutput
     (opn: OutputPortNumber)
     : FSInterface
     =
-
     let (OutputPortNumber n) = opn
 
     match Map.tryFind (cid, ap) fs.FComps with
     | Some fc ->
         //printfn $"Extracting port {opn} from {fc.FullName} in step {step}"
-        match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].FastDataStep with
-        | None ->
+        match fc.OutputWidth n with
+        | 0 ->
             failwithf
-                $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
-        | Some d ->
-            if d.Width = 0 then
+                $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
+        | w when w > 32 ->
+            match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].BigIntStep with
+            | None ->
                 failwithf
-                    $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
-            else
-                d |> IData
+                    $"What? extracting output {n}- in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
+            | Some d -> { Dat = BigWord d; Width = w } |> IData
+        | w ->
+            match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].UInt32Step with
+            | None ->
+                failwithf
+                    $"What? extracting output {n}- in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
+            | Some d -> { Dat = Word d; Width = w } |> IData
 
     | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent

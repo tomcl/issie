@@ -283,6 +283,111 @@ let fastDataToPaddedString maxChars radix (fd: FastData) =
                 + ".."
                 + digits[n + 2 + pre'.Length - maxChars .. n - 1])
 
+let UInt32ToPaddedString maxChars radix (width: int) (fd: uint32) =
+    let getPrefixAndDigits (s: string) =
+        match s.Length, s.[0], s.[1] with
+        | n, '-', _ -> "-", s[1 .. n - 1]
+        | n, '0', 'b'
+        | n, '0', 'x' -> s.[1..1], s[2 .. n - 1]
+        | _ -> "", s
+
+    let stripLeadingZeros s =
+        let rec strip index (s: string) =
+            if
+                index < s.Length - 1
+                && (s[index] = '0' || s[index] = ',')
+            then
+                strip (index + 1) s
+            else
+                s[index .. s.Length - 1]
+
+        let pre, digits = getPrefixAndDigits s
+        pre, strip 0 digits
+
+    let displayRadix =
+        match radix with
+        | Bin when width > Constants.maxBinaryDisplayWidth -> Hex
+        | r -> r
+
+    let signBit = fd &&& (1u <<< (width - 1))
+
+    let signExtendedW =
+        match displayRadix, signBit <> 0u with
+        | SDec, true -> int64 (int32 fd) - (1L <<< width)
+        | _ -> int64 (uint64 fd)
+
+    let s = valToPaddedString width displayRadix signExtendedW
+
+    match s.Length < maxChars with
+    | true -> s // no change needed
+    | false ->
+        let pre, digits = stripLeadingZeros s
+        let n = digits.Length
+
+        let pre' =
+            (match displayRadix with
+             | Dec
+             | SDec -> ""
+             | _ -> $"{width}'")
+            + pre
+
+        if pre'.Length + digits.Length <= maxChars then
+            // stripping leading zeros makes length ok
+            pre' + digits
+        else
+            // truncate MS digits replacing by '..'
+            pre'
+            + ".."
+            + digits[n + 2 + pre'.Length - maxChars .. n - 1]
+let BigIntToPaddedString maxChars radix (width: int) (fd: bigint) =
+    let getPrefixAndDigits (s: string) =
+        match s.Length, s.[0], s.[1] with
+        | n, '-', _ -> "-", s[1 .. n - 1]
+        | n, '0', 'b'
+        | n, '0', 'x' -> s.[1..1], s[2 .. n - 1]
+        | _ -> "", s
+
+    let stripLeadingZeros s =
+        let rec strip index (s: string) =
+            if
+                index < s.Length - 1
+                && (s[index] = '0' || s[index] = ',')
+            then
+                strip (index + 1) s
+            else
+                s[index .. s.Length - 1]
+
+        let pre, digits = getPrefixAndDigits s
+        pre, strip 0 digits
+
+    let displayRadix =
+        match radix with
+        | Bin when width > Constants.maxBinaryDisplayWidth -> Hex
+        | r -> r
+
+    let s = bigValToPaddedString width displayRadix fd
+    match s.Length < maxChars with
+    | true -> s // no change needed
+    | false ->
+        let pre, digits = stripLeadingZeros s
+        let n = digits.Length
+
+        let pre' =
+            (match displayRadix with
+             | Dec
+             | SDec -> ""
+             | _ -> $"{width}'")
+            + pre
+
+        if pre'.Length + digits.Length <= maxChars then
+            // stripping leading zeros makes length ok
+            pre' + digits
+        else
+            // truncate MS digits replacing by '..'
+            pre'
+            + ".."
+            + digits[n + 2 + pre'.Length - maxChars .. n - 1]
+
 /// Convert an int into a Bit list with the provided width. The Least
 /// Significant Bits are the one with low index (e.g. LSB is at position 0, MSB
 /// is at position N). Little Endian.

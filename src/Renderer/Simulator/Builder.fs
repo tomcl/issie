@@ -300,7 +300,7 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
             |> Array.sortBy fst
             |> Array.map snd
         ComponentId comp.Id, mapper comp ws)
-    |> debugPrint // NOTE - for debugging only
+    // |> debugPrint // NOTE - for debugging only
     |> Map.ofList
     |> (fun m -> m)
 

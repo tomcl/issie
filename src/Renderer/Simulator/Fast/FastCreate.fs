@@ -405,7 +405,7 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
         f.Drivers[index] <-
             Some
             <| Option.defaultValue
-                { Index = index; DriverData = makeStepArray Array.empty; DriverWidth = 0 }
+                { Index = index; DriverData = stepA; DriverWidth = 0 }
                 f.Drivers[index]
 
         let addWidth w optDriver =

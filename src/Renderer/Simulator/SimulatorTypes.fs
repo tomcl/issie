@@ -1046,7 +1046,7 @@ type FastComponent =
 type Driver =
     { Index: int //index of this driver in the array, also
       DriverWidth: int
-      DriverData: StepArray<FData> }
+      DriverData: IOArray }
 
 type SheetPort = { Sheet: string; PortOnComp: Port } // muts include port number (which ports on connections do not)
 

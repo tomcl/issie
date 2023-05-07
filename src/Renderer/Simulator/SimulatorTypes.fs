@@ -904,21 +904,21 @@ let getBitsFromUInt32 (msb: int) (lsb: int) (x: uint32) =
             0xFFFFFFFFu
         else
             ((1u <<< outW) - 1u)
-#if ASSERTS
-    Helpers.assertThat
-        (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
-        (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
-#endif
+// #if ASSERTS
+//     Helpers.assertThat
+//         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+//         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+// #endif
     let bits = (x >>> lsb) &&& outWMask32
     bits
 
 let getBitsFromBigInt (msb: int) (lsb: int) (x: bigint) =
     let outW = msb - lsb + 1
-#if ASSERTS
-    Helpers.assertThat
-        (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
-        (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
-#endif
+// #if ASSERTS
+//     Helpers.assertThat
+//         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+//         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+// #endif
     let mask = bigIntMask outW
     let bits = (x >>> lsb) &&& mask
     //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
@@ -931,11 +931,11 @@ let getBitsFromBigIntToUInt32 (msb: int) (lsb: int) (x: bigint) =
             0xFFFFFFFFu
         else
             ((1u <<< outW) - 1u)
-#if ASSERTS
-    Helpers.assertThat
-        (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
-        (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
-#endif
+// #if ASSERTS
+//     Helpers.assertThat
+//         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+//         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+// #endif
     let mask = bigIntMask outW
     let bits = (x >>> lsb) &&& mask
     //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"

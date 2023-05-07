@@ -302,7 +302,6 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
         ComponentId comp.Id, mapper comp ws)
     // |> debugPrint // NOTE - for debugging only
     |> Map.ofList
-    |> (fun m -> m)
 
 // Find out width of outputs of components from ConnectionsWidth map. Map<ConnectionId, "Width" option> -> Map<(ComponentId * "PortNumber"), "Width">
 let private findOutputWidths (canvasState: CanvasState) (connsWidth: ConnectionsWidth) =
@@ -314,27 +313,32 @@ let private findOutputWidths (canvasState: CanvasState) (connsWidth: Connections
         |> Map.toList
         |> List.map (fun (ConnectionId k, w) -> k, (w |> Option.get))
 
+    let inline findComp (id: string) =
+        comps
+        |> List.tryFind (fun c -> c.Id = id)
+        |> Option.get
+
+    let inline findOutputNumber (comp: Component) portId =
+        comp.OutputPorts
+        |> List.tryFind (fun p -> p.Id = portId)
+        |> Option.get
+        |> fun p -> p.PortNumber
+        |> Option.get
+
     let IOLabelsAsOutput =
         conns
         |> List.map (fun conn -> conn.Id, conn.Target.HostId)
+        |> List.filter (fun (connId, compId) ->
+            let comp = findComp compId
+            match comp.Type with
+            | IOLabel -> true
+            | _ -> false)
         |> List.map (fun (connId, compId) ->
             connsWidth
             |> List.tryFind (fun (id, w) -> connId = id)
             |> function
                 | Some(_, w) -> (compId, 0), w
                 | None -> failwithf "what? connection %A not found" connId)
-
-    let inline findComp (id: string) =
-        comps
-        |> List.tryFind (fun c -> c.Id = id)
-        |> Option.get
-
-    let inline findOutputNumber comp portId =
-        comp.OutputPorts
-        |> List.tryFind (fun p -> p.Id = portId)
-        |> Option.get
-        |> fun p -> p.PortNumber
-        |> Option.get
 
     connsWidth
     |> List.map (fun (id, w) ->

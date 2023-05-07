@@ -3,8 +3,8 @@
 set -e
 
 NODE_OPTIONS=()
-NODE_OPTIONS+="--enable-source-maps" # Enable JS to F# source maps
-# NODE_OPTIONS+="--allow-natives-syntax" # Enable V8 natives syntax
+# NODE_OPTIONS+="--enable-source-maps"    # Enable JS to F# source maps
+NODE_OPTIONS+="--allow-natives-syntax" # Enable V8 natives syntax
 
 # NODE_OPTIONS += "--cpu-prof" # Enable CPU profiling
 # NODE_OPTIONS += "--cpu-prof-interval=1" # Set CPU profiling interval to 1ms

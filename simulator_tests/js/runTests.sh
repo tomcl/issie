@@ -19,12 +19,13 @@ passed_test=0
 # component * step / millisecond
 speed_list=()
 
-NODE_OPTIONS=""
+NODE_OPTIONS=()
+NODE_OPTIONS+="--allow-natives-syntax"
 NODE_ARGS=(${SIMULATION_ARRAY_SIZE} ${LAST_STEP_NEEDED} ${TEST_CASES_PATH})
 
 for i in $(seq 0 $((${#test_cases[@]} - 1))); do
-	output=output/$(basename ${test_cases[$i]}).out
-	node ${NODE_OPTIONS} index.js ${i} ${NODE_ARGS[@]} 2>/dev/null | tail -n 1 >"${output}"
+	output="output/$(basename ${test_cases[$i]}).out"
+	node "${NODE_OPTIONS[@]}" index.js ${i} "${NODE_ARGS[@]}" 2>/dev/null | tail -n 1 >"${output}"
 
 	time=$(cat "${output}" | jq .time)
 

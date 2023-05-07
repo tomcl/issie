@@ -21,8 +21,8 @@ let inline assertThat cond msg =
 /// Assert that the FData only contain a single bit, and return such bit.
 let inline extractBit (fd: FastData) (busWidth: int) : uint32 =
 #if ASSERTS
-        assertThat (fd.Width = 1 || fd.Width = 2 || fd.Width = 3)
-        <| sprintf "extractBit called with wireData: %A" fd
+    assertThat (fd.Width = 1 || fd.Width = 2 || fd.Width = 3)
+    <| sprintf "extractBit called with wireData: %A" fd
 #endif
     match fd.Dat with
     | Word n -> n
@@ -886,8 +886,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | SplitWire topWireWidth, false ->
         let bits = insUInt32 0
 #if ASSERTS
-        assertThat (fd.Width >= topWireWidth + 1)
-        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width
+        let w = comp.InputWidth 0
+        assertThat (w >= topWireWidth + 1)
+        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) w
 #endif
         let bits0, bits1 =
             let bits1 = getBitsFromUInt32 ((comp.InputWidth 0) - 1) topWireWidth bits
@@ -899,8 +900,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | SplitWire topWireWidth, true ->
         let bits = insBigInt 0
 #if ASSERTS
-        assertThat (fd.Width >= topWireWidth + 1)
-        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width
+        let w = comp.InputWidth 0
+        assertThat (w >= topWireWidth + 1)
+        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) w
 #endif
         match comp.BigIntState with
         | None -> failwith "SplitWire with BigIntState"
@@ -940,14 +942,14 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 
     | Register width, false ->
 #if ASSERTS
-        let w = comp.InputWith 0
+        let w = comp.InputWidth 0
         assertThat (w = width) <| sprintf "Register received data with wrong width: expected %d but got %A" width w
 #endif
         let bits = insOldUInt32 0
         putUInt32 0 bits
     | Register width, true ->
 #if ASSERTS
-        let w = comp.InputWith 0
+        let w = comp.InputWidth 0
         assertThat (w = width) <| sprintf "Register received data with wrong width: expected %d but got %A" width w
 #endif
         let bits = insOldBigInt 0
@@ -955,7 +957,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 
     | RegisterE width, false ->
 #if ASSERTS
-        let w = comp.InputWith 0
+        let w = comp.InputWidth 0
         assertThat (w = width) <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width w
 #endif
         let bits, enable = insOldUInt32 0, insOldUInt32 1
@@ -965,7 +967,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | _ -> failwithf "RegisterE received invalid enable value: %A" enable
     | RegisterE width, true ->
 #if ASSERTS
-        let w = comp.InputWith 0
+        let w = comp.InputWidth 0
         assertThat (w = width) <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width w
 #endif
         let bits, enable = insOldBigInt 0, insOldUInt32 1
@@ -975,7 +977,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | _ -> failwithf "RegisterE received invalid enable value: %A" enable
     | Counter width, false ->
 #if ASSERTS
-        let w = comp.InputWith 0
+        let w = comp.InputWidth 0
         assertThat (w = width) <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
 #endif
         let bits, load, enable = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
@@ -995,7 +997,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         putUInt32 0 res
     | Counter width, true ->
 #if ASSERTS
-        let w = comp.InputWith 0
+        let w = comp.InputWidth 0
         assertThat (w = width) <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
 #endif
         let bits, load, enable = insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
@@ -1162,9 +1164,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | RAM1 memory, false ->
         let mem = getRamStateMemory numStep (simStepOld) comp.State memory
 #if ASSERTS
-        let addressW, dataInWidth = comp.InputWidth 0, comp.InputWidth 1
-        assertThat (address.Width = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
-        assertThat (dataIn.Width = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
+        let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
+        assertThat (addressW = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
+        assertThat (dataInW = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
 #endif
         let address, dataIn, write = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
         // If write flag is on, write the memory content.
@@ -1181,9 +1183,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | RAM1 memory, true ->
         let mem = getRamStateMemory numStep (simStepOld) comp.State memory
 #if ASSERTS
-        let addressW, dataInWidth = comp.InputWidth 0, comp.InputWidth 1
-        assertThat (address.Width = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
-        assertThat (dataIn.Width = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
+        let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
+        assertThat (addressW = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
+        assertThat (dataInW = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
 #endif
         match comp.BigIntState with
         | None -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
@@ -1222,9 +1224,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     // to update state based on previous cycle. Then again as combinational component to update output
     | AsyncRAM1 memory, false ->
 #if ASSERTS
-        let addressW, dataInWidth = comp.InputWidth 0, comp.InputWidth 1
-        assertThat (address.Width = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
-        assertThat (dataIn.Width = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
+        let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
+        assertThat (addressW = memory.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" memory.AddressWidth addressW
+        assertThat (dataInW = memory.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" memory.WordWidth dataInW
 #endif
         if isClockedReduction then
             // here we propagate the state to current timestep, doing a state change if need be.
@@ -1250,60 +1252,60 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             putUInt32 0 data
     | AsyncRAM1 mem, true ->
 #if ASSERTS
-        let addressW, dataInWidth = comp.InputWidth 0, comp.InputWidth 1
-        assertThat (address.Width = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
-        assertThat (dataIn.Width = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
+        let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
+        assertThat (addressW = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
+        assertThat (dataInW = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
 #endif
-            match comp.BigIntState with
-            | None -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
-            | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
-                match ins[0], outs[0] with
-                | false, false -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
-                | true, true ->
-                    if isClockedReduction then
-                        let mem = getRamStateMemory numStep (simStepOld) comp.State mem
-                        let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32 2
-                        let mem =
-                            match write with
-                            | 0u -> mem
-                            | 1u -> writeMemoryAddrBigIntDataBigInt mem address dataIn
-                            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                        putState (RamState mem)
-                    else
-                        let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
-                        let address = insBigInt 0
-                        let data = readMemoryAddrBigIntDataBigInt mem address
-                        putBigInt 0 data
-                | false, true ->
-                    if isClockedReduction then
-                        let mem = getRamStateMemory numStep (simStepOld) comp.State mem
-                        let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32 2
-                        let mem =
-                            match write with
-                            | 0u -> mem
-                            | 1u -> writeMemoryAddrUInt32DataBigInt mem address dataIn
-                            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                        putState (RamState mem)
-                    else
-                        let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
-                        let address = insUInt32 0
-                        let data = readMemoryAddrUInt32DataBigInt mem address
-                        putBigInt 0 data
-                | true,false ->
-                    if isClockedReduction then
-                        let mem = getRamStateMemory numStep (simStepOld) comp.State mem
-                        let address, dataIn, write = insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
-                        let mem =
-                            match write with
-                            | 0u -> mem
-                            | 1u -> writeMemoryAddrBigIntDataUInt32 mem address dataIn
-                            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                        putState (RamState mem)
-                    else
-                        let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
-                        let address = insOldBigInt 0
-                        let data = readMemoryAddrBigIntDataUInt32 mem address
-                        putUInt32 0 data
+        match comp.BigIntState with
+        | None -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+        | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
+            match ins[0], outs[0] with
+            | false, false -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+            | true, true ->
+                if isClockedReduction then
+                    let mem = getRamStateMemory numStep (simStepOld) comp.State mem
+                    let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32 2
+                    let mem =
+                        match write with
+                        | 0u -> mem
+                        | 1u -> writeMemoryAddrBigIntDataBigInt mem address dataIn
+                        | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                    putState (RamState mem)
+                else
+                    let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
+                    let address = insBigInt 0
+                    let data = readMemoryAddrBigIntDataBigInt mem address
+                    putBigInt 0 data
+            | false, true ->
+                if isClockedReduction then
+                    let mem = getRamStateMemory numStep (simStepOld) comp.State mem
+                    let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32 2
+                    let mem =
+                        match write with
+                        | 0u -> mem
+                        | 1u -> writeMemoryAddrUInt32DataBigInt mem address dataIn
+                        | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                    putState (RamState mem)
+                else
+                    let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
+                    let address = insUInt32 0
+                    let data = readMemoryAddrUInt32DataBigInt mem address
+                    putBigInt 0 data
+            | true,false ->
+                if isClockedReduction then
+                    let mem = getRamStateMemory numStep (simStepOld) comp.State mem
+                    let address, dataIn, write = insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
+                    let mem =
+                        match write with
+                        | 0u -> mem
+                        | 1u -> writeMemoryAddrBigIntDataUInt32 mem address dataIn
+                        | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                    putState (RamState mem)
+                else
+                    let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
+                    let address = insOldBigInt 0
+                    let data = readMemoryAddrBigIntDataUInt32 mem address
+                    putUInt32 0 data
     | _ -> failwithf $"simulation error: deprecated component type {componentType}"
 
 let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =

@@ -106,8 +106,7 @@ function tryLoadComponentFromPath(filePath) {
     );
   } catch (err) {
     console.error(
-      `Can't load component ${getBaseNameNoExtension(filePath)} because of Error: ${err.stack
-      }`,
+      `Can't load component ${getBaseNameNoExtension(filePath)} because of Error: ${err.stack}`,
     );
   }
 }
@@ -173,6 +172,11 @@ function runSimulation(
     return;
   }
   const fs = simData.FastSim; // FastSimulation
+  // inspect FastSimulation
+  {
+    const deepCopy = lodash.cloneDeep(fs);
+    %DebugPrint(fs.FOrderedComps[0].Outputs[0].UInt32Step);
+  }
   // warm up the JIT compiler
   for (let i = 0; i < warmupIterations; i++) {
     const deepCopy = lodash.cloneDeep(fs);

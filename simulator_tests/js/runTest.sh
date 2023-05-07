@@ -3,8 +3,8 @@
 set -e
 
 NODE_OPTIONS=()
-NODE_OPTIONS+=("--enable-source-maps") # Enable JS to F# source maps
-# NODE_OPTIONS+=("--allow-natives-syntax") # Enable V8 natives syntax
+# NODE_OPTIONS+="--enable-source-maps"    # Enable JS to F# source maps
+NODE_OPTIONS+="--allow-natives-syntax" # Enable V8 natives syntax
 
 
 NODE_OPTIONS+=("--trace-gc") # Enable V8 garbage collection tracing

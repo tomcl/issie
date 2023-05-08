@@ -193,6 +193,7 @@ let viewMenu dispatch =
             makeItem "Modern wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
         ]
         menuSeparator
+        makeItem "Benchmark" (Some "Ctrl+Shift+B") (fun ev -> maindispatch Benchmark)
         makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ ->

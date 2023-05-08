@@ -387,6 +387,45 @@ let update (msg : Msg) oldModel =
         {model with WaveSimViewerWidth = w}, Cmd.none
     | ReloadSelectedComponent width ->
         {model with LastUsedDialogWidth=width}, Cmd.none
+    | Benchmark ->
+        let step = 2000
+        let warmup = 5
+        let repeat = 10
+
+        match model.CurrentProj with
+        | Some p ->
+            printfn "Benchmarking on %20s, stepArraySize %8d, step %8d, warmup %3d, repeat %3d" (dirName p.ProjectPath) SimulationView.Constants.maxArraySize step warmup repeat
+            let speeds =
+                // List.replicate 50 p.LoadedComponents[12]
+                p.LoadedComponents
+                |> List.map (fun c ->
+                    let simData =
+                        Simulator.startCircuitSimulation (SimulationView.Constants.maxArraySize) c.Name c.CanvasState p.LoadedComponents
+                    match simData with
+                    | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
+                    | Ok simData ->
+                        printfn "Benchmarking with component: %s" c.Name
+                        let comps = c.CanvasState |> fst |> List.length |> float
+
+                        let time =
+                            [ 0..(warmup + repeat) ]
+                            |> List.map (fun _ ->
+                                simData.FastSim.ClockTick <- 0
+                                let start = TimeHelpers.getTimeMs ()
+                                // for _ in 0..(step-1) do FastRun.stepSimulation simData.FastSim
+                                FastRun.runFastSimulation None step simData.FastSim
+                                |> ignore
+                                TimeHelpers.getTimeMs () - start)
+                            |> List.skip warmup
+                            |> List.average
+                        let speed = comps * (float step) / time
+                        printfn "average simulation speed on %20s: %10.3f (comp * step / ms)" c.Name speed
+                        speed)
+            // printfn "simulation speeds: %A" speeds
+            let geometricMean = (speeds |> List.reduce (*)) ** (1.0 / (float speeds.Length))
+            printfn "Geometric mean of simulation speed of ISSIE on current project: %A" geometricMean
+        | None -> printfn "No project loaded, please load a project to benchmark"
+        model, Cmd.none
     | StartSimulation simData -> 
         {model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel ->

@@ -284,6 +284,7 @@ type Msg =
     | Sheet of DrawModelType.SheetT.Msg
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
+    | Benchmark
     | StartSimulation of Result<SimulationData, SimulationError>
     /// Add WaveSimModel to Model.WaveSim map.
     /// String is name of current sheet.

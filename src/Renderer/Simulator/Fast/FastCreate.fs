@@ -264,6 +264,10 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
         else
             ipn
 
+    match sComp.Type with
+    | Input1(w, d) -> ins[0] <- { ins[0] with Width = w }
+    | _ -> ()
+
     { UseBigInt = false // dump value, will be set when Input Widths are avaiable after linkFastComponents
       BigIntState = None // dump value, will be set when Input Widths are avaiable after linkFastComponents
       State = Option.map makeStepArray state

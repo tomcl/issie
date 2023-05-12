@@ -404,11 +404,11 @@ let update (msg : Msg) oldModel =
                     match simData with
                     | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
                     | Ok simData ->
+                        let comps = ([| simData.FastSim.FGlobalInputComps; simData.FastSim.FClockedComps;  simData.FastSim.FOrderedComps |] |> Array.concat) |> Array.length
                         printfn "Benchmarking with component: %s" c.Name
-                        let comps = c.CanvasState |> fst |> List.length |> float
 
                         let time =
-                            [ 0..(warmup + repeat) ]
+                            [ 0..(warmup + repeat - 1) ]
                             |> List.map (fun _ ->
                                 simData.FastSim.ClockTick <- 0
                                 let start = TimeHelpers.getTimeMs ()
@@ -418,8 +418,8 @@ let update (msg : Msg) oldModel =
                                 TimeHelpers.getTimeMs () - start)
                             |> List.skip warmup
                             |> List.average
-                        let speed = comps * (float step) / time
-                        printfn "average simulation speed on %20s: %10.3f (comp * step / ms)" c.Name speed
+                        let speed = float (comps * step) / time
+                        printfn "simulated %20s for %5d steps with %4d effective components, simulation finished in %8.3fms, average simulation speed: %10.3f (comp * step / ms)" c.Name step comps time speed
                         speed)
             // printfn "simulation speeds: %A" speeds
             let geometricMean = (speeds |> List.reduce (*)) ** (1.0 / (float speeds.Length))

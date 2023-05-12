@@ -204,11 +204,11 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
     stepArrayIndex <- stepArrayIndex + 1
     { Step = arr; Index = stepArrayIndex }
 
-let makeIOArray size =
+let makeIOArray =
     stepArrayIndex <- stepArrayIndex + 1
-    { FDataStep = Array.create 2 (Data <| emptyFastData) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-      UInt32Step = Array.create size 0u
-      BigIntStep = Array.create size 0I
+    { FDataStep = Array.empty // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
+      UInt32Step = Array.empty
+      BigIntStep = Array.empty
       Width = 0
       Index = stepArrayIndex }
 
@@ -218,12 +218,12 @@ let makeIOArrayW w size =
     | w when w <= 32 ->
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
           UInt32Step = Array.create size 0u
-          BigIntStep = Array.create size 0I
+          BigIntStep = Array.empty
           Width = w
           Index = stepArrayIndex }
     | _ ->
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = BigWord 0I }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-          UInt32Step = Array.create size 0u
+          UInt32Step = Array.empty
           BigIntStep = Array.create size 0I
           Width = w
           Index = stepArrayIndex }
@@ -235,11 +235,11 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun n -> makeIOArray maxArraySize)
+        |> Array.map (fun n -> makeIOArray)
 
     let outs =
         match sComp.Type, sComp.OutputWidths.Length with
-        | IOLabel, 0 -> [| makeIOArray maxArraySize |] // NOTE - create dumpy Outputs array for inavtive IOLabels
+        | IOLabel, 0 -> [| makeIOArray |] // NOTE - create dumpy Outputs array for inavtive IOLabels
         | _ ->
             sComp.OutputWidths
             |> Array.map (fun w -> makeIOArrayW w maxArraySize)

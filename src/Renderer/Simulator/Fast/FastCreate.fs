@@ -606,7 +606,6 @@ let private reLinkIOLabels (fs: FastSimulation) =
 /// are linked to the components that connect the corresponding inputs and outputs of the custom component.
 let linkFastComponents (g: GatherData) (f: FastSimulation) =
     let start = getTimeMs ()
-    let outer = List.rev >> List.tail >> List.rev
     let sComps = g.AllComps
     let fComps = f.FComps
 
@@ -619,46 +618,55 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
 
     let apOf fid = fComps[fid].AccessPath
 
-    /// This function recursively propagates a component output across Custom component boundaries to find the
-    ///
-    let rec getLinks ((cid, ap): FComponentId) (opn: OutputPortNumber) (ipnOpt: InputPortNumber option) =
+    /// Given a output port (identified by FComponentId and OutputPortNumber) of a fast component A,
+    /// find targeting input ports of fast components B (identified by FComponentId and InputPortNumber) that are neither Input, Output or Custom Component.
+    let rec getDirectLinks
+        ((cid, ap): FComponentId) // fid of A
+        (opn: OutputPortNumber) // output of A
+        (ipnOpt: InputPortNumber option) // input B
+        : (FComponentId * OutputPortNumber * InputPortNumber) array
+        =
         let sComp = getSComp (cid, ap)
-        //printfn "Getting links: %A %A %A" sComp.Type opn ipnOpt
-        match isOutput sComp.Type, isCustom sComp.Type, ipnOpt with
-        | true, _, None when apOf (cid, ap) = [] -> [||] // no links in this case from global output
-        | true, _, None ->
-            //printfn "checking 1:%A %A" (g.getFullName(cid,ap)) (Map.map (fun k v -> g.getFullName k) g.CustomOutputCompLinks)
+        printfn "getDirectLinks of [%20A], access path [%A]" sComp.Label ap
+        match sComp.Type, ipnOpt with
+        | Output _, None when apOf (cid, ap) = [] -> [||] // no links in this case from global output
+        | Output _, None ->
             let fid, opn = g.CustomOutputCompLinks[cid, ap]
 #if ASSERTS
             assertThat (isCustom (fst sComps[fid]).Type) "What? this should be a custom component output"
 #endif
-            getLinks fid opn None // go from inner output to CC output and recurse
-        | false, true, Some ipn ->
-            //printfn "checking 2:%A:IPN<%A>" (g.getFullName(cid,ap)) ipn
-            //printfn "CustomInCompLinks=\n%A" (Map.map (fun (vfid,vipn) fid ->
-            //sprintf "%A:%A -> %A\n" (g.getFullName vfid) vipn (g.getFullName fid) ) g.CustomInputCompLinks |> mapValues)
-            //printfn "Done"
-            [| g.CustomInputCompLinks[(cid, ap), ipn], opn, InputPortNumber 0 |] // go from CC input to inner input: must be valid
-        | _, false, Some ipn -> [| (cid, ap), opn, ipn |] // must be a valid link
-        | false, _, None ->
+            getDirectLinks fid opn None // go from inner output to CC output and recurse
+        | Custom _, Some ipn ->
+            // [| g.CustomInputCompLinks[(cid, ap), ipn], opn, InputPortNumber 0 |] // go from CC input to inner input: must be valid
+            getDirectLinks g.CustomInputCompLinks[(cid, ap), ipn] (OutputPortNumber 0) None
+        | Output _, Some ipn when apOf (cid, ap) = [] -> [| (cid, ap), opn, ipn |] // must be a valid link
+        | Output _, Some _ ->
+            let fid, opn = g.CustomOutputCompLinks[cid, ap]
+            getDirectLinks fid opn None // go from inner output to CC output and recurse
+        | _, Some ipn ->
+            // printfn "%A %A; " ap sComp.Label
+            [| (cid, ap), opn, ipn |] // must be a valid link
+        | _, None ->
             sComp.Outputs
             |> Map.toArray
             |> Array.filter (fun (opn', _) -> opn' = opn)
             |> Array.collect (fun (opn, lst) ->
                 lst
                 |> List.toArray
-                |> Array.collect (fun (cid, ipn) -> getLinks (cid, ap) opn (Some ipn)))
-
-        | x -> failwithf "Unexpected link match: %A" x
+                |> Array.collect (fun (cid, ipn) -> getDirectLinks (cid, ap) opn (Some ipn)))
 
     let mutable linkCheck: Map<(FComponentId * InputPortNumber), (FComponentId * OutputPortNumber)> =
         Map.empty
 
     f.FComps
+    |> Map.filter (fun fid fc ->
+        (List.isEmpty (snd fc.fId))
+        || ((not (isInput fc.FType))
+            && (not (isOutput fc.FType))))
     |> Map.iter (fun fDriverId fDriver ->
         fDriver.Outputs
         |> Array.iteri (fun iOut _ ->
-            getLinks fDriverId (OutputPortNumber iOut) None
+            getDirectLinks fDriverId (OutputPortNumber iOut) None
             |> Array.map (fun (fid, _, ip) -> fid, iOut, ip)
             |> Array.iter (fun (fDrivenId, opn, (InputPortNumber ipn)) ->
                 let linked = Map.tryFind (fDrivenId, InputPortNumber ipn) linkCheck
@@ -691,6 +699,7 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
                 else
                     // if driver is not IO label make the link now
                     fDriven.InputLinks[ipn] <- fDriver.Outputs[opn]
+                    printfn "%A -> %A" fDriver.FullName fDriven.FullName // used to visualise component graph
                     // DrivenComponents must only include asynchronous drive paths on hybrid components
                     // on clocked components, or combinational components, it can include all drive paths
                     match getHybridComponentAsyncOuts fDriven.FType (InputPortNumber ipn) with

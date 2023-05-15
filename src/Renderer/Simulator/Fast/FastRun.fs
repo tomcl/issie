@@ -104,21 +104,6 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         propagateEval fc
 
     let initInput (fc: FastComponent) =
-        let inputVal: uint32 =
-            match fc.FType with
-            | Input1(w, defaultVal) ->
-                match defaultVal with
-                | Some defaultVal -> defaultVal
-                | None -> 0
-            | _ ->
-                printf "non-input type component in initInput"
-                0
-            |> uint32
-        //printfn "Init input..."
-        // REVIEW - Input initialisation is no longer required
-        // fc.InputLinks[0].FastDataStep
-        // |> Array.iteri (fun i _ -> fc.InputLinks[0].FastDataStep[ i ] <- convertIntToFastData (fc.OutputWidth 0) 0u)
-        //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
@@ -181,12 +166,6 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
             orderedComps <- fc :: orderedComps
             fc.Touched <- true
             propagateEval fc)
-
-    let orderedSet =
-        orderedComps
-        |> List.toArray
-        |> Array.map (fun co -> co.fId)
-        |> Set
 
     instrumentTime "orderCombinationalComponents" startTime
 
@@ -283,12 +262,6 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
             fc.Touched <- true
             propagateEval fc)
 
-    let orderedSet =
-        orderedComps
-        |> List.toArray
-        |> Array.map (fun co -> co.fId)
-        |> Set
-
     instrumentTime "orderCombinationalComponents" startTime
 
     { fs with FOrderedComps = orderedComps |> Array.ofList |> Array.rev }
@@ -301,6 +274,10 @@ let checkAndValidate (fs: FastSimulation) =
         fs.FComps
         |> mapValues
         |> Array.filter (fun fc -> fc.Active)
+        |> Array.filter (fun fc -> // filter out non-global inputs and outputs
+            (List.isEmpty (snd fc.fId))
+            || ((not (isInput fc.FType))
+                && (not (isOutput fc.FType))))
 
     let inSimulationComps =
         [| Array.filter (fun fc -> not (isHybridComponent fc.FType)) fs.FClockedComps
@@ -462,6 +439,22 @@ let createFastArrays fs gather =
         FSComps = gather.AllComps
         G = gather }
 
+let removeNonGlobalIO fs =
+    { fs with
+        FOrderedComps =
+            fs.FOrderedComps
+            |> Array.filter (fun fc ->
+                (List.isEmpty (snd fc.fId))
+                || ((not (isInput fc.FType))
+                    && (not (isOutput fc.FType))))
+
+        FClockedComps =
+            fs.FClockedComps
+            |> Array.filter (fun fc ->
+                (List.isEmpty (snd fc.fId))
+                || ((not (isInput fc.FType))
+                    && (not (isOutput fc.FType)))) }
+
 /// Create a fast simulation data structure, with all necessary arrays, and components
 /// ordered for evaluation.
 /// This function also creates the reducer functions for each component
@@ -484,6 +477,7 @@ let buildFastSimulation
     gather
     |> createFastArrays fs
     |> orderCombinationalComponents simulationArraySize
+    |> removeNonGlobalIO
     |> checkAndValidate
     |> Result.map addWavesToFastSimulation
 
@@ -635,7 +629,6 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
     //printfn $"running sim steps={numberOfSteps}, arraySize = {fs.MaxArraySize}, maxstepnum={fs.MaxStepNum}"
     let simStartTime = getTimeMs ()
     let stepsToDo = float (lastStepNeeded - fs.ClockTick)
-    let numComponents = float fs.FComps.Count
 
     if stepsToDo <= 0 then
         None // do nothing
@@ -672,22 +665,6 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
                 )
 
         doSimulation ()
-
-// Run a fast simulation for a given number of steps building it from the graph
-(*
-let runSimulationZeroInputs 
-        (timeOut: float option)
-        (simulationArraySize: int) 
-        (diagramName: string) 
-        (steps: int) 
-        (graph: SimulationGraph) 
-            : Result<FastSimulation,SimulationError> =
-    let fsResult = buildFastSimulation simulationArraySize diagramName  graph
-    fsResult
-    |> Result.map (runFastSimulation timeOut steps)
-    |> ignore
-    fsResult
-*)
 
 /// Look up a simulation (not a FastSimulation) component or return None.
 let rec findSimulationComponentOpt ((cid, ap): ComponentId * ComponentId list) (graph: SimulationGraph) =

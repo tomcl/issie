@@ -427,6 +427,11 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
     let data = stateToJsonString state
     writeFile path data
 
+let saveStateToFileNew folderPath baseName state = // TODO: catch error?
+    let path = pathJoin [| folderPath; baseName + ".dgmNew" |]
+    let data = stateToJsonStringNew state
+    writeFile path data
+
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None})

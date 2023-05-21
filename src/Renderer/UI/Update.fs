@@ -197,6 +197,10 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         FileMenuView.saveOpenFileActionWithModelUpdate model dispatch |> ignore
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
+    | MenuSaveFileInNewFormat ->
+        FileMenuView.saveOpenFileActionWithModelUpdateNew model dispatch |> ignore
+        SetHasUnsavedChanges false
+        |> JSDiagramMsg |> dispatch
     | MenuNewFile -> 
         FileMenuView.addFileToProject model dispatch
     | MenuExit ->
@@ -956,6 +960,7 @@ let update (msg : Msg) oldModel =
     | MenuAction(act,dispatch) ->
         match act with 
         | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
+        | MenuSaveFileInNewFormat -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | _ -> getMenuView act model dispatch, Cmd.none
         
     | DiagramMouseEvent -> model, Cmd.none

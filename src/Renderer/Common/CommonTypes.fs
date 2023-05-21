@@ -5,6 +5,11 @@
 module CommonTypes
     open Fable.Core               
     open Optics
+    #if FABLE_COMPILER
+    open Thoth.Json
+    #else
+    open Thoth.Json.Net
+    #endif
     /// Position on SVG canvas
     /// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
     /// currently these custom operators are not used in Issie - they should be!
@@ -459,6 +464,19 @@ module CommonTypes
     /// SHA hash unique to a component - common between JS and F#
     [<Erase>]
     type ComponentId = | ComponentId of string
+
+    let componentIdEncoder (cid: ComponentId) =
+        match cid with
+        | ComponentId s -> Encode.string s
+
+    let componentIdDecoder: Decoder<ComponentId> =
+        Decode.index 0 Decode.string
+        |> Decode.andThen (fun caseName ->
+            match caseName with
+            | "ComponentId" ->
+                Decode.index 1 Decode.string
+                |> Decode.andThen (fun id -> Decode.succeed (ComponentId id))
+            | invalid -> Decode.fail (sprintf "Invalid case name: %s" invalid))
 
     /// Unique identifier for a fast component.
     /// The list is the access path, a list of all the containing custom components 

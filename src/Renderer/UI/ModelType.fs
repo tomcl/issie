@@ -259,6 +259,7 @@ type IntMode = FirstInt | SecondInt
 type MenuCommand =
     | MenuPrint
     | MenuSaveFile
+    | MenuSaveFileInNewFormat
     | MenuNewFile
     | MenuExit
     | MenuZoom of float

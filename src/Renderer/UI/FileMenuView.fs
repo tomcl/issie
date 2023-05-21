@@ -287,7 +287,46 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
                             | _ -> comp), conns)
             writeComponentToBackupFile 4 1. newLdc dispatch
             Some (newLdc,newState)
-        
+
+let saveOpenFileActionNew isAuto model (dispatch: Msg -> Unit) =
+    match model.Sheet.GetCanvasState (), model.CurrentProj with
+    | _, None -> None
+    | canvasState, Some project ->
+        // "DEBUG: Saving Sheet"
+        // printfn "DEBUG: %A" project.ProjectPath
+        // printfn "DEBUG: %A" project.OpenFileName
+        let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
+        let sheetInfo = {Form = ldc.Form; Description = ldc.Description} //only user defined sheets are editable and thus saveable
+        let savedState = canvasState, getSavedWave model,(Some sheetInfo)
+        if isAuto then
+            failwithf "Auto saving is no longer used"
+            None
+        else
+            saveStateToFileNew project.ProjectPath project.OpenFileName savedState
+            |> displayAlertOnError dispatch
+            removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
+            let origLdComp =
+                project.LoadedComponents
+                |> List.find (fun lc -> lc.Name = project.OpenFileName)
+            let savedWaveSim =
+                Map.tryFind project.OpenFileName model.WaveSim
+                |> Option.map getSavedWaveInfo
+            let (SheetInfo:SheetInfo option) = match origLdComp.Form with |None -> None |Some form -> Some {Form=Some form;Description=origLdComp.Description}
+            let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
+            let newState =
+                canvasState
+                |> (fun (comps, conns) ->
+                        comps
+                        |> List.map (fun comp ->
+                            match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
+                            | Some newRam ->
+                                // TODO: create consistent helpers for messages
+                                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
+                                newRam
+                            | _ -> comp), conns)
+            writeComponentToBackupFile 4 1. newLdc dispatch
+            Some (newLdc,newState)
+
 /// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     let opt = saveOpenFileAction false model dispatch
@@ -296,6 +335,25 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     match model.CurrentProj with
     | None -> failwithf "What? Should never be able to save sheet when project=None"
     | Some p -> 
+        // update loaded components for saved file
+        updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
+        |> (fun lc -> {p with LoadedComponents=lc})
+        |> SetProject
+        |> dispatch
+
+    SetHasUnsavedChanges false
+    |> JSDiagramMsg
+    |> dispatch
+    dispatch FinishUICmd
+    opt
+
+let saveOpenFileActionWithModelUpdateNew (model: Model) (dispatch: Msg -> Unit) =
+    let opt = saveOpenFileActionNew false model dispatch
+    let ldcOpt = Option.map fst opt
+    let state = Option.map snd opt |> Option.defaultValue ([],[])
+    match model.CurrentProj with
+    | None -> failwithf "What? Should never be able to save sheet when project=None"
+    | Some p ->
         // update loaded components for saved file
         updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
         |> (fun lc -> {p with LoadedComponents=lc})

@@ -308,7 +308,7 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
-    let index = fs.ClockTick + 1
+    let index = (fs.ClockTick + 1) % fs.MaxStepNum
     propagateInputsFromLastStep index fs
     Array.iter (fastReduce fs.MaxArraySize index true) fs.FClockedComps
     Array.iter (fastReduce fs.MaxArraySize index false) fs.FOrderedComps

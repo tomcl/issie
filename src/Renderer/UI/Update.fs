@@ -397,41 +397,41 @@ let update (msg : Msg) oldModel =
         let simulationRound = 10
         let benchmarkRound = 20
 
+        let geometricMean (values: float list) = (values |> List.reduce (*)) ** (1.0 / (float values.Length))
+
         let benchmark i =
             match model.CurrentProj with
             | Some p ->
                 printfn "Benchmarking on %20s, stepArraySize %8d, step %8d, warmup %3d, repeat %3d" (dirName p.ProjectPath) SimulationView.Constants.maxArraySize step warmup simulationRound
-                let speeds =
-                    p.LoadedComponents
-                    |> List.map (fun c ->
-                        let simData =
-                            Simulator.startCircuitSimulation (SimulationView.Constants.maxArraySize) c.Name c.CanvasState p.LoadedComponents
-                        match simData with
-                        | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
-                        | Ok simData ->
-                            let comps = ([| simData.FastSim.FGlobalInputComps; simData.FastSim.FClockedComps;  simData.FastSim.FOrderedComps |] |> Array.concat) |> Array.length
-                            printfn "Benchmarking with component: %s" c.Name
 
-                            let time =
-                                [ 0..(warmup + simulationRound - 1) ]
-                                |> List.map (fun _ ->
-                                    simData.FastSim.ClockTick <- 0
-                                    let start = TimeHelpers.getTimeMs ()
-                                    // for _ in 0..(step-1) do FastRun.stepSimulation simData.FastSim
-                                    FastRun.runFastSimulation None step simData.FastSim
-                                    |> ignore
-                                    TimeHelpers.getTimeMs () - start)
-                                |> List.skip warmup
-                                |> List.average
+                p.LoadedComponents
+                |> List.map (fun c ->
+                    let simData = Simulator.startCircuitSimulation SimulationView.Constants.maxArraySize c.Name c.CanvasState p.LoadedComponents
+
+                    match simData with
+                    | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
+                    | Ok simData ->
+                        let comps = simData.FastSim.FOrderedComps |> Array.length
+                        printfn "Benchmarking with component: %s" c.Name
+
+                        [ 1 .. (warmup + simulationRound) ]
+                        |> List.map (fun _ ->
+                            simData.FastSim.ClockTick <- 0
+                            let start = TimeHelpers.getTimeMs ()
+                            // for _ in 0..(step-1) do FastRun.stepSimulation simData.FastSim
+                            FastRun.runFastSimulation None step simData.FastSim |> ignore
+                            TimeHelpers.getTimeMs () - start)
+                        |> List.skip warmup
+                        |> List.average
+                        |> (fun time ->
                             let speed = float (comps * step) / time
                             printfn "simulated %20s for %5d steps with %4d effective components, simulation finished in %8.3fms, average simulation speed: %10.3f (comp * step / ms)" c.Name step comps time speed
-                            speed)
-                let geometricMean = (speeds |> List.reduce (*)) ** (1.0 / (float speeds.Length))
-                geometricMean
+                            speed))
+                |> geometricMean
 
             | None -> failwith "No project loaded, please load a project to benchmark"
 
-        [ 0..(benchmarkRound - 1) ]
+        [ 1..benchmarkRound ]
         |> List.map (fun i -> benchmark i)
         |> printfn "Geometric mean of simulation speed of ISSIE on current project: %A"
 

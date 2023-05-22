@@ -55,7 +55,14 @@ let benchmark path =
         | Error e -> failwithf "%A" e
         | Ok simData ->
             let fastSim = simData.FastSim
-            let comps = fastSim.FOrderedComps |> Array.length
+
+            let comps =
+                FastSim.FComps.Values
+                |> Seq.filter (fun fc ->
+                    match fc.FType with
+                    | IOLabel -> false
+                    | _ -> true)
+                |> Seq.length
 
             [ 1 .. (warmup + simulationRound) ]
             |> List.map (fun x ->
@@ -69,7 +76,7 @@ let benchmark path =
     |> geometricMean
 
 [ 1..benchmarkRound ]
-|> List.map (fun i -> 
+|> List.map (fun i ->
     printfn "========== %A ==========" i
     benchmark path)
 |> printfn "%A"

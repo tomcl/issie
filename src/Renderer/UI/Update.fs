@@ -411,7 +411,7 @@ let update (msg : Msg) oldModel =
                     match simData with
                     | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
                     | Ok simData ->
-                        let comps = simData.FastSim.FOrderedComps |> Array.length
+                        let comps = simData.FastSim.FComps.Values |> Seq.filter (fun fc -> match fc.FType with | IOLabel -> false | _ -> true) |> Seq.length
                         printfn "Benchmarking with component: %s" c.Name
 
                         [ 1 .. (warmup + simulationRound) ]

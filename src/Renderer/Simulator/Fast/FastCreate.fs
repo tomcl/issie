@@ -113,7 +113,7 @@ let getPortNumbers (sc: SimulationComponent) =
             2,1
         | AsyncRAM1 _
         | RAM1 _ -> 
-            2,1
+            3,1
         | Decode4 -> 
             2,4
         | Demux2 -> 
@@ -232,7 +232,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
 
     let state =
         if couldBeSynchronousComponent sComp.Type then
-            Some(Array.create (maxArraySize-1) NoState)
+            Some(Array.create maxArraySize NoState)
         else
             None
 
@@ -561,7 +561,7 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
     let waveComps =
         (fs.FComps, fs.FCustomComps)
         ||> Map.fold (fun s fid fc -> Map.add fid fc s)
-    printf $"add waves 1: numStepArray = {fs.NumStepArrays}"
+    printfn $"add waves 1: numStepArray = {fs.NumStepArrays}"
     // Add WaveComps
     // Create null driver array large enough for all created step arrays
     // each step array is given a sequentially generated id as it is created
@@ -573,7 +573,7 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
     // by wave component ports.
     // One array can be referenced by multiple ports.
     // The mutable changes to fs.Drivers here are write-once, from None to Some array.
-    |> (fun x -> printf "add waves 2"; x)
+    |> (fun x -> printfn "add waves 2"; x)
     |> (fun fs -> {fs with WaveIndex = addWaveIndexAndDrivers waveComps fs})
 
         
@@ -581,7 +581,7 @@ let addWavesToFastSimulation (fs:FastSimulation) : FastSimulation =
     
 let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
     let numSteps = simulationArraySize
-    stepArrayIndex <- 0
+    stepArrayIndex <- -1
     let start = getTimeMs()
     printfn $"Creating init fast comp phase of sim with {numSteps} array size"
     let makeFastComp fid =
@@ -626,7 +626,7 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
           MaxArraySize = simulationArraySize
           FSComps = g.AllComps
           FCustomOutputCompLookup = customOutLookup 
-          NumStepArrays = stepArrayIndex
+          NumStepArrays = stepArrayIndex + 1
           Drivers = Array.empty
     }
 

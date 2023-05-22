@@ -59,62 +59,56 @@ open CommonTypes
                 | NewCanvasWithFileWaveInfoAndNewConns (_,_,ts) -> None
                 | NewCanvasWithFileWaveSheetInfoAndNewConns (_,_,sheetInfo,_) -> sheetInfo
 
-        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
-            let time = System.DateTime.Now
-            //printfn "%A" cState
-            try            
-                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
-            with
-            | e -> 
-                printfn "HELP: exception in SimpleJson.stringify %A" e
-                "Error in stringify"
-
-        let extraEncoder =
+        let extraCoder =
             Extra.empty
             |> Extra.withInt64
             |> Extra.withUInt64
             |> Extra.withBigInt
             |> Extra.withCustom CommonTypes.componentIdEncoder CommonTypes.componentIdDecoder
 
-        let stateToJsonStringNew (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
+        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
             let time = System.DateTime.Now
-            try
-                let res = Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time)), extra = extraEncoder)
-                printfn "res: %A" res
-                res
+            //printfn "%A" cState
+            try            
+            #if FABLE_COMPILER
+                Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
+            #else
+                Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time)), extra = extraCoder)
+            #endif
             with
-            | e ->
-                failwithf "HELP: %A" e
+            | e -> 
+                printfn "HELP: exception in SimpleJson.stringify %A" e
                 "Error in stringify"
 
         let jsonStringToState (jsonString : string) =
-             Json.tryParseAs<LegacyCanvasState> jsonString
-             |> (function
-                    | Ok state -> Ok (CanvasOnly state)
-                    | Error _ ->
-                        match Json.tryParseAs<SavedInfo> jsonString with
-                        | Ok state -> Ok state
+            #if FABLE_COMPILER
+            Json.tryParseAs<LegacyCanvasState> jsonString
+            |> (function
+                | Ok state -> Ok (CanvasOnly state)
+                | Error _ ->
+                    match Json.tryParseAs<SavedInfo> jsonString with
+                    | Ok state -> Ok state
+                    | Error str -> 
+                        match Json.tryParseAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
+                        | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
+                            Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)                               
                         | Error str -> 
-                            match Json.tryParseAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
-                            | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
-                                Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)                               
-                            | Error str -> 
-                                printfn "Error in Json parse of %s : %s" jsonString str
-                                Error str)
-
-        let jsonStringToStateNew (jsonString : string) =
-            match Decode.Auto.fromString<LegacyCanvasState>(jsonString) with
+                            printfn "Error in Json parse of %s : %s" jsonString str
+                            Error str)
+            #else
+            match Decode.Auto.fromString<LegacyCanvasState>(jsonString, extra = extraCoder) with
             | Ok state -> Ok (CanvasOnly state)
             | Error _ ->
-                match Decode.Auto.fromString<SavedInfo> jsonString with
+                match Decode.Auto.fromString<SavedInfo>(jsonString, extra = extraCoder) with
                 | Ok state -> Ok state
                 | Error str ->
-                    match Decode.Auto.fromString<SavedCanvasUnknownWaveInfo<obj>> jsonString with
+                    match Decode.Auto.fromString<SavedCanvasUnknownWaveInfo<obj>>(jsonString, extra = extraCoder) with
                     | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
                         Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)
                     | Error str ->
                         printfn "Error in Json parse of %s : %s" jsonString str
                         Error str
+            #endif
 
 
 (*-----------------------------------General helpers-----------------------------------------*)

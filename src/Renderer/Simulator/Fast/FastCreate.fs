@@ -234,8 +234,9 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
-        [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun n -> makeIOArray)
+        match accessPath, sComp.Type with
+        | [], Input1 _ -> Array.create 1 (makeIOArrayW (sComp.OutputWidths[0]) maxArraySize) // Global Input
+        | _ -> Array.create inPortNum makeIOArray
 
     let outs =
         match sComp.Type, sComp.OutputWidths.Length with
@@ -408,9 +409,7 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
     let addStepArray pn index stepA =
         f.Drivers[index] <-
             Some
-            <| Option.defaultValue
-                { Index = index; DriverData = makeStepArray Array.empty; DriverWidth = 0 }
-                f.Drivers[index]
+            <| Option.defaultValue { Index = index; DriverData = makeIOArray; DriverWidth = 0 } f.Drivers[index]
 
         let addWidth w optDriver =
             Option.map (fun d -> { d with DriverWidth = w }) optDriver
@@ -627,7 +626,7 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
         : (FComponentId * OutputPortNumber * InputPortNumber) array
         =
         let sComp = getSComp (cid, ap)
-        printfn "getDirectLinks of [%20A], access path [%A]" sComp.Label ap
+        // printfn "getDirectLinks of [%20A], access path [%A]" sComp.Label ap
         match sComp.Type, ipnOpt with
         | Output _, None when apOf (cid, ap) = [] -> [||] // no links in this case from global output
         | Output _, None ->
@@ -699,7 +698,7 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
                 else
                     // if driver is not IO label make the link now
                     fDriven.InputLinks[ipn] <- fDriver.Outputs[opn]
-                    printfn "%A -> %A" fDriver.FullName fDriven.FullName // used to visualise component graph
+                    // printfn "%A -> %A" fDriver.FullName fDriven.FullName // used to visualise component graph
                     // DrivenComponents must only include asynchronous drive paths on hybrid components
                     // on clocked components, or combinational components, it can include all drive paths
                     match getHybridComponentAsyncOuts fDriven.FType (InputPortNumber ipn) with

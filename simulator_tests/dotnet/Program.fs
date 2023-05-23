@@ -1,4 +1,6 @@
-﻿open FilesIO
+﻿module DotnetTest
+
+open FilesIO
 open Helpers.JsonHelpers
 open System.Diagnostics
 open TimeHelpers
@@ -10,7 +12,8 @@ let loadAllComponentFiles (folderPath: string) =
         try
             Ok <| readdir folderPath
         with e ->
-            Error <| sprintf "Error reading Issie project directory at '%s: %A" folderPath e
+            Error
+            <| sprintf "Error reading Issie project directory at '%s: %A" folderPath e
 
     match x with
     | Error msg -> Error msg
@@ -39,7 +42,8 @@ let simulationRound = 10
 let benchmarkRound = 20
 
 let geometricMean (values: float list) =
-    (values |> List.reduce (*)) ** (1.0 / (float values.Length))
+    let product = values |> List.reduce (*)
+    product ** (1.0 / (float values.Length))
 
 let benchmark path =
     let loadedComps =
@@ -51,32 +55,44 @@ let benchmark path =
     |> List.map (fun c ->
         printfn "Running Simulation for component %A" c.Name
 
+        let debugPrint times =
+            times
+            |> List.iteri (fun idx time ->
+                match idx with
+                | 0 -> printf "Time: [%.2f, " time
+                | i when i < (times.Length - 1) -> printf "%.2f, " time
+                | _ -> printfn "%.2f]" time)
+            times
+
         match Simulator.startCircuitSimulation simulationArraySize c.Name c.CanvasState loadedComps with
         | Error e -> failwithf "%A" e
         | Ok simData ->
             let fastSim = simData.FastSim
 
             let comps =
-                FastSim.FComps.Values
-                |> Seq.filter (fun fc ->
-                    match fc.FType with
-                    | IOLabel -> false
-                    | _ -> true)
+                fastSim.FComps.Values
+                |> Seq.filter (fun fc -> not <| SynchronousUtils.isIOLabel fc.FType)
                 |> Seq.length
 
             [ 1 .. (warmup + simulationRound) ]
             |> List.map (fun x ->
                 fastSim.ClockTick <- 0
                 let start = TimeHelpers.getTimeMs ()
-                FastRun.runFastSimulation None steps fastSim |> ignore
+                FastRun.runFastSimulation None steps fastSim
+                |> ignore
                 TimeHelpers.getTimeMs () - start)
+            |> debugPrint
             |> List.skip warmup
-            |> List.map (fun time -> float (steps * comps) / time)
-            |> List.average)
+            |> List.average
+            |> fun time -> float (steps * comps) / time)
     |> geometricMean
 
-[ 1..benchmarkRound ]
-|> List.map (fun i ->
-    printfn "========== %A ==========" i
-    benchmark path)
-|> printfn "%A"
+[<EntryPoint>]
+let main argv =
+    [ 1..benchmarkRound ]
+    |> List.map (fun i ->
+        printfn "========== %A ==========" i
+        benchmark path)
+    |> printfn "%A"
+
+    0

@@ -70,14 +70,19 @@ open CommonTypes
             let time = System.DateTime.Now
             //printfn "%A" cState
             try            
-            #if FABLE_COMPILER
                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
-            #else
+            with
+            | e ->
+                printfn "HELP: exception in SimpleJson.stringify %A" e
+                "Error in stringify"
+
+        let stateToJsonStringNew (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
+            let time = System.DateTime.Now
+            try
                 Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time)), extra = extraCoder)
-            #endif
             with
             | e -> 
-                printfn "HELP: exception in SimpleJson.stringify %A" e
+                printfn "HELP: exception in Thoth.Json.Encode.Auto.toString %A" e
                 "Error in stringify"
 
         let jsonStringToState (jsonString : string) =

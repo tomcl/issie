@@ -1,10 +1,14 @@
 using System;
 using System.Runtime.InteropServices.JavaScript;
 
-return 0;
 
 public partial class MyClass
 {
+    public static void Main()
+    {
+        Console.WriteLine("Hello World!");
+    }
+
     [JSExport]
     internal static void Benchmark(string path)
     {

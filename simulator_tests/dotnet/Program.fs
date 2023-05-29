@@ -1,14 +1,16 @@
 ﻿module DotnetTest
 
 open System
-open System.IO
 open Helpers.JsonHelpers
 open System.Diagnostics
-open TimeHelpers
 open FilesIO
 open CommonTypes
 
-let timer = new Stopwatch()
+let getBaseNameNoExtension (filePath: string) =
+    filePath.Split([| '/'; '\\' |], StringSplitOptions.RemoveEmptyEntries)
+    |> Array.last
+    |> fun x -> x.Split([| '.' |], StringSplitOptions.RemoveEmptyEntries)
+    |> Array.head
 
 let loadAllComponentFiles (folderPath: string) =
     let x =
@@ -36,7 +38,6 @@ let loadAllComponentFiles (folderPath: string) =
                 filePath |> tryLoadComponentFromPath)
         |> Helpers.tryFindError
 
-let path = "/home/yujie/workspace/EEE1labs/DECA/Part3-Section1-Lab3/lab3i"
 let simulationArraySize = 500
 let steps = 2000
 let warmup = 5
@@ -254,6 +255,9 @@ let benchmark path =
 
 [<EntryPoint>]
 let main argv =
+    let path = argv[0]
+    printfn "Benchmarking %s" path
+
     [ 1..benchmarkRound ]
     |> List.map (fun i ->
         printfn "========== %A ==========" i

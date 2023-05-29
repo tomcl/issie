@@ -5,23 +5,28 @@
 *)
 
 module FilesIO
+#if FABLE_COMPILER
 open Fulma
 open Fable.React.Props
-open Helpers
-open CommonTypes
 open Fable.Core
 open Fable.Core.JsInterop
 open Fable.Import
 open ElectronAPI
 
 open Node
-open EEExtensions
 open Fable.SimpleJson
 open JSHelpers
-open System.IO
+#endif
 
+open System.IO
+open Helpers
+open CommonTypes
+open EEExtensions
+
+#if FABLE_COMPILER
 [<Emit("process.cwd()")>]
 let getCWD (u:unit): string = jsNative
+#endif
 
 // [<Emit("__static")>]
 // let staticDir() :string = jsNative
@@ -141,9 +146,9 @@ let tryReadFileSync fPath =
 /// Write base64 encoded data to file.
 /// Create file if it does not exist.
 let writeFileBase64 path data =
-    let options = createObj ["encoding" ==> "base64"] |> Some
     try
         #if FABLE_COMPILER
+        let options = createObj ["encoding" ==> "base64"] |> Some
         fs.writeFileSync(path, data, options)
         #else
         File.WriteAllBytes(path, System.Convert.FromBase64String(data))
@@ -156,8 +161,8 @@ let writeFileBase64 path data =
 /// Create file if it does not exist.
 let writeFile path data =
     try
-        let options = createObj ["encoding" ==> "utf8"] |> Some
         #if FABLE_COMPILER
+        let options = createObj ["encoding" ==> "utf8"] |> Some
         fs.writeFileSync(path, data, options)
         #else
         File.WriteAllText(path, data, System.Text.ASCIIEncoding.UTF8)
@@ -259,14 +264,6 @@ let makeFixedROM addr data mem =
     | FromData,_, _ -> Ok mem.Data
     | _ -> failwithf $"addr={addr}, data={data}, int={mem.Init} not allowed in makeFixedROM"
 
-let jsonStringToMem (jsonString : string) =
-     Json.tryParseAs<Map<int64,int64>> jsonString
-
-
-
-            
-
-
 let getBaseNameNoExtension filePath =
     let name = baseName filePath
     match name.Split '.' |> Seq.toList with
@@ -279,6 +276,10 @@ let getBaseNameNoExtension filePath =
                 name + "." + splits[i]
             )
         firstSplit + rest
+
+#if FABLE_COMPILER
+let jsonStringToMem (jsonString : string) =
+     Json.tryParseAs<Map<int64,int64>> jsonString
 
 let private projectFileFilters =
     createObj !![
@@ -325,7 +326,6 @@ let askForExistingProjectPath (defaultPath: string option) : string option =
     )
 
 
-
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
 let rec askForNewProjectPath (defaultPath:string option) : string option =
@@ -355,11 +355,9 @@ let rec askForNewProjectPath (defaultPath:string option) : string option =
             
             else
                 Some dPath)
-    
-    
 
+#endif
 
-    
 let tryCreateFolder (path : string) =
     if Seq.exists (Char.IsLetterOrDigitOrUnderscore >> not) (baseName path) then 
         Result.Error <| "File or project names must contain only letters, digits, or underscores"
@@ -676,6 +674,7 @@ let loadAllComponentFiles (folderPath:string)  =
             )
         |> tryFindError
 
+#if FABLE_COMPILER
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
 let rec askForNewFile (projectPath: string) : string option =
@@ -691,7 +690,7 @@ let rec askForNewFile (projectPath: string) : string option =
     match electronRemote.getCurrentWindow() with
     | w ->
         electronRemote.dialog.showSaveDialogSync(options)
-        
+
 let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
     proj.LoadedComponents
     |> List.iter (fun ldc ->
@@ -714,8 +713,5 @@ let openWriteDialogAndWriteMemory mem path =
                 fpath
         writeMemDefns fpath' mem |> ignore
         Some fpath'
-    
 
-
-
-
+#endif

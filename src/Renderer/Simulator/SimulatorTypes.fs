@@ -6,7 +6,9 @@
 
 module rec SimulatorTypes
 
+#if FABLE_COMPILER
 open Fable.Core
+#endif
 open CommonTypes
 
 /// document current status of a simulation as used by waveform simulator
@@ -125,13 +127,15 @@ type SimulationError =
       ConnectionsAffected: ConnectionId list }
 
 /// Wrapper for Javascript (Diagram) component. Why here?
-
+#if FABLE_COMPILER
 [<Erase>]
+#endif
 type JSComponent = JSComponent of obj
 
 /// Wrapper for Javascript (Diagram) connection. Why here?
-
+#if FABLE_COMPILER
 [<Erase>]
+#endif
 type JSConnection = JSConnection of obj
 
 /// State retrieves directly from Diagram has Javascript objects

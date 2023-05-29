@@ -1,11 +1,15 @@
 module Extractor
 
 open CommonTypes
+#if FABLE_COMPILER
 open Fable.Core
+#endif
 
+#if FABLE_COMPILER
 /// access javascript reference equality
 [<Emit("($1 === $0)")>]
 let referenceEquality (a1: obj) (a2: obj) : bool = jsNative
+#endif
 
 let sortQBy (byFun: 'a -> 'b) (ids: 'a list) =
     let mutable isSorted = true

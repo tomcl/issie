@@ -10,9 +10,9 @@ open CommonTypes
 
     [<AutoOpen>]
     module JsonHelpers =
-        open Fable.SimpleJson
         open LegacyCanvas
         #if FABLE_COMPILER
+        open Fable.SimpleJson
         open Thoth.Json
         #else
         open Thoth.Json.Net
@@ -69,8 +69,12 @@ open CommonTypes
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
             let time = System.DateTime.Now
             //printfn "%A" cState
-            try            
+            try
+                #if FABLE_COMPILER
                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
+                #else
+                Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time)), extra = extraCoder)
+                #endif
             with
             | e ->
                 printfn "HELP: exception in SimpleJson.stringify %A" e

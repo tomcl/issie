@@ -6,8 +6,33 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Renderer\Renderer.fsproj" />
+    <!-- <ProjectReference Include="..\..\src\Renderer\Renderer.fsproj" /> -->
+    <Compile Include="..\..\src\Renderer\Common\EEExtensions.fs" />
+    <Compile Include="..\..\src\Renderer\Common\Optics.fs" />
+    <Compile Include="..\..\src\Renderer\Common\CommonTypes.fs" />
+    <Compile Include="..\..\src\Renderer\Common\Helpers.fs" />
+    <Compile Include="..\..\src\Renderer\Common\TimeHelpers.fs" />
+    <Compile Include="..\..\src\Renderer\Common\WidthInferer.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\SimulatorTypes.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\TruthTableTypes.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\NumberHelpers.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\SynchronousUtils.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\Extractor.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\CanvasStateAnalyser.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\SimulationGraphAnalyser.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\Fast\FastCreate.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\Fast\FastReduce.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\Fast\FastRun.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\Builder.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\Verilog.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\Runner.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\DependencyMerger.fs" />
+    <Compile Include="..\..\src\Renderer\Simulator\Simulator.fs" />
+    <Compile Include="..\..\src\Renderer\Interface\FilesIO.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <ItemGroup>
+    <PackageReference Include="Thoth.Json.Net" Version="11.0.0" />
+  </ItemGroup>
 </Project>

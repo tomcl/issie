@@ -7,6 +7,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RunAOTCompilation>true</RunAOTCompilation>
     <SelfContained>true</SelfContained>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\dotnet\dotnet.fsproj" />

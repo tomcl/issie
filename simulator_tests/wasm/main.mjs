@@ -44,7 +44,6 @@ setModuleImports("main.mjs", {
 const config = getConfig();
 const exports = await getAssemblyExports(config.mainAssemblyName);
 
-
 exports.MyClass.Benchmark(projectPath);
 
 await dotnet.run();

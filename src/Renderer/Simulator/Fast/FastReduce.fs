@@ -100,13 +100,17 @@ let private writeMemoryAddrUInt32DataBigInt (mem: Memory1) (address: uint32) (da
     { mem with Data = Map.add intAddr intData mem.Data }
 
 let private writeMemoryAddrBigIntDataUInt32 (mem: Memory1) (address: bigint) (data: uint32) : Memory1 =
-    let intAddr = int64 <| convertBigIntToUInt64 mem.AddressWidth address
+    let intAddr =
+        int64
+        <| convertBigIntToUInt64 mem.AddressWidth address
     let intData = int64 <| uint32 data
 
     { mem with Data = Map.add intAddr intData mem.Data }
 
 let private writeMemoryAddrBigIntDataBigInt (mem: Memory1) (address: bigint) (data: bigint) : Memory1 =
-    let intAddr = int64 <| convertBigIntToUInt64 mem.AddressWidth address
+    let intAddr =
+        int64
+        <| convertBigIntToUInt64 mem.AddressWidth address
     let intData = int64 <| convertBigIntToUInt64 mem.WordWidth data
 
     { mem with Data = Map.add intAddr intData mem.Data }
@@ -209,7 +213,11 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     ///  get data feom input i of component
     let inline insUInt32 i =
         checkInputPortNumber i
-        comp.InputLinks[i].UInt32Step[simStep]
+        comp.GetInputUInt32 (simStep) (comp.InputWidth i) (InputPortNumber i)
+
+    let inline insUInt32Bit i =
+        checkInputPortNumber i
+        comp.GetInputUInt32 (simStep) 1 (InputPortNumber i)
 
     let inline insBigInt i =
         checkInputPortNumber i
@@ -220,7 +228,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         checkOutputWidth ()
         match numStep with
         | 0 -> 0u
-        | _ -> comp.Outputs[n].UInt32Step[simStepOld]
+        | _ -> comp.GetOutputUInt32 simStepOld (comp.OutputWidth 0) n
 
     let inline getLastCycleOutBigInt n =
         checkOutputWidth ()
@@ -231,15 +239,29 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     /// get last cycle data from output i for component
     let inline insOldUInt32 i =
         checkInputPortNumber i
-        comp.GetInputUInt32 (simStepOld) (InputPortNumber i)
+        comp.GetInputUInt32 (simStepOld) (comp.InputWidth i) (InputPortNumber i)
+
+    let inline insOldUInt32Bit i =
+        checkInputPortNumber i
+        comp.GetInputUInt32 (simStepOld) (comp.InputWidth i) (InputPortNumber i)
+
+    let inline insOldUInt32W width i =
+        checkInputPortNumber i
+        comp.GetInputUInt32 (simStepOld) width (InputPortNumber i)
 
     let inline insOldBigInt i =
         checkInputPortNumber i
         comp.GetInputBigInt (simStepOld) (InputPortNumber i)
 
     /// Write current step output data for output port pn
-    let inline putUInt32 pn fd = comp.PutOutputUInt32 (simStep) (OutputPortNumber pn) fd
-    let inline putBigInt pn fd = comp.PutOutputBigInt (simStep) (OutputPortNumber pn) fd
+    let inline putUInt32 pn fd =
+        comp.PutOutputUInt32 (simStep) (comp.OutputWidth pn) (OutputPortNumber pn) fd
+    let inline putUInt32Bit pn fd =
+        comp.PutOutputUInt32 (simStep) 1 (OutputPortNumber pn) fd
+    let inline putUInt32W pn width fd =
+        comp.PutOutputUInt32 (simStep) (width) (OutputPortNumber pn) fd
+    let inline putBigInt pn fd =
+        comp.PutOutputBigInt (simStep) (OutputPortNumber pn) fd
 
     /// Write current State (used only for RAMs, DFFs and registers use previous cycle output as state)
     let inline putState state =
@@ -249,8 +271,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 
     /// implement a binary combinational operation
     let inline getBinaryGateReducer (bitOp: uint32 -> uint32 -> uint32) : Unit =
-        let bit0, bit1 = insUInt32 0, insUInt32 1
-        putUInt32 0 <| bitOp bit1 bit0
+        let bit0, bit1 = insUInt32Bit 0, insUInt32Bit 1
+        putUInt32Bit 0 <| bitOp bit1 bit0
 
     /// Error checking (not required in production code) check widths are consistent
     let inline checkWidth width w =
@@ -280,46 +302,48 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             //printfn "Got input 0 = %A Links=<%A> len=%d" bits comp.InputLinks comp.InputLinks.Length
             checkWidth width (comp.InputWidth 0)
             //printfn "output array = %A" comp.Outputs
-            putUInt32 0 bits
+            putUInt32W 0 width bits
     | Input1(width, _), true ->
         if comp.Active then
             let bits = insBigInt 0
             checkWidth width (comp.OutputWidth 0)
             putBigInt 0 bits
     | Constant1(width, cVal, _), false
-    | Constant(width, cVal), false -> putUInt32 0 <| (convertInt64ToUInt32 width cVal)
+    | Constant(width, cVal), false ->
+        putUInt32W 0 width
+        <| (convertInt64ToUInt32 width cVal)
     | Constant1(width, cVal, _), true
     | Constant(width, cVal), true -> putBigInt 0 <| (convertInt64ToBigInt width cVal)
     | Output width, false ->
         let bits = insUInt32 0
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width (comp.InputWidth 0)
-        putUInt32 0 bits
+        putUInt32W 0 width bits
     | Output width, true ->
         let bits = insBigInt 0
         checkWidth width (comp.InputWidth 0)
         putBigInt 0 bits
-    | Viewer width,false ->
+    | Viewer width, false ->
         let bits = insUInt32 0
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width (comp.InputWidth 0)
-        putUInt32 0 bits
-    | Viewer width,true ->
+        putUInt32W 0 width bits
+    | Viewer width, true ->
         let bits = insBigInt 0
         checkWidth width (comp.InputWidth 0)
         putBigInt 0 bits
 
-    | IOLabel,false ->
+    | IOLabel, false ->
         let bits = insUInt32 0
         //let bits = comp.InputLinks[0][simStep]
         //printfn "Reducing IOLabel %A" comp.SimComponent.Label
         putUInt32 0 bits
-    | IOLabel,true ->
+    | IOLabel, true ->
         let bits = insBigInt 0
         putBigInt 0 bits
     | Not, false ->
-        let bit = insUInt32 0
-        putUInt32 0 <| bitNot bit
+        let bit = insUInt32Bit 0
+        putUInt32Bit 0 <| bitNot bit
     | BusSelection(width, lsb), false ->
 #if ASSERTS
         let w = comp.InputWidth 0
@@ -329,7 +353,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 #endif
         let bits = insUInt32 0
         let outBits = getBitsFromUInt32 (lsb + width - 1) lsb bits
-        putUInt32 0 outBits
+        putUInt32W 0 width outBits
     | BusSelection(width, lsb), true ->
 #if ASSERTS
         let w = comp.InputWidth 0
@@ -339,14 +363,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 #endif
         let bits = insBigInt 0
         match comp.BigIntState with
-        | None -> failwith "This should never happen, BusSelection with UseBigInt = true must have Some(BigIntState), but get None"
+        | None ->
+            failwith
+                "This should never happen, BusSelection with UseBigInt = true must have Some(BigIntState), but get None"
         | Some { InputIsBigInt = _; OutputIsBigInt = outs } ->
             if outs[0] then
                 let outBits = getBitsFromBigInt (lsb + width - 1) lsb bits
                 putBigInt 0 outBits
             else
                 let outBits = getBitsFromBigIntToUInt32 (lsb + width - 1) lsb bits
-                putUInt32 0 outBits
+                putUInt32W 0 width outBits
     | BusCompare(width, compareVal), false
     | BusCompare1(width, compareVal, _), false ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
@@ -364,9 +390,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             else
                 0u
 
-        putUInt32 0 outNum
+        putUInt32W 0 width outNum
     | BusCompare(width, compareVal), true
-    | BusCompare1(width, compareVal, _),true ->
+    | BusCompare1(width, compareVal, _), true ->
 #if ASSERTS
         let w = comp.InputWidth 0
         assertThat
@@ -381,13 +407,13 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             else
                 0u
 
-        putUInt32 0 outNum
-    | And,false -> getBinaryGateReducer bitAnd
-    | Or,false -> getBinaryGateReducer bitOr
-    | Xor,false -> getBinaryGateReducer bitXor
-    | Nand,false -> getBinaryGateReducer bitNand
-    | Nor,false -> getBinaryGateReducer bitNor
-    | Xnor,false -> getBinaryGateReducer bitXnor
+        putUInt32W 0 width outNum
+    | And, false -> getBinaryGateReducer bitAnd
+    | Or, false -> getBinaryGateReducer bitOr
+    | Xor, false -> getBinaryGateReducer bitXor
+    | Nand, false -> getBinaryGateReducer bitNand
+    | Nor, false -> getBinaryGateReducer bitNor
+    | Xnor, false -> getBinaryGateReducer bitXnor
 
     | And, true
     | Or, true
@@ -397,40 +423,31 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | Xnor, true
     | Not, true -> failwith "This should never happen, 1-bit component should not use BigInt"
 
-    | Mux2,false ->
+    | Mux2, false ->
 #if ASSERT
         let w0, w1 = (comp.InputWidth 0), (comp.InputWidth 1)
-        assertThat (w0 = w1) <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName w0 w1
+        assertThat (w0 = w1)
+        <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName w0 w1
 #endif
-        let bits0, bits1, bitSelect = (insUInt32 0), (insUInt32 1), (insUInt32 2)
-        let out =
-            if bitSelect = 0u then
-                bits0
-            else
-                bits1
+        let bits0, bits1, bitSelect = (insUInt32 0), (insUInt32 1), (insUInt32Bit 2)
+        let out = if bitSelect = 0u then bits0 else bits1
 
         putUInt32 0 out
-    | Mux2,true->
+    | Mux2, true ->
 #if ASSERT
         let w0, w1 = (comp.InputWidth 0), (comp.InputWidth 1)
-        assertThat (w0 = w1) <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName w0 w1
+        assertThat (w0 = w1)
+        <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName w0 w1
 #endif
-        let bits0, bits1, bitSelect = (insBigInt 0), (insBigInt 1), (insUInt32 2)
-        let out =
-            if bitSelect = 0u then
-                bits0
-            else
-                bits1
+        let bits0, bits1, bitSelect = (insBigInt 0), (insBigInt 1), (insUInt32Bit 2)
+        let out = if bitSelect = 0u then bits0 else bits1
 
         putBigInt 0 out
-    | Mux4,false ->
+    | Mux4, false ->
 #if ASSERT
-        let w0, w1, w2, w3 = (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3)
-        assertThat (
-            w0 = w1
-            && w0 = w2
-            && w0 = w3
-        )
+        let w0, w1, w2, w3 =
+            (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3)
+        assertThat (w0 = w1 && w0 = w2 && w0 = w3)
         <| sprintf
             "Mux4 %s received two inputs with different widths: (%A) <> (%A) <> (%A) <> (%A)"
             comp.FullName
@@ -439,24 +456,22 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             w2
             w3
 #endif
-        let bits0, bits1, bits2, bits3, bitSelect = (insUInt32 0), (insUInt32 1), (insUInt32 2), (insUInt32 3), (insUInt32 4)
+        let bits0, bits1, bits2, bits3, bitSelect =
+            (insUInt32 0), (insUInt32 1), (insUInt32 2), (insUInt32 3), (insUInt32 4)
         let out =
             match bitSelect with
             | 0u -> bits0
             | 1u -> bits1
             | 2u -> bits2
             | 3u -> bits3
-            | _ -> failwithf "Cannot happen"
+            | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
         putUInt32 0 out
-    | Mux4,true ->
+    | Mux4, true ->
 #if ASSERT
-        let w0, w1, w2, w3 = (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3)
-        assertThat (
-            w0 = w1
-            && w0 = w2
-            && w0 = w3
-        )
+        let w0, w1, w2, w3 =
+            (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3)
+        assertThat (w0 = w1 && w0 = w2 && w0 = w3)
         <| sprintf
             "Mux4 %s received two inputs with different widths: (%A) <> (%A) <> (%A) <> (%A)"
             comp.FullName
@@ -465,19 +480,28 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             w2
             w3
 #endif
-        let bits0, bits1, bits2, bits3, bitSelect = (insBigInt 0), (insBigInt 1), (insBigInt 2), (insBigInt 3), (insUInt32 4)
+        let bits0, bits1, bits2, bits3, bitSelect =
+            (insBigInt 0), (insBigInt 1), (insBigInt 2), (insBigInt 3), (insUInt32 4)
         let out =
             match bitSelect with
             | 0u -> bits0
             | 1u -> bits1
             | 2u -> bits2
             | 3u -> bits3
-            | _ -> failwithf "Cannot happen"
+            | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
         putBigInt 0 out
-    | Mux8,false ->
+    | Mux8, false ->
 #if ASSERT
-        let w0, w1, w2, w3, w4, w5, w6, w7 = (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3), (comp.InputWidth 4), (comp.InputWidth 5), (comp.InputWidth 6), (comp.InputWidth 7)
+        let w0, w1, w2, w3, w4, w5, w6, w7 =
+            (comp.InputWidth 0),
+            (comp.InputWidth 1),
+            (comp.InputWidth 2),
+            (comp.InputWidth 3),
+            (comp.InputWidth 4),
+            (comp.InputWidth 5),
+            (comp.InputWidth 6),
+            (comp.InputWidth 7)
         assertThat (
             (w0) = (w1)
             && (w0) = (w2)
@@ -499,7 +523,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             w6
             w7
 #endif
-        let bits0, bits1, bits2, bits3, bits4, bits5, bits6, bits7, bitSelect = insUInt32 0, insUInt32 1, insUInt32 2, insUInt32 3, insUInt32 4, insUInt32 5, insUInt32 6, insUInt32 7, insUInt32 8
+        let bits0, bits1, bits2, bits3, bits4, bits5, bits6, bits7, bitSelect =
+            insUInt32 0,
+            insUInt32 1,
+            insUInt32 2,
+            insUInt32 3,
+            insUInt32 4,
+            insUInt32 5,
+            insUInt32 6,
+            insUInt32 7,
+            insUInt32 8
         let out =
             match bitSelect with
             | 0u -> bits0
@@ -510,12 +543,20 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 5u -> bits5
             | 6u -> bits6
             | 7u -> bits7
-            | _ -> failwithf "Cannot happen"
+            | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
         putUInt32 0 out
-    | Mux8,true ->
+    | Mux8, true ->
 #if ASSERT
-        let w0, w1, w2, w3, w4, w5, w6, w7 = (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3), (comp.InputWidth 4), (comp.InputWidth 5), (comp.InputWidth 6), (comp.InputWidth 7)
+        let w0, w1, w2, w3, w4, w5, w6, w7 =
+            (comp.InputWidth 0),
+            (comp.InputWidth 1),
+            (comp.InputWidth 2),
+            (comp.InputWidth 3),
+            (comp.InputWidth 4),
+            (comp.InputWidth 5),
+            (comp.InputWidth 6),
+            (comp.InputWidth 7)
         assertThat (
             (w0) = (w1)
             && (w0) = (w2)
@@ -537,7 +578,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             w6
             w7
 #endif
-        let bits0, bits1, bits2, bits3, bits4, bits5, bits6, bits7, bitSelect = insBigInt 0, insBigInt 1, insBigInt 2, insBigInt 3, insBigInt 4, insBigInt 5, insBigInt 6, insBigInt 7, insUInt32 8
+        let bits0, bits1, bits2, bits3, bits4, bits5, bits6, bits7, bitSelect =
+            insBigInt 0,
+            insBigInt 1,
+            insBigInt 2,
+            insBigInt 3,
+            insBigInt 4,
+            insBigInt 5,
+            insBigInt 6,
+            insBigInt 7,
+            insUInt32 8
         let out =
             match bitSelect with
             | 0u -> bits0
@@ -548,11 +598,11 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 5u -> bits5
             | 6u -> bits6
             | 7u -> bits7
-            | _ -> failwithf "Cannot happen"
+            | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
         putBigInt 0 out
     | Demux2, false ->
-        let fdIn, bitSelect = insUInt32 0, insUInt32 1
+        let fdIn, bitSelect = insUInt32 0, insUInt32Bit 1
 
         let out0, out1 =
             if bitSelect = 0u then
@@ -563,7 +613,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         putUInt32 0 out0
         putUInt32 1 out1
     | Demux2, true ->
-        let fdIn, bitSelect = insBigInt 0, insUInt32 1
+        let fdIn, bitSelect = insBigInt 0, insUInt32Bit 1
 
         let out0, out1 =
             if bitSelect = 0u then
@@ -582,7 +632,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 1u -> 0u, fdIn, 0u, 0u
             | 2u -> 0u, 0u, fdIn, 0u
             | 3u -> 0u, 0u, 0u, fdIn
-            | _ -> failwithf "Cannot happen"
+            | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
         putUInt32 0 out0
         putUInt32 1 out1
@@ -597,13 +647,13 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 1u -> 0I, fdIn, 0I, 0I
             | 2u -> 0I, 0I, fdIn, 0I
             | 3u -> 0I, 0I, 0I, fdIn
-            | _ -> failwithf "Cannot happen"
+            | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
         putBigInt 0 out0
         putBigInt 1 out1
         putBigInt 2 out2
         putBigInt 3 out3
-    | Demux8,false ->
+    | Demux8, false ->
         let fdIn, bitSelect = insUInt32 0, insUInt32 1
 
         let out0, out1, out2, out3, out4, out5, out6, out7 =
@@ -616,7 +666,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 5u -> 0u, 0u, 0u, 0u, 0u, fdIn, 0u, 0u
             | 6u -> 0u, 0u, 0u, 0u, 0u, 0u, fdIn, 0u
             | 7u -> 0u, 0u, 0u, 0u, 0u, 0u, 0u, fdIn
-            | _ -> failwithf "Cannot happen"
+            | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
         putUInt32 0 out0
         putUInt32 1 out1
@@ -639,7 +689,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 5u -> 0I, 0I, 0I, 0I, 0I, fdIn, 0I, 0I
             | 6u -> 0I, 0I, 0I, 0I, 0I, 0I, fdIn, 0I
             | 7u -> 0I, 0I, 0I, 0I, 0I, 0I, 0I, fdIn
-            | _ -> failwithf "Cannot happen"
+            | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
         putBigInt 0 out0
         putBigInt 1 out1
@@ -651,7 +701,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         putBigInt 7 out7
     | NbitsAdder numberOfBits, false
     | NbitsAdderNoCout numberOfBits, false ->
-        let cin, a, b = insUInt32 0, insUInt32 1, insUInt32 2
+        let cin, a, b = insUInt32Bit 0, insUInt32 1, insUInt32 2
         let sum, cout =
             let w = comp.InputWidth 1
 
@@ -676,7 +726,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | _ -> putUInt32 0 sum
     | NbitsAdder numberOfBits, true
     | NbitsAdderNoCout numberOfBits, true ->
-        let cin, a, b = insUInt32 0, insBigInt 1, insBigInt 2
+        let cin, a, b = insUInt32Bit 0, insBigInt 1, insBigInt 2
         let sum, cout =
             let w = comp.InputWidth 1
 
@@ -702,7 +752,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | NbitsAdder _ ->
             putBigInt 0 sum
             putUInt32 1 cout
-        | _ -> putBigInt 0   sum
+        | _ -> putBigInt 0 sum
 
     | NbitsAdderNoCin numberOfBits, false
     | NbitsAdderNoCinCout numberOfBits, false ->
@@ -727,9 +777,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 
         match componentType with
         | NbitsAdderNoCin _ ->
-            putUInt32 0  sum
+            putUInt32 0 sum
             putUInt32 1 cout
-        | _ -> putUInt32 0  sum
+        | _ -> putUInt32 0 sum
     | NbitsAdderNoCin numberOfBits, true
     | NbitsAdderNoCinCout numberOfBits, true ->
         let a, b = insBigInt 0, insBigInt 1
@@ -753,7 +803,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     0u
                 else
                     1u
-            sum,  cout
+            sum, cout
 
         match componentType with
         | NbitsAdderNoCin _ ->
@@ -761,34 +811,36 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             putUInt32 1 cout
         | _ -> putBigInt 0 sum
 
-    | NbitsXor(numberOfBits, op),false ->
-        let a,b = insUInt32 0, insUInt32 1
+    | NbitsXor(numberOfBits, op), false ->
+        let a, b = insUInt32 0, insUInt32 1
         let res =
-                    match op with
-                    | None -> a ^^^ b
-                    | Some Multiply -> (a * b) &&& ((1u <<< comp.InputWidth 0) - 1u)
+            match op with
+            | None -> a ^^^ b
+            | Some Multiply -> (a * b) &&& ((1u <<< comp.InputWidth 0) - 1u)
 
         putUInt32 0 res
-    | NbitsXor(numberOfBits, op),true ->
-        let a,b = insBigInt 0, insBigInt 1
+    | NbitsXor(numberOfBits, op), true ->
+        let a, b = insBigInt 0, insBigInt 1
         let res =
-                    match op with
-                    | None -> a ^^^ b
-                    | Some Multiply -> (a * b) &&& ((bigint 1 <<< comp.InputWidth 0) - bigint 1)
+            match op with
+            | None -> a ^^^ b
+            | Some Multiply ->
+                (a * b)
+                &&& ((bigint 1 <<< comp.InputWidth 0) - bigint 1)
 
         putBigInt 0 res
     | NbitsOr numberOfBits, false ->
-        let a,b = insUInt32 0, insUInt32 1
+        let a, b = insUInt32 0, insUInt32 1
         let res = a ||| b
-        putUInt32 0 res
+        putUInt32W 0 numberOfBits res
     | NbitsOr numberOfBits, true ->
-        let a,b = insBigInt 0, insBigInt 1
+        let a, b = insBigInt 0, insBigInt 1
         let res = a ||| b
         putBigInt 0 res
     | NbitsAnd numberOfBits, false ->
         let a, b = insUInt32 0, insUInt32 1
         let res = a &&& b
-        putUInt32 0 res
+        putUInt32W 0 numberOfBits res
     | NbitsAnd numberOfBits, true ->
         let a, b = insBigInt 0, insBigInt 1
         let res = a &&& b
@@ -796,7 +848,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | NbitsNot numberOfBits, false ->
         let a = insUInt32 0
         let res = ~~~a
-        putUInt32 0 res
+        putUInt32W 0 numberOfBits res
     | NbitsNot numberOfBits, true ->
         let a = insBigInt 0
         // failwithf $"TODO: fable does not support op_OnesComplement function"
@@ -815,7 +867,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 1u -> (1u <<< numberOfBits) - 1u
             | _ -> failwithf $"Can't happen"
 
-        putUInt32 0 res
+        putUInt32W 0 numberOfBits res
     | NbitSpreader numberOfBits, true ->
         let a = insUInt32 0
         let res =
@@ -842,7 +894,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             match ins[0], outs[0] with
             | false, false ->
                 let bits0, bits1 = insUInt32 0, insUInt32 1
-                let res = ((bigint bits1) <<< comp.InputWidth 0) ||| (bigint bits0)
+                let res =
+                    ((bigint bits1) <<< comp.InputWidth 0)
+                    ||| (bigint bits0)
                 putBigInt 0 res
             | false, true ->
                 let bits0, bits1 = insUInt32 0, insBigInt 1
@@ -906,24 +960,27 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let d = insOldUInt32 0
         putUInt32 0 d
     | DFFE, false ->
-        let d, en = insOldUInt32 0, insOldUInt32 1
+        let d, en = insOldUInt32 0, insOldUInt32Bit 1
         match en with
         | 0u -> putUInt32 0 (getLastCycleOutUInt32 0)
         | 1u -> putUInt32 0 d
         | _ -> failwith "Can't happen"
-    | DFF, true | DFFE, true -> failwithf "DFF/DFFE with BigIntState"
+    | DFF, true
+    | DFFE, true -> failwithf "DFF/DFFE with BigIntState"
 
     | Register width, false ->
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = width) <| sprintf "Register received data with wrong width: expected %d but got %A" width w
+        assertThat (w = width)
+        <| sprintf "Register received data with wrong width: expected %d but got %A" width w
 #endif
-        let bits = insOldUInt32 0
-        putUInt32 0 bits
+        let bits = insOldUInt32W width 0
+        putUInt32W 0 width bits
     | Register width, true ->
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = width) <| sprintf "Register received data with wrong width: expected %d but got %A" width w
+        assertThat (w = width)
+        <| sprintf "Register received data with wrong width: expected %d but got %A" width w
 #endif
         let bits = insOldBigInt 0
         putBigInt 0 bits
@@ -931,19 +988,21 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | RegisterE width, false ->
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = width) <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width w
+        assertThat (w = width)
+        <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width w
 #endif
-        let bits, enable = insOldUInt32 0, insOldUInt32 1
+        let bits, enable = insOldUInt32W width 0, insOldUInt32Bit 1
         match enable with
-        | 0u -> putUInt32 0 (getLastCycleOutUInt32 0)
-        | 1u -> putUInt32 0 bits
+        | 0u -> putUInt32W 0 width (getLastCycleOutUInt32 0)
+        | 1u -> putUInt32W 0 width bits
         | _ -> failwithf "RegisterE received invalid enable value: %A" enable
     | RegisterE width, true ->
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = width) <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width w
+        assertThat (w = width)
+        <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width w
 #endif
-        let bits, enable = insOldBigInt 0, insOldUInt32 1
+        let bits, enable = insOldBigInt 0, insOldUInt32Bit 1
         match enable with
         | 0u -> putBigInt 0 (getLastCycleOutBigInt 0)
         | 1u -> putBigInt 0 bits
@@ -951,9 +1010,10 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | Counter width, false ->
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = width) <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
+        assertThat (w = width)
+        <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
 #endif
-        let bits, load, enable = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
+        let bits, load, enable = insOldUInt32W width 0, insOldUInt32Bit 1, insOldUInt32Bit 2
         let res =
             match enable, load with
             | 1u, 0u ->
@@ -963,17 +1023,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     0u
                 else
                     uint32 n
-            | 1u, 1u ->
-                bits
-            | _ ->
-                getLastCycleOutUInt32 0
-        putUInt32 0 res
+            | 1u, 1u -> bits
+            | _ -> getLastCycleOutUInt32 0
+        putUInt32W 0 width res
     | Counter width, true ->
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = width) <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
+        assertThat (w = width)
+        <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
 #endif
-        let bits, load, enable = insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
+        let bits, load, enable = insOldBigInt 0, insOldUInt32Bit 1, insOldUInt32Bit 2
         let res =
             match enable, load with
             | 1u, 0u ->
@@ -983,17 +1042,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     0I
                 else
                     n
-            | 1u, 1u ->
-                bits
-            | _ ->
-                getLastCycleOutBigInt 0
+            | 1u, 1u -> bits
+            | _ -> getLastCycleOutBigInt 0
         putBigInt 0 res
     | CounterNoEnable width, false ->
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = width) <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
+        assertThat (w = width)
+        <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
 #endif
-        let bits, load = insOldUInt32 0, insOldUInt32 1
+        let bits, load = insOldUInt32W width 0, insOldUInt32Bit 1
         let res =
             match load with
             | 0u ->
@@ -1003,16 +1061,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     0u
                 else
                     uint32 n
-            | 1u ->
-                bits
+            | 1u -> bits
             | _ -> failwithf "CounterNoEnable received invalid load value: %A" load
-        putUInt32 0 res
+        putUInt32W 0 width res
     | CounterNoEnable width, true ->
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = width) <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
+        assertThat (w = width)
+        <| sprintf "Counter received data with wrong width: expected %d but got %A" width w
 #endif
-        let bits, load = insOldBigInt 0, insOldUInt32 1
+        let bits, load = insOldBigInt 0, insOldUInt32Bit 1
         let res =
             match load with
             | 0u ->
@@ -1022,12 +1080,11 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     0I
                 else
                     n
-            | 1u ->
-                bits
+            | 1u -> bits
             | _ -> failwithf "CounterNoEnable received invalid load value: %A" load
         putBigInt 0 res
     | CounterNoLoad width, false ->
-        let enable = insOldUInt32 0
+        let enable = insOldUInt32Bit 0
         let res =
             match enable with
             | 1u ->
@@ -1037,12 +1094,11 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     0u
                 else
                     uint32 n
-            | 0u ->
-                getLastCycleOutUInt32 0
+            | 0u -> getLastCycleOutUInt32 0
             | _ -> failwithf "CounterNoLoad received invalid enable value: %A" enable
-        putUInt32 0 res
+        putUInt32W 0 width res
     | CounterNoLoad width, true ->
-        let enable = insOldUInt32 0
+        let enable = insOldUInt32Bit 0
         let res =
             match enable with
             | 1u ->
@@ -1052,8 +1108,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     0I
                 else
                     n
-            | 0u ->
-                getLastCycleOutBigInt 0
+            | 0u -> getLastCycleOutBigInt 0
             | _ -> failwithf "CounterNoLoad received invalid enable value: %A" enable
         putBigInt 0 res
     | CounterNoEnableLoad width, false ->
@@ -1064,7 +1119,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 0u
             else
                 uint32 n
-        putUInt32 0 res
+        putUInt32W 0 width res
     | CounterNoEnableLoad width, true ->
         let lastOut = getLastCycleOutBigInt 0
         let n = lastOut + 1I
@@ -1077,7 +1132,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | AsyncROM1 mem, false -> // Asynchronous ROM.
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = mem.AddressWidth) <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth w
+        assertThat (w = mem.AddressWidth)
+        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth w
 #endif
         let addr = insUInt32 0
         let outData = readMemoryAddrUInt32DataUInt32 mem addr
@@ -1085,10 +1141,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | AsyncROM1 mem, true -> // Asynchronous ROM.
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = mem.AddressWidth) <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth w
+        assertThat (w = mem.AddressWidth)
+        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth w
 #endif
         match comp.BigIntState with
-        | None -> failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+        | None ->
+            failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
             match ins[0], outs[0] with
             | true, true ->
@@ -1103,11 +1161,13 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let addr = insBigInt 0
                 let outData = readMemoryAddrBigIntDataUInt32 mem addr
                 putUInt32 0 outData
-            | false, false -> failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+            | false, false ->
+                failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
     | ROM1 mem, false -> // Synchronous ROM.
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = mem.AddressWidth) <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth w
+        assertThat (w = mem.AddressWidth)
+        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth w
 #endif
         let addr = insOldUInt32 0
         let outData = readMemoryAddrUInt32DataUInt32 mem addr
@@ -1115,10 +1175,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | ROM1 mem, true -> // Synchronous ROM.
 #if ASSERTS
         let w = comp.InputWidth 0
-        assertThat (w = mem.AddressWidth) <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth w
+        assertThat (w = mem.AddressWidth)
+        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth w
 #endif
         match comp.BigIntState with
-        | None -> failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+        | None ->
+            failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
             match ins[0], outs[0] with
             | true, true ->
@@ -1133,15 +1195,18 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let addr = insBigInt 0
                 let outData = readMemoryAddrBigIntDataUInt32 mem addr
                 putUInt32 0 outData
-            | false, false -> failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+            | false, false ->
+                failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
     | RAM1 memory, false ->
         let mem = getRamStateMemory numStep (simStepOld) comp.State memory
 #if ASSERTS
         let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
-        assertThat (addressW = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
-        assertThat (dataInW = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
+        assertThat (addressW = mem.AddressWidth)
+        <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
+        assertThat (dataInW = mem.WordWidth)
+        <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
 #endif
-        let address, dataIn, write = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
+        let address, dataIn, write = insOldUInt32 0, insOldUInt32 1, insOldUInt32Bit 2
         // If write flag is on, write the memory content.
         let mem, dataOut =
             match write with
@@ -1157,38 +1222,45 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let mem = getRamStateMemory numStep (simStepOld) comp.State memory
 #if ASSERTS
         let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
-        assertThat (addressW = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
-        assertThat (dataInW = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
+        assertThat (addressW = mem.AddressWidth)
+        <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
+        assertThat (dataInW = mem.WordWidth)
+        <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
 #endif
         match comp.BigIntState with
-        | None -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+        | None ->
+            failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
             match ins[0], outs[0] with
-            | false, false -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+            | false, false ->
+                failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
             | true, true ->
-                let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32 2
+                let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32Bit 2
                 let mem, dataOut =
                     match write with
                     | 0u -> mem, readMemoryAddrBigIntDataBigInt mem address
-                    | 1u -> writeMemoryAddrBigIntDataBigInt mem address dataIn, readMemoryAddrBigIntDataBigInt mem address
+                    | 1u ->
+                        writeMemoryAddrBigIntDataBigInt mem address dataIn, readMemoryAddrBigIntDataBigInt mem address
                     | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
                 putState (RamState mem)
                 putBigInt 0 dataOut
             | false, true ->
-                let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32 2
+                let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32Bit 2
                 let mem, dataOut =
                     match write with
                     | 0u -> mem, readMemoryAddrUInt32DataBigInt mem address
-                    | 1u -> writeMemoryAddrUInt32DataBigInt mem address dataIn, readMemoryAddrUInt32DataBigInt mem address
+                    | 1u ->
+                        writeMemoryAddrUInt32DataBigInt mem address dataIn, readMemoryAddrUInt32DataBigInt mem address
                     | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
                 putState (RamState mem)
                 putBigInt 0 dataOut
             | true, false ->
-                let address, dataIn, write =  insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
+                let address, dataIn, write = insOldBigInt 0, insOldUInt32 1, insOldUInt32Bit 2
                 let mem, dataOut =
                     match write with
                     | 0u -> mem, readMemoryAddrBigIntDataUInt32 mem address
-                    | 1u -> writeMemoryAddrBigIntDataUInt32 mem address dataIn, readMemoryAddrBigIntDataUInt32 mem address
+                    | 1u ->
+                        writeMemoryAddrBigIntDataUInt32 mem address dataIn, readMemoryAddrBigIntDataUInt32 mem address
                     | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
                 putState (RamState mem)
                 putUInt32 0 dataOut
@@ -1198,13 +1270,15 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | AsyncRAM1 memory, false ->
 #if ASSERTS
         let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
-        assertThat (addressW = memory.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" memory.AddressWidth addressW
-        assertThat (dataInW = memory.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" memory.WordWidth dataInW
+        assertThat (addressW = memory.AddressWidth)
+        <| sprintf "RAM received address with wrong width: expected %d but got %A" memory.AddressWidth addressW
+        assertThat (dataInW = memory.WordWidth)
+        <| sprintf "RAM received data-in with wrong width: expected %d but got %A" memory.WordWidth dataInW
 #endif
         if isClockedReduction then
             // here we propagate the state to current timestep, doing a state change if need be.
             let mem = getRamStateMemory numStep (simStepOld) comp.State memory
-            let address, dataIn, write = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
+            let address, dataIn, write = insOldUInt32 0, insOldUInt32 1, insOldUInt32Bit 2
             // If write flag is on, write the memory content.
             let mem =
                 match write with
@@ -1226,18 +1300,22 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | AsyncRAM1 mem, true ->
 #if ASSERTS
         let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
-        assertThat (addressW = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
-        assertThat (dataInW = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
+        assertThat (addressW = mem.AddressWidth)
+        <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
+        assertThat (dataInW = mem.WordWidth)
+        <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
 #endif
         match comp.BigIntState with
-        | None -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+        | None ->
+            failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
             match ins[0], outs[0] with
-            | false, false -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+            | false, false ->
+                failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
             | true, true ->
                 if isClockedReduction then
                     let mem = getRamStateMemory numStep (simStepOld) comp.State mem
-                    let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32 2
+                    let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32Bit 2
                     let mem =
                         match write with
                         | 0u -> mem
@@ -1252,7 +1330,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | false, true ->
                 if isClockedReduction then
                     let mem = getRamStateMemory numStep (simStepOld) comp.State mem
-                    let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32 2
+                    let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32Bit 2
                     let mem =
                         match write with
                         | 0u -> mem
@@ -1264,10 +1342,10 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     let address = insUInt32 0
                     let data = readMemoryAddrUInt32DataBigInt mem address
                     putBigInt 0 data
-            | true,false ->
+            | true, false ->
                 if isClockedReduction then
                     let mem = getRamStateMemory numStep (simStepOld) comp.State mem
-                    let address, dataIn, write = insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
+                    let address, dataIn, write = insOldBigInt 0, insOldUInt32 1, insOldUInt32Bit 2
                     let mem =
                         match write with
                         | 0u -> mem
@@ -1366,7 +1444,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             let bit0 = d1.GetQUint32
             let bit1 = d2.GetQUint32
 
-            put 0 <| Data { Width = 1; Dat = Word(bitOp bit1 bit0) }
+            put 0
+            <| Data { Width = 1; Dat = Word(bitOp bit1 bit0) }
         | A, B -> put 0 <| Alg(algOp A.toExp B.toExp)
     // | Alg exp1, Alg exp2 ->
     //     put 0 <| Alg (algOp exp1 exp2)
@@ -1477,7 +1556,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 ((getAlgExpWidth exp) = width)
                 ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {(getAlgExpWidth exp)}")
 #endif
-            put 0 <| Alg(ComparisonExp(exp, Equals, compareVal))
+            put 0
+            <| Alg(ComparisonExp(exp, Equals, compareVal))
     | BusCompare1(width, compareVal, dialogText) ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
         match (ins 0) with
@@ -1503,7 +1583,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 ((getAlgExpWidth exp) = width)
                 ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {(getAlgExpWidth exp)}")
 #endif
-            put 0 <| Alg(ComparisonExp(exp, Equals, compareVal))
+            put 0
+            <| Alg(ComparisonExp(exp, Equals, compareVal))
     | And -> getBinaryGateReducer bitAnd algAnd
     | Or -> getBinaryGateReducer bitOr algOr
     | Xor -> getBinaryGateReducer bitXor algXor
@@ -1605,7 +1686,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | 1u -> fd1
                 | 2u -> fd2
                 | 3u -> fd3
-                | _ -> failwithf "Cannot happen"
+                | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
             put 0 out
 
@@ -1650,7 +1731,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | 5u -> fd5
                 | 6u -> fd6
                 | 7u -> fd7
-                | _ -> failwithf "Cannot happen"
+                | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
             put 0 out
 
@@ -1679,7 +1760,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 0 out0
             put 1 out1
 
-
         | _, Alg _ ->
             let err =
                 { Msg =
@@ -1701,16 +1781,13 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | 1u -> zeros, fdIn, zeros, zeros
                 | 2u -> zeros, zeros, fdIn, zeros
                 | 3u -> zeros, zeros, zeros, fdIn
-                | _ -> failwithf "Cannot happen"
+                | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
             let w = fdIn.Width
             put 0 out0
             put 1 out1
             put 2 out2
             put 3 out3
-
-
-
 
         | _, Alg _ ->
             let err =
@@ -1737,7 +1814,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | 5u -> zeros, zeros, zeros, zeros, zeros, fdIn, zeros, zeros
                 | 6u -> zeros, zeros, zeros, zeros, zeros, zeros, fdIn, zeros
                 | 7u -> zeros, zeros, zeros, zeros, zeros, zeros, zeros, fdIn
-                | _ -> failwithf "Cannot happen"
+                | _ -> failwithf "Cannot happen %A %A %A" comp.FullName comp.FType bitSelect
 
             let w = fdIn.Width
             put 0 out0
@@ -1748,13 +1825,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 5 out5
             put 6 out6
             put 7 out7
-
-
-
-
-
-
-
 
         | _, Alg _ ->
             let err =

@@ -904,21 +904,21 @@ let getBitsFromUInt32 (msb: int) (lsb: int) (x: uint32) =
             0xFFFFFFFFu
         else
             ((1u <<< outW) - 1u)
-// #if ASSERTS
-//     Helpers.assertThat
-//         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
-//         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
-// #endif
+    // #if ASSERTS
+    //     Helpers.assertThat
+    //         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+    //         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+    // #endif
     let bits = (x >>> lsb) &&& outWMask32
     bits
 
 let getBitsFromBigInt (msb: int) (lsb: int) (x: bigint) =
     let outW = msb - lsb + 1
-// #if ASSERTS
-//     Helpers.assertThat
-//         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
-//         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
-// #endif
+    // #if ASSERTS
+    //     Helpers.assertThat
+    //         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+    //         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+    // #endif
     let mask = bigIntMask outW
     let bits = (x >>> lsb) &&& mask
     //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
@@ -931,11 +931,11 @@ let getBitsFromBigIntToUInt32 (msb: int) (lsb: int) (x: bigint) =
             0xFFFFFFFFu
         else
             ((1u <<< outW) - 1u)
-// #if ASSERTS
-//     Helpers.assertThat
-//         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
-//         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
-// #endif
+    // #if ASSERTS
+    //     Helpers.assertThat
+    //         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+    //         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+    // #endif
     let mask = bigIntMask outW
     let bits = (x >>> lsb) &&& mask
     //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
@@ -1026,16 +1026,94 @@ type FastComponent =
     member inline this.InputWidth(n) = this.InputLinks[n].Width
     member inline this.OutputWidth(n) = this.Outputs[n].Width
 
-    member inline this.GetInputUInt32 (epoch) (InputPortNumber n) = this.InputLinks[n].UInt32Step[epoch]
+    member inline this.GetInputUInt32 (epoch) (width) (InputPortNumber n) =
+        let idx, remainder = System.Math.DivRem(epoch * width, 32)
+
+        let word = this.InputLinks[n].UInt32Step[idx]
+        let mask = 0xFFFFFFFFu >>> remainder
+
+        let res =
+            match 32 - remainder with
+            | x when x = width -> word &&& mask
+            | x when x > width -> (word &&& mask) >>> (x - width)
+            | x ->
+                let wordNext = this.InputLinks[n].UInt32Step[idx + 1]
+                let l = (word &&& mask) <<< (width - x)
+                let r = wordNext >>> (32 - (width - x))
+                l ||| r
+
+        // printfn
+        //     "========= GetInputUInt32 %10A[%d]: idx=%5d | remainder=%5d | left=%5d | step=%5d | width=%5d | value=0b%10B res=0b%10B\n%A"
+        //     this.FullName
+        //     n
+        //     idx
+        //     remainder
+        //     (32 - remainder)
+        //     epoch
+        //     width
+        //     word
+        //     res
+        //     this.InputLinks[n].UInt32Step
+
+        res
     member inline this.GetInputBigInt (epoch) (InputPortNumber n) = this.InputLinks[n].BigIntStep[epoch]
     member inline this.GetInputFData (epoch) (InputPortNumber n) = this.InputLinks[n].FDataStep[epoch]
+
+    member inline this.GetOutputUInt32 (epoch) (width) (n) =
+        let idx, remainder = System.Math.DivRem(epoch * width, 32)
+        let word = this.Outputs[n].UInt32Step[idx]
+        let mask = 0xFFFFFFFFu >>> remainder
+
+        let res =
+            match 32 - remainder with
+            | x when x = width -> word &&& mask
+            | x when x > width -> (word &&& mask) >>> (x - width)
+            | x ->
+                let wordNext = this.Outputs[n].UInt32Step[idx + 1]
+                let l = (word &&& mask) <<< (width - x)
+                let r = wordNext >>> (32 - (width - x))
+                l ||| r
+
+        // printfn
+        //     "========= GetOutputUInt32 %10A[%d]: idx=%5d | remainder=%5d | left=%5d | step=%5d | width=%5d | value=0b%10B res=0b%10B\n%A"
+        //     this.FullName
+        //     n
+        //     idx
+        //     remainder
+        //     (32 - remainder)
+        //     epoch
+        //     width
+        //     word
+        //     res
+        //     this.Outputs[n].UInt32Step
+
+        res
 
     member this.ShortId =
         let (ComponentId sid, ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
 
-    member inline this.PutOutputUInt32 (epoch) (OutputPortNumber n) dat =
-        this.Outputs[n].UInt32Step[ epoch ] <- dat
+    member inline this.PutOutputUInt32 (epoch) (width) (OutputPortNumber n) dat =
+        let idx, remainder = System.Math.DivRem(epoch * width, 32)
+        let word = this.Outputs[n].UInt32Step[idx]
+        match 32 - remainder with
+        | x when x = width -> // [old value | new value]
+            this.Outputs[n].UInt32Step[ idx ] <-
+                (word &&& (0xFFFFFFFFu <<< x))
+                ||| (dat &&& (0xFFFFFFFFu >>> remainder))
+        | x when x > width -> // [old value | new value | old value / zeros]
+            this.Outputs[n].UInt32Step[ idx ] <-
+                (word &&& (0xFFFFFFFFu <<< x))
+                ||| (dat <<< (x - width))
+                ||| (word &&& (0xFFFFFFFFu >>> (remainder + width))) // REVIEW - this line is not necessary if Outputs are 1. zeroed before use 2. not used before being set
+        | x -> // [old value | new value] [new value | old value / zeros]
+            let wordNext = this.Outputs[n].UInt32Step[idx + 1]
+            this.Outputs[n].UInt32Step[ idx ] <-
+                (word &&& (0xFFFFFFFFu <<< x))
+                ||| (dat >>> (width - x))
+            this.Outputs[n].UInt32Step[ idx + 1 ] <-
+                (dat <<< (32 - (width - x)))
+                ||| (wordNext &&& (0xFFFFFFFFu >>> (width - x))) // REVIEW - this line is not necessary if Outputs are not used before being set
     member inline this.PutOutputBigInt (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].BigIntStep[ epoch ] <- dat
     member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =

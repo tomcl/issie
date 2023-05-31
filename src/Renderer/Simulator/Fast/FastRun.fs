@@ -104,16 +104,6 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         propagateEval fc
 
     let initInput (fc: FastComponent) =
-        let inputVal: uint32 =
-            match fc.FType with
-            | Input1(w, defaultVal) ->
-                match defaultVal with
-                | Some defaultVal -> defaultVal
-                | None -> 0
-            | _ ->
-                printf "non-input type component in initInput"
-                0
-            |> uint32
         //printfn "Init input..."
         // REVIEW - Input initialisation is no longer required
         // fc.InputLinks[0].FastDataStep
@@ -211,16 +201,6 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
         propagateEval fc
 
     let initInput (fc: FastComponent) =
-        let inputVal: uint32 =
-            match fc.FType with
-            | Input1(w, defaultVal) ->
-                match defaultVal with
-                | Some defaultVal -> defaultVal
-                | None -> 0
-            | _ ->
-                printf "non-input type component in initInput"
-                0
-            |> uint32
         //printfn "Init input..."
         fc.InputLinks[0].FDataStep
         |> Array.iteri (fun i _ -> fc.InputLinks[0].FDataStep[ i ] <- Data(convertIntToFastData (fc.OutputWidth 0) 0u))
@@ -519,7 +499,7 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
             if vec.Width > 32 then
                 vec.BigIntStep[step] <- vec.BigIntStep[step - 1]
             else
-                vec.UInt32Step[step] <- vec.UInt32Step[step - 1])
+                fc.PutOutputUInt32 step vec.Width (OutputPortNumber 0) (fc.GetOutputUInt32 (step - 1) vec.Width 0))
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
@@ -534,7 +514,7 @@ let private stepSimulation (fs: FastSimulation) =
 let private setSimulationInput (cid: ComponentId) (fd: FastData) (step: int) (fs: FastSimulation) =
     match Map.tryFind (cid, []) fs.FComps, fd.Width with
     | Some fc, w when w > 32 -> fc.Outputs[0].BigIntStep[ step % fs.MaxArraySize ] <- fd.GetBigInt
-    | Some fc, w -> fc.Outputs[0].UInt32Step[ step % fs.MaxArraySize ] <- fd.GetQUint32
+    | Some fc, w -> fc.PutOutputUInt32 (step % fs.MaxArraySize) w (OutputPortNumber 0) (fd.GetQUint32)
     | None, _ -> failwithf "Can't find %A in FastSim" cid
 
 let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (fs: FastSimulation) =
@@ -703,11 +683,8 @@ let rec extractFastSimulationOutput
                     $"What? extracting output {n}- in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
             | Some d -> { Dat = BigWord d; Width = w } |> IData
         | w ->
-            match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].UInt32Step with
-            | None ->
-                failwithf
-                    $"What? extracting output {n}- in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
-            | Some d -> { Dat = Word d; Width = w } |> IData
+            let d = fc.GetOutputUInt32 (step % fs.MaxArraySize) w n
+            { Dat = Word d; Width = w } |> IData
 
     | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent

@@ -181,8 +181,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 #endif
 
     ///  get data feom input i of component
-    let inline insUInt32 i =
+    let inline checkInputPortNumber i =
 #if ASSERTS
+        let n = comp.InputLinks.Length
         assertThat
             (i < n)
             (sprintf
@@ -193,76 +194,48 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 comp.ShortId
                 componentType
                 n)
+#else
+        ()
 #endif
-        let fd = comp.InputLinks[i].UInt32Step[simStep]
-        fd
 
-    let inline insBigInt i =
-#if ASSERTS
-        assertThat
-            (i < n)
-            (sprintf
-                "What? Invalid input port (%d:step%d) used by %s:%s (%A) reducer with %d Ins"
-                i
-                simStep
-                comp.FullName
-                comp.ShortId
-                componentType
-                n)
-#endif
-        let fd = comp.InputLinks[i].BigIntStep[simStep]
-        fd
-
-    /// get last cycle data from output i (for clocked components)
-    let inline getLastCycleOutUInt32 n =
+    let inline checkOutputWidth () =
 #if ASSERTS
         if comp.OutputWidth 0 = 0 then
             failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
+#else
+        ()
 #endif
+
+    ///  get data feom input i of component
+    let inline insUInt32 i =
+        checkInputPortNumber i
+        comp.InputLinks[i].UInt32Step[simStep]
+
+    let inline insBigInt i =
+        checkInputPortNumber i
+        comp.InputLinks[i].BigIntStep[simStep]
+
+    /// get last cycle data from output i (for clocked components)
+    let inline getLastCycleOutUInt32 n =
+        checkOutputWidth ()
         match numStep with
         | 0 -> 0u
         | _ -> comp.Outputs[n].UInt32Step[simStepOld]
 
     let inline getLastCycleOutBigInt n =
-#if ASSERTS
-        if comp.OutputWidth 0 = 0 then
-            failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
-#endif
+        checkOutputWidth ()
         match numStep with
         | 0 -> 0I
         | _ -> comp.Outputs[n].BigIntStep[simStepOld]
 
     /// get last cycle data from output i for component
     let inline insOldUInt32 i =
-#if ASSERTS
-        assertThat
-            (i < n)
-            (sprintf
-                "What? Invalid input port (%d:step%d) used by %s (%A) reducer with %d Ins"
-                i
-                simStep
-                comp.FullName
-                componentType
-                n)
-#endif
+        checkInputPortNumber i
+        comp.GetInputUInt32 (simStepOld) (InputPortNumber i)
 
-        let fd = comp.GetInputUInt32 (simStepOld) (InputPortNumber i)
-        fd
     let inline insOldBigInt i =
-#if ASSERTS
-        assertThat
-            (i < n)
-            (sprintf
-                "What? Invalid input port (%d:step%d) used by %s (%A) reducer with %d Ins"
-                i
-                simStep
-                comp.FullName
-                componentType
-                n)
-#endif
-
-        let fd = comp.GetInputBigInt (simStepOld) (InputPortNumber i)
-        fd
+        checkInputPortNumber i
+        comp.GetInputBigInt (simStepOld) (InputPortNumber i)
 
     /// Write current step output data for output port pn
     let inline putUInt32 pn fd = comp.PutOutputUInt32 (simStep) (OutputPortNumber pn) fd

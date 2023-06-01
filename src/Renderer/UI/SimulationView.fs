@@ -449,7 +449,7 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
         FastRun.runFastSimulation None clock simData.FastSim |> ignore
-        printfn $"clokctick after runFastSim{clock} from {oldClock} is {simData.FastSim.ClockTick}"
+        printfn $"clokctick after runFastSim {clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
         let messages =

@@ -207,8 +207,8 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
 let makeIOArray size =
     stepArrayIndex <- stepArrayIndex + 1
     { FDataStep = Array.create 2 (Data <| emptyFastData) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-      UInt32Step = Array.create size 0u
-      BigIntStep = Array.create size 0I
+      UInt32Step = Array.empty
+      BigIntStep = Array.empty
       Width = 0
       Index = stepArrayIndex }
 
@@ -218,12 +218,12 @@ let makeIOArrayW w size =
     | w when w <= 32 ->
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
           UInt32Step = Array.create size 0u
-          BigIntStep = Array.create size 0I
+          BigIntStep = Array.empty
           Width = w
           Index = stepArrayIndex }
     | _ ->
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = BigWord 0I }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-          UInt32Step = Array.create size 0u
+          UInt32Step = Array.empty
           BigIntStep = Array.create size 0I
           Width = w
           Index = stepArrayIndex }

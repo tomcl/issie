@@ -53,6 +53,7 @@ let shortDisplayMsg (msg:Msg) =
     | JSDiagramMsg (InitCanvas _ )-> Some "JSDiagramMsg.InitCanvas"
     | JSDiagramMsg _ -> None
     | KeyboardShortcutMsg _ -> None
+    | Benchmark _ -> Some "Benchmark"
     | StartSimulation x -> Some $"""StartSimulation({match x with | Ok _ -> "OK" | Error x -> "Error"})"""
     | AddWSModel (s,ws) -> Some $"AddWSModel:{s}->{shortDWSM ws}"
     | SetWSModel ws -> Some $"SetWSModel:{ws.FastSim.SimulatedTopSheet}->{shortDWSM ws}"

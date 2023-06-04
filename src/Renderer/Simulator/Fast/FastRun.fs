@@ -583,14 +583,14 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                          Width = w } |]
             | DFF
             | DFFE ->
-                [| fc, RegisterState { Dat = Word(fc.Outputs[0].UInt32Step[step % fastSim.MaxArraySize]); Width = 1 } |]
+                [| fc, RegisterState { Dat = Word(fc.GetOutputUInt32 step 1 0); Width = 1 } |]
             | Register w
             | RegisterE w
             | Counter w
             | CounterNoEnable w
             | CounterNoLoad w
             | CounterNoEnableLoad w ->
-                [| fc, RegisterState { Dat = Word(fc.Outputs[0].UInt32Step[step % fastSim.MaxArraySize]); Width = w } |]
+                [| fc, RegisterState { Dat = Word(fc.GetOutputUInt32 step w 0); Width = w } |]
             | ROM1 state -> [| fc, RamState state |]
             | RAM1 _
             | AsyncRAM1 _ ->

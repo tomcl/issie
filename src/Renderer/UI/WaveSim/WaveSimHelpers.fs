@@ -265,32 +265,46 @@ let calculateBinaryTransitions (waveValues: FData array) : BinaryTransition arra
     )
 
 let calculateBinaryTransitionsUInt32 (waveValues: uint32 array) : BinaryTransition array =
-    let getBit bit = int32 bit
-    Array.append [| waveValues[0] |] waveValues
-    |> Array.pairwise
-    |> Array.map (fun (x, y) ->
-        match getBit x, getBit y with
-        | 0, 0 -> ZeroToZero
-        | 0, 1 -> ZeroToOne
-        | 1, 0 -> OneToZero
-        | 1, 1 -> OneToOne
-        | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
+    let bits =
+        waveValues
+        |> Array.map (fun word ->
+            [|0 .. 31|] |> Array.map (fun bit -> (word >>> bit) &&& 1u))
+        |> Array.concat
+        |> Array.map int32
 
-let calculateBinaryTransitionsBigInt (waveValues: bigint array) : BinaryTransition array =
-    let getBit bit = int32 bit
-    Array.append [| waveValues[0] |] waveValues
+    Array.append [| bits[0] |] bits
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
-        match getBit x, getBit y with
+        match x, y with
         | 0, 0 -> ZeroToZero
         | 0, 1 -> ZeroToOne
         | 1, 0 -> OneToZero
         | 1, 1 -> OneToOne
-        | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
+        | _ -> failwithf $"Unrecognised transition {x}, {y}")
 
 /// Determine transitions for each clock cycle of a non-binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.
-let calculateNonBinaryTransitions (waveValues: 'a array) : NonBinaryTransition array =
+let calculateNonBinaryTransitionsUInt32 (waveValues: uint32 array) width : NonBinaryTransition array =
+    // TODO: See if this will break if the clock cycle isn't 0.
+    let data =
+        waveValues
+        |> Array.map uint32
+        |> Array.map (fun word ->
+            [|0 .. 32 / width|]
+            |> Array.map (fun offset -> (word <<< (offset * width + 32 % width)) >>> (32 - width)))
+        |> Array.concat
+    let transitions =
+        data
+        |> Array.pairwise
+        |> Array.map (fun (x, y) ->
+            if x = y then
+                Const
+            else
+                Change)
+    // Concat [| Change |] so first clock cycle always starts with Change
+    Array.append [| Change |] transitions
+
+let calculateNonBinaryTransitionsBigInt (waveValues: bigint array) : NonBinaryTransition array =
     // TODO: See if this will break if the clock cycle isn't 0.
     let transitions =
         waveValues
@@ -301,7 +315,7 @@ let calculateNonBinaryTransitions (waveValues: 'a array) : NonBinaryTransition a
             else
                 Change)
     // Concat [| Change |] so first clock cycle always starts with Change
-    Array.append [| Change |] transitions 
+    Array.append [| Change |] transitions
 
 let isWaveSelected (wsModel: WaveSimModel) (index: WaveIndexT) : bool = List.contains index wsModel.SelectedWaves
 let isRamSelected (ramId: FComponentId) (wsModel: WaveSimModel) : bool = Map.containsKey ramId wsModel.SelectedRams

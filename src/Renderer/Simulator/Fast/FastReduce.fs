@@ -213,71 +213,71 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     ///  get data feom input i of component
     let inline insUInt32 i =
         checkInputPortNumber i
-        comp.GetInputUInt32 (simStep) (comp.InputWidth i) (InputPortNumber i)
+        comp.GetInputUInt32 simStep maxArraySize (comp.InputWidth i) (InputPortNumber i)
 
     let inline insUInt32Bit i =
         checkInputPortNumber i
-        comp.GetInputUInt32 (simStep) 1 (InputPortNumber i)
+        comp.GetInputUInt32 simStep maxArraySize 1 (InputPortNumber i)
 
     let inline insUInt32W i width =
         checkInputPortNumber i
-        comp.GetInputUInt32 (simStep) width (InputPortNumber i)
+        comp.GetInputUInt32 simStep maxArraySize width (InputPortNumber i)
 
     let inline insBigInt i =
         checkInputPortNumber i
-        comp.InputLinks[i].BigIntStep[simStep]
+        comp.GetInputBigInt simStep maxArraySize (InputPortNumber i)
 
     /// get last cycle data from output i (for clocked components)
     let inline getLastCycleOutUInt32 n =
         checkOutputWidth ()
         match numStep with
         | 0 -> 0u
-        | _ -> comp.GetOutputUInt32 simStepOld (comp.OutputWidth 0) n
+        | _ -> comp.GetOutputUInt32 simStepOld maxArraySize (comp.OutputWidth 0) n
 
     let inline getLastCycleOutUInt32Bit n =
         checkOutputWidth ()
         match numStep with
         | 0 -> 0u
-        | _ -> comp.GetOutputUInt32 simStepOld 1 n
+        | _ -> comp.GetOutputUInt32 simStepOld maxArraySize 1 n
 
     let inline getLastCycleOutUInt32W n width =
         checkOutputWidth ()
         match numStep with
         | 0 -> 0u
-        | _ -> comp.GetOutputUInt32 simStepOld width n
+        | _ -> comp.GetOutputUInt32 simStepOld maxArraySize width n
 
     let inline getLastCycleOutBigInt n =
         checkOutputWidth ()
         match numStep with
         | 0 -> 0I
-        | _ -> comp.Outputs[n].BigIntStep[simStepOld]
+        | _ -> comp.GetOutputBigInt simStepOld maxArraySize n
 
     /// get last cycle data from output i for component
     let inline insOldUInt32 i =
         checkInputPortNumber i
-        comp.GetInputUInt32 (simStepOld) (comp.InputWidth i) (InputPortNumber i)
+        comp.GetInputUInt32 simStepOld maxArraySize (comp.InputWidth i) (InputPortNumber i)
 
     let inline insOldUInt32Bit i =
         checkInputPortNumber i
-        comp.GetInputUInt32 (simStepOld) (comp.InputWidth i) (InputPortNumber i)
+        comp.GetInputUInt32 simStepOld maxArraySize 1 (InputPortNumber i)
 
     let inline insOldUInt32W i width =
         checkInputPortNumber i
-        comp.GetInputUInt32 (simStepOld) width (InputPortNumber i)
+        comp.GetInputUInt32 simStepOld maxArraySize width (InputPortNumber i)
 
     let inline insOldBigInt i =
         checkInputPortNumber i
-        comp.GetInputBigInt (simStepOld) (InputPortNumber i)
+        comp.GetInputBigInt simStepOld maxArraySize (InputPortNumber i)
 
     /// Write current step output data for output port pn
     let inline putUInt32 pn fd =
-        comp.PutOutputUInt32 (simStep) (comp.OutputWidth pn) (OutputPortNumber pn) fd
+        comp.PutOutputUInt32 simStep maxArraySize (comp.OutputWidth pn) (OutputPortNumber pn) fd
     let inline putUInt32Bit pn fd =
-        comp.PutOutputUInt32 (simStep) 1 (OutputPortNumber pn) fd
+        comp.PutOutputUInt32 simStep maxArraySize 1 (OutputPortNumber pn) fd
     let inline putUInt32W pn width fd =
-        comp.PutOutputUInt32 (simStep) (width) (OutputPortNumber pn) fd
+        comp.PutOutputUInt32 simStep maxArraySize width (OutputPortNumber pn) fd
     let inline putBigInt pn fd =
-        comp.PutOutputBigInt (simStep) (OutputPortNumber pn) fd
+        comp.PutOutputBigInt simStep maxArraySize (OutputPortNumber pn) fd
 
     /// Write current State (used only for RAMs, DFFs and registers use previous cycle output as state)
     let inline putState state =
@@ -1003,6 +1003,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width w
 #endif
         let bits, enable = insOldUInt32W 0 width, insOldUInt32Bit 1
+        // printfn "RegisterE %A: %u %u" comp.FLabel bits enable
         match enable with
         | 0u -> putUInt32W 0 width (getLastCycleOutUInt32W 0 width)
         | 1u -> putUInt32W 0 width bits
@@ -1437,12 +1438,12 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 n)
 #endif
 
-        let fd = comp.GetInputFData (simStepOld) (InputPortNumber i)
+        let fd = comp.GetInputFData simStepOld maxArraySize (InputPortNumber i)
         fd
 
     /// Write current step output data for output port 0
     let inline put pn fd =
-        comp.PutOutputFData (simStep) (OutputPortNumber pn) fd
+        comp.PutOutputFData simStep maxArraySize (OutputPortNumber pn) fd
 
     /// Write current State (used only for RAMs, DFFs and registers use previous cycle output as state)
     let inline putState state =

@@ -216,8 +216,10 @@ let makeIOArrayW w size =
     stepArrayIndex <- stepArrayIndex + 1
     match w with
     | w when w <= 32 ->
+        let samplesPerWord = 32 / w
+        let numWords = if size % samplesPerWord = 0 then size / samplesPerWord else size / samplesPerWord + 1
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-          UInt32Step = Array.create size 0u
+          UInt32Step = Array.create numWords 0u
           BigIntStep = Array.empty
           Width = w
           Index = stepArrayIndex }

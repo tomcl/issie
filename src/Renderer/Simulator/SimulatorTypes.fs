@@ -1026,98 +1026,69 @@ type FastComponent =
     member inline this.InputWidth(n) = this.InputLinks[n].Width
     member inline this.OutputWidth(n) = this.Outputs[n].Width
 
-    member inline this.GetInputUInt32 (epoch) (width) (InputPortNumber n) =
-        let idx, remainder = System.Math.DivRem(epoch * width, 32)
+    member inline this.GetInputUInt32 clockTick maxArraySize width (InputPortNumber n) =
+        let arrayIdx = clockTick % maxArraySize
+        let samplesPerWord = 32 / width
+        let wordIdx = arrayIdx / samplesPerWord
+        let word = this.InputLinks[n].UInt32Step[wordIdx]
 
-        let word = this.InputLinks[n].UInt32Step[idx]
-        let mask = 0xFFFFFFFFu >>> remainder
+        // small endian 1
+        // let bitOffset =  (samplesPerWord - 1 - (arrayIdx % samplesPerWord)) * width
+        // word <<< (32 % width + bitOffset) >>> (32 - width)
 
-        let res =
-            match 32 - remainder with
-            | x when x = width -> word &&& mask
-            | x when x > width -> (word &&& mask) >>> (x - width)
-            | x ->
-                let wordNext = this.InputLinks[n].UInt32Step[idx + 1]
-                let l = (word &&& mask) <<< (width - x)
-                let r = wordNext >>> (32 - (width - x))
-                l ||| r
+        // small endian 2
+        let bitOffset = (arrayIdx % samplesPerWord) * width
+        (word >>> bitOffset) &&& (0xFFFFFFFFu >>> (32 - width))
 
-        // printfn
-        //     "========= GetInputUInt32 %10A[%d]: idx=%5d | remainder=%5d | left=%5d | step=%5d | width=%5d | value=0b%10B res=0b%10B\n%A"
-        //     this.FullName
-        //     n
-        //     idx
-        //     remainder
-        //     (32 - remainder)
-        //     epoch
-        //     width
-        //     word
-        //     res
-        //     this.InputLinks[n].UInt32Step
+        // small endian 3
+        // let bitOffset = (arrayIdx % samplesPerWord) * width
+        // (word / (1u <<< bitOffset)) % (1u <<< width)
+    member inline this.GetInputBigInt clockTick maxArraySize (InputPortNumber n) =
+        let arrayIdx = clockTick % maxArraySize
+        this.InputLinks[n].BigIntStep[arrayIdx]
+    member inline this.GetInputFData clockTick maxArraySize (InputPortNumber n) =
+        let arrayIdx = clockTick % maxArraySize
+        this.InputLinks[n].FDataStep[arrayIdx]
 
-        res
-    member inline this.GetInputBigInt (epoch) (InputPortNumber n) = this.InputLinks[n].BigIntStep[epoch]
-    member inline this.GetInputFData (epoch) (InputPortNumber n) = this.InputLinks[n].FDataStep[epoch]
+    member inline this.GetOutputUInt32 clockTick maxArraySize width (n) =
+        let arrayIdx = clockTick % maxArraySize
+        let samplesPerWord = 32 / width
+        let wordOffset = arrayIdx / samplesPerWord
+        let word = this.Outputs[n].UInt32Step[wordOffset]
 
-    member inline this.GetOutputUInt32 (epoch) (width) (n) =
-        let idx, remainder = System.Math.DivRem(epoch * width, 32)
-        let word = this.Outputs[n].UInt32Step[idx]
-        let mask = 0xFFFFFFFFu >>> remainder
+         // small endian 1
+        // let bitOffset =  (samplesPerWord - 1 - (arrayIdx % samplesPerWord)) * width
+        // word <<< (32 % width + bitOffset) >>> (32 - width)
 
-        let res =
-            match 32 - remainder with
-            | x when x = width -> word &&& mask
-            | x when x > width -> (word &&& mask) >>> (x - width)
-            | x ->
-                let wordNext = this.Outputs[n].UInt32Step[idx + 1]
-                let l = (word &&& mask) <<< (width - x)
-                let r = wordNext >>> (32 - (width - x))
-                l ||| r
+        // small endian 2
+        let bitOffset = (arrayIdx % samplesPerWord) * width
+        (word >>> bitOffset) &&& (0xFFFFFFFFu >>> (32 - width))
 
-        // printfn
-        //     "========= GetOutputUInt32 %10A[%d]: idx=%5d | remainder=%5d | left=%5d | step=%5d | width=%5d | value=0b%10B res=0b%10B\n%A"
-        //     this.FullName
-        //     n
-        //     idx
-        //     remainder
-        //     (32 - remainder)
-        //     epoch
-        //     width
-        //     word
-        //     res
-        //     this.Outputs[n].UInt32Step
-
-        res
+        // small endian 3
+        // let bitOffset = (arrayIdx % samplesPerWord) * width
+        // (word / (1u <<< bitOffset)) % (1u <<< width)
+    member inline this.GetOutputBigInt clockTick maxArraySize (n) =
+        let arrayIdx = clockTick % maxArraySize
+        this.Outputs[n].BigIntStep[arrayIdx]
 
     member this.ShortId =
         let (ComponentId sid, ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
 
-    member inline this.PutOutputUInt32 (epoch) (width) (OutputPortNumber n) dat =
-        let idx, remainder = System.Math.DivRem(epoch * width, 32)
-        let word = this.Outputs[n].UInt32Step[idx]
-        match 32 - remainder with
-        | x when x = width -> // [old value | new value]
-            this.Outputs[n].UInt32Step[ idx ] <-
-                (word &&& (0xFFFFFFFFu <<< x))
-                ||| (dat &&& (0xFFFFFFFFu >>> remainder))
-        | x when x > width -> // [old value | new value | old value / zeros]
-            this.Outputs[n].UInt32Step[ idx ] <-
-                (word &&& (0xFFFFFFFFu <<< x))
-                ||| (dat <<< (x - width))
-                ||| (word &&& (0xFFFFFFFFu >>> (remainder + width))) // REVIEW - this line is not necessary if Outputs are 1. zeroed before use 2. not used before being set
-        | x -> // [old value | new value] [new value | old value / zeros]
-            let wordNext = this.Outputs[n].UInt32Step[idx + 1]
-            this.Outputs[n].UInt32Step[ idx ] <-
-                (word &&& (0xFFFFFFFFu <<< x))
-                ||| (dat >>> (width - x))
-            this.Outputs[n].UInt32Step[ idx + 1 ] <-
-                (dat <<< (32 - (width - x)))
-                ||| (wordNext &&& (0xFFFFFFFFu >>> (width - x))) // REVIEW - this line is not necessary if Outputs are not used before being set
-    member inline this.PutOutputBigInt (epoch) (OutputPortNumber n) dat =
-        this.Outputs[n].BigIntStep[ epoch ] <- dat
-    member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =
-        this.Outputs[n].FDataStep[ epoch ] <- dat
+    member inline this.PutOutputUInt32 clockTick maxArraySize width (OutputPortNumber n) dat =
+        let arrayIdx = clockTick % maxArraySize
+        let samplesPerWord = 32 / width
+        let wordOffset = arrayIdx / samplesPerWord
+        let word = this.Outputs[n].UInt32Step[wordOffset]
+
+        let bitOffset = (arrayIdx % samplesPerWord) * width // small endian
+        this.Outputs[n].UInt32Step[wordOffset] <- word ||| (dat <<< bitOffset)
+    member inline this.PutOutputBigInt clockTick maxArraySize (OutputPortNumber n) dat =
+        let arrayIdx = clockTick % maxArraySize
+        this.Outputs[n].BigIntStep[ arrayIdx ] <- dat
+    member inline this.PutOutputFData clockTick maxArraySize (OutputPortNumber n) dat =
+        let arrayIdx = clockTick % maxArraySize
+        this.Outputs[n].FDataStep[ arrayIdx ] <- dat
     member inline this.Id = this.SimComponent.Id
     member inline this.SubSheet = this.SheetName[0 .. this.SheetName.Length - 2]
 

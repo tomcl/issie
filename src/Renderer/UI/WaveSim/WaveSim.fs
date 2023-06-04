@@ -39,7 +39,11 @@ let displayUInt32OnWave wsModel (width: int) (waveValues: uint32 array) (transit
     gaps
     // Create text react elements for each gap
     |> Array.map (fun gap ->
-        let waveValue = UInt32ToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
+        let samplesPerWord = 32 / width
+        let wordOffset = gap.Start / samplesPerWord
+        let bitOffset = (samplesPerWord - 1 - (gap.Start % samplesPerWord)) * width
+        let data = (waveValues[wordOffset] <<< (32 % width + bitOffset)) >>> (32 - width)
+        let waveValue = UInt32ToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix width data
 
         /// Amount of whitespace between two Change transitions minus the crosshatch
         let cycleWidth = singleWaveWidth wsModel
@@ -163,7 +167,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             //printfn "starting non-binary"
             let start = TimeHelpers.getTimeMs ()
 
-            let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step
+            let transitions = calculateNonBinaryTransitionsUInt32 wave.WaveValues.UInt32Step w
             //printfn "calculating trans..."
             /// TODO: Fix this so that it does not generate all 500 points.
             /// Currently takes in 0, but this should ideally only generate the points that
@@ -189,7 +193,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             //printfn "starting non-binary"
             let start = TimeHelpers.getTimeMs ()
 
-            let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step
+            let transitions = calculateNonBinaryTransitionsBigInt wave.WaveValues.BigIntStep
             //printfn "calculating trans..."
             /// TODO: Fix this so that it does not generate all 500 points.
             /// Currently takes in 0, but this should ideally only generate the points that

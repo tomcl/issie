@@ -87,7 +87,6 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
 let InputDefaultsEqualInputs fs (model:Model) =
-    let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
     |> Map.map (fun fid fc ->
@@ -95,9 +94,9 @@ let InputDefaultsEqualInputs fs (model:Model) =
         if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
             let newDefault =
                 if fc.OutputWidth 0 > 32 then
-                    convertBigIntToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+                    convertBigIntToInt32 <| fc.GetOutputBigInt fs.ClockTick fs.MaxArraySize 0
                 else
-                    int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+                    int <| fc.GetOutputUInt32 fs.ClockTick fs.MaxArraySize (fc.OutputWidth 0) 0
             let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
             match typ with
             | Input1(_, Some d) -> d = newDefault
@@ -117,16 +116,15 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
                 | x -> x
             {comp with Type = ct}
         {sym with Component = comp'}
-    let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
     |> Map.map (fun fid fc ->
         let cid = fst fid
         let newDefault =
             if fc.OutputWidth 0 > 32 then
-                convertBigIntToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+                convertBigIntToInt32 <| fc.GetOutputBigInt fs.ClockTick fs.MaxArraySize 0
             else
-                int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+                int <| fc.GetOutputUInt32 fs.ClockTick fs.MaxArraySize (fc.OutputWidth 0) 0
         SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid
         |> Optic.map DrawModelType.SheetT.symbol_
         |> Optic.map ModelType.sheet_

@@ -1037,7 +1037,7 @@ type FastComponent =
     member inline this.InputWidth(n) = this.InputLinks[n].Width
     member inline this.OutputWidth(n) = this.Outputs[n].Width
 
-    member inline this.GetInputUInt32 (clockTick: int) maxArraySize width (InputPortNumber n) =
+    member this.GetInputUInt32 (clockTick: int) maxArraySize width (InputPortNumber n) =
         let arrayIdx = clockTick % maxArraySize
         let samplesPerWord = 32 / width
         let wordIdx = arrayIdx / samplesPerWord
@@ -1054,7 +1054,7 @@ type FastComponent =
         let arrayIdx = clockTick % maxArraySize
         this.InputLinks[n].FDataStep[arrayIdx]
 
-    member inline this.GetOutputUInt32 (clockTick: int) maxArraySize width (n) =
+    member this.GetOutputUInt32 (clockTick: int) maxArraySize width (n) =
         let arrayIdx = clockTick % maxArraySize
         let samplesPerWord = 32 / width
         let wordIdx = arrayIdx / samplesPerWord
@@ -1073,7 +1073,7 @@ type FastComponent =
         let (ComponentId sid, ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
 
-    member inline this.PutOutputUInt32 (clockTick: int) maxArraySize width (OutputPortNumber n) dat =
+    member this.PutOutputUInt32 (clockTick: int) maxArraySize width (OutputPortNumber n) dat =
         let arrayIdx = clockTick % maxArraySize
         let samplesPerWord = 32 / width
         let wordIdx = arrayIdx / samplesPerWord

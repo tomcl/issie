@@ -1006,7 +1006,7 @@ type BigIntState =
 let inline bitSlice bits lsb width =
     // word <<< (32 % width + bitOffset) >>> (32 - width) // method 1
     (bits >>> lsb) &&& (0xFFFFFFFFu >>> (32 - width)) // method 2
-    // (uint32 (bits / (1u <<< lsb))) % (1u <<< width) // method 3
+// (uint32 (bits / (1u <<< lsb))) % (1u <<< width) // method 3
 
 // #endif
 
@@ -1045,7 +1045,7 @@ type FastComponent =
 
         let word = this.InputLinks[n].UInt32Step[wordIdx]
         bitSlice word bitOffset width
-        // printfn "%A:(%A / (1u <<< %A)) %% (1u <<< %A) = %A" this.FLabel word bitOffset width res
+    // printfn "%A:(%A / (1u <<< %A)) %% (1u <<< %A) = %A" this.FLabel word bitOffset width res
 
     member inline this.GetInputBigInt (clockTick: int) maxArraySize (InputPortNumber n) =
         let arrayIdx = clockTick % maxArraySize
@@ -1081,8 +1081,9 @@ type FastComponent =
         let word = this.Outputs[n].UInt32Step[wordIdx]
 
         let bitOffset = (arrayIdx % samplesPerWord) * width // small endian
-        let bitMask = ~~~((0xFFFFFFFFu >>> bitOffset) <<< (32 - width) >>> (32 - width - bitOffset))
-        this.Outputs[n].UInt32Step[wordIdx] <- word &&& bitMask ||| (dat <<< bitOffset)
+        // let bitMask = (0xFFFFFFFFu <<< (32 - width - bitOffset)) ||| (0xFFFFFFFFu >>> (32 - bitOffset))
+        let bitMask = ~~~(0xFFFFFFFFu >>> (32 - width) <<< bitOffset)
+        this.Outputs[n].UInt32Step[ wordIdx ] <- word &&& bitMask ||| (dat <<< bitOffset)
     member inline this.PutOutputBigInt (clockTick: int) maxArraySize (OutputPortNumber n) dat =
         let arrayIdx = clockTick % maxArraySize
         this.Outputs[n].BigIntStep[ arrayIdx ] <- dat

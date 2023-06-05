@@ -999,6 +999,17 @@ type BigIntState =
     { InputIsBigInt: bool array // NOTE - whether each input uses BigInt or UInt32
       OutputIsBigInt: bool array }
 
+// #if FABLE_COMPILER
+// [<Emit("(($0 / (1 << $1)) >>> 0) % (1 << $2)")>]
+// let bitSlice bits lsb width : uint32 = jsNative
+// #else
+let inline bitSlice bits lsb width =
+    // word <<< (32 % width + bitOffset) >>> (32 - width) // method 1
+    (bits >>> lsb) &&& (0xFFFFFFFFu >>> (32 - width)) // method 2
+    // (uint32 (bits / (1u <<< lsb))) % (1u <<< width) // method 3
+
+// #endif
+
 type FastComponent =
     { fId: FComponentId
       cId: ComponentId
@@ -1026,67 +1037,56 @@ type FastComponent =
     member inline this.InputWidth(n) = this.InputLinks[n].Width
     member inline this.OutputWidth(n) = this.Outputs[n].Width
 
-    member inline this.GetInputUInt32 clockTick maxArraySize width (InputPortNumber n) =
+    member inline this.GetInputUInt32 (clockTick: int) maxArraySize width (InputPortNumber n) =
         let arrayIdx = clockTick % maxArraySize
         let samplesPerWord = 32 / width
         let wordIdx = arrayIdx / samplesPerWord
-        let word = this.InputLinks[n].UInt32Step[wordIdx]
-
-        // small endian 1
-        // let bitOffset =  (samplesPerWord - 1 - (arrayIdx % samplesPerWord)) * width
-        // word <<< (32 % width + bitOffset) >>> (32 - width)
-
-        // small endian 2
         let bitOffset = (arrayIdx % samplesPerWord) * width
-        (word >>> bitOffset) &&& (0xFFFFFFFFu >>> (32 - width))
 
-        // small endian 3
-        // let bitOffset = (arrayIdx % samplesPerWord) * width
-        // (word / (1u <<< bitOffset)) % (1u <<< width)
-    member inline this.GetInputBigInt clockTick maxArraySize (InputPortNumber n) =
+        let word = this.InputLinks[n].UInt32Step[wordIdx]
+        bitSlice word bitOffset width
+        // printfn "%A:(%A / (1u <<< %A)) %% (1u <<< %A) = %A" this.FLabel word bitOffset width res
+
+    member inline this.GetInputBigInt (clockTick: int) maxArraySize (InputPortNumber n) =
         let arrayIdx = clockTick % maxArraySize
         this.InputLinks[n].BigIntStep[arrayIdx]
-    member inline this.GetInputFData clockTick maxArraySize (InputPortNumber n) =
+    member inline this.GetInputFData (clockTick: int) maxArraySize (InputPortNumber n) =
         let arrayIdx = clockTick % maxArraySize
         this.InputLinks[n].FDataStep[arrayIdx]
 
-    member inline this.GetOutputUInt32 clockTick maxArraySize width (n) =
+    member inline this.GetOutputUInt32 (clockTick: int) maxArraySize width (n) =
         let arrayIdx = clockTick % maxArraySize
         let samplesPerWord = 32 / width
-        let wordOffset = arrayIdx / samplesPerWord
-        let word = this.Outputs[n].UInt32Step[wordOffset]
-
-         // small endian 1
-        // let bitOffset =  (samplesPerWord - 1 - (arrayIdx % samplesPerWord)) * width
-        // word <<< (32 % width + bitOffset) >>> (32 - width)
-
-        // small endian 2
+        let wordIdx = arrayIdx / samplesPerWord
         let bitOffset = (arrayIdx % samplesPerWord) * width
-        (word >>> bitOffset) &&& (0xFFFFFFFFu >>> (32 - width))
 
-        // small endian 3
-        // let bitOffset = (arrayIdx % samplesPerWord) * width
-        // (word / (1u <<< bitOffset)) % (1u <<< width)
-    member inline this.GetOutputBigInt clockTick maxArraySize (n) =
+        let word = this.Outputs[n].UInt32Step[wordIdx]
+        bitSlice word bitOffset width
+    member inline this.GetOutputBigInt (clockTick: int) maxArraySize (n) =
         let arrayIdx = clockTick % maxArraySize
         this.Outputs[n].BigIntStep[arrayIdx]
+    member inline this.GetOutputFData (clockTick: int) maxArraySize (n) =
+        let arrayIdx = clockTick % maxArraySize
+        this.Outputs[n].FDataStep[arrayIdx]
 
     member this.ShortId =
         let (ComponentId sid, ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
 
-    member inline this.PutOutputUInt32 clockTick maxArraySize width (OutputPortNumber n) dat =
+    member inline this.PutOutputUInt32 (clockTick: int) maxArraySize width (OutputPortNumber n) dat =
         let arrayIdx = clockTick % maxArraySize
         let samplesPerWord = 32 / width
-        let wordOffset = arrayIdx / samplesPerWord
-        let word = this.Outputs[n].UInt32Step[wordOffset]
+        let wordIdx = arrayIdx / samplesPerWord
+        // printfn "PutOutputUInt32 for %A at ClockTick %4d with MaxArraySize %4d, Width %3d, InputPortNumber %d, wordIdx %3d, ArraySize %3d" this.FullName clockTick maxArraySize width n wordIdx this.Outputs[n].UInt32Step.Length
+        let word = this.Outputs[n].UInt32Step[wordIdx]
 
         let bitOffset = (arrayIdx % samplesPerWord) * width // small endian
-        this.Outputs[n].UInt32Step[wordOffset] <- word ||| (dat <<< bitOffset)
-    member inline this.PutOutputBigInt clockTick maxArraySize (OutputPortNumber n) dat =
+        let bitMask = ~~~((0xFFFFFFFFu >>> bitOffset) <<< (32 - width) >>> (32 - width - bitOffset))
+        this.Outputs[n].UInt32Step[wordIdx] <- word &&& bitMask ||| (dat <<< bitOffset)
+    member inline this.PutOutputBigInt (clockTick: int) maxArraySize (OutputPortNumber n) dat =
         let arrayIdx = clockTick % maxArraySize
         this.Outputs[n].BigIntStep[ arrayIdx ] <- dat
-    member inline this.PutOutputFData clockTick maxArraySize (OutputPortNumber n) dat =
+    member inline this.PutOutputFData (clockTick: int) maxArraySize (OutputPortNumber n) dat =
         let arrayIdx = clockTick % maxArraySize
         this.Outputs[n].FDataStep[ arrayIdx ] <- dat
     member inline this.Id = this.SimComponent.Id

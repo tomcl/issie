@@ -204,7 +204,7 @@ let makeStepArray (arr: 'T array) : StepArray<'T> =
     stepArrayIndex <- stepArrayIndex + 1
     { Step = arr; Index = stepArrayIndex }
 
-let makeIOArray size =
+let emptyIOArray =
     stepArrayIndex <- stepArrayIndex + 1
     { FDataStep = Array.create 2 (Data <| emptyFastData) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
       UInt32Step = Array.empty
@@ -235,13 +235,11 @@ let makeIOArrayW w size =
 let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
-    let ins =
-        [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun n -> makeIOArray maxArraySize)
+    let ins = Array.create inPortNum emptyIOArray
 
     let outs =
         match sComp.Type, sComp.OutputWidths.Length with
-        | IOLabel, 0 -> [| makeIOArray maxArraySize |] // NOTE - create dumpy Outputs array for inavtive IOLabels
+        | IOLabel, 0 -> [| emptyIOArray |] // NOTE - create dumpy Outputs array for inavtive IOLabels
         | _ ->
             sComp.OutputWidths
             |> Array.map (fun w -> makeIOArrayW w maxArraySize)

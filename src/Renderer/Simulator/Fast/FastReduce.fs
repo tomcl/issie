@@ -395,7 +395,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             (w = width)
             ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {w}")
 #endif
-        let bits = insUInt32 0
+        let bits = insUInt32W 0 width
         let inputNum = bigint bits
         let outNum =
             if inputNum = (bigint compareVal) then
@@ -403,7 +403,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             else
                 0u
 
-        putUInt32W 0 width outNum
+        putUInt32Bit 0 outNum
     | BusCompare(width, compareVal), true
     | BusCompare1(width, compareVal, _), true ->
 #if ASSERTS
@@ -1407,22 +1407,18 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 componentType
                 n)
 #endif
-        let fd = comp.InputLinks[i].FDataStep[simStep]
-        fd
+        comp.GetInputFData simStep maxArraySize (InputPortNumber i)
 
     /// get last cycle data from output i (for clocked components)
     let inline getLastCycleOut n =
-        let fd =
-            match comp.OutputWidth n, numStep with
-            | 0, _ -> failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
-            | w, 0 ->
-                if w < 33 then
-                    Data { Dat = Word 0u; Width = w }
-                else
-                    Data { Dat = BigWord(bigint 0); Width = w }
-            | w, _ -> comp.Outputs[n].FDataStep[simStepOld]
-
-        fd
+        match comp.OutputWidth n, numStep with
+        | 0, _ -> failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
+        | w, 0 ->
+            if w < 33 then
+                Data { Dat = Word 0u; Width = w }
+            else
+                Data { Dat = BigWord(bigint 0); Width = w }
+        | w, _ -> comp.GetOutputFData simStepOld maxArraySize n
 
     /// get last cycle data from output i for component
     let inline insOld i =
@@ -1437,9 +1433,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 componentType
                 n)
 #endif
-
-        let fd = comp.GetInputFData simStepOld maxArraySize (InputPortNumber i)
-        fd
+        comp.GetInputFData simStepOld maxArraySize (InputPortNumber i)
 
     /// Write current step output data for output port 0
     let inline put pn fd =

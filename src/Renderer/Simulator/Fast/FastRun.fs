@@ -104,12 +104,16 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         propagateEval fc
 
     let initInput (fc: FastComponent) =
-        //printfn "Init input..."
-        // REVIEW - Input initialisation is no longer required
-        // fc.InputLinks[0].FastDataStep
-        // |> Array.iteri (fun i _ -> fc.InputLinks[0].FastDataStep[ i ] <- convertIntToFastData (fc.OutputWidth 0) 0u)
         //printfn "Initialised input: %A" fc.InputLinks
-        fastReduce fs.MaxArraySize 0 false fc
+        match fc.FType with
+        | Input1 (w, _) when w < 33 ->
+            let size = fs.MaxArraySize
+            let samplesPerWord = 32 / w
+            let numWords = if size % samplesPerWord = 0 then size / samplesPerWord else size / samplesPerWord + 1
+            fc.InputLinks[0] <- { fc.InputLinks.[0] with UInt32Step = Array.create numWords 0u }
+        | Input1 _ ->
+            fc.InputLinks[0] <- { fc.InputLinks.[0] with BigIntStep = Array.create fs.MaxArraySize 0I }
+        | _ -> failwithf "Component %s is not an input" fc.FullName
         fc.Touched <- true
         propagateEval fc
 
@@ -126,11 +130,6 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 match fc.State with
                 | Some arr -> arr.Step[0] <- RamState mem
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
-
-                let initD =
-                    match Map.tryFind 0L mem.Data with
-                    | Some n -> convertInt64ToFastData w n
-                    | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
                 match vec.Width with
                 | w when w <= 32 -> vec.UInt32Step[0] <- 0u
@@ -172,12 +171,6 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
             fc.Touched <- true
             propagateEval fc)
 
-    let orderedSet =
-        orderedComps
-        |> List.toArray
-        |> Array.map (fun co -> co.fId)
-        |> Set
-
     instrumentTime "orderCombinationalComponents" startTime
 
     { fs with FOrderedComps = orderedComps |> Array.ofList |> Array.rev }
@@ -202,8 +195,7 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
 
     let initInput (fc: FastComponent) =
         //printfn "Init input..."
-        fc.InputLinks[0].FDataStep
-        |> Array.iteri (fun i _ -> fc.InputLinks[0].FDataStep[ i ] <- Data(convertIntToFastData (fc.OutputWidth 0) 0u))
+        fc.InputLinks[0] <- { fc.InputLinks[0] with FDataStep = Array.create fs.MaxArraySize <| Data(convertIntToFastData (fc.OutputWidth 0) 0u) }
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
@@ -222,11 +214,6 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
                 match fc.State with
                 | Some arr -> arr.Step[0] <- RamState mem
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
-
-                let initD =
-                    match Map.tryFind 0L mem.Data with
-                    | Some n -> convertInt64ToFastData w n
-                    | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
                 vec.FDataStep[0] <- Data(convertIntToFastData w 0u)
             | _, w -> vec.FDataStep[0] <- Data(convertIntToFastData w 0u))
@@ -262,12 +249,6 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
             orderedComps <- fc :: orderedComps
             fc.Touched <- true
             propagateEval fc)
-
-    let orderedSet =
-        orderedComps
-        |> List.toArray
-        |> Array.map (fun co -> co.fId)
-        |> Set
 
     instrumentTime "orderCombinationalComponents" startTime
 
@@ -400,7 +381,7 @@ let checkAndValidateFData (fs: FastSimulation) =
         |> Array.iter (fun fc ->
             fc.Outputs
             |> Array.iteri (fun i output ->
-                let data = fc.Outputs[i].FDataStep[0]
+                let data = fc.GetOutputFData 0 fs.MaxArraySize i
 
                 match data.Width, output.Width with
                 | n, m when n <> m ->
@@ -522,7 +503,7 @@ let private setSimulationInput (cid: ComponentId) (fd: FastData) (step: int) (fs
 
 let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (fs: FastSimulation) =
     match Map.tryFind (cid, []) fs.FComps with
-    | Some fc -> fc.Outputs[0].FDataStep[ step % fs.MaxArraySize ] <- fd
+    | Some fc -> fc.PutOutputFData step fs.MaxArraySize (OutputPortNumber 0) fd
     | None -> failwithf "Can't find %A in FastSim" cid
 
 /// Re-evaluates the combinational logic for the given timestep - used if a combinational

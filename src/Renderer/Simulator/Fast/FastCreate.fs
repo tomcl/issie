@@ -12,6 +12,9 @@ open NumberHelpers
 
 //-----------------------------Fast Simulation Creation-------------------------//
 
+let mutable totalNumberOfWords = 0
+let mutable totalNumberOfWordsV3 = 0
+
 let inline assertThat cond msg =
     if not cond then
         failwithf "what? assert failed: %s" msg
@@ -26,6 +29,8 @@ let emptyGather =
 
 let emptyFastSimulation diagramName =
     printfn $"Creating empty simulation: {diagramName}"
+    totalNumberOfWords <- 0
+    totalNumberOfWordsV3 <- 0
 
     { ClockTick = 0
       MaxArraySize = 0 // must be larger than max number of wavesim clocks
@@ -217,7 +222,13 @@ let makeIOArrayW w size =
     match w with
     | w when w <= 32 ->
         let samplesPerWord = 32 / w
-        let numWords = if size % samplesPerWord = 0 then size / samplesPerWord else size / samplesPerWord + 1
+        let numWords =
+            if size % samplesPerWord = 0 then
+                size / samplesPerWord
+            else
+                size / samplesPerWord + 1
+        totalNumberOfWords <- totalNumberOfWords + size
+        totalNumberOfWordsV3 <- totalNumberOfWordsV3 + numWords
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
           UInt32Step = Array.create numWords 0u
           BigIntStep = Array.empty

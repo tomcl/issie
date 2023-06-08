@@ -106,13 +106,18 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     let initInput (fc: FastComponent) =
         //printfn "Initialised input: %A" fc.InputLinks
         match fc.FType with
-        | Input1 (w, _) when w < 33 ->
+        | Input1(w, _) when w < 33 ->
             let size = fs.MaxArraySize
             let samplesPerWord = 32 / w
-            let numWords = if size % samplesPerWord = 0 then size / samplesPerWord else size / samplesPerWord + 1
+            let numWords =
+                if size % samplesPerWord = 0 then
+                    size / samplesPerWord
+                else
+                    size / samplesPerWord + 1
+            FastCreate.totalNumberOfWords <- FastCreate.totalNumberOfWords + size
+            FastCreate.totalNumberOfWordsV3 <- FastCreate.totalNumberOfWordsV3 + numWords
             fc.InputLinks[0] <- { fc.InputLinks.[0] with UInt32Step = Array.create numWords 0u }
-        | Input1 _ ->
-            fc.InputLinks[0] <- { fc.InputLinks.[0] with BigIntStep = Array.create fs.MaxArraySize 0I }
+        | Input1 _ -> fc.InputLinks[0] <- { fc.InputLinks.[0] with BigIntStep = Array.create fs.MaxArraySize 0I }
         | _ -> failwithf "Component %s is not an input" fc.FullName
         fc.Touched <- true
         propagateEval fc
@@ -195,7 +200,11 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
 
     let initInput (fc: FastComponent) =
         //printfn "Init input..."
-        fc.InputLinks[0] <- { fc.InputLinks[0] with FDataStep = Array.create fs.MaxArraySize <| Data(convertIntToFastData (fc.OutputWidth 0) 0u) }
+        fc.InputLinks[0] <-
+            { fc.InputLinks[0] with
+                FDataStep =
+                    Array.create fs.MaxArraySize
+                    <| Data(convertIntToFastData (fc.OutputWidth 0) 0u) }
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
@@ -596,6 +605,17 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
     //printfn $"running sim steps={numberOfSteps}, arraySize = {fs.MaxArraySize}, maxstepnum={fs.MaxStepNum}"
     let simStartTime = getTimeMs ()
     let stepsToDo = lastStepNeeded - fs.ClockTick
+
+#if ASSERTS
+    printfn "Total Number of UInt32 words allocated in V3 = %d" FastCreate.totalNumberOfWordsV3
+    printfn "Total Number of UInt32 words allocated in previous version = %d" FastCreate.totalNumberOfWords
+    printfn
+        "Space saved in V3 = %f MB"
+        (float (totalNumberOfWords - totalNumberOfWordsV3)
+         * 4.0
+         / 1024.0
+         / 1024.0)
+#endif
 
     if stepsToDo <= 0 then
         None // do nothing

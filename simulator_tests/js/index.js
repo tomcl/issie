@@ -3,7 +3,7 @@
 import { argv } from "node:process";
 import { FSharpList, loadAllComponentFiles, runSimulation } from "./utils.js";
 
-import { FSharpList_get_Empty } from "./temp/fable_modules/fable-library.4.0.5/List.js";
+import { FSharpList_get_Empty } from "./temp/fable_modules/fable-library.4.1.4/List.js";
 
 const test = (
   testcasesPath,
@@ -43,8 +43,8 @@ const main = () => {
 
   let i = 0;
   const testNumber = options[i++] || 0;
-  const simulationArraySize = options[i++] || 500;
-  const lastStepNeeded = options[i++] || 2000;
+  const simulationArraySize = options[i++] || 1E6;
+  const lastStepNeeded = options[i++] || 1E6;
   const testcasesPath = options[i++] || "../testcases";
   const timeOut = options[i++] || null;
 

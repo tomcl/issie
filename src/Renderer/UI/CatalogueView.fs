@@ -239,7 +239,7 @@ let private createNbitsXorPopup (model:Model) dispatch =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
-            createCompStdLabel (NbitsXor inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            createCompStdLabel (NbitsXor(inputInt,None)) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1

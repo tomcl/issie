@@ -368,7 +368,7 @@ let private calculateOutputPortsWidth
         | [_; Some n] when n <> numberOfBits -> makeWidthInferErrorEqual numberOfBits n [getConnectionIdForPort 1]
         | [_; _] -> okOutMap
         | x -> failwithf "what? Impossible case (%A) in calculateOutputPortsWidth for: %A" x comp.Type
-    | NbitsXor numberOfBits
+    | NbitsXor (numberOfBits, _)
     | NbitsAnd numberOfBits 
     | NbitsOr numberOfBits ->
         assertInputsSize inputConnectionsWidth 2 comp

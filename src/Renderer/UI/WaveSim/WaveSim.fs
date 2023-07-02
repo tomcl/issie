@@ -17,7 +17,7 @@ open WaveSimSelect
 
 /// Generates SVG to display values on non-binary waveforms when there is enough space.
 /// TODO: Fix this so it does not generate all 500 cycles.
-let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinaryTransition array) : ReactElement list =
+let displayUInt32OnWave wsModel (width: int) (waveValues: uint32 array) (transitions: NonBinaryTransition array) : ReactElement list =
     /// Find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
@@ -39,10 +39,61 @@ let displayValuesOnWave wsModel (waveValues: FData array) (transitions: NonBinar
     gaps
     // Create text react elements for each gap
     |> Array.map (fun gap ->
-        let waveValue =
-            match waveValues[gap.Start] with
-            | Data fastDat -> fastDataToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix fastDat
-            | Alg _ -> "Error - algebraic data!"
+        let waveValue = UInt32ToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
+
+        /// Amount of whitespace between two Change transitions minus the crosshatch
+        let cycleWidth = singleWaveWidth wsModel
+        let availableWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
+        /// Required width to display one value
+        let requiredWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
+        /// Width of text plus whitespace between a repeat
+        let widthWithPadding = 2. * requiredWidth + Constants.valueOnWavePadding
+
+        // Display nothing if there is not enough space
+        if availableWidth < requiredWidth then
+            []
+        else
+
+            /// Calculate how many times the value can be shown in the space available
+            let repeats =
+                availableWidth / widthWithPadding
+                |> System.Math.Floor
+                |> int
+                |> max 1
+
+            let repeatSpace = (availableWidth - float repeats * requiredWidth) / ((float repeats + 1.) * cycleWidth)
+            let valueText i =
+                text (valueOnWaveProps wsModel i (float gap.Start + repeatSpace) widthWithPadding)
+                    [ str waveValue ]
+
+            [ 0 .. repeats - 1]
+            |> List.map valueText
+    )
+    |> List.concat
+
+let displayBigIntOnWave wsModel (width: int) (waveValues: bigint array) (transitions: NonBinaryTransition array) : ReactElement list =
+    /// Find all clock cycles where there is a NonBinaryTransition.Change
+    let changeTransitions =
+        transitions
+        |> Array.indexed
+        |> Array.filter (fun (_, x) -> x = Change)
+        |> Array.map (fun (i, _) -> i)
+
+    /// Find start and length of each gap between a Change transition
+    let gaps : Gap array =
+        // Append dummy transition to end to check final gap length
+        Array.append changeTransitions [|wsModel.StartCycle + transitions.Length - 1|]
+        |> Array.pairwise
+        // Get start of gap and length of gap
+        |> Array.map (fun (i1, i2) -> {
+                Start = i1
+                Length = i2 - i1
+            }
+        )
+    gaps
+    // Create text react elements for each gap
+    |> Array.map (fun gap ->
+        let waveValue = BigIntToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
 
         /// Amount of whitespace between two Change transitions minus the crosshatch
         let cycleWidth = singleWaveWidth wsModel
@@ -89,58 +140,83 @@ let waveformIsUptodate (ws: WaveSimModel) (wave:Wave) =
 /// The SVG depends on cycle width as well as start/stop clocks and design.
 /// Assumes that the fast simulation data has not changed and has enough cycles
 let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
-        let waveform =
-            match wave.Width with
-            | 0 -> failwithf "Cannot have wave of width 0"
-            // Binary waveform
-            | 1 ->
-                //printfn "starting binary"
-                let start = TimeHelpers.getTimeMs ()
-                let transitions = calculateBinaryTransitions wave.WaveValues.Step
-                /// TODO: Fix this so that it does not generate all 500 points.
-                /// Currently takes in 0, but this should ideally only generate the points that
-                /// are shown on screen, rather than all 500 cycles.
-                let wavePoints =
-                    Array.mapi (binaryWavePoints (singleWaveWidth ws) 0) transitions 
+    let waveform =
+        match wave.Width with
+        | 0 -> failwithf "Cannot have wave of width 0"
+        // Binary waveform
+        | 1 ->
+            //printfn "starting binary"
+            let start = TimeHelpers.getTimeMs ()
+            let transitions = calculateBinaryTransitionsUInt32 wave.WaveValues.UInt32Step
+            /// TODO: Fix this so that it does not generate all 500 points.
+            /// Currently takes in 0, but this should ideally only generate the points that
+            /// are shown on screen, rather than all 500 cycles.
+            let wavePoints =
+                Array.mapi (binaryWavePoints (singleWaveWidth ws) 0) transitions 
+                |> Array.concat
+                |> Array.distinct
+
+            svg (waveRowProps ws)
+                [ polyline (wavePolylineStyle wavePoints) [] ]
+        // Non-binary waveform
+        | w when w <= 32 ->
+            //printfn "starting non-binary"
+            let start = TimeHelpers.getTimeMs ()
+
+            let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step
+            //printfn "calculating trans..."
+            /// TODO: Fix this so that it does not generate all 500 points.
+            /// Currently takes in 0, but this should ideally only generate the points that
+            /// are shown on screen, rather than all 500 cycles.
+            let fstPoints, sndPoints =
+                Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions 
+                |> Array.unzip
+            //printfn "points"
+            let makePolyline points = 
+                let points =
+                    points
                     |> Array.concat
                     |> Array.distinct
+                polyline (wavePolylineStyle points) []
 
-                svg (waveRowProps ws)
-                    [ polyline (wavePolylineStyle wavePoints) [] ]
-            // Non-binary waveform
-            | _ ->
-                //printfn "starting non-binary"
-                let start = TimeHelpers.getTimeMs ()
+            let valuesSVG = displayUInt32OnWave ws wave.Width wave.WaveValues.UInt32Step transitions
+            //printfn "values"
+            svg (waveRowProps ws)
+                (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
+            //|> (fun x -> printfn "makepolyline"; x)
+        // Non-binary waveform
+        | w ->
+            //printfn "starting non-binary"
+            let start = TimeHelpers.getTimeMs ()
 
-                let transitions = calculateNonBinaryTransitions wave.WaveValues.Step
-                //printfn "calculating trans..."
-                /// TODO: Fix this so that it does not generate all 500 points.
-                /// Currently takes in 0, but this should ideally only generate the points that
-                /// are shown on screen, rather than all 500 cycles.
-                let fstPoints, sndPoints =
-                    Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions 
-                    |> Array.unzip
-                //printfn "points"
-                let makePolyline points = 
-                    let points =
-                        points
-                        |> Array.concat
-                        |> Array.distinct
-                    polyline (wavePolylineStyle points) []
+            let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step
+            //printfn "calculating trans..."
+            /// TODO: Fix this so that it does not generate all 500 points.
+            /// Currently takes in 0, but this should ideally only generate the points that
+            /// are shown on screen, rather than all 500 cycles.
+            let fstPoints, sndPoints =
+                Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions 
+                |> Array.unzip
+            //printfn "points"
+            let makePolyline points = 
+                let points =
+                    points
+                    |> Array.concat
+                    |> Array.distinct
+                polyline (wavePolylineStyle points) []
 
-                let valuesSVG = displayValuesOnWave ws wave.WaveValues.Step transitions
-                //printfn "values"
-                svg (waveRowProps ws)
-                    (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
-                //|> (fun x -> printfn "makepolyline"; x)
-        //printfn "end generate"
-        {wave with 
-            Radix = ws.Radix
-            ShownCycles = ws.ShownCycles
-            StartCycle = ws.StartCycle
-            CycleWidth = singleWaveWidth ws
-            SVG = Some waveform}
-    
+            let valuesSVG = displayBigIntOnWave ws wave.Width wave.WaveValues.BigIntStep transitions
+            //printfn "values"
+            svg (waveRowProps ws)
+                (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
+            //|> (fun x -> printfn "makepolyline"; x)
+    //printfn "end generate"
+    {wave with 
+        Radix = ws.Radix
+        ShownCycles = ws.ShownCycles
+        StartCycle = ws.StartCycle
+        CycleWidth = singleWaveWidth ws
+        SVG = Some waveform}
 
 
 
@@ -533,6 +609,9 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
     let fs = wsModel.FastSim
     let fc = wsModel.FastSim.FComps[ramId]
     let step = wsModel.CurrClkCycle
+    FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
+
+    // in some cases fast sim is run for one cycle less than currClockCycle
     let memData =
         match fc.FType with
         | ROM1 mem
@@ -541,7 +620,8 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         | AsyncRAM1 mem -> 
             match FastRun.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
             |RamState mem -> mem
-            | _ -> failwithf $"What? Can't find state from RAM component '{ramLabel}'"
+            | x -> failwithf $"What? Unexpected state {x} from cycle {wsModel.CurrClkCycle} \
+                    in RAM component '{ramLabel}'. FastSim step = {fs.ClockTick}"
         | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
     let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
 
@@ -584,13 +664,11 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
     /// Write is always 1 cycle after WEN=1 and address.
     /// Read is 1 (0) cycles after address for sync (asynch) memories.
     let addReadWrite (fc:FastComponent) (step:int) (mem: Map<int64,int64>) =
-        let getFData (fd: FData) =
-            match fd with
-            | Data {Dat= Word w} -> int64 w
-            | Data {Dat=BigWord bw} -> int64 bw
-            | _ -> 
-                printfn $"Help! Can'd find data from {fd}"
-                int64 <| -1
+        let getInt64 (a: IOArray) step =
+            let w = a.Width
+            match w with
+            | w when w > 32 -> int64 <| convertBigIntToUInt64 w a.BigIntStep[step]
+            | _ -> int64 <| a.UInt32Step[step]
 
         let readStep =
             match fc.FType with
@@ -598,26 +676,24 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             | ROM1 _ | RAM1 _ -> step - 1
             | _ -> failwithf $"What? {fc.FullName} should be a memory component"
 
-        let addrSteps step = fc.InputLinks[0].Step[step]
+        let addrSteps step = getInt64 fc.InputLinks[0] step
 
         let readOpt =
             match step, fc.FType with
             | 0,ROM1 _ | 0, RAM1 _ -> None
             | _ -> 
                 addrSteps readStep
-                |> getFData
                 |> Some
         let writeOpt =
             match step, fc.FType with
             | _, ROM1 _ 
             | _, AsyncROM1 _
             | 0, _ -> None
-            | _, RAM1 _ | _, AsyncRAM1 _ when getFData fc.InputLinks[2].Step[step-1] = 1L -> 
+            | _, RAM1 _ | _, AsyncRAM1 _ when getInt64 fc.InputLinks[2] (step-1) = 1L -> 
                 addrSteps (step-1)
                 |> Some
             | _ ->  
                 None
-            |> Option.map getFData
 
         /// Mark addr in memory map as being rType
         /// if addr does not exist - create it
@@ -806,7 +882,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 match simulationIsUptodate with
                 | falae ->
                     
-                printfn $"Similationuptodate: {simulationIsUptodate}"
+                printfn $"Simulationuptodate: {simulationIsUptodate}"
                 // need to use isSameWave here becasue sarray index may have changed
                 let wavesToBeMade =
                     allWaves

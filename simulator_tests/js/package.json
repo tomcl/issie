@@ -1,0 +1,16 @@
+{
+  "name": "issie-simulator-js-tests",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "compile": "dotnet fable . --outDir temp --sourceMaps --noCache",
+    "watch": "dotnet fable watch . --outDir temp --sourceMaps"
+  },
+  "author": "Yujie Wang",
+  "license": "ISC",
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}

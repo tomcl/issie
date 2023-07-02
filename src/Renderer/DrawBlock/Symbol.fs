@@ -341,7 +341,8 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | DFFE -> "DFFE"
     | Counter n |CounterNoEnable n
     | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
-    | NbitsXor (x)->   nBitsGateTitle "XOR" x
+    | NbitsXor (x, None)->   nBitsGateTitle "XOR" x
+    | NbitsXor (x, Some Multiply)->   nBitsGateTitle "Multiply" x
     | NbitsOr (x)->   nBitsGateTitle "OR" x
     | NbitsAnd (x)->   nBitsGateTitle "AND" x
     | NbitsNot (x)->  nBitsGateTitle "NOT" x
@@ -615,7 +616,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | AsyncROM1 (a)  -> (  1 , 1, 4.*gS  , 5.*gS) 
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
-    | NbitsXor (n) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
+    | NbitsXor (n, _) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
     | NbitsNot (n)  -> (  1 , 1, 3.*gS  , 4.*gS) 
     | NbitSpreader (n) -> (1, 1, 2.*gS, 2.*gS)
     | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS)

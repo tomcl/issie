@@ -55,7 +55,7 @@ The download button on this page take you to the [Issie latest release page](htt
 
 - Marco Selvatici for the 8K lines of base code written for his 3rd year BEng FYP
 - Edoardo Santi for work improving Issie over Summer 2020 and creating the waveform simulator
-- High Level Programming 2020/21 cohort for providing the base code of the schematic editor
+- High Level Programming 2020/21 cohort for providing the base code of the new schematic editor
 - Jo Merrick for work improving ISSIE for her 3rd year BEng FYP
 - High Level Programming 2021/22 cohort for implementing a much enhanced schematic editor
 - Dr Tom Clarke for running HLP and his continued work maintaining and improving ISSIE throughout

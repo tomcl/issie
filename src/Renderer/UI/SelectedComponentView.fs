@@ -480,7 +480,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let title, width =
         match comp.Type with
         | Input1 (w, _) | Output w | NbitsAdder w  | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
-        | NbitsXor w | NbitsAnd w | NbitsOr w |NbitsNot w 
+        | NbitsXor (w,_) | NbitsAnd w | NbitsOr w |NbitsNot w 
         | Register w | RegisterE w |Counter w |CounterNoEnable w |CounterNoEnableLoad w |CounterNoLoad w | Viewer w -> "Number of bits", w
         | NbitSpreader w -> "Width of output bus", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
@@ -715,7 +715,13 @@ let private makeDescription (comp:Component) model dispatch =
     | NbitsAdderNoCout numberOfBits 
     | NbitsAdderNoCinCout numberOfBits 
         -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
-    | NbitsXor numberOfBits  -> div [] [ str <| sprintf "%d XOR gates with %d outputs." numberOfBits numberOfBits]
+    | NbitsXor( numberOfBits, typ)  -> 
+        match typ with
+        | None -> $"{numberOfBits} XOR gates with {numberOfBits} outputs."
+        | Some Multiply -> $"{numberOfBits}X{numberOfBits}->{numberOfBits} Multiply block. this \
+                              return sbits ({numberOfBits}:0) of the result. \
+                              For these bits, signed and unsigned multiplication are identical"
+        |> (fun text -> div [] [str <| text])
     | NbitsAnd numberOfBits  -> div [] [ str <| sprintf "%d AND gates with %d outputs." numberOfBits numberOfBits]
     | NbitsOr numberOfBits  -> div [] [ str <| sprintf "%d OR gates with %d outputs." numberOfBits numberOfBits]
     | NbitsNot numberOfBits  -> div [] [ str <| sprintf "%d NOT gates with %d outputs." numberOfBits numberOfBits]

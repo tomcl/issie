@@ -5,6 +5,11 @@
 module CommonTypes
     open Fable.Core               
     open Optics
+    #if FABLE_COMPILER
+    open Thoth.Json
+    #else
+    open Thoth.Json.Net
+    #endif
     /// Position on SVG canvas
     /// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
     /// currently these custom operators are not used in Issie - they should be!
@@ -184,6 +189,16 @@ module CommonTypes
         |LSL
         |LSR
         |ASR
+
+    /// Option of this qualifies NBitsXOr to allow many different components
+    /// None => Xor
+    /// TODO to reduce technical debt: 
+    ///     Rename NbitsXor as NBitsCustom, put all the Nbits ops into this D.U.
+    ///     Change catalog entries for all NBits ops to use NBitsCustom, alter load to remain compatibility.
+    type NBitsArithmetic =
+        | Multiply
+        //Divide   uncomment or add new cases to implement additional N bit operations. (match warnings will show what must be added)
+        //Modulo
     
     // Types instantiating objects in the Digital extension.
     type ComponentType =
@@ -199,8 +214,9 @@ module CommonTypes
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
         | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
-        | NbitsXor of BusWidth:int
-        | NbitsAnd of BusWidth: int | NbitsNot of BusWidth: int
+        | NbitsXor of BusWidth:int * ArithmeticOp: NBitsArithmetic option
+        | NbitsAnd of BusWidth: int 
+        | NbitsNot of BusWidth: int
         | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
@@ -448,6 +464,19 @@ module CommonTypes
     /// SHA hash unique to a component - common between JS and F#
     [<Erase>]
     type ComponentId = | ComponentId of string
+
+    let componentIdEncoder (cid: ComponentId) =
+        match cid with
+        | ComponentId s -> Encode.string s
+
+    let componentIdDecoder: Decoder<ComponentId> =
+        Decode.index 0 Decode.string
+        |> Decode.andThen (fun caseName ->
+            match caseName with
+            | "ComponentId" ->
+                Decode.index 1 Decode.string
+                |> Decode.andThen (fun id -> Decode.succeed (ComponentId id))
+            | invalid -> Decode.fail (sprintf "Invalid case name: %s" invalid))
 
     /// Unique identifier for a fast component.
     /// The list is the access path, a list of all the containing custom components 

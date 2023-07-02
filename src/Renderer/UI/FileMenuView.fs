@@ -287,7 +287,20 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
                             | _ -> comp), conns)
             writeComponentToBackupFile 4 1. newLdc dispatch
             Some (newLdc,newState)
-        
+
+let saveOpenProjectInNewFormat (model: Model) =
+    match model.CurrentProj with
+    | None -> failwith "No opened project"
+    | Some project ->
+        project.LoadedComponents
+        |> List.map (fun comp ->
+            let sheetInfo = {Form=comp.Form;Description=comp.Description}
+            let savedState = comp.CanvasState, None, Some sheetInfo
+            match saveStateToFileNew project.ProjectPath comp.Name savedState with
+            | Ok _ -> printfn "Successfully saved %s" comp.Name
+            | Error errr -> printfn "Error on saving %s: %s" comp.Name errr)
+        |> fun _ -> printfn "Done"
+
 /// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     let opt = saveOpenFileAction false model dispatch

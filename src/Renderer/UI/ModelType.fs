@@ -192,7 +192,7 @@ type Wave = {
     /// width of the waveform's bus
     Width: int
     /// Array indexed by clock cycle to show value of wave.
-    WaveValues: StepArray<FData>
+    WaveValues: IOArray
     /// SVG of waveform
     SVG: ReactElement option
 }
@@ -260,6 +260,7 @@ type IntMode = FirstInt | SecondInt
 type MenuCommand =
     | MenuPrint
     | MenuSaveFile
+    | MenuSaveProjectInNewFormat
     | MenuNewFile
     | MenuExit
     | MenuZoom of float
@@ -286,6 +287,7 @@ type Msg =
     | SynchroniseCanvas
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
+    | Benchmark
     | StartSimulation of Result<SimulationData, SimulationError>
     /// Add WaveSimModel to Model.WaveSim map.
     /// String is name of current sheet.

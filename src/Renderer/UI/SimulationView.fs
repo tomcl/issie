@@ -87,28 +87,25 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
 let InputDefaultsEqualInputs fs (model:Model) =
-    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
-        let comp = sym.Component
-        let comp' = 
-            let ct =
-                match comp.Type with 
-                | Input1(w,defVal) -> Input1(w,Some newDefault)
-                | x -> x
-            {comp with Type = ct}
-        {sym with Component = comp'}
     let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[tick % fs.MaxArraySize])
+    |> Map.map (fun fid fc ->
+        let cid = fst fid
+        if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
+            let newDefault =
+                if fc.OutputWidth 0 > 32 then
+                    convertBigIntToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+                else
+                    int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+            let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
+            match typ with
+            | Input1(_, Some d) -> d = newDefault
+            | _ -> newDefault = 0
+        else
+            true)
     |> Map.values
-    |> Seq.forall (fun (cid, currentValue) -> 
-            match currentValue with
-            | Data fd when Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) -> 
-                let newDefault = int (convertFastDataToInt32 fd)
-                let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
-                match typ with | Input1 (_, Some d) -> d = newDefault | _ -> newDefault = 0
-            | _ -> true)
-            
+    |> Seq.forall id
 
 let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
@@ -123,23 +120,21 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     let tick = fs.ClockTick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun cid fc -> fst cid, fc.Outputs[0].Step[tick % fs.MaxArraySize])
-    |> Map.values
-    |> Seq.iter (fun (cid, currentValue) -> 
-            match currentValue with
-            | Data fd  -> 
-                let newDefault = convertFastDataToInt32 fd
-                SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid 
-                |> Optic.map DrawModelType.SheetT.symbol_ 
-                |> Optic.map ModelType.sheet_
-                |> UpdateModel
-                |> dispatch
-            | _ -> () // should never happen
-        )
+    |> Map.map (fun fid fc ->
+        let cid = fst fid
+        let newDefault =
+            if fc.OutputWidth 0 > 32 then
+                convertBigIntToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+            else
+                int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+        SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid
+        |> Optic.map DrawModelType.SheetT.symbol_
+        |> Optic.map ModelType.sheet_
+        |> UpdateModel
+        |> dispatch)
     |> ignore
-        
-       
-    
+
+
 //----------------------------View level simulation helpers------------------------------------//
 
 
@@ -454,7 +449,7 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
         FastRun.runFastSimulation None clock simData.FastSim |> ignore
-        printfn $"clokctick after runFastSim{clock} from {oldClock} is {simData.FastSim.ClockTick}"
+        printfn $"clokctick after runFastSim {clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
         let messages =

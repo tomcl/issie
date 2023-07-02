@@ -197,6 +197,8 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         FileMenuView.saveOpenFileActionWithModelUpdate model dispatch |> ignore
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
+    | MenuSaveProjectInNewFormat ->
+        FileMenuView.saveOpenProjectInNewFormat model |> ignore
     | MenuNewFile -> 
         FileMenuView.addFileToProject model dispatch
     | MenuExit ->
@@ -401,6 +403,51 @@ let update (msg : Msg) oldModel =
         {model with WaveSimViewerWidth = w}, Cmd.none
     | ReloadSelectedComponent width ->
         {model with LastUsedDialogWidth=width}, Cmd.none
+    | Benchmark ->
+        let step = 2000
+        let warmup = 5
+        let simulationRound = 10
+        let benchmarkRound = 20
+
+        let geometricMean (values: float list) = (values |> List.reduce (*)) ** (1.0 / (float values.Length))
+
+        let benchmark i =
+            match model.CurrentProj with
+            | Some p ->
+                printfn "Benchmarking on %20s, stepArraySize %8d, step %8d, warmup %3d, repeat %3d" (dirName p.ProjectPath) SimulationView.Constants.maxArraySize step warmup simulationRound
+
+                p.LoadedComponents
+                |> List.map (fun c ->
+                    let simData = Simulator.startCircuitSimulation SimulationView.Constants.maxArraySize c.Name c.CanvasState p.LoadedComponents
+
+                    match simData with
+                    | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
+                    | Ok simData ->
+                        let comps = simData.FastSim.FComps.Values |> Seq.filter (fun fc -> match fc.FType with | IOLabel -> false | _ -> true) |> Seq.length
+                        printfn "Benchmarking with component: %s" c.Name
+
+                        [ 1 .. (warmup + simulationRound) ]
+                        |> List.map (fun _ ->
+                            simData.FastSim.ClockTick <- 0
+                            let start = TimeHelpers.getTimeMs ()
+                            // for _ in 0..(step-1) do FastRun.stepSimulation simData.FastSim
+                            FastRun.runFastSimulation None step simData.FastSim |> ignore
+                            TimeHelpers.getTimeMs () - start)
+                        |> List.skip warmup
+                        |> List.average
+                        |> (fun time ->
+                            let speed = float (comps * step) / time
+                            printfn "simulated %20s for %5d steps with %4d effective components, simulation finished in %8.3fms, average simulation speed: %10.3f (comp * step / ms)" c.Name step comps time speed
+                            speed))
+                |> geometricMean
+
+            | None -> failwith "No project loaded, please load a project to benchmark"
+
+        [ 1..benchmarkRound ]
+        |> List.map (fun i -> benchmark i)
+        |> printfn "Geometric mean of simulation speed of ISSIE on current project: %A"
+
+        model, Cmd.none
     | StartSimulation simData -> 
         {model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel ->
@@ -926,6 +973,7 @@ let update (msg : Msg) oldModel =
     | MenuAction(act,dispatch) ->
         match act with 
         | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
+        | MenuSaveProjectInNewFormat -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | _ -> getMenuView act model dispatch, Cmd.none
         
     | DiagramMouseEvent -> model, Cmd.none

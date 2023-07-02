@@ -30,8 +30,9 @@ module Constants =
     /// default arrow display
     let initialArrowDisplay = true
     let jumpRadius: float = 5.
-    /// The minimum length of the initial segments (nubs) leaving the ports
-    let nubLength: float = 8.
+    /// The minimum length of the initial segments (nubs) leaving the ports.
+    /// Must be larger than SmartWire.minWireSeparation
+    let nubLength: float = 10.
     /// The standard radius of a radial wire corner
     let cornerRadius: float  = 7. 
     /// The standard radius of a modern wire connect circle
@@ -130,6 +131,22 @@ let getNonZeroAbsSegments (wire: Wire) : ASegment list =
                 posDir', (nextASeg :: aSegL)
             else
                 posDir', aSegL)                
+    |> snd
+    |> List.rev
+
+/// Return filtered absolute segment list from a wire.
+/// includeSegment determines whether a given segment is included in the output list.
+/// NB this is more efficient than generating the whole lits and then filtering.
+let getFilteredAbsSegments includeSegment (wire: Wire) : ASegment list =
+    let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
+        {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
+    (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
+    ||> List.fold (fun ((pos,ori), aSegL) seg -> 
+            let nextASeg = convertToAbs (pos,ori) seg
+            let posDir' = nextASeg.End, switchOrientation ori
+            match includeSegment ori seg with 
+            | true -> posDir', (nextASeg :: aSegL)
+            | false -> posDir', aSegL)                
     |> snd
     |> List.rev
 
@@ -290,7 +307,7 @@ let logSegmentsInModel (model: Model) (wireSegmentIdPairs: (int*ConnectionId) li
 //----------------------------------Helper functions----------------------------//
 //------------------------------------------------------------------------------//
 
-/// Returns true if a lies in the open interval (a,b). Endpoints are avoided by a tolerance parameter
+/// Returns true if x lies in the open interval (a,b). Endpoints are avoided by a tolerance parameter
 let inline inMiddleOf a x b = 
     let e = Constants.modernCirclePositionTolerance
     a + e < x && x < b - e

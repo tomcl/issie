@@ -104,6 +104,7 @@ module CommonTypes
         HostId : string
     }
 
+    
     type PortId = | PortId of string
 
     // NB - this.Text() is not currently used.
@@ -161,6 +162,7 @@ module CommonTypes
         Data : Map<int64,int64>
     }
 
+   
     type InitMemData = 
         | FromData // old method (from data field)
         | FromFile of string // FromFile fName => read a file fName.ram for data
@@ -185,6 +187,7 @@ module CommonTypes
     Data : Map<int64,int64>  
     } 
 
+    
     type ShiftComponentType =
         |LSL
         |LSR
@@ -268,13 +271,39 @@ module CommonTypes
     // --------------- Types needed for symbol ---------------- //
     /// Represents the rotation of a symbol in degrees, Degree0 is the default symbol rotation.
     /// Angle is anticlockwise
+   
     type Rotation = | Degree0 | Degree90 | Degree180 | Degree270
     
     /// Stores the rotation and the flip of the symbol, flipped false by default
     type STransform = {Rotation: Rotation; flipped: bool}
     
     /// Represents the sides of a component
-    type Edge = | Top | Bottom | Left | Right
+
+    type Edge =
+        | Top
+        | Bottom
+        | Left
+        | Right
+        
+        /// HLP23: AUTHOR dgs119
+        member this.Opposite =
+            match this with
+            | Top -> Bottom
+            | Bottom -> Top
+            | Left -> Right
+            | _ -> Left
+
+    /// Holds possible directions to sort ports.
+    /// HLP23: AUTHOR dgs119
+    
+    type Direction =
+        | Clockwise
+        | AntiClockwise
+
+        member this.Opposite =
+            match this with
+            | Clockwise -> AntiClockwise
+            | _ -> Clockwise
 
     type BoundingBox = {
         /// Top left corner of the bounding box
@@ -286,7 +315,9 @@ module CommonTypes
     }
         with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
     
-    
+    type ScaleFactor = { x: float; y: float }
+
+    [<StringEnum>]
     type ScaleAdjustment =
         | Horizontal
         | Vertical

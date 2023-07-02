@@ -1,4 +1,4 @@
-﻿module BusWireUpdate
+module BusWireUpdate
 
 open CommonTypes
 open Elmish
@@ -7,8 +7,15 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
+open SmartWire
 open Optics
 open Operators
+
+
+
+//---------------------------------------------------------------------------------//
+//------------------------------BusWire Init & Update functions--------------------//
+//---------------------------------------------------------------------------------//
 
 /// Initialises an empty BusWire Model
 let init () = 
@@ -23,6 +30,8 @@ let init () =
         Notifications = None
         Type = Constants.initialWireType
         ArrowDisplay = Constants.initialArrowDisplay
+        SnapToNet = true
+        MakeChannelToggle = false
     } , Cmd.none
 
 
@@ -65,9 +74,12 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 StartPos = { X = 0; Y = 0 }
                 InitialOrientation = Horizontal
             }
-            |> autoroute model
+            |> smartAutoroute model
         
-        let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ newWire.WId) newWire model)
+        let newModel = 
+            model
+            |> Optic.set (wireOf_ newWire.WId) newWire
+            |> SmartWire.updateWireSegmentJumpsAndSeparations [newWire.WId]
         
         newModel, Cmd.ofMsg BusWidths
     
@@ -165,6 +177,15 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
         { model with Wires = newWires }, Cmd.none
 
+    | MakeChannel (box: BoundingBox) ->
+        if model.MakeChannelToggle && box.H <> 0.0 && box.W <> 0.0 then
+            let fixedBox = SmartHelpers.fixBoundingBox box
+            let orientation = if fixedBox.H > fixedBox.W then Vertical else Horizontal
+            printfn "Making %A channel %A" orientation fixedBox
+            SmartChannel.smartChannelRoute orientation fixedBox model, Cmd.none
+        else
+            model, Cmd.none
+
     | DeleteWires (connectionIds : list<ConnectionId>) ->
         // deletes wires from model, then runs bus inference
         // Issie model is not affected but will extract connections from wires
@@ -259,7 +280,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     | MakeJumps connIds ->
         // recalculates (slowly) wire jumps after a drag operation
         printfn $"Making jumps with {connIds.Length} connections"
-        let newModel = updateWireSegmentJumps connIds model
+        let newModel = SmartWire.updateWireSegmentJumpsAndSeparations connIds model
         newModel, Cmd.none
 
     | ResetModel -> 
@@ -334,7 +355,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     | UpdateWireDisplayType (style: WireType) ->
         {model with Type = style }
-        |> updateWireSegmentJumps []
+        |> SmartWire.updateWireSegmentJumpsAndSeparations []
         |> (fun model -> model,Cmd.none)
 
     | ToggleArrowDisplay  ->
@@ -375,6 +396,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 Map.add wid wire' wires)
 
         {model with Wires = newWires}, Cmd.none
+    | ToggleSnapToNet ->
+        {model with SnapToNet = not model.SnapToNet}, Cmd.none
+
 
 //---------------------------------------------------------------------------------//        
 //---------------------------Other interface functions-----------------------------//
@@ -433,7 +457,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
                             Segments = segmentList;
                             StartPos = portOnePos;
                     }
-                    |> autoroute wModel
+                    |> smartAutoroute wModel
                 ]
             | None -> []
 

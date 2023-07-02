@@ -15,6 +15,7 @@ open Fable.React
 open Sheet.SheetInterface
 open VerilogTypes
 open Optics
+open Optics.Operators
 
 module Constants =
     /// DiagramStyle.rightSectinoWidthL = 650,
@@ -283,6 +284,7 @@ type PopupProgress =
 type Msg =
     | ShowExitDialog
     | Sheet of DrawModelType.SheetT.Msg
+    | SynchroniseCanvas
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | Benchmark
@@ -548,6 +550,7 @@ type Model = {
 let sheet_ = Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
 let popupDialogData_ = Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
+let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_
 
 
     

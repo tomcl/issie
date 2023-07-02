@@ -210,6 +210,7 @@ let editMenu dispatch' =
     let sheetDispatch sMsg = dispatch' (Sheet sMsg)
     let dispatch = SheetT.KeyPress >> sheetDispatch
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
+    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
 
     jsOptions<MenuItemConstructorOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- Some MenuItemType.Submenu
@@ -236,6 +237,15 @@ let editMenu dispatch' =
                makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
                makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
                makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
+               menuSeparator
+               makeElmItem "Toggle Snap To Net" "CmdOrCtrl+T" (fun ev -> sheetDispatch SheetT.Msg.ToggleSnapToNet)
+               makeElmItem "Beautify Sheet" "CmdOrCtrl+B" (fun ev -> sheetDispatch SheetT.Msg.BeautifySheet)
+               makeElmItem "Toggle Make Channel" "CmdOrCtrl+Y" (fun ev -> sheetDispatch SheetT.Msg.MakeChannelToggle)
+               menuSeparator
+               makeElmItem "Reorder Ports" "CmdOrCtrl+R" (fun ev -> sheetDispatch SheetT.Msg.ReorderPorts)
+               makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
+               makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
+               
             |]
             |> ResizeArray
             |> U2.Case1

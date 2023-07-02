@@ -8,7 +8,32 @@ open Elmish
 open CommonTypes
 open DrawHelpers
 open DrawModelType.SymbolT
+open SymbolHelpers
 open Symbol
+
+// // HLP23 AUTHOR: BRYAN TAN
+// open SmartHelpers
+
+(*
+    HLP23: This module will normally be used exclusively by team member doing the "smart rendering" part of the 
+    individual coding. During group phase work how it is used is up to the
+    group. Normally chnages will be to drawSymbol and the code used by this. OTHER changes to the rendering code
+    are possible but you should check before doing anything. renderSymbol is not all well written, but it uses
+    React cacheing (the Props of FunctionComponent.Of are used as a key so that the whole render function (which
+    calls drawSymbol) is only re-executed when renderSymbolProps change. This means that normally drawSymbol is not
+    called whenever the view function is evaluated - crucial to keeping view function time down!
+    
+    
+    HLP23: There is a lot of code here. For assessment, changes to existing code, or new functions,
+    MUST be documented by HLP23:AUTHOR even if from the smart rendering assigned student, so that new code
+    can easily distinguished from old. (Git can also help with this, but it is not totally reliable)
+    Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
+    comment as in SmartHelpers.
+
+    HLP23: the existing drawSymbol code is imperfect. Many issues, note for example repeated pipelined
+    use of append to join different elements together which is inefficient and less readable.
+    HLP23: the code here does not use helpers consistently or in all suitable places.
+*)
 
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
@@ -93,7 +118,20 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
         |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
 
 
-//------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS-------------------------------------
+/// HLP23 AUTHOR: BRYAN TAN
+/// Draw circles on the corners of custom components when manually resizing them
+let drawCorners (showCorners: ShowCorners) (symb: Symbol) =    
+    match showCorners with
+    | DontShow -> []
+    | ShowAll ->
+        getCustomSymCorners symb
+        |> Array.map (fun p -> makeCircle p.X p.Y cornerCircle)
+        |> Array.toList  
+
+//------------------------------------------------------------------------------------------------//
+//------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS------------------------------//
+//------------------------------------------------------------------------------------------------//
+
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
@@ -155,14 +193,18 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> relativeToTopLeft
 
 
+//--------------------------------------------------------------------------------------------//
+//--------------------------------------- SYMBOL DRAWING -------------------------------------//
+//--------------------------------------------------------------------------------------------//
 
-/// --------------------------------------- SYMBOL DRAWING ------------------------------------------------------ ///  
-
+/// Draw symbol (and its label) using theme for colors, returning a list of React components 
+/// implementing all of the text and shapes needed.
 let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     let appear = symbol.Appearance
     let colour = appear.Colour
     let showPorts = appear.ShowPorts
     // let showOutputPorts = appear.ShowOutputPorts
+    let showCorners = appear.ShowCorners /// HLP23 AUTHOR: BRYAN TAN
     let opacity = appear.Opacity
     let comp = symbol.Component
     let h,w = getRotatedHAndW symbol
@@ -424,6 +466,7 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+    |> List.append (drawCorners showCorners symbol) // HLP23 AUTHOR: BRYAN TAN
     |> List.append (addLegendText 
                         (legendOffset w h symbol) 
                         (getComponentLegend comp.Type transform.Rotation) 
@@ -434,17 +477,14 @@ let drawSymbol (symbol:Symbol) (theme:ThemeType) =
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
     |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
+    // |> 
 
 
 
-let init () = 
-    { 
-        Symbols = Map.empty; CopiedSymbols = Map.empty
-        Ports = Map.empty ; InputPortsConnected= Set.empty
-        OutputPortsConnected = Map.empty; Theme = Colourful
-    }, Cmd.none
+//----------------------------------------------------------------------------------------//
+//---------------------------------View Function for Symbols------------------------------//
+//----------------------------------------------------------------------------------------//
 
-//----------------------------View Function for Symbols----------------------------//
 type private RenderSymbolProps =
     {
         Symbol : Symbol 
@@ -453,7 +493,8 @@ type private RenderSymbolProps =
         Theme: ThemeType
     }
 
-/// View for one symbol. Using FunctionComponent.Of to improve efficiency (not printing all symbols but only those that are changing)
+/// View for one symbol. Using FunctionComponent.Of to improve efficiency 
+/// (not printing all symbols but only those that are changing).
 let private renderSymbol =
     
     FunctionComponent.Of(
@@ -509,3 +550,10 @@ let view (model : Model) (dispatch : Msg -> unit) =
     |> ofList
     |> TimeHelpers.instrumentInterval "SymbolView" start
 
+/// init function for initial Symbol Model
+let init () = 
+    { 
+        Symbols = Map.empty; CopiedSymbols = Map.empty
+        Ports = Map.empty ; InputPortsConnected= Set.empty
+        OutputPortsConnected = Map.empty; Theme = Colourful
+    }, Cmd.none

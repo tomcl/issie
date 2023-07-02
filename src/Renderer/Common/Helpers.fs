@@ -6,7 +6,7 @@
 
 module Helpers
 open CommonTypes
-
+open System.Text.RegularExpressions
 
     [<AutoOpen>]
     module JsonHelpers =
@@ -70,7 +70,8 @@ open CommonTypes
             let time = System.DateTime.Now
             //printfn "%A" cState
             try            
-                Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
+                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
+                 |> (fun json -> Regex.Replace(json, """(\d+\.\d\d)\d+""", "$1")) // reduce json size by truncating floats to 2 d.p.
             with
             | e ->
                 printfn "HELP: exception in SimpleJson.stringify %A" e

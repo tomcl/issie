@@ -184,7 +184,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 // Logic gates inputs/outputs always have width 1.
                 Some 1
             | Input w | Output w | Constant (w,_)| BusCompare (w,_)
-            | BusSelection (w,_)| NbitsAdder w | NbitsXor w -> 
+            | BusSelection (w,_)| NbitsAdder w | NbitsXor(w,_) -> 
                 // The above components all have width specified in their
                 // component properties.
                 Some w
@@ -532,10 +532,10 @@ let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> 
                 Some (Error e, (selComps,selConns))
             | Ok (correctComps,correctConns) ->
                 match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
-                | Some e -> Some (Error e, (correctComps,correctConns))
-                | None ->
+                | Some e, _ -> Some(Error e, (correctComps, correctConns))
+                | None, _ ->
                     let sim =
-                        startCircuitSimulation
+                        startCircuitSimulationFData
                             2
                             project.OpenFileName 
                             (correctComps,correctConns) 

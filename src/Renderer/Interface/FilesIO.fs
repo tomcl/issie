@@ -18,6 +18,7 @@ open Node
 open EEExtensions
 open Fable.SimpleJson
 open JSHelpers
+open System.IO
 
 [<Emit("process.cwd()")>]
 let getCWD (u:unit): string = jsNative
@@ -31,18 +32,83 @@ let getCWD (u:unit): string = jsNative
 /// assets.
 // let staticFileDirectory = staticDir()
 
+let pathJoin args = 
+    #if FABLE_COMPILER
+    path.join args
+    #else
+    Path.Join args
+    #endif
 
-let pathJoin args = path.join args
-let baseName filePath = path.basename filePath
+let baseName (filePath: string) =
+    #if FABLE_COMPILER
+    path.basename filePath
+    #else
+    Path.GetFileName filePath
+    #endif
 
+let dirName (filePath: string) =
+    #if FABLE_COMPILER
+    path.dirname filePath
+    #else
+    Path.GetDirectoryName filePath
+    #endif
 
-let dirName filePath = path.dirname filePath
+let readFile (filePath: string) =
+    #if FABLE_COMPILER
+    fs.readFileSync(filePath, "utf8")
+    #else
+    File.ReadAllText(filePath, System.Text.ASCIIEncoding.UTF8)
+    #endif
+
+let exists (filePath: string) =
+    #if FABLE_COMPILER
+    fs.existsSync (U2.Case1 filePath)
+    #else
+    File.Exists filePath
+    #endif
+
+let extName (filePath: string) =
+    #if FABLE_COMPILER
+    path.extname filePath
+    #else
+    Path.GetExtension filePath
+    #endif
+
+let mkdir (folderPath: string) =
+    #if FABLE_COMPILER
+    fs.mkdirSync folderPath
+    #else
+    let dirInfo = Directory.CreateDirectory folderPath
+    printfn "created directory: %A" dirInfo
+    #endif
+
+let readdir (folderPath: string) =
+    #if FABLE_COMPILER
+    fs.readdirSync (U2.Case1 folderPath)
+    #else
+    Directory.GetFiles folderPath |> Array.map Path.GetFileName
+    #endif
+
+let unlink (folderPath: string) =
+    #if FABLE_COMPILER
+    fs.unlink (U2.Case1 folderPath, ignore) // Asynchronous.
+    #else
+    File.Delete folderPath
+    #endif
+
+let rename (oldPath: string) (newPath: string) =
+    #if FABLE_COMPILER
+    fs.renameSync (oldPath, newPath) // Asynchronous.
+    #else
+    File.Move(oldPath, newPath, false)
+    #endif
+
 let ensureDirectory dPath =
-    if (not <| fs.existsSync (U2.Case1 dPath)) then 
-        fs.mkdirSync(dPath);
+    if (not <| exists dPath) then 
+        mkdir dPath
 
 let pathWithoutExtension filePath =
-    let ext = path.extname filePath
+    let ext = extName filePath
     filePath 
     |> Seq.rev
     |> Seq.skip ext.Length
@@ -62,23 +128,26 @@ let filePathIsBad =
     baseNameWithoutExtension >> fileNameIsBad
 
 let fileExistsWithExtn extn folderPath baseName =
-    let path = path.join [| folderPath; baseName + extn |]
-    fs.existsSync (U2.Case1 path)
+    let path = pathJoin [| folderPath; baseName + extn |]
+    exists path
 
 let tryReadFileSync fPath =
-    if not <| fs.existsSync (U2.Case1 fPath) then
+    if not <| exists fPath then
         Error $"Error: file {fPath} does not exist"
     else    
-    fs.readFileSync(fPath, "utf8")
+    readFile fPath
     |> Ok
-
 
 /// Write base64 encoded data to file.
 /// Create file if it does not exist.
 let writeFileBase64 path data =
     let options = createObj ["encoding" ==> "base64"] |> Some
     try
+        #if FABLE_COMPILER
         fs.writeFileSync(path, data, options)
+        #else
+        File.WriteAllBytes(path, System.Convert.FromBase64String(data))
+        #endif
         Ok ()
     with
         | e -> Result.Error $"Error '{e.Message}' writing file '{path}'"   
@@ -88,16 +157,20 @@ let writeFileBase64 path data =
 let writeFile path data =
     try
         let options = createObj ["encoding" ==> "utf8"] |> Some
+        #if FABLE_COMPILER
         fs.writeFileSync(path, data, options)
+        #else
+        File.WriteAllText(path, data, System.Text.ASCIIEncoding.UTF8)
+        #endif
         Ok ()
     with
         | e -> Result.Error $"Error '{e.Message}' writing file '{path}'"
 
 /// read file names from directory: returning [] on any error.
 let readFilesFromDirectory (path:string) : string list =
-    if fs.existsSync (U2.Case1 path) then
+    if exists path then
         try 
-            fs.readdirSync(U2.Case1 path)
+            readdir path
             |> Seq.toList
         with 
             | _ -> []
@@ -143,11 +216,11 @@ let latestBackupFileData (path:string) (baseName: string) =
 /// read canvas state from file found on filePath (which includes .dgm suffix etc).
 /// return Error if file does not exist or cannot be parsed.
 let private tryLoadStateFromPath (filePath: string) =
-    if not (fs.existsSync (U2.Case1 filePath)) then
+    if not (exists filePath) then
         Result.Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath      
     else
         try
-            Ok (fs.readFileSync(filePath, "utf8"))
+            Ok (readFile filePath)
         with
             | e -> Result.Error $"Error {e.Message} reading file '{filePath}'"
 
@@ -248,7 +321,7 @@ let askForExistingProjectPath (defaultPath: string option) : string option =
         Seq.toList
         >> function
         | [] -> Option.None
-        | p :: _ -> Some <| path.dirname p
+        | p :: _ -> Some <| dirName p
     )
 
 
@@ -271,7 +344,7 @@ let rec askForNewProjectPath (defaultPath:string option) : string option =
         electronRemote.dialog.showSaveDialogSync(options)
         |> Option.bind (fun dPath ->
             let dir = dirName dPath
-            let files = fs.readdirSync <| U2.Case1 dir
+            let files = readdir dir
             if Seq.exists (fun (fn:string) -> fn.EndsWith ".dprj") files
             then
                 electronRemote.dialog.showErrorBox(
@@ -292,7 +365,7 @@ let tryCreateFolder (path : string) =
         Result.Error <| "File or project names must contain only letters, digits, or underscores"
     else
         try
-            Result.Ok <| fs.mkdirSync path
+            Result.Ok <| mkdir path
         with
             | ex -> Result.Error <| $"Can't create folder '{path}': {ex.Message}"
 
@@ -300,21 +373,21 @@ let tryCreateFolder (path : string) =
 /// Asyncronously remove file.
 /// ignore if file does not exist
 let removeFileWithExtn extn folderPath baseName  =
-    let path = path.join [| folderPath; baseName + extn |]
-    if fs.existsSync (U2.Case1 path) then
+    let path = pathJoin [| folderPath; baseName + extn |]
+    if exists path then
         try 
-            fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+            unlink path // Asynchronous.
         with
             | _ -> ()
     else
         ()
 
 let renameFile extn folderPath baseName newBaseName =
-    let oldPath = path.join [| folderPath; baseName + extn |]
-    let newPath = path.join [| folderPath; newBaseName + extn |]
-    if fs.existsSync <| U2.Case1 oldPath then
+    let oldPath = pathJoin [| folderPath; baseName + extn |]
+    let newPath = pathJoin [| folderPath; newBaseName + extn |]
+    if exists oldPath then
         try
-            Ok <| fs.renameSync (oldPath, newPath) // synchronous.
+            Ok <| rename oldPath newPath // synchronous.
         with
             | e -> Error  $"Rename of '{baseName}' in '{folderPath}' failed"
     elif extn = ".dgm" then
@@ -325,8 +398,8 @@ let renameFile extn folderPath baseName newBaseName =
 let removeFile (folderPath:string) (baseName:string) = removeFileWithExtn ".dgm" folderPath baseName
 
 let removeAutoFile folderPath baseName =
-    let path = path.join [| folderPath; baseName + ".dgmauto" |]
-    fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+    let path = pathJoin [| folderPath; baseName + ".dgmauto" |]
+    unlink path // Asynchronous.
 
 let readMemDefnLine (addressWidth:int) (wordWidth: int) (lineNo: int) (s:string) =
     let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';'"'|] s 
@@ -427,6 +500,11 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
     let data = stateToJsonString state
     writeFile path data
 
+let saveStateToFileNew folderPath baseName state = // TODO: catch error?
+    let path = pathJoin [| folderPath; baseName + ".dgmNew" |]
+    let data = stateToJsonStringNew state
+    writeFile path data
+
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None})
@@ -509,7 +587,7 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
 
 /// load a component from its canvas and other elements
 let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo (sheetInfo:SheetInfo option) =
-    let projectPath = path.dirname filePath
+    let projectPath = dirName filePath
     let inputs, outputs = Extractor.parseDiagramSignature canvas
     //printfn "parsed component"
     let comps,conns = canvas
@@ -567,7 +645,7 @@ type LoadStatus =
 let loadAllComponentFiles (folderPath:string)  = 
     let x = 
         try
-            Ok <| fs.readdirSync (U2.Case1 folderPath)
+            Ok <| readdir folderPath
         with
         | e -> Error <| sprintf "Error reading Issie project directory at '%s: %A" folderPath e
     match x with
@@ -575,14 +653,14 @@ let loadAllComponentFiles (folderPath:string)  =
     | Ok x ->
         x
         |> Seq.toList
-        |> List.filter (path.extname >> ((=) ".dgm"))
+        |> List.filter (extName >> ((=) ".dgm"))
         |> List.map (fun fileName ->
                 if fileNameIsBad (pathWithoutExtension fileName)
                 then
                     Error <| sprintf @"Can't load file name '%s' from project '%s' because it contains incorrect characters.\n \
                     File names used as sheets must contain only alphanumeric and space characters before the '.dgm' extension" fileName folderPath
                 else 
-                    let filePath = path.join [| folderPath; fileName |]
+                    let filePath = pathJoin [| folderPath; fileName |]
                     printfn $"loading {fileName}"
                     let ldComp =  filePath |> tryLoadComponentFromPath
                     let autoComp = filePath + "auto" |> tryLoadComponentFromPath

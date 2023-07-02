@@ -13,3 +13,5 @@ group Electron
 	Fulma
 	Fulma.Extensions.Wikiki.Tooltip
 	Fable.SimpleJson
+	Thoth.Json
+	Thoth.Json.Net

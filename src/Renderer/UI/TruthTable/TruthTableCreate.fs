@@ -135,7 +135,7 @@ let simulateInputCombination
     // Extract Output and Viewer values from the Fast Simulation
     let outputRow =
         (outputs,simData)
-        ||> FastRun.extractFastSimulationIOs
+        ||> FastRun.extractFastSimulationIOsFData
         |> List.map (fun (comp,out) -> 
             match out with
             | IData wd -> {IO = SimIO comp; Data = Bits (convertFastDataToWireData wd)}
@@ -164,13 +164,13 @@ let truthTable
         if isRegeneration then 
             simData
         else
-            match FastRun.buildFastSimulation 2 ""  simData.Graph with
+            match FastRun.buildFastSimulationFData 2 ""  simData.Graph with
             | Ok fs -> 
                 {simData with FastSim = fs}
             | _ -> 
                 failwithf "Error in building fast simulation for Truth Table evaluation"
-    let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tableSimData)
-    let outputs = List.map fst (FastRun.extractFastSimulationIOs simData.Outputs tableSimData)
+    let inputs = List.map fst (FastRun.extractFastSimulationIOsFData simData.Inputs tableSimData)
+    let outputs = List.map fst (FastRun.extractFastSimulationIOsFData simData.Outputs tableSimData)
     let viewers = FastRun.extractViewers simData
     let lhs,tCRC = tableLHS inputs inputConstraints algebraIOs bitLimit
     let rhs = List.map (fun i -> simulateInputCombination i outputs tableSimData) lhs

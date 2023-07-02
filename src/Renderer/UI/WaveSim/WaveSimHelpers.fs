@@ -173,15 +173,25 @@ let pointsToString (points: XYPos array) : string =
 
 /// Retrieve value of wave at given clock cycle as an int.
 let getWaveValue (currClkCycle: int) (wave: Wave) (width: int) : FastData =
-    Array.tryItem currClkCycle wave.WaveValues.Step
-    |> function
-        | Some (Data fData) -> 
-            fData            
-        | _ ->
-            // TODO: Find better default value here
-            // TODO: Should probably make it so that you can't call this function in the first place.
-            printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
-            {Dat = Word 0u; Width = width}
+    match width with
+    | w when w > 32 ->
+        Array.tryItem currClkCycle wave.WaveValues.BigIntStep
+        |> function
+            | Some (fData) -> 
+                { Dat = BigWord fData; Width = width}            
+            | _ ->
+                // TODO: Find better default value here
+                // TODO: Should probably make it so that you can't call this function in the first place.
+                printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
+                {Dat = Word 0u; Width = width}
+    | _ ->      
+        Array.tryItem currClkCycle wave.WaveValues.UInt32Step
+        |> function
+            | Some (fData) -> 
+                { Dat = Word fData; Width = width}
+            | _ ->
+                printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
+                {Dat = Word 0u; Width = width}
 
 /// Make left and right x-coordinates for a clock cycle.
 let makeXCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) =
@@ -254,20 +264,44 @@ let calculateBinaryTransitions (waveValues: FData array) : BinaryTransition arra
             failwithf $"Unrecognised transition {getBit x}, {getBit y}"
     )
 
-/// Determine transitions for each clock cycle of a non-binary waveform.
-/// Assumes that waveValues starts at clock cycle 0.
-let calculateNonBinaryTransitions (waveValues: FData array) : NonBinaryTransition array =
-    let notWaveformValue = Alg (AppendExp [])
-    // TODO: See if this will break if the clock cycle isn't 0.
-    // Concat [[]] so first clock cycle always starts with Change
-    Array.append [|notWaveformValue|]  waveValues
+let calculateBinaryTransitionsUInt32 (waveValues: uint32 array) : BinaryTransition array =
+    let getBit bit = int32 bit
+    Array.append [| waveValues[0] |] waveValues
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
-        if x = y then
-            Const
-        else
-            Change
-    )
+        match getBit x, getBit y with
+        | 0, 0 -> ZeroToZero
+        | 0, 1 -> ZeroToOne
+        | 1, 0 -> OneToZero
+        | 1, 1 -> OneToOne
+        | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
+
+let calculateBinaryTransitionsBigInt (waveValues: bigint array) : BinaryTransition array =
+    let getBit bit = int32 bit
+    Array.append [| waveValues[0] |] waveValues
+    |> Array.pairwise
+    |> Array.map (fun (x, y) ->
+        match getBit x, getBit y with
+        | 0, 0 -> ZeroToZero
+        | 0, 1 -> ZeroToOne
+        | 1, 0 -> OneToZero
+        | 1, 1 -> OneToOne
+        | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
+
+/// Determine transitions for each clock cycle of a non-binary waveform.
+/// Assumes that waveValues starts at clock cycle 0.
+let calculateNonBinaryTransitions (waveValues: 'a array) : NonBinaryTransition array =
+    // TODO: See if this will break if the clock cycle isn't 0.
+    let transitions =
+        waveValues
+        |> Array.pairwise
+        |> Array.map (fun (x, y) ->
+            if x = y then
+                Const
+            else
+                Change)
+    // Concat [| Change |] so first clock cycle always starts with Change
+    Array.append [| Change |] transitions 
 
 let isWaveSelected (wsModel: WaveSimModel) (index: WaveIndexT) : bool = List.contains index wsModel.SelectedWaves
 let isRamSelected (ramId: FComponentId) (wsModel: WaveSimModel) : bool = Map.containsKey ramId wsModel.SelectedRams
@@ -330,7 +364,8 @@ let getCompDetails fs wave =
         | NbitsAdder n | NbitsAdderNoCin n 
         | NbitsAdderNoCout n | NbitsAdderNoCinCout n     
             -> $"{n} bit adder",false
-        | NbitsXor n -> $"{n} XOR gates",false
+        | NbitsXor (n,None) -> $"{n} XOR gates",false
+        | NbitsXor(n, Some Multiply) -> $"{n} bit multiply",false
         | NbitsAnd n -> $"{n} AND gates",false
         | NbitsNot n -> $"{n} Not gates",false
         | NbitSpreader n -> $"1 -> {n} bits spreader",false

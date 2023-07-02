@@ -158,7 +158,7 @@ If you want to get started as a developer, follow these steps.
 Download and install (if you already have these tools installed just check the version constraints).
 
 
-* [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 6.0, < 7
+* [.Net 7 SDK](https://dotnet.microsoft.com/download/dotnet/7.0).  
 * [Node.js v16](https://nodejs.org/en/). **v16 LTS - NOT latest 18**
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
     * If you are using a different version of Node for developmnet on other projects, global install 

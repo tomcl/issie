@@ -427,8 +427,8 @@ let inline colorSymbols (model: Model) compList colour =
 
     { model with Symbols = newSymbols }
 
-/// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
-let createSymbol ldcs theme prevSymbols comp =
+/// Initialises a symbol containing the component and returns the updated symbol map containing the new symbol
+let createSymbolRecord ldcs theme comp =
         let clocked = isClocked [] ldcs comp
         let portMaps = 
             match comp.SymbolInfo with
@@ -450,43 +450,72 @@ let createSymbol ldcs theme prevSymbols comp =
             match comp.SymbolInfo with
             | Some {LabelBoundingBox=Some info} ->  false, info
             | _ -> true, {TopLeft=xyPos; W=0.;H=0.}
-        let newSymbol =
-            { 
-                Pos = xyPos
-                LabelHasDefaultPos = hasDefault
-                LabelBoundingBox = labelBoundingBox
-                LabelRotation = comp.SymbolInfo |> Option.bind (fun info -> info.LabelRotation)
-                Appearance = {
-                    HighlightLabel = false
-                    ShowPorts = ShowNone //do not show input ports initially
-                    ShowCorners = DontShow
-                    // ShowOutputPorts = false //do not show output ports initially
-                    Colour = getSymbolColour comp.Type clocked theme
-                    Opacity = 1.0
-                }
-                Id = ComponentId comp.Id
-                Component = {comp with H=h ; W = w}
-                
-                Moving = false
-                InWidth0 = None
-                InWidth1 = None
-                STransform = getSTransformWithDefault comp.SymbolInfo
-                ReversedInputPorts = match comp.SymbolInfo with |Some si -> si.ReversedInputPorts |_ -> None
-                PortMaps = portMaps
-                
-                MovingPort = None
-                IsClocked = clocked
-                MovingPortTarget = None
-                HScale = match comp.SymbolInfo with |Some si -> si.HScale |_ -> None
-                VScale = match comp.SymbolInfo with |Some si -> si.VScale |_ -> None
+        { 
+            Pos = xyPos
+            LabelHasDefaultPos = hasDefault
+            LabelBoundingBox = labelBoundingBox
+            LabelRotation = comp.SymbolInfo |> Option.bind (fun info -> info.LabelRotation)
+            Appearance = {
+                HighlightLabel = false
+                ShowPorts = ShowNone //do not show input ports initially
+                ShowCorners = DontShow
+                // ShowOutputPorts = false //do not show output ports initially
+                Colour = getSymbolColour comp.Type clocked theme
+                Opacity = 1.0
             }
-            |> autoScaleHAndW
-            |> calcLabelBoundingBox
-        prevSymbols
-        |> Map.add (ComponentId comp.Id) newSymbol
- 
+            Id = ComponentId comp.Id
+            Component = {comp with H=h ; W = w}
+            Annotation = None
+            Moving = false
+            InWidth0 = None
+            InWidth1 = None
+            STransform = getSTransformWithDefault comp.SymbolInfo
+            ReversedInputPorts = match comp.SymbolInfo with |Some si -> si.ReversedInputPorts |_ -> None
+            PortMaps = portMaps
+                
+            MovingPort = None
+            IsClocked = clocked
+            MovingPortTarget = None
+            HScale = match comp.SymbolInfo with |Some si -> si.HScale |_ -> None
+            VScale = match comp.SymbolInfo with |Some si -> si.VScale |_ -> None
+        }
+        |> autoScaleHAndW
+        |> calcLabelBoundingBox
 
-/// Given a model and a list of components, it creates and adds the symbols containing the specified components and returns the updated model.
+/// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
+let createSymbol ldcs theme prevSymbols comp =
+        let newSymbol = createSymbolRecord ldcs theme comp
+        prevSymbols
+        |> Map.add newSymbol.Id newSymbol
+
+/// Create a new dummy component which can be used in an annotation.
+/// pos: position of annotation on screen - middle of box (NOT top-left)
+let createDummyComponent (pos: XYPos) (h: float) (w:float) : Component =
+    {
+        H = h
+        W = w
+        X = pos.X - w / 2.
+        Y = pos.Y - h / 2.
+        Type = ComponentType.And
+        Id = uuid()
+        Label = ""
+        InputPorts = []
+        OutputPorts = []
+        SymbolInfo = None
+    }
+
+/// Create a new annotation symbol and add it to the map of symbols.
+/// pos: position of annotation on screen - middle of box (NOT top-left)
+let createAnnotation (theme: ThemeType) (a:Annotation) (pos: XYPos)  =
+    match a with
+    | ScaleButton -> (14.0,14.0)
+    | RotateCWButton | RotateACWButton -> (14.0,14.0)
+    ||> createDummyComponent pos
+    |> createSymbolRecord [] theme
+    |> (fun sym -> {sym with Annotation= Some a})
+
+/// Given a model and a list of components, it creates and adds the symbols containing
+/// the specified components and returns the updated model.
 let loadComponents loadedComponents model comps=
     let symbolMap =
         (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents model.Theme)
@@ -938,4 +967,5 @@ let extractComponent (symModel: Model) (sId:ComponentId) : Component =
 let extractComponents (symModel: Model) : Component list =
     symModel.Symbols
     |> Map.toList
+    |> List.filter (fun (sid,sym) -> Option.isNone sym.Annotation)
     |> List.map (fun (key, _) -> extractComponent symModel key)

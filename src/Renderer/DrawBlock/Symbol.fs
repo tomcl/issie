@@ -670,6 +670,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
       LabelHasDefaultPos = true
       LabelRotation = None
+      Annotation=None
       Appearance =
           {
             HighlightLabel = false

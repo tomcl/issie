@@ -166,15 +166,19 @@ Download and install (if you already have these tools installed just check the v
 * (recommended) Visual Studio 2022 which includes F# 6.0, Install with:
   * Workload: .Net Desktop development
   * Ticked: F# language support
-* (recommended) install [hyper.js](https://hyper.is/) or (better on Windows is  [Windows Terminal](https://github.com/microsoft/terminal).
+* (recommended) install [hyper.js](https://hyper.is/) (ideal) or [Windows Terminal](https://github.com/microsoft/terminal) for Windows.
 
 ### Issie Development
 
-1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or clone it locally, or fork it on github and then clone it locally. 
+1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or clone it locally, or fork it on github and then clone it locally.
 
-3. Navigate to the project root directory (which contains this README) in a command-line interpreter, or start one from directory context menu.
+2. Install `Node.js` by running the installer. It might be necessary to reboot your computer after the various dependencies, such as Chocolatey, are installed.
+
+3. Navigate to the project root directory from the master-before-new-simulation branch (which contains this README) in a command-line interpreter, or start one from directory context menu.
 
 4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download and install all dependencies then launch the application in dev mode with HMR.
+   
+5. Once Issie has loaded, stop the master-before-new-simulation Issie with `Ctrl+C` and switch to the master branch and run `npm install`.
   
   * HMR: the application will automatically recompile and update while running if you save updated source files
   * To initialise and reload: `File -> reload page`

@@ -60,7 +60,9 @@ module SymbolT =
     type FlipType =  FlipHorizontal | FlipVertical
     [<StringEnum>]
     type RotationType = RotateClockwise | RotateAntiClockwise
-
+    //Used in scaling in SmartRotate
+    //HLP23: AUTHOR Ismagilov
+    type ScaleType = ScaleUp | ScaleDown
     /// Wraps around the input and output port id types
 
     type PortId = | InputId of InputPortId | OutputId of OutputPortId
@@ -83,6 +85,7 @@ module SymbolT =
     
     // HLP23 AUTHOR: BRYAN TAN
     type ShowCorners = | ShowAll | DontShow
+    type Annotation = ScaleButton | RotateCWButton |RotateACWButton
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
@@ -146,8 +149,12 @@ module SymbolT =
             /// However H & W remain important, as the height and width of the symbol. This is anomalous.
             /// It would make sure sense for all geometric info to be in fields on the symbol.
             /// However X,Y,H,W are used (to some extent) in non-draw-block Issie code.
-            /// NB HScale, VScale modify H,
-            Component : Component  
+            /// NB HScale, VScale modify V, H
+            Component : Component
+
+            /// Use Some Annotation for visible (and clickable) objects on screen
+            /// In this case Component is a dummy used only to provide expected H & V
+            Annotation: Annotation option
             
             /// transient field to show if ports are being dragged in teh UI.
             Moving: bool
@@ -386,6 +393,24 @@ module BusWireT =
 
 module SheetT =
 
+    // HLP 23: AUTHOR Khoury & Ismagilov
+    // Types needed for scaling box
+    type ScalingBox = {
+        TopLeftStart : XYPos
+        WidthStart : float
+        HeightStart : float
+        StartingPos: XYPos
+        StartingMouse: XYPos
+        ShowBox: bool
+        BoxBound: BoundingBox
+        ScaleButton: SymbolT.Symbol Option
+        RotateCWButton: SymbolT.Symbol Option
+        RotateACWButton: SymbolT.Symbol Option
+        MovingPos: XYPos List
+    }
+
+  
+
     /// Used to keep mouse movement (AKA velocity) info as well as position
     type XYPosMov = {
         Pos: XYPos
@@ -419,6 +444,7 @@ module SheetT =
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
+        | Scaling
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
@@ -458,7 +484,7 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlU | CtrlI
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -508,6 +534,7 @@ module SheetT =
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling
         | DoNothing
+        | DrawBox
         // ------------------- Popup Dialog Management Messages----------------------//
         | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
         | ClosePopup
@@ -577,6 +604,7 @@ module SheetT =
         NearbyComponents: CommonTypes.ComponentId list
         ErrorComponents: CommonTypes.ComponentId list
         DragToSelectBox: BoundingBox
+        ButtonList: ComponentId list
         ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
         TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
@@ -608,6 +636,7 @@ module SheetT =
         CtrlKeyDown : bool
         ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list
+        Box: ScalingBox
         Compiling: bool
         CompilationStatus: CompileStatus
         CompilationProcess: ChildProcess option

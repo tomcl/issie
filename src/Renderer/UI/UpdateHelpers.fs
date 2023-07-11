@@ -161,6 +161,7 @@ let shortDisplayMsg (msg:Msg) =
     | ReadUserData _
     | SetUserData _
     | ChangeBuildTabVisibility
+    | Benchmark
     | SetThemeUserData _ -> None
     | ExecCmd _ -> Some "ExecCmd"
     | ExecFuncInMessage _ -> Some "ExecFuncInMessage"
@@ -218,6 +219,5 @@ let updateAllMemoryCompsIfNeeded (model:Model) =
     else
         model
 
-    
     
     

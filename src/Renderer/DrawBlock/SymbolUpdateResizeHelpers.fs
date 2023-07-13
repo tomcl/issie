@@ -1,9 +1,7 @@
 module SymbolUpdateResizeHelpers
 
 open Elmish
-open Fable.React.Props
 open CommonTypes
-open Fable.React
 open DrawModelType.SymbolT
 open Symbol
 open Optics

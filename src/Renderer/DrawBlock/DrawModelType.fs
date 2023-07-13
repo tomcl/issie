@@ -4,8 +4,6 @@ open Fable.Core
 open CommonTypes
 open DrawHelpers
 open Fable.React
-open Fable.React.Props
-open Elmish
 open Optics
 open Node.ChildProcess
 

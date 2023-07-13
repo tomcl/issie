@@ -9,7 +9,6 @@ open DrawModelType.SheetT
 open Optics
 open Sheet
 open SheetSnap
-open SheetDisplay
 open DrawHelpers
 open BusWireRoutingHelpers
 open BlockHelpers

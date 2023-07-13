@@ -2,8 +2,6 @@
 
 open Fable.Core
 open CommonTypes
-open DrawModelType
-open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open Symbol
 open BusWire

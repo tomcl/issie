@@ -15,10 +15,8 @@ open SheetDisplay
 open Optics
 open FilesIO
 open FSharp.Core
-open Fable.Core
 open Fable.Core.JsInterop
 open BuildUartHelpers
-open Node.ChildProcess
 open Node
 
 module node = Node.Api

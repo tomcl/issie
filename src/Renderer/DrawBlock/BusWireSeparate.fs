@@ -2,7 +2,6 @@
 open CommonTypes
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
-open BusWire
 open BusWireUpdateHelpers
 open BusWireRoutingHelpers
 open BlockHelpers

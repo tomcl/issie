@@ -1,6 +1,5 @@
 ﻿module BlockHelpers
 open CommonTypes
-open DrawHelpers
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT

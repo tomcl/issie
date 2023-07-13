@@ -1,8 +1,5 @@
 ﻿module RotateScale
-open Elmish
-open Fable.React.Props
 open CommonTypes
-open Fable.React
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT

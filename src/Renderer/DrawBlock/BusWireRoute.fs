@@ -1,8 +1,6 @@
 ﻿module BusWireRoute
 
 open CommonTypes
-open Elmish
-open DrawHelpers
 open BlockHelpers
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT

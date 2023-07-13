@@ -3,6 +3,7 @@
 open CommonTypes
 open Elmish
 open DrawHelpers
+open BlockHelpers
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
@@ -11,79 +12,7 @@ open Optics
 open Operators
 
 
-//-------------------------segmentIntersectsBoundingBox---------------------------------//
 
-/// Type used to simplify BoundingBox intersection calculations
-type Rectangle = {
-    TopLeft: XYPos
-    BottomRight: XYPos
-}
-
-/// Returns the X-value of an XYPos
-let inline toX (pos: XYPos) = pos.X
-
-/// Returns the Y-value of an XYPos
-let inline toY (pos: XYPos) = pos.Y
-
-/// Returns the X and Y fields of an XYPos as a pair of floats
-let inline getXY (pos: XYPos) = pos.X, pos.Y
-
-/// Returns pos with the X and Y fields scaled by factor (I didn't like the order of parameters for the * operator in XYPos)
-let inline scalePos (factor: float) (pos: XYPos) : XYPos =
-    { X = factor * pos.X; Y = factor * pos.Y}
-
-/// Returns true if p1 is less than or equal to p2 (has both smaller X and Y values
-let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
-    p1.X <= p2.X && p1.Y <= p2.Y
-
-/// Returns the dot product of 2 XYPos
-let inline dotProduct (p1: XYPos) (p2: XYPos) : float = 
-    p1.X * p2.X + p1.Y * p2.Y
-
-/// Returns the squared distance between 2 points using Pythagoras
-let inline squaredDistance (p1: XYPos) (p2: XYPos) = 
-    let diff = p1 - p2
-    dotProduct diff diff
-
-/// Checks if 2 rectangles intersect
-let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
-    /// Checks if there is an intersection in the X or Y dimension
-    let intersect1D (xOrY: XYPos -> float): bool =
-        let qHi = min (xOrY rect1.BottomRight) (xOrY rect2.BottomRight)
-        let qLo = max (xOrY rect1.TopLeft) (xOrY rect2.TopLeft)
-        qLo <= qHi
-
-    (intersect1D toX) && (intersect1D toY)
-
-let findPerpendicularDistance (segStart:XYPos) (segEnd:XYPos) (point:XYPos) =
-    match abs (segStart.X - segEnd.X) > abs (segStart.Y - segEnd.Y) with
-    | true -> abs (segStart.Y - point.Y)
-    | false -> abs (segStart.X - point.X)
-
-/// Checks if a segment intersects a bounding box using the segment's start and end XYPos
-/// return how close teh segment runs to the box centre, if it intersects
-let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
-    let toRect p1 p2 =
-        let topLeft, bottomRight =
-            if lThanEqualPos p1 p2 then
-                p1, p2
-            else
-                p2, p1
-
-        { TopLeft = topLeft
-          BottomRight = bottomRight }
-
-    let bbBottomRight =
-        { X = box.TopLeft.X + box.W
-          Y = box.TopLeft.Y + box.H }
-
-    let bbRect = toRect box.TopLeft bbBottomRight
-    let segRect = toRect segStart segEnd
-
-    if rectanglesIntersect bbRect segRect then
-        Some <| findPerpendicularDistance segStart segEnd ((box.TopLeft + bbBottomRight) * 0.5)
-    else
-        None
 
 //--------------------------------------------------------------------------------//
 //---------------------------getClickedSegment-----------------------------------//
@@ -445,10 +374,10 @@ let autoroute (model: Model) (wire: Wire) : Wire =
         Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
 
     let destEdge =
-        Symbol.getInputPortOrientation model.Symbol wire.InputPort
+        getInputPortOrientation model.Symbol wire.InputPort
 
     let startEdge =
-        Symbol.getOutputPortOrientation model.Symbol wire.OutputPort
+        getOutputPortOrientation model.Symbol wire.OutputPort
 
     let startPort = genPortInfo startEdge startPos
     let destPort = genPortInfo destEdge destPos
@@ -551,7 +480,7 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
             | false -> OutputId wire.OutputPort
             | true -> InputId wire.InputPort
         let portOrientation =
-            Symbol.getPortOrientation model.Symbol portId
+            getPortOrientation model.Symbol portId
         if  getWireOutgoingEdge wire = portOrientation &&
             relativeToFixed newStartPos = relativeToFixed oldStartPos then
                 Some (manualIdx, newStartPos - oldStartPos, portOrientation)
@@ -610,11 +539,7 @@ let reverseWire (wire: Wire) =
 
 //--------------------------------------------------------------------------------//
 
-/// Moves a wire by the XY amounts specified by displacement
-let moveWire (wire: Wire) (displacement: XYPos) =
-    { wire with
-          StartPos = wire.StartPos + displacement
-    }
+
 
 /// Returns an updated wireMap with the IntersectOrJumpList of targetSeg 
 /// replaced by jumps or modern intersections.
@@ -628,10 +553,6 @@ let updateSegmentJumpsOrIntersections targetSeg intersectOrJump wireMap =
     wireMap
     |> Map.add wId { wireMap[wId] with Segments = changeSegment wireMap[wId].Segments }
 
-let partitionWiresIntoNets (model:Model) =
-    model.Wires
-    |> Map.toList
-    |> List.groupBy (fun (_,wire) -> wire.OutputPort)
 
 /// type used internally by modern wire circle calculation code
 /// For a horizontal segment (x1,y) -> (x2,y):

@@ -382,7 +382,6 @@ module BusWireT =
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
         | ToggleSnapToNet
-        | MakeChannel of BoundingBox // For manual channel routing
 
     open Optics
     open Operators

@@ -85,7 +85,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                      | _  -> 
                                 let myList =  model.SelectedComponents
                                                             |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
-                                myList |> SmartRotate.getBlock
+                                myList |> RotateScale.getBlock
         if (model.SelectedComponents.Length < 2) then 
             (model), Cmd.none
         else
@@ -381,14 +381,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov
         let rotmodel = 
-            {model with Wire = {model.Wire with Symbol = (SmartRotate.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}}
+            {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}}
 
         let newModel = 
          match (model.SelectedComponents.Length) with
          | s when s < 2 -> {rotmodel with BoundingBoxes = Symbol.getBoundingBoxes rotmodel.Wire.Symbol; }
          | _ -> 
-            let block = SmartRotate.getBlock (List.map (fun sId -> rotmodel.Wire.Symbol.Symbols.[sId]) model.SelectedComponents)
-            let newBoxPos = SmartRotate.adjustPosForBlockRotation rotation rotmodel.Box.BoxBound.H rotmodel.Box.BoxBound.W (SmartRotate.rotatePointAboutBlockCentre rotmodel.Box.BoxBound.TopLeft (block.Centre()) rotation)
+            let block = RotateScale.getBlock (List.map (fun sId -> rotmodel.Wire.Symbol.Symbols.[sId]) model.SelectedComponents)
+            let newBoxPos = RotateScale.adjustPosForBlockRotation rotation rotmodel.Box.BoxBound.H rotmodel.Box.BoxBound.W (RotateScale.rotatePointAboutBlockCentre rotmodel.Box.BoxBound.TopLeft (block.Centre()) rotation)
             let newBox = {rotmodel.Box with BoxBound = {rotmodel.Box.BoxBound with TopLeft = newBoxPos; H = rotmodel.Box.BoxBound.W; W = rotmodel.Box.BoxBound.H}}
             match model.ButtonList with
             | [] ->  {rotmodel with BoundingBoxes = Symbol.getBoundingBoxes rotmodel.Wire.Symbol; Box = newBox}
@@ -451,7 +451,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     //HLP23: Author Ismagilov
     | Flip orientation ->
         let flipmodel = 
-            {model with Wire = {model.Wire with Symbol = (SmartRotate.flipBlock model.SelectedComponents model.Wire.Symbol orientation)}}
+            {model with Wire = {model.Wire with Symbol = (RotateScale.flipBlock model.SelectedComponents model.Wire.Symbol orientation)}}
 
         let newModel = {flipmodel with BoundingBoxes = Symbol.getBoundingBoxes flipmodel.Wire.Symbol}
 
@@ -861,17 +861,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
-    | ReorderPorts ->
-        // Test code called from Edit menu item
-        // Validate the lits of selected symbols: it muts have just 2 for
-        // the test to work.
-         validateTwoSelectedSymbols model
-         |> function
-            | Some (s1,s2) ->
-                {model with Wire = SmartPortOrder.reOrderPorts model.Wire s1 s2}, Cmd.none
-            | None -> 
-                printfn "Error: can't validate the two symbols selected to reorder ports"
-                model, Cmd.none
+
     // HLP23 AUTHOR Ismagilov
     // Caught message for scaling up selected components
     | KeyPress CtrlU -> 
@@ -880,7 +870,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | n when n<2 -> model, Cmd.none
         | _ ->  
             let scalemodel = 
-                {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleUp)}}
+                {model with Wire = {model.Wire with Symbol = (RotateScale.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleUp)}}
             
             let newBoxBound = {scalemodel.Box.BoxBound with TopLeft = {X = scalemodel.Box.BoxBound.TopLeft.X - 5.; Y = scalemodel.Box.BoxBound.TopLeft.Y - 5. }; H = scalemodel.Box.BoxBound.H + 10.; W = scalemodel.Box.BoxBound.W + 10.}
             let scaleButt = scalemodel.Box.ScaleButton.Value
@@ -923,7 +913,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | n when n<2 -> model, Cmd.none
         | _ ->  
             let scalemodel = 
-                {model with Wire = {model.Wire with Symbol = (SmartRotate.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleDown)}}
+                {model with Wire = {model.Wire with Symbol = (RotateScale.scaleBlock model.SelectedComponents model.Wire.Symbol ScaleDown)}}
 
             let newBoxBound = {scalemodel.Box.BoxBound with TopLeft = {X = scalemodel.Box.BoxBound.TopLeft.X + 5.; Y = scalemodel.Box.BoxBound.TopLeft.Y + 5. }; H = scalemodel.Box.BoxBound.H - 10.; W = scalemodel.Box.BoxBound.W - 10.}
             let scaleButt = scalemodel.Box.ScaleButton.Value
@@ -937,7 +927,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                                                                         |> Map.add newRotateCW.Id newRotateCW 
                                                                                         |> Map.add newRotateACW.Id newRotateACW)}} ; BoundingBoxes = Symbol.getBoundingBoxes scalemodel.Wire.Symbol; Box = {scalemodel.Box with BoxBound = newBoxBound; ScaleButton = Some newScaleButt; RotateCWButton = Some newRotateCW; RotateACWButton = Some newRotateACW}}
 
-            let newBlock = SmartRotate.getBlock ((List.map (fun x -> newModel.Wire.Symbol.Symbols |> Map.find x) newModel.SelectedComponents) )
+            let newBlock = RotateScale.getBlock ((List.map (fun x -> newModel.Wire.Symbol.Symbols |> Map.find x) newModel.SelectedComponents) )
 
 
             let errorComponents =
@@ -974,8 +964,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     
     | ToggleSnapToNet ->
         model, (wireCmd BusWireT.ToggleSnapToNet)
-    | BeautifySheet ->  
-        {model with Wire = SmartBeautify.smartBeautify model.Wire model.BoundingBoxes}, Cmd.none
     
     | MakeChannelToggle ->
         {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none

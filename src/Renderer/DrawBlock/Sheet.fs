@@ -16,7 +16,7 @@ open Operators
 
 // HLP 23 AUTHOR: BRYAN TAN
 open SymbolHelpers
-open SmartHelpers
+open BusWireRoutingHelpers
 
 /// Keep track of HTML "Canvas" element used by Draw Blcok to read and write HTML scroll info.
 /// Set in view function from react hook.
@@ -318,7 +318,7 @@ let symbolToCentre (symbol:SymbolT.Symbol) =
 let wireToBB (wire:BusWireT.Wire) =
     let initBox = {TopLeft=wire.StartPos;W=0.;H=0.}
     (initBox,wire)
-    ||> BusWire.foldOverNonZeroSegs (fun _ ePos box _ -> 
+    ||> BlockHelpers.foldOverNonZeroSegs (fun _ ePos box _ -> 
         boxPointUnion box ePos)
 
 
@@ -372,9 +372,9 @@ let symbolWireBBUnion (model:Model) =
 
 let moveCircuit moveDelta (model: Model) =
     model
-    |> Optic.map symbol_ (Symbol.moveSymbols moveDelta)
-    |> Optic.map wire_ (BusWire.moveWires moveDelta)
-    |> Optic.map wire_ (SmartWire.updateWireSegmentJumpsAndSeparations [])
+    |> Optic.map symbol_ (BlockHelpers.moveSymbols moveDelta)
+    |> Optic.map wire_ (BlockHelpers.moveWires moveDelta)
+    |> Optic.map wire_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations [])
 
 /// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
 let getWindowParasToFitBox model (box: BoundingBox)  =
@@ -501,7 +501,7 @@ let getWireBBox (wire: BusWireT.Wire) =
         let newRight = max (state.TopLeft.X+state.W) segEnd.X
         let newLeft = min state.TopLeft.X segEnd.X
         {TopLeft={X=newTop; Y=newLeft}; W=newRight-newLeft; H=newBottom-newTop }
-    BusWire.foldOverSegs updateBoundingBox {TopLeft = wire.StartPos; W=0; H=0;} wire
+    BlockHelpers.foldOverSegs updateBoundingBox {TopLeft = wire.StartPos; W=0; H=0;} wire
     
 
 let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId list) =

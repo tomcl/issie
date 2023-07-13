@@ -4,9 +4,11 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
-open SmartHelpers
+open BusWireRoutingHelpers
+open BlockHelpers
 open Optics
 open Operators
+open BusWireRoute
 
 //*****************************************************************************************************//
 //---------------------------------Smart Channel / Segment Order / Separate----------------------------//
@@ -29,7 +31,7 @@ open Operators
     - of overlapped nets simple. Not clear what is the coorrect UI for this
   -----------------------------------------------------------------------------------------------------*)
 
-open SmartHelpers.Constants // for easy access to SmartWire Constant definitions
+open BusWireRoutingHelpers.Constants // for easy access to SmartWire Constant definitions
 
 //-------------------------------------------------------------------------------------------------//
 //---------------------------------LINE ARRAY CREATION FROM MODEL----------------------------------//
@@ -903,7 +905,39 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
         // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
         // this code attempts to remove sucg corners if it can be done while keeping routing ok
 
-        |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing 
+        |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
+
+
+/// Top-level function to replace updateWireSegmentJumps
+/// and call the Segment separate code as well. This should
+/// run when significant circuit wiring chnages have been made
+/// e.g. at the end of symbol drags.
+let updateWireSegmentJumpsAndSeparations wires model  =
+    model
+    |> separateAndOrderModelSegments wires
+    |> BusWireUpdateHelpers.updateWireSegmentJumps []
+
+/// Top-level function does routing and then separation of set of wires.
+/// Uses partial routing if possible.
+let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
+    let wires = filterWiresByCompMoved model [compId]
+    
+    let newWires =
+        model.Wires
+        |> Map.toList
+        |> List.map (fun (cId, wire) ->
+            if List.contains cId wires.Both then // Update wires that are connected on both sides
+                cId, (
+                    updateWire model wire true 
+                    |> fun wire -> updateWire model wire false)
+            elif List.contains cId wires.Inputs then 
+                cId, updateWire model wire true
+            elif List.contains cId wires.Outputs then
+                cId, updateWire model wire false
+            else cId, wire)
+        |> Map.ofList
+    { model with Wires = newWires }
+    |> updateWireSegmentJumpsAndSeparations (Map.keys newWires |> Seq.toList)
 
 
 

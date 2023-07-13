@@ -11,6 +11,7 @@ open Optic
 open Operators
 
 open SymbolHelpers
+open BlockHelpers
 
 /// HLP23 AUTHOR: BRYAN TAN 
 module Constants =

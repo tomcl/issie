@@ -1,4 +1,4 @@
-﻿module SmartHelpers
+﻿module BusWireRoutingHelpers
 
 open Fable.Core
 open CommonTypes
@@ -7,14 +7,14 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open Symbol
 open BusWire
-open BusWireUpdateHelpers
+open BlockHelpers
 open Optics
 open Operators
 
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
 //-----------------------------------------------------------------------------------------------//
-
+(*
 /// Update BusWire model with given symbols. Can also be used to add new symbols.
 /// This uses a fold on the Map to add symbols which makes it fast in the case that the number
 /// of symbols added is very small.
@@ -99,124 +99,8 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
 let fixBoundingBox (box: BoundingBox): BoundingBox =
     let x = min (box.TopLeft.X + box.W) box.TopLeft.X
     let y = min (box.TopLeft.Y + box.H) box.TopLeft.Y
-    {TopLeft = {X = x; Y = y}; W = abs box.W; H = abs box.H}
+    {TopLeft = {X = x; Y = y}; W = abs box.W; H = abs box.H}*)
 
-/// Get the start and end positions of a wire.
-/// HLP23: AUTHOR Jian Fu Eng (jfe20)
-let getStartAndEndWirePos (wire: Wire) : XYPos * XYPos =
-    let wireVertices =
-        segmentsToIssieVertices wire.Segments wire
-        |> List.map (fun (x, y, _) -> { X = x; Y = y })
-
-    let currentStartPos = wireVertices.Head
-    let currentEndPos = wireVertices[wireVertices.Length - 2]
-
-    currentStartPos, currentEndPos
-
-/// Returns length of wire
-/// HLP23: AUTHOR Jian Fu Eng (jfe20)
-let getWireLength (wire: Wire) : float =
-    (0., wire.Segments) ||> List.fold (fun acc seg -> acc + (abs seg.Length))
-
-/// Gets total length of a set of wires.
-/// HLP23: AUTHOR dgs119
-let totalLengthOfWires (conns: Map<ConnectionId, Wire>) = 
-    conns
-    |> Map.map(fun _ wire -> getWireLength wire)
-    |> Map.toList
-    |> List.map snd
-    |> List.sum
-
-/// Checks if a wire is part of a net.
-/// If yes, return the netlist. Otherwise, return None
-/// HLP23: AUTHOR Jian Fu Eng (jfe20)
-let isWireInNet (model: Model) (wire: Wire) : (OutputPortId * (ConnectionId * Wire) list) option =
-    let nets = partitionWiresIntoNets model
-
-    nets
-    |> List.tryFind (fun (outputPortID, netlist) -> wire.OutputPort = outputPortID && netlist |> List.exists (fun (connID, w) -> connID <> wire.WId))
-
-/// Checks if a port is part of a Symbol.
-/// HLP23: AUTHOR dgs119
-let isPortInSymbol (portId: string) (symbol: Symbol) : bool =
-    symbol.PortMaps.Orientation |> Map.containsKey portId
-
-/// Get pairs of unique symbols that are connected to each other.
-/// HLP23: AUTHOR dgs119
-let getConnSyms (wModel: BusWireT.Model) =
-    wModel.Wires
-    |> Map.values
-    |> Seq.toList
-    |> List.map (fun wire -> (getSourceSymbol wModel wire, getTargetSymbol wModel wire))
-    |> List.filter (fun (symA, symB) -> symA.Id <> symB.Id)
-    |> List.distinctBy (fun (symA, symB) -> Set.ofList [ symA; symB ])
-
-/// Checks if wire is connected to two given symbols.
-/// Returns false if two Symbols are the same.
-/// HLP23: AUTHOR dgs119
-let isConnBtwnSyms (wire: Wire) (symA: Symbol) (symB: Symbol) : bool =
-    let inId, outId =
-        getInputPortIdStr wire.InputPort, getOutputPortIdStr wire.OutputPort
-
-    match inId, outId with
-    | _ when (isPortInSymbol inId symA) && (isPortInSymbol outId symB) -> true
-    | _ when (isPortInSymbol inId symB) && (isPortInSymbol outId symA) -> true
-    | _ -> false
-
-/// Gets connections between symbols.
-/// HLP23: AUTHOR dgs119
-let connsBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Map<ConnectionId, Wire> =
-    wModel.Wires |> Map.filter (fun _ wire -> isConnBtwnSyms wire symA symB)
-
-/// Gets Wires between symbols.
-/// HLP23: AUTHOR dgs119
-let wiresBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Wire list =
-    connsBtwnSyms wModel symA symB |> Map.toList |> List.map snd
-
-/// Filters Ports by Symbol.
-/// HLP23: AUTHOR dgs119
-let filterPortBySym (ports: Port list) (sym: Symbol) =
-    ports |> List.filter (fun port -> ComponentId port.HostId = sym.Id)
-
-/// Gets Ports From a List of Wires.
-/// HLP23: AUTHOR dgs119
-let portsOfWires (model: BusWireT.Model) (wires: Wire list) =
-    wires
-    |> List.map (fun wire ->
-        [ getPort model.Symbol (getInputPortIdStr wire.InputPort)
-          getPort model.Symbol (getOutputPortIdStr wire.OutputPort) ])
-    |> List.concat
-    |> List.distinct
-
-/// Groups Wires by the net they belong to.
-/// HLP23: AUTHOR dgs119
-let groupWiresByNet (conns: Map<ConnectionId, Wire>) =
-    conns
-    |> Map.toList
-    |> List.groupBy (fun (_, wire) -> wire.OutputPort)
-    |> List.map (snd >> List.map snd)
-
-/// Scales a symbol so it has the provided height and width.
-/// HLP23: AUTHOR BRYAN TAN
-let setCustomCompHW (h: float) (w: float) (sym: Symbol) =
-    let hScale = w / sym.Component.W
-    let vScale = h / sym.Component.H
-
-    { sym with
-        HScale = Some hScale
-        VScale = Some vScale }
-
-/// For a wire and a symbol, return the edge of the symbol that the wire is connected to.
-/// /// HLP23: AUTHOR BRYAN TAN
-let wireSymEdge wModel wire sym =
-    let sPort, tPort = getSourcePort wModel wire, getTargetPort wModel wire
-    let sEdge = Map.tryFind sPort.Id sym.PortMaps.Orientation
-    let tEdge = Map.tryFind tPort.Id sym.PortMaps.Orientation
-
-    match sEdge, tEdge with
-    | Some e, None -> e
-    | None, Some e -> e
-    | _ -> Top // Shouldn't happen.
 
 
 //-------------------------------------------------------------------------------------------------//
@@ -441,7 +325,7 @@ let inline lowerB (lines: Line array) loc =
 let pWire (wire: Wire) =
     let segs = wire.Segments
     let nSegs = segs.Length
-    let aSegs = getAbsSegments wire
+    let aSegs = BlockHelpers.getAbsSegments wire
     let pASeg (aSeg:ASegment) =
         let isMan = 
             match aSeg.Segment.Mode with | Manual -> "M" | Auto -> "A"

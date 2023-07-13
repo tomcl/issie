@@ -11,7 +11,8 @@ open Sheet
 open SheetSnap
 open SheetDisplay
 open DrawHelpers
-open SmartHelpers
+open BusWireRoutingHelpers
+open BlockHelpers
 open Browser
 
 
@@ -685,7 +686,7 @@ let mDragUpdate
                                                                 Component = {rotateACWButton.Component with X= startBoxPos.X-(76.5)-(distMovedXY)}}
         let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(50.)+startWidth+(distMovedXY); Y=rotateCWButton.Pos.Y}; 
                                                                 Component = {rotateCWButton.Component with X= startBoxPos.X+(50.)+startWidth+(distMovedXY)}}
-        let modelSymbols = (SmartRotate.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distMovedXY))
+        let modelSymbols = (RotateScale.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distMovedXY))
         let newSymModel = {modelSymbols with Symbols = 
                                                         modelSymbols.Symbols 
                                                         |> Map.add symNewButton.Id symNewButton 
@@ -695,7 +696,7 @@ let mDragUpdate
         let newBox = {model.Box with BoxBound = {TopLeft = newTopLeft; 
                                                                 W = (distMovedXY*2.) + startWidth; 
                                                                 H = (distMovedXY*2.) + startHeight}}
-        let newBlock = SmartRotate.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
+        let newBlock = RotateScale.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
 
         let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes =  Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}
 
@@ -956,7 +957,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             else Cmd.none , model.UndoList , model.RedoList
         { model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false  }, cmd
     | MovingPort portId ->
-        let symbol = Symbol.getCompId model.Wire.Symbol portId
+        let symbol = getCompId model.Wire.Symbol portId
         {model with Action = Idle},
         Cmd.batch [
             symbolCmd (SymbolT.MovePortDone (portId, mMsg.Pos))

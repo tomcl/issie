@@ -7,6 +7,7 @@ open DrawModelType.SheetT
 open Optics
 open Operators
 open Sheet
+open BlockHelpers
 
 
 //----------------------------------------------------------------------------------------//
@@ -245,7 +246,7 @@ let getNewSegmentSnapInfo
             |> Map.filter (fun wid otherWire -> otherWire.OutputPort = thisWire.OutputPort)
             |> Map.toArray
             |> Array.map snd
-            |> Array.collect (BusWire.getNonZeroAbsSegments >> List.toArray)
+            |> Array.collect (getNonZeroAbsSegments >> List.toArray)
             |> Array.collect (function | aSeg when getDir aSeg = Some ori  && aSeg.Segment.GetId() <> thisSegId-> 
                                             [|BusWire.getFixedCoord aSeg|] 
                                        | _ -> 

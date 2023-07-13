@@ -12,6 +12,7 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 open DrawHelpers
+open BlockHelpers
 
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
@@ -51,115 +52,6 @@ module Constants =
             DominantBaseline = "middle";
         }
 
-/// Returns an XYPos shifted by length in an X or Y direction defined by orientation.
-let inline addLengthToPos (position: XYPos) orientation length =
-    match orientation with
-    | Horizontal -> { position with X = position.X + length }
-    | Vertical -> { position with Y = position.Y + length }
-
-/// Returns the opposite orientation of the input orientation. (i.e. Horizontal becomes Vertical and vice-versa)
-let inline switchOrientation orientation =
-    match orientation with
-    | Horizontal -> Vertical
-    | Vertical -> Horizontal
-
-/// <summary> Applies a function which requires the segment start and end positions to the segments in a wire, 
-/// threading an accumulator argument through the computation. Essentially a List.fold applied to the list of segments of a wire, but with access to each segment's absolute positions. </summary>
-/// <remarks> This is used in cases where absolute segment positions are required. 
-/// These positions are computed on the fly and passed to the folder function. </remarks>
-/// <param name="folder"> The function to update the state given the segment start and end positions, current state and segment itself.</param>
-/// <param name="state"> The initial state.</param>
-/// <param name="wire"> The wire containing the segment list we are folding over.</param>
-/// <returns> The final state value </returns>
-let inline foldOverSegs folder state wire =
-    let initPos = wire.StartPos
-    let initOrientation = wire.InitialOrientation
-    ((state, initPos, initOrientation), wire.Segments)
-    ||> List.fold (fun (currState, currPos, currOrientation) seg -> 
-        let nextPos = addLengthToPos currPos currOrientation seg.Length
-        let nextOrientation = switchOrientation currOrientation
-        let nextState = folder currPos nextPos currState seg
-        (nextState, nextPos, nextOrientation))
-    |> (fun (state, _, _) -> state)
-
-/// <summary> Applies a function which requires the segment start and end positions to the non-zero-length segments in a wire, 
-/// threading an accumulator argument through the computation. Essentially a List.fold applied to the list of segments of a wire, but with access to each segment's absolute positions. </summary>
-/// <remarks> This is used in cases where absolute segment positions are required. 
-/// These positions are computed on the fly and passed to the folder function. </remarks>
-/// <param name="folder"> The function to update the state given the segment start and end positions, current state and segment itself.</param>
-/// <param name="state"> The initial state.</param>
-/// <param name="wire"> The wire containing the segment list we are folding over.</param>
-/// <returns> The final state value </returns>
-let inline foldOverNonZeroSegs folder state wire =
-    let initPos = wire.StartPos
-    let initOrientation = wire.InitialOrientation
-    ((state, initPos, initOrientation), wire.Segments)
-    ||> List.fold (fun (currState, currPos, currOrientation) seg -> 
-        let nextOrientation = switchOrientation currOrientation
-        if seg.IsZero() then 
-            (currState, currPos, nextOrientation)
-        else
-            let nextPos = addLengthToPos currPos currOrientation seg.Length
-            let nextState = folder currPos nextPos currState seg
-            (nextState, nextPos, nextOrientation))
-    |> (fun (state, _, _) -> state)
-
-/// Return absolute segment list from a wire.
-/// NB - it is often more efficient to use various fold functions (foldOverSegs etc)
-let getAbsSegments (wire: Wire) : ASegment list =
-    let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
-        {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
-    (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
-    ||> List.fold (fun (posDir, aSegL) seg -> 
-            let nextASeg = convertToAbs posDir seg
-            let posDir' = nextASeg.End, switchOrientation (snd posDir)
-            posDir', (nextASeg :: aSegL))
-    |> snd
-    |> List.rev
-
-
-/// Return absolute segment list from a wire.
-/// NB - it is often more efficient to use various fold functions (foldOverSegs etc)
-let getNonZeroAbsSegments (wire: Wire) : ASegment list =
-    let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
-        {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
-    (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
-    ||> List.fold (fun (posDir, aSegL) seg -> 
-            let nextASeg = convertToAbs posDir seg
-            let posDir' = nextASeg.End, switchOrientation (snd posDir)
-            if not <| seg.IsZero() then
-                posDir', (nextASeg :: aSegL)
-            else
-                posDir', aSegL)                
-    |> snd
-    |> List.rev
-
-/// Return filtered absolute segment list from a wire.
-/// includeSegment determines whether a given segment is included in the output list.
-/// NB this is more efficient than generating the whole lits and then filtering.
-let getFilteredAbsSegments includeSegment (wire: Wire) : ASegment list =
-    let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
-        {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
-    (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
-    ||> List.fold (fun ((pos,ori), aSegL) seg -> 
-            let nextASeg = convertToAbs (pos,ori) seg
-            let posDir' = nextASeg.End, switchOrientation ori
-            match includeSegment ori seg with 
-            | true -> posDir', (nextASeg :: aSegL)
-            | false -> posDir', aSegL)                
-    |> snd
-    |> List.rev
-
-type Wire with 
-        member inline this.EndOrientation =
-            match this.Segments.Length % 2, this.InitialOrientation with 
-            | 1, _ -> this.InitialOrientation
-            | _, Vertical -> Horizontal
-            | _, Horizontal -> Vertical
-
-        member inline this.EndPos =
-            (this.StartPos, this)
-            ||> foldOverSegs (fun startP endP _ _ -> endP)
 
 //-----------------------------------------------------------------------------//
 //-------------------------Debugging functions---------------------------------//
@@ -301,52 +193,6 @@ let logSegmentsInModel (model: Model) (wireSegmentIdPairs: (int*ConnectionId) li
     |> List.map  ( fun (index,wireId) -> logSegmentInModel model wireId)
     |> ignore
     model
-
-
-//------------------------------------------------------------------------------//
-//----------------------------------Helper functions----------------------------//
-//------------------------------------------------------------------------------//
-
-/// Returns true if x lies in the open interval (a,b). Endpoints are avoided by a tolerance parameter
-let inline inMiddleOf a x b = 
-    let e = Constants.modernCirclePositionTolerance
-    a + e < x && x < b - e
-
-/// Returns true if a lies in the closed interval (a,b). Endpoints are included by a tolerance parameter
-let inline inMiddleOrEndOf a x b = 
-    let e = Constants.modernCirclePositionTolerance
-    a - e < x && x < b + e
-   
-let inline getSourcePort (model:Model) (wire:Wire) =
-    let portId = Symbol.outputPortStr wire.OutputPort
-    let port = model.Symbol.Ports[portId]
-    port
-
-let inline getTargetPort (model:Model) (wire:Wire) =
-    let portId = Symbol.inputPortStr wire.InputPort
-    let port = model.Symbol.Ports[portId]
-    port
-
-let inline getSourceSymbol (model:Model) (wire:Wire) =
-    let portId = Symbol.outputPortStr wire.OutputPort
-    let port = model.Symbol.Ports[portId]
-    let symbol = model.Symbol.Symbols[ComponentId port.HostId]
-    symbol
-
-let inline getTargetSymbol (model:Model) (wire:Wire) =
-    let portId = Symbol.inputPortStr wire.InputPort
-    let port = model.Symbol.Ports[portId]
-    let symbol = model.Symbol.Symbols[ComponentId port.HostId]
-    symbol
-
-let moveWire (offset:XYPos) (wire:Wire) :Wire =
-    {wire with StartPos = wire.StartPos + offset}
-
-let moveWires (offset: XYPos)  (model: Model)  =
-    let wires' =
-        model.Wires
-        |> Map.map (fun _ wire -> moveWire offset wire)
-    {model with Wires = wires'}
 
 
 
@@ -572,17 +418,7 @@ let issieVerticesToSegments
         
     verticesToSegments connId verticesList'
 
-/// Converts a segment list into a list of vertices to store inside Connection
-let segmentsToIssieVertices (segList:Segment list) (wire:Wire) = 
-    ((wire.StartPos, wire.InitialOrientation, false),segList)
-    ||> List.scan(fun (currPos, currOrientation, _) seg ->
-        let (nextPos, nextOrientation) =
-            match currOrientation with
-            | Horizontal -> { currPos with X = currPos.X + seg.Length}, Vertical
-            | Vertical -> { currPos with Y = currPos.Y + seg.Length}, Horizontal
-        let manual = (seg.Mode = Manual)
-        (nextPos,nextOrientation,manual))
-    |> List.map ( fun (pos,_,manual) -> pos.X,pos.Y,manual)
+
 
 /// This function is given a ConnectionId and it
 /// converts the corresponding BusWire.Wire type to a
@@ -593,8 +429,8 @@ let extractConnection (wModel : Model) (cId : ConnectionId) : Connection =
     let ConnectionId strId, InputPortId strInputPort, OutputPortId strOutputPort = conn.WId, conn.InputPort, conn.OutputPort
     {
         Id = strId
-        Source = { Symbol.getPort wModel.Symbol strOutputPort with PortNumber = None } // None for connections 
-        Target = { Symbol.getPort wModel.Symbol strInputPort with PortNumber = None } // None for connections 
+        Source = { getPort wModel.Symbol strOutputPort with PortNumber = None } // None for connections 
+        Target = { getPort wModel.Symbol strInputPort with PortNumber = None } // None for connections 
         Vertices = segmentsToIssieVertices conn.Segments conn
     }
 
@@ -836,10 +672,10 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
     TimeHelpers.instrumentTime "WirePropsSort" start
     let rStart = TimeHelpers.getTimeMs()
     let wireProps wire =
-        let outPortId = Symbol.getOutputPortIdStr wire.OutputPort
+        let outPortId = getOutputPortIdStr wire.OutputPort
         let outputPortLocation = Symbol.getPortLocation None model.Symbol outPortId
-        let outputPortEdge = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort 
-        let stringInId = Symbol.getInputPortIdStr wire.InputPort
+        let outputPortEdge = getOutputPortOrientation model.Symbol wire.OutputPort 
+        let stringInId = getInputPortIdStr wire.InputPort
         let inputPortLocation = Symbol.getPortLocation None model.Symbol stringInId 
         let strokeWidthP =
             match wire.Width with
@@ -855,7 +691,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
             OutputPortLocation = outputPortLocation
             DisplayType = model.Type
             ArrowDisplay = model.ArrowDisplay
-            TriangleEdge = Symbol.getInputPortOrientation model.Symbol wire.InputPort
+            TriangleEdge = getInputPortOrientation model.Symbol wire.InputPort
             InputPortLocation = inputPortLocation
         }
         

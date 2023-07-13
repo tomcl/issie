@@ -1,13 +1,15 @@
-﻿module SmartWire
+﻿module BusWireRoute
 
 open CommonTypes
 open Elmish
 open DrawHelpers
+open BlockHelpers
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
-open SmartHelpers
+open BusWireRoutingHelpers
+
 
 open Optics
 open Operators
@@ -46,7 +48,7 @@ Implemented the following Smart Routing Algorithm:
 //                                 See SmartHelpers for Constants submodule
 //**************************************************************************************************************
 
-open SmartHelpers.Constants
+open BusWireRoutingHelpers.Constants
 
 
 /// Recursively tries to find the minimum wire separation between a wire and a symbol.
@@ -579,32 +581,5 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
     { model with Wires = newWires }
 
-/// Top-level function to replace updateWireSegmentJumps
-/// and call the Segment separate code as well. This should
-/// run when significant circuit wiring chnages have been made
-/// e.g. at the end of symbol drags.
-let updateWireSegmentJumpsAndSeparations wires model  =
-    model
-    |> BusWireSeparate.separateAndOrderModelSegments wires
-    |> BusWireUpdateHelpers.updateWireSegmentJumps []
 
-let updateSymbolWires (model: Model) (compId: ComponentId) =
-    let wires = filterWiresByCompMoved model [compId]
-    
-    let newWires =
-        model.Wires
-        |> Map.toList
-        |> List.map (fun (cId, wire) ->
-            if List.contains cId wires.Both then // Update wires that are connected on both sides
-                cId, (
-                    updateWire model wire true 
-                    |> fun wire -> updateWire model wire false)
-            elif List.contains cId wires.Inputs then 
-                cId, updateWire model wire true
-            elif List.contains cId wires.Outputs then
-                cId, updateWire model wire false
-            else cId, wire)
-        |> Map.ofList
-    { model with Wires = newWires }
-    |> updateWireSegmentJumpsAndSeparations (Map.keys newWires |> Seq.toList)
 

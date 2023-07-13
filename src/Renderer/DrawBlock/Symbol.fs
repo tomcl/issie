@@ -10,6 +10,7 @@ open Elmish
 open CommonTypes
 open DrawHelpers
 open DrawModelType.SymbolT
+open BlockHelpers
 
 
 
@@ -123,28 +124,7 @@ let getLabelBoundingBox (model: Model) (compId: ComponentId) : BoundingBox =
 
 
 
-//------------------------------------------------------------------//
-//------------------------ Helper functions ------------------------//
-//------------------------------------------------------------------//
 
-let moveSymbol (offset:XYPos) (sym:Symbol) :Symbol =
-    let newPos = sym.Pos + offset
-    let comp' = {sym.Component with X = newPos.X; Y = newPos.Y}
-    {sym with 
-        Component = comp'
-        Pos = newPos
-        LabelBoundingBox = {sym.LabelBoundingBox with TopLeft = sym.LabelBoundingBox.TopLeft + offset}
-    }
-
-let moveSymbols  (offset: XYPos) (model:Model) =
-    {model with
-        Symbols = 
-            model.Symbols
-            |> Map.map (fun _ symbol -> moveSymbol offset symbol)
-    }
-
-let inline inputPortStr (InputPortId s) = s
-let inline outputPortStr (OutputPortId s) = s
 
 let inline invertRotation (rot: RotationType) =
     match rot with
@@ -803,64 +783,6 @@ let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
 
 let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port
-
-//--------------------- GETTING PORTS AND THEIR LOCATIONS INTERFACE FUNCTIONS-------------------------------
-// Helpers
-/// Returns the center coordinates of a Symbol
-let getSymbolPos (symbolModel: Model) compId = //makes sense or should we have getSymbol?
-    let symbol = Map.find compId symbolModel.Symbols
-    symbol.Pos
-
-/// Interface function to get componentIds of the copied symbols
-let getCopiedSymbols (symModel: Model) : (ComponentId list) =
-    symModel.CopiedSymbols
-    |> Map.toList
-    |> List.map fst
-
-
-/// Returns the port object associated with a given portId
-let inline getPort (symModel: Model) (portId: string) =
-    symModel.Ports[portId]
-
-let inline getSymbol (model: Model) (portId: string) =
-    let port = getPort model portId
-    model.Symbols[ComponentId port.HostId]
-
-let inline getCompId (model: Model) (portId: string) =
-    let symbol = getSymbol model portId
-    symbol.Id
-
-/// Returns the string of a PortId
-let inline getPortIdStr (portId: PortId) = 
-    match portId with
-    | InputId (InputPortId id) -> id
-    | OutputId (OutputPortId id) -> id
-
-let inline getInputPortIdStr (portId: InputPortId) = 
-    match portId with
-    | InputPortId s -> s
-
-let inline getOutputPortIdStr (portId: OutputPortId) = 
-    match portId with
-    | OutputPortId s -> s
-
-/// HLP23: AUTHOR dgs119
-let inline getPortOrientationFrmPortIdStr (model: Model) (portIdStr: string) : Edge = 
-    let port = model.Ports[portIdStr]
-    let sId = ComponentId port.HostId
-    model.Symbols[sId].PortMaps.Orientation[portIdStr]
-
-/// returns what side of the symbol the port is on
-let inline getPortOrientation (model: Model)  (portId: PortId) : Edge =
-    let portIdStr = getPortIdStr portId
-    getPortOrientationFrmPortIdStr model portIdStr
-
-let inline getInputPortOrientation (model: Model) (portId: InputPortId): Edge =
-    getPortOrientation model (InputId portId)
-
-let inline getOutputPortOrientation (model: Model) (portId: OutputPortId): Edge =
-    getPortOrientation model (OutputId portId)
-
 
 /// Returns the location of a given portId, with good efficiency
 let getPortLocation (defPos: XYPos option) (model: Model) (portId : string) : XYPos=

@@ -7,9 +7,11 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
 open BusWireUpdateHelpers
-open SmartWire
+open BlockHelpers
+open BusWireRoute
 open Optics
 open Operators
+open BlockHelpers
 
 
 
@@ -55,7 +57,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         // update all the wires coming from a single symbol
         // useful if the symbol has been flipped or ports have been moved
         // partial routing will be done if this makes sense
-        updateSymbolWires model compId, Cmd.none
+        BusWireSeparate.routeAndSeparateSymbolWires model compId, Cmd.none
 
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
         // add a newly created wire to the model
@@ -79,7 +81,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let newModel = 
             model
             |> Optic.set (wireOf_ newWire.WId) newWire
-            |> SmartWire.updateWireSegmentJumpsAndSeparations [newWire.WId]
+            |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
         
         newModel, Cmd.ofMsg BusWidths
     
@@ -177,14 +179,6 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
         { model with Wires = newWires }, Cmd.none
 
-    | MakeChannel (box: BoundingBox) ->
-        if model.MakeChannelToggle && box.H <> 0.0 && box.W <> 0.0 then
-            let fixedBox = SmartHelpers.fixBoundingBox box
-            let orientation = if fixedBox.H > fixedBox.W then Vertical else Horizontal
-            printfn "Making %A channel %A" orientation fixedBox
-            SmartChannel.smartChannelRoute orientation fixedBox model, Cmd.none
-        else
-            model, Cmd.none
 
     | DeleteWires (connectionIds : list<ConnectionId>) ->
         // deletes wires from model, then runs bus inference
@@ -280,7 +274,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     | MakeJumps connIds ->
         // recalculates (slowly) wire jumps after a drag operation
         printfn $"Making jumps with {connIds.Length} connections"
-        let newModel = SmartWire.updateWireSegmentJumpsAndSeparations connIds model
+        let newModel = BusWireSeparate.updateWireSegmentJumpsAndSeparations connIds model
         newModel, Cmd.none
 
     | ResetModel -> 
@@ -338,7 +332,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     Segments = segments
                     StartPos = Symbol.getOutputPortLocation None model.Symbol outputId
                     InitialOrientation = 
-                        Symbol.getOutputPortOrientation model.Symbol outputId 
+                        getOutputPortOrientation model.Symbol outputId 
                         |> getOrientationOfEdge
                 }
                 |> makeWirePosMatchSymbol false
@@ -355,7 +349,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     | UpdateWireDisplayType (style: WireType) ->
         {model with Type = style }
-        |> SmartWire.updateWireSegmentJumpsAndSeparations []
+        |> BusWireSeparate.updateWireSegmentJumpsAndSeparations []
         |> (fun model -> model,Cmd.none)
 
     | ToggleArrowDisplay  ->
@@ -436,7 +430,7 @@ let getClickedWire (wModel : Model) (pos : XYPos) (n : float) : ConnectionId Opt
 
 /// Updates the model to have new wires between pasted components
 let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list<ConnectionId>) =
-    let oldCompIds = Symbol.getCopiedSymbols wModel.Symbol
+    let oldCompIds = getCopiedSymbols wModel.Symbol
     let pastedWires =
         let createNewWire (oldWire : Wire) : list<Wire> =
             let newId = ConnectionId(JSHelpers.uuid())
@@ -446,7 +440,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
 
                 let portOnePos, portTwoPos = 
                     Symbol.getTwoPortLocations wModel.Symbol (InputPortId newInputPort) (OutputPortId newOutputPort)
-                let outputPortOrientation = Symbol.getOutputPortOrientation wModel.Symbol (OutputPortId newOutputPort)
+                let outputPortOrientation = getOutputPortOrientation wModel.Symbol (OutputPortId newOutputPort)
                 let segmentList = makeInitialSegmentsList newId portOnePos portTwoPos outputPortOrientation
                 [
                     {

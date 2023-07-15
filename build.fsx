@@ -1,15 +1,21 @@
-#r "paket: groupref FakeBuild //"
-#load ".fake/build.fsx/intellisense.fsx"
-
-#if !FAKE
-#r "netstandard"
-#r "Facades/netstandard" // https://github.com/ionide/ionide-vscode-fsharp/issues/839#issuecomment-396296095
-#endif
+#!/usr/bin/env -S dotnet fsi
+#r "nuget: Fake.Core.Target"
+#r "nuget: Fake.JavaScript.Npm, 6.0.0"
+//
+// Boilerplate to run FAKE under fsi allowing it to work with Dotnet 7
+// this seems going forward to be the best way to run FAKE
+//
+System.Environment.GetCommandLineArgs()
+|> Array.skip 2 // skip fsi.exe; build.fsx
+|> Array.toList
+|> Fake.Core.Context.FakeExecutionContext.Create false __SOURCE_FILE__
+|> Fake.Core.Context.RuntimeContext.Fake
+|> Fake.Core.Context.setExecutionContext
+// end of boilerplate
 
 open System
 open Fake.Core
 open Fake.Core.TargetOperators
-open Fake.DotNet
 open Fake.IO
 open Fake.IO.Globbing.Operators
 open Fake.IO.FileSystemOperators

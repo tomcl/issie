@@ -203,7 +203,11 @@ module CommonTypes
         //Divide   uncomment or add new cases to implement additional N bit operations. (match warnings will show what must be added)
         //Modulo
     
-    // Types instantiating objects in the Digital extension.
+    // Each case contains the data needed to define a digital component of given Type
+    // Used to read .dgm files, which may contain legacy ComponentType D.U. cases no longer used
+    // Any NEW case added here must also be added (with identical from) to JSONComponentType
+    // Cases DELETED here, should be kept in JSONComponentType, with a conversion added to convert the
+    // deleted case into a case here which still exists.
     type ComponentType =
         // Legacy component: to be deleted
         | Input of BusWidth: int
@@ -340,34 +344,6 @@ module CommonTypes
         | None ->{Rotation=Degree0; flipped=false}
         | Some inf -> inf.STransform
 
-    module LegacyCanvas =
-        /// JSComponent mapped to F# record.
-        /// Id uniquely identifies the component within a sheet.
-        /// Label is optional descriptor displayed on schematic.
-        type LegacyComponent = {
-            Id : string
-            Type : ComponentType
-            Label : string // All components have a label that may be empty.
-            InputPorts : Port list // position on this list determines inputPortNumber
-            OutputPorts : Port list // position in this lits determines OutputPortNumber
-            X : float
-            Y : float
-            H : float
-            W : float
-        }
-
-        /// JSConnection mapped to F# record.
-        /// Id uniquely identifies connection globally and is used by library.
-        type LegacyConnection = {
-            Id : string
-            Source : Port
-            Target : Port
-            Vertices : (float * float) list
-        }
-
-        /// F# data describing the contents of a single schematic sheet.
-        type LegacyCanvasState = LegacyComponent list * LegacyConnection list
-
 
     /// JSComponent mapped to F# record.
     /// Id uniquely identifies the component within a sheet.
@@ -395,6 +371,7 @@ module CommonTypes
     let h_ = Lens.create (fun c -> c.H) (fun n c -> {c with H= n})
     let w_ = Lens.create (fun c -> c.W) (fun n c -> {c with W= n})
 
+
     /// JSConnection mapped to F# record.
     /// Id uniquely identifies connection globally and is used by library.
     type Connection = {
@@ -420,11 +397,118 @@ module CommonTypes
     //                                         LEGACY TYPES                                              //
     //===================================================================================================//
 
+    //------------------------START of ComponentType Conversion------------------------------------------//
+    //------------------------Used when component efinitions are upgraded
 
+    module JSONComponent =
+
+        // Used to read .dgm files, which may contain legacy ComponentType D.U. cases no longer used
+        // Any NEW case added to ComponentType must also be added here
+        // Cases DELETED from ComponentType should remain here, with a conversion added.
+        type ComponentType =
+            // Legacy component: to be deleted
+            | Input of BusWidth: int
+            | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
+            | BusCompare of BusWidth: int * CompareValue: uint32
+            | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
+            | BusSelection of OutputWidth: int * OutputLSBit: int
+            | Constant of Width: int * ConstValue: int64 
+            | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
+            | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+            | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
+            | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
+            | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
+            | NbitsXor of BusWidth:int * ArithmeticOp: NBitsArithmetic option
+            | NbitsAnd of BusWidth: int 
+            | NbitsNot of BusWidth: int
+            | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
+            | Custom of CustomComponentType // schematic sheet used as component
+            | MergeWires | SplitWire of BusWidth: int // int is bus width
+            // DFFE is a DFF with an enable signal.
+            // No initial state for DFF or Register? Default 0.
+            | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
+            | Counter of BusWidth:int | CounterNoLoad of BusWidth:int
+            | CounterNoEnable of BusWidth:int | CounterNoEnableLoad of BusWidth:int
+            | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
+            // legacy components - to be deleted
+            | AsyncROM of Memory | ROM of Memory | RAM of Memory
+            | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
+
+        // like Component, but with legacy cases added to ComponentType
+        type Component = {
+            Id : string
+            Type : ComponentType // This is JSONComponent.ComponentType!
+            Label : string // All components have a label that may be empty.
+            InputPorts : Port list // position on this list determines inputPortNumber
+            OutputPorts : Port list // position in this lits determines OutputPortNumber
+            X : float
+            Y : float
+            H : float
+            W : float
+            SymbolInfo : SymbolInfo option
+        }
+
+    /// Transforms JSON components (parsed from JSON)  to current components
+    /// Normally this means converting legacy JSON component types into new ones.
+    /// However it could in principle be more radical.
+    /// The default transform unboxes the value which works when there is no chnage in the JS value
+    /// representation
+    let convertFromJSONComponent (comp: JSONComponent.Component) : Component =
+        let newType (ct: JSONComponent.ComponentType) : ComponentType = 
+            match ct with
+            | JSONComponent.Constant(w,v) -> Constant1(w,v,sprintf "%d" v)
+            | JSONComponent.Input n -> Input1(n, None)
+            | JSONComponent.BusCompare(w,v) -> BusCompare1(w,v, sprintf "%x" v)
+            | lType -> unbox lType
+        {unbox comp with Type = newType comp.Type}
+    /// Transforms normal Components into JSON Components which can be saved.
+    /// This is always an identity transformation since the normal ComponentType
+    /// muts be strict subset of teh JSON ComponentType
+    let convertToJSONComponent (comp: Component) : JSONComponent.Component = unbox comp
+
+    //---------------------------------------------------------------------------------------------------------------//
+    //--------------------------END OF ComponentType CONVERSION - used when upgarding Component definitions----------//
+    //---------------------------------------------------------------------------------------------------------------//
+
+
+
+    // OLDER LEGACY TYPES, for VERY OLD Circuit compatibility
+
+    module LegacyCanvas =
+        /// JSComponent mapped to F# record.
+        /// Id uniquely identifies the component within a sheet.
+        /// Label is optional descriptor displayed on schematic.
+        type LegacyComponent = {
+            Id : string
+            Type : JSONComponent.ComponentType
+            Label : string // All components have a label that may be empty.
+            InputPorts : Port list // position on this list determines inputPortNumber
+            OutputPorts : Port list // position in this lits determines OutputPortNumber
+            X : float
+            Y : float
+            H : float
+            W : float
+        }
+
+        /// JSConnection mapped to F# record.
+        /// Id uniquely identifies connection globally and is used by library.
+        type LegacyConnection = {
+            Id : string
+            Source : Port
+            Target : Port
+            Vertices : (float * float) list
+        }
+
+        /// F# data describing the contents of a single schematic sheet.
+        type LegacyCanvasState = LegacyComponent list * LegacyConnection list
+
+
+
+        
 
             
             
-
+    // This code is for VERY OLD circuits...
     let legacyTypesConvert (lComps, lConns) =
         let convertConnection (c:LegacyCanvas.LegacyConnection) : Connection =
             {
@@ -437,7 +521,7 @@ module CommonTypes
                         | (x,y) when x >= 0. && y >= 0. -> (x,y,false)
                         | (x,y) -> (abs x, abs y, true))
             }
-        let convertComponent (comp:LegacyCanvas.LegacyComponent) : Component =
+        let convertComponent (comp:LegacyCanvas.LegacyComponent) : JSONComponent.Component =
 
             {
                 Id = comp.Id
@@ -457,9 +541,9 @@ module CommonTypes
         (comps,conns)
 
 
-    //=======//
-    // Other //
-    //=======//
+    //=========================================================================================================//
+    //-------------------------------------MISCELLANEOUS------------------------------------------------------ //
+    //=========================================================================================================//
 
     ///unconfigured replaces Some -1, Error replaces None, Configured of int replaces Some (positive int)
     type WireWidth = | Configured of int | Unconfigured | ErrorWidth

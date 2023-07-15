@@ -563,6 +563,7 @@ let getLatestCanvas state =
         | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> legacyTypesConvert canvas
         | NewCanvasWithFileWaveInfoAndNewConns(canvas,_,_) -> canvas
         | NewCanvasWithFileWaveSheetInfoAndNewConns (canvas,_,_,_) -> canvas
+    let comps = List.map convertFromJSONComponent comps
     List.map getLatestComp comps, conns
 
 

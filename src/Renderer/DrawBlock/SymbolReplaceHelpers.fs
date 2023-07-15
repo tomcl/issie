@@ -53,7 +53,7 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
     let newcompotype = 
         match symbol.Component.Type with
         | BusSelection (w, _) -> BusSelection (w, int32(newLsb))
-        | BusCompare (w, _) -> BusCompare (w, uint32(newLsb)) 
+        | BusCompare (w, _) -> BusCompare (w, uint32(newLsb))
         | Constant1(w, _,txt) -> Constant1 (w, newLsb,txt)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
 

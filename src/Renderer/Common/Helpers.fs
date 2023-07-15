@@ -18,14 +18,16 @@ open System.Text.RegularExpressions
         open Thoth.Json.Net
         #endif
 
-        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveSheetInfoAndNewConns of CanvasState * 'T option * SheetInfo option * System.DateTime
+        type JSONCanvasState = JSONComponent.Component list * Connection list
+
+        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveSheetInfoAndNewConns of JSONCanvasState * 'T option * SheetInfo option * System.DateTime
 
         type SavedInfo =
             | CanvasOnly of LegacyCanvasState
             | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime
             | CanvasWithFileWaveInfoAndNewConns of LegacyCanvasState * SavedWaveInfo option * System.DateTime
-            | NewCanvasWithFileWaveInfoAndNewConns of CanvasState * SavedWaveInfo option * System.DateTime
-            | NewCanvasWithFileWaveSheetInfoAndNewConns of CanvasState * SavedWaveInfo option * SheetInfo option * System.DateTime
+            | NewCanvasWithFileWaveInfoAndNewConns of JSONCanvasState * SavedWaveInfo option * System.DateTime
+            | NewCanvasWithFileWaveSheetInfoAndNewConns of JSONCanvasState * SavedWaveInfo option * SheetInfo option * System.DateTime
             
             member self.getCanvas = 
                 match self with
@@ -66,11 +68,16 @@ open System.Text.RegularExpressions
             |> Extra.withBigInt
             |> Extra.withCustom CommonTypes.componentIdEncoder CommonTypes.componentIdDecoder
 
+        /// converts Component to JSONComponent.Component for saving as JSON.
+        /// this conversion does not affect the JSON generated.
+        let convStateToJC ( compL, connL) = (List.map convertToJSONComponent compL, connL)
+
+
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
             let time = System.DateTime.Now
             //printfn "%A" cState
-            try            
-                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
+            try
+                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time))
                  |> (fun json -> Regex.Replace(json, """(\d+\.\d\d)\d+""", "$1")) // reduce json size by truncating floats to 2 d.p.
             with
             | e ->
@@ -80,7 +87,7 @@ open System.Text.RegularExpressions
         let stateToJsonStringNew (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
             let time = System.DateTime.Now
             try
-                Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time)), extra = extraCoder)
+                Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time)), extra = extraCoder)
             with
             | e -> 
                 printfn "HELP: exception in Thoth.Json.Encode.Auto.toString %A" e

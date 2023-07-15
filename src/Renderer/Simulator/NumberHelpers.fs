@@ -591,3 +591,23 @@ let strToIntCheckWidth (width: int) (str: string) : Result<int64, string> =
             match checkWidth width num with
             | None -> Ok num
             | Some err -> Error err)
+
+let convertBinToDec (bits: string) : int64 =
+    let rec convert bits idx =
+        match bits with
+        | [] -> int64 0
+        | '0' :: bits' -> convert bits' (idx - 1)
+        | '1' :: bits' -> pow2int64(idx) + convert bits' (idx - 1)
+        | _ -> failwithf "Not binary input, should not happen!"
+    convert ((bits.ToCharArray()) |> Array.toList) (bits.Length-1)
+    
+
+/// Converts a binary, hex or decimal number to decimal
+let toDecimal (num: string) numBase (width:string) =
+    let width = width |> int
+    match numBase with
+    | "'d" -> num |> int64
+    | "'b" -> num |> convertBinToDec
+    | "'h" -> 
+        num.ToLower()  |> hexToBin |> convertBinToDec
+    | _ -> failwithf "Wrong base, should not happen!"

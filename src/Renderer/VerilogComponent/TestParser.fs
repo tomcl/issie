@@ -242,12 +242,11 @@ let simulateAST ast src dst loadedComps=
                     match Map.tryFind (id,[]) fs.FComps with
                     | Some fc -> 
                         let data = 
-                            fc.Outputs[0].Step
-                            |> Array.map (fun ar -> 
-                                match ar.toFastData.Dat with
-                                | Word d -> bigint d
-                                | BigWord d -> d
-                                )
+                            (if fc.Outputs[0].UInt32Step.Length > 0
+                            then 
+                               Array.map (fun (d:uint32) -> bigint d) fc.Outputs[0].UInt32Step
+                            else
+                               fc.Outputs[0].BigIntStep)
                             |> Array.toList
                             |> List.take (ticks-1)
                         {Label=label; Values=data}

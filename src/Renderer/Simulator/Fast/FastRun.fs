@@ -206,7 +206,7 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
                 readyToReduce <- fc' :: readyToReduce)
 
     let init fc =
-        fastReduce 0 0 false fc
+        fastReduceFData 0 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -225,7 +225,7 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
         fc.InputLinks[0].FDataStep
         |> Array.iteri (fun i _ -> fc.InputLinks[0].FDataStep[ i ] <- Data(convertIntToFastData (fc.OutputWidth 0) 0u))
         //printfn "Initialised input: %A" fc.InputLinks
-        fastReduce fs.MaxArraySize 0 false fc
+        fastReduceFData fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -278,7 +278,7 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
 
         readyL
         |> List.iter (fun fc ->
-            fastReduce fs.MaxArraySize 0 false fc // this is always a combinational reduction
+            fastReduceFData fs.MaxArraySize 0 false fc // this is always a combinational reduction
             orderedComps <- fc :: orderedComps
             fc.Touched <- true
             propagateEval fc)
@@ -546,7 +546,7 @@ let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (
 /// input has changed
 let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
     fastSim.FOrderedComps
-    |> Array.iter (fastReduce fastSim.MaxArraySize step false)
+    |> Array.iter (fastReduceFData fastSim.MaxArraySize step false)
 
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)

@@ -504,7 +504,7 @@ let buildFastSimulationFData
     |> createFastArrays fs
     |> orderCombinationalComponentsFData simulationArraySize
     |> checkAndValidateFData
-// |> Result.map addWavesToFastSimulation // REVIEW - Waves are not used in TruthTable, mark for removal
+    |> Result.map addWavesToFastSimulation // REVIEW - Waves are not used in TruthTable, mark for removal
 
 //---------------------------------------------------------------------------------------------------//
 //--------------------------------Code To Run The Simulation & Extract Results-----------------------//

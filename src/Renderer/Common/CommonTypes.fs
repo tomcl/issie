@@ -210,12 +210,9 @@ module CommonTypes
     // deleted case into a case here which still exists.
     type ComponentType =
         // Legacy component: to be deleted
-        | Input of BusWidth: int
         | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
-        | BusCompare of BusWidth: int * CompareValue: uint32
         | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
         | BusSelection of OutputWidth: int * OutputLSBit: int
-        | Constant of Width: int * ConstValue: int64 
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
         | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
@@ -236,6 +233,12 @@ module CommonTypes
         // legacy components - to be deleted
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
         | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
+        // legacy cases to be deleted?
+        | BusCompare of BusWidth: int * CompareValue: uint32
+        | Input of BusWidth: int
+        | Constant of Width: int * ConstValue: int64 
+
+
 
 
     /// Active pattern which matches 2-input gate component types.
@@ -402,17 +405,16 @@ module CommonTypes
 
     module JSONComponent =
 
-        // Used to read .dgm files, which may contain legacy ComponentType D.U. cases no longer used
-        // Any NEW case added to ComponentType must also be added here
-        // Cases DELETED from ComponentType should remain here, with a conversion added.
+        /// Used only to read/write .dgm files, which may contain legacy ComponentType D.U. cases no longer used
+        /// Any NEW case added to ComponentType must also be added here
+        /// Cases DELETED from ComponentType should remain here, with a conversion added.
         type ComponentType =
             // Legacy component: to be deleted
-            | Input of BusWidth: int
+            //-----The cases here must be identical, and same order, as the main ComponentType (just copy the code!)----//
+            // This allows unboxing to implement JSONComponent.Component <--> Component type conversion
             | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
-            | BusCompare of BusWidth: int * CompareValue: uint32
             | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
             | BusSelection of OutputWidth: int * OutputLSBit: int
-            | Constant of Width: int * ConstValue: int64 
             | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
@@ -433,8 +435,15 @@ module CommonTypes
             // legacy components - to be deleted
             | AsyncROM of Memory | ROM of Memory | RAM of Memory
             | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
+            //---------------Legacy cases not in the Issie ComponentType here-------------------//
+            | BusCompare of BusWidth: int * CompareValue: uint32
+            | Input of BusWidth: int
+            | Constant of Width: int * ConstValue: int64 
 
-        // like Component, but with legacy cases added to ComponentType
+
+
+        /// Like Component, but with legacy cases added to ComponentType
+        /// Used only to read/write JSON versions of circuits
         type Component = {
             Id : string
             Type : ComponentType // This is JSONComponent.ComponentType!

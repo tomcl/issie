@@ -23,8 +23,8 @@ open System.IO
 [<Emit("process.cwd()")>]
 let getCWD (u:unit): string = jsNative
 
-// [<Emit("__static")>]
-// let staticDir() :string = jsNative
+[<Emit("__static")>]
+let staticDir() :string = jsNative
 
 /// absolute path to repo directory ./static
 /// NB this path is not fixed (even as relative path) between

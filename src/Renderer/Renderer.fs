@@ -25,6 +25,15 @@ importSideEffects "./scss/main.css"
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
+/// static assets should theoretically be put under ./static in Issie repo
+/// but appear on file system under staticDir() when Issie is run. The exact poistion on disk
+/// will vary between production and dev runs, but staticDir()
+/// should always work
+let testAssets() =
+    let staticD = FilesIO.staticDir()
+    printfn "Static Asset Directory = %s" staticD
+    printfn "%A" (FilesIO.readdir staticD)
+
 let testMaps() =
     let modMap =
         [0..1000]
@@ -145,6 +154,8 @@ let fileMenu (dispatch) =
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ ->
             testMaps()
             displayPerformance 100 4000000)
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Print names of static asset files" None (fun _ ->
+            testAssets())
         makeCondItem (JSHelpers.debugLevel <> 0) "Force Exception" None  (fun ev -> failwithf "User exception from menus")
         makeCondItem (JSHelpers.debugLevel <> 0) "Call update" None  (fun ev -> failwithf "User exception from menus")
         makeMenu false "Verilog" [

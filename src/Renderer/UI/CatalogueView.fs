@@ -812,7 +812,8 @@ let viewCatalogue model dispatch =
                           catTip1 "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \
                                                                                                                          together wires within a sheet. Each set of labels \
                                                                                                                          muts have exactly one driving input. \
-                                                                                                                         A label can also be used to terminate an unused output"]
+                                                                                                                         A label can also be used to terminate an unused output"
+                          catTip1 "Not Connected" (fun _ -> createComponent (NotConnected) "" model dispatch) "Not connected component to terminate unused output."]                          
                     makeMenuGroup
                         "Buses"
                         [ catTip1 "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewires when you want to \

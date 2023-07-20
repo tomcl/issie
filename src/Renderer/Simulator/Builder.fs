@@ -114,6 +114,7 @@ let private getDefaultState compType =
     | Input1 _
     | Output _
     | IOLabel
+    | NotConnected
     | BusSelection _
     | BusCompare _
     | BusCompare1 _

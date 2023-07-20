@@ -276,6 +276,8 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0.;Y=H/2.};{X=W;Y=H/2.}|]
             | Viewer _ ->
                 [|{X=W/5.;Y=0};{X=0;Y=H/2.};{X=W/5.;Y=H};{X=W;Y=H};{X=W;Y=0}|]
+            | NotConnected ->
+                [|{X=0.;Y=H/2.};{X=W/3.;Y=H/2.};{X=W/3.;Y=H-H/4.};{X=W/3.;Y=H/4.};{X=W/3.;Y=H/2.}|]
             | MergeWires -> 
                 [|{X=0;Y=H/6.};{X=W/2.;Y=H/6.};{X=W/2.;Y=H/2.};{X=W;Y=H/2.};{X=W/2.;Y=H/2.};{X=W/2.;Y=5.*H/6.};{X=0;Y=5.*H/6.};{X=W/2.;Y=5.*H/6.};{X=W/2.;Y=H/6.}|]
             | SplitWire _ -> 
@@ -401,6 +403,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         | SplitWire _ | MergeWires -> outlineColor colour, "4.0"
         |NbitSpreader _ -> outlineColor colour, "4.0"
         | IOLabel -> outlineColor colour, "4.0"
+        | NotConnected -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"
     
@@ -420,7 +423,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
         let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
         match Constants.testShowLabelBoundingBoxes, colour with
-        | false, "lightgreen" ->
+        | false, "lightgreen" when comp.Label <> "" ->
             let x,y = pos.X - margin*0.8, pos.Y - margin*0.8
             let w,h = box.W - margin*0.4, box.H - margin * 0.4
             let polyStyle = {defaultPolygon with Fill = "lightgreen"; StrokeWidth = "0"}

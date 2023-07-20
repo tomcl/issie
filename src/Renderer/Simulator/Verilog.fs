@@ -408,6 +408,8 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | IOLabel _
     | Input1 _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
 
+    | NotConnected -> ""
+
     | Not -> sprintf "assign %s = ! %s;\n" (outs 0) (ins 0)
     | And
     | Or

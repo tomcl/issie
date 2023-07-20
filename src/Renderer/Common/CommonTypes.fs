@@ -210,7 +210,7 @@ module CommonTypes
     // deleted case into a case here which still exists.
     type ComponentType =
         // Legacy component: to be deleted
-        | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
+        | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel | NotConnected
         | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
@@ -412,7 +412,7 @@ module CommonTypes
             // Legacy component: to be deleted
             //-----The cases here must be identical, and same order, as the main ComponentType (just copy the code!)----//
             // This allows unboxing to implement JSONComponent.Component <--> Component type conversion
-            | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
+            | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel | NotConnected
             | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
             | BusSelection of OutputWidth: int * OutputLSBit: int
             | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string

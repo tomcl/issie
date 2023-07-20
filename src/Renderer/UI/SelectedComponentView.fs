@@ -668,6 +668,7 @@ let private makeDescription (comp:Component) model dispatch =
     | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | Viewer _ -> str "Viewer."
+    | NotConnected -> str "Not connected."
     | BusCompare _ | BusCompare1 _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified. \
                                            This will display in hex on the design sheet. Busses of greater than 32 bits are not supported"
     | BusSelection _ -> div [] [
@@ -889,7 +890,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         match model.Sheet.SelectedComponents with
         | [cid] ->
             match Map.tryFind cid symbols with
-            | Some {Component ={Type=MergeWires | SplitWire _ | BusSelection _}} -> true
+            | Some {Component ={Type=MergeWires | SplitWire _ | BusSelection _ | NotConnected}} -> true
             | _ -> false
         | _ -> false
 
@@ -949,7 +950,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             makeExtraInfo model comp labelText  dispatch
             let required = 
                 match comp.Type with 
-                | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
+                | SplitWire _ | MergeWires | BusSelection _ | NotConnected -> false | _ -> true
             let isBad = 
                 if model.PopupDialogData.BadLabel then 
                     match label' with 

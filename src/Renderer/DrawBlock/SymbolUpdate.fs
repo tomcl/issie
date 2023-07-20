@@ -43,7 +43,7 @@ let generateIOLabel (model: Model) (compType: ComponentType) (name:string) : str
         listSymbols
         |> List.collect (fun sym ->
             match sym.Component.Type with
-            |IOLabel -> []
+            |IOLabel | NotConnected -> []
             |_ -> 
                 let baseName,no = extractIOPrefix sym.Component.Label []
                 if baseName = newCompBaseName then
@@ -93,14 +93,14 @@ let generateLabel (model: Model) (compType: ComponentType) : string =
     let listSymbols = List.map snd (Map.toList model.Symbols) 
     let prefix = getPrefix compType
     match compType with
-    | IOLabel | BusSelection _ -> prefix
+    | IOLabel | BusSelection _ | NotConnected -> prefix
     | _ -> prefix + (generateLabelNumber listSymbols compType)
 
 let generateCopiedLabel (model: Model) (oldSymbol:Symbol) (compType: ComponentType) : string =
     let listSymbols = List.map snd (Map.toList model.Symbols) 
     let prefix = getPrefix compType
     match compType with
-    | IOLabel -> oldSymbol.Component.Label
+    | IOLabel | NotConnected -> oldSymbol.Component.Label
     | BusSelection _ -> prefix
     |Input _ | Input1 (_,_) |Output _ |Viewer _ -> generateIOLabel model compType oldSymbol.Component.Label
     | _ -> prefix + (generateLabelNumber listSymbols compType)

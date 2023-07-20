@@ -41,7 +41,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         | InputPortNumber 0 -> ".SEL"
         | _ -> ".DATA"
 
-    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ |CounterNoEnableLoad _ ->
+    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | CounterNoEnableLoad _ | NotConnected ->
         ""
     | DFF | Register _ ->
         ".D"
@@ -134,6 +134,7 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
 
         | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
         | Input _ -> failwithf "Legacy Input component types should never occur"
+        | NotConnected -> failwithf "NotConnected should not occur in getInputName"
         | IOLabel -> failwithf "IOLabel should not occur in getInputName"
         | MergeWires -> failwithf "MergeWires should not occur in getInputName"
         | SplitWire _ -> failwithf "SplitWire should not occur in getInputName"
@@ -150,7 +151,7 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     match compType with
     | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | BusCompare1 _ | NbitsXor _ | NbitsNot _  | NbitSpreader _ | NbitsAnd _ | NbitsOr _ |Shift _->
         ".OUT"
-    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel ->
+    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel | NotConnected ->
         ""
     | Demux2 | Demux4 | Demux8 ->
         "." + string port
@@ -212,6 +213,7 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
 
         | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
         | Input _ -> failwithf "Legacy Input component types should never occur"
+        | NotConnected -> failwithf "NotConnected should not occur in getOutputName"
         | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
         | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
         | BusSelection _ -> failwithf "BusSelection should not occur in getOutputName"
@@ -568,7 +570,7 @@ let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> U
 
 
 
-let  selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
+let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
 
     if not ws.WaveModalActive then div [] []
     else

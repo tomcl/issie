@@ -514,7 +514,8 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
         |> List.filter (function
             | { Type = MergeWires _ }
             | { Type = SplitWire _ }
-            | { Type = BusSelection _ } -> false
+            | { Type = BusSelection _ }
+            | { Type = NotConnected } -> false
             | _ -> true)
         |> List.collect (fun comp ->
             let label = comp.Label.ToUpper()
@@ -538,7 +539,8 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
             | { Type = IOLabel _ }
             | { Type = MergeWires _ }
             | { Type = SplitWire _ }
-            | { Type = BusSelection _ } -> false
+            | { Type = BusSelection _ }
+            | { Type = NotConnected } -> false
             | _ -> true)
         |> List.groupBy (fun comp -> comp.Label)
         |> List.filter (fun (_, compL) -> List.length compL > 1)

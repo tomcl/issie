@@ -29,6 +29,7 @@ let couldBeSynchronousComponent compType : bool =
     | Input1 _
     | Output _
     | IOLabel
+    | NotConnected
     | Constant1 _
     | BusSelection _
     | BusCompare _
@@ -98,6 +99,7 @@ let rec hasSynchronousComponents graph : bool =
         | Input1 _
         | Output _
         | IOLabel
+        | NotConnected
         | BusSelection _
         | BusCompare _
         | BusCompare1 _

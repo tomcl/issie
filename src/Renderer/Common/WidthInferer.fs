@@ -180,6 +180,9 @@ let private calculateOutputPortsWidth
                       else  
                         makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | NotConnected ->
+        assertInputsSize inputConnectionsWidth 1 comp
+        Ok Map.empty
     | IOLabel->
         match getWidthsForPorts inputConnectionsWidth ([InputPortNumber 0]) with
         | [None] -> Ok <| Map.empty

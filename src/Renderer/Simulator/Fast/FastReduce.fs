@@ -317,6 +317,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | IOLabel,true ->
         let bits = insBigInt 0
         putBigInt 0 bits
+    | NotConnected, _ -> ()
     | Not, false ->
         let bit = insUInt32 0
         putUInt32 0 <| bitNot bit

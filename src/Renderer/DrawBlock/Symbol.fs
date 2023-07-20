@@ -166,7 +166,7 @@ let getSymbolColour compType clocked (theme:ThemeType) =
             -> "lightblue"  //for clocked components
         |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
             -> "#E8D0A9"  //dark orange: for IO
-        | SplitWire _ | MergeWires _ | BusSelection _ | NbitSpreader _ | IOLabel ->
+        | SplitWire _ | MergeWires _ | BusSelection _ | NbitSpreader _ | IOLabel | NotConnected ->
             "rgb(120,120,120)"
         | _ -> "rgba(255,255,217,1)" //lightyellow: for combinational components
 
@@ -209,7 +209,7 @@ let calcLabelBoundingBox (sym: Symbol) =
 
     let margin = 
         match sym.Component.Type with
-        | IOLabel | BusSelection _ -> Constants.thinComponentLabelOffsetDistance
+        | IOLabel | BusSelection _ | NotConnected -> Constants.thinComponentLabelOffsetDistance
         | _ -> Constants.componentLabelOffsetDistance
     let labH = Constants.componentLabelHeight //height of label text
     //let labW = getMonospaceWidth textStyle.FontSize comp.Label
@@ -572,7 +572,8 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
     | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
-    | ComponentType.IOLabel  ->(  1 , 1, gS/2. ,  gS) 
+    | ComponentType.IOLabel  -> (  1 , 1, gS/2. ,  gS) 
+    | ComponentType.NotConnected -> (  1, 0, gS , gS)
     | Decode4 ->( 2 , 4 , 8.*gS  , 3.*gS) 
     | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, gS ,  2.*gS) 
     | MergeWires -> ( 2 , 1, 2.*gS ,  2.*gS) 

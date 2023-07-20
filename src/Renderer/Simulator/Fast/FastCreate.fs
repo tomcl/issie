@@ -75,6 +75,7 @@ let getPortNumbers (sc: SimulationComponent) =
         | NbitsNot _
         | NbitSpreader _
         | CounterNoLoad _ -> 1, 1
+        | NotConnected -> 1, 0
         | MergeWires
         | NbitsXor _
         | NbitsOr _
@@ -162,6 +163,7 @@ let findBigIntState (fc: FastComponent) =
     | Demux2
     | Demux4
     | Demux8 -> fc.OutputWidth 0 > 32, None
+    | NotConnected -> false, None
     // Components with variable width
     | MergeWires ->
         fc.InputWidth 0 > 32
@@ -431,6 +433,7 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
             | IOLabel, PortType.Input
             | Input1 _, PortType.Input
             | Viewer _, PortType.Input
+            | NotConnected, PortType.Input
             | Output _, PortType.Input -> false, false
             | Constant1 _, _ -> // special case because constant output drivers are needed!
                 true, false

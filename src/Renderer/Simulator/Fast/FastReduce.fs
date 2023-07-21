@@ -1425,6 +1425,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         //let bits = comp.InputLinks[0][simStep]
         //printfn "Reducing IOLabel %A" comp.SimComponent.Label
         put 0 bits
+    | NotConnected -> ()
     | Not ->
         match (ins 0) with
         | Data _ ->

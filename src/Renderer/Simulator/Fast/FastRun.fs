@@ -1,4 +1,4 @@
-﻿module FastRun
+module FastRun
 
 open CommonTypes
 open TimeHelpers
@@ -546,6 +546,10 @@ let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (
 /// input has changed
 let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
     fastSim.FOrderedComps
+    |> Array.iter (fastReduce fastSim.MaxArraySize step false)
+
+let private runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
+    fastSim.FOrderedComps
     |> Array.iter (fastReduceFData fastSim.MaxArraySize step false)
 
 /// Change an input and make simulation correct. N.B. step must be the latest
@@ -568,7 +572,7 @@ let changeInputFData (cid: ComponentId) (input: FSInterface) (step: int) (fastSi
 
     setSimulationInputFData cid fd step fastSim
     //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
-    runCombinationalLogic step fastSim
+    runCombinationalLogicFData step fastSim
 
 /// Change multiple inputs in one batch before re-running the simulation
 /// NOTE - Only used in TruthTable
@@ -583,7 +587,7 @@ let changeInputBatch (step: int) (fastSim: FastSimulation) (changes: (ComponentI
 
         setSimulationInputFData cid fd step fastSim)
 
-    runCombinationalLogic step fastSim
+    runCombinationalLogicFData step fastSim
 
 let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
     fastSim.FClockedComps

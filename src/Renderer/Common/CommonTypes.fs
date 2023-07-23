@@ -10,6 +10,7 @@ module CommonTypes
     #else
     open Thoth.Json.Net
     #endif
+
     /// Position on SVG canvas
     /// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
     /// currently these custom operators are not used in Issie - they should be!
@@ -210,7 +211,11 @@ module CommonTypes
     // deleted case into a case here which still exists.
     type ComponentType =
         // Legacy component: to be deleted
-        | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel | NotConnected
+        | Input1 of BusWidth: int * DefaultValue: int option
+        | Output of BusWidth: int
+        | Viewer of BusWidth: int
+        | IOLabel
+        | NotConnected
         | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
@@ -412,7 +417,11 @@ module CommonTypes
             // Legacy component: to be deleted
             //-----The cases here must be identical, and same order, as the main ComponentType (just copy the code!)----//
             // This allows unboxing to implement JSONComponent.Component <--> Component type conversion
-            | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel | NotConnected
+            | Input1 of BusWidth: int * DefaultValue: int option
+            | Output of BusWidth: int
+            | Viewer of BusWidth: int
+            | IOLabel
+            | NotConnected
             | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
             | BusSelection of OutputWidth: int * OutputLSBit: int
             | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
@@ -465,14 +474,67 @@ module CommonTypes
     let convertFromJSONComponent (comp: JSONComponent.Component) : Component =
         let newType (ct: JSONComponent.ComponentType) : ComponentType = 
             match ct with
+            | JSONComponent.ComponentType.Input1 (a,b) -> Input1 (a,b)
+            | JSONComponent.ComponentType.Output x -> Output x
+            | JSONComponent.ComponentType.Viewer x -> Viewer x
+            | JSONComponent.ComponentType.IOLabel -> IOLabel
+            | JSONComponent.ComponentType.NotConnected -> NotConnected
+            | JSONComponent.ComponentType.BusCompare1 (a,b,c) -> BusCompare1 (a,b,c)
+            | JSONComponent.ComponentType.BusSelection (a,b) -> BusSelection (a,b)
+            | JSONComponent.ComponentType.Constant1 (a,b,c) -> Constant1 (a,b,c)
+            | JSONComponent.ComponentType.Not -> Not
+            | JSONComponent.ComponentType.And -> And
+            | JSONComponent.ComponentType.Or -> Or
+            | JSONComponent.ComponentType.Xor -> Xor
+            | JSONComponent.ComponentType.Nand -> Nand
+            | JSONComponent.ComponentType.Nor -> Nor
+            | JSONComponent.ComponentType.Xnor -> Xnor
+            | JSONComponent.ComponentType.Decode4 -> Decode4
+            | JSONComponent.ComponentType.Mux2 -> Mux2
+            | JSONComponent.ComponentType.Mux4 -> Mux4
+            | JSONComponent.ComponentType.Mux8 -> Mux8
+            | JSONComponent.ComponentType.Demux2 -> Demux2
+            | JSONComponent.ComponentType.Demux4 -> Demux4
+            | JSONComponent.ComponentType.Demux8 -> Demux8
+            | JSONComponent.ComponentType.NbitsAdder x -> NbitsAdder x
+            | JSONComponent.ComponentType.NbitsAdderNoCin x -> NbitsAdderNoCin x
+            | JSONComponent.ComponentType.NbitsAdderNoCout x -> NbitsAdderNoCout x
+            | JSONComponent.ComponentType.NbitsAdderNoCinCout x -> NbitsAdderNoCinCout x
+            | JSONComponent.ComponentType.NbitsXor (a,b) -> NbitsXor (a,b)
+            | JSONComponent.ComponentType.NbitsAnd x -> NbitsAnd x
+            | JSONComponent.ComponentType.NbitsNot x -> NbitsNot x
+            | JSONComponent.ComponentType.NbitsOr x -> NbitsOr x
+            | JSONComponent.ComponentType.NbitSpreader x -> NbitSpreader x
+            | JSONComponent.ComponentType.Custom x -> Custom x // schematic sheet used as component
+            | JSONComponent.ComponentType.MergeWires -> MergeWires
+            | JSONComponent.ComponentType.SplitWire x -> SplitWire x // int is bus width
+            | JSONComponent.ComponentType.DFF -> DFF
+            | JSONComponent.ComponentType.DFFE -> DFFE
+            | JSONComponent.ComponentType.Register x -> Register x
+            | JSONComponent.ComponentType.RegisterE x -> RegisterE x 
+            | JSONComponent.ComponentType.Counter x -> Counter x
+            | JSONComponent.ComponentType.CounterNoLoad x -> CounterNoLoad x
+            | JSONComponent.ComponentType.CounterNoEnable x -> CounterNoEnable x
+            | JSONComponent.ComponentType.CounterNoEnableLoad x -> CounterNoEnableLoad x
+            | JSONComponent.ComponentType.AsyncROM1 x -> AsyncROM1 x
+            | JSONComponent.ComponentType.ROM1 x -> ROM1 x
+            | JSONComponent.ComponentType.RAM1 x -> RAM1 x
+            | JSONComponent.ComponentType.AsyncRAM1 x -> AsyncRAM1 x
+            // legacy components - to be deleted
+            | JSONComponent.ComponentType.AsyncROM x -> AsyncROM x
+            | JSONComponent.ComponentType.ROM x -> ROM x
+            | JSONComponent.ComponentType.RAM x -> RAM x
+            | JSONComponent.ComponentType.Shift (a,b,c) -> Shift (a,b,c)
+            //-----------------------Changes are made in these conversions---------------------------//
             | JSONComponent.Constant(w,v) -> Constant1(w,v,sprintf "%d" v)
             | JSONComponent.Input n -> Input1(n, None)
             | JSONComponent.BusCompare(w,v) -> BusCompare1(w,v, sprintf "%x" v)
-            | lType -> unbox lType
         {unbox comp with Type = newType comp.Type}
+
     /// Transforms normal Components into JSON Components which can be saved.
     /// This is always an identity transformation since the normal ComponentType
-    /// muts be strict subset of teh JSON ComponentType
+    /// muts be strict subset of teh JSON ComponentType.
+    /// unboxing is ok here because we do not use equality in the conversion to JSON.
     let convertToJSONComponent (comp: Component) : JSONComponent.Component = unbox comp
 
     //---------------------------------------------------------------------------------------------------------------//

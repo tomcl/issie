@@ -157,7 +157,6 @@ let fileMenu (dispatch) =
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Print names of static asset files" None (fun _ ->
             testAssets())
         makeCondItem (JSHelpers.debugLevel <> 0) "Force Exception" None  (fun ev -> failwithf "User exception from menus")
-        makeCondItem (JSHelpers.debugLevel <> 0) "Test DU equality" None  (fun ev -> Version.TestDU.testDUEquality())
         makeMenu false "Verilog" [
             makeCondItem (JSHelpers.debugLevel <> 0) "Run Verilog tests" None  (fun _ ->
                 runCompilerTests ()

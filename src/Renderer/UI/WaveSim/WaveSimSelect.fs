@@ -563,20 +563,30 @@ let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> U
     else
         makeSelectionGroup showDetails ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
 
-
-
-
-
-
-
+/// This is a workaropund for a potential data inconsistency in the waves and selected waves of a FastSimulation
+/// it ensure that the selector only lists valid waves by filyering all waves against valid components
+/// It would be better to understand the (occasional) bug taht leads to this inconsistency.
+let ensureWaveConsistency (ws:WaveSimModel) =
+        let fs = ws.FastSim
+        let okWaves =
+            Map.values ws.AllWaves
+            |> Seq.toList
+            |> List.filter (fun wave -> Map.containsKey wave.WaveId.Id fs.WaveComps )
+        if okWaves.Length <> ws.AllWaves.Count then
+            printfn $"EnsureWaveConsistency: waves,Length={okWaves.Length}, ws.Allwaves.Count={ws.AllWaves.Count}"
+        let okSelectedWaves =
+            ws.SelectedWaves
+            |> List.filter (fun selW -> Map.containsKey selW ws.AllWaves)
+        if okSelectedWaves.Length <> ws.SelectedWaves.Length then
+            printfn $"ok selected waves length = {okSelectedWaves.Length} <> selectedwaves length = {ws.SelectedWaves.Length}"
+        okWaves, okSelectedWaves
 
 let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
 
     if not ws.WaveModalActive then div [] []
     else
-        let fs = ws.FastSim
+        let okWaves, okSelectedWaves = ensureWaveConsistency ws
         let searchText = ws.SearchString
-        let waves = Map.values ws.AllWaves |> Seq.toList
         let wavesToDisplay =
             match searchText with
             | "-" when ws.ShowSheetDetail.Count <> 0 || ws.ShowComponentDetail.Count <> 0  || ws.ShowGroupDetail.Count <> 0 ->
@@ -585,12 +595,12 @@ let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> uni
                 dispatch <| SetWaveComponentSelectionOpen (ws.ShowComponentDetail |> Set.toList,false)
                 []
             | "" | "-" ->
-                waves
+                okWaves
             | "*" ->
-                ws.SelectedWaves
+                okSelectedWaves
                 |> List.map (fun wi -> ws.AllWaves[wi])                       
             | _ ->
-                List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) waves
+                List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) okWaves
         let showDetails = ((wavesToDisplay.Length < 10) || searchText.Length > 0) && searchText <> "-"
         wavesToDisplay
         |> makeSheetRow showDetails ws dispatch []

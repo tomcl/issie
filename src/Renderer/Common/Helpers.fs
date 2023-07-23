@@ -7,7 +7,6 @@
 module Helpers
 open CommonTypes
 open System.Text.RegularExpressions
-
     [<AutoOpen>]
     module JsonHelpers =
         open Fable.SimpleJson
@@ -372,3 +371,43 @@ let testMatch (diffX:float) (diffY:float)  normRot=
         // Edge case that should never happen
         | _ -> [s; 0; 0; 0; 0; 0; s]
     lengthList()
+
+open Fable.Core
+
+/// Functions to print human-readable version of CanvasState
+module PrintSimple =
+
+    /// Print any object as Javascript for low-level debug
+    [<Emit("console.log($0)")>]
+    let JSPrint msg : unit = jsNative
+
+    /// Crop a string to first n chars
+    let crop (s:string) =
+        sprintInitial 3 s
+
+    /// print a component simply
+    let pComponent (comp: Component) =
+        let inPorts =
+            comp.InputPorts
+            |> List.map (fun p -> crop p.Id)
+        let outPorts =
+            comp.OutputPorts
+            |> List.map (fun p -> crop p.Id)
+        $"|{comp.Label}:{comp.Type} PIN={inPorts} POut={outPorts}|"
+
+    /// Print a connection simply
+    let pConnection (conn: Connection) =
+        $"{crop conn.Source.Id}->{crop conn.Target.Id}"
+
+    /// human-readable print of CanvasState.
+    let pState ((comps, conns): CanvasState) =
+        "\n-----COMPS-----\n" +
+        (comps
+        |> List.map pComponent
+        |> String.concat "\n") +
+        "\n\n-----CONNS----\n" +
+        (conns
+        |> List.map pConnection
+        |> String.concat "\n") +
+        "\n"
+

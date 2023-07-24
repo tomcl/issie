@@ -1106,7 +1106,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let simError e =
         SimulationView.setSimErrorFeedback e model dispatch
         div [ errorMessageStyle ]
-            [ SimulationView.viewSimulationError e ]
+            [ SimulationView.viewSimulationError canvasState e ]
     div [] [
         div [ viewWaveSimStyle ]
             [

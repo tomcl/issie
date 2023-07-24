@@ -350,6 +350,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 if  not (isPortInComponents con.Source comps) && not (isPortInComponents con.Target comps) then
                     let error = {
                         Msg = "Selected logic includes a wire connected to no components."
+                        ErrType = WrongSelection
                         InDependency = None
                         ComponentsAffected = []
                         ConnectionsAffected = [ConnectionId(con.Id)]}
@@ -380,6 +381,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     | Ok (None) ->
                         let error = {
                             Msg = "Could not infer the width for an input into the selected logic."
+                            ErrType = InferConnWidths
                             InDependency = None
                             ComponentsAffected = [ComponentId(con.Target.HostId)]
                             ConnectionsAffected = []
@@ -388,6 +390,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     | Error e ->
                         let error = {
                             Msg = e.Msg
+                            ErrType = InferConnWidths
                             InDependency = None
                             ConnectionsAffected = e.ConnectionsAffected
                             ComponentsAffected = []
@@ -420,6 +423,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     | Ok (None) ->
                         let error = {
                             Msg = "Could not infer the width for an output produced by the selected logic."
+                            ErrType = InferConnWidths
                             InDependency = None
                             ComponentsAffected = [ComponentId(con.Source.HostId)]
                             ConnectionsAffected = []
@@ -428,6 +432,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     | Error e ->
                         let error = {
                             Msg = e.Msg
+                            ErrType = InferConnWidths
                             InDependency = None
                             ConnectionsAffected = e.ConnectionsAffected
                             ComponentsAffected = []
@@ -509,6 +514,7 @@ let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> 
             |> List.map (fun c -> ConnectionId c.Id)
         Some <| (Error {
             Msg = "Only connections selected. Please select a combination of connections and components."
+            ErrType = WrongSelection
             InDependency = None
             ComponentsAffected = []
             ConnectionsAffected = affected },  (selComponents,selConnections))

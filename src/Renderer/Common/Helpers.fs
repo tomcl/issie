@@ -411,3 +411,169 @@ module PrintSimple =
         |> String.concat "\n") +
         "\n"
 
+/// Take a project and compress all of the IDs.
+module ReduceKeys =
+    open Optics
+    /// make ComponentID, PortID, ConnectionID keys all short:
+    /// ComponentID -> Cxxx
+    /// PortID -> Pxxx
+    /// ConnectionId -> Wxxx
+    /// xxx = base 36 alphanumeric number
+    let a36ToD (ch: char) = int ch - int 'a'
+    let dToA36 (d: int) = char d
+
+    let toA36 (n:int) =
+        let rec toA36' (alphas: char list) = function
+            | 0 when alphas = [] -> [dToA36 0]
+            | 0 -> alphas
+            | n  -> toA36' (dToA36 (n % 36) :: alphas) (n / 36)
+        toA36' [] n
+        |> string
+        
+
+    let toD alphas =
+        let rec toD' res = function
+            | [] -> res
+            | x :: chs -> toD' (a36ToD x + res*36) chs
+        alphas
+        |> Seq.toList
+        |> toD' 0
+
+    let getIndexFromReduced (s: string) =
+        match s.Length with
+        | 0 | 1 -> failwithf "Can't convert A36 string ids of less than 2 chars to decimal (first char muts be C|W|P)"
+        | n ->
+            match s[0] with
+            | 'C' | 'P' | 'W' -> toD s[1..n-1]
+            | x -> failwithf $"{s} does not start with C|P|W and so is not an A36 ID for Component, Wire, or Port"
+
+    let getReducedFromIndex (typ:string) (index:int) =
+        match typ with
+        | "W" | "C" | "P" -> typ + toA36 index
+        | s -> failwithf $"Can't recognise {s} as W or P or C."
+        
+    type Reducer =
+        {
+        mutable NextID: int
+        mutable KeyMap: Map<string, int>
+        }
+
+    with
+        static member Init() = {NextID = 0; KeyMap = Map.empty}
+
+        member this.Scan (id:string) =
+                if id.Length < 10 then
+                    this.NextID <- max this.NextID (getIndexFromReduced id + 1)
+
+        member this.ScanPort (p: Port) = this.Scan p.Id
+                   
+        member this.ScanComp (comp:Component) =
+            this.Scan comp.Id
+            List.iter this.ScanPort comp.InputPorts
+            List.iter this.ScanPort comp.OutputPorts
+
+        member this.ScanConn (conn:Connection) =
+            this.Scan conn.Id
+
+        member this.ScanCanvas ((compL,connL):CanvasState) =
+            List.iter this.ScanComp compL
+            List.iter this.ScanConn connL
+
+        member this.ScanProject (p: Project) =
+            p.LoadedComponents
+            |> List.iter (fun ldc -> this.ScanCanvas ldc.CanvasState)
+
+        member this.ReduceID (typ: string) (longId:string) =
+            match typ with
+            | "C" | "W" | "P" when longId.Length > 10 -> 
+                match Map.tryFind longId this.KeyMap with
+                | Some index -> index
+                | None ->
+                    let index = this.NextID
+                    this.NextID <- index + 1
+                    this.KeyMap <- Map.add longId index this.KeyMap
+                    index
+                |> getReducedFromIndex typ
+                |> Some
+            | "C" | "W" | "P" when longId[0] = typ[0] ->
+                None                
+            | s -> failwithf "{s} is not a valid key type: 'C','W','P' are required for Component, Wire, or Port"
+
+        member this.Reduce (typ: string) (longId:string) =
+            this.ReduceID typ longId
+            |> Option.defaultValue longId
+            
+
+        member this.ReduceSymInfo (si: SymbolInfo) =
+            si
+            |> Optic.map portOrder_ (Map.map (fun _ lis -> List.map (this.Reduce "P") lis))
+            |> Optic.map portOrientation_ (Map.toList >> List.map (fun (s,e) -> this.Reduce "P" s,e) >> Map.ofList)
+
+                
+
+        member this.ReduceComp (comp:Component) =
+            let rId = this.ReduceID "C" comp.Id
+            let iPOK, iPortL = this.ReducePortL comp.InputPorts
+            let oPOK, oPortL = this.ReducePortL comp.OutputPorts
+            // if symInfo reduction causes change then either input or output port list will also do this,
+            // so we do not need to add symInfo to the match
+            let symInfo = Option.map this.ReduceSymInfo comp.SymbolInfo 
+            match rId,iPOK,oPOK with
+            | None, true, true -> comp
+            | _ ->
+                { comp with
+                    Id = Option.defaultValue comp.Id rId
+                    InputPorts = iPortL
+                    OutputPorts = oPortL
+                    SymbolInfo = symInfo }
+
+        member this.ReducePortOpt (port:Port) =
+            let pId = this.ReduceID "P" port.Id
+            let hId = this.ReduceID "C" port.HostId
+            match pId, hId with
+            | None, None -> None
+            | None, Some h -> Some {port with HostId = h}
+            | Some p, None -> Some {port with Id = p}
+            | Some p, Some h -> Some {port with Id=p; HostId = h}
+
+        member this.ReducePort(port:Port) = Option.defaultValue port (this.ReducePortOpt port)
+
+        member this.ReducePortL (portL:Port list) =
+                ((true,[]), portL)
+                ||> List.fold (fun (noChange, rPortL) port ->
+                    match this.ReducePortOpt port with
+                    | None -> noChange, (port :: portL)
+                    | Some port -> false, (port :: portL))
+ 
+        member this.ReduceConn (conn:Connection) =
+            let wId = this.ReduceID "W" conn.Id
+            let sPort = this.ReducePortOpt conn.Source
+            let tPort = this.ReducePortOpt conn.Target
+            match wId, sPort, tPort with
+            | None, None, None -> conn
+            | _ ->
+                let wId' = Option.defaultValue conn.Id wId
+                let sPort' = Option.defaultValue conn.Source sPort
+                let tPort' = Option.defaultValue conn.Target tPort
+                { conn with
+                    Id = wId'
+                    Source = sPort'
+                    Target = tPort'}
+
+        member this.ReduceCanvasState ((comps,conns): CanvasState) =
+            List.map this.ReduceComp comps,
+            List.map this.ReduceConn conns
+
+        member this.ReduceLDC (ldc:LoadedComponent) = {ldc with CanvasState = this.ReduceCanvasState ldc.CanvasState}
+
+    let compressLDC (name: string) (p:Project) =
+        let r = Reducer.Init()
+        let updateLdc (ldcs: LoadedComponent list) =
+            let n = List.findIndex (fun ldc -> ldc.Name = name) ldcs
+            List.updateAt n (r.ReduceLDC ldcs[n]) ldcs
+        r.ScanProject p
+        Optic.map loadedComponents_ updateLdc p
+
+            
+
+                    

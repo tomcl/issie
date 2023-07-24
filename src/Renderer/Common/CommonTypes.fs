@@ -345,6 +345,8 @@ module CommonTypes
         VScale: float option
     }
 
+    let portOrder_ = Lens.create (fun c -> c.PortOrder) (fun n c -> {c with PortOrder = n})
+    let portOrientation_ = Lens.create (fun c -> c.PortOrientation) (fun n c -> {c with PortOrientation = n})
 
 
     let getSTransformWithDefault (infoOpt: SymbolInfo option) =

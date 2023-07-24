@@ -151,13 +151,18 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             /// TODO: Fix this so that it does not generate all 500 points.
             /// Currently takes in 0, but this should ideally only generate the points that
             /// are shown on screen, rather than all 500 cycles.
+            let t1 = TimeHelpers.getTimeMs()
+            /// PERFORMANCE: calculating wavepoints takes roughly 50% of total time
             let wavePoints =
-                Array.mapi (binaryWavePoints (singleWaveWidth ws) 0) transitions 
+                let waveWidth = singleWaveWidth ws
+                Array.mapi (binaryWavePoints waveWidth 0) transitions 
                 |> Array.concat
                 |> Array.distinct
-
+            let t2 = TimeHelpers.getTimeMs()
+            /// PERFORMANCE: polyline takes royghly 50% of total time
             svg (waveRowProps ws)
                 [ polyline (wavePolylineStyle wavePoints) [] ]
+            |> (fun svg -> printfn "-----1BitTrans %d %.2f %.2f %.3f------" wavePoints.Length (t1-start) (t2-t1) (TimeHelpers.getInterval start - t2 + start); svg)
         // Non-binary waveform
         | w when w <= 32 ->
             //printfn "starting non-binary"
@@ -165,32 +170,45 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
 
             let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step
             //printfn "calculating trans..."
-            /// TODO: Fix this so that it does not generate all 500 points.
+            /// PERFORMANCE: Fix this so that it does not generate all 1000 points.
             /// Currently takes in 0, but this should ideally only generate the points that
-            /// are shown on screen, rather than all 500 cycles.
+            /// are shown on screen (typically < 20 cycles) , rather than all 1000 cycles.
+            /// T1 (see PERFORMANCE comments below) scales roughly linearly with number of points
+            /// T2 (see below) also scales roughly linearly.
+            /// Also - this codes generates waveforms lines as segments per cycle. When there is no
+            /// transition (transition value = Const) the number of points needed is much smaller
+            /// TODO: make sure T1 & T2 functions work only on the displayed segment (or a little bit more
+            /// to speed up single cycle shifts mots of the time)
+            /// TODO: generate points from transitions so that Const transitions do not generate points
             let fstPoints, sndPoints =
-                Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions 
+                let waveWidth = singleWaveWidth ws
+                Array.mapi (nonBinaryWavePoints waveWidth 0) transitions 
                 |> Array.unzip
-            //printfn "points"
+            let t1 = TimeHelpers.getTimeMs()
+            
             let makePolyline points = 
                 let points =
                     points
                     |> Array.concat
                     |> Array.distinct
                 polyline (wavePolylineStyle points) []
-
+            /// PERFORMANCE T1: This function call takes 25% of total time
             let valuesSVG = displayUInt32OnWave ws wave.Width wave.WaveValues.UInt32Step transitions
-            //printfn "values"
+            let t2 = TimeHelpers.getTimeMs()
+            /// PERFORMANCE T2: This function call takes 75% of total time
+            let polyLines = [makePolyline fstPoints; makePolyline sndPoints]
+            let t3 = TimeHelpers.getTimeMs()
             svg (waveRowProps ws)
-                (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
-            //|> (fun x -> printfn "makepolyline"; x)
+                (List.append polyLines valuesSVG)
+            |> (fun svg -> printfn "**---NonBinaryTrans %d %.2f %.2f %.2f %.2f------" fstPoints.Length (t1-start) (t2-t1) (t3-t2) (TimeHelpers.getInterval start - t3 + start); svg)
         // Non-binary waveform
         | w ->
-            //printfn "starting non-binary"
+            //
+            // ------------This case is not important for performance since we very rarely have busses > 32 bits-------------
+            //
             let start = TimeHelpers.getTimeMs ()
 
             let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step
-            //printfn "calculating trans..."
             /// TODO: Fix this so that it does not generate all 500 points.
             /// Currently takes in 0, but this should ideally only generate the points that
             /// are shown on screen, rather than all 500 cycles.

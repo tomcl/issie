@@ -223,6 +223,7 @@ let startCircuitSimulation
 
                     Error
                         { Msg = sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
+                          ErrType = Other
                           InDependency = None
                           ComponentsAffected = []
                           ConnectionsAffected = [] }
@@ -250,7 +251,6 @@ let startCircuitSimulationFData
             // Perform checks on it
             let components, connections = canvasState
             let inputs, outputs = getSimulationIOs components
-
             match analyseSimulationGraph diagramName graph connections with
             | Some err -> Error err
             | None ->
@@ -275,6 +275,7 @@ let startCircuitSimulationFData
 
                     Error
                         { Msg = sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
+                          ErrType = Other
                           InDependency = None
                           ComponentsAffected = []
                           ConnectionsAffected = [] }

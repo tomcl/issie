@@ -211,6 +211,7 @@ let prepareSimulationMemoized
    
 let makeDummySimulationError msg = {
         Msg = msg
+        ErrType = Other
         InDependency = None
         ConnectionsAffected = []
         ComponentsAffected = []
@@ -378,23 +379,70 @@ let private viewStatefulComponents step comps numBase model dispatch =
         | _ -> []
     div [] (List.collect makeStateLine comps )
 
-let viewSimulationError (simError : SimulationError) =
-    let error = 
-        match simError.InDependency with
-        | None ->
+let viewSimulationError (comps: Component list, conns: Connection list) (simError : SimulationError) =
+    let getComponentLabelById compId =
+        comps
+        |> List.filter (fun comp -> comp.Id = compId)
+        |> function
+            | [c] -> c.Label
+            | _ -> failwithf "No component found. Should never happen"
+    let compsAffected =
+            simError.ComponentsAffected
+            |> List.map (fun (ComponentId s) -> li [] [str (getComponentLabelById s)])
+    let error =
+        match simError.ErrType with
+        | OutputNotConnected ->
             div [] [
                 str simError.Msg
                 br []
-                str <| "Please fix the error and retry."
+                ul [] compsAffected
+                Button.button [
+                    Button.Color IsSuccess
+                    Button.OnClick (fun _ ->
+                        printfn "Adding 'Not Connected' components"
+                    )
+                ] [ str "Add 'Not Connected' components" ]
             ]
-        | Some dep ->
+        | InputNotConnected ->
             div [] [
-                str <| "Error found in sheet '" + dep + "' which is a dependency:"
-                br []
                 str simError.Msg
                 br []
-                str <| "Please fix the error in this sheet and retry."
+                ul [] compsAffected
+                Button.button [
+                    Button.Color IsSuccess
+                    Button.OnClick (fun _ ->
+                        printfn "Checking whether inputs can be removed in properties"
+                    )
+                ] [str "Remove inputs from component properties"]
             ]
+        | UnnecessaryNC ->
+            div [] [
+                str simError.Msg
+                br []
+                ul [] compsAffected
+                Button.button [
+                    Button.Color IsSuccess
+                    Button.OnClick (fun _ ->
+                        printfn "Removing unnecessary NC components"
+                    )
+                ] [str "Remove unnecessary 'Not Connected' components"]
+            ]
+        | _ ->
+            match simError.InDependency with
+            | None ->
+                div [] [
+                    str simError.Msg
+                    br []
+                    str <| "Please fix the error and retry."
+                ]
+            | Some dep ->
+                div [] [
+                    str <| "Error found in sheet '" + dep + "' which is a dependency:"
+                    br []
+                    str simError.Msg
+                    br []
+                    str <| "Please fix the error in this sheet and retry."
+                ]
     div [] [
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
         error
@@ -641,10 +689,11 @@ let setSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
 let viewSimulation canvasState model dispatch =
     printf "Viewing Simulation"
     // let JSState = model.Diagram.GetCanvasState ()
-    let startSimulation () =
+    let startSimulation simRes =
         let model = MemoryEditorView.updateAllMemoryComps model
         simCache <- simCacheInit ()
-        simulateModel None Constants.maxArraySize canvasState model
+        // simulateModel None Constants.maxArraySize canvasState model
+        simRes
         |> function
             | Ok (simData), state -> 
                 if simData.FastSim.ClockTick = 0 then 
@@ -673,13 +722,13 @@ let viewSimulation canvasState model dispatch =
             Button.button
                 [ 
                     Button.Color buttonColor; 
-                    Button.OnClick (fun _ -> startSimulation()) ; 
+                    Button.OnClick (fun _ -> startSimulation simRes) ; 
                 ]
                 [ str buttonText ]
         ]
     | Some sim ->
         let body = match sim with
-                   | Error simError -> viewSimulationError simError
+                   | Error simError -> viewSimulationError canvasState simError
                    | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
         let setDefaultButton =
             match sim with

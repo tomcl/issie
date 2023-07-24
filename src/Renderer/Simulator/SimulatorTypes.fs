@@ -116,10 +116,33 @@ type SimulationData =
       // Keep track of the number of clock ticks of the simulation.
       ClockTickNumber: int }
 
+type SimulationErrorType =
+    | PortNumMissing
+    | WrongPort
+    | WrongPortNum
+    | LabelConnect
+    | LabelDuplicate
+    | WidthMismatch
+    | InferConnWidths
+    | BadName
+    | MissingSheet
+    | InPortMismatch
+    | OutPortMismatch
+    | InputNotConnected
+    | OutputNotConnected
+    | LabelNotDriven
+    | CycleDetected
+    | AlgInpNotAllowed
+    | DependencyNotFound
+    | WrongSelection
+    | UnnecessaryNC
+    | Other
+
 /// - Documents an error found while simulating.
 /// - Should never happen
 type SimulationError =
     { Msg: string
+      ErrType: SimulationErrorType
       InDependency: string option
       ComponentsAffected: ComponentId list
       ConnectionsAffected: ConnectionId list }

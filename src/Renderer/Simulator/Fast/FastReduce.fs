@@ -1581,6 +1581,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to the
                     SEL port of a Mux2. Only values can be passed to this port."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -1616,6 +1617,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to the
                     SEL port of a Mux4. Only values can be passed to this port."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -1661,6 +1663,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to the
                     SEL port of a Mux8. Only values can be passed to this port."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -1687,6 +1690,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to the
                     SEL port of a Demux2. Only values can be passed to this port."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -1719,6 +1723,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to the
                     SEL port of a Demux4. Only values can be passed to this port."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -1763,6 +1768,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to the
                     SEL port of a Demux8. Only values can be passed to this port."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2004,6 +2010,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to the
                     input port of a Bit-Spreader. Only values can be passed to this port."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2099,6 +2106,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | _ ->
             let err =
                 { Msg = "Algebraic Simulation not implemented for DFF."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2118,6 +2126,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to a
                     DFFE. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2136,6 +2145,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to a
                     Register. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2159,6 +2169,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to a
                     RegisterE. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2197,6 +2208,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to a
                     Counter. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2228,6 +2240,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to a
                     Counter. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2254,6 +2267,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to a
                     Counter. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2284,6 +2298,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to
                     AsyncRom. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2304,6 +2319,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to
                     ROM. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2342,6 +2358,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 { Msg =
                     "The chosen set of Algebraic inputs results in algebra being passed to
                     RAM. Algebraic Simulation has not been implemented for this component."
+                  ErrType = AlgInpNotAllowed
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -2356,6 +2373,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             { Msg =
                 "The chosen set of Algebraic inputs results in algebra being passed to
                     AsyncRam. Algebraic Simulation has not been implemented for this component."
+              ErrType = AlgInpNotAllowed
               InDependency = Some(comp.FullName)
               ComponentsAffected = [ comp.cId ]
               ConnectionsAffected = [] }

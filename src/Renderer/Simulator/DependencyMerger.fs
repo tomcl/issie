@@ -54,6 +54,7 @@ let private getDependencyState
                     sprintf
                         "Could not resolve dependency: \"%s\". Make sure a dependency with such name exists in the current project."
                         name
+                  ErrType = DependencyNotFound
                   InDependency = None
                   ComponentsAffected = []
                   ConnectionsAffected = [] }
@@ -217,6 +218,7 @@ let private checkDependenciesAndBuildMap
                 { Msg =
                     sprintf "Found a cycle in dependencies: %s."
                     <| prettyPrintCycle cycle
+                  ErrType = CycleDetected
                   InDependency = None
                   ComponentsAffected = []
                   ConnectionsAffected = [] }

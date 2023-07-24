@@ -160,6 +160,7 @@ let private checkPortTypesAreConsistent (canvasState: CanvasState) : SimulationE
         | port :: _ when port.PortNumber = None ->
             Some
                 { Msg = sprintf "%A port appears to not have a port number" correctType
+                  ErrType = PortNumMissing
                   InDependency = None
                   ComponentsAffected = [ ComponentId port.HostId ]
                   ConnectionsAffected = [] }
@@ -167,6 +168,7 @@ let private checkPortTypesAreConsistent (canvasState: CanvasState) : SimulationE
             Some
                 { Msg =
                     sprintf "%A port %d appears to be an %A port" correctType (Option.get port.PortNumber) port.PortType
+                  ErrType = WrongPort
                   InDependency = None
                   ComponentsAffected = [ ComponentId port.HostId ]
                   ConnectionsAffected = [] }
@@ -189,12 +191,14 @@ let private checkPortTypesAreConsistent (canvasState: CanvasState) : SimulationE
         | false, _ ->
             Some
                 { Msg = sprintf "%A port appears to be an %A port" correctType port.PortType
+                  ErrType = WrongPort
                   InDependency = None
                   ComponentsAffected = [ ComponentId port.HostId ]
                   ConnectionsAffected = [ ConnectionId connId ] }
         | _, Some pNumber ->
             Some
                 { Msg = sprintf "%A port appears to have a port number: %d" correctType pNumber
+                  ErrType = WrongPortNum
                   InDependency = None
                   ComponentsAffected = [ ComponentId port.HostId ]
                   ConnectionsAffected = [ ConnectionId connId ] }
@@ -226,6 +230,7 @@ let private checkEvery
     (counts: List<(Component list * Connection list) * int>) // 'a is either InputPortId or OutputPortId.
     (cond: int -> bool)
     (errMsg0, errMsg)
+    (errType: SimulationErrorType)
     : SimulationError option
     =
     (None, counts)
@@ -242,6 +247,7 @@ let private checkEvery
                             sprintf errMsg0
                         else
                             sprintf errMsg count
+                      ErrType = errType
                       InDependency = None
                       ComponentsAffected =
                         comps
@@ -280,9 +286,9 @@ let private countPortsConnections
          |> List.map (fun b -> b, (0, []))
          |> Map.ofList)
 
-let private checkCounts (conns: Connection list) connMap bins binMap cond errMsg =
+let private checkCounts (conns: Connection list) connMap bins binMap cond errMsg errType =
     let totals = countPortsConnections conns connMap bins binMap
-    checkEvery totals cond errMsg
+    checkEvery totals cond errMsg errType
 
 let private checkConns (conns: Connection list) (m: MapData) : SimulationError option =
     let compOfPort p = m.ToComp[ComponentId p.HostId]
@@ -302,6 +308,7 @@ let private checkConns (conns: Connection list) (m: MapData) : SimulationError o
                      you need only give them the same name - then they will form a single net.")
         |> (fun errMsg ->
             { Msg = errMsg
+              ErrType = LabelConnect
               InDependency = None
               ComponentsAffected = [ ComponentId s.Id; ComponentId t.Id ]
               ConnectionsAffected = [ ConnectionId conn.Id ] }))
@@ -329,6 +336,7 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
           ("Every component input port must be connected: but no connection was found",
            "A component input port must have precisely one driving component, but %d \
                 were found. If you want to merge wires together use a MergeWires component, not direct connection")
+          InputNotConnected
 
       checkCounts
           m.LabTargetConns
@@ -342,6 +350,7 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
                 If you are driving two labels from the same component delete one of them: \
                 a set of labels with the same name are all connected together and only one \
                 label in each same-name set must be driven.")
+          LabelNotDriven
 
       checkCounts
           m.OtherSourceConns
@@ -350,8 +359,9 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
           portMap
           ((<) 0)
           ("A component output port must have at least one connection. If the component output \
-                is meant to be disconnected you can add a wire label to stop this error",
+                is meant to be disconnected you can add a \"Not Connected\" component to stop this error",
            "%d")
+          OutputNotConnected
 
       checkConns conns m
 
@@ -370,6 +380,7 @@ let private checkIOLabels (canvasState: CanvasState) : SimulationError option =
             | Some compId ->
                 Some
                     { Msg = sprintf "Two %s components cannot have the same label: %s." ioType comp.Label
+                      ErrType = LabelDuplicate
                       InDependency = None
                       ComponentsAffected = [ comp.Id; compId ] |> List.map ComponentId
                       ConnectionsAffected = [] }
@@ -436,9 +447,10 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
 /// This can change if a sheet made into a custom component is edited
 /// We do this check whenever a new sheet is opened
 let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent list) : SimulationError option =
-    let error (c: Component) msg =
+    let error (c: Component) t msg =
         Some
             { Msg = msg
+              ErrType = t
               InDependency = None
               ComponentsAffected = [ ComponentId c.Id ]
               ConnectionsAffected = [] }
@@ -457,12 +469,12 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
     |> function
         | Ok _ -> None
         | Error(c, NoSheet cName) ->
-            error c
+            error c MissingSheet
             <| sprintf "Can't find a design sheet named %s for the custom component of this name" cName
         | Error(c, BadInputs(cName, instIns, compIns)) ->
             let instIns, compIns = disp instIns, disp compIns
 
-            error c
+            error c InPortMismatch
             <| sprintf
                 "Sheet %s is used as a custom component. Instance In ports: %A are different from Component In ports: %A."
                 cName
@@ -471,12 +483,59 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
         | Error(c, BadOutputs(cName, instOuts, compOuts)) ->
             let instOus, compOuts = disp instOuts, disp compOuts
 
-            error c
+            error c OutPortMismatch
             <| sprintf
                 "Sheet %s is used as a custom component. Instance Out ports: %A are different from Component Out ports: %A."
                 cName
                 instOuts
                 compOuts
+
+/// Check whether Adders have a NotConnected component connected to their COUT
+/// this is unnecessary since it can be disabled via its options
+let checkAdders ((comps, conns): CanvasState) : SimulationError option =
+    let printp msg =
+        printfn "%A" msg
+        msg
+    let isIdofNotConnectedComp id =
+        comps
+        // |> List.exists (fun comp ->
+        //     // printfn "%A" (comp.Type = NbitsAdder 1)
+        //     printfn "%A" comp.Type
+        //     comp.Id = id && comp.Type = NotConnected)
+        |> List.exists (fun comp ->
+            match comp.Type with
+            | NotConnected -> comp.Id = id
+            | _ -> false)
+     
+    let compLFold (affComps, affConns) (comp: Component) =
+        conns
+        |> List.tryFind (fun conn ->
+            conn.Source.HostId = comp.Id && (isIdofNotConnectedComp conn.Target.HostId))
+        |> function
+            | Some conn -> (comp :: affComps, conn :: affConns)
+            | None -> (affComps, affConns)
+    
+    let affectedComps, affectedConns =
+        comps
+        |> List.filter (fun comp -> 
+            match comp.Type with
+            | NbitsAdder _ | NbitsAdderNoCin _ -> true
+            | _ -> false)
+        |> printp
+        |> List.fold compLFold ([], [])
+
+    printfn "Affected comps:\n%A\n\n Affected conns:\n%A" affectedComps affectedConns
+
+    match affectedComps, affectedConns with
+        | [], [] -> None
+        | compL, connL ->
+            Some {
+                Msg = "Unnecessary 'Not Connected' components at adder COUTs"
+                ErrType = UnnecessaryNC
+                InDependency = None
+                ComponentsAffected = (List.map (fun (comp: Component) -> ComponentId comp.Id) compL)
+                ConnectionsAffected = (List.map (fun (conn: Connection) -> ConnectionId conn.Id) connL)
+            }
 
 /// Checks that all connections have consistent widths.
 /// This function relies on the bus inferer, but also makes sure that all widths
@@ -485,6 +544,7 @@ let private checkConnectionsWidths (canvasState: CanvasState) : SimulationError 
     let convertConnId (ConnectionId cId) = ConnectionId cId
     let convertError (err: WidthInferError) : SimulationError =
         { Msg = err.Msg
+          ErrType = WidthMismatch
           InDependency = None
           ConnectionsAffected = err.ConnectionsAffected |> List.map convertConnId
           ComponentsAffected = [] }
@@ -499,6 +559,7 @@ let private checkConnectionsWidths (canvasState: CanvasState) : SimulationError 
         | _ ->
             Some
                 { Msg = "Could not infer all connections widths."
+                  ErrType = InferConnWidths
                   InDependency = None
                   ConnectionsAffected =
                     faulty
@@ -552,6 +613,7 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
     List.tryHead (badNameErrors @ duplicateNameErrors)
     |> Option.map (fun (comps, msg) ->
         { Msg = msg
+          ErrType = BadName
           InDependency = None
           ConnectionsAffected = []
           ComponentsAffected =
@@ -570,7 +632,8 @@ let analyseState
       checkIOLabels state
       checkCustomComponentsOk state ldComps
       widthErr
-      checkComponentNamesAreOk state ]
+      checkComponentNamesAreOk state
+      checkAdders state ]
     |> List.tryFind Option.isSome
     |> Option.flatten,
     connectionsWidth

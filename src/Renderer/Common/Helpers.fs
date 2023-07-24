@@ -414,7 +414,6 @@ module PrintSimple =
 /// Take a project and compress all of the IDs.
 module ReduceKeys =
     open Optics
-    open Optics.Operators
     /// make ComponentID, PortID, ConnectionID keys all short:
     /// ComponentID -> Cxxx
     /// PortID -> Pxxx
@@ -500,17 +499,33 @@ module ReduceKeys =
                 None                
             | s -> failwithf "{s} is not a valid key type: 'C','W','P' are required for Component, Wire, or Port"
 
+        member this.Reduce (typ: string) (longId:string) =
+            this.ReduceID typ longId
+            |> Option.defaultValue longId
+            
+
+        member this.ReduceSymInfo (si: SymbolInfo) =
+            si
+            |> Optic.map portOrder_ (Map.map (fun _ lis -> List.map (this.Reduce "P") lis))
+            |> Optic.map portOrientation_ (Map.toList >> List.map (fun (s,e) -> this.Reduce "P" s,e) >> Map.ofList)
+
+                
+
         member this.ReduceComp (comp:Component) =
             let rId = this.ReduceID "C" comp.Id
             let iPOK, iPortL = this.ReducePortL comp.InputPorts
             let oPOK, oPortL = this.ReducePortL comp.OutputPorts
+            // if symInfo reduction causes change then either input or output port list will also do this,
+            // so we do not need to add symInfo to the match
+            let symInfo = Option.map this.ReduceSymInfo comp.SymbolInfo 
             match rId,iPOK,oPOK with
             | None, true, true -> comp
             | _ ->
                 { comp with
                     Id = Option.defaultValue comp.Id rId
                     InputPorts = iPortL
-                    OutputPorts = oPortL}
+                    OutputPorts = oPortL
+                    SymbolInfo = symInfo }
 
         member this.ReducePortOpt (port:Port) =
             let pId = this.ReduceID "P" port.Id

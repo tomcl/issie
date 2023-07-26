@@ -817,7 +817,8 @@ let viewTruthTable canvasState model dispatch =
             dispatch CloseTruthTable
         let body =
             match tableopt with
-            | Error e -> viewTruthTableError e
+            // | Error e -> viewTruthTableError e
+            | Error e -> SimulationView.viewSimulationError canvasState e model CloseTruthTable dispatch
             | Ok table -> 
                 let truncation =
                     Notification.notification [Notification.Color IsWarning; Notification.IsLight] [

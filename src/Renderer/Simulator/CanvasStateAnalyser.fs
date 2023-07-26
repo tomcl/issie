@@ -490,27 +490,25 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
                 instOuts
                 compOuts
 
+let getPortNumFromConnPort (connPort: Port) (targetPortList: Port list) =
+    targetPortList
+    |> List.tryFind (fun (port: Port) -> port.Id = connPort.Id)
+    |> function
+        | Some {PortNumber = Some n} -> n
+        | _ -> failwithf "Existing connection should be connected to existing port"
+
 /// Check whether Adders have a NotConnected component connected to their COUT
 /// this is unnecessary since it can be disabled via its options
-let checkAdders ((comps, conns): CanvasState) : SimulationError option =
-    let printp msg =
-        printfn "%A" msg
-        msg
+let checkAdderUnnecessaryNC ((comps, conns): CanvasState) : SimulationError option =
     let isIdofNotConnectedComp id =
         comps
-        // |> List.exists (fun comp ->
-        //     // printfn "%A" (comp.Type = NbitsAdder 1)
-        //     printfn "%A" comp.Type
-        //     comp.Id = id && comp.Type = NotConnected)
         |> List.exists (fun comp ->
-            match comp.Type with
-            | NotConnected -> comp.Id = id
-            | _ -> false)
-     
+            comp.Id = id && comp.Type = NotConnected)
+    
     let compLFold (affComps, affConns) (comp: Component) =
         conns
         |> List.tryFind (fun conn ->
-            conn.Source.HostId = comp.Id && (isIdofNotConnectedComp conn.Target.HostId))
+            conn.Source.HostId = comp.Id && (getPortNumFromConnPort conn.Source comp.OutputPorts) <> 0 && (isIdofNotConnectedComp conn.Target.HostId))
         |> function
             | Some conn -> (comp :: affComps, conn :: affConns)
             | None -> (affComps, affConns)
@@ -521,10 +519,7 @@ let checkAdders ((comps, conns): CanvasState) : SimulationError option =
             match comp.Type with
             | NbitsAdder _ | NbitsAdderNoCin _ -> true
             | _ -> false)
-        |> printp
         |> List.fold compLFold ([], [])
-
-    printfn "Affected comps:\n%A\n\n Affected conns:\n%A" affectedComps affectedConns
 
     match affectedComps, affectedConns with
         | [], [] -> None
@@ -633,7 +628,7 @@ let analyseState
       checkCustomComponentsOk state ldComps
       widthErr
       checkComponentNamesAreOk state
-      checkAdders state ]
+      checkAdderUnnecessaryNC state ]
     |> List.tryFind Option.isSome
     |> Option.flatten,
     connectionsWidth

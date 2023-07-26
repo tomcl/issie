@@ -84,7 +84,33 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
         
         newModel, Cmd.ofMsg BusWidths
-    
+    | AddNotConnected (ldcs, port, pos) ->
+        let (newSymModel, ncID) = SymbolUpdate.addSymbol ldcs model.Symbol pos NotConnected ""
+        let ncPortId = newSymModel.Symbols[ncID].Component.InputPorts[0].Id
+        // add a newly created wire to the model
+        // then send BusWidths message which will re-infer bus widths
+        // the new wires (extarcted as connections) are not added back into Issie model. 
+        // This happens on save or when starting a simulation (I think)
+        let wireId = ConnectionId(JSHelpers.uuid())
+        let newWire = 
+            {
+                WId = wireId
+                InputPort = InputPortId ncPortId
+                OutputPort = OutputPortId port.Id
+                Color = HighLightColor.DarkSlateGrey
+                Width = 1
+                Segments = []
+                StartPos = { X = 0; Y = 0 }
+                InitialOrientation = Horizontal
+            }
+            |> smartAutoroute {model with Symbol = newSymModel}
+        
+        let newModel = 
+            {model with Symbol = newSymModel}
+            |> Optic.set (wireOf_ newWire.WId) newWire
+            |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
+        
+        newModel, Cmd.ofMsg BusWidths
     | BusWidths ->
         // (1) Call Issie bus inference
         // (2) Add widths to maps on symbols on wires
@@ -358,6 +384,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     | UpdateConnectedWires (componentIds: ComponentId list) ->
         // partial or full autoroutes all ends of wires conencted to given symbols
         // typically used after rotating or flipping symbols
+        printfn "Updating connected wires"
         let updatePortIdMessages = 
             componentIds
             |> Symbol.getPortLocations model.Symbol

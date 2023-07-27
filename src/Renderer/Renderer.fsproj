@@ -108,6 +108,8 @@
 
     <Compile Include="VerilogComponent\TestParser.fs" />
 
+    <Compile Include="Playground.fs" />
+
     <Compile Include="Renderer.fs" />
   </ItemGroup>
   

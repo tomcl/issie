@@ -657,9 +657,9 @@ let dialogPopupReductionBody inputs tableSD (dispatch: Msg -> unit) =
         let error = 
             match dialogData.AlgebraError with
             | None -> div [] []
-            | Some {Msg=m;InDependency=(Some d);ComponentsAffected=_;ConnectionsAffected=_} ->
+            | Some {ErrType = t;InDependency=(Some d);ComponentsAffected=_;ConnectionsAffected=_} ->
                 div [] [
-                    str m
+                    str (errMsg t)
                     br []
                     str $"Component in question: {d}"
                 ]

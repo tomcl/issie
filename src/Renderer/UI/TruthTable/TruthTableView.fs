@@ -349,8 +349,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 // This is an invalid selection.
                 if  not (isPortInComponents con.Source comps) && not (isPortInComponents con.Target comps) then
                     let error = {
-                        Msg = "Selected logic includes a wire connected to no components."
-                        ErrType = WrongSelection
+                        ErrType = WrongSelection "Selected logic includes a wire connected to no components."
                         InDependency = None
                         ComponentsAffected = []
                         ConnectionsAffected = [ConnectionId(con.Id)]}
@@ -380,8 +379,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
                     | Ok (None) ->
                         let error = {
-                            Msg = "Could not infer the width for an input into the selected logic."
-                            ErrType = InferConnWidths
+                            ErrType = InferConnWidths "Could not infer the width for an input into the selected logic."
                             InDependency = None
                             ComponentsAffected = [ComponentId(con.Target.HostId)]
                             ConnectionsAffected = []
@@ -389,8 +387,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Ok con, acc @ [Error error]
                     | Error e ->
                         let error = {
-                            Msg = e.Msg
-                            ErrType = InferConnWidths
+                            ErrType = InferConnWidths e.Msg
                             InDependency = None
                             ConnectionsAffected = e.ConnectionsAffected
                             ComponentsAffected = []
@@ -422,8 +419,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
                     | Ok (None) ->
                         let error = {
-                            Msg = "Could not infer the width for an output produced by the selected logic."
-                            ErrType = InferConnWidths
+                            ErrType = InferConnWidths "Could not infer the width for an output produced by the selected logic."
                             InDependency = None
                             ComponentsAffected = [ComponentId(con.Source.HostId)]
                             ConnectionsAffected = []
@@ -431,8 +427,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Ok con, acc @ [Error error]
                     | Error e ->
                         let error = {
-                            Msg = e.Msg
-                            ErrType = InferConnWidths
+                            ErrType = InferConnWidths e.Msg
                             InDependency = None
                             ConnectionsAffected = e.ConnectionsAffected
                             ComponentsAffected = []
@@ -512,9 +507,8 @@ let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> 
         let affected =
             selConnections
             |> List.map (fun c -> ConnectionId c.Id)
-        Some <| (Error {
-            Msg = "Only connections selected. Please select a combination of connections and components."
-            ErrType = WrongSelection
+        Some <| (Error { 
+            ErrType = WrongSelection "Only connections selected. Please select a combination of connections and components."
             InDependency = None
             ComponentsAffected = []
             ConnectionsAffected = affected },  (selComponents,selConnections))
@@ -687,7 +681,7 @@ let viewTruthTableError simError =
         match simError.InDependency with
         | None ->
             div [] [
-                str simError.Msg
+                str (errMsg simError.ErrType)
                 br []
                 str <| "Please fix the error and retry."
             ]
@@ -695,7 +689,7 @@ let viewTruthTableError simError =
             div [] [
                 str <| "Error found in dependency \"" + dep + "\":"
                 br []
-                str simError.Msg
+                str (errMsg simError.ErrType)
                 br []
                 str <| "Please fix the error in the dependency and retry."
             ]

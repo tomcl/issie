@@ -62,7 +62,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                         let note = successSimulationNotification $"verilog output written to file {path}"
                         dispatch  <| SetSimulationNotification note
                     | Error simError ->
-                       printfn $"Error in simulation prevents verilog output {simError.Msg}"
+                       printfn $"Error in simulation prevents verilog output {(errMsg simError.ErrType)}"
                        dispatch <| ChangeRightTab Simulation
                        if simError.InDependency.IsNone then
                            // Highlight the affected components and connection only if
@@ -210,8 +210,7 @@ let prepareSimulationMemoized
         simResult, canvasState
    
 let makeDummySimulationError msg = {
-        Msg = msg
-        ErrType = Other
+        ErrType = DummySimError msg
         InDependency = None
         ConnectionsAffected = []
         ComponentsAffected = []
@@ -389,6 +388,12 @@ let viewSimulationError (comps: Component list, conns: Connection list) (simErro
     let busWireDispatch bMsg = sheetDispatch <| SheetT.Msg.Wire bMsg
     let symbolDispatch symMsg = busWireDispatch <| BusWireT.Msg.Symbol symMsg
 
+    let changeAdderType (comp: Component) (targetType: ComponentType) =
+        model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (targetType)
+    
+    let changeCounterType (comp: Component) (targetType: ComponentType) =
+        model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (targetType)
+
     let tryGetComponentById compId =
         comps
         |> List.tryFind (fun comp -> comp.Id = compId)
@@ -399,36 +404,48 @@ let viewSimulationError (comps: Component list, conns: Connection list) (simErro
     
     let reacListOfCompsAffected =
         simError.ComponentsAffected
-        |> List.collect (fun (ComponentId s) -> Option.toList (tryGetComponentById s))
+        |> List.map (fun (ComponentId s) -> Option.get (tryGetComponentById s))
         |> List.map (fun comp -> li [] [str comp.Label])
 
     let error =
         match simError.ErrType with
-        | OutputNotConnected ->
+        | OutputConnError 0 ->
             let addNCAndRemovePorts() =
-                let addNCtoComponent comp =
+                let isPortDisconnected (port: Port) =
+                    conns
+                    |> List.forall (fun conn -> conn.Source.Id <> port.Id)
+                let getDisconnectedOutPorts comp =
                     comp.OutputPorts
-                    |> List.filter (fun port ->
-                        (conns
-                        |> List.forall (fun conn -> conn.Source.Id <> port.Id))
-                            && (match comp.Type with
-                                | NbitsAdder w ->
-                                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCout w)
-                                    port.PortNumber = Some 0
-                                | NbitsAdderNoCin w ->
-                                    model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
-                                    port.PortNumber = Some 0
-                                | _ -> true))
-                    |> List.iter (fun port ->
-                        busWireDispatch <| BusWireT.AddNotConnected ((ModelHelpers.tryGetLoadedComponents model), port, {X = comp.X + comp.W * 1.3; Y = comp.Y + comp.H/2.}))
-                        
+                    |> List.filter isPortDisconnected
+                let isCoutPort (comp: Component) (port: Port) =
+                    match comp.Type with
+                    | NbitsAdder _ | NbitsAdderNoCin _ -> port.PortNumber <> Some 0
+                    | _ -> false
+
+                let removeCoutPort (comp: Component) =
+                    match comp.Type with
+                    | NbitsAdder w -> changeAdderType comp (NbitsAdderNoCout w)
+                    | NbitsAdderNoCin w -> changeAdderType comp (NbitsAdderNoCinCout w)
+                    | _ -> ()
+                
                 simError.ComponentsAffected
-                |> List.map (fun (ComponentId compId) -> tryGetComponentById compId)
-                |> List.collect Option.toList
-                |> List.iter addNCtoComponent
+                |> List.map (fun (ComponentId compId) -> Option.get (tryGetComponentById compId))
+                |> List.map (fun comp -> comp, getDisconnectedOutPorts comp)
+                |> List.unzip
+                ||> List.iter2 (fun comp disconnectedPorts ->
+                    disconnectedPorts
+                    |> List.iter (fun port ->
+                        if isCoutPort comp port then
+                            removeCoutPort comp
+                        else
+                            busWireDispatch <| BusWireT.AddNotConnected
+                                ((ModelHelpers.tryGetLoadedComponents model),
+                                port,
+                                {X = comp.X + comp.W * 1.3; Y = comp.Y + comp.H/2.})))
+
                 endSimulation endDispatch dispatch
             div [] [
-                str simError.Msg
+                str (errMsg simError.ErrType)
                 br []
                 ul [] reacListOfCompsAffected
                 Button.button [
@@ -436,22 +453,22 @@ let viewSimulationError (comps: Component list, conns: Connection list) (simErro
                     Button.OnClick (fun _ -> addNCAndRemovePorts())
                 ] [ str "Add 'Not Connected' components and/or remove ports" ]
             ]
-        | InputNotConnected ->
+        | InputConnError 0 ->
             let removeInPorts() =
                 simError.ComponentsAffected
-                |> List.collect (fun (ComponentId compId) -> Option.toList (tryGetComponentById compId))
+                |> List.map (fun (ComponentId compId) -> Option.get (tryGetComponentById compId))
                 |> List.iter (fun comp ->
                     match comp.Type with
-                    | NbitsAdder w -> model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCin w)
-                    | NbitsAdderNoCout w -> model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
-                    | CounterNoLoad w -> model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                    | NbitsAdder w -> changeAdderType comp (NbitsAdderNoCin w)
+                    | NbitsAdderNoCout w -> changeAdderType comp (NbitsAdderNoCinCout w)
+                    | CounterNoLoad w -> changeCounterType comp (CounterNoEnableLoad w)
                     | CounterNoEnable w -> // if no input port is connected
                         comp.InputPorts
                         |> List.forall (fun port ->
                             conns
                             |> List.exists (fun conn -> conn.Target.Id = port.Id))
                         |> function
-                            | false -> model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                            | false -> changeCounterType comp (CounterNoEnableLoad w)
                             | true -> ()
                     | Counter w ->
                         let pNames = Symbol.portNames (comp.Type)
@@ -464,16 +481,16 @@ let viewSimulationError (comps: Component list, conns: Connection list) (simErro
                                 inPortList, numRemoved)
                         |> function
                             | ["D"; "LOAD"; "EN"], _ ->
-                                model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnableLoad w)
+                                changeCounterType comp (CounterNoEnableLoad w)
                             | ["D"; "LOAD"], _ ->
-                                model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoLoad w)
+                                changeCounterType comp (CounterNoLoad w)
                             | ["D"; "EN"], _ | ["LOAD"; "EN"], _ | ["EN"], _ ->
-                                model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (CounterNoEnable w)
+                                changeCounterType comp (CounterNoEnable w)
                             | _ -> ()
                     | _ -> ())
                 endSimulation endDispatch dispatch
             div [] [
-                str simError.Msg
+                str (errMsg simError.ErrType)
                 br []
                 ul [] reacListOfCompsAffected
                 Button.button [
@@ -493,16 +510,16 @@ let viewSimulationError (comps: Component list, conns: Connection list) (simErro
                 busWireDispatch <| BusWireT.DeleteWires simError.ConnectionsAffected
 
                 simError.ComponentsAffected
-                |> List.collect (fun (ComponentId compId) -> Option.toList (tryGetComponentById compId))
+                |> List.map (fun (ComponentId compId) -> Option.get (tryGetComponentById compId))
                 |> List.iter (fun comp ->
                     match comp.Type with
-                    | NbitsAdder w -> model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCout w)
-                    | NbitsAdderNoCin w -> model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (NbitsAdderNoCinCout w)
+                    | NbitsAdder w -> changeAdderType comp (NbitsAdderNoCout w)
+                    | NbitsAdderNoCin w -> changeAdderType comp (NbitsAdderNoCinCout w)
                     | _ -> failwithf "Unexpected adder type. Should only encounter these 2 types with this error message")
                 endSimulation endDispatch dispatch
 
             div [] [
-                str simError.Msg
+                str (errMsg simError.ErrType)
                 br []
                 ul [] reacListOfCompsAffected
                 Button.button [
@@ -514,7 +531,7 @@ let viewSimulationError (comps: Component list, conns: Connection list) (simErro
             match simError.InDependency with
             | None ->
                 div [] [
-                    str simError.Msg
+                    str (errMsg simError.ErrType)
                     br []
                     str <| "Please fix the error and retry."
                 ]
@@ -522,7 +539,7 @@ let viewSimulationError (comps: Component list, conns: Connection list) (simErro
                 div [] [
                     str <| "Error found in sheet '" + dep + "' which is a dependency:"
                     br []
-                    str simError.Msg
+                    str (errMsg simError.ErrType)
                     br []
                     str <| "Please fix the error in this sheet and retry."
                 ]

@@ -332,11 +332,8 @@ let checkAndValidate (fs: FastSimulation) =
             |> Set.toList
 
         Error
-            { Msg =
-                sprintf
-                    $"Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
+            { ErrType = CycleDetected "Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
                     This cycle detection is not precise, the components in red comprise this cycle and all components driven only from it"
-              ErrType = CycleDetected
               InDependency = None
               ComponentsAffected = possibleCycleComps
               ConnectionsAffected = [] }
@@ -407,11 +404,8 @@ let checkAndValidateFData (fs: FastSimulation) =
             |> Set.toList
 
         Error
-            { Msg =
-                sprintf
-                    $"Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
+            { ErrType = CycleDetected "Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
                     This cycle detection is not precise, the components in red comprise this cycle and all components driven only from it"
-              ErrType = CycleDetected
               InDependency = None
               ComponentsAffected = possibleCycleComps
               ConnectionsAffected = [] }

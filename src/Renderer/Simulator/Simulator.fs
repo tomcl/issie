@@ -222,8 +222,7 @@ let startCircuitSimulation
                     printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
 
                     Error
-                        { Msg = sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
-                          ErrType = Other
+                        { ErrType = InternalError e
                           InDependency = None
                           ComponentsAffected = []
                           ConnectionsAffected = [] }
@@ -274,8 +273,7 @@ let startCircuitSimulationFData
                     printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
 
                     Error
-                        { Msg = sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
-                          ErrType = Other
+                        { ErrType = InternalError e
                           InDependency = None
                           ComponentsAffected = []
                           ConnectionsAffected = [] }

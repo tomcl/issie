@@ -462,14 +462,15 @@ let viewSimulationError (comps: Component list, conns: Connection list) (simErro
                     | NbitsAdder w -> changeAdderType comp (NbitsAdderNoCin w)
                     | NbitsAdderNoCout w -> changeAdderType comp (NbitsAdderNoCinCout w)
                     | CounterNoLoad w -> changeCounterType comp (CounterNoEnableLoad w)
-                    | CounterNoEnable w -> // if no input port is connected
+                    | CounterNoEnable w -> // check if no input port is connected
                         comp.InputPorts
                         |> List.forall (fun port ->
                             conns
-                            |> List.exists (fun conn -> conn.Target.Id = port.Id))
+                            |> List.exists (fun conn -> conn.Target.Id = port.Id)
+                            |> not)
                         |> function
-                            | false -> changeCounterType comp (CounterNoEnableLoad w)
-                            | true -> ()
+                            | true -> changeCounterType comp (CounterNoEnableLoad w)
+                            | false -> ()
                     | Counter w ->
                         let pNames = Symbol.portNames (comp.Type)
                         ((List.removeAt (pNames.Length - 1) pNames, 0), conns)

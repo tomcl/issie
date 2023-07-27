@@ -345,7 +345,7 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
           ((<) 0)) with
             | Some (compsAffected, connsAffected, count) ->
                 Some {
-                    ErrType = LabelConnError count
+                    ErrType = OutputConnError count
                     InDependency = None
                     ComponentsAffected = compsAffected
                     ConnectionsAffected = connsAffected

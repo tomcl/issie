@@ -132,7 +132,7 @@ let drawCorners (showCorners: ShowCorners) (symb: Symbol) =
 //------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS------------------------------//
 //------------------------------------------------------------------------------------------------//
 
-let private createPolygon points colour opacity = 
+let createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
 //Function to create any path, combining multiple attributes of different paths.

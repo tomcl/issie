@@ -115,5 +115,36 @@ module TestFonts =
             []
             dispatch
         
+module MiscTests =
 
-        
+    /// static assets should theoretically be put under ./static in Issie repo
+    /// but appear on file system under staticDir() when Issie is run. The exact poistion on disk
+    /// will vary between production and dev runs, but staticDir()
+    /// should always work
+    let testAssets() =
+        let staticD = FilesIO.staticDir()
+        printfn "Static Asset Directory = %s" staticD
+        printfn "%A" (FilesIO.readdir staticD)
+
+    let testMaps() =
+        let modMap =
+            [0..1000]
+            |> List.map (fun n -> n, (n*256+1) % 1001)
+            |> Map.ofList
+
+
+        let iterMap count =
+            let mutable x: int = 1
+            let mutable i:int = 0
+            while i < count do
+                x <- modMap[x]
+                i <- i + 1
+
+        let count = 1000000
+        let start = TimeHelpers.getTimeMs()
+        let result = iterMap count
+        let interval = TimeHelpers.getTimeMs() - start
+        printfn "%d iterations of iterMap took %.1fms" count interval
+
+    let displayPerformance n m = TimeHelpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
+

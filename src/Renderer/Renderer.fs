@@ -25,37 +25,6 @@ importSideEffects "./scss/main.css"
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
-/// static assets should theoretically be put under ./static in Issie repo
-/// but appear on file system under staticDir() when Issie is run. The exact poistion on disk
-/// will vary between production and dev runs, but staticDir()
-/// should always work
-let testAssets() =
-    let staticD = FilesIO.staticDir()
-    printfn "Static Asset Directory = %s" staticD
-    printfn "%A" (FilesIO.readdir staticD)
-
-let testMaps() =
-    let modMap =
-        [0..1000]
-        |> List.map (fun n -> n, (n*256+1) % 1001)
-        |> Map.ofList
-
-
-    let iterMap count =
-        let mutable x: int = 1
-        let mutable i:int = 0
-        while i < count do
-            x <- modMap[x]
-            i <- i + 1
-
-    let count = 1000000
-    let start = TimeHelpers.getTimeMs()
-    let result = iterMap count
-    let interval = TimeHelpers.getTimeMs() - start
-    printfn "%d iterations of iterMap took %.1fms" count interval
-
-
-
 (****************************************************************************************************
 *
 *                                  MENU HELPER FUNCTIONS
@@ -107,13 +76,24 @@ let makeCondRoleItem cond label accelerator role =
    item.visible <- Some cond
    item
 
-/// make conditional menu item from condition, name, opt key to trigger, and action
+/// make  a conditional menu item from a condition,
+/// name, opt key to trigger, and action
 let makeCondItem cond label accelerator action =
    let item = makeItem label accelerator action
    item.visible <- Some cond
    item
 
+/// A menu item which is visible only if in debug mode
+/// (run dev or command line -D on binaries) and on windows.
+let makeDebugItem label accelerator option =
+    makeCondItem (JSHelpers.debugLevel <> 0) label accelerator option
 
+/// A menu item which is visible only if in debug mode
+/// (run dev or command line -D on binaries) and on windows.
+let makeWinDebugItem label accelerator option =
+    makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) label accelerator option
+
+/// Make 
 let makeElmItem (label:string) (accelerator : string) (action : unit -> unit) =
     jsOptions<MenuItemConstructorOptions> <| fun item ->
         item.label <- Some label
@@ -129,14 +109,6 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOption
    subMenu.submenu <- Some (U2.Case1 (table |> ResizeArray))
    subMenu
 
-let displayPerformance n m = TimeHelpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
-
-
-
-
-
-
-
 let fileMenu (dispatch) =
     makeMenu false "Sheet" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
@@ -147,39 +119,33 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondRoleItem (JSHelpers.debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
-        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ ->
+        makeWinDebugItem "Trace all" None (fun _ ->
             JSHelpers.debugTraceUI <- Set.ofList ["update";"view"])
-        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ ->
-            JSHelpers.debugTraceUI <- Set.ofList [])
-        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ ->
-            testMaps()
-            displayPerformance 100 4000000)
-        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Print names of static asset files" None (fun _ ->
-            testAssets())
-        makeCondItem (JSHelpers.debugLevel <> 0) "Force Exception" None  (fun ev -> failwithf "User exception from menus")
-        makeCondItem (JSHelpers.debugLevel <> 0) "Play" None  (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
+        makeWinDebugItem "Trace off" None (fun _ ->
+            JSHelpers.debugTraceUI <- Set.ofList []
+            Playground.MiscTests.displayPerformance 100 4000000)
+        makeMenu false "Play" [
+            makeDebugItem "Test Fonts" None  (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
+            makeWinDebugItem  "Run performance check" None (fun _ ->  Playground.MiscTests.testMaps())
+            makeWinDebugItem  "Print names of static asset files" None (fun _ ->
+                Playground.MiscTests.testAssets())
+            makeDebugItem "Force Exception" None  (fun ev -> failwithf "User exception from menus")
+
+        ]
 
         makeMenu false "Verilog" [
-            makeCondItem (JSHelpers.debugLevel <> 0) "Run Verilog tests" None  (fun _ ->
+            makeDebugItem "Run Verilog tests" None  (fun _ ->
                 runCompilerTests ()
-                printfn "Compiler tests done"
-                )
-            makeCondItem (JSHelpers.debugLevel <> 0) "Run Verilog performance tests" None  (fun _ ->
+                printfn "Compiler tests done")
+            makeDebugItem "Run Verilog performance tests" None  (fun _ ->
                 runPerformanceTests ()
-                printfn "Performance tests done"
-                )
-            makeCondItem (JSHelpers.debugLevel <> 0) "Generate driver modules" None  (fun _ ->
-                genDriverFiles ()
-                //printfn "Compiler tests done"
-                )
-            makeCondItem (JSHelpers.debugLevel <> 0) "Icarus compile testcases" None  (fun _ ->
-                icarusCompileTestCases ()
-                //printfn "Compile don"
-                )
-            makeCondItem (JSHelpers.debugLevel <> 0) "Icarus run testcases" None  (fun _ ->
-                icarusRunTestCases ()
-                //printfn "Compiler tests done"
-                )
+                printfn "Performance tests done")
+            makeDebugItem "Generate driver modules" None  (fun _ ->
+                genDriverFiles ())
+            makeDebugItem "Icarus compile testcases" None  (fun _ ->
+                icarusCompileTestCases ())
+            makeDebugItem "Icarus run testcases" None  (fun _ ->
+                icarusRunTestCases ())
         ]
      ]
 

@@ -55,7 +55,6 @@ let syncLoadedComponentsToDisk newProj oldProj =
         let sheetInfo = {Form=ldc.Form;Description=ldc.Description}
         saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo,Some sheetInfo)
         |> ignore
-        removeFileWithExtn ".dgmauto" oldProj.ProjectPath ldc.Name
 
     let nameOf sheet (ldc:LoadedComponent) = ldc.Name = sheet
     let oldLDCs = oldProj.LoadedComponents

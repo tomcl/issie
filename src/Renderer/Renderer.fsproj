@@ -51,21 +51,24 @@
     <Compile Include="VerilogComponent\SheetCreator.fs" /> 
     <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />   
 
-
     <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
     <Compile Include="Interface\FilesIO.fs" />
     <None Include="scss\main.scss" />
-    <Compile Include="DrawBlock\DrawModelType.fs" />
-    <Compile Include="DrawBlock\BlockHelpers.fs" />
+
+	<!-- Elmish Model -->
+    <Compile Include="Model\DrawModelType.fs" />
+    <Compile Include="Model\ModelType.fs" />
+	  
+	<!-- Draw Block -->
+	<Compile Include="DrawBlock\BlockHelpers.fs" />
     <Compile Include="DrawBlock\SymbolHelpers.fs" />
     <Compile Include="DrawBlock\PopupDrawingView.fs" />
-    <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
 	<Compile Include="DrawBlock\SymbolView.fs" />
 	<Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
-  <Compile Include="DrawBlock\SymbolUpdateResizeHelpers.fs" />
+    <Compile Include="DrawBlock\SymbolUpdateResizeHelpers.fs" />
 	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
@@ -81,28 +84,26 @@
 	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
-    <Compile Include="UI/ModelType.fs" />
     <Compile Include="UI\ModelHelpers.fs" />
-    <Compile Include="UI/Style.fs" />
+    <Compile Include="UI\Style.fs" />
     <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI\PopupView.fs" />
-    <Compile Include="UI/MemoryEditorView.fs" />
+    <Compile Include="UI\MemoryEditorView.fs" />
     <Compile Include="UI\FileMenuHelpers.fs" />
-    <Compile Include="UI/FileMenuView.fs" />
+    <Compile Include="UI\FileMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
-    <Compile Include="UI/SimulationView.fs" />
+    <Compile Include="UI\SimulationView.fs" />
     <Compile Include="UI\TruthTable\TruthTableReduce.fs" />
     <Compile Include="UI\TruthTable\TruthTableCreate.fs" />
     <Compile Include="UI\TruthTable\ConstraintReduceView.fs" />
     <Compile Include="UI\TruthTable\TruthTableView.fs" />
-    <Compile Include="UI/BuildView.fs" />
-    <Compile Include="UI/CatalogueView.fs" />
-    <Compile Include="UI/SelectedComponentView.fs" />
-    <!-- <Compile Include="UI/WaveSim/WaveformSimulationView.fs" /> -->
-    <Compile Include="UI/WaveSim/WaveSimHelpers.fs" />
-    <Compile Include="UI/WaveSim/WaveSimStyle.fs" />
+    <Compile Include="UI\BuildView.fs" />
+    <Compile Include="UI\CatalogueView.fs" />
+    <Compile Include="UI\SelectedComponentView.fs" />
+    <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
+    <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />
-    <Compile Include="UI/WaveSim/WaveSim.fs" />
+    <Compile Include="UI\WaveSim/WaveSim.fs" />
     <Compile Include="UI\MainView.fs" />
     <Compile Include="UI\UpdateHelpers.fs" />
     <Compile Include="UI\Update.fs" />

@@ -12,18 +12,13 @@ open CommonTypes
 open SimulatorTypes
 open TruthTableTypes
 open Fable.React
-open Sheet.SheetInterface
 open VerilogTypes
 open Optics
 open Optics.Operators
 
 module Constants =
-    /// DiagramStyle.rightSectinoWidthL = 650,
-    /// WaveSimStyle.Constants.leftMargin = 50,
-    /// WaveSimStyle.Constants.rightMargin = 50,
-    /// 2 * MainView.Constants.dividerBarWidth = 20,
-    /// WaveSimStyle.namesColWidth = 200,
-    /// WaveSimStyle.valeusColWidth = 100,
+    /// waveform simulator constant here for WSHelpers.initialWSModel reference
+    /// maybe better to have this with WaveSim and parametrise initilaWSModel?
     let initialWaveformColWidth = 650 - 20 - 20 - 20 - 130 - 100
 
 

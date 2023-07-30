@@ -128,8 +128,8 @@ type SimulationErrorType =
     | MissingSheet of string
     | InPortMismatch of string * string * string
     | OutPortMismatch of string * string * string
-    | InputConnError of int
-    | OutputConnError of int
+    | InputConnError of int * Port * PortRmInfo
+    | OutputConnError of int * Port * PortRmInfo
     | LabelConnError of int
     | CycleDetected of string
     | AlgInpNotAllowed of string
@@ -137,7 +137,7 @@ type SimulationErrorType =
     | WrongSelection of string
     | UnnecessaryNC
     | InternalError of exn
-    | DummySimError of string
+    | GenericSimError of string
 
 /// - Documents an error found while simulating.
 /// - Should never happen
@@ -146,7 +146,10 @@ type SimulationError =
       InDependency: string option
       ComponentsAffected: ComponentId list
       ConnectionsAffected: ConnectionId list }
-    
+
+type PortRmInfo =
+    | Unremovable
+    | Removable of ComponentType // specify original type and type after port removal
 let errMsg (errType: SimulationErrorType) =
     match errType with
     | PortNumMissing correctType ->
@@ -178,15 +181,18 @@ let errMsg (errType: SimulationErrorType) =
             compName
             instOuts
             compOuts
-    | InputConnError count ->
+    | InputConnError (count, _, rmInfo) ->
         if count = 0 then
-            "Every component input port must be connected: but no connection was found"
+            match rmInfo with
+            | Removable _ -> "Every component input port must be connected: but no connection was found"
+            | Unremovable -> "Every component input port must be connected: but no connection was found \
+                                Please connect this input port to the output of another component or an input component."
         else
             sprintf
                 "A component input port must have precisely one driving component, but %d \
-                        were found. If you want to merge wires together use a MergeWires component, not direct connection"
+                        were found. If you want to merge wires together use a MergeWires component, not direct connection."
                 count
-    | OutputConnError count ->
+    | OutputConnError (count, _, _) ->
         if count = 0 then
             "A component output port must have at least one connection. If the component output \
                 is meant to be disconnected you can add a \"Not Connected\" component to stop this error"
@@ -214,7 +220,7 @@ let errMsg (errType: SimulationErrorType) =
     | UnnecessaryNC -> "Unnecessary 'Not Connected' components at adder COUTs"
     | InternalError e ->
         sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
-    | DummySimError msg -> msg
+    | GenericSimError msg -> msg
 
 /// Wrapper for Javascript (Diagram) component. Why here?
 

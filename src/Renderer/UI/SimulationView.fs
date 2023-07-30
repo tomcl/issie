@@ -210,16 +210,16 @@ let prepareSimulationMemoized
         simResult, canvasState
    
 let makeDummySimulationError msg = {
-        ErrType = DummySimError msg
+        ErrType = GenericSimError msg
         InDependency = None
         ConnectionsAffected = []
         ComponentsAffected = []
     }
 
-let endSimulation endMsg dispatch =
+let simReset dispatch =
     dispatch CloseSimulationNotification // Close error notifications.
+    dispatch ClosePropertiesNotification
     dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
-    dispatch endMsg // End simulation.
     dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
 
 /// Start simulating the current Diagram.
@@ -383,150 +383,206 @@ let private viewStatefulComponents step comps numBase model dispatch =
         | _ -> []
     div [] (List.collect makeStateLine comps )
 
-let viewSimulationError (comps: Component list, conns: Connection list) (simError : SimulationError) (model: Model) endDispatch dispatch =
+let getSimErrFeedbackMessages (simError:SimulatorTypes.SimulationError) (model:Model) : (Msg list) =
+    if simError.InDependency.IsNone then
+        // Highlight the affected components and connection only if
+        // the error is in the current diagram and not in a
+        // dependency.
+        let (badComps,badConns) = (simError.ComponentsAffected, simError.ConnectionsAffected)
+        let msgs = [SetHighlighted (badComps,badConns)]
+        if not (Sheet.isAllVisible model.Sheet badConns badComps) then
+            // make whole diagram visible if any of the errors are not visible
+            msgs @ [Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlW)]
+        else
+            msgs
+    else
+        []
+
+let setSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
+    // let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    // let keyDispatch = SheetT.KeyPress >> sheetDispatch
+    // if simError.InDependency.IsNone then
+    //     // Highlight the affected components and connection only if
+    //     // the error is in the current diagram and not in a
+    //     // dependency.
+    //     let (badComps,badConns) = (simError.ComponentsAffected, simError.ConnectionsAffected)
+    //     dispatch <| SetHighlighted (badComps,badConns)
+    //     if not (Sheet.isAllVisible model.Sheet badConns badComps) then
+    //         // make whole diagram visible if any of the errors are not visible
+    //         keyDispatch <| SheetT.KeyboardMsg.CtrlW
+    getSimErrFeedbackMessages simError model
+    |> List.iter dispatch
+
+
+
+/// get the position for inserting a new Not Connected component next to the component comp
+/// returns None if another symbol is in the way
+let getNCPos (symbolMap: Map<ComponentId, SymbolT.Symbol>) (comp: Component) =
+    let isPosInBoundingBox  (pos: XYPos) (boundingBox: BoundingBox) =
+        (pos.X > boundingBox.TopLeft.X && pos.X < boundingBox.TopLeft.X + boundingBox.W &&
+        pos.Y > boundingBox.TopLeft.Y && pos.Y < boundingBox.TopLeft.Y + boundingBox.H)
+
+    let pos = {X = comp.X + comp.W * 1.5; Y = comp.Y + comp.H/2.}
+    symbolMap
+    |> Map.toList
+    |> List.map (fun (_, sym) -> Symbol.getSymbolBoundingBox sym)
+    |> List.exists (isPosInBoundingBox pos)
+    |> function
+        | true -> None
+        | false -> Some pos
+    
+
+let viewSimulationError
+    (comps: Component list, conns: Connection list)
+    (simError : SimulationError)
+    (model: Model)
+    simType
+    dispatch
+    =
     let sheetDispatch sMsg = dispatch <| Sheet sMsg
     let busWireDispatch bMsg = sheetDispatch <| SheetT.Msg.Wire bMsg
     let symbolDispatch symMsg = busWireDispatch <| BusWireT.Msg.Symbol symMsg
 
-    let changeAdderType (comp: Component) (targetType: ComponentType) =
-        model.Sheet.ChangeAdderComp sheetDispatch (ComponentId comp.Id) (targetType)
+    let changeAdderType (compId: ComponentId) (targetType: ComponentType) =
+        model.Sheet.ChangeAdderComp sheetDispatch compId (targetType)
     
-    let changeCounterType (comp: Component) (targetType: ComponentType) =
-        model.Sheet.ChangeCounterComp sheetDispatch (ComponentId comp.Id) (targetType)
+    let changeCounterType (compId: ComponentId) (targetType: ComponentType) =
+        model.Sheet.ChangeCounterComp sheetDispatch compId (targetType)
 
-    let tryGetComponentById compId =
+    // this does not use tryFind because the IDs given in the error component list
+    // should exist
+    let getComponentById (compId: ComponentId) =
         comps
-        |> List.tryFind (fun comp -> comp.Id = compId)
+        |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
+        |> Option.defaultWith (fun _ -> failwith "viewSimulationError: given component ID does not exist")
     
-    let tryGetConnectionById connId =
+    let getConnectionById connId =
         conns
         |> List.tryFind (fun conn -> conn.Id = connId)
+        |> Option.defaultWith (fun _ -> failwith "viewSimulationError: given connection ID does not exist")
     
     let reacListOfCompsAffected =
         simError.ComponentsAffected
-        |> List.map (fun (ComponentId s) -> Option.get (tryGetComponentById s))
+        |> List.map getComponentById
         |> List.map (fun comp -> li [] [str comp.Label])
 
+    let getCompAndPortAffectedMsg (comp: Component) (port: Port) = comp.Label + "." + CanvasStateAnalyser.getPortName comp port
+
+
+    let cleanup() =
+        simReset dispatch
+        dispatch (TryStartSimulationAfterErrorFix simType)
+
     let error =
+        let comp = getComponentById simError.ComponentsAffected[0]
         match simError.ErrType with
-        | OutputConnError 0 ->
-            let addNCAndRemovePorts() =
-                let isPortDisconnected (port: Port) =
-                    conns
-                    |> List.forall (fun conn -> conn.Source.Id <> port.Id)
-                let getDisconnectedOutPorts comp =
-                    comp.OutputPorts
-                    |> List.filter isPortDisconnected
-                let isCoutPort (comp: Component) (port: Port) =
-                    match comp.Type with
-                    | NbitsAdder _ | NbitsAdderNoCin _ -> port.PortNumber <> Some 0
-                    | _ -> false
+        | OutputConnError (0, port, rmInfo) ->
 
-                let removeCoutPort (comp: Component) =
-                    match comp.Type with
-                    | NbitsAdder w -> changeAdderType comp (NbitsAdderNoCout w)
-                    | NbitsAdderNoCin w -> changeAdderType comp (NbitsAdderNoCinCout w)
-                    | _ -> ()
-                
-                simError.ComponentsAffected
-                |> List.map (fun (ComponentId compId) -> Option.get (tryGetComponentById compId))
-                |> List.map (fun comp -> comp, getDisconnectedOutPorts comp)
-                |> List.unzip
-                ||> List.iter2 (fun comp disconnectedPorts ->
-                    disconnectedPorts
-                    |> List.iter (fun port ->
-                        if isCoutPort comp port then
-                            removeCoutPort comp
-                        else
-                            busWireDispatch <| BusWireT.AddNotConnected
-                                ((ModelHelpers.tryGetLoadedComponents model),
-                                port,
-                                {X = comp.X + comp.W * 1.3; Y = comp.Y + comp.H/2.})))
+            let buttonOrText =
+                match rmInfo with
+                | Removable targetType ->
+                    let deletePort() =
+                        changeAdderType simError.ComponentsAffected[0] targetType
+                        cleanup()
+                    Button.button [
+                        Button.Color IsSuccess
+                        Button.OnClick (fun _ -> deletePort())
+                    ] [ str "Fix by deleting the port on the component" ]
+                | Unremovable ->
+                    let comp = getComponentById simError.ComponentsAffected[0]
+                    getNCPos model.Sheet.Wire.Symbol.Symbols comp
+                    |> function
+                        | Some pos -> 
+                            let addNCComp() =
+                                busWireDispatch <| BusWireT.AddNotConnected
+                                    ((ModelHelpers.tryGetLoadedComponents model),
+                                    port,
+                                    {X = comp.X + comp.W * 1.5; Y = comp.Y + comp.H/2.})
+                                cleanup()
 
-                endSimulation endDispatch dispatch
+                            Button.button [
+                                Button.Color IsSuccess
+                                Button.OnClick (fun _ -> addNCComp())
+                            ] [ str "Fix by adding 'Not Connected' component" ]
+                        | None ->
+                            str "Please insert a 'Not Connected' component manually"
+            
+
             div [] [
                 str (errMsg simError.ErrType)
                 br []
-                ul [] reacListOfCompsAffected
-                Button.button [
-                    Button.Color IsSuccess
-                    Button.OnClick (fun _ -> addNCAndRemovePorts())
-                ] [ str "Add 'Not Connected' components and/or remove ports" ]
+                br []
+                str (getCompAndPortAffectedMsg comp port)
+                br []
+                buttonOrText
             ]
-        | InputConnError 0 ->
+        | InputConnError (0, port, rmInfo) ->
+            let comp = getComponentById simError.ComponentsAffected[0]
+            let compAndPortAffectedMsg = comp.Label + "." + CanvasStateAnalyser.getPortName comp port
+
             let removeInPorts() =
-                simError.ComponentsAffected
-                |> List.map (fun (ComponentId compId) -> Option.get (tryGetComponentById compId))
-                |> List.iter (fun comp ->
-                    match comp.Type with
-                    | NbitsAdder w -> changeAdderType comp (NbitsAdderNoCin w)
-                    | NbitsAdderNoCout w -> changeAdderType comp (NbitsAdderNoCinCout w)
-                    | CounterNoLoad w -> changeCounterType comp (CounterNoEnableLoad w)
-                    | CounterNoEnable w -> // check if no input port is connected
-                        comp.InputPorts
-                        |> List.forall (fun port ->
-                            conns
-                            |> List.exists (fun conn -> conn.Target.Id = port.Id)
-                            |> not)
-                        |> function
-                            | true -> changeCounterType comp (CounterNoEnableLoad w)
-                            | false -> ()
-                    | Counter w ->
-                        let pNames = Symbol.portNames (comp.Type)
-                        ((List.removeAt (pNames.Length - 1) pNames, 0), conns)
-                        ||> List.fold (fun (inPortList, numRemoved)  conn ->
-                            if conn.Target.HostId = comp.Id then
-                                // List.removeAt Option. conn.Target.PortNumber
-                                List.removeAt ((CanvasStateAnalyser.getPortNumFromConnPort conn.Target comp.InputPorts) - numRemoved) inPortList, numRemoved + 1
-                            else
-                                inPortList, numRemoved)
-                        |> function
-                            | ["D"; "LOAD"; "EN"], _ ->
-                                changeCounterType comp (CounterNoEnableLoad w)
-                            | ["D"; "LOAD"], _ ->
-                                changeCounterType comp (CounterNoLoad w)
-                            | ["D"; "EN"], _ | ["LOAD"; "EN"], _ | ["EN"], _ ->
-                                changeCounterType comp (CounterNoEnable w)
-                            | _ -> ()
-                    | _ -> ())
-                endSimulation endDispatch dispatch
+                match rmInfo with
+                | Removable targetType ->
+                    match targetType with
+                    | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ ->
+                        changeAdderType simError.ComponentsAffected[0] targetType
+                    | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _ ->
+                        changeCounterType simError.ComponentsAffected[0] targetType
+                    | _ -> ()
+                | Unremovable -> failwithf "This function should never be called if not input ports can be removed"
+                simReset dispatch
+                dispatch (TryStartSimulationAfterErrorFix simType)
+                // restartFn (comps, conns) model dispatch ()
+            
+            let showButton =
+                match rmInfo with
+                | Removable _ -> true
+                | Unremovable -> false
             div [] [
                 str (errMsg simError.ErrType)
                 br []
-                ul [] reacListOfCompsAffected
-                Button.button [
-                    Button.Color IsSuccess
-                    Button.OnClick (fun _ -> removeInPorts())
-                ] [str "Remove removable input ports from component properties"]
+                br []
+                str (getCompAndPortAffectedMsg comp port)
+                br []
+                if showButton then
+                    Button.button [
+                        Button.Color IsSuccess
+                        Button.OnClick (fun _ -> removeInPorts())
+                    ] [str "Fix by deleting input port"]
             ]
         | UnnecessaryNC ->
             let removeNCAndChangeAdderType() =
+                let NCsToDelete =
+                    simError.ConnectionsAffected
+                    |> List.map (fun (ConnectionId connId) ->
+                        ComponentId (getConnectionById connId).Target.HostId)
                 // delete NotConnected components
-                symbolDispatch <| SymbolT.DeleteSymbols (simError.ConnectionsAffected
-                    |> List.collect (fun (ConnectionId connId) ->
-                        match tryGetConnectionById connId with
-                        | Some conn -> [ComponentId conn.Target.HostId]
-                        | None -> []))
+                symbolDispatch <| SymbolT.DeleteSymbols NCsToDelete
                 // delete affected connections
                 busWireDispatch <| BusWireT.DeleteWires simError.ConnectionsAffected
 
                 simError.ComponentsAffected
-                |> List.map (fun (ComponentId compId) -> Option.get (tryGetComponentById compId))
+                |> List.map getComponentById
                 |> List.iter (fun comp ->
                     match comp.Type with
-                    | NbitsAdder w -> changeAdderType comp (NbitsAdderNoCout w)
-                    | NbitsAdderNoCin w -> changeAdderType comp (NbitsAdderNoCinCout w)
+                    | NbitsAdder w -> changeAdderType (ComponentId comp.Id) (NbitsAdderNoCout w)
+                    | NbitsAdderNoCin w -> changeAdderType (ComponentId comp.Id) (NbitsAdderNoCinCout w)
                     | _ -> failwithf "Unexpected adder type. Should only encounter these 2 types with this error message")
-                endSimulation endDispatch dispatch
+                
+                simReset dispatch
+                // restartFn (comps, conns) model dispatch ()
+                dispatch (TryStartSimulationAfterErrorFix simType)
 
             div [] [
                 str (errMsg simError.ErrType)
                 br []
+                br []
                 ul [] reacListOfCompsAffected
+                br []
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ -> removeNCAndChangeAdderType())
-                ] [str "Remove unnecessary 'Not Connected' components"]
+                ] [str "Fix by deleting unnecessary 'Not Connected' components"]
             ]
         | _ ->
             match simError.InDependency with
@@ -774,39 +830,34 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         maybeStatefulComponents()
     ]
 
-let setSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let keyDispatch = SheetT.KeyPress >> sheetDispatch
-    if simError.InDependency.IsNone then
-        // Highlight the affected components and connection only if
-        // the error is in the current diagram and not in a
-        // dependency.
-        let (badComps,badConns) = (simError.ComponentsAffected, simError.ConnectionsAffected)
-        dispatch <| SetHighlighted (badComps,badConns)
-        if not (Sheet.isAllVisible model.Sheet badConns badComps) then
-            // make whole diagram visible if any of the errors are not visible
-            keyDispatch <| SheetT.KeyboardMsg.CtrlW
 
+let tryGetSimData canvasState model =
+    printfn "startSimulation called"
+    let model = MemoryEditorView.updateAllMemoryComps model
+    simCache <- simCacheInit ()
+    simulateModel None Constants.maxArraySize canvasState model
+    |> function
+        | Ok (simData), state -> 
+            if simData.FastSim.ClockTick = 0 then 
+                setFastSimInputsToDefault simData.FastSim
+            Ok simData
+        | Error simError, state ->
+            printfn $"ERROR:{simError}"
+            Error simError
 
 let viewSimulation canvasState model dispatch =
     printf "Viewing Simulation"
-    // let JSState = model.Diagram.GetCanvasState ()
-    let startSimulation simRes =
-        let model = MemoryEditorView.updateAllMemoryComps model
-        simCache <- simCacheInit ()
-        simulateModel None Constants.maxArraySize canvasState model
+    let startSimulation() =
+        tryGetSimData canvasState model
         |> function
-            | Ok (simData), state -> 
-                if simData.FastSim.ClockTick = 0 then 
-                    setFastSimInputsToDefault simData.FastSim
-                Ok simData
-            | Error simError, state ->
-                printfn $"ERROR:{simError}"
+            | Ok simData -> Ok simData
+            | Error simError ->
                 setSimErrorFeedback simError model dispatch
                 Error simError
         |> StartSimulation
         |> dispatch
 
+    // let JSState = model.Diagram.GetCanvasState ()
     match model.CurrentStepSimulationStep with
     | None ->
         let simRes = simulateModel None Constants.maxArraySize canvasState model
@@ -823,14 +874,14 @@ let viewSimulation canvasState model dispatch =
             Button.button
                 [ 
                     Button.Color buttonColor; 
-                    Button.OnClick (fun _ -> startSimulation simRes) ; 
+                    Button.OnClick (fun _ -> startSimulation()) ; 
                 ]
                 [ str buttonText ]
         ]
     | Some sim ->
         let body = match sim with
-                   | Error simError -> viewSimulationError canvasState simError model EndSimulation dispatch
-                   | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
+                    | Error simError -> viewSimulationError canvasState simError model StepSim dispatch
+                    | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
         let setDefaultButton =
             match sim with
             | Error _ -> div [] []
@@ -838,7 +889,7 @@ let viewSimulation canvasState model dispatch =
             div [] [
                 Button.button
                     [ 
-                        Button.Color IsInfo; 
+                        Button.Color IsInfo;
                         Button.Disabled (InputDefaultsEqualInputs simData.FastSim model)
                         Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch) ; 
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
@@ -848,7 +899,12 @@ let viewSimulation canvasState model dispatch =
         
         div [Style [Height "100%"]] [
             Button.button
-                [ Button.Color IsDanger; Button.OnClick (fun _ -> endSimulation EndSimulation dispatch) ; Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left ]]]
+                [
+                    Button.Color IsDanger;
+                    Button.OnClick (fun _ ->
+                        simReset dispatch
+                        dispatch EndSimulation);
+                    Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left ]]]
                 [ str "End simulation" ]
             setDefaultButton
             br []; br []

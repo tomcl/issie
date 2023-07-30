@@ -246,19 +246,19 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         match portOnComponent.PortNumber, port.PortType with
         | None,_ -> failwithf "what? no PortNumber. A connection port was probably passed to inferIOLabel"
         | Some pn, PortType.Input ->
-            match Symbol.portNames hostComponent.Type with
-            | ([]) when List.length hostComponent.InputPorts > 1 -> hostComponent.Label + "_IN" + (string pn)
-            | ([]) -> hostComponent.Label + ".IN" 
-            | lst ->
+            match CanvasStateAnalyser.portNames hostComponent.Type with
+            | ([],_) when List.length hostComponent.InputPorts > 1 -> hostComponent.Label + "_IN" + (string pn)
+            | ([],_) -> hostComponent.Label + ".IN" 
+            | (lst,_) ->
                 if pn >= lst.Length then
                     failwithf "what? input PortNumber is greater than number of input port names on component"
                 else
                     lst[pn] //hostComponent.Label + "." + lst[pn]
         | Some pn, PortType.Output ->
-            match Symbol.portNames hostComponent.Type with
-            | ([]) when List.length hostComponent.OutputPorts > 1 -> hostComponent.Label + "_OUT" + (string pn)
-            | ([]) -> hostComponent.Label + "_OUT" 
-            | lst ->
+            match CanvasStateAnalyser.portNames hostComponent.Type with
+            | (_,[]) when List.length hostComponent.OutputPorts > 1 -> hostComponent.Label + "_OUT" + (string pn)
+            | (_,[]) -> hostComponent.Label + "_OUT" 
+            | (_,lst) ->
                 if pn >= lst.Length then
                     failwithf "what? output PortNumber is greater than number of output port names on component"
                 else
@@ -723,6 +723,14 @@ let viewTruthTableData (table: TruthTable) model dispatch =
             dispatch <| SetTTGridCache (Some grid)
             grid
 
+let restartTruthTable canvasState model dispatch = fun _ ->
+    let wholeSimRes = SimulationView.simulateModel None 2 canvasState model
+    match wholeSimRes with
+    | Error simError, _ ->
+        SimulationView.setSimErrorFeedback simError model dispatch
+    | Ok _, _ -> ()
+    GenerateTruthTable (Some wholeSimRes) |> dispatch
+
 let viewTruthTable canvasState model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
     // Older Issie versions did not have labels for MergeWires and SplitWire components.
@@ -811,7 +819,7 @@ let viewTruthTable canvasState model dispatch =
         let body =
             match tableopt with
             // | Error e -> viewTruthTableError e
-            | Error e -> SimulationView.viewSimulationError canvasState e model CloseTruthTable dispatch
+            | Error e -> SimulationView.viewSimulationError canvasState e model TruthTable dispatch
             | Ok table -> 
                 let truncation =
                     Notification.notification [Notification.Color IsWarning; Notification.IsLight] [

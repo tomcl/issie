@@ -806,7 +806,6 @@ let viewTruthTable canvasState model dispatch =
     | Some tableopt ->
         let closeTruthTable _ =
             dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
-            dispatch <| (JSDiagramMsg << InferWidths) ()
             dispatch ClosePropertiesNotification
             dispatch CloseTruthTable
         let body =

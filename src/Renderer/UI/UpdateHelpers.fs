@@ -204,7 +204,8 @@ let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
             | ss when ss.Length > 0 -> ss.[0]
             | _ -> ""
         TimeHelpers.instrumentInterval rootOfMsg startOfUpdateTime |> ignore
-        if str <> "" then printfn "**Upd:%s" str
+        let updateTime = TimeHelpers.getTimeMs() - startOfUpdateTime
+        if str <> "" then printfn "%s" $"**Upd:{str} %.1f{updateTime}ms ({int startOfUpdateTime % 10000}ms)"
         Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
     model,cmdL
 

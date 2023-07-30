@@ -36,7 +36,7 @@ open Operators
 //---------------------------------------------------------------------------------------------//
 
 
-
+let mutable uiStartTime: float = 0.
 
 
 
@@ -350,6 +350,7 @@ let update (msg : Msg) oldModel =
     match testMsg with
     | StartUICmd uiCmd ->
         //printfn $"starting UI command '{uiCmd}"
+        uiStartTime <- TimeHelpers.getTimeMs()
         match model.UIState with
         | None -> //if nothing is currently being processed, allow the ui command operation to take place
             match uiCmd with
@@ -360,6 +361,7 @@ let update (msg : Msg) oldModel =
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _->
         //printfn $"ending UI command '{model.UIState}"
+        printf $"***UI Command: %.2f{TimeHelpers.getTimeMs() - uiStartTime} ***"
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (SheetT.SetSpinner false))
 

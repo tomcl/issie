@@ -496,7 +496,59 @@ let update (msg : Msg) oldModel =
             model
             |> updateWSModel (fun ws -> WaveSimHelpers.setWaveSheetSelectionOpen ws fIdL show)
         model, cmd
-        
+    
+
+    | TryStartSimulationAfterErrorFix simType ->
+        let conns = BusWire.extractConnections model.Sheet.Wire
+        let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
+        let canvasState = comps,conns
+        let simErrFeedback simErr otherMsg =
+            Cmd.batch
+                ((SimulationView.getSimErrFeedbackMessages simErr model) @ [otherMsg]
+                |> List.map Cmd.ofMsg)
+        match simType with
+            | StepSim ->
+                SimulationView.tryGetSimData canvasState model
+                |> function
+                    | Ok (simData) -> 
+                        { model with CurrentStepSimulationStep = simData |> Ok |> Some }, Cmd.ofMsg (StartSimulation (Ok simData))
+                    | Error simError ->
+                        { model with CurrentStepSimulationStep = simError |> Error |> Some }, simErrFeedback simError (StartSimulation (Error simError))
+            | TruthTable ->
+                SimulationView.simulateModel None 2 canvasState model
+                |> function
+                    | Ok (simData), state ->
+                        if simData.IsSynchronous = false then
+                            { model with CurrentStepSimulationStep = simData |> Ok |> Some }, Cmd.ofMsg (GenerateTruthTable (Some (Ok simData, state)))
+                        else
+                            { model with CurrentStepSimulationStep = None }, Cmd.ofMsg CloseTruthTable
+                    | Error simError, state ->
+                        { model with CurrentStepSimulationStep = simError |> Error |> Some }, simErrFeedback simError (GenerateTruthTable (Some (Error simError, state)))
+            | WaveSim ->
+                let model = MemoryEditorView.updateAllMemoryComps model
+                let wsSheet = 
+                    match model.WaveSimSheet with
+                    | None -> Option.get (getCurrFile model)
+                    | Some sheet -> sheet
+                let model = 
+                    model
+                    |> removeAllSimulationsFromModel
+                    |> fun model -> {model with WaveSimSheet = Some wsSheet}
+                let wsModel = WaveSimHelpers.getWSModel model
+                //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
+                match SimulationView.simulateModel model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + WaveSimHelpers.Constants.maxStepsOverflow)  canvasState model with
+                //| None ->
+                //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
+                | (Error simError, _) ->
+                    { model with CurrentStepSimulationStep = simError |> Error |> Some }, simErrFeedback simError (SetWSModelAndSheet ({ wsModel with State = SimError simError }, wsSheet))
+                | (Ok simData, canvState) ->
+                    if simData.IsSynchronous then
+                        SimulationView.setFastSimInputsToDefault simData.FastSim
+                        let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }
+                        { model with CurrentStepSimulationStep = simData |> Ok |> Some }, Cmd.batch [Cmd.ofMsg (SetWSModelAndSheet (wsModel, wsSheet));
+                                                                                                            Cmd.ofMsg (RefreshWaveSim wsModel)]
+                    else
+                        { model with CurrentStepSimulationStep = simData |> Ok |> Some }, Cmd.ofMsg (SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet))
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none

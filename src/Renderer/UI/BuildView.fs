@@ -83,7 +83,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (profile: Verilog.Compil
                             | Error e -> ()//oh no
                             )
                 | Error simError ->
-                   printfn $"Error in simulation prevents verilog output {simError.Msg}"
+                   printfn $"Error in simulation prevents verilog output {(SimulatorTypes.errMsg simError.ErrType)}"
         | _ -> ()
 
 let viewBuild model dispatch =

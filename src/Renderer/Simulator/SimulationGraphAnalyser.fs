@@ -127,7 +127,7 @@ let private checkCombinatorialCycle
                             []
 
                 Some
-                    { Msg = "Cycle detected in combinatorial logic."
+                    { ErrType = CycleDetected "Cycle detected in combinatorial logic."
                       InDependency = inDependency
                       ComponentsAffected = cycle
                       ConnectionsAffected = connectionsAffected }

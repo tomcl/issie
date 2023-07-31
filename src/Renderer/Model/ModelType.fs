@@ -309,6 +309,7 @@ type Msg =
     | SetWaveGroupSelectionOpen of ((ComponentGroup * string list) list * bool)
     | LockTabsToWaveSim
     | UnlockTabsFromWaveSim
+    | TryStartSimulationAfterErrorFix of SimSubTab
     | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int

@@ -856,7 +856,7 @@ let viewWaveSim (model: Model) dispatch =
     // Set the current simulation error message
     | Some _, Some simError ->
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
-              [ SimulationView.viewSimulationError simError
+              [ SimulationView.viewSimulationError canvasState simError model EndWaveSim dispatch
                 button [ Button.Color IsDanger ] (fun _ -> 
                     dispatch CloseSimulationNotification // Close error notifications.
                     dispatch <| Sheet(SheetT.ResetSelection) // Remove highlights.

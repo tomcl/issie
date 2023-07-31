@@ -400,7 +400,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             |> List.map fst
             |> List.head
             |> List.map (fun cell -> cell.IO)
-    let body = dialogPopupNumericalConBody inputs model.TTInputConstraints infoMsg dispatch
+    let body = dialogPopupNumericalConBody inputs model.TTConfig.InputConstraints infoMsg dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -437,7 +437,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             |> List.map snd
             |> List.head
             |> List.map (fun cell -> cell.IO)
-    let body = dialogPopupNumericalConBody outputs model.TTOutputConstraints infoMsg dispatch
+    let body = dialogPopupNumericalConBody outputs model.TTConfig.OutputConstraints infoMsg dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -454,9 +454,9 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 /// View function for the constraints section on the right-tab
-let viewConstraints model dispatch =
-    let inputCons = model.TTInputConstraints
-    let outputCons = model.TTOutputConstraints
+let viewConstraints (model:Model) dispatch =
+    let inputCons = model.TTConfig.InputConstraints
+    let outputCons = model.TTConfig.OutputConstraints
     let addButton action =
         Button.button [ Button.OnClick action] [str "Add"]
     let clearButton action =
@@ -709,7 +709,7 @@ let createAlgReductionPopup model dispatch =
 
 let viewReductions (table: TruthTable) (model: Model) dispatch =
     let goBackButton = 
-        match table.DCMap, model.TTAlgebraInputs with
+        match table.DCMap, model.TTConfig.AlgebraIns with
         | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
         | Some _, [] ->
             (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> 
@@ -744,7 +744,7 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
         Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> createAlgKeyPopup dispatch)]
             [str "Key"]
     let algebraTags =
-        model.TTAlgebraInputs
+        model.TTConfig.AlgebraIns
         |> List.map (fun (_,label,_) ->
             Tag.tag [Tag.Color IsDanger; Tag.IsLight] [str <| string label])
         |> Tag.list []
@@ -755,7 +755,7 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
         match hasMultiBitOutputs with
         | false -> div [] []
         | true -> baseSelector table.TableSimData.NumberBase (fun n -> n |> SetTTBase |> dispatch)
-    match table.DCMap, model.TTAlgebraInputs with
+    match table.DCMap, model.TTConfig.AlgebraIns with
     | None, [] -> // Table is neither DC Reduces or Algebraic
         div [] [
             makeElementLine [reduceButton; str "   ";algebraButton] [maybeBaseSelector]]

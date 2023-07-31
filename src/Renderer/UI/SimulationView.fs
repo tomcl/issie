@@ -474,22 +474,21 @@ let viewSimulationError
         dispatch (TryStartSimulationAfterErrorFix simType)
 
     let error =
-        let comp = getComponentById simError.ComponentsAffected[0]
-        match simError.ErrType with
-        | OutputConnError (0, port, rmInfo) ->
+        let comps = List.map getComponentById simError.ComponentsAffected
+        match comps, simError.ErrType with
+        | [comp], OutputConnError (0, port, rmInfo) ->
 
             let buttonOrText =
                 match rmInfo with
                 | Removable targetType ->
                     let deletePort() =
-                        changeAdderType simError.ComponentsAffected[0] targetType
+                        changeAdderType (ComponentId comp.Id) targetType
                         cleanup()
                     Button.button [
                         Button.Color IsSuccess
                         Button.OnClick (fun _ -> deletePort())
                     ] [ str "Fix by deleting the port on the component" ]
                 | Unremovable ->
-                    let comp = getComponentById simError.ComponentsAffected[0]
                     getNCPos model.Sheet.Wire.Symbol.Symbols comp
                     |> function
                         | Some pos -> 
@@ -516,18 +515,17 @@ let viewSimulationError
                 br []
                 buttonOrText
             ]
-        | InputConnError (0, port, rmInfo) ->
-            let comp = getComponentById simError.ComponentsAffected[0]
+        | [comp], InputConnError (0, port, rmInfo) ->
             let compAndPortAffectedMsg = comp.Label + "." + CanvasStateAnalyser.getPortName comp port
-
+            let compId = ComponentId comp.Id
             let removeInPorts() =
                 match rmInfo with
                 | Removable targetType ->
                     match targetType with
                     | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ ->
-                        changeAdderType simError.ComponentsAffected[0] targetType
+                        changeAdderType compId targetType
                     | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _ ->
-                        changeCounterType simError.ComponentsAffected[0] targetType
+                        changeCounterType compId targetType
                     | _ -> ()
                 | Unremovable -> failwithf "This function should never be called if not input ports can be removed"
                 simReset dispatch
@@ -550,7 +548,7 @@ let viewSimulationError
                         Button.OnClick (fun _ -> removeInPorts())
                     ] [str "Fix by deleting input port"]
             ]
-        | UnnecessaryNC ->
+        | _, UnnecessaryNC ->
             let removeNCAndChangeAdderType() =
                 let NCsToDelete =
                     simError.ConnectionsAffected

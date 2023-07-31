@@ -330,39 +330,6 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | Custom x -> x.Name.ToUpper()
     | _ -> ""
 
-// Input and Output names of the ports depending on their ComponentType
-let portNames (componentType:ComponentType)  = //(input port names, output port names)
-    match componentType with
-    | Decode4 -> (["SEL";"DATA"]@["0"; "1";"2"; "3"])
-    | NbitsAdder _ -> (["CIN";"P";"Q"]@["SUM "; "COUT"])
-    | NbitsAdderNoCin _ -> (["P";"Q"]@["SUM "; "COUT"])
-    | NbitsAdderNoCinCout _ -> (["P";"Q"]@["SUM "])
-    | NbitsAdderNoCout _ -> (["CIN";"P";"Q"]@["SUM "])
-    | Register _ -> (["D"]@["Q"])
-    | RegisterE _ -> (["D"; "EN"]@["Q"])
-    | Counter _ -> (["D"; "LOAD"; "EN"]@["Q"])
-    |CounterNoEnable _ -> (["D"; "LOAD"]@["Q"])
-    | CounterNoLoad _ -> (["EN"]@["Q"])
-    |CounterNoEnableLoad _ ->  ([]@["Q"])
-    | ROM1 _ |AsyncROM1 _ -> (["ADDR"]@["DOUT"])
-    | RAM1 _ -> (["ADDR"; "DIN";"WEN" ]@["DOUT"])
-    | AsyncRAM1 _ -> (["ADDR"; "DIN";"WEN" ]@["DOUT"])
-    | DFF -> (["D"]@["Q"])
-    | DFFE -> (["D";"EN"]@["Q"])
-    | Mux2 -> (["0"; "1";"SEL"]@["OUT"])
-    | Mux4 -> (["0"; "1"; "2"; "3" ;"SEL"]@["OUT"])
-    | Mux8 -> (["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7";"SEL"]@["OUT"])
-    | Demux2 -> (["DATA" ; "SEL"]@["0"; "1"])
-    | Demux4 -> (["DATA"; "SEL"]@["0"; "1";"2"; "3";])
-    | Demux8 -> (["DATA"; "SEL"]@["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
-    | NbitsXor _ | NbitsAnd _ | NbitsOr _ -> (["P"; "Q"]@ ["OUT"])
-    | NbitsNot _ -> (["IN"]@["OUT"])
-    | Shift _ -> (["IN" ; "SHIFTER"]@["OUT"])
-    | Custom x -> (List.map fst x.InputLabels)@ (List.map fst x.OutputLabels)
-    | _ -> ([]@[])
-   // |Demux8 -> (["IN"; "SEL"],["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
-   // |_ -> ([],[])
-   // EXTENSION: Extra Components made that are not currently in Issie. Can be extended later by using this code as it is .
 
 /// By default all output ports are on the right, input ports on lefty, (of a normal orientation symbol).
 /// A few symbols have ports on top or bottom as defined here.

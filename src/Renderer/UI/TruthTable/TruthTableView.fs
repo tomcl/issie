@@ -246,19 +246,19 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         match portOnComponent.PortNumber, port.PortType with
         | None,_ -> failwithf "what? no PortNumber. A connection port was probably passed to inferIOLabel"
         | Some pn, PortType.Input ->
-            match Symbol.portNames hostComponent.Type with
-            | ([]) when List.length hostComponent.InputPorts > 1 -> hostComponent.Label + "_IN" + (string pn)
-            | ([]) -> hostComponent.Label + ".IN" 
-            | lst ->
+            match CanvasStateAnalyser.portNames hostComponent.Type with
+            | ([],_) when List.length hostComponent.InputPorts > 1 -> hostComponent.Label + "_IN" + (string pn)
+            | ([],_) -> hostComponent.Label + ".IN" 
+            | (lst,_) ->
                 if pn >= lst.Length then
                     failwithf "what? input PortNumber is greater than number of input port names on component"
                 else
                     lst[pn] //hostComponent.Label + "." + lst[pn]
         | Some pn, PortType.Output ->
-            match Symbol.portNames hostComponent.Type with
-            | ([]) when List.length hostComponent.OutputPorts > 1 -> hostComponent.Label + "_OUT" + (string pn)
-            | ([]) -> hostComponent.Label + "_OUT" 
-            | lst ->
+            match CanvasStateAnalyser.portNames hostComponent.Type with
+            | (_,[]) when List.length hostComponent.OutputPorts > 1 -> hostComponent.Label + "_OUT" + (string pn)
+            | (_,[]) -> hostComponent.Label + "_OUT" 
+            | (_,lst) ->
                 if pn >= lst.Length then
                     failwithf "what? output PortNumber is greater than number of output port names on component"
                 else
@@ -349,7 +349,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 // This is an invalid selection.
                 if  not (isPortInComponents con.Source comps) && not (isPortInComponents con.Target comps) then
                     let error = {
-                        Msg = "Selected logic includes a wire connected to no components."
+                        ErrType = WrongSelection "Selected logic includes a wire connected to no components."
                         InDependency = None
                         ComponentsAffected = []
                         ConnectionsAffected = [ConnectionId(con.Id)]}
@@ -379,7 +379,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
                     | Ok (None) ->
                         let error = {
-                            Msg = "Could not infer the width for an input into the selected logic."
+                            ErrType = InferConnWidths "Could not infer the width for an input into the selected logic."
                             InDependency = None
                             ComponentsAffected = [ComponentId(con.Target.HostId)]
                             ConnectionsAffected = []
@@ -387,7 +387,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Ok con, acc @ [Error error]
                     | Error e ->
                         let error = {
-                            Msg = e.Msg
+                            ErrType = InferConnWidths e.Msg
                             InDependency = None
                             ConnectionsAffected = e.ConnectionsAffected
                             ComponentsAffected = []
@@ -419,7 +419,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
                     | Ok (None) ->
                         let error = {
-                            Msg = "Could not infer the width for an output produced by the selected logic."
+                            ErrType = InferConnWidths "Could not infer the width for an output produced by the selected logic."
                             InDependency = None
                             ComponentsAffected = [ComponentId(con.Source.HostId)]
                             ConnectionsAffected = []
@@ -427,7 +427,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Ok con, acc @ [Error error]
                     | Error e ->
                         let error = {
-                            Msg = e.Msg
+                            ErrType = InferConnWidths e.Msg
                             InDependency = None
                             ConnectionsAffected = e.ConnectionsAffected
                             ComponentsAffected = []
@@ -507,8 +507,8 @@ let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> 
         let affected =
             selConnections
             |> List.map (fun c -> ConnectionId c.Id)
-        Some <| (Error {
-            Msg = "Only connections selected. Please select a combination of connections and components."
+        Some <| (Error { 
+            ErrType = WrongSelection "Only connections selected. Please select a combination of connections and components."
             InDependency = None
             ComponentsAffected = []
             ConnectionsAffected = affected },  (selComponents,selConnections))
@@ -681,7 +681,7 @@ let viewTruthTableError simError =
         match simError.InDependency with
         | None ->
             div [] [
-                str simError.Msg
+                str (errMsg simError.ErrType)
                 br []
                 str <| "Please fix the error and retry."
             ]
@@ -689,7 +689,7 @@ let viewTruthTableError simError =
             div [] [
                 str <| "Error found in dependency \"" + dep + "\":"
                 br []
-                str simError.Msg
+                str (errMsg simError.ErrType)
                 br []
                 str <| "Please fix the error in the dependency and retry."
             ]
@@ -722,6 +722,14 @@ let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
             let grid = div [(ttGridContainerStyle model)] all
             dispatch <| SetTTGridCache (Some grid)
             grid
+
+let restartTruthTable canvasState model dispatch = fun _ ->
+    let wholeSimRes = SimulationView.simulateModel None 2 canvasState model
+    match wholeSimRes with
+    | Error simError, _ ->
+        SimulationView.setSimErrorFeedback simError model dispatch
+    | Ok _, _ -> ()
+    GenerateTruthTable (Some wholeSimRes) |> dispatch
 
 let viewTruthTable canvasState model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
@@ -810,7 +818,8 @@ let viewTruthTable canvasState model dispatch =
             dispatch CloseTruthTable
         let body =
             match tableopt with
-            | Error e -> viewTruthTableError e
+            // | Error e -> viewTruthTableError e
+            | Error e -> SimulationView.viewSimulationError canvasState e model TruthTable dispatch
             | Ok table -> 
                 let truncation =
                     Notification.notification [Notification.Color IsWarning; Notification.IsLight] [

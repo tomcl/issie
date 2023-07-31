@@ -67,6 +67,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetWaveGroupSelectionOpen _
     | LockTabsToWaveSim 
     | UnlockTabsFromWaveSim -> None
+    | TryStartSimulationAfterErrorFix _ -> Some "TryStartSimulationAfterErrorFix"
     | SetSimulationGraph _ -> Some "SetSimulationGraph"
     | SetSimulationBase _
     | IncrementSimulationClockTick _
@@ -130,7 +131,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetPopupAlgebraError _ -> None
     | TogglePopupAlgebraInput _ -> Some  "TogglePopupAlgebraInput"
     | SimulateWithProgressBar _ 
-    | SetSelectedComponentMemoryLocation _ 
+    | SetSelectedComponentMemoryLocation _ -> Some "SetSelectedComponentMemoryLocation"
     | CloseDiagramNotification
     | SetSimulationNotification _ 
     | CloseSimulationNotification
@@ -148,7 +149,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetViewerWidth _ 
     | MenuAction _ 
     | DiagramMouseEvent
-    | SelectionHasChanged
+    | SelectionHasChanged -> Some "Selection has changed"
     | SetIsLoading _
     | SetRouterInteractive _
     | CloseApp

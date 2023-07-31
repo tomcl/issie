@@ -476,7 +476,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
     |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
-    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
+    |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (CanvasStateAnalyser.portNames comp.Type ||> List.append) symbol)
     |> List.append (drawCorners showCorners symbol) // HLP23 AUTHOR: BRYAN TAN
     |> List.append (addLegendText 
                         (legendOffset w h symbol) 

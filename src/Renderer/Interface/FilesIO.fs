@@ -566,7 +566,7 @@ let getLatestCanvas state =
     let comps = List.map convertFromJSONComponent comps
     List.map getLatestComp comps, conns
 
-
+/// If the component is a RAM update its contents based on its initialiser
 let checkMemoryContents (projectPath:string) (comp: Component) : Component =
     match comp.Type with
     | RAM1 mem | ROM1 mem | AsyncROM1 mem | AsyncRAM1 mem when not (String.endsWith "backup" (String.toLower projectPath))->

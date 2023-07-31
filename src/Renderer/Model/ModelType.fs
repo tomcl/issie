@@ -12,18 +12,13 @@ open CommonTypes
 open SimulatorTypes
 open TruthTableTypes
 open Fable.React
-open Sheet.SheetInterface
 open VerilogTypes
 open Optics
 open Optics.Operators
 
 module Constants =
-    /// DiagramStyle.rightSectinoWidthL = 650,
-    /// WaveSimStyle.Constants.leftMargin = 50,
-    /// WaveSimStyle.Constants.rightMargin = 50,
-    /// 2 * MainView.Constants.dividerBarWidth = 20,
-    /// WaveSimStyle.namesColWidth = 200,
-    /// WaveSimStyle.valeusColWidth = 100,
+    /// waveform simulator constant here for WSHelpers.initialWSModel reference
+    /// maybe better to have this with WaveSim and parametrise initilaWSModel?
     let initialWaveformColWidth = 650 - 20 - 20 - 20 - 130 - 100
 
 
@@ -413,7 +408,7 @@ type Msg =
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
     | ExecCmdAsynch of Elmish.Cmd<Msg>
     | SendSeqMsgAsynch of seq<Msg>
-
+ 
 
 //================================//
 // Componenents loaded from files //
@@ -427,6 +422,14 @@ type Notifications = {
     FromMemoryEditor : ((Msg -> unit) -> Fable.React.ReactElement) option
     FromProperties : ((Msg -> unit) -> Fable.React.ReactElement) option
 }
+
+let fromDiagram_ = Lens.create (fun n -> n.FromDiagram) (fun s n -> {n with FromDiagram = s})
+let fromSimulation_ = Lens.create (fun n -> n.FromSimulation) (fun s n -> {n with FromSimulation = s})
+let fromWaveSim_ = Lens.create (fun n -> n.FromWaveSim) (fun s n -> {n with FromWaveSim = s})
+let fromFiles_ = Lens.create (fun n -> n.FromFiles) (fun s n -> {n with FromFiles = s})
+let fromMemoryEditor_ = Lens.create (fun n -> n.FromMemoryEditor) (fun s n -> {n with FromMemoryEditor = s})
+let fromProperties_ = Lens.create (fun n -> n.FromProperties) (fun s n -> {n with FromProperties = s})
+
 
 type UserData = {
     /// Where to save the persistent app data
@@ -447,6 +450,36 @@ type SpinPayload = {
     ToDo: int
     Total: int
     }
+
+type TTType = {
+    /// bits associated with the maximum number of input rows allowed in a Truth Table
+    BitLimit: int
+    /// input constraints on truth table generation
+    InputConstraints: ConstraintSet
+    /// output constraints on truth table viewing
+    OutputConstraints: ConstraintSet
+    /// which output or viewer columns in the Truth Table should be hidden
+    HiddenColumns: CellIO list
+    /// by which IO and in what way is the Table being sorted
+    SortType: (CellIO * SortType) option
+    /// what is the display order of IOs in Table
+    IOOrder: CellIO []
+    /// Grid Styles for each column in the Table
+    GridStyles: Map<CellIO,Props.CSSProp list>
+    /// Cached CSS Grid for displaying the Truth Table
+    GridCache: ReactElement option
+    /// which of the Truth Table's inputs are currently algebra
+    AlgebraIns: SimulationIO list
+}
+let gridStyles_ = Lens.create (fun a -> a.GridStyles) (fun s a -> {a with GridStyles = s})
+let ioOrder_ = Lens.create (fun a -> a.IOOrder) (fun s a -> {a with IOOrder = s})
+let inputConstraints_ = Lens.create (fun a -> a.InputConstraints) (fun s a -> {a with InputConstraints = s})
+let outputConstraints_ = Lens.create (fun a -> a.OutputConstraints) (fun s a -> {a with OutputConstraints = s})
+let hiddenColumns_ = Lens.create (fun a -> a.HiddenColumns) (fun s a -> {a with HiddenColumns = s})
+let sortType_ = Lens.create (fun a -> a.SortType) (fun s a -> {a with SortType = s})
+let algebraIns_ = Lens.create (fun a -> a.AlgebraIns) (fun s a -> {a with AlgebraIns = s})
+let gridCache_ = Lens.create (fun a -> a.GridCache) (fun s a -> {a with GridCache = s})
+
 
 type Model = {
     UserData: UserData
@@ -485,24 +518,8 @@ type Model = {
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
     /// stores the generated truth table 
     CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
-    /// bits associated with the maximum number of input rows allowed in a Truth Table
-    TTBitLimit: int
-    /// input constraints on truth table generation
-    TTInputConstraints: ConstraintSet
-    /// output constraints on truth table viewing
-    TTOutputConstraints: ConstraintSet
-    /// which output or viewer columns in the Truth Table should be hidden
-    TTHiddenColumns: CellIO list
-    /// by which IO and in what way is the Table being sorted
-    TTSortType: (CellIO * SortType) option
-    /// what is the display order of IOs in Table
-    TTIOOrder: CellIO []
-    /// Grid Styles for each column in the Table
-    TTGridStyles: Map<CellIO,Props.CSSProp list>
-    /// Cached CSS Grid for displaying the Truth Table
-    TTGridCache: ReactElement option
-    /// which of the Truth Table's inputs are currently algebra
-    TTAlgebraInputs: SimulationIO list
+    /// style info for the truth table
+    TTConfig: TTType
     /// which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     /// which of the subtabs for the right pane simulation is visible
@@ -548,9 +565,18 @@ type Model = {
 
 
 let sheet_ = Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
+let tTType_ = Lens.create (fun a -> a.TTConfig) (fun s a -> {a with TTConfig = s})
+let currentTruthTable_ = Lens.create (fun a -> a.CurrentTruthTable) (fun s a -> {a with CurrentTruthTable = s})
 let popupDialogData_ = Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_
+let notifications_ = Lens.create (fun a -> a.Notifications) (fun s a -> {a with Notifications = s})
+let project_ = Lens.create (fun a -> Option.get (a.CurrentProj)) (fun s a -> {a with CurrentProj = Some s})
+let projectOpt_ = Prism.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj =  a.CurrentProj |> Option.map (fun _ -> s)})
+let ldcM = project_ >-> loadedComponents_
+let ldcOptM = projectOpt_ >?> loadedComponents_
+let nameM = project_ >-> openFileName_
+let nameOptM = projectOpt_ >?> openFileName_
 
 
-    
+

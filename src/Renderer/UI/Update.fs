@@ -5,6 +5,7 @@ open Elmish
 open Fulma
 open Fable.React
 open Fable.React.Props
+open ModelType
 open ElectronAPI
 open FilesIO
 open SimulatorTypes
@@ -36,7 +37,7 @@ open Operators
 //---------------------------------------------------------------------------------------------//
 
 
-
+let mutable uiStartTime: float = 0.
 
 
 
@@ -350,6 +351,7 @@ let update (msg : Msg) oldModel =
     match testMsg with
     | StartUICmd uiCmd ->
         //printfn $"starting UI command '{uiCmd}"
+        uiStartTime <- TimeHelpers.getTimeMs()
         match model.UIState with
         | None -> //if nothing is currently being processed, allow the ui command operation to take place
             match uiCmd with
@@ -360,6 +362,7 @@ let update (msg : Msg) oldModel =
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _->
         //printfn $"ending UI command '{model.UIState}"
+        printf $"***UI Command: %.2f{TimeHelpers.getTimeMs() - uiStartTime} ***"
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (SheetT.SetSpinner false))
 
@@ -527,9 +530,7 @@ let update (msg : Msg) oldModel =
             let tt = 
                 truthTable 
                     sd 
-                    model.TTInputConstraints 
-                    model.TTAlgebraInputs 
-                    model.TTBitLimit
+                    model.TTConfig
                     false
             // Styles for the grid
             let colStyles = 
@@ -551,9 +552,15 @@ let update (msg : Msg) oldModel =
                         |> SetPropertiesNotification
                 ]
                 |> List.map Cmd.ofMsg
-            {model with CurrentTruthTable = Some (Ok tt); TTGridStyles = colStyles}, Cmd.batch <| commands
+            model
+            |> Optic.set currentTruthTable_ (Some (Ok tt))
+            |> Optic.set (tTType_ >-> gridStyles_) colStyles,
+                Cmd.batch <| commands
         | Some (Error e, _) ->
-            {model with CurrentTruthTable = Some (Error e); TTGridStyles = Map.empty}, Cmd.none
+            model
+            |> Optic.set currentTruthTable_ (Some (Error e))
+            |> Optic.set (tTType_ >-> gridStyles_) Map.empty,
+                Cmd.none
         | None -> model, Cmd.none
     | RegenerateTruthTable ->
         let table = getTruthTableOrFail model "Regeneration"
@@ -562,9 +569,7 @@ let update (msg : Msg) oldModel =
                 let tt =
                     truthTable
                         table.TableSimData
-                        model.TTInputConstraints
-                        model.TTAlgebraInputs
-                        model.TTBitLimit
+                        model.TTConfig
                         true
                 let comms = 
                     [
@@ -592,10 +597,10 @@ let update (msg : Msg) oldModel =
             | Some m -> m
             | None -> table.TableMap
         let allOutputConstraints =
-            (model.TTOutputConstraints.Equalities
+            (model.TTConfig.OutputConstraints.Equalities
             |> List.map Equality)
             @
-            (model.TTOutputConstraints.Inequalities
+            (model.TTConfig.OutputConstraints.Inequalities
             |> List.map Inequality)
         let filteredMap =
             (tMap, allOutputConstraints)
@@ -606,7 +611,7 @@ let update (msg : Msg) oldModel =
         let start = TimeHelpers.getTimeMs()
         let table = getTruthTableOrFail model "Sorting"
         let sortedTable =
-            match model.TTSortType, tableAsList table.FilteredMap with 
+            match model.TTConfig.SortType, tableAsList table.FilteredMap with 
             | _, [] -> 
                 {table with SortedListRep = []}
             | None, lst ->
@@ -637,19 +642,20 @@ let update (msg : Msg) oldModel =
         /// Recursive function to hide columns and adjust the positions of the remaining
         /// visible columns.
         let rec correctProps (index: int) (acc: list<CellIO*list<CSSProp>>) (lst: CellIO list):  list<CellIO*list<CSSProp>>=
-            let hiddenProps = ttGridHiddenColumnProps model.TTIOOrder.Length
+            let hiddenProps = ttGridHiddenColumnProps model.TTConfig.IOOrder.Length
             match lst with
             | [] -> acc
             | io::tl ->
-                if List.contains io model.TTHiddenColumns then
+                if List.contains io model.TTConfig.HiddenColumns then
                     correctProps (index) ((io,hiddenProps)::acc) tl
                 else
                     correctProps (index+1) ((io,ttGridColumnProps index)::acc) tl
         let newStyles =
-            correctProps 0 [] (Array.toList model.TTIOOrder)
+            correctProps 0 [] (Array.toList model.TTConfig.IOOrder)
             |> Map.ofList
             |> TimeHelpers.instrumentInterval "Hiding Columns" start
-        {model with TTGridStyles = newStyles}, Cmd.ofMsg (SetTTGridCache None)
+        model
+        |> Optic.set (tTType_ >-> gridStyles_)  newStyles, Cmd.ofMsg (SetTTGridCache None)
     | CloseTruthTable -> 
         let newPopupData =
             {model.PopupDialogData with 
@@ -657,77 +663,67 @@ let update (msg : Msg) oldModel =
                 AlgebraError = None
                 ConstraintErrorMsg = None}    
             
-        {model with 
+        { model with
+            TTConfig = DiagramMainView.tTTypeInit
             CurrentTruthTable = None
-            TTInputConstraints = emptyConstraintSet
-            TTOutputConstraints = emptyConstraintSet
-            TTSortType = None
-            TTIOOrder = [||]
-            TTHiddenColumns = []
-            TTAlgebraInputs = []
-            TTGridCache = None
             PopupDialogData = newPopupData}, Cmd.none
-    | ClearInputConstraints -> 
-        {model with TTInputConstraints = emptyConstraintSet}, Cmd.ofMsg RegenerateTruthTable
-    | ClearOutputConstraints -> 
-        {model with TTOutputConstraints = emptyConstraintSet}, Cmd.ofMsg RegenerateTruthTable
+    | ClearInputConstraints ->
+        model
+        |> Optic.set (tTType_ >-> inputConstraints_) emptyConstraintSet, Cmd.ofMsg RegenerateTruthTable
+    | ClearOutputConstraints ->
+        model
+        |> Optic.set (tTType_ >-> outputConstraints_) emptyConstraintSet, Cmd.ofMsg RegenerateTruthTable
     | AddInputConstraint con ->
         match con with
         | Equality e -> 
-            let newEqu = e::model.TTInputConstraints.Equalities
-            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.ofMsg RegenerateTruthTable
+            model
+            |> Optic.map (tTType_ >-> inputConstraints_ >-> equalities_) (fun eqs -> e :: eqs), Cmd.ofMsg RegenerateTruthTable
         | Inequality i ->
-            let newIneq = i::model.TTInputConstraints.Inequalities
-            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.ofMsg RegenerateTruthTable
+            model
+            |> Optic.map (tTType_ >-> inputConstraints_ >-> inequalities_) (fun inEqs -> i :: inEqs), Cmd.ofMsg RegenerateTruthTable
     | DeleteInputConstraint con ->
         match con with
         | Equality e ->
-            let newEqu = 
-                model.TTInputConstraints.Equalities
-                |> List.except [e]
-            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.ofMsg RegenerateTruthTable
+            model
+            |> Optic.map (tTType_ >-> inputConstraints_ >-> equalities_) (List.except [e]), Cmd.ofMsg RegenerateTruthTable
         | Inequality i ->
-            let newIneq =
-                model.TTInputConstraints.Inequalities
-                |> List.except [i]
-            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.ofMsg RegenerateTruthTable
+            model
+            |> Optic.map (tTType_ >-> inputConstraints_ >-> inequalities_) (List.except [i]), Cmd.ofMsg RegenerateTruthTable
     | AddOutputConstraint con ->
         match con with
-        | Equality e -> 
-            let newEqu = e::model.TTOutputConstraints.Equalities
-            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.ofMsg FilterTruthTable
+        | Equality e ->
+            model
+            |> Optic.map (tTType_ >-> outputConstraints_ >-> equalities_) (fun eqs -> e :: eqs), Cmd.ofMsg FilterTruthTable
         | Inequality i ->
-            let newIneq = i::model.TTOutputConstraints.Inequalities
-            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.ofMsg FilterTruthTable
+            model
+            |> Optic.map (tTType_ >-> outputConstraints_ >-> inequalities_) (fun inEqs -> i :: inEqs), Cmd.ofMsg FilterTruthTable
     | DeleteOutputConstraint con ->
         match con with
         | Equality e ->
-            let newEqu = 
-                model.TTOutputConstraints.Equalities
-                |> List.except [e]
-            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.ofMsg FilterTruthTable
+            model
+            |> Optic.map (tTType_ >-> outputConstraints_ >-> equalities_) (List.except [e]), Cmd.ofMsg FilterTruthTable
         | Inequality i ->
-            let newIneq =
-                model.TTOutputConstraints.Inequalities
-                |> List.except [i]
-            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.ofMsg FilterTruthTable
+            model
+            |> Optic.map (tTType_ >-> outputConstraints_ >-> inequalities_) (List.except [i]), Cmd.ofMsg FilterTruthTable
+
     | ToggleHideTTColumn io ->
         // Column is currently hidden, so we unhide
-        if List.contains io model.TTHiddenColumns then
-            let newHC = List.except [io] model.TTHiddenColumns
-            {model with TTHiddenColumns = newHC}, Cmd.ofMsg HideTTColumns
+        if List.contains io model.TTConfig.HiddenColumns then
+            model
+            |> Optic.map (tTType_ >-> hiddenColumns_) (List.except [io]), Cmd.ofMsg HideTTColumns
         else
             let newSort =
-                match model.TTSortType with
+                match model.TTConfig.SortType with
                 | None -> None
                 | Some (cIO,st) ->
                     if cIO = io then None
                     else Some (cIO,st)
-            {model with 
-                TTHiddenColumns = io::model.TTHiddenColumns
-                TTSortType = newSort}, Cmd.ofMsg HideTTColumns
+            model
+            |> Optic.map (tTType_ >-> hiddenColumns_) (fun cols -> io :: cols)
+            |> Optic.set (tTType_ >-> sortType_) newSort, Cmd.ofMsg HideTTColumns
     | ClearHiddenTTColumns -> 
-        {model with TTHiddenColumns = []}, Cmd.ofMsg HideTTColumns
+        model
+        |> Optic.set (tTType_ >-> hiddenColumns_) [], Cmd.ofMsg HideTTColumns
     | ClearDCMap ->
         let newTT = 
             match model.CurrentTruthTable with
@@ -741,9 +737,10 @@ let update (msg : Msg) oldModel =
                     |> Some
         {model with CurrentTruthTable = newTT}, Cmd.ofMsg FilterTruthTable
     | SetTTSortType stOpt ->
-        {model with TTSortType = stOpt}, Cmd.ofMsg SortTruthTable
+        model
+        |> Optic.set (tTType_ >-> sortType_) stOpt, Cmd.ofMsg SortTruthTable
     | MoveColumn (io, dir) ->
-        let oldOrder = model.TTIOOrder
+        let oldOrder = model.TTConfig.IOOrder
         let idx = 
             oldOrder
             |> Array.tryFindIndex (fun cIO -> cIO = io)
@@ -763,11 +760,15 @@ let update (msg : Msg) oldModel =
             newOrder
             |> Array.mapi (fun i io -> (io,ttGridColumnProps i))
             |> Map.ofArray
-        {model with TTIOOrder = newOrder; TTGridStyles = newStyles}, Cmd.ofMsg (SetTTGridCache None)
+        model
+        |> Optic.set (tTType_ >-> ioOrder_) newOrder
+        |> Optic.set (tTType_ >-> gridStyles_) newStyles, Cmd.ofMsg (SetTTGridCache None)
     | SetIOOrder x -> 
-        {model with TTIOOrder = x}, Cmd.none
+        model
+        |> Optic.set (tTType_ >-> ioOrder_) x, Cmd.none
     | SetTTAlgebraInputs lst ->
-        {model with TTAlgebraInputs = lst}, Cmd.ofMsg RegenerateTruthTable
+        model
+        |> Optic.set (tTType_ >-> algebraIns_) lst, Cmd.ofMsg RegenerateTruthTable
     | SetTTBase numBase ->
         let table = getTruthTableOrFail model "SetTTBase"
         let updatedTT = 
@@ -776,7 +777,8 @@ let update (msg : Msg) oldModel =
             |> Some
         {model with CurrentTruthTable = updatedTT}, Cmd.ofMsg (SetTTGridCache None)
     | SetTTGridCache gridopt ->
-        {model with TTGridCache = gridopt}, Cmd.none
+        model
+        |> Optic.set (tTType_ >-> gridCache_) gridopt, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

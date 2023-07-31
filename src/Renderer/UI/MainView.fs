@@ -48,6 +48,19 @@ let viewOnDiagramButtons model dispatch =
 // -- Init Model
 
 /// Initial value of model
+let tTTypeInit =
+    {
+        BitLimit = 10
+        InputConstraints = TruthTableTypes.emptyConstraintSet
+        OutputConstraints = TruthTableTypes.emptyConstraintSet
+        HiddenColumns = []
+        SortType = None
+        IOOrder = [||]
+        GridStyles = Map.empty
+        GridCache = None
+        AlgebraIns = []
+    }
+
 let init() = {
     SpinnerPayload = None
     Spinner = None
@@ -71,15 +84,7 @@ let init() = {
     LastUsedDialogWidth = 1
     CurrentStepSimulationStep = None
     CurrentTruthTable = None
-    TTBitLimit = 10
-    TTInputConstraints = TruthTableTypes.emptyConstraintSet
-    TTOutputConstraints = TruthTableTypes.emptyConstraintSet
-    TTHiddenColumns = []
-    TTSortType = None
-    TTIOOrder = [||]
-    TTGridStyles = Map.empty
-    TTGridCache = None
-    TTAlgebraInputs = []
+    TTConfig = tTTypeInit
     WaveSim = Map.empty
     WaveSimSheet = None
     RightPaneTabVisible = Catalogue
@@ -299,7 +304,8 @@ let mutable lastDragModeOn = false
 //---------------------------------------------------------------------------------------------------------//
 /// Top-level application view: as react components that create a react virtual-DOM
 let displayView model dispatch =
-    JSHelpers.traceIf "view" (fun _ -> "View Function...")
+    let time = int(TimeHelpers.getTimeMs()) % 10000
+    JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
     //let selectedComps, selectedconns = 

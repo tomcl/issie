@@ -145,6 +145,10 @@ and EqualityConstraint = { IO: CellIO; Value: int }
 // LowerBound < IO < UpperBound
 and InequalityConstraint = { LowerBound: int; IO: CellIO; UpperBound: int; Range: int }
 
+let equalities_ = Optics.Lens.create (fun a -> a.Equalities) (fun s a -> {a with Equalities = s})
+let inequalities_ = Optics.Lens.create (fun a -> a.Inequalities) (fun s a -> {a with Inequalities = s})
+
+
 type Constraint =
     | Equality of EqualityConstraint
     | Inequality of InequalityConstraint

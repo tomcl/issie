@@ -50,23 +50,19 @@ let constrainedValuesandLength {Equalities = equ; Inequalities = ineq} =
     Seq.append equValues ineqValues, equ.Length + ineqLength
 
 /// Find all LHS rows of the Truth Table, limited by input constraints and bit limit
-let tableLHS 
-    (inputs: SimulationIO list) 
-    (inputConstraints: ConstraintSet) 
-    (algebraIOs: SimulationIO list)
-    bitLimit:
+let tableLHS (inputs: SimulationIO list) (ttt: ModelType.TTType) :
     TruthTableRow list * int =
 
     // Maximum number of rows on LHS of Truth Table.
     // Limited for speed and memory consumption reasons.
-    let rowLimit = int(2.0**bitLimit)
+    let rowLimit = int(2.0**ttt.BitLimit)
     
     // Find all input values for a given input.
     // Implemented using Sequences, which are lazily evaluated.
     let inputValuesSeq count (io: SimulationIO) =
         let (_,_,w) = io
         let seqLength = int (2.0**w)
-        match getConstraintsOnIO (SimIO io) inputConstraints with
+        match getConstraintsOnIO (SimIO io) ttt.InputConstraints with
         | {Equalities = []; Inequalities = []} ->
             Seq.init seqLength id, count*seqLength
         | conSet->
@@ -76,7 +72,7 @@ let tableLHS
     // Partition the inputs into algebraic and numeric
     let algebraInputs, numericInputs =
         inputs
-        |> List.partition (fun io -> List.contains io algebraIOs)
+        |> List.partition (fun io -> List.contains io ttt.AlgebraIns)
 
     let numericVals, constrainedRowCount =
         (1,numericInputs)
@@ -152,9 +148,7 @@ let simulateInputCombination
 /// algebraic inputs and input constriants.
 let truthTable 
     (simData: SimulationData) // Simulation Data for sheet
-    (inputConstraints: ConstraintSet) // All input constraints to be applied to truth table
-    (algebraIOs: SimulationIO list) // All inputs which are algebraic
-    (bitLimit: int) // Limits the max rows in the truth table (2^bitLimit)
+    (ttType: ModelType.TTType) // style data for truth table
     (isRegeneration: bool) // Is this function call regeneration (true) or first time (false)
     : TruthTable =
     let start = TimeHelpers.getTimeMs()
@@ -172,7 +166,7 @@ let truthTable
     let inputs = List.map fst (FastRun.extractFastSimulationIOsFData simData.Inputs tableSimData)
     let outputs = List.map fst (FastRun.extractFastSimulationIOsFData simData.Outputs tableSimData)
     let viewers = FastRun.extractViewers simData
-    let lhs,tCRC = tableLHS inputs inputConstraints algebraIOs bitLimit
+    let lhs,tCRC = tableLHS inputs ttType
     let rhs = List.map (fun i -> simulateInputCombination i outputs tableSimData) lhs
 
     List.zip lhs rhs
@@ -191,7 +185,7 @@ let truthTable
             IOOrder = toCellIO (inputs@outputs) viewers
         })
     |> fun table ->
-        if table.IsTruncated || algebraIOs.Length > 0 then
+        if table.IsTruncated || ttType.AlgebraIns.Length > 0 then
             table
         else
             let hasRed = TruthTableReduce.hasRedundancies table

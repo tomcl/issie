@@ -121,7 +121,7 @@ let mutable debugTraceUI: string Set = Set []
 
 /// Call debugAction() and print its result if debugTraceUI mutable contains string traceCode
 let traceIf traceCode debugAction =
-    if Set.contains traceCode debugTraceUI then printfn <| debugAction()
+    if Set.contains traceCode debugTraceUI then printfn "%s" (debugAction())
 
 /// Hack to provide a constant global variable
 /// set from command line arguments of main process.

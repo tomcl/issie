@@ -699,14 +699,14 @@ let viewTruthTableError simError =
     ]
 
 
-let viewTruthTableData (table: TruthTable) model dispatch =
-    match model.TTGridCache with
+let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
+    match model.TTConfig.GridCache with
     | Some grid -> 
         grid
     | None ->
         let tLst = table.SortedListRep
-        let sortInfo = model.TTSortType
-        let styleInfo = model.TTGridStyles
+        let sortInfo = model.TTConfig.SortType
+        let styleInfo = model.TTConfig.GridStyles
         if tLst.IsEmpty then
             div [] [str "No Rows in Truth Table"]
         else
@@ -806,7 +806,6 @@ let viewTruthTable canvasState model dispatch =
     | Some tableopt ->
         let closeTruthTable _ =
             dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
-            dispatch <| (JSDiagramMsg << InferWidths) ()
             dispatch ClosePropertiesNotification
             dispatch CloseTruthTable
         let body =
@@ -833,7 +832,7 @@ let viewTruthTable canvasState model dispatch =
         let hidden =
             match tableopt with
             | Error _ -> div [] []
-            | Ok table -> div [] [viewOutputHider table model.TTHiddenColumns dispatch]
+            | Ok table -> div [] [viewOutputHider table model.TTConfig.HiddenColumns dispatch]
         let menu =
             Menu.menu []  [
                 makeMenuGroup false "Filter" [constraints; br [] ; hr []]

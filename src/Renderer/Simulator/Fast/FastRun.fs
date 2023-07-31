@@ -332,9 +332,7 @@ let checkAndValidate (fs: FastSimulation) =
             |> Set.toList
 
         Error
-            { Msg =
-                sprintf
-                    $"Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
+            { ErrType = CycleDetected "Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
                     This cycle detection is not precise, the components in red comprise this cycle and all components driven only from it"
               InDependency = None
               ComponentsAffected = possibleCycleComps
@@ -406,9 +404,7 @@ let checkAndValidateFData (fs: FastSimulation) =
             |> Set.toList
 
         Error
-            { Msg =
-                sprintf
-                    $"Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
+            { ErrType = CycleDetected "Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
                     This cycle detection is not precise, the components in red comprise this cycle and all components driven only from it"
               InDependency = None
               ComponentsAffected = possibleCycleComps
@@ -545,10 +541,12 @@ let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (
 /// Re-evaluates the combinational logic for the given timestep - used if a combinational
 /// input has changed
 let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
+    printfn "runCombinational logic called"
     fastSim.FOrderedComps
     |> Array.iter (fastReduce fastSim.MaxArraySize step false)
 
 let private runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
+    printfn "runCombinationalLogicFData called"
     fastSim.FOrderedComps
     |> Array.iter (fastReduceFData fastSim.MaxArraySize step false)
 

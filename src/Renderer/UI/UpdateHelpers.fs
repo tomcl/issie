@@ -67,6 +67,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetWaveGroupSelectionOpen _
     | LockTabsToWaveSim 
     | UnlockTabsFromWaveSim -> None
+    | TryStartSimulationAfterErrorFix _ -> Some "TryStartSimulationAfterErrorFix"
     | SetSimulationGraph _ -> Some "SetSimulationGraph"
     | SetSimulationBase _
     | IncrementSimulationClockTick _
@@ -130,7 +131,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetPopupAlgebraError _ -> None
     | TogglePopupAlgebraInput _ -> Some  "TogglePopupAlgebraInput"
     | SimulateWithProgressBar _ 
-    | SetSelectedComponentMemoryLocation _ 
+    | SetSelectedComponentMemoryLocation _ -> Some "SetSelectedComponentMemoryLocation"
     | CloseDiagramNotification
     | SetSimulationNotification _ 
     | CloseSimulationNotification
@@ -148,7 +149,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetViewerWidth _ 
     | MenuAction _ 
     | DiagramMouseEvent
-    | SelectionHasChanged
+    | SelectionHasChanged -> Some "Selection has changed"
     | SetIsLoading _
     | SetRouterInteractive _
     | CloseApp
@@ -204,7 +205,8 @@ let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
             | ss when ss.Length > 0 -> ss.[0]
             | _ -> ""
         TimeHelpers.instrumentInterval rootOfMsg startOfUpdateTime |> ignore
-        if str <> "" then printfn "**Upd:%s" str
+        let updateTime = TimeHelpers.getTimeMs() - startOfUpdateTime
+        if str <> "" then printfn "%s" $"**Upd:{str} %.1f{updateTime}ms ({int startOfUpdateTime % 10000}ms)"
         Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
     model,cmdL
 

@@ -299,7 +299,8 @@ let mutable lastDragModeOn = false
 //---------------------------------------------------------------------------------------------------------//
 /// Top-level application view: as react components that create a react virtual-DOM
 let displayView model dispatch =
-    JSHelpers.traceIf "view" (fun _ -> "View Function...")
+    let time = int(TimeHelpers.getTimeMs()) % 10000
+    JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
     //let selectedComps, selectedconns = 

@@ -116,13 +116,111 @@ type SimulationData =
       // Keep track of the number of clock ticks of the simulation.
       ClockTickNumber: int }
 
+type SimulationErrorType =
+    | PortNumMissing of PortType
+    | WrongPortType of PortType * Port
+    | ConnTypeHasNum of PortType * int
+    | LabelConnect
+    | LabelDuplicate of string * string
+    | WidthMismatch of WidthInferError
+    | InferConnWidths of string
+    | BadName of string
+    | MissingSheet of string
+    | InPortMismatch of string * string * string
+    | OutPortMismatch of string * string * string
+    | InputConnError of int * Port * PortRmInfo
+    | OutputConnError of int * Port * PortRmInfo
+    | LabelConnError of int
+    | CycleDetected of string
+    | AlgInpNotAllowed of string
+    | DependencyNotFound of string
+    | WrongSelection of string
+    | UnnecessaryNC
+    | InternalError of exn
+    | GenericSimError of string
+
 /// - Documents an error found while simulating.
 /// - Should never happen
 type SimulationError =
-    { Msg: string
+    { ErrType: SimulationErrorType
       InDependency: string option
       ComponentsAffected: ComponentId list
       ConnectionsAffected: ConnectionId list }
+
+type PortRmInfo =
+    | Unremovable
+    | Removable of ComponentType // specify original type and type after port removal
+let errMsg (errType: SimulationErrorType) =
+    match errType with
+    | PortNumMissing correctType ->
+        sprintf "%A port appears to have no port number" correctType
+    | WrongPortType (correctType, port) ->
+        sprintf "%A port %d appears to be an %A port" correctType (Option.get port.PortNumber) port.PortType 
+    | ConnTypeHasNum (correctType, portNum) ->
+        sprintf "%A port appears to have a port number: %d" correctType portNum
+    | LabelConnect ->
+        sprintf
+            "You can't connect two Wire Labels with a wire. Delete the connecting wire. If you want to join two bus labels \
+                     you need only give them the same name - then they will form a single net."
+    | LabelDuplicate (ioType, compLabel) ->
+        sprintf "Two %s components cannot have the same label: %s." ioType compLabel
+    | WidthMismatch err -> err.Msg
+    | InferConnWidths msg -> msg
+    | BadName msg -> msg 
+    | MissingSheet compName ->
+        sprintf "Can't find a design sheet named %s for the custom component of this name" compName
+    | InPortMismatch (compName, instIns, compIns) ->
+        sprintf
+            "Sheet %s is used as a custom component. Instance In ports: %A are different from Component In ports: %A."
+            compName
+            instIns
+            compIns
+    | OutPortMismatch (compName, instOuts, compOuts) ->
+        sprintf
+            "Sheet %s is used as a custom component. Instance Out ports: %A are different from Component Out ports: %A."
+            compName
+            instOuts
+            compOuts
+    | InputConnError (count, _, rmInfo) ->
+        if count = 0 then
+            match rmInfo with
+            | Removable _ -> "Every component input port must be connected: but no connection was found"
+            | Unremovable -> "Every component input port must be connected: but no connection was found \
+                                Please connect this input port to the output of another component or an input component."
+        else
+            sprintf
+                "A component input port must have precisely one driving component, but %d \
+                        were found. If you want to merge wires together use a MergeWires component, not direct connection."
+                count
+    | OutputConnError (count, _, _) ->
+        if count = 0 then
+            "A component output port must have at least one connection. If the component output \
+                is meant to be disconnected you can add a \"Not Connected\" component to stop this error"
+        else
+            sprintf "%d" count
+    | LabelConnError count ->
+        if count = 0 then
+            "A set of labelled wires must be driven (on the input of one of the labels): but no such driver was found"
+        else
+            sprintf
+                "A set of labelled wires must have precisely one driving component, but %d \
+                were found. \
+                If you are driving two labels from the same component delete one of them: \
+                a set of labels with the same name are all connected together and only one \
+                label in each same-name set must be driven."
+                count
+
+    | CycleDetected msg -> msg
+    | AlgInpNotAllowed msg -> msg
+    | DependencyNotFound depName ->
+        sprintf
+            "Could not resolve dependency: \"%s\". Make sure a dependency with such name exists in the current project."
+            depName
+    | WrongSelection msg -> msg
+    | UnnecessaryNC -> "Unnecessary 'Not Connected' components at adder COUTs"
+    | InternalError e ->
+        sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
+    | GenericSimError msg -> msg
 
 /// Wrapper for Javascript (Diagram) component. Why here?
 

@@ -12,18 +12,13 @@ open CommonTypes
 open SimulatorTypes
 open TruthTableTypes
 open Fable.React
-open Sheet.SheetInterface
 open VerilogTypes
 open Optics
 open Optics.Operators
 
 module Constants =
-    /// DiagramStyle.rightSectinoWidthL = 650,
-    /// WaveSimStyle.Constants.leftMargin = 50,
-    /// WaveSimStyle.Constants.rightMargin = 50,
-    /// 2 * MainView.Constants.dividerBarWidth = 20,
-    /// WaveSimStyle.namesColWidth = 200,
-    /// WaveSimStyle.valeusColWidth = 100,
+    /// waveform simulator constant here for WSHelpers.initialWSModel reference
+    /// maybe better to have this with WaveSim and parametrise initilaWSModel?
     let initialWaveformColWidth = 650 - 20 - 20 - 20 - 130 - 100
 
 
@@ -314,6 +309,7 @@ type Msg =
     | SetWaveGroupSelectionOpen of ((ComponentGroup * string list) list * bool)
     | LockTabsToWaveSim
     | UnlockTabsFromWaveSim
+    | TryStartSimulationAfterErrorFix of SimSubTab
     | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int
@@ -413,7 +409,7 @@ type Msg =
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
     | ExecCmdAsynch of Elmish.Cmd<Msg>
     | SendSeqMsgAsynch of seq<Msg>
-
+ 
 
 //================================//
 // Componenents loaded from files //
@@ -427,6 +423,14 @@ type Notifications = {
     FromMemoryEditor : ((Msg -> unit) -> Fable.React.ReactElement) option
     FromProperties : ((Msg -> unit) -> Fable.React.ReactElement) option
 }
+
+let fromDiagram_ = Lens.create (fun n -> n.FromDiagram) (fun s n -> {n with FromDiagram = s})
+let fromSimulation_ = Lens.create (fun n -> n.FromSimulation) (fun s n -> {n with FromSimulation = s})
+let fromWaveSim_ = Lens.create (fun n -> n.FromWaveSim) (fun s n -> {n with FromWaveSim = s})
+let fromFiles_ = Lens.create (fun n -> n.FromFiles) (fun s n -> {n with FromFiles = s})
+let fromMemoryEditor_ = Lens.create (fun n -> n.FromMemoryEditor) (fun s n -> {n with FromMemoryEditor = s})
+let fromProperties_ = Lens.create (fun n -> n.FromProperties) (fun s n -> {n with FromProperties = s})
+
 
 type UserData = {
     /// Where to save the persistent app data
@@ -551,6 +555,13 @@ let sheet_ = Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
 let popupDialogData_ = Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_
+let notifications_ = Lens.create (fun a -> a.Notifications) (fun s a -> {a with Notifications = s})
+let project_ = Lens.create (fun a -> Option.get (a.CurrentProj)) (fun s a -> {a with CurrentProj = Some s})
+let projectOpt_ = Prism.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj =  a.CurrentProj |> Option.map (fun _ -> s)})
+let ldcM = project_ >-> loadedComponents_
+let ldcOptM = projectOpt_ >?> loadedComponents_
+let nameM = project_ >-> openFileName_
+let nameOptM = projectOpt_ >?> openFileName_
 
 
-    
+

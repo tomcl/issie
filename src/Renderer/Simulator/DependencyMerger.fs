@@ -50,10 +50,7 @@ let private getDependencyState
         | Some dep -> Ok dep.CanvasState
         | None ->
             Error
-                { Msg =
-                    sprintf
-                        "Could not resolve dependency: \"%s\". Make sure a dependency with such name exists in the current project."
-                        name
+                { ErrType = DependencyNotFound name
                   InDependency = None
                   ComponentsAffected = []
                   ConnectionsAffected = [] }
@@ -214,9 +211,8 @@ let private checkDependenciesAndBuildMap
             <| sprintf "Cycle must have at least 2 dependencies: %A" cycle
 #endif
             Error
-                { Msg =
-                    sprintf "Found a cycle in dependencies: %s."
-                    <| prettyPrintCycle cycle
+                { ErrType = CycleDetected (sprintf "Found a cycle in dependencies: %s."
+                    <| prettyPrintCycle cycle)
                   InDependency = None
                   ComponentsAffected = []
                   ConnectionsAffected = [] }

@@ -14,6 +14,19 @@ open DiagramStyle
 open ModelType
 open Sheet.SheetInterface
 
+open Optics.Optic
+open Optics.Operators
+
+let setSimulationNotificationF n model = model |> set (notifications_ >-> fromSimulation_) (Some n)
+let closeSimulationNotificationF n model = model |> set (notifications_ >-> fromSimulation_) None
+let setFilesNotificationF n model = model |> set (notifications_ >-> fromFiles_) (Some n)
+let closeFilesNotificationF n model = model |> set (notifications_ >-> fromFiles_) None
+let setMemoryEditorNotificationF n model = model |> set (notifications_ >-> fromMemoryEditor_) (Some n)
+let closeMemoryEditorNotificationF n model = model |> set (notifications_ >-> fromMemoryEditor_) None
+let setPropertiesNotificationF n model = model |> set (notifications_ >-> fromProperties_) (Some n)
+let closePropertiesNotificationF n model = model |> set (notifications_ >-> fromProperties_) None
+
+
 let errorNotification text closeMsg =
     fun dispatch ->
         let close = (fun _ -> dispatch closeMsg)
@@ -59,6 +72,12 @@ let displayAlertOnError (dispatch: Msg -> Unit) res =
     | Error e -> 
         dispatch <| SetFilesNotification (errorFilesNotification e)
     | _ -> ()
+
+let displayAlertOnErrorF res (model: Model) =
+    match res with
+    | Error e -> 
+        setFilesNotificationF (errorFilesNotification e) model
+    | _ -> model
 
 let viewNotifications model dispatch =
     let sheetNotifications =

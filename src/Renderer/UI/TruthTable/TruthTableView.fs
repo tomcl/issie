@@ -19,7 +19,7 @@ open JSHelpers
 open DrawHelpers
 open DiagramStyle
 open Notifications
-open PopupView
+open PopupHelpers
 open MemoryEditorView
 open ModelType
 open CommonTypes
@@ -62,11 +62,11 @@ let updateMergeSplitWireLabels (model: Model) dispatch =
         | MergeWires, "" | MergeWires, "L" ->
             let newLabel = sprintf "MW%i" mwIdx
             mwIdx <- mwIdx + 1
-            setComponentLabel model sheetDispatch c newLabel
+            FileMenuHelpers.setComponentLabel model sheetDispatch c newLabel
         | SplitWire _, "" | SplitWire _, "L" ->
             let newLabel = sprintf "SW%i" swIdx
             swIdx <- swIdx + 1
-            setComponentLabel model sheetDispatch c newLabel
+            FileMenuHelpers.setComponentLabel model sheetDispatch c newLabel
         | _ -> ())
 
 //-------------------------------------------------------------------------------------//

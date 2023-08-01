@@ -20,7 +20,7 @@ open ModelHelpers
 open CommonTypes
 open FilesIO
 open Extractor
-open PopupView
+open PopupHelpers
 open FileMenuView
 
 

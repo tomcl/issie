@@ -18,7 +18,7 @@ open JSHelpers
 open DrawHelpers
 open DiagramStyle
 open Notifications
-open PopupView
+open PopupHelpers
 open MemoryEditorView
 open ModelType
 open CommonTypes

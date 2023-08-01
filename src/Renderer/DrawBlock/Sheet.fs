@@ -57,10 +57,13 @@ let centreOfCanvas (model:Model) =
     {X=dim; Y=dim}
 
 /// Creates a command to Symbol
-let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (Wire (BusWireT.Symbol msg))
+let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (ModelType.Msg.Sheet (Wire (BusWireT.Symbol msg)))
 
 /// Creates a command to BusWire
-let wireCmd (msg: BusWireT.Msg) = Cmd.ofMsg (Wire msg)
+let wireCmd (msg: BusWireT.Msg) = Cmd.ofMsg (ModelType.Msg.Sheet (Wire msg))
+
+let sheetCmd (msg: SheetT.Msg) = Cmd.ofMsg (ModelType.Msg.Sheet msg)
+
 
 
 

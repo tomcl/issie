@@ -16,7 +16,7 @@ open ModelHelpers
 open CommonTypes
 open Extractor
 open CatalogueView
-open PopupView
+open PopupHelpers
 open FileMenuView
 open Sheet.SheetInterface
 open DrawModelType

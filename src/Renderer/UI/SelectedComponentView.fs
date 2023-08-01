@@ -15,7 +15,7 @@ open JSHelpers
 open ModelType
 open CommonTypes
 open MemoryEditorView
-open PopupView
+open PopupHelpers
 open Notifications
 open Sheet.SheetInterface
 open DrawModelType
@@ -224,7 +224,7 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
                 
                 (makePopupButton
                     "Memory Initial Data Source"
-                    (makeSourceMenu 
+                    (FileMenuHelpers.makeSourceMenu 
                         model
                         (model.Sheet.UpdateMemory sheetDispatch) 
                         compId 
@@ -497,7 +497,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
                 dispatch <| SetPropertiesNotification props
             else
                 model.Sheet.ChangeWidth sheetDispatch (ComponentId comp.Id) newWidth
-                let text' = match comp.Type with | BusSelection _ -> text | _ -> formatLabelAsBus newWidth text
+                let text' = match comp.Type with | BusSelection _ -> text | _ -> FileMenuHelpers.formatLabelAsBus newWidth text
                 //SetComponentLabelFromText model comp text' // change the JS component label
                 let lastUsedWidth = 
                     match comp.Type with 
@@ -970,7 +970,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         dispatch <| SetPopupDialogBadLabel (true)
                         dispatch <| SetPopupDialogText (Some text)
                     | Ok label -> 
-                        setComponentLabel model sheetDispatch comp label
+                        FileMenuHelpers.setComponentLabel model sheetDispatch comp label
                         dispatch <| SetPopupDialogText (Some label)
                         dispatch <| SetPopupDialogBadLabel (false)
                     dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component

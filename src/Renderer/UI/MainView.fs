@@ -379,7 +379,7 @@ let displayView model dispatch =
         FileMenuView.viewNoProjectMenu model dispatch
         
         
-        PopupView.viewPopup model dispatch 
+        PopupHelpers.viewPopup model dispatch 
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model dispatch

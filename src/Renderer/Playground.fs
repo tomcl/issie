@@ -1,7 +1,7 @@
 ﻿module Playground
 
 module TestFonts =
-    open PopupView
+    open PopupHelpers
     open ModelType
     open EEExtensions
     open Fulma

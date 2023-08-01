@@ -20,7 +20,7 @@ open CommonTypes
 open FilesIO
 open Extractor
 open Notifications
-open PopupView
+open PopupHelpers
 open DrawModelType
 open Sheet.SheetInterface
 
@@ -1245,7 +1245,7 @@ let viewTopMenu model dispatch =
                       Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button 
-                                    [ Button.OnClick(fun _ -> PopupView.viewInfoPopup dispatch) 
+                                    [ Button.OnClick(fun _ -> PopupHelpers.viewInfoPopup dispatch) 
                                       Button.Color IsInfo
                                     ] 
                                     [ str "Info" ] 

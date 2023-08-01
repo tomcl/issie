@@ -14,7 +14,7 @@ open Fable.React.Props
 open DiagramStyle
 open ModelType
 open CommonTypes
-open PopupView
+open PopupHelpers
 open Sheet.SheetInterface
 open DrawModelType
 open FilesIO

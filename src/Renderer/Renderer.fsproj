@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
@@ -64,7 +64,7 @@
 	<!-- Draw Block -->
 	<Compile Include="DrawBlock\BlockHelpers.fs" />
     <Compile Include="DrawBlock\SymbolHelpers.fs" />
-    <Compile Include="DrawBlock\PopupDrawingView.fs" />
+    <Compile Include="DrawBlock\PopupHelpers.fs" />
     <Compile Include="DrawBlock\Symbol.fs" />
 	<Compile Include="DrawBlock\SymbolView.fs" />
 	<Compile Include="DrawBlock\SymbolUpdatePortHelpers.fs" />
@@ -87,7 +87,6 @@
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI\Style.fs" />
     <Compile Include="UI\Notifications.fs" />
-    <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI\MemoryEditorView.fs" />
     <Compile Include="UI\FileMenuHelpers.fs" />
     <Compile Include="UI\FileMenuView.fs" />

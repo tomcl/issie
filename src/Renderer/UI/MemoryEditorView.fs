@@ -15,7 +15,7 @@ open NumberHelpers
 open JSHelpers
 open CommonTypes
 open ModelType
-open PopupView
+open PopupHelpers
 open Notifications
 open DrawModelType
 open Sheet.SheetInterface

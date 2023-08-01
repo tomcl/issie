@@ -17,7 +17,7 @@ open ModelHelpers
 open CommonTypes
 open Extractor
 open CatalogueView
-open PopupView
+open PopupHelpers
 open FileMenuView
 open Sheet.SheetInterface
 open DrawModelType
@@ -208,7 +208,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         mapOverProject () model (fun p ->
             let sheet = p.OpenFileName
             let fPath = FilesIO.pathJoin [|p.ProjectPath ; sheet|]
-            PopupView.choicePopup
+            PopupHelpers.choicePopup
                 "Verilog Output"
                 (verilogOutputPage sheet fPath)
                 "Write Synthesis Verilog"
@@ -317,9 +317,8 @@ let getLastMouseMsg msgQueue =
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
 
 let sheetMsg sMsg model = 
-    let sModel, sCmd = SheetUpdate.update sMsg model.Sheet
-    let newModel = { model with Sheet = sModel} 
-    {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
+    let sModel, sCmd = SheetUpdate.update sMsg model
+    {sModel with SavedSheetIsOutOfDate = findChange sModel}, sCmd
 
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
@@ -854,11 +853,9 @@ let update (msg : Msg) oldModel =
     | ChangeBuildTabVisibility ->
         {model with BuildVisible = (not <| model.BuildVisible)}, Cmd.none
     | SetHighlighted (componentIds, connectionIds) ->
-        let sModel, sCmd = SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
-        {model with Sheet = sModel}, Cmd.map Sheet sCmd
+        SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model
     | SetSelWavesHighlighted connIds ->
-        let wModel, wCmd = SheetUpdate.update (SheetT.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
-        {model with Sheet = wModel}, Cmd.map Sheet wCmd
+        SheetUpdate.update (SheetT.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project ->
@@ -873,7 +870,7 @@ let update (msg : Msg) oldModel =
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ShowStaticInfoPopup(title, body, dispatch) ->
         let foot = div [] []
-        PopupView.closablePopup title body foot [Width 800] dispatch
+        PopupHelpers.closablePopup title body foot [Width 800] dispatch
         model, Cmd.none
     | ClosePopup ->
         { model with

@@ -24,13 +24,13 @@ module node = Node.Api
 importReadUart
 
 /// Update Function
-let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
+let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<ModelType.Msg> =
     /// check things that might not have been correctly completed in the last update and if so do them
     /// Mostly thsi is a hack to deal with the fact that dependent state is held separately rather than
     /// being derived fucntionally from the state it depends on, so it muts be explicitly updated.
     /// TODO: add something to check whether wires need updating
-
-    let postUpdateChecks (model: Model) =
+    let model = issieModel.Sheet
+    let postUpdateChecks (model: Model) : Model=
         // Executed every update so performance is important.
         // Since normally state will be correct it is only necessary to make the checking
         // fast.
@@ -45,17 +45,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         else
                             Optic.set boundingBoxes_ (Symbol.getBoundingBoxes sModel) model))
         |> ensureCanvasExtendsBeyondScreen
+
                                 
     match msg with
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
         // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
         // is used so that a symbol message can be intercepted by sheet and used there.
         model, Cmd.batch [
-                Cmd.ofMsg UpdateBoundingBoxes; 
+                sheetCmd UpdateBoundingBoxes; 
                 ]
     | Wire wMsg ->
-        let wModel, wCmd = BusWireUpdate.update wMsg model.Wire
-        { model with Wire = wModel }, Cmd.map Wire wCmd
+        let wModel, (wCmd) = BusWireUpdate.update wMsg model.Wire
+        { model with Wire = wModel }, Cmd.map (Msg.Wire >> ModelType.Msg.Sheet) wCmd
     | ToggleGrid ->
         {model with ShowGrid = not model.ShowGrid}, Cmd.none
     | KeyPress DEL ->
@@ -69,11 +70,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model ; RedoList = [] },
         Cmd.batch [ wireCmd (BusWireT.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
                     symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
-                    Cmd.ofMsg UpdateBoundingBoxes
+                    sheetCmd UpdateBoundingBoxes
                   ]
     | KeyPress CtrlS -> // For Demo, Add a new square in upper left corner
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
-        Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes; symbolCmd SymbolT.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
+        Cmd.batch [ sheetCmd UpdateBoundingBoxes; symbolCmd SymbolT.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
     // HLP 23: AUTHOR Khoury & Ismagilov
     // Gets bounding box dimentions and creates the necessary symbol buttons
     | DrawBox ->
@@ -121,7 +122,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                      SelectedWires = pastedConnIds
                      TmpModel = Some model
                      Action = DragAndDrop },
-        Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes
+        Cmd.batch [ sheetCmd UpdateBoundingBoxes
                     symbolCmd (SymbolT.SelectSymbols []) // Select to unhighlight all other symbols
                     symbolCmd (SymbolT.PasteSymbols pastedCompIds)
                     wireCmd (BusWireT.SelectWires [])
@@ -137,7 +138,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                          Action = Idle },
             Cmd.batch [ symbolCmd (SymbolT.DeleteSymbols (model.SelectedComponents))
                         wireCmd (BusWireT.DeleteWires model.SelectedWires)
-                        Cmd.ofMsg UpdateBoundingBoxes
+                        sheetCmd UpdateBoundingBoxes
                       ]
         | _ -> model, Cmd.none
 
@@ -169,8 +170,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             model', 
             Cmd.batch 
                 [
-                    Cmd.ofMsg (UpdateScrollPos paras.Scroll)
-                    Cmd.ofMsg UpdateBoundingBoxes
+                    sheetCmd (UpdateScrollPos paras.Scroll)
+                    sheetCmd UpdateBoundingBoxes
                 ]
     
 
@@ -252,7 +253,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 }
             let cmd =
                 if model.AutomaticScrolling then
-                    Cmd.ofMsg CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
+                    sheetCmd CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
                 else
                     Cmd.none
             //Sheet.writeCanvasScroll scrollPos            
@@ -266,7 +267,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress ZoomIn ->
         let oldScreenCentre = getVisibleScreenCentre model
         { model with Zoom = min Constants.maxMagnification (model.Zoom*Constants.zoomIncrement) }, 
-        Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
+        sheetCmd (KeepZoomCentered oldScreenCentre)
 
     // Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomOut ->
@@ -280,7 +281,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let oldScreenCentre = getVisibleScreenCentre model
 
         { model with Zoom = newZoom }, 
-        Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
+        sheetCmd (KeepZoomCentered oldScreenCentre)
 
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
@@ -299,13 +300,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             match Set.contains "CONTROL" newPressedKeys || Set.contains "META" newPressedKeys with
             | true ->
                 if Set.contains "C" newPressedKeys then
-                    Cmd.ofMsg (KeyPress CtrlC)
+                    sheetCmd (KeyPress CtrlC)
                 elif Set.contains "V" newPressedKeys then
-                    Cmd.ofMsg (KeyPress CtrlV)
+                    sheetCmd (KeyPress CtrlV)
                 elif Set.contains "A" newPressedKeys then
-                    Cmd.ofMsg (KeyPress CtrlA)
+                    sheetCmd (KeyPress CtrlA)
                 elif Set.contains "W" newPressedKeys then
-                    Cmd.ofMsg (KeyPress CtrlW)
+                    sheetCmd (KeyPress CtrlW)
                 else
                     Cmd.none
             | false -> Cmd.none
@@ -359,9 +360,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     mDragUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Drag}                               
                 | _ ->
                     { model with AutomaticScrolling = true }, Cmd.none
-            let notAutomaticScrolling msg = match msg with | CheckAutomaticScrolling -> false | _ -> true
+            let notAutomaticScrolling msg = match msg with | ModelType.Sheet CheckAutomaticScrolling -> false | _ -> true
             // Don't want to go into an infinite loop (program would crash), don't check for automatic scrolling immediately (let it be handled by OnScroll listener).
-            let filteredOutputCmd = Cmd.map (fun msg -> if notAutomaticScrolling msg then msg else DoNothing) outputCmd
+            let filteredOutputCmd = Cmd.map (fun msg ->
+                if notAutomaticScrolling msg then msg else ModelType.Sheet DoNothing) outputCmd
             // keep model ScrollPos uptodate with real scrolling position
             let outputModel = {outputModel with ScreenScrollPos = {X = canvas.scrollLeft; Y = canvas.scrollTop}}
 
@@ -425,15 +427,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         Cmd.batch [
                             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                             wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-                            Cmd.ofMsg DrawBox
-                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                            sheetCmd DrawBox
+                            sheetCmd SheetT.UpdateBoundingBoxes
                         ]
                  | _ -> 
                     {newModel with ErrorComponents = errorComponents; Action = Idle;},
                         Cmd.batch [
                             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                             wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-                            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                            sheetCmd SheetT.UpdateBoundingBoxes
                         ]
             | _ ->
                 {newModel with ErrorComponents = errorComponents; Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}},
@@ -441,7 +443,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
                         symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                         wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-                        Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                        sheetCmd SheetT.UpdateBoundingBoxes
                     ]
 
     
@@ -470,7 +472,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         Cmd.batch [
             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
             wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-            Cmd.ofMsg SheetT.UpdateBoundingBoxes
+            sheetCmd SheetT.UpdateBoundingBoxes
         ]
 
     | SaveSymbols ->
@@ -562,7 +564,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 List.append cIds model.PrevWireSelection
         {model with SelectedWires = newWires}, 
         Cmd.batch [
-            Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.SkyBlue)); 
+            sheetCmd (ColourSelection([], newWires, HighLightColor.SkyBlue)); 
             wireCmd (BusWireT.SelectWires newWires)]
     | SetSpinner isOn ->
         if isOn then {model with CursorType = Spinner}, Cmd.none
@@ -580,7 +582,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             }
             DebugIsConnected = false
             DebugState = match profile with | Verilog.Debug -> Paused | Verilog.Release -> NotDebugging
-        }, Cmd.ofMsg (StartCompilationStage (Synthesis, path, name, profile))
+        }, sheetCmd (StartCompilationStage (Synthesis, path, name, profile))
     | StartCompilationStage (stage, path, name, profile) ->
         printfn "are we compiling? %A" model.Compiling
         printfn "do we have process? %A" (model.CompilationProcess |> Option.map (fun c -> c.pid))
@@ -630,6 +632,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             //printfn "child pid: %A" child.pid
 
             let startComp dispatch =
+                let dispatchS msg = dispatch (ModelType.Sheet msg)
                 printf "starting stage %A" stage
                 Async.StartImmediate(async {
                 let exit_code = ref 0
@@ -647,19 +650,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     while keepGoing.Value do
                         do! Async.Sleep 1000
                         printf "state of child: %A" keepGoing.Value
-                        dispatch <| TickCompilation child.pid
+                        dispatchS <| TickCompilation child.pid
                 finally
                     printf "Child finished with exit code: %i" exit_code.Value
                     if exit_code.Value = 0 then
-                        dispatch <| FinishedCompilationStage
+                        dispatchS <| FinishedCompilationStage
                         match stage with
-                        | Synthesis -> dispatch <| StartCompilationStage (PlaceAndRoute, path, name, profile)
-                        | PlaceAndRoute -> dispatch <| StartCompilationStage (Generate, path, name, profile)
-                        | Generate -> dispatch <| StartCompilationStage (Upload, path, name, profile)
-                        | Upload when profile = Verilog.Debug-> dispatch <| DebugConnect
+                        | Synthesis -> dispatchS <| StartCompilationStage (PlaceAndRoute, path, name, profile)
+                        | PlaceAndRoute -> dispatchS <| StartCompilationStage (Generate, path, name, profile)
+                        | Generate -> dispatchS <| StartCompilationStage (Upload, path, name, profile)
+                        | Upload when profile = Verilog.Debug-> dispatchS <| DebugConnect
                         | _ -> ()
                     else
-                        dispatch <| StopCompilation
+                        dispatchS <| StopCompilation
                 })
 
             {model with CompilationProcess = Some child}, Cmd.ofSub <| startComp
@@ -742,7 +745,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             |0 -> (Array.length model.DebugMappings) / 8 
             |_ ->  (Array.length model.DebugMappings) / 8 + 1
         
-        model, Cmd.ofMsg (DebugStepAndRead viewerNo)
+        model, sheetCmd (DebugStepAndRead viewerNo)
     | DebugStepAndRead n ->
         //printfn "reading"
         
@@ -758,7 +761,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     v
                     |> Array.iteri (fun i reading -> 
                         //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
-                        dispatch <| (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
+                        dispatch <| ModelType.Sheet (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
                     ) 
                 ) |> ignore
                     
@@ -783,7 +786,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     v
                     |> Array.iteri (fun i reading -> 
                         //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
-                        dispatch <| (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
+                        dispatch <| ModelType.Sheet (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
                     ) 
                 ) |> ignore
                     
@@ -808,7 +811,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
                 let c = simpleConnect()
                 c.``then``(fun v -> 
-                    dispatch <| (DebugRead viewers)
+                    dispatch <| ModelType.Sheet (DebugRead viewers)
                 )|> ignore
                     
                 keepGoing.Value <- false
@@ -856,7 +859,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | _ ->  (Array.length model.DebugMappings) / 8 + 1
         
         
-        {model with DebugState = Paused}, Cmd.ofMsg (DebugStepAndRead viewerNo)
+        {model with DebugState = Paused}, sheetCmd (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
 
@@ -899,7 +902,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             Cmd.batch [
                     symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                     wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-                    Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                    sheetCmd SheetT.UpdateBoundingBoxes
             ]
 
 
@@ -954,7 +957,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         Cmd.batch [
                                 symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                                 wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
-                                Cmd.ofMsg SheetT.UpdateBoundingBoxes
+                                sheetCmd SheetT.UpdateBoundingBoxes
                         ]
                 | _ ->  model,Cmd.none
 
@@ -968,6 +971,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
+    |> (fun (model, (cmd: Cmd<ModelType.Msg>)) -> {issieModel with Sheet = model}, cmd)
 
 
 /// Init function
@@ -1031,7 +1035,7 @@ let init () =
                 RotateCWButton = None;
                 RotateACWButton = None;}
         ButtonList =[]
-    }, Cmd.none
+    }, (Cmd.none: Cmd<ModelType.Msg>)
 
 
 

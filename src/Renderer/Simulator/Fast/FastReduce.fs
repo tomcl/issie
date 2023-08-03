@@ -798,7 +798,10 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let a = insUInt32 0
         let w = comp.InputWidth 0
         let minusOne = (1u <<< w) - 1u
-        let res = minusOne - a
+        let res = 
+            match w with 
+            | 32 -> minusOne - a - 1u
+            | _ -> minusOne - a
         putUInt32 0 res
     | NbitsNot numberOfBits, true ->
         let a = insBigInt 0

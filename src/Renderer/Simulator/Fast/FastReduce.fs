@@ -796,7 +796,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         putBigInt 0 res
     | NbitsNot numberOfBits, false ->
         let a = insUInt32 0
-        let res = ~~~a
+        let w = comp.InputWidth 0
+        let minusOne = (1u <<< w) - 1u
+        let res = 
+            match w with 
+            | 32 -> ~~~a
+            | _ -> minusOne &&& (~~~a)
         putUInt32 0 res
     | NbitsNot numberOfBits, true ->
         let a = insBigInt 0
@@ -804,8 +809,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         // BigWord (System.Numerics.BigInteger.op_OnesComplement a)  FIX: 2^n-1-a
         let w = comp.InputWidth 0
         // (bigint^w)
-        let (minusOne: bigint) = ((bigint 2) <<< w) - (bigint 1)
-        let res = minusOne - a
+        let mask = ((bigint 1) <<< w) - (bigint 1)
+        let res = mask - (a &&& mask)
         putBigInt 0 res
 
     | NbitSpreader numberOfBits, false ->

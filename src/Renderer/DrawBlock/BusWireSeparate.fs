@@ -101,7 +101,7 @@ let bBoxToLines (ori: Orientation) (box: BoundingBox) : Line list =
               { MinB = minB + smallOffset
                 MaxB = maxB - smallOffset }
             Orientation = ori
-            LType = FIXED
+            LType = BARRIER
             Seg1 = None
             SameNetLink = []
             Wid = ConnectionId ""
@@ -114,12 +114,17 @@ let bBoxToLines (ori: Orientation) (box: BoundingBox) : Line list =
 let linkSameNetLines (lines: Line list) : Line list =
     /// input: list of lines all in the same Net (same outputPort)
     /// output: similar list, with lines that are on top of each other and in different wires linked
+    let overlaps = hasNearOverlap separateCaptureOverlap
     let linkSameNetGroup (lines: Line list) =
         let lines = List.toArray lines
+        //printf $"Linking {pLines lines}"
         /// if needed, link lines[b] to lines[a] mutating elements in lines array for efficiency
+        /// linkSameNetLines therefore mutates its input!
+        let hasLinkedOverlap (la: Line) (lb:Line) =
+            overlaps la.B lb.B || List.exists (fun l -> overlaps lb.B l.B) la.SameNetLink
         let tryToLink (a:int) (b:int) =
             let la, lb = lines[a], lines[b]
-            if la.LType = NORMSEG && la.Wid <> lb.Wid && close la.P lb.P && hasOverlap la.B lb.B  then
+            if (la.LType = NORMSEG || la.LType = FIXEDMANUALSEG || la.LType = FIXEDSEG ) && lb.LType <> FIXEDMANUALSEG && lb.LType <> FIXEDSEG && la.Wid <> lb.Wid && close la.P lb.P && hasLinkedOverlap la lb  then
                 lines[b] <- 
                     { lb with
                         LType = LINKEDSEG}
@@ -130,7 +135,7 @@ let linkSameNetLines (lines: Line list) : Line list =
         // in this loop the first lines[a] in each linkable set links all the set, setting ClusterSegment = false
         // Linked lines are then skipped.
         for a in [0..lines.Length-1] do
-            for b in [a+1..lines.Length-1] do
+            for b in [0..lines.Length-1] do
                 tryToLink a b
         Array.toList lines
 
@@ -174,7 +179,7 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
                         NORMSEG
                 segmentToLine lType ori wire aSeg)
             |> (fun wireLines -> wireLines @ lines))
-            //|> linkSameNetLines
+            |> linkSameNetLines
 
     /// Lines coming from the bounding boxes of symbols
     let symLines =
@@ -332,7 +337,7 @@ let expandCluster (index: int) (searchDir: LocSearchDir) (lines: Line array) =
         else
             let p = lines[i].P
             match lines[i].LType with
-            | FIXED | FIXEDMANUALSEG | FIXEDSEG ->
+            | BARRIER | FIXEDMANUALSEG | FIXEDSEG ->
                 let p = lines[i].P
                 match searchDir with
                 | Upwards -> { loc with UpperFix = Some p }
@@ -661,7 +666,7 @@ let checkExtensionNoCrossings
             true
         else  
             let b = otherLine.B; 
-            if lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = FIXED) then
+            if lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = BARRIER) then
                 check (i+1)
             else
             //printf $"cross: {pLine lines[i]} p={p} b={b}"
@@ -877,8 +882,8 @@ let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orienta
 /// wiresToRoute: set of wires to have segments separated and ordered
 let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
 
-        // Currently: separate all wires - not just those (in wiresToRoute0 that have been
-        // have changed. this prevents unrouted segments from pinning new segments.
+        // Currently: separate all wires - not just those (in wiresToRoute) that
+        // have changed. This prevents unrouted segments from pinning new segments.
         // TODO: see whetehr something better can be worked out,a nd whetehr routing segments
         // can be done interactively.
         let wiresToRoute = model.Wires |> Map.keys |> Seq.toList

@@ -263,7 +263,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     failwithf "what? output PortNumber is greater than number of output port names on component"
                 else
                     let offset = hostComponent.InputPorts.Length
-                    lst[offset+pn]//hostComponent.Label + "." + lst[offset+pn]
+                    lst[pn]//hostComponent.Label + "." + lst[offset+pn]
 
     // Check for cases where a component has two connections connected to its output port,
     // with both of these connection selected, but not the components on the other side of

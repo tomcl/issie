@@ -201,11 +201,19 @@ let logSegmentsInModel (model: Model) (wireSegmentIdPairs: (int*ConnectionId) li
 
 /// Given the coordinates of two port locations that correspond
 /// to the endpoints of a wire, as well as the final port orientation 
-/// this function returns a list of wire vertices
+/// this function returns a list of wire vertices.
+/// The starting segment will always be from a Right Edge (and so in increasing X direction)
 let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (portOrientation : Edge) = 
     let xStart, yStart, xEnd, yEnd = wireStartPos.X, wireStartPos.Y, wireEndPos.X, wireEndPos.Y
 
-    let nubLength = Constants.nubLength
+    let nubLength =
+        let xDelta = xEnd - xStart
+        let yDelta = abs (yEnd - yStart)
+        match portOrientation with
+        | CommonTypes.Edge.Left when xDelta > 0 -> min nubLength (xDelta / 2.)
+        | CommonTypes.Edge.Top
+        | CommonTypes.Edge.Bottom when xDelta > 0 -> min nubLength xDelta
+        | _ -> nubLength
     /// This is a fixed-length horizontal stick with a zero-length vertical after it.
     /// It starts nearly all the wires
     let rightNub = [
@@ -213,7 +221,7 @@ let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (por
             {X = xStart+nubLength; Y = yStart}; //Stick horizontal
             {X = xStart+nubLength; Y = yStart}; //Length 0 vertical
         ]
-    let rightwards = xStart - xEnd + 20. < 0
+    let rightwards = xStart - xEnd  < 0
     let downwards = yStart - yEnd  < 0
     match rightwards, downwards with //add 20 to prevent issues in the case that the ports are directly on in line with one another
     | true, true ->
@@ -347,6 +355,7 @@ let xyVerticesToSegments connId (xyVerticesList: XYPos list) =
 /// Given the coordinates of two port locations that correspond
 /// to the endpoints of a wire, as well as the orientation of the final port
 /// this function returns a list of Segment(s).
+/// The starting segment will always be from a Right Edge (and so in increasing X direction)
 let makeInitialSegmentsList 
         (hostId : ConnectionId) 
         (startPos : XYPos) 

@@ -117,6 +117,7 @@ module Constants =
     let overlapTolerance = 2.
     /// corners with max length edge larger than this are not removed
     let separateCaptureOverlap = 6. // Larger than as overlapTolerance, smaller than minSegmentSeparation
+    let minWireLengthToSeparate = 10. // prevents short wires being squiggly
     let maxCornerSize = 100.
     /// How close are segment extensions caused by corner removal allowed to
     /// get to other elements? Maybe needs to be smaller than some otehr things for

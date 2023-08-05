@@ -516,7 +516,7 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
 
     let initialWire = (autoroute model wire)
-
+    
     // Snapping to Net only if model.SnapToNet toggled to be true
     let snappedToNetWire =
         match model.SnapToNet with
@@ -533,6 +533,7 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
             tryShiftHorizontalSeg maxCallsToShiftHorizontalSeg model intersectedBoxes snappedToNetWire
         )
         |> Option.defaultValue snappedToNetWire
+   
 
 
 //-----------------------------------------------------------------------------------------------------------//

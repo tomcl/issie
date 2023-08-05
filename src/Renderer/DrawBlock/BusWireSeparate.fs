@@ -150,7 +150,8 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
     /// Which segments in wires are included as Lines?
     let selectSegments (wire: Wire) (orient: Orientation) (seg: Segment) =
         let numSegs = wire.Segments.Length
-        ori = orient && seg.Index <> 0 && seg.Index <> numSegs - 1 && not (seg.IsZero()) //|| (segN -1).IsZero() || (segN 1).IsZero())
+        let wireLength = euclideanDistance wire.StartPos wire.EndPos
+        ori = orient && seg.Index <> 0 && seg.Index <> numSegs - 1 && not (seg.IsZero()) && wireLength > minWireLengthToSeparate
 
     /// Lines coming from wire segments
     /// Manually routed segments are considered fixed
@@ -169,7 +170,6 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
                     match wireIsRoutable, seg.Mode, seg.Index=2, seg.Index=segs.Length-3 with
                     | _, Manual , _ , _
                     | false, _, _, _ ->
-                        //printf $"\n**Wire {pWire wire} is manual**\n"
                         FIXEDMANUALSEG
                     | _, _ , true , _ when segs[ 1 ].IsZero() -> 
                         FIXEDSEG
@@ -881,7 +881,6 @@ let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orienta
 /// Perform complete wire segment separation and ordering for all orientations.
 /// wiresToRoute: set of wires to have segments separated and ordered
 let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
-
         // Currently: separate all wires - not just those (in wiresToRoute) that
         // have changed. This prevents unrouted segments from pinning new segments.
         // TODO: see whetehr something better can be worked out,a nd whetehr routing segments

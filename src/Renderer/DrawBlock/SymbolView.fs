@@ -65,7 +65,7 @@ let addStyledText (style:Text) (pos: XYPos) (name: string) =
 let inline private portCircles (pos: XYPos) (show:ShowPorts)= 
     let circle = 
         match show with
-        |ShowBothForPortMovement |ShowOneTouching _ -> {portCircle with Fill="DodgerBlue";}
+        |ShowBothForPortMovement |ShowOneTouching _ -> {portCircle with Fill="SkyBlue";}
         |ShowOneNotTouching _ -> {portCircle with Fill="Red"}
         |ShowTarget -> portCircleTarget
         |_ -> portCircle
@@ -103,8 +103,14 @@ let drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symb
 let drawPorts (portType: PortType) (portList: Port List) (showPorts:ShowPorts) (symb: Symbol)= 
     if not (portList.Length < 1) then       
         match (showPorts,portType) with
-        |(ShowBoth,_) |(ShowInput,PortType.Input) |(ShowOutput,PortType.Output) | (ShowBothForPortMovement,_) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) showPorts ))  
-        |(ShowOneTouching p, _) | (ShowOneNotTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x]) (showPorts) ) else (portCircles (getPortPosToRender symb portList[x]) ShowBothForPortMovement ))
+        | (ShowBoth,_)
+        | (ShowInput,PortType.Input)
+        | (ShowOutput,PortType.Output)
+        | (ShowBothForPortMovement,_) ->
+            [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) showPorts ))  
+        | (ShowOneTouching p, _)
+        | (ShowOneNotTouching p, _) ->
+            [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x]) (showPorts) ) else (portCircles (getPortPosToRender symb portList[x]) ShowBothForPortMovement ))
         |(_,_) -> []
     else []
 
@@ -619,4 +625,5 @@ let init () =
         Symbols = Map.empty; CopiedSymbols = Map.empty
         Ports = Map.empty ; InputPortsConnected= Set.empty
         OutputPortsConnected = Map.empty; Theme = Colourful
+        HintPane = None
     }, Cmd.none

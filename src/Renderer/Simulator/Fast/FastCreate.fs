@@ -5,6 +5,7 @@ open TimeHelpers
 open SimulatorTypes
 open SynchronousUtils
 open NumberHelpers
+open Helpers
 
 //------------------------------------------------------------------------------//
 //------------Functions To Create Fast Simulation Data Structures---------------//

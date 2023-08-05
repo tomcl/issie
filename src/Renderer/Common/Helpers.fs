@@ -575,5 +575,40 @@ module ReduceKeys =
         Optic.map loadedComponents_ updateLdc p
 
             
+//------------------------------------------------------------------------------------//
+//---------------------------Low Level Component Helpers------------------------------//
+let isInput =
+    function
+    | Input1 _ -> true
+    | _ -> false
 
+let isOutput =
+    function
+    | Output _ -> true
+    | _ -> false
+
+let isViewer =
+    function
+    | Viewer _ -> true
+    | _ -> false
+
+let isCustom =
+    function
+    | Custom _ -> true
+    | _ -> false
+
+let isIOLabel =
+    function
+    | IOLabel _ -> true
+    | _ -> false
+
+let getCustomName =
+    function
+    | Custom custom -> custom.Name
+    | _ -> failwithf "what? getCustomName should only be called with custom components"
+
+let getCustomComponentType =
+    function
+    | Custom custom -> custom
+    | _ -> failwithf "what? getCustomComponentType should only be called with custom components"
                     

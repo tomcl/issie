@@ -11,6 +11,7 @@ module SimulationGraphAnalyser
 open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
+open Helpers
 
 type private DfsType =
     // No cycle detected in the subtree. Return the new visited set and keep

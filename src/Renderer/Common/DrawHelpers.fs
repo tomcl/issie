@@ -172,7 +172,7 @@ let portCircleTarget= { defaultCircle with R = 8.0; Stroke = "DodgerBlue"; Strok
 
 /// HLP23 AUTHOR: BRYAN TAN
 /// Custom component corner circle
-let cornerCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "1.0px"; Fill = "DodgerBlue"}
+let cornerCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "1.0px"; Fill = "Red"}
 
 
 //--------------------------------------------------------------------------//

@@ -41,7 +41,7 @@ let showSymbolBothForPortMovementPorts _ sym =
     set (appearance_ >-> showPorts_) ShowBothForPortMovement sym 
 
 let hideSymbolPorts _ sym = 
-    set (appearance_ >-> showPorts_) ShowNone sym 
+    set (appearance_ >-> showPorts_) ShowNone sym
 
 let showSymbolPorts sym =
     set (appearance_ >-> showPorts_) ShowBoth sym 
@@ -78,7 +78,7 @@ let inline deleteAllPorts (model: Model) =
         model.Symbols
         |> Map.map hideSymbolPorts
 
-    { model with Symbols = updatedSymbols}
+    { model with Symbols = updatedSymbols; HintPane = None}
 
 /// Given a model it shows all the specified components' ports and hides all the other ones
 let inline showPorts (model: Model) compList =
@@ -93,11 +93,16 @@ let inline showPorts (model: Model) compList =
             prevSymbols |>
             Map.add sId (showSymbolPorts resetSymbols[sId])
 
+    let customHint =
+        match List.exists (fun cId -> Helpers.isCustom model.Symbols[cId].Component.Type) compList with
+        | true -> Some Constants.customComponentHint
+        | false -> None
+
     let newSymbols =
         (resetSymbols, compList)
         ||> List.fold addUpdatedSymbol
 
-    { model with Symbols = newSymbols }
+    { model with Symbols = newSymbols ; HintPane = customHint}
 
 
 /// Given a model it shows only the custom components of all the specified components' ports and hides all the other ones
@@ -109,13 +114,13 @@ let inline showCustomPorts (model: Model) compList =
 
     let addUpdatedSymbol prevSymbols sId =
         match resetSymbols[sId].Component.Type with
-        | Custom _ -> prevSymbols |> Map.add sId (showSymbolPorts resetSymbols[sId])
+        | Custom _ -> prevSymbols |> Map.add sId (showSymbolBothForPortMovementPorts sId resetSymbols[sId])
         | _ -> prevSymbols
     let newSymbols =
         (resetSymbols, compList)
         ||> List.fold addUpdatedSymbol
 
-    { model with Symbols = newSymbols }
+    { model with Symbols = newSymbols}
 
 
 let moveCustomPortsPopup() : ReactElement =
@@ -144,7 +149,7 @@ let moveCustomPortsPopup() : ReactElement =
                                         a port to another position on the outline of the symbol."] 
                             li [] [str "You can reorder ports and place them on any symbol edge including top and bottom." ]           
                             li [] [str "The symbol will resize itself if you change the edge of a port."]
-                            li [] [str "If default sizing makes port legends overlap you can scale custom component width and height in Properties"]
+                            li [] [str "If default sizing makes port legends overlap you can scale the custom component dragging its corners"]
                         ]
                 ]
             ]

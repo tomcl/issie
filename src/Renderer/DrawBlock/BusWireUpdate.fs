@@ -77,13 +77,17 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 InitialOrientation = Horizontal
             }
             |> smartAutoroute model
+
+        if Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) model.Wires then
+            // wire already exists
+            model, Cmd.none
+        else       
+            let newModel = 
+                model
+                |> Optic.set (wireOf_ newWire.WId) newWire
+                |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
         
-        let newModel = 
-            model
-            |> Optic.set (wireOf_ newWire.WId) newWire
-            |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
-        
-        newModel, Cmd.ofMsg BusWidths
+            newModel, Cmd.ofMsg BusWidths
     | AddNotConnected (ldcs, port, pos) ->
         let (newSymModel, ncID) = SymbolUpdate.addSymbol ldcs model.Symbol pos NotConnected ""
         let ncPortId = newSymModel.Symbols[ncID].Component.InputPorts[0].Id

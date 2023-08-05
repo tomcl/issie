@@ -62,6 +62,8 @@ module Constants =
     /// Small manual correction added to claculated position for placing labels.
     /// Used to make labels equidistant on all sides of symbol.
     let labelCorrection = {X= 0.; Y= 0.}
+
+    let customComponentHint = div [] [str "Press Ctrl and drag to"; br []; str "move ports or resize symbol"]
     
     
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.

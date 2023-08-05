@@ -1242,15 +1242,27 @@ let viewTopMenu model dispatch =
                                         saveOpenFileActionWithModelUpdate model dispatch |> ignore
                                         dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
-                      Navbar.End.div []
+                      Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Button.button 
                                     [ Button.OnClick(fun _ -> PopupHelpers.viewInfoPopup dispatch) 
                                       Button.Color IsInfo
                                     ] 
                                     [ str "Info" ] 
-                                  // add space padding on RH of navbar to improve top bar formatting
-                                  // this is a bit of a hack - but much easier than matching styles
-                                  Text.div 
-                                    [Props [Style [PaddingRight "7000px"]]] [str ""]
-                                ] ] ] ] ]
+                                  
+                                ]
+                            ]
+                      Navbar.End.div []
+                        [ Navbar.Item.div []
+                                [
+                                    Button.button [Button.IsGhost]
+                                        [
+                                            Option.defaultValue (str "") model.Sheet.Wire.Symbol.HintPane
+                                        ]
+                                    // add space padding on RH of navbar to improve top bar formatting
+                                    // this is a bit of a hack - but much easier than matching styles                                 
+                                    Text.div 
+                                      [Props [Style [PaddingRight "7000px"]]] [str ""]
+                                ]
+                                
+                          ] ] ] ]

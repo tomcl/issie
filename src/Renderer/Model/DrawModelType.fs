@@ -212,6 +212,8 @@ module SymbolT =
         OutputPortsConnected: Map<OutputPortId, int>
 
         Theme: ThemeType
+
+        HintPane: ReactElement option
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -266,6 +268,7 @@ module SymbolT =
     let symbols_ = Lens.create (fun m -> m.Symbols) (fun s m -> {m with Symbols = s})
     let ports_ = Lens.create (fun m -> m.Ports) (fun w m -> {m with Ports = w})
     let symbolOf_ k = symbols_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
+    let hintPane_ = Lens.create (fun m -> m.HintPane) (fun s m -> {m with HintPane = s})
 
 
     //------------------------------------------------------------------------//

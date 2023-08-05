@@ -8,6 +8,7 @@ module SynchronousUtils
 
 open CommonTypes
 open SimulatorTypes
+open Helpers
 
 /// Tells wether a component is clocked or not. Note that Custom components may
 /// be clocked (cannot tell without recursively analysing them), so they are
@@ -138,40 +139,6 @@ let rec hasSynchronousComponents graph : bool =
         | Some _ -> true
         | None -> false
 
-let isInput =
-    function
-    | Input1 _ -> true
-    | _ -> false
-
-let isOutput =
-    function
-    | Output _ -> true
-    | _ -> false
-
-let isViewer =
-    function
-    | Viewer _ -> true
-    | _ -> false
-
-let isCustom =
-    function
-    | Custom _ -> true
-    | _ -> false
-
-let isIOLabel =
-    function
-    | IOLabel _ -> true
-    | _ -> false
-
-let getCustomName =
-    function
-    | Custom custom -> custom.Name
-    | _ -> failwithf "what? getCustomName should only be called with custom components"
-
-let getCustomComponentType =
-    function
-    | Custom custom -> custom
-    | _ -> failwithf "what? getCustomComponentType should only be called with custom components"
 
 let getNodeOrFail (graph: SimulationGraph) (id: ComponentId) : SimulationComponent =
     match graph.TryFind id with

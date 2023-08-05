@@ -109,6 +109,8 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOption
    subMenu.submenu <- Some (U2.Case1 (table |> ResizeArray))
    subMenu
 
+open JSHelpers
+
 let fileMenu (dispatch) =
     makeMenu false "Sheet" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
@@ -118,18 +120,33 @@ let fileMenu (dispatch) =
         makeItem "Write design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupHelpers.viewInfoPopup dispatch)
-        makeCondRoleItem (JSHelpers.debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
+        makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeWinDebugItem "Trace all" None (fun _ ->
-            JSHelpers.debugTraceUI <- Set.ofList ["update";"view"])
+            debugTraceUI <- Set.ofList ["update";"view"])
+        makeWinDebugItem "Trace View function" None (fun _ ->
+            debugTraceUI <- Set.ofList ["view"])
+        makeWinDebugItem "Trace Update function" None (fun _ ->
+            debugTraceUI <- Set.ofList ["update"])
         makeWinDebugItem "Trace off" None (fun _ ->
-            JSHelpers.debugTraceUI <- Set.ofList []
-            Playground.MiscTests.displayPerformance 100 4000000)
+            debugTraceUI <- Set.ofList [])
         makeMenu false "Play" [
-            makeDebugItem "Test Fonts" None  (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
-            makeWinDebugItem  "Run performance check" None (fun _ ->  Playground.MiscTests.testMaps())
-            makeWinDebugItem  "Print names of static asset files" None (fun _ ->
-                Playground.MiscTests.testAssets())
-            makeDebugItem "Force Exception" None  (fun ev -> failwithf "User exception from menus")
+            makeDebugItem "Trace all times" None
+                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint( 0.1, 0.1)
+                          if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
+            makeDebugItem "Trace medium & long times" None
+                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(2.,2.)
+                          if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
+            makeDebugItem "Trace long times" None
+                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(20.,20.)
+                          if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
+            makeDebugItem "Test Fonts" None
+                (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
+            makeWinDebugItem  "Run performance check" None
+                (fun _ -> Playground.MiscTests.testMaps())
+            makeWinDebugItem  "Print names of static asset files" None 
+                (fun _ -> Playground.MiscTests.testAssets())
+            makeDebugItem "Force Exception" None
+                (fun ev -> failwithf "User exception from menus")
 
         ]
 
@@ -293,7 +310,7 @@ let init() =
 // -- Create View
 let addDebug dispatch (msg:Msg) =
     let str = UpdateHelpers.getMessageTraceString msg
-    if str <> "" then printfn ">>Dispatch %s" str else ()
+    //if str <> "" then printfn ">>Dispatch %s" str else ()
     dispatch msg
 
 let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)

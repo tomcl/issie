@@ -115,7 +115,8 @@ module Constants =
     let maxSegmentSeparation = 15.
     /// lines within this distance of each other are considered to overlap
     let overlapTolerance = 2.
-    /// corners with max length edge large rthan this are not removed
+    /// corners with max length edge larger than this are not removed
+    let separateCaptureOverlap = 6. // Larger than as overlapTolerance, smaller than minSegmentSeparation
     let maxCornerSize = 100.
     /// How close are segment extensions caused by corner removal allowed to
     /// get to other elements? Maybe needs to be smaller than some otehr things for
@@ -168,7 +169,7 @@ with member this.Index = match this with | LineId i -> i
 [<StringEnum>]
 type LType = 
     /// a non-segment fixed (symbol boundary) barrier
-    | FIXED  
+    | BARRIER  
     /// a movable line segment
     | NORMSEG 
     /// a segment which is a fixed barrier in clustering but can change after.

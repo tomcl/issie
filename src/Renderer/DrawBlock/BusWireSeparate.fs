@@ -935,7 +935,7 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
 
 /// Top-level function to replace updateWireSegmentJumps
 /// and call the Segment separate code as well. This should
-/// run when significant circuit wiring chnages have been made
+/// run when significant circuit wiring changes have been made
 /// e.g. at the end of symbol drags.
 let updateWireSegmentJumpsAndSeparations wires model  =
     model
@@ -964,5 +964,30 @@ let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
     { model with Wires = newWires }
     |> updateWireSegmentJumpsAndSeparations (Map.keys newWires |> Seq.toList)
 
+/// all wires from comps have all segments made auto.
+/// then the separation logic is rerun on these wires
+let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
+    let wires' =
+        getConnectedWires model comps
+        |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))
+        |> (fun wires -> model.Wires, wires)
+        ||> List.fold (fun wMap wire -> Map.add wire.WId wire wMap)
+    wires'
+    |> Map.toList
+    |> List.map (fun (wId, wire) -> wId)
+    |> fun wires -> updateWireSegmentJumpsAndSeparations wires {model with Wires = wires'}
+
+/// all wires from comps are autorouted from scratch
+/// then the separation logic is rerun on these wires
+let reRouteWiresFrom  (comps: ComponentId list) (model: Model) =
+    let wires' =
+        getConnectedWires model comps
+        |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))
+        |> (fun wires -> model.Wires, wires)
+        ||> List.fold (fun wMap wire -> Map.add wire.WId wire wMap)
+    let model = {model with Wires = wires'}
+    (model, wires')
+    ||> Map.fold (fun model wid wire -> Optic.map (wireOf_ wid) (autoroute model) model)
+    |> fun model -> updateWireSegmentJumpsAndSeparations (wires' |> Map.keys |> Seq.toList) model
 
 

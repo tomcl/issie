@@ -264,6 +264,19 @@ let coalesceInWire (wId: ConnectionId) (model:Model) =
     //printfn $"After coalesce, seg lengths: {newSegments |> List.map (fun seg -> seg.Length)}"
     Optic.set (wireOf_ wId >-> segments_) newSegments model
 
+/// If wire contains one or more manally routed segments return Some wire'
+/// where wire' has all manual segments chnaged to auto.
+/// Return None if no chnage is required (the normal case).
+let resetWireToAutoKeepingPositionOpt (wire: Wire) : Wire option=
+    let hasManualSegs =
+        wire.Segments
+        |> List.exists (fun seg -> seg.Mode = Manual)
+    match hasManualSegs with
+    | true ->
+        wire
+        |> Optic.map segments_ (List.map (Optic.map mode_ (function | Manual -> Auto | m -> m)))
+        |> Some
+    | false -> None
 
 /// Returns a wwireOf_aining the updated list of segments after a segment is moved by 
 /// a specified distance. The moved segment is tagged as manual so that it is no longer auto-routed.

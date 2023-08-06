@@ -18,7 +18,8 @@ open Fable.SimpleJson
 open JSHelpers
 open Sheet.SheetInterface 
 open DrawModelType
-
+open Optics
+open Optics.Operators
 open TestParser
 
 importSideEffects "./scss/main.css"
@@ -110,6 +111,18 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOption
    subMenu
 
 open JSHelpers
+
+let reSeparateWires dispatch =
+    dispatch <| UpdateModel (fun model ->
+        model
+        |> Optic.map (sheet_ >->  SheetT.wire_) (BusWireSeparate.reSeparateWiresFrom model.Sheet.SelectedComponents)
+    )
+
+let reRouteWires dispatch =
+    dispatch <| UpdateModel (fun model ->
+        model
+        |> Optic.map (sheet_ >->  SheetT.wire_) (BusWireSeparate.reRouteWiresFrom model.Sheet.SelectedComponents)
+    )
 
 let fileMenu (dispatch) =
     makeMenu false "Sheet" [
@@ -257,6 +270,8 @@ let editMenu dispatch' =
                makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
                makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
                menuSeparator
+               makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
+               makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
                makeElmItem "Toggle Snap To Net" "CmdOrCtrl+T" (fun ev -> sheetDispatch SheetT.Msg.ToggleSnapToNet)
                makeElmItem "Beautify Sheet" "CmdOrCtrl+B" (fun ev -> sheetDispatch SheetT.Msg.BeautifySheet)
                makeElmItem "Toggle Make Channel" "CmdOrCtrl+Y" (fun ev -> sheetDispatch SheetT.Msg.MakeChannelToggle)

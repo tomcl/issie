@@ -222,7 +222,7 @@ let turnDirs (line: Line) (wires: Map<ConnectionId, Wire>) =
 /// +1 if line1.P > line2.P for zero crossings.
 /// -1 if line1.P < line2.P for zero crossings.
 /// 0 if line1.P and line2.P have one crossing.
-let numCrossingsSignAndMaybeOverlaps 
+let numCrossingsSign 
         (model: Model) 
         (line1: Line) 
         (line2: Line) 
@@ -235,68 +235,89 @@ let numCrossingsSignAndMaybeOverlaps
     // turning. Dividing this by 2 gives the required answer!
     // NB this is simpler than expected since it does not matter what order the two inner ends are
     // in - which makes identifying them (as one of the MaxB and one of the MinB ends) easier.
-    let crossingsNumSign =
-        /// Returns Some segment  if segment 3 or 5 of a 9 segment wire
-        /// These segments should be adjusted for zero crossings at end only
-        let endSegOpt (line:Line) = 
-            match lineToWire model line with
-            | Some({Segments=segs}, index) when segs.Length = 9 && (index = 3 || index = 5) -> 
-                Some segs[index]
-            | _ -> None
-        /// checkMinCross,checkMaxCross = 1 if the respective bound = min or max end should be ordered to minimise
-        /// crossings.
-        /// If we have an end Seg then only one end of the segment should be checked in this way
-        /// If we have a middle segment both ends are checked.
-        /// in unrecognised cases deafult to checking both ends.
-        let checkMinCross, checkMaxCross =
-            match endSegOpt line1, endSegOpt line2 with
-            | Some seg, _ 
-            | _, Some seg ->
-                if seg.Length > 0 && seg.Index = 3 then
-                    1 , 0
-                else
-                    0 , 1
-            | None, None -> 1, 1
 
-        match line1.B.MinB > line2.B.MinB, line1.B.MaxB < line2.B.MaxB with
-        | true, true ->   min1 , max1
-        | true, false ->  min1 , -max2
-        | false, true ->  -min2 , max1
-        | false, false -> -min2 , - max2
-        |> (fun (minC, maxC) -> checkMinCross * minC + checkMaxCross * maxC)
+    /// Returns Some segment  if segment 3 or 5 of a 9 segment wire
+    /// These segments should be adjusted for zero crossings at end only
+    let endSegOpt (line:Line) = 
+        match lineToWire model line with
+        | Some({Segments=segs}, index) when segs.Length = 9 && (index = 3 || index = 5) -> 
+            Some segs[index]
+        | _ -> None
 
-    crossingsNumSign 
+    /// checkMinCross,checkMaxCross = 1 if the respective bound = min or max end should be ordered to minimise
+    /// crossings, 0 to disable the check.
+    /// If we have an end Seg (index = 3 or 5 of 9 segs) then only one end of the segment should be checked in this way
+    /// If we have a middle segment both ends are checked.
+    /// in unrecognised cases default to checking both ends.
+    let checkMinCross, checkMaxCross =
+        match endSegOpt line1, endSegOpt line2 with
+        | Some seg, _ 
+        | _, Some seg ->
+            if seg.Length > 0 && seg.Index = 3 then
+                1 , 0
+            else
+                0 , 1
+        | None, None -> 1, 1
+
+    // Put it all together. The min & max values are chosen based on
+    // the relative positions of the min & max ends of the two lines.
+    // To check this, write out all 4 combinations on paper.
+    match line1.B.MinB > line2.B.MinB, line1.B.MaxB < line2.B.MaxB with
+    | true, true ->   min1 , max1
+    | true, false ->  min1 , -max2
+    | false, true ->  -min2 , max1
+    | false, false -> -min2 , - max2
+    |> (fun (minC, maxC) -> checkMinCross * minC + checkMaxCross * maxC)
+
+
+
 
 /// segL is a list of lines array indexes representing segments found close together.
 /// Return the list ordered in such a way that wire crossings are minimised if the
-/// segments are placed as ordered. The return list is placed with P value increasing
+/// segments are placed as ordered. The return list is placed with required P value increasing
 /// along the list.
-let orderToMinimiseCrossings (model: Model) (lines: Line array) (segL: int list) =
+let orderPairwiseToMinimiseCrossings (model: Model) (lines: Line array) (segL: int list) =
+    let wires = model.Wires
+    let numCrossingsSign' l0 l1 = numCrossingsSign model l0 l1 wires
     // special case - included for efficency
-    if segL.Length = 1 then
-        segL
-    else
+    match segL.Length with
+    | 1 ->
+        segL // special case: nothing to do
+    | 2 -> // special case for efficiency (would work without this)
+        let l0, l1 = lines[segL[0]], lines[segL[1]]
+        if numCrossingsSign' l0 l1 > 0 then
+            [segL[1]; segL[0]]
+        else segL 
+    | numSegments -> 
         let wires = model.Wires
-        let numSegments = segL.Length
         let segA = segL |> Array.ofList
-        /// inverse of segA[index]: NB indexes [0..numSegmnets-1] are NOT Segment index.
+        /// inverse of segA[index]: NB indexes [0..numSegments-1] are NOT Segment index.
         /// These indexes are used inside this function only to allow contiguous arrays
         /// to calculate the sort order
         let indexOf seg = Array.findIndex ((=) seg) segA
+        let swapSegs a b =
+            let tmp = segA[b]
+            segA[b] <- segA[a]
+            segA[a] <- tmp
+        /// correctly order segments segA[n] and segA[n+1] by mutating segA indices.
+        /// mutation is local to this function and used for efficiency since this is time critical
+        let orderPair n =
+            if numCrossingsSign' lines[segA[n]] lines[segA[n+1]] > 0 then
+                swapSegs n (n+1)
+            else ()
+            
         // Map each index [0..numSegments-1] to a number that will determine its (optimal) ordering
-        let orderedSegs =
-            ([], [0..numSegments-1])
-            ||> List.fold (fun segs i ->
-                    let newSeg = lines[segL[i]]
-                    let afterSegs = 
-                        segs
-                        |> List.takeWhile (fun orderedSeg -> 
-                            numCrossingsSignAndMaybeOverlaps model newSeg orderedSeg wires >= 0) 
-                    afterSegs @ [newSeg] @ segs[afterSegs.Length..segs.Length-1])
-            |> List.map (fun line -> match line.Lid with LineId n -> n)
-        let sortFunA = Array.init orderedSegs.Length (fun i -> List.findIndex (fun seg -> seg = segA[i]) orderedSegs)
-        List.sortBy (fun i -> sortFunA[indexOf i]) segL
+        // Use bubblesort based on adjacent pairs of lines: this will make order correct where possible
+        // this will not cope with more complex mis-orderings - but it is fast.
+        // should we check (and reorder) groups of 3 segments?
+        for i =  0 to numSegments do
+            for j = 0 to numSegments-2 do
+                orderPair j
 
+        segA
+        |> Array.toList
+        |> List.map (fun index -> match lines[index].Lid with LineId n -> n)
+      
 //-------------------------------------------------------------------------------------------------//
 //---------------------------------------SEGMENT CLUSTERING----------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -467,7 +488,7 @@ let mergeLocalities (lines: Line array) (locL: Cluster list) =
 /// lines is the source list of lines (vertical or horizontal according to which is being processed).
 /// model is the Buswire model needed to access wires.
 let calcSegPositions model lines (loc: Cluster) =
-    let segs = loc.Segments |> List.distinct |> orderToMinimiseCrossings model lines
+    let segs = loc.Segments |> List.distinct |> orderPairwiseToMinimiseCrossings model lines
     // if segs.Length > 1 then
     // printfn $"** Grouping: {segs |> List.map (fun i -> i, lines[i].P)} **"
     let pts = segs |> List.map (fun i -> lines[i].P)
@@ -897,13 +918,14 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
         separate Horizontal model // separate all horizontal wire segments
         |> separate Vertical // separate all vertical wire segments
         |> separate Horizontal // a final pair of checks allows ordering and "chunking" to work nicely in almost all cases
-        |> separate Vertical  // 
+        |> separate Vertical  //
+        |> separate Horizontal //
 
         // after normal separation there may be "fixed" segments which should be separated because they overlap
         // one run for Vert and then Horiz segments is enough for this
         // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
-        |> separateFixedSegments wiresToRoute Horizontal  
-        |> separateFixedSegments wiresToRoute Vertical  
+        //|> separateFixedSegments wiresToRoute Horizontal  
+        //|> separateFixedSegments wiresToRoute Vertical  
 
         // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
         // this code attempts to remove sucg corners if it can be done while keeping routing ok

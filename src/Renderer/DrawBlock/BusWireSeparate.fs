@@ -987,7 +987,7 @@ let reRouteWiresFrom  (comps: ComponentId list) (model: Model) =
         ||> List.fold (fun wMap wire -> Map.add wire.WId wire wMap)
     let model = {model with Wires = wires'}
     (model, wires')
-    ||> Map.fold (fun model wid wire -> Optic.map (wireOf_ wid) (autoroute model) model)
+    ||> Map.fold (fun model wid wire -> Optic.map (wireOf_ wid) (smartAutoroute model) model)
     |> fun model -> updateWireSegmentJumpsAndSeparations (wires' |> Map.keys |> Seq.toList) model
 
 

@@ -1,12 +1,12 @@
 {
   "name": "issie",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "description": "Schematic editor and Simulator",
   "homepage": "https://github.com/tomcl/issie",
   "bugs": {
     "url": "https://github.com/tomcl/issie/issues"
   },
-  "license": "",
+  "license": "LGPL-3.0-or-later",
   "author": "tomcl",
   "main": "build/index.js",
   "repository": {

@@ -924,11 +924,11 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
         // after normal separation there may be "fixed" segments which should be separated because they overlap
         // one run for Vert and then Horiz segments is enough for this
         // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
-        //|> separateFixedSegments wiresToRoute Horizontal  
-        //|> separateFixedSegments wiresToRoute Vertical  
+        |> separateFixedSegments wiresToRoute Horizontal  
+        |> separateFixedSegments wiresToRoute Vertical  
 
         // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
-        // this code attempts to remove sucg corners if it can be done while keeping routing ok
+        // this code attempts to remove such corners if it can be done while keeping routing ok
 
         |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
 

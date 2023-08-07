@@ -8,6 +8,7 @@ open BlockHelpers
 open Optics
 open Operators
 open BusWireRoute
+open BusWire
 
 //*****************************************************************************************************//
 //---------------------------------Smart Channel / Segment Order / Separate----------------------------//
@@ -45,7 +46,7 @@ let lineToWire
             : (Wire * int) option =
     match line.Seg1 with
     | Some seg ->
-        let (int,wid) = seg.Segment.GetId()
+        let (int,wid) = seg.Segment.GetId
         let wire = model.Wires[wid]
         Some (wire,int)
     | None -> None
@@ -108,10 +109,11 @@ let bBoxToLines (ori: Orientation) (box: BoundingBox) : Line list =
             PortId = OutputPortId ""
             Lid = LineId 0 })
 
-/// Where two segments are on the same Net and on top of each other we must NEVER separate them.
-/// This function links such segments, and marks all except the head one with ClusterSegment = false, 
+/// Where two segments in lines are on the same Net and on top of each other we must NEVER separate them.
+/// This function links such segments, and marks all except the head one as a LINKEDSEG 
 /// so that the clustering algorithm will ignore them.
-let linkSameNetLines (lines: Line list) : Line list =
+/// sameNetCapture specified how close segments muts be to be linked.
+let linkSameNetLines (sameNetCapture: float) (lines: Line list) : Line list =
     /// input: list of lines all in the same Net (same outputPort)
     /// output: similar list, with lines that are on top of each other and in different wires linked
     let overlaps = hasNearOverlap separateCaptureOverlap
@@ -121,17 +123,16 @@ let linkSameNetLines (lines: Line list) : Line list =
         /// if needed, link lines[b] to lines[a] mutating elements in lines array for efficiency
         /// linkSameNetLines therefore mutates its input!
         let hasLinkedOverlap (la: Line) (lb:Line) =
-            overlaps la.B lb.B || List.exists (fun l -> overlaps lb.B l.B) la.SameNetLink
+            overlaps la.B lb.B 
         let tryToLink (a:int) (b:int) =
             let la, lb = lines[a], lines[b]
-            if (la.LType = NORMSEG || la.LType = FIXEDMANUALSEG || la.LType = FIXEDSEG ) && lb.LType <> FIXEDMANUALSEG && lb.LType <> FIXEDSEG && la.Wid <> lb.Wid && close la.P lb.P && hasLinkedOverlap la lb  then
-                lines[b] <- 
-                    { lb with
-                        LType = LINKEDSEG}
-                lines[a] <- 
-                    { la with
-                        B = boundUnion la.B lb.B;
-                        SameNetLink = lines[b] :: lines[a].SameNetLink}                    
+            if (la.LType = NORMSEG || la.LType = FIXEDMANUALSEG || la.LType = FIXEDSEG ) &&
+                lb.LType <> FIXEDMANUALSEG && lb.LType <> FIXEDSEG && lb.LType <> LINKEDSEG && la.Wid <> lb.Wid &&
+                closeBy sameNetCapture la.P lb.P && hasLinkedOverlap la lb  then
+                lines[b].LType <- LINKEDSEG                    
+                lines[a].B <- boundUnion la.B lb.B;
+                lines[a].SameNetLink <-  lines[b] :: lines[b].SameNetLink @ lines[a].SameNetLink
+                lines[b].SameNetLink <- []
         // in this loop the first lines[a] in each linkable set links all the set, setting ClusterSegment = false
         // Linked lines are then skipped.
         for a in [0..lines.Length-1] do
@@ -151,7 +152,7 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
     let selectSegments (wire: Wire) (orient: Orientation) (seg: Segment) =
         let numSegs = wire.Segments.Length
         let wireLength = euclideanDistance wire.StartPos wire.EndPos
-        ori = orient && seg.Index <> 0 && seg.Index <> numSegs - 1 && not (seg.IsZero()) && wireLength > minWireLengthToSeparate
+        ori = orient && seg.Index <> 0 && seg.Index <> numSegs - 1 && not seg.IsZero && wireLength > minWireLengthToSeparate
 
     /// Lines coming from wire segments
     /// Manually routed segments are considered fixed
@@ -171,15 +172,15 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
                     | _, Manual , _ , _
                     | false, _, _, _ ->
                         FIXEDMANUALSEG
-                    | _, _ , true , _ when segs[ 1 ].IsZero() -> 
+                    | _, _ , true , _ when segs[ 1 ].IsZero -> 
                         FIXEDSEG
-                    | _, _ , _ , true when  segs[ segs.Length - 2 ].IsZero() -> 
+                    | _, _ , _ , true when  segs[ segs.Length - 2 ].IsZero -> 
                         FIXEDSEG
                     | _ -> 
                         NORMSEG
                 segmentToLine lType ori wire aSeg)
             |> (fun wireLines -> wireLines @ lines))
-            |> linkSameNetLines
+            |> linkSameNetLines Constants.modernCirclePositionTolerance
 
     /// Lines coming from the bounding boxes of symbols
     let symLines =
@@ -379,6 +380,17 @@ let expandCluster (index: int) (searchDir: LocSearchDir) (lines: Line array) =
 
     expand (nextIndex index) initLoc
 
+/// Check a cluster for same net segments within separateCaptureOverlap
+/// Remove from cluster and all except one in every such same net group
+/// The removed segments are marked LINKEDSEG and linked for later processing
+let linkAndRemoveSameNetSegments (lines: Line array) (cluster: Cluster) =
+    cluster.Segments
+    |> List.map (fun seg -> lines[seg])
+    |> linkSameNetLines (separateCaptureOverlap)
+    |> List.filter (fun line -> line.LType <> LINKEDSEG)
+    |> List.map (fun line -> match line.Lid with LineId n -> n)
+    |> (fun newSegs -> {cluster with Segments = newSegs})
+
 /// Scan through segments in P order creating a list of local Clusters.
 /// Within one cluster segments are adjacent and overlapping. Note that
 /// different clusters may occupy the same P values if their segments do
@@ -451,6 +463,7 @@ let makeClusters (lines: Line array) : Cluster list =
                     newLocs @ getClusters lines)
 
     getClusters lines
+    |> List.map (linkAndRemoveSameNetSegments lines)
 
 // Currently not used. Running the algorithm twice fixes problems otherwise needing merge (and other things).
 // Should decide what is an acceptable space between merged clusters so as not to move
@@ -711,7 +724,7 @@ let makeLineInfo (wiresToRoute: ConnectionId list) (model:Model) : LineInfo =
                 match line.Seg1 with
                 | None -> [||]
                 | Some aSeg -> 
-                    [| aSeg.Segment.GetId(), line.Lid |] )
+                    [| aSeg.Segment.GetId, line.Lid |] )
             |> Map.ofArray
         {
             HLines = hLines
@@ -745,8 +758,8 @@ let isSegmentExtensionOk
     // a aero-length segment means the two segments on either side of it are parallel and may overlap.
     // if we chnage teh length of a segment next to a zero-length segment we must ensure that it does not double back on itself.
     // usually that will mean coming thr wrong wau out of a component edge (inside the component)!
-    if segNum = 2 && segs[1].IsZero() && sign segs[0].Length <> sign newLength ||
-       segNum = segs.Length - 3 && segs[segs.Length-2].IsZero() && sign segs[segs.Length-1].Length <> sign newLength
+    if segNum = 2 && segs[1].IsZero && sign segs[0].Length <> sign newLength ||
+       segNum = segs.Length - 3 && segs[segs.Length-2].IsZero && sign segs[segs.Length-1].Length <> sign newLength
     then
         false // in this case a segment must backtrack from a nub - a bad idea
     else
@@ -769,14 +782,14 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
 
         //printf $"Pick (start={start}): {pWire wire}"
         let seg = segs[start]    
-        if segs[start].IsZero() || segs[start+3].IsZero() then  // we don't want to extend a zero-length segment - it would not simplify the wire
+        if segs[start].IsZero || segs[start+3].IsZero then  // we don't want to extend a zero-length segment - it would not simplify the wire
             //printf "zero seg - cancelled"
             None
         else
             let deletedSeg1,deletedSeg2 = segs[start+1], segs[start+2]
             let hasManualSegment = List.exists (fun i -> segs[i].Mode = Manual) [start..start+3]
             let hasLongSegment = max (abs deletedSeg1.Length) (abs deletedSeg2.Length) > cornerSizeLimit
-            if hasManualSegment || hasLongSegment || deletedSeg1.IsZero() || deletedSeg2.IsZero() then 
+            if hasManualSegment || hasLongSegment || deletedSeg1.IsZero || deletedSeg2.IsZero then 
                 // segments which are very long maybe should not be removed - perhaps there is some reson for them?
                 // "manual" segments are never chnaged by the wire separation and routing - the user has said they should
                 // be as they are.
@@ -853,7 +866,7 @@ let removeWireSpikes (wire: Wire) : Wire option =
         let n = seg.Index
         let segs = Option.defaultValue segs segsOpt
         let nSeg = segs.Length
-        if n > nSeg - 3 || not (segs[n+1].IsZero()) || sign segs[n].Length = sign segs[n+2].Length then 
+        if n > nSeg - 3 || not segs[n+1].IsZero || sign segs[n].Length = sign segs[n+2].Length then 
             segsOpt
         else
             let newSegN = {segs[n] with Length = segs[n].Length + segs[n+2].Length}
@@ -890,6 +903,13 @@ let removeModelSpikes (model: Model) =
 /// wires: set of wires allowed to be moved.
 let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orientation) (model: Model) =
     //printf $"""Wires:\n {wires |> List.map (fun wid -> pWire model.Wires[wid]) |> String.concat "\n"}"""
+    let addLinkedLineChanges (lines: Line array) changes =
+        lines
+        |> Array.toList
+        |> List.collect (fun l -> l.SameNetLink |> List.map (fun line -> line, l.P))
+        |> List.append changes
+       
+
     makeLines wires ori model
     |> fun lines ->
         //printf "%s" (pLines lines)
@@ -897,6 +917,7 @@ let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orienta
         //|> List.map (fun p -> (printf "%s" (pAllCluster lines p)); p)
         //|> mergeLocalities lines // merging does not seem necessary?
         |> List.collect (calcSegPositions model lines)
+        |> addLinkedLineChanges lines
     |> adjustSegmentsInModel ori model
 
 /// Perform complete wire segment separation and ordering for all orientations.

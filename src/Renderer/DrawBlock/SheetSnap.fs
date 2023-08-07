@@ -235,7 +235,7 @@ let getNewSegmentSnapInfo
     let getDir (seg: BusWireT.ASegment) = BusWire.getSegmentOrientationOpt seg.Start seg.End
 
     let thisWire = model.Wire.Wires[movingSegment.Segment.WireId]
-    let thisSegId = movingSegment.Segment.GetId()
+    let thisSegId = movingSegment.Segment.GetId
     let orientation = getDir movingSegment
     let snapBounds = 
         match orientation with
@@ -247,7 +247,7 @@ let getNewSegmentSnapInfo
             |> Map.toArray
             |> Array.map snd
             |> Array.collect (getNonZeroAbsSegments >> List.toArray)
-            |> Array.collect (function | aSeg when getDir aSeg = Some ori  && aSeg.Segment.GetId() <> thisSegId-> 
+            |> Array.collect (function | aSeg when getDir aSeg = Some ori  && aSeg.Segment.GetId <> thisSegId-> 
                                             [|BusWire.getFixedCoord aSeg|] 
                                        | _ -> 
                                             [||])

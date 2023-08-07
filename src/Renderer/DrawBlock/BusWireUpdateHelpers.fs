@@ -31,9 +31,12 @@ let distanceBetweenPointAndSegment (segStart : XYPos) (segEnd : XYPos) (point : 
             |> (+) segStart
         Some (sqrt (squaredDistance point boundedProjection))
 
+
+
+
 /// Finds the closest non-zero-length segment in a wire to a mouse click using euclidean distance.
-/// Return as an ASegment.
-let getClickedSegment (model: Model) (wireId: ConnectionId) (mouse: XYPos) : ASegment =
+/// Return it and all overlapping same-direction same-net segments
+let getClickedSegment (model: Model) (wireId: ConnectionId) (mouse: XYPos) : ASegment list =
     let closestSegment segStart segEnd state (seg: Segment) =
         let currDist = Option.get <| distanceBetweenPointAndSegment segStart segEnd mouse
         let aSeg = {Start=segStart; End=segEnd; Segment=seg}
@@ -44,9 +47,28 @@ let getClickedSegment (model: Model) (wireId: ConnectionId) (mouse: XYPos) : ASe
             else
                 Some (minASeg, minDist)
         | None -> Some (aSeg, currDist) // Needed to deal with initial state
+
+    /// return all clciked (by mouse) same net segments
+    let getAllSameNetASegments model mouse (segment:ASegment) =
+        let (_,wid) = segment.GetId
+        let wire = model.Wires[wid]
+        model.Wires
+        |> Map.filter (fun wid wire' -> wire'.OutputPort = wire.OutputPort)
+        |> Map.values
+        |> List.ofSeq
+        |> List.collect getAbsSegments
+        |> List.filter (fun aSeg ->
+            let d = distanceBetweenPointAndSegment aSeg.Start aSeg.End mouse
+            match  d, aSeg.IsZero, aSeg.Segment.Draggable, segment.Orientation = aSeg.Orientation with
+            | Some d, false, true, true -> d < BusWire.Constants.modernCirclePositionTolerance
+            | _ -> false)
+
+
+
     match foldOverNonZeroSegs closestSegment None model.Wires[wireId] with
     | Some (segment, _dist) -> 
         segment
+        |> getAllSameNetASegments model mouse
     | None -> failwithf "getClosestSegment was given a wire with no segments" // Should never happen
 
 //--------------------------------------------------------------------------------//
@@ -202,7 +224,7 @@ let makeEndsDraggable (segments: Segment list): Segment list =
     let addNubIfPossible (segments: Segment list) =
         let seg0 = segments[0]
         if abs segments[0].Length > Constants.nubLength + XYPos.epsilon &&
-           (segments.Length = 1 || (not <| segments[1].IsZero()))
+           (segments.Length = 1 || not <| segments[1].IsZero)
         then
             let delta = float (sign segments[0].Length) * Constants.nubLength
             let newSeg0 = {seg0 with Length = delta} 
@@ -241,7 +263,7 @@ let coalesceInWire (wId: ConnectionId) (model:Model) =
     let segmentsToRemove =
         List.indexed segments
         |> List.filter (fun (i,seg) -> 
-            segments[i].IsZero() &&
+            segments[i].IsZero &&
             i > 1 && i < segments.Length - 2 &&
             segments[i-1].Draggable && segments[i+1].Draggable)
         |> List.map (fun (index,_) -> index)
@@ -505,10 +527,10 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
         let segsRetracePath (segs: Segment list) =
             [1..segs.Length-2]
             |> List.exists (fun i -> 
-                    segs[i].IsZero() 
+                    segs[i].IsZero 
                     && sign segs[i-1].Length <> sign segs[i+1].Length
-                    && not (segs[i-1].IsZero())
-                    && not (segs[i+1].IsZero()))
+                    && not segs[i-1].IsZero
+                    && not segs[i+1].IsZero)
         let start, changed, remaining = partitionSegments segs manualIdx
         let changed' = 
             changed
@@ -634,6 +656,8 @@ let updateCirclesOnSegments
 
 let inline samePos (pos1: XYPos) (pos2: XYPos) =
     max (pos1.X-pos2.X) (pos1.Y - pos2.Y) < Constants.modernCirclePositionTolerance
+
+let inline closeBy (d:float) (a:float) (b:float) = abs (a-b) < d
 
 let inline close (a:float) (b:float) = abs (a-b) < Constants.modernCirclePositionTolerance
 

@@ -116,7 +116,7 @@ module Constants =
     /// lines within this distance of each other are considered to overlap
     let overlapTolerance = 2.
     /// corners with max length edge larger than this are not removed
-    let separateCaptureOverlap = 6. // Larger than as overlapTolerance, smaller than minSegmentSeparation
+    let separateCaptureOverlap = 15. // Larger than as overlapTolerance, smaller than minSegmentSeparation
     let minWireLengthToSeparate = 10. // prevents short wires being squiggly
     let maxCornerSize = 100.
     /// How close are segment extensions caused by corner removal allowed to
@@ -187,11 +187,11 @@ type LType =
 type Line =
     { 
         P: float // the coordinate X or Y perpendicular to the line.
-        B: Bound // the two "other" coordinates
+        mutable B: Bound // the two "other" coordinates
         Orientation: Orientation
         Seg1: ASegment option // if the line comes from a wire segment this references the segment and wire
-        LType: LType
-        SameNetLink: Line list
+        mutable LType: LType
+        mutable SameNetLink: Line list
         Wid: ConnectionId
         PortId: OutputPortId
         Lid: LineId } // index in lines array of this Line.
@@ -205,6 +205,8 @@ type Cluster =
         LowerFix: float option // if clustering is stopped by a barrier
         Segments: int list // list of movable lines found (which will be spread out)
         Bound: Bound } // union of bounds of all segments found so far
+
+let clusterSegments_ = Lens.create (fun (c:Cluster) -> c.Segments) (fun n c -> {c with Segments = n})
 
 /// Controls direction of Cluster search in expandCluster.
 /// Search is upwards first and then downwards so downwards search takes a Cluster
@@ -276,8 +278,8 @@ let segmentIsNubExtension (wire: Wire) (segIndex: int) : bool =
     let revSeg n = segs[lastSeg-n]
     match segIndex, lastSeg-segIndex with
     | 0, _ | _, 0 -> true
-    | 2, _ when segs[1].IsZero() -> true
-    |_, 2 when  (revSeg 1).IsZero() -> true
+    | 2, _ when segs[1].IsZero -> true
+    |_, 2 when  (revSeg 1).IsZero -> true
     | _ -> false
 
 /// Get the segment indexes within a Cluster (loc)
@@ -330,7 +332,7 @@ let pWire (wire: Wire) =
         let isMan = 
             match aSeg.Segment.Mode with | Manual -> "M" | Auto -> "A"
         let vec = aSeg.End - aSeg.Start
-        if aSeg.IsZero() then
+        if aSeg.IsZero then
             isMan + ".S0"
         else
             match getSegmentOrientation aSeg.Start aSeg.End, aSeg.Segment.Length > 0 with

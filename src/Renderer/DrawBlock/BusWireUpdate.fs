@@ -26,7 +26,7 @@ let init () =
         Wires = Map.empty;
         Symbol = symbols; 
         CopiedWires = Map.empty; 
-        SelectedSegment = None; 
+        SelectedSegment = []; 
         LastMousePos = {X = 0.0; Y = 0.0};
         ErrorWires = []
         Notifications = None
@@ -36,7 +36,29 @@ let init () =
         MakeChannelToggle = false
     } , Cmd.none
 
+let dragSegment wire index (mMsg: MouseT) model =
+    match List.tryItem index wire.Segments with
+    | None -> 
+        printfn "Bad segment in Dragsegment... ignoring drag"
+        model
+    | Some seg when index < 1 || index > wire.Segments.Length-2 ->
+        printfn "Bad index - can't move that segment"
+        model
+    | Some seg ->        
+        let (startPos,endPos) = getAbsoluteSegmentPos wire index
+        if seg.Draggable then
+            let distanceToMove = 
+                match getSegmentOrientation startPos endPos with
+                | Horizontal -> mMsg.Pos.Y - startPos.Y
+                | Vertical -> mMsg.Pos.X - startPos.X
 
+            let newWire = moveSegment model seg distanceToMove 
+            let newWires = Map.add seg.WireId newWire model.Wires
+
+            { model with Wires = newWires }
+        else
+            printfn "Can't move undraggable"
+            model
             
 /// Handles messages
 let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
@@ -241,42 +263,27 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 )
             model, Cmd.ofMsg (DeleteWires connIds)
 
-    | DragSegment (segId : SegmentId, mMsg: MouseT) ->
-        let index, connId = segId
-        let wire = model.Wires[connId]
-        match mMsg.Op with
-        | Down ->
-            match List.tryItem index wire.Segments with
-            | None -> 
-                printfn "Bad segment in DragSegment DOWN... ignoring drag"
-                model,Cmd.none
-            | Some seg ->
-                {model with SelectedSegment = Some segId}, Cmd.ofMsg (ResetJumps [])
-        | Drag ->
-            match List.tryItem index wire.Segments with
-            | None -> 
-                printfn "Bad segment in Dragsegment... ignoring drag"
-                model,Cmd.none
-            | Some seg when index < 1 || index > wire.Segments.Length-2 ->
-                printfn "Bad index - can't move that segment"
-                model,Cmd.none
-            | Some seg ->               
-                let (startPos,endPos) = getAbsoluteSegmentPos wire index
-                if seg.Draggable then
-                    let distanceToMove = 
-                        match getSegmentOrientation startPos endPos with
-                        | Horizontal -> mMsg.Pos.Y - startPos.Y
-                        | Vertical -> mMsg.Pos.X - startPos.X
-
-                    let newWire = moveSegment model seg distanceToMove 
-                    let newWires = Map.add seg.WireId newWire model.Wires
-
-                    { model with Wires = newWires }, Cmd.none
-                else
-                    printfn "Can't move undraggable"
-                    model, Cmd.none
-
-        | _ -> model, Cmd.none
+    | DragSegment (segIdL : SegmentId list, mMsg: MouseT) ->
+        let checkSegmentOK segId =
+            let index, connId = segId
+            let wire = model.Wires[connId]
+            0 <= index && index < wire.Segments.Length
+        segIdL
+        |> List.filter checkSegmentOK
+        |> function
+            | [] -> failwithf "%s" $"Can't perform segment drag: no valid segments found in {segIdL}"
+            | segIdL ->
+                match mMsg.Op with
+                | Down ->
+                    {model with SelectedSegment = segIdL}, Cmd.ofMsg (ResetJumps [])
+                | Drag ->
+                    (model, segIdL)
+                    ||> List.fold (fun model segId ->
+                            let index, connId = segId
+                            let wire = model.Wires[connId]
+                            dragSegment wire index mMsg model)
+                    |> (fun model -> model, Cmd.none)
+                | _ -> model, Cmd.none
 
     | CoalesceWire wId ->
         coalesceInWire wId model, Cmd.none

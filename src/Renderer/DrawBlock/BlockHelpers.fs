@@ -147,7 +147,7 @@ let inline foldOverNonZeroSegs folder state wire =
     ((state, initPos, initOrientation), wire.Segments)
     ||> List.fold (fun (currState, currPos, currOrientation) seg -> 
         let nextOrientation = switchOrientation currOrientation
-        if seg.IsZero() then 
+        if seg.IsZero then 
             (currState, currPos, nextOrientation)
         else
             let nextPos = addLengthToPos currPos currOrientation seg.Length
@@ -178,7 +178,7 @@ let getNonZeroAbsSegments (wire: Wire) : ASegment list =
     ||> List.fold (fun (posDir, aSegL) seg -> 
             let nextASeg = convertToAbs posDir seg
             let posDir' = nextASeg.End, switchOrientation (snd posDir)
-            if not <| seg.IsZero() then
+            if not <| seg.IsZero then
                 posDir', (nextASeg :: aSegL)
             else
                 posDir', aSegL)                

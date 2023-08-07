@@ -214,14 +214,14 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
 let snapWire 
         (model: Model) 
         (mMsg: MouseT) 
-        (segId: SegmentId)
+        (segIdL: SegmentId list)
             : Model * Cmd<ModelType.Msg> = 
     
     let nextAction, isMovingWire =
         match model.Action with
         | MovingWire segId -> MovingWire segId, true
         | _ -> Idle, false
-
+    let segId = List.head segIdL
     let index,connId = segId
     let aSegment = BusWire.getASegmentFromId  model.Wire segId
     let snapXY, delta = snap2DSegment model.AutomaticScrolling mMsg.Pos aSegment model
@@ -235,7 +235,7 @@ let snapWire
         ErrorComponents = [];
         SnapSegments = snapXY
     },
-    Cmd.batch [ wireCmd (BusWireT.DragSegment (segId, newmMsg));
+    Cmd.batch [ wireCmd (BusWireT.DragSegment (segIdL, newmMsg));
                 sheetCmd CheckAutomaticScrolling] 
 
 
@@ -517,11 +517,11 @@ let mDownUpdate
 
 
         | Connection connId ->
-            let aSeg = BusWireUpdateHelpers.getClickedSegment model.Wire connId mMsg.Pos
-            let (i,wId) = aSeg.Segment.GetId()
-            let segments = model.Wire.Wires[wId].Segments
-            if i > segments.Length - 1 then
-                failwithf "What? Error in getClcikedSegment: "
+            let aSegL = BusWireUpdateHelpers.getClickedSegment model.Wire connId mMsg.Pos
+            printfn "%s" $"segl={aSegL.Length}"
+            let aSeg = List.head aSegL
+            let segIdL = aSegL |> List.map (fun aSeg -> aSeg.Segment.GetId)
+            let connIdL = segIdL |> List.map snd
             let msg = DoNothing
 
             if model.CtrlKeyDown
@@ -557,12 +557,12 @@ let mDownUpdate
                         SelectedComponents = []; 
                         SelectedWires = [ connId ]; 
                         SnapSegments = snapXY
-                        Action = MovingWire (aSeg.Segment.GetId()); 
+                        Action = MovingWire segIdL; 
                         TmpModel = Some model},
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols [])
                                 wireCmd (BusWireT.SelectWires [ connId ])
-                                wireCmd (BusWireT.DragSegment (aSeg.Segment.GetId(), mMsg))
-                                wireCmd (BusWireT.ResetJumps [ connId ] )
+                                wireCmd (BusWireT.DragSegment (segIdL, mMsg))
+                                wireCmd (BusWireT.ResetJumps connIdL )
                                 sheetCmd msg]
                 | _ ->
                     let buttonId = model.ButtonList 
@@ -572,15 +572,15 @@ let mDownUpdate
                             SelectedComponents = []; 
                             SelectedWires = [ connId ]; 
                             SnapSegments = snapXY
-                            Action = MovingWire (aSeg.Segment.GetId()); 
+                            Action = MovingWire segIdL; 
                             TmpModel = Some model
                             ButtonList = []},
                         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols [])
                                     symbolCmd (SymbolT.DeleteSymbols buttonId)
                                     sheetCmd UpdateBoundingBoxes
-                                    wireCmd (BusWireT.SelectWires [ connId ])
-                                    wireCmd (BusWireT.DragSegment (aSeg.Segment.GetId(), mMsg))
-                                    wireCmd (BusWireT.ResetJumps [ connId ] )
+                                    wireCmd (BusWireT.SelectWires connIdL)
+                                    wireCmd (BusWireT.DragSegment (segIdL, mMsg))
+                                    wireCmd (BusWireT.ResetJumps connIdL )
                                     sheetCmd msg]
                      | _ -> 
                         printfn "Error components (Right)"
@@ -654,8 +654,8 @@ let mDragUpdate
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
     match model.Action with
-    | MovingWire segId -> 
-        snapWire model mMsg segId
+    | MovingWire segIdL -> 
+        snapWire model mMsg segIdL
     // HLP 23: AUTHOR Khoury & Ismagilov
     // New Action, when we click on scaling button and drag the components and box should scale with mouse
     | Scaling ->
@@ -843,12 +843,12 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         | None -> model
         | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
     match model.Action with
-    | MovingWire segId ->
-        let _, connId = segId
+    | MovingWire segIdL ->
+        let connIdL = segIdL |> List.map snd
+        let coalesceCmds = connIdL |> List.map (fun conn -> wireCmd (BusWireT.CoalesceWire conn))
         { model with Action = Idle ; UndoList = appendUndoList model.UndoList newModel; RedoList = [] },
-        Cmd.batch [ wireCmd (BusWireT.DragSegment (segId, mMsg))
-                    wireCmd (BusWireT.CoalesceWire connId)
-                    wireCmd (BusWireT.MakeJumps [ connId ] ) ]
+        Cmd.batch ([ wireCmd (BusWireT.DragSegment (segIdL, mMsg))                    
+                     wireCmd (BusWireT.MakeJumps connIdL ) ] @ coalesceCmds)
     | Selecting ->
         //let box = model.DragToSelectBox
         let newComponents = findIntersectingComponents model model.DragToSelectBox

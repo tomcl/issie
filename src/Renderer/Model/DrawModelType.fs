@@ -304,9 +304,9 @@ module BusWireT =
         }
         with
             /// get SegmentID id for segment
-            member inline this.GetId() = this.Index,this.WireId
+            member inline this.GetId = this.Index,this.WireId
             /// return true if segment length is 0 to within FP tolerance
-            member inline this.IsZero() = abs this.Length < XYPos.epsilon
+            member inline this.IsZero = abs this.Length < XYPos.epsilon
     
     /// Add absolute vertices to a segment
     type ASegment = {
@@ -316,9 +316,13 @@ module BusWireT =
         }
         with
             /// get SegmentID id for segment
-            member inline this.GetId() = this.Segment.Index,this.Segment.WireId
+            member inline this.GetId = this.Segment.Index,this.Segment.WireId
             /// return true if segment length is 0 to within FP tolerance
-            member inline this.IsZero() = abs this.Segment.Length < XYPos.epsilon
+            member inline this.IsZero = abs this.Segment.Length < XYPos.epsilon
+
+            member inline this.Orientation =
+                            let delta = this.Start - this.End
+                            if abs delta.X > abs delta.Y then Horizontal else Vertical
 
     
     type Wire =
@@ -348,7 +352,7 @@ module BusWireT =
             Symbol: SymbolT.Model
             Wires: Map<ConnectionId, Wire>
             CopiedWires: Map<ConnectionId, Wire> 
-            SelectedSegment: SegmentId option
+            SelectedSegment: SegmentId list
             LastMousePos: XYPos
             ErrorWires: list<ConnectionId>
             Notifications: Option<string>
@@ -372,7 +376,7 @@ module BusWireT =
         | SelectWires of list<ConnectionId>
         | UpdateWires of list<ComponentId> * XYPos
         | UpdateSymbolWires of ComponentId
-        | DragSegment of SegmentId * MouseT
+        | DragSegment of SegmentId list * MouseT
         | CoalesceWire of ConnectionId
         | ColorWires of list<ConnectionId> * HighLightColor
         | ErrorWires of list<ConnectionId>
@@ -441,7 +445,7 @@ module SheetT =
         | MovingLabel
         | DragAndDrop
         | Panning of offset: XYPos // panning sheet using shift/drag, offset = (initials) ScreenScrollPos + (initial) ScreenPage
-        | MovingWire of SegmentId // Sends mouse messages on to BusWire
+        | MovingWire of SegmentId list // Sends mouse messages on to BusWire
         | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen

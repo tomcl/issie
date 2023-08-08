@@ -221,22 +221,31 @@ let snapWire
         match model.Action with
         | MovingWire segId -> MovingWire segId, true
         | _ -> Idle, false
-    let segId = List.head segIdL
-    let index,connId = segId
-    let aSegment = BusWire.getASegmentFromId  model.Wire segId
-    let snapXY, delta = snap2DSegment model.AutomaticScrolling mMsg.Pos aSegment model
-    let newPos = aSegment.Start + delta
-    let newmMsg = {mMsg with Pos = newPos} 
+    match segIdL with
+    | [] ->
+        { model with
+            Action = nextAction;
+            LastMousePos = mMsg.Pos;
+            ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.ScreenMovement};
+            ErrorComponents = [];
+            SnapSegments = emptySnap
+        }, Cmd.none
+    | segId :: _ ->
+        let index,connId = segId
+        let aSegment = BusWire.getASegmentFromId  model.Wire segId
+        let snapXY, delta = snap2DSegment model.AutomaticScrolling mMsg.Pos aSegment model
+        let newPos = aSegment.Start + delta
+        let newmMsg = {mMsg with Pos = newPos} 
                                 
-    { model with
-        Action = nextAction;
-        LastMousePos = mMsg.Pos;
-        ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.ScreenMovement};
-        ErrorComponents = [];
-        SnapSegments = snapXY
-    },
-    Cmd.batch [ wireCmd (BusWireT.DragSegment (segIdL, newmMsg));
-                sheetCmd CheckAutomaticScrolling] 
+        { model with
+            Action = nextAction;
+            LastMousePos = mMsg.Pos;
+            ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.ScreenMovement};
+            ErrorComponents = [];
+            SnapSegments = snapXY
+        },
+        Cmd.batch [ wireCmd (BusWireT.DragSegment (segIdL, newmMsg));
+                    sheetCmd CheckAutomaticScrolling] 
 
 
 
@@ -393,7 +402,7 @@ let mDownUpdate
                             else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
 
                         match newComponents.Length with 
-                        | s when s<2 -> 
+                        | s when s<= 1 -> 
                             match model.ButtonList with
                             | [] ->
                                 {model with 
@@ -519,7 +528,6 @@ let mDownUpdate
         | Connection connId ->
             let aSegL = BusWireUpdateHelpers.getClickedSegment model.Wire connId mMsg.Pos
             printfn "%s" $"segl={aSegL.Length}"
-            let aSeg = List.head aSegL
             let segIdL = aSegL |> List.map (fun aSeg -> aSeg.Segment.GetId)
             let connIdL = segIdL |> List.map snd
             let msg = DoNothing
@@ -550,7 +558,7 @@ let mDownUpdate
                                 sheetCmd SheetT.UpdateBoundingBoxes
                         ]
             else
-                let snapXY = getNewSegmentSnapInfo model aSeg
+                let snapXY = getNewSegmentSnapInfo model aSegL
                 match model.ButtonList with
                 | [] ->
                     { model with 

@@ -111,12 +111,11 @@ module Constants =
     /// Must be smaller than Buswire.nubLength
     let minWireSeparation = 7.
     let smallOffset = 0.0001
-    let minSegmentSeparation = 12.
-    let maxSegmentSeparation = 15.
+    let maxSegmentSeparation = 30.
     /// lines within this distance of each other are considered to overlap
     let overlapTolerance = 2.
     /// corners with max length edge larger than this are not removed
-    let separateCaptureOverlap = 15. // Larger than as overlapTolerance, smaller than minSegmentSeparation
+    let separateCaptureOverlap = 35. // Larger than as overlapTolerance
     let minWireLengthToSeparate = 10. // prevents short wires being squiggly
     let maxCornerSize = 100.
     /// How close are segment extensions caused by corner removal allowed to
@@ -186,7 +185,7 @@ type LType =
 /// for vertical and horizontal segments. Each phase optimises one half of the segments.
 type Line =
     { 
-        P: float // the coordinate X or Y perpendicular to the line.
+        mutable P: float // the coordinate X or Y perpendicular to the line.
         mutable B: Bound // the two "other" coordinates
         Orientation: Orientation
         Seg1: ASegment option // if the line comes from a wire segment this references the segment and wire
@@ -194,7 +193,7 @@ type Line =
         mutable SameNetLink: Line list
         Wid: ConnectionId
         PortId: OutputPortId
-        Lid: LineId } // index in lines array of this Line.
+        mutable Lid: LineId } // index in lines array of this Line.
 
 
 /// Used to cluster together overlapping and adjacent lines into a group that
@@ -355,7 +354,8 @@ let pLineType (line:Line) = $"{line.LType}"
 /// Return string to display a Line
 let pLine (line:Line) = 
     let ori = match line.Orientation with | Horizontal -> "H" | Vertical -> "V"
-    $"|{ori}L{line.Lid.Index}.P=%.0f{line.P}.{pLineType line}:B=%.0f{line.B.MinB}-%.0f{line.B.MaxB}|"
+    $"|{ori}L{line.Lid.Index}.P=%.0f{line.P}.{pLineType line}:B=%.0f{line.B.MinB}-%.0f{line.B.MaxB}: \
+    ({line.SameNetLink |> List.map (fun l -> l.Lid.Index)})|"
 
 /// Return string to display an array of Lines
 let pLines (lineA: Line array) =
@@ -437,5 +437,8 @@ let moveLine (ori: Orientation) (newP: float) (line: Line) (wires: Map<Connectio
 
         let segIndex = seg.Segment.Index
         let wid = seg.Segment.WireId
-        let updateWire = Option.map (moveSegment segIndex (newP - oldP))
-        Map.change seg.Segment.WireId updateWire wires
+        if newP <> oldP then
+            let updateWire = Option.map (moveSegment segIndex (newP - oldP))
+            Map.change seg.Segment.WireId updateWire wires
+        else
+            wires

@@ -119,9 +119,6 @@ let linkSameNetLines (sameNetCapture: float) (lines: Line list) : Line list =
     let overlaps = hasNearOverlap separateCaptureOverlap
     let linkSameNetGroup (lines: Line list) =
         let lines = List.toArray lines
-        //printf $"Linking {pLines lines}"
-        /// if needed, link lines[b] to lines[a] mutating elements in lines array for efficiency
-        /// linkSameNetLines therefore mutates its input!
         let hasLinkedOverlap (la: Line) (lb:Line) =
             overlaps la.B lb.B 
         let tryToLink (a:int) (b:int) =
@@ -162,7 +159,6 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
         ([], model.Wires)
         ||> Map.fold (fun (lines: Line list) _ wire ->
             let wireIsRoutable = List.contains wire.WId wiresToRoute
-            //printf $"WIRE={pWire wire}"
             getFilteredAbsSegments (selectSegments wire) wire
             |> List.map (fun aSeg ->
                 let segs = wire.Segments
@@ -180,7 +176,8 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
                         NORMSEG
                 segmentToLine lType ori wire aSeg)
             |> (fun wireLines -> wireLines @ lines))
-            |> linkSameNetLines Constants.modernCirclePositionTolerance
+        |> List.mapi (fun i line -> line.Lid <- LineId i; line) // add temp Lid so that linkSameNetLines works
+        |> linkSameNetLines Constants.modernCirclePositionTolerance
 
     /// Lines coming from the bounding boxes of symbols
     let symLines =
@@ -191,8 +188,7 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
     symLines @ segLines
     |> List.toArray
     |> Array.sortBy (fun line -> line.P)
-    |> Array.mapi (fun i line -> { line with Lid = LineId i })
-    //|>  (fun arr -> printf "%s" (pLines arr); arr)
+    |> Array.mapi (fun i line -> line.Lid <- LineId i; line) // rewrite Lid
 
 
 //-------------------------------------------------------------------------------------------------//
@@ -348,11 +344,7 @@ let expandCluster (index: int) (searchDir: LocSearchDir) (lines: Line array) =
 
     let rec expand i loc =
         let nSegs = float loc.Segments.Length
-        //printf $"""Expanding: {if i >= 0 && float i < lines.Length then  pLine lines[i] else "OOB"} {pCluster loc}"""
-
         if (i < 0 || i >= lines.Length) || abs (lines[i].P - searchStart) > maxSegmentSeparation * (nSegs+2.) + smallOffset then
-            //if i >= 0 && i < lines.Length then 
-                //printf $"Gapped:{abs (lines[i].P - searchStart)} {maxSegmentSeparation * nSegs + smallOffset} "
             {loc with Segments = List.sortDescending loc.Segments}
         elif not  (hasOverlap loc.Bound lines[i].B) then
             expand (nextIndex i) loc
@@ -388,7 +380,7 @@ let linkAndRemoveSameNetSegments (lines: Line array) (cluster: Cluster) =
     |> List.map (fun seg -> lines[seg])
     |> linkSameNetLines (separateCaptureOverlap)
     |> List.filter (fun line -> line.LType <> LINKEDSEG)
-    |> List.map (fun line -> match line.Lid with LineId n -> n)
+    |> List.map (fun line -> line.Lid.Index)
     |> (fun newSegs -> {cluster with Segments = newSegs})
 
 /// Scan through segments in P order creating a list of local Clusters.
@@ -454,7 +446,6 @@ let makeClusters (lines: Line array) : Cluster list =
             |> (fun newLocs ->
                     newLocs
                     |> List.iter (fun loc -> 
-                        //printf "%s" (pAllCluster lines loc)
                         loc.Segments |> List.iter (fun seg -> groupableA[seg] <- false))
 
                     if groupable nextIndex then
@@ -474,8 +465,6 @@ let mergeLocs (lines: Line array) (loc1: Cluster) (loc2: Cluster) =
         [ loc1; loc2 ] // do not merge
     else
         // Bound and SearchStart fields are no longer used.
-        // printf $"Merging:\n{pAllCluster lines loc1}\n{pAllCluster lines loc2}"
-
         [ { loc1 with
                 UpperFix = loc2.UpperFix
                 Segments = loc1.Segments @ loc2.Segments } ]
@@ -503,20 +492,18 @@ let mergeLocalities (lines: Line array) (locL: Cluster list) =
 let calcSegPositions model lines (loc: Cluster) =
     let segs = loc.Segments |> List.distinct |> orderPairwiseToMinimiseCrossings model lines
     // if segs.Length > 1 then
-    // printfn $"** Grouping: {segs |> List.map (fun i -> i, lines[i].P)} **"
     let pts = segs |> List.map (fun i -> lines[i].P)
     let nSeg = loc.Segments.Length
 
     let spreadFromStart start sep =
-        //printfn $"spread: %.2f{start}: %.2f{sep} {segs} {loc.UpperFix} {loc.LowerFix}"
-        segs |> List.mapi (fun i seg -> lines[seg], start + sep * float i)
+        segs |> List.iteri (fun i seg -> lines[seg].P <- start + sep * float i)
 
     let spreadFromMiddle mid sep =
         segs
-        |> List.mapi (fun i seg -> lines[seg], mid + sep * float i - float (nSeg - 1) * sep / 2.)
+        |> List.iteri (fun i seg -> lines[seg].P <-  mid + sep * float i - float (nSeg - 1) * sep / 2.)
 
     let spreadFromEnd endP sep =
-        segs |> List.mapi (fun i seg -> lines[seg], endP + sep * float (i - (nSeg - 1)))
+        segs |> List.iteri (fun i seg -> lines[seg].P <-  endP + sep * float (i - (nSeg - 1)))
 
     let maxSep = maxSegmentSeparation
     let halfMaxSep = maxSegmentSeparation / 2.
@@ -528,7 +515,7 @@ let calcSegPositions model lines (loc: Cluster) =
     // Fixed bounds and soft segment bounds behave differently
     // Segments are placed maxSegmentSeparation away from fixed bound but only halfSep away from soft bounds
     match loc.UpperFix, loc.LowerFix, nSeg with
-    | None, None, 1 -> [] // no change
+    | None, None, 1 -> () // no change
     | Some bMax, Some bMin, n when (bMax - bMin) / (float n + 1.) < maxSep ->
         //printf $"spread {nSeg} constrained"
         spreadFromMiddle ((bMax + bMin) / 2.) ((bMax - bMin) / (float n + 1.))
@@ -547,21 +534,17 @@ let calcSegPositions model lines (loc: Cluster) =
 let adjustSegmentsInModel 
         (ori: Orientation) 
         (model: Model) 
-        (changes: (Line * float) list) 
+        (lines: Line list) 
             : Model =
-    let changes =
-        changes 
-        |> List.collect (fun (line, p) ->
-            if line.SameNetLink = [] then 
-                [line,p]
-            else
-                //line.SameNetLink |> List.iteri (fun i lin -> printfn $"{line.Lid.Index}({i}): Linked net: {lin.Lid.Index},{lin.P} -> {p}")
-                [(line,p)] @ (line.SameNetLink |> List.map (fun line2 -> line2,p)))
+    lines
+    |> List.iter (fun line ->
+            (line.SameNetLink |> List.iter (fun line2 -> line2.P <- line.P)))
+    let lines = lines |> List.filter (fun line -> line.LType <> BARRIER)
     let wires =
-        (model.Wires, changes)
-        ||> List.fold (fun wires (line, newP) ->
+        (model.Wires, lines)
+        ||> List.fold (fun wires line ->
             let seg = Option.get line.Seg1
-            moveLine ori newP line wires)
+            moveLine ori line.P line wires)
 
     Optic.set wires_ wires model
 
@@ -596,26 +579,25 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
     |> (fun checkedLines ->
         checkedLines
         |> Array.toSeq
-        |> Seq.collect ( fun line1 ->
+        |> Seq.iter ( fun line1 ->
            checkedLines
            |> Array.toSeq
            |> Seq.filter (fun line2 ->
-                //printfn $"Checking {pLine line1} {pLine line2}"
                 line1.Lid < line2.Lid &&
                 abs (line1.P - line2.P) < overlapTolerance &&
                 line1.PortId <> line2.PortId &&
                 hasOverlap line1.B line2.B)
-           |> Seq.map (fun line2 ->
-                //printf "Changing..."
+           |> Seq.iter (fun line2 ->
                 let space1 = getSpacefromLine allLines line1 line2 2*maxSegmentSeparation
                 let space2 = getSpacefromLine allLines line2 line1 2*maxSegmentSeparation
                 if space1 < overlapTolerance && space2 < overlapTolerance then
                     printf "WARNING: No space for fixed segment shifting overlap"
                 if abs space1 > abs space2 then
-                    line1, line1.P + space1 * 0.5
+                    line1.P <- line1.P + space1 * 0.5
                 else
-                    line2, line1.P + space2 * 0.5)))
-    |> List.ofSeq
+                    line2.P <- line1.P + space2 * 0.5)))
+    allLines
+    |> Array.toList
     |> adjustSegmentsInModel ori model
 
     
@@ -675,7 +657,6 @@ let checkExtensionNoOverlap
         else
             false
     check iMin
-    //|> (fun x -> printf $"No overlap: {x}"; x)
 
 
 /// Return true if there is no crossing symbol boundary between line 
@@ -703,7 +684,6 @@ let checkExtensionNoCrossings
             if lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = BARRIER) then
                 check (i+1)
             else
-            //printf $"cross: {pLine lines[i]} p={p} b={b}"
                 false
     check iMin
 
@@ -755,7 +735,7 @@ let isSegmentExtensionOk
     /// check there is room for the proposed segment extension
     let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min startC startC+newLength; MaxB = max startC startC+newLength}}
     // printf $"P=%.0f{extension.ExtP}, ori={extension.ExtOri}, B=%A{extension.ExtB}"
-    // a aero-length segment means the two segments on either side of it are parallel and may overlap.
+    // a zero-length segment means the two segments on either side of it are parallel and may overlap.
     // if we chnage teh length of a segment next to a zero-length segment we must ensure that it does not double back on itself.
     // usually that will mean coming thr wrong wau out of a component edge (inside the component)!
     if segNum = 2 && segs[1].IsZero && sign segs[0].Length <> sign newLength ||
@@ -773,17 +753,14 @@ let isSegmentExtensionOk
 let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCorner list =
     let segs = wire.Segments
     let nSegs = wire.Segments.Length
-    //printf $"Find: {pWire wire}"
     let pickStartOfCorner (start:int) : WireCorner option =
         // the "corner" consists of segments start, start=1, start+2,start+3
         // start+1, start+2 segments are deleted, replaced by extensions of segments start and start +3
         // this function determines whether wire as a corner at index start, and if so returns
         // Some wc where wc data structure represnets the Corner.
 
-        //printf $"Pick (start={start}): {pWire wire}"
         let seg = segs[start]    
         if segs[start].IsZero || segs[start+3].IsZero then  // we don't want to extend a zero-length segment - it would not simplify the wire
-            //printf "zero seg - cancelled"
             None
         else
             let deletedSeg1,deletedSeg2 = segs[start+1], segs[start+2]
@@ -793,7 +770,6 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
                 // segments which are very long maybe should not be removed - perhaps there is some reson for them?
                 // "manual" segments are never chnaged by the wire separation and routing - the user has said they should
                 // be as they are.
-                //printf "manual or long - cancelled"
                 None
             else
                 let ori = wire.InitialOrientation
@@ -803,7 +779,6 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
                 if isSegmentExtensionOk info wire start startSegOrientation newLength1 &&
                     isSegmentExtensionOk info wire (start+3)  (switchOrientation startSegOrientation) newLength2
                 then
-                    //printfn "found corner on line"
                     {
                         Wire = wire
                         StartSeg = start
@@ -843,9 +818,6 @@ let removeCorner (info: LineInfo) (wc: WireCorner): LineInfo =
 /// Corners are artifacts - usually small - which give wires more visible segments than is needed.
 let removeModelCorners wires (model: Model) =
     let info = makeLineInfo wires model
-    //printf $"H:\n{pLines info.HLines}"
-    //printf $"H:\n{pLines info.HLines}"
-
     let wires = model.Wires
     let corners =
         wires
@@ -881,12 +853,10 @@ let removeWireSpikes (wire: Wire) : Wire option =
             |> List.concat
             |> Some)  
     |> Option.map (fun segs ->
-            //printf $"Despiked wire {pWire wire}"
             {wire with Segments = segs})
 
 /// return model with all wire spikes removed
 let removeModelSpikes (model: Model) =
-    //printf "Removing spikes"
     (model.Wires, model.Wires)
     ||> Map.fold (fun wires wid wire ->
         match removeWireSpikes wire with
@@ -902,22 +872,22 @@ let removeModelSpikes (model: Model) =
 /// Perform complete segment ordering and separation for segments of given orientation.
 /// wires: set of wires allowed to be moved.
 let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orientation) (model: Model) =
-    //printf $"""Wires:\n {wires |> List.map (fun wid -> pWire model.Wires[wid]) |> String.concat "\n"}"""
+    /// Add linked line changes before movement changes. Movement changes will override
+    /// linked line chnages if need be.
     let addLinkedLineChanges (lines: Line array) changes =
         lines
         |> Array.toList
         |> List.collect (fun l -> l.SameNetLink |> List.map (fun line -> line, l.P))
-        |> List.append changes
+        |> fun linkedLines -> List.append linkedLines changes
        
 
     makeLines wires ori model
     |> fun lines ->
-        //printf "%s" (pLines lines)
         makeClusters lines
-        //|> List.map (fun p -> (printf "%s" (pAllCluster lines p)); p)
         //|> mergeLocalities lines // merging does not seem necessary?
-        |> List.collect (calcSegPositions model lines)
-        |> addLinkedLineChanges lines
+        |> List.iter (calcSegPositions model lines)
+        lines
+    |> Array.toList
     |> adjustSegmentsInModel ori model
 
 /// Perform complete wire segment separation and ordering for all orientations.

@@ -271,7 +271,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         segIdL
         |> List.filter checkSegmentOK
         |> function
-            | [] -> failwithf "%s" $"Can't perform segment drag: no valid segments found in {segIdL}"
+            | [] -> model, Cmd.none
             | segIdL ->
                 match mMsg.Op with
                 | Down ->

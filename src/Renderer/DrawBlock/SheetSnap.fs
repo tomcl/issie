@@ -228,42 +228,44 @@ let getNewSymbolSnapInfo
 /// See SnapXY definition for output.
 let getNewSegmentSnapInfo  
         (model: Model) 
-        (movingSegment: BusWireT.ASegment) 
+        (movingSegmentL: BusWireT.ASegment list) 
             : SnapXY =
+    match movingSegmentL with
+    | [] -> emptySnap
+    | movingSegment :: _ -> 
+        /// Is seg Horizontal or Vertical? Returns None if segments is zero length
+        let getDir (seg: BusWireT.ASegment) = BusWire.getSegmentOrientationOpt seg.Start seg.End
 
-    /// Is seg Horizontal or Vertical? Returns None if segments is zero length
-    let getDir (seg: BusWireT.ASegment) = BusWire.getSegmentOrientationOpt seg.Start seg.End
+        let thisWire = model.Wire.Wires[movingSegment.Segment.WireId]
+        let thisSegId = movingSegment.Segment.GetId
+        let orientation = getDir movingSegment
+        let snapBounds = 
+            match orientation with
+            | None ->
+                [||] // probably this should never happen, since we cannot move 0 length segments by dragging
+            | Some ori ->
+                model.Wire.Wires
+                |> Map.filter (fun wid otherWire -> otherWire.OutputPort = thisWire.OutputPort)
+                |> Map.toArray
+                |> Array.map snd
+                |> Array.collect (getNonZeroAbsSegments >> List.toArray)
+                |> Array.collect (function | aSeg when getDir aSeg = Some ori  && aSeg.Segment.GetId <> thisSegId-> 
+                                                [|BusWire.getFixedCoord aSeg|] 
+                                           | _ -> 
+                                                [||])
+                |> Array.map (fun x -> {|Pos=x; IndicatorPos=x|})
+                |> makeSnapBounds Constants.segmentSnapLimit
 
-    let thisWire = model.Wire.Wires[movingSegment.Segment.WireId]
-    let thisSegId = movingSegment.Segment.GetId
-    let orientation = getDir movingSegment
-    let snapBounds = 
-        match orientation with
-        | None ->
-            [||] // probably this should never happen, since we cannot move 0 length segments by dragging
-        | Some ori ->
-            model.Wire.Wires
-            |> Map.filter (fun wid otherWire -> otherWire.OutputPort = thisWire.OutputPort)
-            |> Map.toArray
-            |> Array.map snd
-            |> Array.collect (getNonZeroAbsSegments >> List.toArray)
-            |> Array.collect (function | aSeg when getDir aSeg = Some ori  && aSeg.Segment.GetId <> thisSegId-> 
-                                            [|BusWire.getFixedCoord aSeg|] 
-                                       | _ -> 
-                                            [||])
-            |> Array.map (fun x -> {|Pos=x; IndicatorPos=x|})
-            |> makeSnapBounds Constants.segmentSnapLimit
-
-    let snapInDirection snapOrientation =   
-        {
-            SnapData = (if orientation = Some snapOrientation then snapBounds else [||]); 
-            SnapOpt = None
-        }       
+        let snapInDirection snapOrientation =   
+            {
+                SnapData = (if orientation = Some snapOrientation then snapBounds else [||]); 
+                SnapOpt = None
+            }       
         
-    {
-        SnapX = snapInDirection BusWireT.Vertical
-        SnapY = snapInDirection BusWireT.Horizontal        
-    }
+        {
+            SnapX = snapInDirection BusWireT.Vertical
+            SnapY = snapInDirection BusWireT.Horizontal        
+        }
 
 //-----------------------------------------------------------------------------------------------//
 //-------------------------------------Snap Functions--------------------------------------------//

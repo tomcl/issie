@@ -9,8 +9,8 @@ open System.Text.RegularExpressions
 open DrawModelType
 open DrawModelType.SymbolT
 open Symbol
-open SymbolUpdatePortHelpers
-open SymbolUpdateResizeHelpers // HLP23 AUTHOR: BRYAN TAN
+open SymbolPortHelpers
+open SymbolResizeHelpers // HLP23 AUTHOR: BRYAN TAN
 open SymbolReplaceHelpers
 open Optics
 open Optic
@@ -580,128 +580,7 @@ let inline updateMemory model compId updateFn =
     Optic.set (symbolOf_ compId >-> component_) newComp model
 
 
-let rotateSide (rotation: RotationType) (side:Edge) :Edge =
-    match rotation, side with
-    | RotateAntiClockwise, Top -> Left
-    | RotateAntiClockwise, Left -> Bottom
-    | RotateAntiClockwise, Bottom -> Right
-    | RotateAntiClockwise, Right -> Top
-    | RotateClockwise, Top -> Right
-    | RotateClockwise, Left -> Top
-    | RotateClockwise, Bottom -> Left
-    | RotateClockwise, Right -> Bottom
 
-
-/// return a new orientation based on old one and a rotation
-let rotateAngle (rot: RotationType) (rotation: Rotation) : Rotation =
-    match rot, rotation with
-    | RotateAntiClockwise, Degree0 -> Degree90
-    | RotateAntiClockwise, Degree90 -> Degree180
-    | RotateAntiClockwise, Degree180 -> Degree270
-    | RotateAntiClockwise, Degree270 -> Degree0
-    | RotateClockwise, Degree0 -> Degree270
-    | RotateClockwise, Degree90 -> Degree0
-    | RotateClockwise, Degree180 -> Degree90
-    | RotateClockwise, Degree270 -> Degree180
-
-/// rotates the portMap information left or right as per rotation
-let rotatePortInfo (rotation:RotationType) (portMaps:PortMaps) : PortMaps=
-    //need to update portOrientation and portOrder
-    let newPortOrientation = 
-        portMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
-
-    let rotatePortList currPortOrder side =
-        currPortOrder |> Map.add (rotateSide rotation side) portMaps.Order[side]
-
-    let newPortOrder = 
-        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold rotatePortList
-    {Orientation= newPortOrientation; Order = newPortOrder}
-
-let adjustPosForRotation 
-        (rotation:RotationType) 
-        (h: float)
-        (w:float)
-        (pos: XYPos)
-         : XYPos =
-    let posOffset =
-        match rotation with
-        | RotateClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-        | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-    pos + posOffset
-
-
-/// Takes a symbol in and returns the same symbol rotated left or right
-let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
-    // update comp w h
-    match sym.Component.Type with
-    | Custom _->
-        let portMaps = rotatePortInfo rotation sym.PortMaps
-        let getHW (sym:Symbol) = {X=sym.Component.W;Y=sym.Component.H}
-        let sym' =
-            {sym with PortMaps = portMaps}
-            |> autoScaleHAndW
-        {sym' with Pos = sym.Pos + (getHW sym - getHW sym') * 0.5}
-        
-    | _ ->
-        let h,w = getRotatedHAndW sym
-
-        let newPos = adjustPosForRotation rotation h w sym.Pos
-        let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
-
-        let newSTransform = 
-            match sym.STransform.flipped with
-            | true -> 
-                {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
-            | false -> 
-                {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
-        { sym with 
-            Pos = newPos;
-            PortMaps = rotatePortInfo rotation sym.PortMaps
-            STransform =newSTransform 
-            LabelHasDefaultPos = true
-            Component = newComponent
-        } |> calcLabelBoundingBox
-
-
-
-/// Flips a side horizontally
-let flipSideHorizontal (edge: Edge) : Edge =
-    match edge with
-    | Left | Right ->
-        edge
-        |> rotateSide RotateClockwise
-        |> rotateSide RotateClockwise
-    | _ -> edge
-
-/// Takes in a symbol and returns the same symbol flipped
-let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
-    let portOrientation = 
-        sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
-
-    let flipPortList currPortOrder side =
-        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
-
-    let portOrder = 
-        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
-        |> Map.map (fun edge order -> List.rev order)       
-
-    let newSTransform = 
-        {flipped= not sym.STransform.flipped;
-        Rotation= sym.STransform.Rotation} 
-
-    { sym with
-        PortMaps = {Order=portOrder;Orientation=portOrientation}
-        STransform = newSTransform
-        LabelHasDefaultPos = true
-    }
-    |> calcLabelBoundingBox
-    |> (fun sym -> 
-        match orientation with
-        | FlipHorizontal -> sym
-        | FlipVertical -> 
-            sym
-            |> rotateSymbol RotateAntiClockwise
-            |> rotateSymbol RotateAntiClockwise)
 
 type Rectangle = {TopLeft: XYPos; BottomRight: XYPos}
 
@@ -934,8 +813,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         hideCompCorners model, Cmd.none
 
     | ResizeSymbol (compId, fixedCornerLoc, pos) ->
-        let helpers = { SymbolUpdateResizeHelpers.ExternalHelpers.FlipSymbol = flipSymbol }
-        manualSymbolResize (hideCompCorners model) compId fixedCornerLoc pos helpers
+        manualSymbolResize (hideCompCorners model) compId fixedCornerLoc pos
 
     | ResizeSymbolDone (compId, resetSymbol, fixedCornerLoc, pos) ->
         match resetSymbol with

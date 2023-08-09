@@ -188,10 +188,16 @@ module SymbolT =
         }
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
+    let labelBoundingBox_ = Lens.create (fun a -> a.LabelBoundingBox) (fun s a -> {a with LabelBoundingBox = s})
     let portMaps_ = Lens.create (fun a -> a.PortMaps) (fun s a -> {a with PortMaps = s})
     let movingPort_ = Lens.create (fun a -> a.MovingPort) (fun s a -> {a with MovingPort = s})
     let movingPortTarget_ = Lens.create (fun a -> a.MovingPortTarget) (fun s a -> {a with MovingPortTarget = s})
     let component_ = Lens.create (fun a -> a.Component) (fun s a -> {a with Component = s})
+    let posOfSym_ = Lens.create (fun a -> a.Pos) (fun s a -> {a with Pos = s})
+    let getScaleF = Option.defaultValue 1.
+    let scaleF_ = Lens.create
+                    (fun sym -> {X= getScaleF sym.HScale; Y=getScaleF sym.VScale})
+                    (fun sf sym -> {sym with HScale = Some sf.X; VScale = Some sf.Y})
 
 
     /// Represents all the symbols and ports on the sheet
@@ -257,7 +263,7 @@ module SymbolT =
         // HLP23 AUTHOR: BRYAN TAN
         | ShowCustomCorners of compList: ComponentId list
         | HideCustomCorners of compList: ComponentId list
-        | ResizeSymbol of compId: ComponentId * corner: XYPos * move: XYPos
+        | ResizeSymbol of compId: ComponentId * corner: XYPos * move: XYPos // corner XYPos of clicked corner. move: XYPos of mouse
         | ResizeSymbolDone of compId: ComponentId * resetSymbol: Symbol option * corner: XYPos * move: XYPos
         | SaveSymbols
         | SetTheme of ThemeType

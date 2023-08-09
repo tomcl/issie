@@ -102,14 +102,14 @@ module SheetInterface =
 
         member this.ChangeAdderComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeAdderComponent (compId,(this.GetComponentById compId), newComp) ) ) )
-            let delPorts = SymbolUpdatePortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
             dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
             //this.DoBusWidthInference dispatch
         
         member this.ChangeCounterComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeCounterComponent (compId,(this.GetComponentById compId), newComp) ) ) )
-            let delPorts = SymbolUpdatePortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
+            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
             dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
         

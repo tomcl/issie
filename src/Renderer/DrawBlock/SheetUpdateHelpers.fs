@@ -134,6 +134,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         | _ -> MovingSymbols, false
 
     match model.SelectedComponents with
+    | [] -> model, Cmd.none
     | [symId] -> // Attempt Snap-to-Grid if there is only one moving component
         let symbol = 
             match Map.tryFind symId model.Wire.Symbol.Symbols with

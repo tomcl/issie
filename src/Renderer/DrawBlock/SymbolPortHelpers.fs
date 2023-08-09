@@ -1,4 +1,4 @@
-﻿module SymbolUpdatePortHelpers
+﻿module SymbolPortHelpers
 
 open Elmish
 open Fable.React.Props

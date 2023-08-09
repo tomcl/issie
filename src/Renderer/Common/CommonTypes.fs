@@ -19,6 +19,8 @@ module CommonTypes
             X : float
             Y : float
         }
+
+        static member inline zero: XYPos = {X=0.; Y=0.}
     
         /// allowed tolerance when comparing positions with floating point errors for equality
         static member inline epsilon = 0.0000001
@@ -47,8 +49,15 @@ module CommonTypes
     /// example use of comparison operator: note that F# type inference will not work without at least
     /// one of the two operator arguments having a known XYPos type.
     let private testXYPosComparison a  (b:XYPos) = 
-        a =~ b   
-  
+        a =~ b
+
+    /// display XYPos as string nicely for debugging
+    let pXY ({X=x;Y=y}:XYPos) =
+        if max (abs x) (abs y) > 20. then
+            $"(%.0f{x},%.0f{y})"
+        else
+            $"(%.2f{x},%.2f{y})" 
+
 
     //==========================================//
     // Canvas state mapped to f# data structure //
@@ -326,8 +335,9 @@ module CommonTypes
         H: float
     }
         with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
-    
-    type ScaleFactor = { x: float; y: float }
+
+
+    let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> {a with TopLeft = s})
 
     [<StringEnum>]
     type ScaleAdjustment =

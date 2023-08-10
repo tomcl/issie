@@ -24,6 +24,8 @@ open Fable.SimpleJson
 open Helpers
 open NumberHelpers
 open DiagramStyle
+open Fable.Core.JsInterop
+open Browser
 
 module Constants =
     let memoryUpdateCheckTime = 300.
@@ -130,7 +132,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetPopupAlgebraInputs _ 
     | SetPopupAlgebraError _ -> None
     | TogglePopupAlgebraInput _ -> Some  "TogglePopupAlgebraInput"
-    | SimulateWithProgressBar _ 
+    | SimulateWithProgressBar _ -> None
     | SetSelectedComponentMemoryLocation _ -> Some "SetSelectedComponentMemoryLocation"
     | CloseDiagramNotification
     | SetSimulationNotification _ 
@@ -149,6 +151,8 @@ let shortDisplayMsg (msg:Msg) =
     | SetViewerWidth _ 
     | MenuAction _ 
     | DiagramMouseEvent
+    | ContextMenuAction _ -> None
+    | ContextMenuItemClick _
     | SelectionHasChanged -> Some "Selection has changed"
     | SetIsLoading _
     | SetRouterInteractive _
@@ -220,6 +224,45 @@ let updateAllMemoryCompsIfNeeded (model:Model) =
         MemoryEditorView.updateAllMemoryComps model
     else
         model
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------CONTEXT MENUS-----------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+/// Function that works out from the right-click event and model
+/// what the current context menu should be.
+let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) =
+    //--------- the sample code below shows how useful info can be extracted from e --------------//
+    // calculate equivalent sheet XY coordinates - valid if mouse is over schematic.
+    let sheetXYPos = SheetDisplay.getDrawBlockPos e DiagramStyle.getHeaderHeight model.Sheet
+    let element:Types.Element = unbox e.target
+    let htmlId = try element.id with | e -> "invalid"
+    let drawOn = Sheet.mouseOn model.Sheet sheetXYPos
+    let clickType =
+        match drawOn, htmlId with
+        | SheetT.MouseOn.Canvas, "DrawBlockSVGTop" ->
+            printfn "Draw block sheet canvas"
+            "canvas"
+        | SheetT.MouseOn.Canvas, x ->
+            printfn "Other issie element"
+            element.ToString()
+        | drawOn, _ ->
+            printfn "Draw block element: %A" drawOn
+            drawOn.ToString()
+    printfn "--------"
+    "Menu1" // send a string so contextMenu.fs code can bring up the correct menu
+
+/// Function that implement action based on context menu item click.
+/// menuType is the menu from chooseContextMenu.
+/// item will be one of the possible items in this menu.
+let processContextMenuClick menuType item dispatch model =
+    match menuType,item with
+    | _ ->
+        printfn "%s" $"Context menu item not implemented: {menuType} -> {item}"
+    model, Cmd.none
+
+
+
 
     
     

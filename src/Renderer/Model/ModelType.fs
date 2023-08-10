@@ -409,6 +409,9 @@ type Msg =
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
     | ExecCmdAsynch of Elmish.Cmd<Msg>
     | SendSeqMsgAsynch of seq<Msg>
+    | ContextMenuAction of e: Browser.Types.MouseEvent
+    | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
+
  
 
 //================================//

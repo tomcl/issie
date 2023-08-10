@@ -310,7 +310,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     | MakeJumps connIds ->
         // recalculates (slowly) wire jumps after a drag operation
-        printfn $"Making jumps with {connIds.Length} connections"
+        //printfn $"Making jumps with {connIds.Length} connections"
         let newModel = BusWireSeparate.updateWireSegmentJumpsAndSeparations connIds model
         newModel, Cmd.none
 

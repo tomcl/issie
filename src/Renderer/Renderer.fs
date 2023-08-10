@@ -21,6 +21,7 @@ open DrawModelType
 open Optics
 open Optics.Operators
 open TestParser
+open ContextMenus
 
 importSideEffects "./scss/main.css"
 
@@ -285,6 +286,7 @@ let editMenu dispatch' =
             |> U2.Case1
             |> Some
 
+
 let attachMenusAndKeyShortcuts dispatch =
     //setupExitInterlock dispatch
     let sub dispatch =
@@ -357,9 +359,43 @@ let keyPressListener initial =
         Browser.Dom.document.addEventListener("keyup", fun e ->
                                                     firstPress <- true
                                                     dispatch <| Sheet(SheetT.PortMovementEnd))
-    Cmd.batch [Cmd.ofSub subDown; Cmd.ofSub subUp]
+    /// unfinished code
+    /// add hook in main function to display a context menu
+    /// create menu as shown in main.fs
+    let subRightClick dispatch =
+        Browser.Dom.document.addEventListener("contextmenu", unbox (fun (e:Browser.Types.MouseEvent) ->
+            e.preventDefault()
+            //printfn "Context Menu listener sending to main..."
+            dispatch (ContextMenuAction e)))
+            
+
+    let subContextMenuCommand dispatch =
+        renderer.ipcRenderer.on("context-menu-command", fun ev args ->
+            dispatch Msg.DoNothing
+            //printfn "Found menu click in callback!"
+            let arg:string = unbox args |> Array.map string |> String.concat ""
+            printfn "%s" arg
+            match arg.Split [|','|] |> Array.toList with
+            | [ menuType ; item ] ->
+                //printfn "%A" $"Renderer context menu callback: {menuType} --> {item}"
+                dispatch <| ContextMenuItemClick(menuType,item,dispatch)
+            | _ -> printfn "Unexpected callback argument sent from main.") |> ignore
+
+    Cmd.batch [
+        Cmd.ofSub subDown
+        Cmd.ofSub subUp
+        Cmd.ofSub subRightClick
+        Cmd.ofSub subContextMenuCommand
+        ]
 
 
+
+
+    
+
+
+
+    
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"

@@ -528,7 +528,6 @@ let mDownUpdate
 
         | Connection connId ->
             let aSegL = BusWireUpdateHelpers.getClickedSegment model.Wire connId mMsg.Pos
-            printfn "%s" $"segl={aSegL.Length}"
             let segIdL = aSegL |> List.map (fun aSeg -> aSeg.Segment.GetId)
             let connIdL = segIdL |> List.map snd
             let msg = DoNothing

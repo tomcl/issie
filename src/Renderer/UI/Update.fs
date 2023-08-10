@@ -1026,8 +1026,14 @@ let update (msg : Msg) oldModel =
         | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | MenuSaveProjectInNewFormat -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | _ -> getMenuView act model dispatch, Cmd.none
-        
-    | DiagramMouseEvent -> model, Cmd.none
+    | ContextMenuAction e ->
+        let menuType = getContextMenu e model
+        renderer.ipcRenderer.send("show-context-menu", [|unbox menuType|])
+        model, Cmd.none
+    | ContextMenuItemClick(menuType, item, dispatch) ->
+        processContextMenuClick menuType item dispatch model
+    | DiagramMouseEvent ->
+        model, Cmd.none
     | SelectionHasChanged -> 
         { model with ConnsOfSelectedWavesAreHighlighted = true }
         |> (fun m -> m, Cmd.none)

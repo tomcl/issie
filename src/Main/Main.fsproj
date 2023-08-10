@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Renderer\Common\ElectronAPI.fs" Link="ElectronAPI.fs" />
+    <Compile Include="..\Renderer\Common\ContextMenus.fs" Link="ContextMenus.fs" />
     <Compile Include="Main.fs" />
     <None Include="main.js" />
   </ItemGroup>

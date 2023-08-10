@@ -111,7 +111,6 @@ let filterWiresByCompMoved (model: Model) (compIds: list<ComponentId>) =
     let wireList = getWireList model
 
     let inputPorts, outputPorts =
-        printfn "inputPorts"
         Symbol.getPortLocations model.Symbol compIds
 
     let containsInputPort wire =

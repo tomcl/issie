@@ -18,7 +18,11 @@ let writeCanvasScroll (scrollPos:XYPos) =
     canvasDiv
     |> Option.iter (fun el -> el.scrollLeft <- scrollPos.X; el.scrollTop <- scrollPos.Y)
 
-
+let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Model) =
+    {
+        X = (ev.pageX + sheetModel.ScreenScrollPos.X) / sheetModel.Zoom  ;
+        Y = (ev.pageY - headerHeight + sheetModel.ScreenScrollPos.Y) / sheetModel.Zoom
+    }
 
 /// This function zooms an SVG canvas by transforming its content and altering its size.
 /// Currently the zoom expands based on top left corner.
@@ -53,9 +57,7 @@ let displaySvgWithZoom
             ShiftKeyDown = ev.shiftKey
             ScreenMovement = {X= ev.movementX;Y=ev.movementY}
             ScreenPage = {X=ev.pageX; Y=ev.pageY}
-            Pos = {
-                X = (ev.pageX + model.ScreenScrollPos.X) / zoom  ;
-                Y = (ev.pageY - headerHeight + model.ScreenScrollPos.Y) / zoom}
+            Pos = getDrawBlockPos ev headerHeight model
             }
 
     let wheelUpdate (ev: Types.WheelEvent) =
@@ -90,6 +92,7 @@ let displaySvgWithZoom
                     Height sizeInPixels
                     Width sizeInPixels
                 ]
+              Id "DrawBlockSVGTop"
             ]
             [ g // group list of elements with list of attributes
                 [ Style [Transform (sprintf "scale(%f)" zoom)]] // top-level transform style attribute for zoom

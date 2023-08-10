@@ -4,10 +4,21 @@ open Fable.Core
 open Fable.Core.JsInterop
 open ElectronAPI
 open Node
+open ContextMenus
 
+(*
+[<Emit("require('electron')")>]
+let (contextBridge,ipcRenderer): (ContextBridge*IpcRenderer) = jsNative
+*)
 
 mainProcess.systemPreferences.setUserDefault?("NSDisabledDictationMenuItem","boolean", "true")
 mainProcess.systemPreferences.setUserDefault?("NSDisabledCharacterPaletteMenu","boolean", "true")
+
+
+(*
+contextBridge.exposeInMainWorld("electronAPI", 
+  Some {| listenForClicks = fun (callback: Event -> unit) ->  ipcRenderer.on("listenForClicks", callback) |})
+*)
 
 let args = 
     Api.``process``.argv
@@ -72,6 +83,14 @@ let wait n cont =
     finally
         cont ()
         })
+
+let dispatchToRenderer ((menuType, s): string*string) =
+    match mainWindow with
+    | Some win ->
+        //printf "Sending context menu click: %A -> %A" menuType s
+        let args: obj option [] = [|Some $"{menuType},{s}"|]
+        win.webContents.send("context-menu-command", args)
+    | None -> ()
 
 let createMainWindow () =
     let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
@@ -151,7 +170,8 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
     window.webContents.on("did-finish-load", ( fun () -> 
         window.setOpacity 1.0
         window.maximize()))
-    
+
+  
    
 let rec addListeners (window: BrowserWindow) =    
         // Emitted when the window is closed.
@@ -196,6 +216,13 @@ let rec addListeners (window: BrowserWindow) =
         mainWindow
         |> Option.iter (fun win -> win.webContents.toggleDevTools()))
         |> ignore
+
+    mainProcess.ipcMain.on("show-context-menu", fun (event:IpcMainEvent) args ->
+        makeMenu window dispatchToRenderer args event
+        )|> ignore
+       
+        
+
 
     // Quit when all windows are closed.
     mainProcess.app.``on_window-all-closed`` <| Function(fun _ ->

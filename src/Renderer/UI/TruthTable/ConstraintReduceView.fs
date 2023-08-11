@@ -186,6 +186,8 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
 
 /// Body of the popup for adding input/output numerical constraints
 let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg dispatch =
+    let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
+
     fun (dialogData: PopupDialogData) ->
         // Text to be displayed at the top of the body
         let preamble = str infoMsg
@@ -194,7 +196,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
             match dialogData.ConstraintIOSel with
             | None ->
                 // Default IO is the first in the Truth Table
-                cellIOs.Head |> Some |> SetPopupConstraintIOSel |> dispatch
+                cellIOs.Head |> Some |> SetPopupConstraintIOSel |> ttDispatch
                 cellIOs.Head
             | Some io -> io
 
@@ -205,8 +207,8 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
                 cellIOs
                 |> List.map (fun io ->
                     let action = (fun _ ->
-                        io |> Some |> SetPopupConstraintIOSel |> dispatch
-                        dispatch <| SetPopupConstraintErrorMsg None)
+                        io |> Some |> SetPopupConstraintIOSel |> ttDispatch
+                        ttDispatch <| SetPopupConstraintErrorMsg None)
                     let buttonProps =
                         if io = selected then
                             [Button.Color IsPrimary; Button.OnClick action]
@@ -243,13 +245,13 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
         // Toggle for selecting the type of constriant (Equality of Inequality)
         let typeSelect =
             if selected.getWidth = 1 then
-                Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
+                Equ |> Some |> SetPopupConstraintTypeSel |> ttDispatch
                 Level.item [ Level.Item.HasTextCentered ] [
                     Field.div [ Field.HasAddonsCentered ] [
                         Control.div [] [ Button.button [
                             Button.Color (IsPrimary)
                             Button.OnClick (fun _ ->
-                                Equ |> Some |> SetPopupConstraintTypeSel |> dispatch)
+                                Equ |> Some |> SetPopupConstraintTypeSel |> ttDispatch)
                         ] [ str "Equality Constraint" ] ]
                     ]
                 ]
@@ -257,7 +259,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
                 match dialogData.ConstraintTypeSel with
                 | None ->
                     //Default Constraint Type is Equality Constraint
-                    Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
+                    Equ |> Some |> SetPopupConstraintTypeSel |> ttDispatch
                     div [] []
                 | Some x ->
                     Level.item [ Level.Item.HasTextCentered ] [
@@ -265,14 +267,14 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
                             Control.div [] [ Button.button [
                                 Button.Color (if isEqu x then IsPrimary else NoColor)
                                 Button.OnClick (fun _ ->
-                                    Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
-                                    dispatch <| SetPopupConstraintErrorMsg None)
+                                    Equ |> Some |> SetPopupConstraintTypeSel |> ttDispatch
+                                    ttDispatch <| SetPopupConstraintErrorMsg None)
                             ] [ str "Equality Constraint" ] ]
                             Control.div [] [ Button.button [
                                 Button.Color (if not (isEqu x) then IsPrimary else NoColor)
                                 Button.OnClick (fun _ ->
-                                    Ineq |> Some |> SetPopupConstraintTypeSel |> dispatch
-                                    dispatch <| SetPopupConstraintErrorMsg None)
+                                    Ineq |> Some |> SetPopupConstraintTypeSel |> ttDispatch
+                                    ttDispatch <| SetPopupConstraintErrorMsg None)
                             ] [ str "Inequality Constraint" ] ]
                         ]
                     ]
@@ -288,11 +290,11 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
                         System.String.IsNullOrWhiteSpace text with
                         | _, true ->
                             "Blank constraint field"
-                            |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                            |> Some |> SetPopupConstraintErrorMsg |> ttDispatch
                         | Error err, _ ->
-                            err |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                            err |> Some |> SetPopupConstraintErrorMsg |> ttDispatch
                         | Ok num, _ ->
-                            dispatch <| SetPopupConstraintErrorMsg None
+                            ttDispatch <| SetPopupConstraintErrorMsg None
                             (int num) |> Some |> SetPopupDialogInt |> dispatch))]]
 
         let numField2 width =
@@ -306,11 +308,11 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
                         System.String.IsNullOrWhiteSpace text with
                         | _, true ->
                             "Blank constraint field"
-                            |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                            |> Some |> SetPopupConstraintErrorMsg |> ttDispatch
                         | Error err, _ ->
-                            err |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                            err |> Some |> SetPopupConstraintErrorMsg |> ttDispatch
                         | Ok num, _ ->
-                            dispatch <| SetPopupConstraintErrorMsg None
+                            ttDispatch <| SetPopupConstraintErrorMsg None
                             (num |> Some |> SetPopupDialogInt2 |> dispatch)))]]
 
         // Part of the body where the user can enter the constraint limits in numeric fields
@@ -349,20 +351,20 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
             printfn "Tentative: %A" (inCon2str tentative)
             match validateNumericalConstraint tentative existingCons with
             | Error err ->
-                err |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                err |> Some |> SetPopupConstraintErrorMsg |> ttDispatch
             | Ok c ->
-                None |> SetPopupConstraintErrorMsg |> dispatch
-                c |> Some |> SetPopupNewConstraint |> dispatch
+                None |> SetPopupConstraintErrorMsg |> ttDispatch
+                c |> Some |> SetPopupNewConstraint |> ttDispatch
         | Some lower, Some upper, None, Some io, Some Ineq ->
             let tentative = Inequality <| makeInequalityConstraint lower io (int upper)
             match validateNumericalConstraint tentative existingCons with
             | Error err ->
-                err |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                err |> Some |> SetPopupConstraintErrorMsg |> ttDispatch
             | Ok c ->
-                None |> SetPopupConstraintErrorMsg |> dispatch
-                c |> Some |> SetPopupNewConstraint |> dispatch
+                None |> SetPopupConstraintErrorMsg |> ttDispatch
+                c |> Some |> SetPopupNewConstraint |> ttDispatch
         | _, _, _, _, _ ->
-            None |> SetPopupNewConstraint |> dispatch
+            None |> SetPopupNewConstraint |> ttDispatch
 
         div [] [
             preamble
@@ -380,12 +382,13 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
 
 /// Popup for creating a new input constraint
 let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
+    let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
     // Set Defaults
     0 |> Some |> SetPopupDialogInt |> dispatch
     (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
-    Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
-    dispatch <| SetPopupConstraintIOSel None
-    dispatch <| SetPopupNewConstraint None
+    Equ |> Some |> SetPopupConstraintTypeSel |> ttDispatch
+    ttDispatch <| SetPopupConstraintIOSel None
+    ttDispatch <| SetPopupNewConstraint None
 
 
     let title = "Add Input Constraint"
@@ -407,7 +410,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             match dialogData.NewConstraint with
             | None -> ()
             | Some con ->
-                con |> AddInputConstraint |> dispatch
+                con |> AddInputConstraint |> ttDispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -418,12 +421,14 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
 
 /// Popup for creating a new output constraint
 let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
+    let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
+
     // Set Defaults
     0 |> Some |> SetPopupDialogInt |> dispatch
     (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
-    Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
-    dispatch <| SetPopupConstraintIOSel None
-    dispatch <| SetPopupNewConstraint None
+    Equ |> Some |> SetPopupConstraintTypeSel |> ttDispatch
+    ttDispatch <| SetPopupConstraintIOSel None
+    ttDispatch <| SetPopupNewConstraint None
 
     let title = "Add Output Constraint"
     let infoMsg = "If the truth table is truncated, results from applying Output Constraints may not be complete."
@@ -444,7 +449,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             match dialogData.NewConstraint with
             | None -> ()
             | Some con ->
-                con |> AddOutputConstraint |> dispatch
+                con |> AddOutputConstraint |> ttDispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -455,6 +460,8 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
 
 /// View function for the constraints section on the right-tab
 let viewConstraints (model:Model) dispatch =
+    let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
+
     let inputCons = model.TTConfig.InputConstraints
     let outputCons = model.TTConfig.OutputConstraints
     let addButton action =
@@ -466,19 +473,19 @@ let viewConstraints (model:Model) dispatch =
             str "Filter Rows in the Truth Table using Input or Output constraints"
             br []; br []
             Heading.h6 [] [str "Input Constraints"]
-            viewNumericalConstraints inputCons dispatch
+            viewNumericalConstraints inputCons ttDispatch
             br []
             makeElementLine [
                 addButton (fun _ -> createInputConstraintPopup model dispatch)
                 clearButton (fun _ ->
-                    dispatch ClearInputConstraints)] []
+                    ttDispatch ClearInputConstraints)] []
             Heading.h6 [] [str "Output Constraints"]
-            viewNumericalConstraints outputCons dispatch
+            viewNumericalConstraints outputCons ttDispatch
             br []
             makeElementLine [
                 addButton (fun _ -> createOutputConstraintPopup model dispatch)
                 clearButton (fun _ ->
-                    dispatch ClearOutputConstraints)] []
+                    ttDispatch ClearOutputConstraints)] []
         ]
 
 //-------------------------------------------------------------------------------------//
@@ -645,7 +652,7 @@ let dialogPopupReductionBody inputs tableSD (dispatch: Msg -> unit) =
             | Some l -> l
             | None -> failwithf "what? PopupDialogData.AlgebraInputs is None in popup body"
         let toggleAction io =
-            fun _ -> dispatch <| TogglePopupAlgebraInput (io,tableSD)
+            fun _ -> dispatch <| TruthTableMsg (TogglePopupAlgebraInput (io,tableSD))
         let toggles =
             inputs
             |> List.map (fun io ->
@@ -676,6 +683,8 @@ let dialogPopupReductionBody inputs tableSD (dispatch: Msg -> unit) =
         ]
 
 let createAlgReductionPopup model dispatch =
+    let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
+
     let title = "Reduction using Algebraic Inputs"
     let inputs, tableSD =
         match model.CurrentTruthTable with
@@ -698,7 +707,7 @@ let createAlgReductionPopup model dispatch =
             match dialogData.AlgebraInputs with
             | None -> failwithf "what? what? PopupDialogData.AlgebraInputs is None in popup body"
             | Some l -> 
-                dispatch <| SetTTAlgebraInputs l
+                ttDispatch <| SetTTAlgebraInputs l
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -708,17 +717,19 @@ let createAlgReductionPopup model dispatch =
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let viewReductions (table: TruthTable) (model: Model) dispatch =
+    let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
+
     let goBackButton = 
         match table.DCMap, model.TTConfig.AlgebraIns with
         | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
         | Some _, [] ->
             (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> 
-                dispatch ClearDCMap)]
+                ttDispatch ClearDCMap)]
             [str "Back to Full Table"])
         | None, _::_ ->
             (Button.button [Button.Color IsInfo; Button.OnClick (fun _ ->
-                dispatch <| SetTTAlgebraInputs []
-                dispatch <| SetPopupAlgebraInputs (Some []))]
+                ttDispatch <| SetTTAlgebraInputs []
+                ttDispatch <| SetPopupAlgebraInputs (Some []))]
             [str "Back to Numeric Table"])
         | None, [] -> div [] [] // Button is never displayed in this case
     let reduceButton =
@@ -735,7 +746,7 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
             (Button.button [Button.Disabled true; Button.OnClick (fun _ -> ())]
             [textEl])
         else
-            (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> dispatch DCReduceTruthTable)]
+            (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> ttDispatch DCReduceTruthTable)]
             [str "Remove Redundancies"])
     let algebraButton =
         Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> createAlgReductionPopup model dispatch)]
@@ -754,7 +765,7 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
     let maybeBaseSelector =
         match hasMultiBitOutputs with
         | false -> div [] []
-        | true -> baseSelector table.TableSimData.NumberBase (fun n -> n |> SetTTBase |> dispatch)
+        | true -> baseSelector table.TableSimData.NumberBase (fun n -> n |> SetTTBase |> ttDispatch)
     match table.DCMap, model.TTConfig.AlgebraIns with
     | None, [] -> // Table is neither DC Reduces or Algebraic
         div [] [

@@ -631,7 +631,7 @@ let mDownUpdate
                    
                     match model.ErrorComponents with
                     | [] -> 
-                        printfn "No error components (Wrong)"
+                        //printfn "No error components (Wrong)"
                         {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires; ButtonList = [] },
                         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                     symbolCmd (SymbolT.DeleteSymbols buttonId)
@@ -639,7 +639,7 @@ let mDownUpdate
                                     sheetCmd UpdateBoundingBoxes ]
                     
                     | _ -> 
-                        printfn "Error components (Right)"
+                        //printfn "Error components (Right)"
                         {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false;}}, 
                         Cmd.batch [
                                 symbolCmd (SymbolT.DeleteSymbols model.ButtonList)

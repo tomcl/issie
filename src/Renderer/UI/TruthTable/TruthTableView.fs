@@ -724,14 +724,18 @@ let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
             grid
 
 let restartTruthTable canvasState model dispatch = fun _ ->
+    let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
+
     let wholeSimRes = SimulationView.simulateModel None 2 canvasState model
     match wholeSimRes with
     | Error simError, _ ->
         SimulationView.setSimErrorFeedback simError model dispatch
     | Ok _, _ -> ()
-    GenerateTruthTable (Some wholeSimRes) |> dispatch
+    GenerateTruthTable (Some wholeSimRes) |> ttDispatch
 
 let viewTruthTable canvasState model dispatch =
+    let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
+
     // Truth Table Generation for selected components requires all components to have distinct labels.
     // Older Issie versions did not have labels for MergeWires and SplitWire components.
     // This step is needed for backwards compatability with older projects.
@@ -748,14 +752,14 @@ let viewTruthTable canvasState model dispatch =
                         Button.Color IColor.IsWarning
                         Button.OnClick (fun _ ->
                             SimulationView.setSimErrorFeedback simError model dispatch
-                            GenerateTruthTable (Some wholeSimRes) |> dispatch)
+                            GenerateTruthTable (Some wholeSimRes) |> ttDispatch)
                     ] [str "See Problems"]
             | Ok sd,_ ->
                 if sd.IsSynchronous = false then
                     Button.button
                         [
                             Button.Color IColor.IsSuccess
-                            Button.OnClick (fun _ -> GenerateTruthTable (Some wholeSimRes) |> dispatch)
+                            Button.OnClick (fun _ -> GenerateTruthTable (Some wholeSimRes) |> ttDispatch)
                         ] [str "Generate Truth Table"]
                 else
                     Button.button
@@ -779,14 +783,14 @@ let viewTruthTable canvasState model dispatch =
                         Button.Color IColor.IsWarning
                         Button.OnClick (fun _ ->
                             SimulationView.setSimErrorFeedback simError model dispatch
-                            GenerateTruthTable selSimRes |> dispatch)
+                            GenerateTruthTable selSimRes |> ttDispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->
                 if sd.IsSynchronous = false then
                     Button.button
                         [
                             Button.Color IColor.IsSuccess
-                            Button.OnClick (fun _ -> GenerateTruthTable selSimRes |> dispatch)
+                            Button.OnClick (fun _ -> GenerateTruthTable selSimRes |> ttDispatch)
                         ] [str "Generate Truth Table"]
                 else
                     Button.button
@@ -815,7 +819,7 @@ let viewTruthTable canvasState model dispatch =
         let closeTruthTable _ =
             dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
             dispatch ClosePropertiesNotification
-            dispatch CloseTruthTable
+            ttDispatch CloseTruthTable
         let body =
             match tableopt with
             // | Error e -> viewTruthTableError e
@@ -832,7 +836,7 @@ let viewTruthTable canvasState model dispatch =
                         truncation
                     viewReductions table model dispatch
                     br []; br []
-                    viewTruthTableData table model dispatch]
+                    viewTruthTableData table model ttDispatch]
                
         let constraints =
             match tableopt with
@@ -841,7 +845,7 @@ let viewTruthTable canvasState model dispatch =
         let hidden =
             match tableopt with
             | Error _ -> div [] []
-            | Ok table -> div [] [viewOutputHider table model.TTConfig.HiddenColumns dispatch]
+            | Ok table -> div [] [viewOutputHider table model.TTConfig.HiddenColumns ttDispatch]
         let menu =
             Menu.menu []  [
                 makeMenuGroup false "Filter" [constraints; br [] ; hr []]

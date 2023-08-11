@@ -116,6 +116,11 @@ type SimulationData =
       // Keep track of the number of clock ticks of the simulation.
       ClockTickNumber: int }
 
+let graph_ = Optics.Lens.create (fun a -> a.Graph) (fun s a -> {a with Graph = s})
+let fastSim_ = Optics.Lens.create (fun a -> a.FastSim) (fun s a -> {a with FastSim = s})
+let numberBase_ = Optics.Lens.create (fun a -> a.NumberBase) (fun s a -> {a with NumberBase = s})
+let clockTickNumber_ = Optics.Lens.create (fun a -> a.ClockTickNumber) (fun s a -> {a with ClockTickNumber = s})
+
 type SimulationErrorType =
     | PortNumMissing of PortType
     | WrongPortType of PortType * Port

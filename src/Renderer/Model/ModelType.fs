@@ -571,11 +571,22 @@ type Model = {
             | Some name, _ -> name
             | None, None -> failwithf "What? Project is not open cannot guess sheet!"
 
+let waveSimSheet_ = Lens.create (fun a -> a.WaveSimSheet) (fun s a -> {a with WaveSimSheet = s})
+let waveSim_ = Lens.create (fun a -> a.WaveSim) (fun s a -> {a with WaveSim = s})
+let rightPaneTabVisible_ = Lens.create (fun a -> a.RightPaneTabVisible) (fun s a -> {a with RightPaneTabVisible = s})
+let simSubTabVisible_ = Lens.create (fun a -> a.SimSubTabVisible) (fun s a -> {a with SimSubTabVisible = s})
+let buildVisible_ = Lens.create (fun a -> a.BuildVisible) (fun s a -> {a with BuildVisible = s})
+let popupViewFunc_ = Lens.create (fun a -> a.PopupViewFunc) (fun s a -> {a with PopupViewFunc = s})
 
 let sheet_ = Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
 let tTType_ = Lens.create (fun a -> a.TTConfig) (fun s a -> {a with TTConfig = s})
+let currentStepSimulationStep_ = Lens.create (fun a -> a.CurrentStepSimulationStep) (fun s a -> {a with CurrentStepSimulationStep = s})
 let currentTruthTable_ = Lens.create (fun a -> a.CurrentTruthTable) (fun s a -> {a with CurrentTruthTable = s})
 let popupDialogData_ = Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
+let selectedComponent_ = Lens.create (fun a -> a.SelectedComponent) (fun s a -> {a with SelectedComponent = s})
+let userData_ = Lens.create (fun a -> a.UserData) (fun s a -> {a with UserData = s})
+
+
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_
 let notifications_ = Lens.create (fun a -> a.Notifications) (fun s a -> {a with Notifications = s})
@@ -585,6 +596,8 @@ let ldcM = project_ >-> loadedComponents_
 let ldcOptM = projectOpt_ >?> loadedComponents_
 let nameM = project_ >-> openFileName_
 let nameOptM = projectOpt_ >?> openFileName_
+
+
 
 
 

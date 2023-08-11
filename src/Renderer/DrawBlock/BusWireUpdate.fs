@@ -304,7 +304,6 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         // removes wire 'jumps' at start of drag operation for neater component movement 
         // without jump recalculation
         // makejumps at end of a drag operation restores new jumps
-        printfn $"Resetting jumps with {connIds.Length} connections"
         let newModel = resetWireSegmentJumps connIds model
         newModel, Cmd.none
 

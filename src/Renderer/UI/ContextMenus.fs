@@ -1,24 +1,31 @@
 ﻿module ContextMenus
 open Fable.Core
 open Fable.Core.JsInterop
-open Microsoft.FSharp.Reflection
 open ElectronAPI
+//
+// **** DO NOT open or use renderer module code ****
+//
 
+//---------------------------------------------------------------------------------------//
+//-------Menus for context-dependent right-click actions - mainly used in draw block-----//
+//---------------------------------------------------------------------------------------//
 
-
+(*
+    NB - this file is linked into Main project as well as Renderer - so it cannot reference
+    Renderer modules which are not compiled with Main.fs (that is nearly all of the renderer).
+*)
 
 
 /// The context menu info is a map of menu name -> list of menu items
 /// menu and item names can be arbitrary strings
 /// add menus as here
-let menus = [
-        "Menu1", ["Item1"; "Item with spaces"]
-        "MenuB", ["Averylongitemwill still work"; "tiny"; "medium"]
+let contextMenus = [
+        "Menu1", ["Item1"; "Item with spaces"] // example menu
+        "MenuB", ["Averylongitemwill still work"; "tiny"; "medium"] // example menu
+        "", [] // Empty string for no context menu.
     ]
 
-let menuMap = Map.ofList menus
-
-
+let menuMap = Map.ofList contextMenus
 
 
 /// function used to implement main process 
@@ -36,8 +43,6 @@ let makeClickableReturner
     |]
     |> createObj
     |> unbox
-    
-
 
 /// Function implements main process context menus
 /// it is called in main.fs from the renderer contextmenu event.

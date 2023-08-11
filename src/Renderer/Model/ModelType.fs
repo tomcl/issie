@@ -276,6 +276,41 @@ type PopupProgress =
         Speed: float
     }
 
+type TTMsg =
+    | GenerateTruthTable of option<Result<SimulationData,SimulationError> * CanvasState>
+    | RegenerateTruthTable
+    | FilterTruthTable
+    | SortTruthTable
+    | DCReduceTruthTable
+    | HideTTColumns
+    | CloseTruthTable
+    | ClearInputConstraints
+    | ClearOutputConstraints
+    | AddInputConstraint of Constraint
+    | AddOutputConstraint of Constraint
+    | DeleteInputConstraint of Constraint
+    | DeleteOutputConstraint of Constraint
+    | ToggleHideTTColumn of CellIO
+    | ClearHiddenTTColumns
+    | ClearDCMap
+    | SetTTSortType of (CellIO * SortType) option
+    | MoveColumn of (CellIO * MoveDirection)
+    | SetIOOrder of CellIO []
+    | SetTTAlgebraInputs of SimulationIO list
+    | SetTTBase of NumberBase
+    | SetTTGridCache of ReactElement option
+    | TogglePopupAlgebraInput of (SimulationIO * SimulationData)
+    | SetPopupInputConstraints of ConstraintSet option
+    | SetPopupOutputConstraints of ConstraintSet option
+    | SetPopupConstraintTypeSel of ConstraintType option
+    | SetPopupConstraintIOSel of CellIO option
+    | SetPopupConstraintErrorMsg of string option
+    | SetPopupNewConstraint of Constraint option
+    | SetPopupAlgebraInputs of SimulationIO list option
+    | SetPopupAlgebraError of SimulationError option
+
+
+
 type Msg =
     | ShowExitDialog
     | Sheet of DrawModelType.SheetT.Msg
@@ -316,28 +351,7 @@ type Msg =
     | EndSimulation
     /// Clears the Model.WaveSim and Model.WaveSimSheet fields.
     | EndWaveSim
-    | GenerateTruthTable of option<Result<SimulationData,SimulationError> * CanvasState>
-    | RegenerateTruthTable
-    | FilterTruthTable
-    | SortTruthTable
-    | DCReduceTruthTable
-    | HideTTColumns
-    | CloseTruthTable
-    | ClearInputConstraints
-    | ClearOutputConstraints
-    | AddInputConstraint of Constraint
-    | AddOutputConstraint of Constraint
-    | DeleteInputConstraint of Constraint
-    | DeleteOutputConstraint of Constraint
-    | ToggleHideTTColumn of CellIO
-    | ClearHiddenTTColumns
-    | ClearDCMap
-    | SetTTSortType of (CellIO * SortType) option
-    | MoveColumn of (CellIO * MoveDirection)
-    | SetIOOrder of CellIO []
-    | SetTTAlgebraInputs of SimulationIO list
-    | SetTTBase of NumberBase
-    | SetTTGridCache of ReactElement option
+    | TruthTableMsg of TTMsg // all the messages used by the truth table code
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -363,15 +377,6 @@ type Msg =
     | SetPopupMemoryEditorData of MemoryEditorData option
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
-    | SetPopupInputConstraints of ConstraintSet option
-    | SetPopupOutputConstraints of ConstraintSet option
-    | SetPopupConstraintTypeSel of ConstraintType option
-    | SetPopupConstraintIOSel of CellIO option
-    | SetPopupConstraintErrorMsg of string option
-    | SetPopupNewConstraint of Constraint option
-    | SetPopupAlgebraInputs of SimulationIO list option
-    | SetPopupAlgebraError of SimulationError option
-    | TogglePopupAlgebraInput of (SimulationIO * SimulationData)
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
@@ -412,7 +417,6 @@ type Msg =
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
 
- 
 
 //================================//
 // Componenents loaded from files //

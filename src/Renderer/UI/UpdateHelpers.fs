@@ -16,7 +16,6 @@ open ModelHelpers
 open CommonTypes
 open Extractor
 open CatalogueView
-open PopupHelpers
 open FileMenuView
 open Sheet.SheetInterface
 open DrawModelType
@@ -26,9 +25,16 @@ open NumberHelpers
 open DiagramStyle
 open Fable.Core.JsInterop
 open Browser
+open PopupHelpers
+open Optics.Operators
+open Optics.Optic
 
 module Constants =
     let memoryUpdateCheckTime = 300.
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------MESSAGE TRACING---------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
 
 
 ///Used to filter specific mouse messages based on mouse data.
@@ -41,13 +47,18 @@ let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
         | _ -> false
     | _ -> false
 
-
+/// short summary used where Sheet messages are too complex to print
 let shortDSheetMsg msg = Some "Sheet message"
 
+/// short summary of wavesim message which has a lot of data
 let shortDWSM (ws: WaveSimModel) =
     Some <| sprintf $"WS<{ws.FastSim.SimulatedTopSheet}->{ws.StartCycle}-{ws.CurrClkCycle}-\
             {ws.ShownCycles} Waves:{ws.AllWaves.Count} ({ws.SelectedWaves.Length})>"
 
+/// Function returning a short but usually informative display of message
+/// used when message tracing (see Sheet menu to which on or off).
+/// Parameters that might be very large (like fastsimulation, or Model, or Symbols) should not be
+/// displayed using printf "%A".
 let shortDisplayMsg (msg:Msg) =
     match msg with
     | ShowExitDialog -> None
@@ -75,28 +86,40 @@ let shortDisplayMsg (msg:Msg) =
     | IncrementSimulationClockTick _
     | EndSimulation
     | EndWaveSim -> None
-    | GenerateTruthTable _ -> Some "GenerateTruthTable"
-    | RegenerateTruthTable
-    | FilterTruthTable
-    | SortTruthTable
-    | DCReduceTruthTable
-    | HideTTColumns
-    | CloseTruthTable
-    | ClearInputConstraints
-    | ClearOutputConstraints
-    | AddInputConstraint _
-    | AddOutputConstraint _
-    | DeleteInputConstraint _
-    | DeleteOutputConstraint _
-    | ToggleHideTTColumn _
-    | ClearHiddenTTColumns
-    | ClearDCMap
-    | SetTTSortType _
-    | MoveColumn _
-    | SetIOOrder _ -> Some "SetIOOrder"
-    | SetTTAlgebraInputs _ -> None
-    | SetTTBase _ -> None
-    | SetTTGridCache _ -> Some "SetTTGridCache"
+    | TruthTableMsg ttMsg ->
+        match ttMsg with
+        | GenerateTruthTable _ -> Some "GenerateTruthTable"
+        | RegenerateTruthTable
+        | FilterTruthTable
+        | SortTruthTable
+        | DCReduceTruthTable
+        | HideTTColumns
+        | CloseTruthTable
+        | ClearInputConstraints
+        | ClearOutputConstraints
+        | AddInputConstraint _
+        | AddOutputConstraint _
+        | DeleteInputConstraint _
+        | DeleteOutputConstraint _
+        | ToggleHideTTColumn _
+        | ClearHiddenTTColumns
+        | ClearDCMap
+        | SetTTSortType _
+        | MoveColumn _ -> None
+        | SetIOOrder _ -> Some "SetIOOrder"
+        | SetTTAlgebraInputs _ -> None
+        | SetTTBase _ -> None
+        | SetTTGridCache _ -> Some "SetTTGridCache"
+        | TogglePopupAlgebraInput _ -> Some  "TogglePopupAlgebraInput"
+        | SetPopupInputConstraints _ 
+        | SetPopupOutputConstraints _ 
+        | SetPopupConstraintTypeSel _ 
+        | SetPopupConstraintIOSel _ 
+        | SetPopupConstraintErrorMsg _ 
+        | SetPopupNewConstraint _ 
+        | SetPopupAlgebraInputs _ 
+        | SetPopupAlgebraError _ -> None
+
     | ChangeRightTab _ -> None
     | ChangeSimSubTab _ -> None
     | SetHighlighted (comps,conns) -> Some $"SetHighlighted: {comps.Length} comps, {conns.Length} conns"
@@ -123,15 +146,6 @@ let shortDisplayMsg (msg:Msg) =
     | SetPopupMemoryEditorData _ 
     | SetPopupProgress _ 
     | UpdatePopupProgress _ 
-    | SetPopupInputConstraints _ 
-    | SetPopupOutputConstraints _ 
-    | SetPopupConstraintTypeSel _ 
-    | SetPopupConstraintIOSel _ 
-    | SetPopupConstraintErrorMsg _ 
-    | SetPopupNewConstraint _ 
-    | SetPopupAlgebraInputs _ 
-    | SetPopupAlgebraError _ -> None
-    | TogglePopupAlgebraInput _ -> Some  "TogglePopupAlgebraInput"
     | SimulateWithProgressBar _ -> None
     | SetSelectedComponentMemoryLocation _ -> Some "SetSelectedComponentMemoryLocation"
     | CloseDiagramNotification
@@ -229,9 +243,22 @@ let updateAllMemoryCompsIfNeeded (model:Model) =
 //-------------------------------------CONTEXT MENUS-----------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 
+(*
+
+        Implement right-click context menus throughout Issie:
+
+        getContextMenu - detemines menu items for a given context
+
+        processContextMenuClick - determines action (typically a single message) for each menu item.
+
+        Common/ContextMenus.contextMenus - names and item names for each menu.
+
+*)
+
 /// Function that works out from the right-click event and model
 /// what the current context menu should be.
-let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) =
+/// output should be a menu name as defined in ContextMenus.contextMenus, or "" for no menu.
+let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     //--------- the sample code below shows how useful info can be extracted from e --------------//
     // calculate equivalent sheet XY coordinates - valid if mouse is over schematic.
     let sheetXYPos = SheetDisplay.getDrawBlockPos e DiagramStyle.getHeaderHeight model.Sheet
@@ -255,7 +282,12 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) =
 /// Function that implement action based on context menu item click.
 /// menuType is the menu from chooseContextMenu.
 /// item will be one of the possible items in this menu.
-let processContextMenuClick menuType item dispatch model =
+let processContextMenuClick
+        (menuType: string) // name of menu
+        (item: string) // name of menu item clicked
+        (dispatch: Msg -> unit) // disapatch function
+        (model: Model)
+            : Model * Cmd<Msg> = // can change state directly (Model) or via a message wrapped in Cmd.ofMsg.
     match menuType,item with
     | _ ->
         printfn "%s" $"Context menu item not implemented: {menuType} -> {item}"
@@ -263,6 +295,248 @@ let processContextMenuClick menuType item dispatch model =
 
 
 
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------UPDATE FUNCTIONS--------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+(* a message Msg.DoSomething will have an equivalent update function doSomethingF of type
+
+  : DoSomething -> Model -> Model
+
+  Update functions can thus be used in Model -> Model pipelines to implement operations
+
+  Move update.fs code to this file as an update function if it is long, or if it needs to be called
+  as a function as well as from a message.
+
+*)
+
+/// Adapter function to pipeline adding a default "Cmd.none" command to a model as returned
+/// in update function.
+let withNoCmd (model: Model) : Model * Cmd<Msg> =
+    model, Cmd.none
+
+
+/// Read persistent user data from file in userAppDir.
+/// Store in Model UserData.
+let readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
+    let addAppDirToUserData model = 
+        {model with UserData = {model.UserData with UserAppDir = Some userAppDir}}
+
+    let modelOpt =
+        try
+            let jsonRes = tryReadFileSync <| pathJoin [|userAppDir;"IssieSettings.json"|]
+            jsonRes
+            |> Result.bind (fun json -> Json.tryParseAs<UserData> json)
+            |> Result.bind (fun (data: UserData) -> Ok {model with UserData = data})
+            |> (function | Ok model -> model | Error _ -> printfn "Error reading user data" ; model)
+            |> addAppDirToUserData 
+            |> userDataToDrawBlockModel
+            |> Some
+        with
+        | e -> None
+    match modelOpt with
+    | Some model -> model, Cmd.none
+    | None -> addAppDirToUserData model, Cmd.none
+
+let writeUserData (model:Model) =
+    model.UserData.UserAppDir
+    |> Option.map (fun userAppDir ->
+        try
+            let data = drawBlockModelToUserData model model.UserData
+            Json.serialize<UserData> data |> Ok
+        with
+        | e -> Error "Can't write settings on this PC because userAppDir does not exist"
+        |> Result.bind (fun json -> writeFile (pathJoin [|userAppDir;"IssieSettings.json"|]) json)
+        |> Result.mapError (fun mess -> $"Write error on directory {userAppDir}: %s{mess}")
+        |> function | Error mess -> printfn "%s" mess | _ -> ())
+    |> ignore
+/// subfunction used in model update function
+let getSimulationDataOrFail model msg =
+    match model.CurrentStepSimulationStep with
+    | None -> failwithf "what? Getting simulation data when no simulation is running: %s" msg
+    | Some sim ->
+        match sim with
+        | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
+        | Ok simData -> simData
+
+let verilogOutputPage sheet fPath  =
+    div [] [
+        str $"You can write sheet '{sheet}' (and its subsheets) in either simulation or synthesis format. The output will be written to:"
+        Text.div [ 
+            Modifiers [ Modifier.TextWeight TextWeight.Bold]
+            Props [Style [TextAlign TextAlignOptions.Center; CSSProp.Padding "10px"; FontFamily "monospace"; FontSize "15px"]]] [str $"%s{Helpers.cropToLength 55 false fPath}.v"]
+        Columns.columns [ ]
+            [ Column.column [ ]
+                [ Panel.panel [ Panel.Color IsInfo ]
+                    [ Panel.heading [ ] [ str "Simulation output"]
+                      Panel.Block.div [] [ str "Simulation output will run on an online synthesis tool such as Icarus v10 to check that Issie's Verilog output is working"]
+                      Panel.Block.div [] 
+                        [ Button.button 
+                            [   Button.Color IsSuccess
+                               
+                                Button.IsFullWidth
+                                Button.OnClick <| openInBrowser "https://www.tutorialspoint.com/compile_verilog_online.php"
+                            ]
+                            [ str "Icarus v10 Verilog simulator"]
+                        ]
+                    ]
+                ]
+              Column.column [ ]
+                [ Panel.panel [ Panel.Color IsInfo ]
+                    [ Panel.heading [ ] [ str "Synthesis output"]
+                      Panel.Block.div [] [str "Synthesis output can be used as input to FPGA synthesis tools." ]
+                      Panel.Block.div [] 
+                        [ Button.button 
+                            [   Button.Color IsSuccess                          
+                                Button.IsFullWidth
+                                Button.OnClick <| openInBrowser "https://github.com/edstott/issie-synth"
+                            ]
+                            [ str "Instructions for synthesis work-flow"] 
+                        ]
+                      
+                         ] ] ] ] 
+
+/// handle Menu actions that may need Model data
+let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
+    match act with
+    | MenuSaveFile -> 
+        FileMenuView.saveOpenFileActionWithModelUpdate model dispatch |> ignore
+        SetHasUnsavedChanges false
+        |> JSDiagramMsg |> dispatch
+    | MenuSaveProjectInNewFormat ->
+        FileMenuView.saveOpenProjectInNewFormat model |> ignore
+    | MenuNewFile -> 
+        FileMenuView.addFileToProject model dispatch
+    | MenuExit ->
+        FileMenuView.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
+    | MenuVerilogOutput ->
+        mapOverProject () model (fun p ->
+            let sheet = p.OpenFileName
+            let fPath = FilesIO.pathJoin [|p.ProjectPath ; sheet|]
+            PopupHelpers.choicePopup
+                "Verilog Output"
+                (verilogOutputPage sheet fPath)
+                "Write Synthesis Verilog"
+                "Write Simulation Verilog"
+                (fun forSim _ -> 
+                    match forSim with
+                    | true -> SimulationView.verilogOutput Verilog.ForSynthesis model dispatch
+                    | false -> SimulationView.verilogOutput Verilog.ForSimulation model dispatch
+                    dispatch ClosePopup)
+                dispatch)
+            
+    | _ -> ()
+    model
+
+/// get timestamp of current loaded component.
+/// is this ever used? No.
+let getCurrentTimeStamp model =
+    match model.CurrentProj with
+    | None -> System.DateTime.MinValue
+    | Some p ->
+        p.LoadedComponents
+        |> List.tryFind (fun lc -> lc.Name = p.OpenFileName)
+        |> function | Some lc -> lc.TimeStamp
+                    | None -> failwithf "Project inconsistency: can't find component %s in %A"
+                                p.OpenFileName ( p.LoadedComponents |> List.map (fun lc -> lc.Name))
+
+/// Replace timestamp of current loaded component in model project by current time
+/// Used in update function
+let updateTimeStamp model =
+    let setTimeStamp (lc:LoadedComponent) = {lc with TimeStamp = System.DateTime.Now}
+    match model.CurrentProj with
+    | None -> model
+    | Some p ->
+        p.LoadedComponents
+        |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
+        |> fun lcs -> { model with CurrentProj=Some {p with LoadedComponents = lcs}}
+
+//Finds if the current canvas is different from the saved canvas
+// waits 50ms from last check
+
+let findChange (model : Model) : bool = 
+    let last = model.LastChangeCheckTime // NB no check to reduce total findChange time implemented yet - TODO if needed
+    let start = TimeHelpers.getTimeMs()
+
+    match model.CurrentProj with
+    | None -> false
+    | Some prj ->
+        //For better efficiency just check if the save button
+        let savedComponent = 
+            prj.LoadedComponents
+            |> List.find (fun lc -> lc.Name = prj.OpenFileName)
+        let canv = savedComponent.CanvasState
+        let canv' = model.Sheet.GetCanvasState ()
+        (canv <> canv') && not (compareCanvas 100. canv canv')
+        |> TimeHelpers.instrumentInterval "findChange" start
+
+/// Needed so that constant properties selection will work
+/// Maybe good idea for other things too?
+let resetDialogIfSelectionHasChanged newModel oldModel : Model =
+    let newSelected = newModel.Sheet.SelectedComponents
+    if newSelected.Length = 1 && newSelected <> oldModel.Sheet.SelectedComponents then
+        newModel
+        |> map popupDialogData_ (
+            set text_ None >>
+            set int_ None
+        )
+    else newModel
+
+let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
+    match compOpt with
+    | None -> None
+    | Some ({Type= (AsyncROM1 mem as ct)} as comp)
+    | Some ({Type = (ROM1 mem as ct)} as comp)
+    | Some ({Type= (AsyncRAM1 mem as ct)} as comp)
+    | Some ({Type= (RAM1 mem as ct)} as comp) -> 
+        let update mem ct =
+            match ct with
+            | AsyncROM1 _ -> AsyncROM1 mem
+            | ROM1 _ -> ROM1 mem
+            | RAM1 _ -> RAM1 mem
+            | AsyncRAM1 _ -> AsyncRAM1 mem
+            | _ -> ct
+        let mem' = {mem with Data = mem.Data |> Map.add addr data}
+        Some {comp with Type= update mem' ct}
+    | _ -> compOpt
+   
+let exitApp (model:Model) =
+    // send message to main process to initiate window close and app shutdown
+    writeUserData model
+    renderer.ipcRenderer.send("exit-the-app",[||])
+
+///Tests physical equality on two objects
+///Used because Msg type does not support structural equality
+let isSameMsg = LanguagePrimitives.PhysicalEquality 
+
+
+
+///Returns None if no mouse drag message found, returns Some (lastMouseMsg, msgQueueWithoutMouseMsgs) if a drag message was found
+let getLastMouseMsg msgQueue =
+    msgQueue
+    |> List.filter (matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag))
+    |> function
+    | [] -> None
+    | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
+
+let sheetMsg sMsg model = 
+    let sModel, sCmd = SheetUpdate.update sMsg model
+    {sModel with SavedSheetIsOutOfDate = findChange sModel}, sCmd
+
+let executePendingMessagesF n model =
+    if n = (List.length model.Pending)
+    then 
+        getLastMouseMsg model.Pending
+        |> function
+        | None -> failwithf "shouldn't happen"
+        | Some mMsg -> 
+            match mMsg with
+            | Sheet sMsg -> sheetMsg sMsg model
+            | _ -> failwithf "shouldn't happen "
+        
+    //ignore the exectue message
+    else 
+        model, Cmd.none
 
     
     

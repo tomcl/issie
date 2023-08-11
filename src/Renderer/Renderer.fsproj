@@ -14,7 +14,6 @@
     <Compile Include="Common\EEExtensions.fs" />
     <Compile Include="Common\Optics.fs" />
     <Compile Include="Common\ElectronAPI.fs" />
-    <Compile Include="Common\ContextMenus.fs" />
     <Compile Include="Common\HashMap.fs" />
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\DrawHelpers.fs" />
@@ -97,6 +96,7 @@
     <Compile Include="UI\TruthTable\TruthTableCreate.fs" />
     <Compile Include="UI\TruthTable\ConstraintReduceView.fs" />
     <Compile Include="UI\TruthTable\TruthTableView.fs" />
+    <Compile Include="UI\TruthTable\TruthTableUpdate.fs" />
     <Compile Include="UI\BuildView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
@@ -105,6 +105,7 @@
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />
     <Compile Include="UI\WaveSim/WaveSim.fs" />
     <Compile Include="UI\MainView.fs" />
+    <Compile Include="UI\ContextMenus.fs" />
     <Compile Include="UI\UpdateHelpers.fs" />
     <Compile Include="UI\Update.fs" />
 

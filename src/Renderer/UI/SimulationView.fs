@@ -458,15 +458,38 @@ let viewSimulationError
         comps
         |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
         |> Option.defaultWith (fun _ -> failwith "viewSimulationError: given component ID does not exist")
-    
+
+    // more robust version which returns empty list if there are no components
+    let getComponentByIdListOpt (compId: ComponentId) =
+        comps
+        |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
+        |> function | Some comp -> [comp]
+                    | None ->
+                        printfn "Warning: errored component from simulation is missing - it will be ignored"
+                        []
+
+    // this does not use tryFind because the IDs given in the error connection list
+    // should exist    
     let getConnectionById connId =
         conns
         |> List.tryFind (fun conn -> conn.Id = connId)
         |> Option.defaultWith (fun _ -> failwith "viewSimulationError: given connection ID does not exist")
-    
+
+    // more robust version which returns empty list if there are no connections
+    let getConnectionByIdLstOpt connId =
+        conns
+        |> List.tryFind (fun conn -> conn.Id = connId)
+        |> function | Some comp -> [comp]
+                    | None ->
+                        printfn "Warning: errored connection from simulation is missing - it will be ignored"
+                        []
+
+
+    /// If affected component has been deleted after simulation started we do not include it -
+    /// so worst case this list can be empty!
     let reacListOfCompsAffected =
         simError.ComponentsAffected
-        |> List.map getComponentById
+        |> List.collect getComponentByIdListOpt
         |> List.map (fun comp -> li [] [str comp.Label])
 
     let getCompAndPortAffectedMsg (comp: Component) (port: Port) = comp.Label + "." + CanvasStateAnalyser.getPortName comp port
@@ -477,7 +500,7 @@ let viewSimulationError
         dispatch (TryStartSimulationAfterErrorFix simType)
 
     let error =
-        let comps = List.map getComponentById simError.ComponentsAffected
+        let comps = List.collect getComponentByIdListOpt simError.ComponentsAffected
         match comps, simError.ErrType with
         | [comp], OutputConnError (0, port, rmInfo) ->
 
@@ -555,15 +578,16 @@ let viewSimulationError
             let removeNCAndChangeAdderType() =
                 let NCsToDelete =
                     simError.ConnectionsAffected
-                    |> List.map (fun (ConnectionId connId) ->
-                        ComponentId (getConnectionById connId).Target.HostId)
+                    |> List.collect (fun (ConnectionId cid) -> getConnectionByIdLstOpt cid)
+                    |> List.map (fun conn ->
+                        ComponentId conn.Target.HostId)
                 // delete NotConnected components
                 symbolDispatch <| SymbolT.DeleteSymbols NCsToDelete
                 // delete affected connections
                 busWireDispatch <| BusWireT.DeleteWires simError.ConnectionsAffected
 
                 simError.ComponentsAffected
-                |> List.map getComponentById
+                |> List.collect getComponentByIdListOpt
                 |> List.iter (fun comp ->
                     match comp.Type with
                     | NbitsAdder w -> changeAdderType (ComponentId comp.Id) (NbitsAdderNoCout w)

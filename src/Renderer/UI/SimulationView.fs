@@ -606,7 +606,8 @@ let viewSimulationError
         error
     ]
 
-let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg -> Unit) (dialog:PopupDialogData) =
+let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg -> Unit) (model':Model) =
+    let dialog = model'.PopupDialogData
     let step = simData.ClockTickNumber
     div [] 
         [
@@ -674,7 +675,8 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
     
     
 
-let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
+let simulationClockChangeAction dispatch simData (model': Model) =
+    let dialog = model'.PopupDialogData
     let clock = 
         match dialog.Int with
         | None -> failwithf "What - must have some number from dialog"
@@ -747,7 +749,8 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
-                        let isDisabled (dialogData:PopupDialogData) =
+                        let isDisabled (model': Model) =
+                            let dialogData = model'.PopupDialogData
                             match dialogData.Int with
                             | Some n -> n <= step
                             | None -> true

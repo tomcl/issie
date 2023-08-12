@@ -111,7 +111,8 @@ let makeSourceMenu
         (updateMem: ComponentId -> (Memory1 -> Memory1) -> Unit)
         (cid: ComponentId)
         (dispatch: Msg -> Unit)
-        (dialog: PopupDialogData) =
+        (modelCurrent: Model) =
+    let dialog = modelCurrent.PopupDialogData
     let projOpt = model.CurrentProj
     match dialog.MemorySetup with
     | None ->

@@ -49,7 +49,8 @@ module TestFonts =
         let textToTestDefault = "iiiimmmmyyyy0123456789"
         fontStyleDefault |> Some |> SetPopupConstraintErrorMsg |> TruthTableMsg |> dispatch
         textToTestDefault |> Some |> SetPopupDialogText  |> dispatch
-        fun (dialogData : PopupDialogData) ->
+        fun (model: Model) ->
+            let dialogData = model.PopupDialogData
             let fontFamily =
                 match dialogData.ConstraintErrorMsg with
                 | None -> fontStyleDefault
@@ -106,7 +107,7 @@ module TestFonts =
                 body
             "Change Font"
             (fun dd ->
-                Option.defaultValue "" dd.ConstraintErrorMsg
+                Option.defaultValue "" dd.PopupDialogData.ConstraintErrorMsg
                 |> nextFontFamily
                 |> Some
                 |> SetPopupConstraintErrorMsg

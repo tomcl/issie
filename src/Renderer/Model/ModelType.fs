@@ -362,7 +362,7 @@ type Msg =
     | UpdateProject of (Project -> Project)
     | UpdateModel of (Model -> Model)
     | UpdateProjectWithoutSyncing of (Project->Project)
-    | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
+    | ShowPopup of ((Msg -> Unit) -> Model -> ReactElement)
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
@@ -543,7 +543,7 @@ type Model = {
     /// the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
     /// function to create popup pane if present
-    PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
+    PopupViewFunc : ((Msg -> Unit) -> Model -> Fable.React.ReactElement) option
     /// function to create spinner popup pane if present (overrides otehr popups)
     SpinnerPayload : SpinPayload option
     /// data to populate popup (may not all be used)

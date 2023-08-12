@@ -188,7 +188,8 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
 let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg dispatch =
     let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
 
-    fun (dialogData: PopupDialogData) ->
+    fun (model': Model) ->
+        let dialogData = model'.PopupDialogData
         // Text to be displayed at the top of the body
         let preamble = str infoMsg
         // Which IO in the menu is currently selected
@@ -406,14 +407,16 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     let body = dialogPopupNumericalConBody inputs model.TTConfig.InputConstraints infoMsg dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData: PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             match dialogData.NewConstraint with
             | None -> ()
             | Some con ->
                 con |> AddInputConstraint |> ttDispatch
                 dispatch ClosePopup
     let isDisabled =
-        fun (dialogData: PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             match dialogData.ConstraintErrorMsg, dialogData.NewConstraint with
             | None, Some _ -> false
             | _, _ -> true
@@ -445,14 +448,16 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     let body = dialogPopupNumericalConBody outputs model.TTConfig.OutputConstraints infoMsg dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData: PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             match dialogData.NewConstraint with
             | None -> ()
             | Some con ->
                 con |> AddOutputConstraint |> ttDispatch
                 dispatch ClosePopup
     let isDisabled =
-        fun (dialogData: PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             match dialogData.ConstraintErrorMsg, dialogData.NewConstraint with
             | None, Some _ -> false
             | _, _ -> true
@@ -640,7 +645,8 @@ let validateAlgebraInput (io: SimulationIO) (fsi: FSInterface) (tableSD: Simulat
     | AlgebraNotImplemented err -> Error err
 
 let dialogPopupReductionBody inputs tableSD (dispatch: Msg -> unit) =
-    fun (dialogData: PopupDialogData) ->
+    fun (model': Model) ->
+        let dialogData = model'.PopupDialogData
         let explanation = 
             str <|
             "Reduce the Truth Table down into something more compact and informative by setting
@@ -703,14 +709,16 @@ let createAlgReductionPopup model dispatch =
     let body = dialogPopupReductionBody inputs tableSD dispatch
     let buttonText = "Apply"
     let buttonAction =
-        fun (dialogData: PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             match dialogData.AlgebraInputs with
             | None -> failwithf "what? what? PopupDialogData.AlgebraInputs is None in popup body"
             | Some l -> 
                 ttDispatch <| SetTTAlgebraInputs l
                 dispatch ClosePopup
     let isDisabled =
-        fun (dialogData: PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             match dialogData.AlgebraInputs, dialogData.AlgebraError with
             | _, Some _ | None, _ | Some [], _ -> true
             | Some lst, None -> false

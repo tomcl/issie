@@ -5,6 +5,14 @@ open ModelType
 open Elmish
 
 
+module Constants =
+    /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
+    let maxLastClk = 1000
+    /// Needed to prevent possible overrun of simulation arrays
+    let maxStepsOverflow = 3
+
+
+
 let initWSModel  : WaveSimModel = {
     TopSheet = ""
     Sheets = Map.empty
@@ -220,7 +228,26 @@ let removeAllSimulationsFromModel (model:Model) =
     (model.WaveSim, model.WaveSim)
     ||> Map.fold (fun wsM sheet ws -> removeFastSimFromWaveSimMap sheet wsM)
     |> (fun wsM -> {model with WaveSim = wsM})
-        
+
+/// Get the current WaveSimModel used by the Model (index the map using the current wavesim sheet).
+/// If no WaveSimModel for that sheet, return an empty wave sim model.
+let rec getWSModel model : WaveSimModel =
+    match model.WaveSimSheet with
+    | Some sheet ->
+        Map.tryFind sheet model.WaveSim
+        |> function
+            | Some wsModel ->
+                // printf "Sheet %A found in model" model.WaveSimSheet
+                wsModel
+            | None ->
+                // printf "Sheet %A not found in model" model.WaveSimSheet
+                initWSModel
+    | None ->
+        match getCurrFile model with
+        | None -> 
+            initWSModel
+        | Some sheet ->
+            getWSModel {model with WaveSimSheet = Some sheet}        
 
 /// Set WaveSimModel of current sheet.
 let setWSModel (wsModel: WaveSimModel) (model: Model) =

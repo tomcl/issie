@@ -94,7 +94,7 @@ let inline showPorts (model: Model) compList =
             Map.add sId (showSymbolPorts resetSymbols[sId])
 
     let customHint =
-        match List.exists (fun cId -> Helpers.isCustom model.Symbols[cId].Component.Type) compList with
+        match List.exists (fun cId -> Map.containsKey cId model.Symbols && Helpers.isCustom model.Symbols[cId].Component.Type) compList with
         | true -> Some Constants.customComponentHint
         | false -> None
 

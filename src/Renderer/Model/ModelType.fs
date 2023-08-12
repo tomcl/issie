@@ -314,6 +314,8 @@ type TTMsg =
 type Msg =
     | ShowExitDialog
     | Sheet of DrawModelType.SheetT.Msg
+    | UpdateUISheetTrail of (string list -> string list)
+    | SheetBackAction of (Msg -> unit)
     | SynchroniseCanvas
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
@@ -362,7 +364,7 @@ type Msg =
     | UpdateProject of (Project -> Project)
     | UpdateModel of (Model -> Model)
     | UpdateProjectWithoutSyncing of (Project->Project)
-    | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
+    | ShowPopup of ((Msg -> Unit) -> Model -> ReactElement)
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
@@ -497,6 +499,9 @@ type Model = {
     /// which top-level sheet is used by wavesim
     WaveSimSheet: string option
 
+    /// A breadcrumb-like trail of visited sheets used for UI back button
+    UISheetTrail: string list
+
     /// If the application has a modal spinner waiting for simulation
     Spinner: (Model -> Model) option
         
@@ -543,7 +548,7 @@ type Model = {
     /// the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
     /// function to create popup pane if present
-    PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
+    PopupViewFunc : ((Msg -> Unit) -> Model -> Fable.React.ReactElement) option
     /// function to create spinner popup pane if present (overrides otehr popups)
     SpinnerPayload : SpinPayload option
     /// data to populate popup (may not all be used)
@@ -585,6 +590,7 @@ let currentTruthTable_ = Lens.create (fun a -> a.CurrentTruthTable) (fun s a -> 
 let popupDialogData_ = Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
 let selectedComponent_ = Lens.create (fun a -> a.SelectedComponent) (fun s a -> {a with SelectedComponent = s})
 let userData_ = Lens.create (fun a -> a.UserData) (fun s a -> {a with UserData = s})
+let uISheetTrail_ = Lens.create (fun a -> a.UISheetTrail) (fun s a -> {a with UISheetTrail = s})
 
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})

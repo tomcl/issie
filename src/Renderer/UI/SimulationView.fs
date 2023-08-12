@@ -10,6 +10,7 @@ open Fulma
 open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
+open Elmish
 
 open NumberHelpers
 open Helpers
@@ -26,8 +27,10 @@ open Extractor
 open Simulator
 open Sheet.SheetInterface
 open DrawModelType
+open ModelHelpers
 
 open Optics
+open Optics.Optic
 open Optics.Operators
 
 module Constants =
@@ -455,15 +458,38 @@ let viewSimulationError
         comps
         |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
         |> Option.defaultWith (fun _ -> failwith "viewSimulationError: given component ID does not exist")
-    
+
+    // more robust version which returns empty list if there are no components
+    let getComponentByIdListOpt (compId: ComponentId) =
+        comps
+        |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
+        |> function | Some comp -> [comp]
+                    | None ->
+                        printfn "Warning: errored component from simulation is missing - it will be ignored"
+                        []
+
+    // this does not use tryFind because the IDs given in the error connection list
+    // should exist    
     let getConnectionById connId =
         conns
         |> List.tryFind (fun conn -> conn.Id = connId)
         |> Option.defaultWith (fun _ -> failwith "viewSimulationError: given connection ID does not exist")
-    
+
+    // more robust version which returns empty list if there are no connections
+    let getConnectionByIdLstOpt connId =
+        conns
+        |> List.tryFind (fun conn -> conn.Id = connId)
+        |> function | Some comp -> [comp]
+                    | None ->
+                        printfn "Warning: errored connection from simulation is missing - it will be ignored"
+                        []
+
+
+    /// If affected component has been deleted after simulation started we do not include it -
+    /// so worst case this list can be empty!
     let reacListOfCompsAffected =
         simError.ComponentsAffected
-        |> List.map getComponentById
+        |> List.collect getComponentByIdListOpt
         |> List.map (fun comp -> li [] [str comp.Label])
 
     let getCompAndPortAffectedMsg (comp: Component) (port: Port) = comp.Label + "." + CanvasStateAnalyser.getPortName comp port
@@ -474,7 +500,7 @@ let viewSimulationError
         dispatch (TryStartSimulationAfterErrorFix simType)
 
     let error =
-        let comps = List.map getComponentById simError.ComponentsAffected
+        let comps = List.collect getComponentByIdListOpt simError.ComponentsAffected
         match comps, simError.ErrType with
         | [comp], OutputConnError (0, port, rmInfo) ->
 
@@ -552,15 +578,16 @@ let viewSimulationError
             let removeNCAndChangeAdderType() =
                 let NCsToDelete =
                     simError.ConnectionsAffected
-                    |> List.map (fun (ConnectionId connId) ->
-                        ComponentId (getConnectionById connId).Target.HostId)
+                    |> List.collect (fun (ConnectionId cid) -> getConnectionByIdLstOpt cid)
+                    |> List.map (fun conn ->
+                        ComponentId conn.Target.HostId)
                 // delete NotConnected components
                 symbolDispatch <| SymbolT.DeleteSymbols NCsToDelete
                 // delete affected connections
                 busWireDispatch <| BusWireT.DeleteWires simError.ConnectionsAffected
 
                 simError.ComponentsAffected
-                |> List.map getComponentById
+                |> List.collect getComponentByIdListOpt
                 |> List.iter (fun comp ->
                     match comp.Type with
                     | NbitsAdder w -> changeAdderType (ComponentId comp.Id) (NbitsAdderNoCout w)
@@ -603,7 +630,8 @@ let viewSimulationError
         error
     ]
 
-let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg -> Unit) (dialog:PopupDialogData) =
+let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg -> Unit) (model':Model) =
+    let dialog = model'.PopupDialogData
     let step = simData.ClockTickNumber
     div [] 
         [
@@ -671,7 +699,8 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
     
     
 
-let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
+let simulationClockChangeAction dispatch simData (model': Model) =
+    let dialog = model'.PopupDialogData
     let clock = 
         match dialog.Int with
         | None -> failwithf "What - must have some number from dialog"
@@ -744,7 +773,8 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
-                        let isDisabled (dialogData:PopupDialogData) =
+                        let isDisabled (model': Model) =
+                            let dialogData = model'.PopupDialogData
                             match dialogData.Int with
                             | Some n -> n <= step
                             | None -> true
@@ -911,3 +941,79 @@ let viewSimulation canvasState model dispatch =
             hr []
             body
         ]
+
+let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
+    let withMsg msg model = model, Cmd.ofMsg msg
+    let withMsgs msgs model = model, Cmd.batch (msgs |> List.map Cmd.ofMsg)
+    let withCmdTTMsg ttMsg model = model, Cmd.ofMsg (TruthTableMsg ttMsg)
+    let conns = BusWire.extractConnections model.Sheet.Wire
+    let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
+    let canvasState = comps,conns
+    let simErrFeedback simErr otherMsg =
+            (getSimErrFeedbackMessages simErr model) @ [otherMsg]
+
+    match simType with
+        | StepSim ->
+            tryGetSimData canvasState model
+            |> function
+                | Ok (simData) -> 
+                    model
+                    |> set currentStepSimulationStep_ (simData |> Ok |> Some)
+                    |> withMsg (StartSimulation (Ok simData))
+                | Error simError ->
+                    model
+                    |> set currentStepSimulationStep_ (simError |> Error |> Some)
+                    |> withMsgs (simErrFeedback simError (StartSimulation (Error simError)))
+
+        | TruthTable ->
+            simulateModel None 2 canvasState model
+            |> function
+                | Ok (simData), state ->
+                    if simData.IsSynchronous = false then
+                        model
+                        |> set currentStepSimulationStep_ (simData |> Ok |> Some)
+                        |> withCmdTTMsg (GenerateTruthTable (Some (Ok simData, state)))
+                    else
+                        { model with CurrentStepSimulationStep = None }
+                        |> withCmdTTMsg CloseTruthTable
+                | Error simError, state ->
+                    let feedbackMsg = GenerateTruthTable (Some (Error simError, state)) |> TruthTableMsg
+                    model
+                    |> set currentStepSimulationStep_ (simError |> Error |> Some)
+                    |> withMsgs (simErrFeedback simError feedbackMsg)
+
+        | WaveSim ->
+            let model = MemoryEditorView.updateAllMemoryComps model
+            let wsSheet = 
+                match model.WaveSimSheet with
+                | None -> Option.get (getCurrFile model)
+                | Some sheet -> sheet
+            let model = 
+                model
+                |> removeAllSimulationsFromModel
+                |> fun model -> {model with WaveSimSheet = Some wsSheet}
+            let wsModel = getWSModel model
+            //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
+            match simulateModel
+                    model.WaveSimSheet
+                    (Constants.maxLastClk + Constants.maxStepsOverflow)
+                    canvasState
+                    model with
+            //| None ->
+            //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
+            | (Error simError, _) ->
+                model
+                |> set currentStepSimulationStep_ (simError |> Error |> Some)
+                |> withMsgs (simErrFeedback simError (SetWSModelAndSheet ({ wsModel with State = SimError simError }, wsSheet)))
+            | (Ok simData, canvState) ->
+                if simData.IsSynchronous then
+                    setFastSimInputsToDefault simData.FastSim
+                    let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }
+                    model
+                    |> set currentStepSimulationStep_ (simData |> Ok |> Some)
+                    |> withMsgs [SetWSModelAndSheet (wsModel, wsSheet) ; RefreshWaveSim wsModel]
+                else
+                    model
+                    |> set currentStepSimulationStep_ (simData |> Ok |> Some)
+                    |> withMsg (SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet))
+

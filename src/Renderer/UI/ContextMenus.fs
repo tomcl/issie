@@ -20,6 +20,7 @@ open ElectronAPI
 /// menu and item names can be arbitrary strings
 /// add menus as here
 let contextMenus = [
+        "CustomComponent", ["Go to sheet"]
         "Menu1", ["Item1"; "Item with spaces"] // example menu
         "MenuB", ["Averylongitemwill still work"; "tiny"; "medium"] // example menu
         "", [] // Empty string for no context menu.
@@ -62,13 +63,14 @@ let makeMenu
                 cases
             |> List.toArray
     fun ev ->
-        let template =
-            cases
-            |> Array.map (fun s -> makeClickableReturner dispatchToRenderer ev (menuType, s))
-            |> Array.map U2.Case1
-        let (menu:Menu) = mainProcess.Menu.buildFromTemplate template
-        let popupOptions = Some {| window = window |}
-        menu.popup (unbox popupOptions)|> ignore
+        if menuType <> "" then
+            let template =
+                cases
+                |> Array.map (fun s -> makeClickableReturner dispatchToRenderer ev (menuType, s))
+                |> Array.map U2.Case1
+            let (menu:Menu) = mainProcess.Menu.buildFromTemplate template
+            let popupOptions = Some {| window = window |}
+            menu.popup (unbox popupOptions)|> ignore
 
 
     

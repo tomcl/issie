@@ -989,7 +989,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-    match SimulationView.simulateModel model.WaveSimSheet (WaveSimHelpers.Constants.maxLastClk + WaveSimHelpers.Constants.maxStepsOverflow)  canvasState model with
+    match SimulationView.simulateModel model.WaveSimSheet (ModelHelpers.Constants.maxLastClk + ModelHelpers.Constants.maxStepsOverflow)  canvasState model with
     //| None ->
     //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
     | (Error e, _) ->

@@ -10,6 +10,7 @@ open Fulma
 open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
+open Elmish
 
 open NumberHelpers
 open Helpers
@@ -26,8 +27,10 @@ open Extractor
 open Simulator
 open Sheet.SheetInterface
 open DrawModelType
+open ModelHelpers
 
 open Optics
+open Optics.Optic
 open Optics.Operators
 
 module Constants =
@@ -911,3 +914,79 @@ let viewSimulation canvasState model dispatch =
             hr []
             body
         ]
+
+let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
+    let withMsg msg model = model, Cmd.ofMsg msg
+    let withMsgs msgs model = model, Cmd.batch (msgs |> List.map Cmd.ofMsg)
+    let withCmdTTMsg ttMsg model = model, Cmd.ofMsg (TruthTableMsg ttMsg)
+    let conns = BusWire.extractConnections model.Sheet.Wire
+    let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
+    let canvasState = comps,conns
+    let simErrFeedback simErr otherMsg =
+            (getSimErrFeedbackMessages simErr model) @ [otherMsg]
+
+    match simType with
+        | StepSim ->
+            tryGetSimData canvasState model
+            |> function
+                | Ok (simData) -> 
+                    model
+                    |> set currentStepSimulationStep_ (simData |> Ok |> Some)
+                    |> withMsg (StartSimulation (Ok simData))
+                | Error simError ->
+                    model
+                    |> set currentStepSimulationStep_ (simError |> Error |> Some)
+                    |> withMsgs (simErrFeedback simError (StartSimulation (Error simError)))
+
+        | TruthTable ->
+            simulateModel None 2 canvasState model
+            |> function
+                | Ok (simData), state ->
+                    if simData.IsSynchronous = false then
+                        model
+                        |> set currentStepSimulationStep_ (simData |> Ok |> Some)
+                        |> withCmdTTMsg (GenerateTruthTable (Some (Ok simData, state)))
+                    else
+                        { model with CurrentStepSimulationStep = None }
+                        |> withCmdTTMsg CloseTruthTable
+                | Error simError, state ->
+                    let feedbackMsg = GenerateTruthTable (Some (Error simError, state)) |> TruthTableMsg
+                    model
+                    |> set currentStepSimulationStep_ (simError |> Error |> Some)
+                    |> withMsgs (simErrFeedback simError feedbackMsg)
+
+        | WaveSim ->
+            let model = MemoryEditorView.updateAllMemoryComps model
+            let wsSheet = 
+                match model.WaveSimSheet with
+                | None -> Option.get (getCurrFile model)
+                | Some sheet -> sheet
+            let model = 
+                model
+                |> removeAllSimulationsFromModel
+                |> fun model -> {model with WaveSimSheet = Some wsSheet}
+            let wsModel = getWSModel model
+            //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
+            match simulateModel
+                    model.WaveSimSheet
+                    (Constants.maxLastClk + Constants.maxStepsOverflow)
+                    canvasState
+                    model with
+            //| None ->
+            //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
+            | (Error simError, _) ->
+                model
+                |> set currentStepSimulationStep_ (simError |> Error |> Some)
+                |> withMsgs (simErrFeedback simError (SetWSModelAndSheet ({ wsModel with State = SimError simError }, wsSheet)))
+            | (Ok simData, canvState) ->
+                if simData.IsSynchronous then
+                    setFastSimInputsToDefault simData.FastSim
+                    let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }
+                    model
+                    |> set currentStepSimulationStep_ (simData |> Ok |> Some)
+                    |> withMsgs [SetWSModelAndSheet (wsModel, wsSheet) ; RefreshWaveSim wsModel]
+                else
+                    model
+                    |> set currentStepSimulationStep_ (simData |> Ok |> Some)
+                    |> withMsg (SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet))
+

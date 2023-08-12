@@ -122,6 +122,15 @@ let update (msg : Msg) oldModel =
         {model with WaveSimViewerWidth = w}
         |> withCmdNone
 
+    | SheetBackAction dispatch ->
+        processSheetBackAction dispatch model
+        |> withCmdNone        
+
+    | UpdateUISheetTrail updateFun ->
+        model
+        |> map uISheetTrail_ (updateFun >> List.filter (filterByOKSheets model))
+        |> withCmdNone
+
     | ReloadSelectedComponent width ->
         {model with LastUsedDialogWidth=width}
         |> withCmdNone
@@ -518,6 +527,7 @@ let update (msg : Msg) oldModel =
 
     | ContextMenuItemClick(menuType, item, dispatch) ->
         processContextMenuClick menuType item dispatch model
+        |> withCmdNone
 
     | DiagramMouseEvent ->
         model, Cmd.none // this now does nothing and should be removed

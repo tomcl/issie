@@ -1255,6 +1255,19 @@ let viewTopMenu model dispatch =
                                   
                                 ]
                             ]
+                      Navbar.Item.div []
+                          (if model.UISheetTrail = [] then
+                                []
+                          else
+                                [ Navbar.Item.div []
+                                    [ Button.button 
+                                        [   Button.OnClick(fun _ -> dispatch <| SheetBackAction dispatch) 
+                                            Button.Color IsSuccess
+                                        ] 
+                                        [ str "Back" ] 
+                                  
+                                    ]
+                                ])
                       Navbar.End.div []
                         [ Navbar.Item.div []
                                 [

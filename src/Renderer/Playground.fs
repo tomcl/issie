@@ -47,7 +47,7 @@ module TestFonts =
     let dialogPopupBody  dispatch =
         let fontStyleDefault = "times"
         let textToTestDefault = "iiiimmmmyyyy0123456789"
-        fontStyleDefault |> Some |> SetPopupConstraintErrorMsg |> dispatch
+        fontStyleDefault |> Some |> SetPopupConstraintErrorMsg |> TruthTableMsg |> dispatch
         textToTestDefault |> Some |> SetPopupDialogText  |> dispatch
         fun (dialogData : PopupDialogData) ->
             let fontFamily =
@@ -73,7 +73,7 @@ module TestFonts =
                 str "Font Family: enter here or click button for known fonts" 
                 Input.text [
                     Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck false; HTMLAttr.Value fontFamily]
-                    Input.OnChange (getTextEventValue >> Some >> SetPopupConstraintErrorMsg >> dispatch)
+                    Input.OnChange (getTextEventValue >> Some >> SetPopupConstraintErrorMsg >> TruthTableMsg >> dispatch)
                 ]
                 br []
                 br []
@@ -110,6 +110,7 @@ module TestFonts =
                 |> nextFontFamily
                 |> Some
                 |> SetPopupConstraintErrorMsg
+                |> TruthTableMsg
                 |> dispatch)
             (fun _ -> false)
             []

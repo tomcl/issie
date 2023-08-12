@@ -276,6 +276,41 @@ type PopupProgress =
         Speed: float
     }
 
+type TTMsg =
+    | GenerateTruthTable of option<Result<SimulationData,SimulationError> * CanvasState>
+    | RegenerateTruthTable
+    | FilterTruthTable
+    | SortTruthTable
+    | DCReduceTruthTable
+    | HideTTColumns
+    | CloseTruthTable
+    | ClearInputConstraints
+    | ClearOutputConstraints
+    | AddInputConstraint of Constraint
+    | AddOutputConstraint of Constraint
+    | DeleteInputConstraint of Constraint
+    | DeleteOutputConstraint of Constraint
+    | ToggleHideTTColumn of CellIO
+    | ClearHiddenTTColumns
+    | ClearDCMap
+    | SetTTSortType of (CellIO * SortType) option
+    | MoveColumn of (CellIO * MoveDirection)
+    | SetIOOrder of CellIO []
+    | SetTTAlgebraInputs of SimulationIO list
+    | SetTTBase of NumberBase
+    | SetTTGridCache of ReactElement option
+    | TogglePopupAlgebraInput of (SimulationIO * SimulationData)
+    | SetPopupInputConstraints of ConstraintSet option
+    | SetPopupOutputConstraints of ConstraintSet option
+    | SetPopupConstraintTypeSel of ConstraintType option
+    | SetPopupConstraintIOSel of CellIO option
+    | SetPopupConstraintErrorMsg of string option
+    | SetPopupNewConstraint of Constraint option
+    | SetPopupAlgebraInputs of SimulationIO list option
+    | SetPopupAlgebraError of SimulationError option
+
+
+
 type Msg =
     | ShowExitDialog
     | Sheet of DrawModelType.SheetT.Msg
@@ -316,28 +351,7 @@ type Msg =
     | EndSimulation
     /// Clears the Model.WaveSim and Model.WaveSimSheet fields.
     | EndWaveSim
-    | GenerateTruthTable of option<Result<SimulationData,SimulationError> * CanvasState>
-    | RegenerateTruthTable
-    | FilterTruthTable
-    | SortTruthTable
-    | DCReduceTruthTable
-    | HideTTColumns
-    | CloseTruthTable
-    | ClearInputConstraints
-    | ClearOutputConstraints
-    | AddInputConstraint of Constraint
-    | AddOutputConstraint of Constraint
-    | DeleteInputConstraint of Constraint
-    | DeleteOutputConstraint of Constraint
-    | ToggleHideTTColumn of CellIO
-    | ClearHiddenTTColumns
-    | ClearDCMap
-    | SetTTSortType of (CellIO * SortType) option
-    | MoveColumn of (CellIO * MoveDirection)
-    | SetIOOrder of CellIO []
-    | SetTTAlgebraInputs of SimulationIO list
-    | SetTTBase of NumberBase
-    | SetTTGridCache of ReactElement option
+    | TruthTableMsg of TTMsg // all the messages used by the truth table code
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -363,15 +377,6 @@ type Msg =
     | SetPopupMemoryEditorData of MemoryEditorData option
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
-    | SetPopupInputConstraints of ConstraintSet option
-    | SetPopupOutputConstraints of ConstraintSet option
-    | SetPopupConstraintTypeSel of ConstraintType option
-    | SetPopupConstraintIOSel of CellIO option
-    | SetPopupConstraintErrorMsg of string option
-    | SetPopupNewConstraint of Constraint option
-    | SetPopupAlgebraInputs of SimulationIO list option
-    | SetPopupAlgebraError of SimulationError option
-    | TogglePopupAlgebraInput of (SimulationIO * SimulationData)
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
@@ -412,7 +417,6 @@ type Msg =
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
 
- 
 
 //================================//
 // Componenents loaded from files //
@@ -567,11 +571,22 @@ type Model = {
             | Some name, _ -> name
             | None, None -> failwithf "What? Project is not open cannot guess sheet!"
 
+let waveSimSheet_ = Lens.create (fun a -> a.WaveSimSheet) (fun s a -> {a with WaveSimSheet = s})
+let waveSim_ = Lens.create (fun a -> a.WaveSim) (fun s a -> {a with WaveSim = s})
+let rightPaneTabVisible_ = Lens.create (fun a -> a.RightPaneTabVisible) (fun s a -> {a with RightPaneTabVisible = s})
+let simSubTabVisible_ = Lens.create (fun a -> a.SimSubTabVisible) (fun s a -> {a with SimSubTabVisible = s})
+let buildVisible_ = Lens.create (fun a -> a.BuildVisible) (fun s a -> {a with BuildVisible = s})
+let popupViewFunc_ = Lens.create (fun a -> a.PopupViewFunc) (fun s a -> {a with PopupViewFunc = s})
 
 let sheet_ = Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})
 let tTType_ = Lens.create (fun a -> a.TTConfig) (fun s a -> {a with TTConfig = s})
+let currentStepSimulationStep_ = Lens.create (fun a -> a.CurrentStepSimulationStep) (fun s a -> {a with CurrentStepSimulationStep = s})
 let currentTruthTable_ = Lens.create (fun a -> a.CurrentTruthTable) (fun s a -> {a with CurrentTruthTable = s})
 let popupDialogData_ = Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a with PopupDialogData = p})
+let selectedComponent_ = Lens.create (fun a -> a.SelectedComponent) (fun s a -> {a with SelectedComponent = s})
+let userData_ = Lens.create (fun a -> a.UserData) (fun s a -> {a with UserData = s})
+
+
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_
 let notifications_ = Lens.create (fun a -> a.Notifications) (fun s a -> {a with Notifications = s})
@@ -581,6 +596,8 @@ let ldcM = project_ >-> loadedComponents_
 let ldcOptM = projectOpt_ >?> loadedComponents_
 let nameM = project_ >-> openFileName_
 let nameOptM = projectOpt_ >?> openFileName_
+
+
 
 
 

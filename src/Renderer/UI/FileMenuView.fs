@@ -454,7 +454,7 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
     | None -> ()
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
-        dispatch CloseTruthTable // Message closes any open Truth Table.
+        dispatch <|TruthTableMsg CloseTruthTable // Message closes any open Truth Table.
         //dispatch EndWaveSim
         // TODO: make each sheet wavesim remember the list of waveforms.
 
@@ -755,7 +755,7 @@ let forceCloseProject model dispatch =
     dispatch (StartUICmd CloseProject)
     let sheetDispatch sMsg = dispatch (Sheet sMsg) 
     dispatch EndSimulation // End any running simulation.
-    dispatch CloseTruthTable // Close any open Truth Table.
+    dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
     // End any running simulation.
     dispatch EndSimulation
     dispatch EndWaveSim
@@ -792,7 +792,7 @@ let private newProject model dispatch  =
             displayFileErrorNotification err dispatch
         | Ok _ ->
             dispatch EndSimulation // End any running simulation.
-            dispatch CloseTruthTable // Close any open Truth Table.
+            dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
             dispatch EndWaveSim
             // Create empty placeholder projectFile.
             let projectFile = baseName path + ".dprj"

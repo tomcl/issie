@@ -611,15 +611,16 @@ let renameFileInProject name project model dispatch =
         let buttonText = "Rename"
 
         let buttonAction =
-            fun (dialogData: PopupDialogData) ->
+            fun (model: Model) ->
                 // Create empty file.
-                let newName = (getText dialogData).ToLower()
+                let newName = (getText model.PopupDialogData).ToLower()
                 // rename the file in the project.
                 dispatch(ExecFuncInMessage(renameSheet name newName, dispatch))
                 dispatch ClosePopup
 
         let isDisabled =
-            fun (dialogData: PopupDialogData) ->
+            fun (model: Model) ->
+                let dialogData = model.PopupDialogData
                 let dialogText = getText dialogData
                 (isFileInProject dialogText project) || (dialogText = "")
 
@@ -714,7 +715,8 @@ let addFileToProject model dispatch =
         let body = dialogPopupBodyOnlyText before placeholder dispatch
         let buttonText = "Add"
         let buttonAction =
-            fun (dialogData: PopupDialogData) ->
+            fun (model': Model) ->
+                    let dialogData = model'.PopupDialogData
                     // Create empty file.
                     let name = (getText dialogData).ToLower()
                     createEmptyDgmFile project.ProjectPath name
@@ -744,7 +746,8 @@ let addFileToProject model dispatch =
                     dispatch FinishUICmd
 
         let isDisabled =
-            fun (dialogData: PopupDialogData) ->
+            fun (model': Model) ->
+                let dialogData = model'.PopupDialogData
                 let dialogText = getText dialogData
                 (isFileInProject dialogText project) || (dialogText = "") || (maybeWarning dialogText project <> None)
 
@@ -1252,6 +1255,19 @@ let viewTopMenu model dispatch =
                                   
                                 ]
                             ]
+                      Navbar.Item.div []
+                          (if model.UISheetTrail = [] then
+                                []
+                          else
+                                [ Navbar.Item.div []
+                                    [ Button.button 
+                                        [   Button.OnClick(fun _ -> dispatch <| SheetBackAction dispatch) 
+                                            Button.Color IsSuccess
+                                        ] 
+                                        [ str "Back" ] 
+                                  
+                                    ]
+                                ])
                       Navbar.End.div []
                         [ Navbar.Item.div []
                                 [

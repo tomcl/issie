@@ -1,32 +1,25 @@
 ﻿module UpdateHelpers
 
 open Elmish
-
 open Fulma
 open Fable.React
 open Fable.React.Props
 open ElectronAPI
 open FilesIO
 open SimulatorTypes
-open TruthTableTypes
-open TruthTableCreate
-open TruthTableReduce
 open ModelType
 open ModelHelpers
 open CommonTypes
 open Extractor
-open CatalogueView
 open FileMenuView
 open Sheet.SheetInterface
+open BusWireUpdateHelpers
 open DrawModelType
 open Fable.SimpleJson
-open Helpers
 open NumberHelpers
 open DiagramStyle
-open Fable.Core.JsInterop
 open Browser
 open PopupHelpers
-open Optics.Operators
 open Optics.Optic
 
 module Constants =
@@ -61,7 +54,9 @@ let shortDWSM (ws: WaveSimModel) =
 /// displayed using printf "%A".
 let shortDisplayMsg (msg:Msg) =
     match msg with
-    | ShowExitDialog -> None
+    | SheetBackAction _ -> Some "SheetBackAction"
+    | UpdateUISheetTrail _
+    | ShowExitDialog
     | SynchroniseCanvas -> None
     | Sheet sheetMsg -> shortDSheetMsg sheetMsg
     | JSDiagramMsg (InitCanvas _ )-> Some "JSDiagramMsg.InitCanvas"
@@ -232,7 +227,7 @@ let mutable lastMemoryUpdateCheck = 0.
 
 let updateAllMemoryCompsIfNeeded (model:Model) =
     let time = TimeHelpers.getTimeMs()
-    if time - lastMemoryUpdateCheck > Constants.memoryUpdateCheckTime && (WaveSimHelpers.getWSModel model).State = Success then
+    if time - lastMemoryUpdateCheck > Constants.memoryUpdateCheckTime && (getWSModel model).State = Success then
         printfn "checking update of memories"
         lastMemoryUpdateCheck <- time
         MemoryEditorView.updateAllMemoryComps model
@@ -255,29 +250,71 @@ let updateAllMemoryCompsIfNeeded (model:Model) =
 
 *)
 
+type RightClickElement =
+    | DBCustomComp of SymbolT.Symbol * CustomComponentType
+    | DBComp of SymbolT.Symbol
+    | DBWire of Wire: BusWireT.Wire * ASeg: BusWireT.ASegment list
+    | DBCanvas of XYPos
+    | DBInputPort of string
+    | DBOutputPort of string
+    | IssieElement of string
+    | NoMenu
+    
+
+let mutable rightClickElement: RightClickElement = NoMenu
+
 /// Function that works out from the right-click event and model
 /// what the current context menu should be.
 /// output should be a menu name as defined in ContextMenus.contextMenus, or "" for no menu.
 let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     //--------- the sample code below shows how useful info can be extracted from e --------------//
     // calculate equivalent sheet XY coordinates - valid if mouse is over schematic.
+    let symbols = model.Sheet.Wire.Symbol.Symbols
+    let bwModel = model.Sheet.Wire
     let sheetXYPos = SheetDisplay.getDrawBlockPos e DiagramStyle.getHeaderHeight model.Sheet
     let element:Types.Element = unbox e.target
     let htmlId = try element.id with | e -> "invalid"
     let drawOn = Sheet.mouseOn model.Sheet sheetXYPos
-    let clickType =
+    rightClickElement <- // mutable so that we have this info also in the callback from main
         match drawOn, htmlId with
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop" ->
-            printfn "Draw block sheet canvas"
-            "canvas"
+            printfn "Draw block sheet 'canvas'"
+            DBCanvas sheetXYPos
         | SheetT.MouseOn.Canvas, x ->
             printfn "Other issie element"
-            element.ToString()
-        | drawOn, _ ->
-            printfn "Draw block element: %A" drawOn
-            drawOn.ToString()
-    printfn "--------"
-    "Menu1" // send a string so contextMenu.fs code can bring up the correct menu
+            IssieElement (element.ToString())
+        | SheetT.MouseOn.Component compId, _ ->
+            match Map.tryFind compId symbols with
+            | None ->
+                NoMenu
+            | Some {Component = {Type = Custom ct}} ->
+                DBCustomComp (symbols[compId], ct)
+            | Some sym ->
+                DBComp sym
+        | SheetT.MouseOn.Connection connId, _ ->
+            Map.tryFind connId bwModel.Wires
+            |> function | None -> NoMenu
+                        | Some wire ->
+                            let segs = getClickedSegment  bwModel connId sheetXYPos
+                            match segs with
+                            | [] -> NoMenu
+                            | segs ->DBWire(wire, segs)
+        | SheetT.MouseOn.InputPort (InputPortId s, _),_ -> DBInputPort s
+        | SheetT.MouseOn.OutputPort (OutputPortId s, _),_ -> DBOutputPort s
+        | _ -> NoMenu
+            
+    // return the desired menu
+    match rightClickElement with
+    | DBCustomComp _->        
+        "CustomComponent"
+    | DBCanvas x ->
+        printfn "Other issie element %s" (element.ToString())
+        "" // no menu yet
+    | _ ->
+        printfn $"Clicked on '{drawOn.ToString()}'"
+        "" // default is no menu
+            
+
 
 /// Function that implement action based on context menu item click.
 /// menuType is the menu from chooseContextMenu.
@@ -285,15 +322,39 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
 let processContextMenuClick
         (menuType: string) // name of menu
         (item: string) // name of menu item clicked
-        (dispatch: Msg -> unit) // disapatch function
+        (dispatch: Msg -> unit) // dispatch function
         (model: Model)
-            : Model * Cmd<Msg> = // can change state directly (Model) or via a message wrapped in Cmd.ofMsg.
-    match menuType,item with
+            : Model = // can change state directly (Model) or via a message wrapped in Cmd.ofMsg.
+    match rightClickElement,item with
+    | DBCustomComp(sym,ct), "Go to sheet" ->
+        let p = Option.get model.CurrentProj
+        openFileInProject ct.Name p model dispatch
+        model
+        |> map uISheetTrail_ (fun trail -> p.OpenFileName :: trail)
     | _ ->
-        printfn "%s" $"Context menu item not implemented: {menuType} -> {item}"
-    model, Cmd.none
+        printfn "%s" $"Context menu item not implemented: {rightClickElement} -> {item}"
+        model
 
+let filterByOKSheets (model: Model) (sheet: string) =
+    match model.CurrentProj with
+    | Some p when p.OpenFileName = sheet -> false
+    | Some p when p.LoadedComponents |> List.forall (fun ldc -> ldc.Name <> sheet) -> false
+    | _ -> true   
 
+let processSheetBackAction (dispatch: Msg -> unit) (model: Model)  =
+    let goodSheets =
+        model.UISheetTrail
+        |> List.filter (filterByOKSheets model) // make sure trail still exists!
+    let trail =
+        match goodSheets with
+        | [] ->
+            []
+        | (sheet :: others) ->
+            let p = Option.get model.CurrentProj
+            FileMenuView.openFileInProject sheet p model dispatch
+            others
+    model
+    |> set uISheetTrail_ trail
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------UPDATE FUNCTIONS--------------------------------------------//
@@ -505,8 +566,10 @@ let exitApp (model:Model) =
     writeUserData model
     renderer.ipcRenderer.send("exit-the-app",[||])
 
-///Tests physical equality on two objects
-///Used because Msg type does not support structural equality
+/// Tests physical equality on two objects.
+/// Used because Msg type does not support structural equality.
+/// **DANGER** will only work for messages which are physically the the same.
+/// In this use case that is fine.
 let isSameMsg = LanguagePrimitives.PhysicalEquality 
 
 
@@ -538,5 +601,5 @@ let executePendingMessagesF n model =
     else 
         model, Cmd.none
 
-    
+
     

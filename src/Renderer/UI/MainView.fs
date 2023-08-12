@@ -52,6 +52,7 @@ let viewOnDiagramButtons model dispatch =
 let init() = {
     SpinnerPayload = None
     Spinner = None
+    UISheetTrail = []
     UserData = {
         WireType = BusWireT.Radial
         ArrowDisplay = true

@@ -1,6 +1,7 @@
 module WaveSimStyle
 
 open ModelType
+open ModelHelpers
 open WaveSimHelpers
 
 open Fulma

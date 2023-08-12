@@ -122,6 +122,15 @@ let update (msg : Msg) oldModel =
         {model with WaveSimViewerWidth = w}
         |> withCmdNone
 
+    | SheetBackAction dispatch ->
+        processSheetBackAction dispatch model
+        |> withCmdNone        
+
+    | UpdateUISheetTrail updateFun ->
+        model
+        |> map uISheetTrail_ (updateFun >> List.filter (filterByOKSheets model))
+        |> withCmdNone
+
     | ReloadSelectedComponent width ->
         {model with LastUsedDialogWidth=width}
         |> withCmdNone
@@ -209,7 +218,7 @@ let update (msg : Msg) oldModel =
 
     | GenerateCurrentWaveforms ->
         // Update the wave simulator with new waveforms based on current WsModel
-        let ws = WaveSimHelpers.getWSModel model
+        let ws = getWSModel model
         WaveSim.refreshWaveSim false ws model
 
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
@@ -229,76 +238,7 @@ let update (msg : Msg) oldModel =
         |> withCmdNone    
 
     | TryStartSimulationAfterErrorFix simType ->
-        let conns = BusWire.extractConnections model.Sheet.Wire
-        let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
-        let canvasState = comps,conns
-        let simErrFeedback simErr otherMsg =
-                (SimulationView.getSimErrFeedbackMessages simErr model) @ [otherMsg]
-
-        match simType with
-            | StepSim ->
-                SimulationView.tryGetSimData canvasState model
-                |> function
-                    | Ok (simData) -> 
-                        model
-                        |> set currentStepSimulationStep_ (simData |> Ok |> Some)
-                        |> withMsg (StartSimulation (Ok simData))
-                    | Error simError ->
-                        model
-                        |> set currentStepSimulationStep_ (simError |> Error |> Some)
-                        |> withMsgs (simErrFeedback simError (StartSimulation (Error simError)))
-
-            | TruthTable ->
-                SimulationView.simulateModel None 2 canvasState model
-                |> function
-                    | Ok (simData), state ->
-                        if simData.IsSynchronous = false then
-                            model
-                            |> set currentStepSimulationStep_ (simData |> Ok |> Some)
-                            |> withCmdTTMsg (GenerateTruthTable (Some (Ok simData, state)))
-                        else
-                            { model with CurrentStepSimulationStep = None }
-                            |> withCmdTTMsg CloseTruthTable
-                    | Error simError, state ->
-                        let feedbackMsg = GenerateTruthTable (Some (Error simError, state)) |> TruthTableMsg
-                        model
-                        |> set currentStepSimulationStep_ (simError |> Error |> Some)
-                        |> withMsgs (simErrFeedback simError feedbackMsg)
-
-            | WaveSim ->
-                let model = MemoryEditorView.updateAllMemoryComps model
-                let wsSheet = 
-                    match model.WaveSimSheet with
-                    | None -> Option.get (getCurrFile model)
-                    | Some sheet -> sheet
-                let model = 
-                    model
-                    |> removeAllSimulationsFromModel
-                    |> fun model -> {model with WaveSimSheet = Some wsSheet}
-                let wsModel = WaveSimHelpers.getWSModel model
-                //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-                match SimulationView.simulateModel
-                        model.WaveSimSheet
-                        (WaveSimHelpers.Constants.maxLastClk + WaveSimHelpers.Constants.maxStepsOverflow)
-                        canvasState
-                        model with
-                //| None ->
-                //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
-                | (Error simError, _) ->
-                    model
-                    |> set currentStepSimulationStep_ (simError |> Error |> Some)
-                    |> withMsgs (simErrFeedback simError (SetWSModelAndSheet ({ wsModel with State = SimError simError }, wsSheet)))
-                | (Ok simData, canvState) ->
-                    if simData.IsSynchronous then
-                        SimulationView.setFastSimInputsToDefault simData.FastSim
-                        let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }
-                        model
-                        |> set currentStepSimulationStep_ (simData |> Ok |> Some)
-                        |> withMsgs [SetWSModelAndSheet (wsModel, wsSheet) ; RefreshWaveSim wsModel]
-                    else
-                        model
-                        |> set currentStepSimulationStep_ (simData |> Ok |> Some)
-                        |> withMsg (SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet))
+        SimulationView.tryStartSimulationAfterErrorFix simType model
 
     | SetSimulationGraph (graph, fastSim) ->
         let simData =
@@ -587,6 +527,7 @@ let update (msg : Msg) oldModel =
 
     | ContextMenuItemClick(menuType, item, dispatch) ->
         processContextMenuClick menuType item dispatch model
+        |> withCmdNone
 
     | DiagramMouseEvent ->
         model, Cmd.none // this now does nothing and should be removed

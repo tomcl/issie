@@ -157,10 +157,10 @@ let getInt2 (dialogData : PopupDialogData) : int64 =
 let getMemorySetup (dialogData : PopupDialogData) wordWidthDefault =
     Option.defaultValue (4,wordWidthDefault,FromData,None) dialogData.MemorySetup
 
-let getMemoryEditor (dialogData : PopupDialogData) =
+let getMemoryEditor (model: Model) =
     Option.defaultValue
         { Address = None; OnlyDiff = false; NumberBase = Hex ; Start = 0L}
-        dialogData.MemoryEditorData
+        model.PopupDialogData.MemoryEditorData
 
 /// Unclosable popup.
 let unclosablePopup maybeTitle (body:ReactElement) (maybeFoot: ReactElement option) extraStyle =
@@ -190,13 +190,13 @@ let mapNoDispatch (optReact: ReactElement option) =
     Option.map noDispatch optReact
 
 let showMemoryEditorPopup maybeTitle body maybeFoot extraStyle dispatch =
-    fun _ dialogData->
-        let memoryEditorData = getMemoryEditor dialogData
+    fun _ model->
+        let memoryEditorData = getMemoryEditor model
         unclosablePopup maybeTitle (body memoryEditorData) maybeFoot extraStyle dispatch
     |> ShowPopup |> dispatch
 
 let private buildPopup title body foot close extraStyle =
-    fun (dispatch:Msg->Unit) (dialogData : PopupDialogData) ->
+    fun (dispatch:Msg->Unit) (model : Model) ->
         Modal.modal [ Modal.IsActive true; Modal.CustomClass "modal1"; Modal.Props [Style [ZIndex 20000]]] [
             Modal.background [ Props [ OnClick (close dispatch)]] []
             Modal.Card.card [ Props [
@@ -210,8 +210,8 @@ let private buildPopup title body foot close extraStyle =
                     Modal.Card.title [] [ str title ]
                     Delete.delete [ Delete.OnClick (close dispatch) ] []
                 ]
-                Modal.Card.body [Props [Style [ OverflowY OverflowOptions.Visible ;OverflowX OverflowOptions.Visible]]] [ body dispatch dialogData ]
-                Modal.Card.foot [] [ foot dispatch dialogData ]
+                Modal.Card.body [Props [Style [ OverflowY OverflowOptions.Visible ;OverflowX OverflowOptions.Visible]]] [ body dispatch model ]
+                Modal.Card.foot [] [ foot dispatch model ]
             ]
         ]
 
@@ -219,7 +219,7 @@ let private buildPopup title body foot close extraStyle =
 /// reactElement. The meaning of the input string to those functions is the
 /// content of PopupDialogText (i.e. in a dialog popup, the string is the
 /// current value of the input box.).
-let dynamicClosablePopup title (body:PopupDialogData -> ReactElement) (foot: PopupDialogData -> ReactElement) (extraStyle: CSSProp list) (dispatch: Msg->Unit) =
+let dynamicClosablePopup title (body:Model -> ReactElement) (foot: Model -> ReactElement) (extraStyle: CSSProp list) (dispatch: Msg->Unit) =
     buildPopup title (fun _ -> body) (fun _ -> foot) (fun dispatch _ -> dispatch ClosePopup) extraStyle
     |> ShowPopup |> dispatch
 
@@ -231,7 +231,8 @@ let private dynamicClosablePopupFunc title body foot extraStyle =
 /// Typically the number is number of steps.
 /// The popup display is controlled by model.PopupDialog integers. Progress model updates must change these.
 let dynamicProgressPopupFunc title (cancel: (Msg -> Unit) -> Unit) =
-    let body (dispatch:Msg->Unit) (dialog:PopupDialogData) =
+    let body (dispatch:Msg->Unit) (model: Model) =
+        let dialog = model.PopupDialogData
         let n = Option.defaultValue 0 dialog.Int        
         Progress.progress
             [   Progress.Color IsSuccess
@@ -239,7 +240,8 @@ let dynamicProgressPopupFunc title (cancel: (Msg -> Unit) -> Unit) =
                 Progress.Max (int (Option.defaultValue 100L (dialog.Int2))) ]
             [ str $"{n}"]
 
-    let foot (dispatch:Msg->Unit) (dialog:PopupDialogData) =
+    let foot (dispatch:Msg->Unit) (model:Model) =
+        let dialog = model.PopupDialogData
         Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
             Level.left [] []
             Level.right [] [
@@ -268,7 +270,8 @@ let closablePopupFunc title (body:(Msg->Unit)->ReactElement) (foot:(Msg->Unit)->
 
 /// Create the body of a dialog Popup with only text.
 let dialogPopupBodyOnlyText before placeholder dispatch =
-    fun (dialogData : PopupDialogData) ->
+    fun (model : Model) ->
+        let dialogData = model.PopupDialogData
         let goodLabel =
                 getText dialogData
                 |> (fun s -> String.startsWithLetter s || s = "")
@@ -285,7 +288,8 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
 
 /// Create the body of a dialog Popup with only text for sheet description (can have an initial value + allow empty).
 let dialogPopupBodyOnlyTextWithDefaultValue before placeholder currDescr dispatch =
-    fun (dialogData : PopupDialogData) ->
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
         let defaultValue = Option.defaultValue "" currDescr
         div [] [
             before dialogData
@@ -300,7 +304,8 @@ let dialogPopupBodyOnlyTextWithDefaultValue before placeholder currDescr dispatc
 
 /// Create the body of a Verilog Editor Popup.
 let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors codeToAdd compileButton addButton dispatch =
-    fun (dialogData : PopupDialogData) ->
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
         let code = getCode dialogData
         let linesNo = 
             match code,codeToAdd with
@@ -361,7 +366,8 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
 /// Create the body of a dialog Popup with only an int.
 let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
     intDefault |> Some |> SetPopupDialogInt |> dispatch
-    fun (dialogData : PopupDialogData) ->
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
         div [] [
             beforeInt dialogData
             br []
@@ -380,7 +386,8 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
     setPopupTwoInts (FirstInt,None) (int64 intDefault1)
     setPopupTwoInts (SecondInt, None) intDefault2 
 
-    fun (dialogData : PopupDialogData) ->
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
         div [] [
             beforeInt1 dialogData
             br []
@@ -412,7 +419,8 @@ let dialogPopupBodyTextAndTwoInts (focus: int) (beforeText, textPlaceholder) (be
     setPopupTwoInts (FirstInt,None) (int64 intDefault1)
     setPopupTwoInts (SecondInt, None) intDefault2 
 
-    fun (dialogData : PopupDialogData) ->
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
         div [] [
             beforeText dialogData
             br []
@@ -446,7 +454,8 @@ let dialogPopupBodyTextAndTwoInts (focus: int) (beforeText, textPlaceholder) (be
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =
     
     intDefault |> Some |> SetPopupDialogInt |> dispatch
-    fun (dialogData : PopupDialogData) ->
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
         let goodLabel =
                 getText dialogData
                 |> (fun s -> String.startsWithLetter s || s = "")
@@ -472,7 +481,8 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch =
     intDefault |> Some |> SetPopupDialogInt |> dispatch
-    fun (dialogData : PopupDialogData) ->
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
         div [] [
             beforeInt dialogData
             br []
@@ -483,7 +493,7 @@ let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispat
             ]
             br []
             br []
-            beforeText dialogData
+            beforeText model
             Input.text [
                 Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck false]
                 Input.Placeholder placeholder
@@ -498,7 +508,8 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
 
     //Some (4, intDefault, FromData, None) 
     //|> SetPopupDialogMemorySetup |> dispatch
-    fun (dialogData : PopupDialogData) ->
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
         let setup =
             match dialogData.MemorySetup with 
             | None -> 
@@ -558,7 +569,8 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
 /// The text is reflected in Model.PopupDialogText.
 let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatch =
     let foot =
-        fun (dialogData : PopupDialogData) ->
+        fun (model: Model) ->
+            let dialogData = model.PopupDialogData
             Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
                 Level.left [] []
                 Level.right [] [
@@ -572,9 +584,9 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
                     ]
                     Level.item [] [
                         Button.button [
-                            Button.Disabled (isDisabled dialogData)
+                            Button.Disabled (isDisabled model)
                             Button.Color IsPrimary
-                            Button.OnClick (fun _ -> buttonAction dialogData)
+                            Button.OnClick (fun _ -> buttonAction model)
                         ] [ str buttonText ]
                     ]
                 ]
@@ -585,7 +597,8 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
 /// The text is reflected in Model.PopupDialogText.
 let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =
     let foot =
-        fun (dialogData : PopupDialogData) ->
+        fun (model: Model) ->
+            let dialogData = model.PopupDialogData
             let compileButtonText = 
                 if noErrors then "Compiled" 
                 elif showingExtraInfo then "Hide Info"
@@ -686,7 +699,7 @@ let progressPopup (legend: Model -> PopupProgress -> ReactElement) (model: Model
     let foot _ _ = div [] []
     let close dispatch _ = 
         dispatch <| SetPopupProgress None
-    buildPopup pp.Title body foot close extraStyle dispatch model.PopupDialogData
+    buildPopup pp.Title body foot close extraStyle dispatch model
     
 
 let simulationLegend (model:Model) (pp: PopupProgress) =
@@ -699,7 +712,7 @@ let simulationLegend (model:Model) (pp: PopupProgress) =
 /// Popup to implement spinner for long operations
 let viewSpinnerPopup (spinPayload:SpinPayload) (model: Model) (dispatch: (Msg -> Unit)) =
     dispatch <| UpdateModel spinPayload.Payload
-    let body (dispatch: Msg->Unit) (dialog: PopupDialogData) =
+    let body (dispatch: Msg->Unit) (model: Model) =
         Progress.progress
             [   Progress.Color IsSuccess
                 Progress.Value (spinPayload.Total - spinPayload.ToDo)
@@ -707,7 +720,7 @@ let viewSpinnerPopup (spinPayload:SpinPayload) (model: Model) (dispatch: (Msg ->
             ]
             [ str $"{spinPayload.Total - spinPayload.ToDo}"]
 
-    let foot (dispatch:Msg->Unit) (dialog:PopupDialogData) =
+    let foot (dispatch:Msg->Unit) (model: Model) =
         Level.level [ Level.Level.Props [ Style [ Width "100%"] ] ] [
             Level.left [] []
             Level.right [] [
@@ -721,7 +734,7 @@ let viewSpinnerPopup (spinPayload:SpinPayload) (model: Model) (dispatch: (Msg ->
             ]
         ]
         
-    buildPopup spinPayload.Name body foot (fun dispatch _ -> dispatch ClosePopup) [] dispatch model.PopupDialogData
+    buildPopup spinPayload.Name body foot (fun dispatch _ -> dispatch ClosePopup) [] dispatch model
 
 /// Display popup, if any is present.
 /// A progress popup, if present, overrides any display popup.
@@ -734,7 +747,7 @@ let viewPopup model dispatch =
         viewSpinnerPopup payload model dispatch
     | Some amount, _, _ ->
         progressPopup simulationLegend model dispatch
-    | None, Some popup, _ -> popup dispatch model.PopupDialogData 
+    | None, Some popup, _ -> popup dispatch model 
 
 
 let makeH h =
@@ -932,8 +945,8 @@ let viewInfoPopup dispatch =
             li [] [tSpan "Distribute symbols: "; keyOf3 "Ctrl" "Shift" "D"]
             li [] [tSpan "Rotate label: "; keyOf3 "Ctrl" "Shift" "Right arrow"]
          ] ]
-    let body (dialogData:PopupDialogData) =
-        
+    let body model =
+        let dialogData = model.PopupDialogData
         let tab = dialogData.Int
 
         div [] [
@@ -1020,7 +1033,7 @@ let viewWaveInfoPopup dispatch =
     ]
 
    
-    let body (dialogData:PopupDialogData) =
+    let body (model: Model) =
         waveInfo
     let foot _ = div [] []
     dynamicClosablePopup title body foot [Width 1000] dispatch
@@ -1075,11 +1088,11 @@ let memPropsInfoButton dispatch =
 
 
 
-let makePopupButton (title: string) (menu: PopupDialogData -> ReactElement) (buttonLegend: string) dispatch =
+let makePopupButton (title: string) (menu: Model -> ReactElement) (buttonLegend: string) dispatch =
 
     let foot _ = div [] []
     let popup dispatch = 
-        dynamicClosablePopup title (fun dialog -> menu dialog) foot [Width 600] dispatch
+        dynamicClosablePopup title (fun model -> menu model) foot [Width 600] dispatch
     // button driving a popup with a page of info
     Button.button
         [

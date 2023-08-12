@@ -115,7 +115,8 @@ let private createInputPopup typeStr (compType: int * int option -> ComponentTyp
         dialogPopupBodyTextAndTwoInts 1 (beforeText, placeholder) (beforeInt, beforeDefaultValue) (intDefault, 0) dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model: Model) ->
+            let dialogData = model.PopupDialogData
             // TODO: format text for only uppercase and allowed chars (-, not number start)
             // TODO: repeat this throughout this file and selectedcomponentview (use functions)
             let inputText = getText dialogData
@@ -124,7 +125,8 @@ let private createInputPopup typeStr (compType: int * int option -> ComponentTyp
             createComponent (compType (widthInt, Some defaultValueInt)) (FileMenuHelpers.formatLabelFromType (compType (widthInt, Some defaultValueInt)) inputText) model dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let notGoodLabel =
                 getText dialogData
                 |> (fun s -> s = "" || not (String.startsWithLetter s))
@@ -145,7 +147,8 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
         | false -> dialogPopupBodyOnlyText beforeText placeholder dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             // TODO: format text for only uppercase and allowed chars (-, not number start)
             // TODO: repeat this throughout this file and selectedcomponentview (use functions)
             let inputText = getText dialogData
@@ -153,7 +156,8 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
             createComponent (compType inputInt) (FileMenuHelpers.formatLabelFromType (compType inputInt) inputText) model dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let notGoodLabel =
                 getText dialogData
                 |> (fun s -> s = "" || not (String.startsWithLetter s))
@@ -168,7 +172,8 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
     let body =  dialogPopupBodyOnlyTextWithDefaultValue beforeText "Description" previousDescr dispatch
     let buttonText = "Save"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let descr = getText dialogData
             let descrToSave =
                 match descr with
@@ -206,7 +211,7 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
                 saveOpenFileActionWithModelUpdate model' dispatch |> ignore
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) ->
+        fun (model: Model) ->
             false  //allow all
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
@@ -218,13 +223,14 @@ let private createNbitsAdderPopup (model:Model) dispatch =
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             //printfn "creating adder %d" inputInt
             createCompStdLabel (NbitsAdder inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (model': Model) -> getInt model.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -236,13 +242,14 @@ let private createNbitsXorPopup (model:Model) dispatch =
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
             createCompStdLabel (NbitsXor(inputInt,None)) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (model: Model) -> getInt model.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitsAndPopup (model:Model) dispatch =
@@ -253,13 +260,14 @@ let private createNbitsAndPopup (model:Model) dispatch =
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
             createCompStdLabel (NbitsAnd inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (model': Model) -> getInt model'.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitsOrPopup (model:Model) dispatch =
@@ -270,13 +278,14 @@ let private createNbitsOrPopup (model:Model) dispatch =
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
             createCompStdLabel (NbitsOr inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (model': Model) -> getInt model'.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitsNotPopup (model:Model) dispatch =
@@ -287,13 +296,14 @@ let private createNbitsNotPopup (model:Model) dispatch =
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
             createCompStdLabel (NbitsNot inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (model': Model) -> getInt model'.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitSpreaderPopup (model:Model) dispatch =
@@ -304,13 +314,14 @@ let private createNbitSpreaderPopup (model:Model) dispatch =
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
             createCompStdLabel (NbitSpreader inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (model': Model) -> getInt model.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -323,12 +334,13 @@ let private createSplitWirePopup model dispatch =
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             createCompStdLabel (SplitWire inputInt) model dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (model': Model) -> getInt model'.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 /// two react text lines in red
@@ -401,7 +413,8 @@ let private createConstantPopup model dispatch =
     let beforeInt =
         fun _ -> str "How many bits has the wire carrying the constant?"
     let intDefault = 1
-    let parseConstantDialog dialog =
+    let parseConstantDialog model' =
+        let dialog = model'.PopupDialogData
         parseConstant 64
             (Option.defaultValue intDefault dialog.Int)
             (Option.defaultValue "" dialog.Text)
@@ -410,7 +423,8 @@ let private createConstantPopup model dispatch =
     let body = dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model: Model) ->
+            let dialogData = model.PopupDialogData
             let width = getInt dialogData
             let text = Option.defaultValue "" dialogData.Text
             let constant = 
@@ -434,13 +448,14 @@ let private createBusSelectPopup model dispatch =
     let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, int64 intDefault2) "60px" dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let width = getInt dialogData
             let lsb = int32 (getInt2 dialogData)
             createCompStdLabel (BusSelection(width,lsb)) model dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt2 dialogData < 0L
+        fun (model': Model) -> getInt model'.PopupDialogData < 1 || getInt2 model'.PopupDialogData < 0L
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createBusComparePopup (model:Model) dispatch =
@@ -448,14 +463,16 @@ let private createBusComparePopup (model:Model) dispatch =
     let beforeInt =
         fun _ -> str "How many bits width is the input bus?"
     let intDefault = 1
-    let parseBusCompDialog dialog =
+    let parseBusCompDialog model' =
+        let dialog = model'.PopupDialogData
         parseBusCompareValue 32 (Option.defaultValue intDefault dialog.Int) (Option.defaultValue "" dialog.Text)
     let beforeText = (fun d -> div [] [d |> parseBusCompDialog |> fst; br [] ])
     let placeholder = "Value: decimal, 0x... hex, 0b... binary"   
     let body = dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let width = getInt dialogData
             let text = Option.defaultValue "" dialogData.Text
             let constant = 
@@ -485,12 +502,13 @@ let private createRegisterPopup regType (model:Model) dispatch =
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             createCompStdLabel (regType inputInt) model dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+        fun (model': Model) -> getInt model'.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -508,7 +526,8 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
     let body = dialogPopupBodyMemorySetup intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let addressWidth, wordWidth, source, msgOpt = getMemorySetup dialogData intDefault
             let initMem = {
                 AddressWidth = addressWidth
@@ -525,7 +544,8 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
             | Error mess ->
                 dispatch <| SetPopupDialogMemorySetup (addError (Some mess) dialogData.MemorySetup)
     let isDisabled =
-        fun (dialogData : PopupDialogData) ->
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
             let addressWidth, wordWidth, source,_ = getMemorySetup dialogData 1
             let error = 
                 match dialogData.MemorySetup with 

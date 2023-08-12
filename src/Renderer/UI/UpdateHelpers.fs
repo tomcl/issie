@@ -232,7 +232,7 @@ let mutable lastMemoryUpdateCheck = 0.
 
 let updateAllMemoryCompsIfNeeded (model:Model) =
     let time = TimeHelpers.getTimeMs()
-    if time - lastMemoryUpdateCheck > Constants.memoryUpdateCheckTime && (WaveSimHelpers.getWSModel model).State = Success then
+    if time - lastMemoryUpdateCheck > Constants.memoryUpdateCheckTime && (getWSModel model).State = Success then
         printfn "checking update of memories"
         lastMemoryUpdateCheck <- time
         MemoryEditorView.updateAllMemoryComps model

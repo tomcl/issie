@@ -17,6 +17,7 @@ open NumberHelpers
 
 
 module Constants =
+
     /// initial time running simulation without spinner to check speed (in ms)
     let initSimulationTime = 100.
     /// max estimated time to run simulation and not need a spinner (in ms)
@@ -38,11 +39,6 @@ module Constants =
     let yTop = spacing
     /// y-coordiante of the bottom of a waveform
     let yBot = waveHeight + spacing
-
-    /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
-    let maxLastClk = 1000
-    /// Needed to prevent possible overrun of simulation arrays
-    let maxStepsOverflow = 3
 
     /// minium number of cycles on screen when zooming in
     let minVisibleCycles = 3
@@ -122,26 +118,6 @@ let xShift clkCycleWidth =
     if highZoom clkCycleWidth then
         clkCycleWidth / 2.
     else Constants.nonBinaryTransLen
-
-/// Get the current WaveSimModel used by the Model (index the map using the current wavesim sheet).
-/// If no WaveSimModel for that sheet, return an empty wave sim model.
-let rec getWSModel model : WaveSimModel =
-    match model.WaveSimSheet with
-    | Some sheet ->
-        Map.tryFind sheet model.WaveSim
-        |> function
-            | Some wsModel ->
-                // printf "Sheet %A found in model" model.WaveSimSheet
-                wsModel
-            | None ->
-                // printf "Sheet %A not found in model" model.WaveSimSheet
-                initWSModel
-    | None ->
-        match getCurrFile model with
-        | None -> 
-            initWSModel
-        | Some sheet ->
-            getWSModel {model with WaveSimSheet = Some sheet}
         
 
 /// Width of one clock cycle.

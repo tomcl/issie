@@ -21,6 +21,7 @@ open DiagramStyle
 open Browser
 open PopupHelpers
 open Optics.Optic
+open Optics.Operators
 
 module Constants =
     let memoryUpdateCheckTime = 300.
@@ -309,8 +310,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     | DBCustomComp _->        
         "CustomComponent"
     | DBCanvas x ->
-        printfn "Other issie element %s" (element.ToString())
-        "" // no menu yet
+        "Canvas"
     | _ ->
         printfn $"Clicked on '{drawOn.ToString()}'"
         "" // default is no menu
@@ -325,37 +325,43 @@ let processContextMenuClick
         (item: string) // name of menu item clicked
         (dispatch: Msg -> unit) // dispatch function
         (model: Model)
-            : Model = // can change state directly (Model) or via a message wrapped in Cmd.ofMsg.
+            : Model * Cmd<Msg> = // can change state directly (Model) or via a message wrapped in Cmd.ofMsg.
+
+    let withNoCmd (model: Model) = model, Cmd.none
+    let withMsg (msg: Msg) (model : Model)  = model,Cmd.ofMsg msg
+
     match rightClickElement,item with
     | DBCustomComp(sym,ct), "Go to sheet" ->
         let p = Option.get model.CurrentProj
         openFileInProject ct.Name p model dispatch
         model
         |> map uISheetTrail_ (fun trail -> p.OpenFileName :: trail)
+        |> withNoCmd
+
+    | DBCanvas pos, "Zoom-in (Alt-Up)"  ->
+        printf "Zoom-in!!"
+        model
+        |> map (sheet_ >-> SheetT.zoom_)  (fun zoom -> min Sheet.Constants.maxMagnification (zoom*Sheet.Constants.zoomIncrement))
+        |> withMsg (Sheet (SheetT.Msg.KeepZoomCentered pos))
+
+    | DBCanvas pos, "Zoom-out (Alt-Down)" ->
+        model
+        |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.ZoomOut))
+
+    | DBCanvas _, "Fit to window (Ctrl-W)" ->
+        model
+        |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.CtrlW))
+
     | _ ->
         printfn "%s" $"Context menu item not implemented: {rightClickElement} -> {item}"
         model
+        |> withNoCmd
 
 let filterByOKSheets (model: Model) (sheet: string) =
     match model.CurrentProj with
     | Some p when p.OpenFileName = sheet -> false
     | Some p when p.LoadedComponents |> List.forall (fun ldc -> ldc.Name <> sheet) -> false
     | _ -> true   
-
-let processSheetBackAction (dispatch: Msg -> unit) (model: Model)  =
-    let goodSheets =
-        model.UISheetTrail
-        |> List.filter (filterByOKSheets model) // make sure trail still exists!
-    let trail =
-        match goodSheets with
-        | [] ->
-            []
-        | (sheet :: others) ->
-            let p = Option.get model.CurrentProj
-            FileMenuView.openFileInProject sheet p model dispatch
-            others
-    model
-    |> set uISheetTrail_ trail
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------UPDATE FUNCTIONS--------------------------------------------//
@@ -376,6 +382,22 @@ let processSheetBackAction (dispatch: Msg -> unit) (model: Model)  =
 /// in update function.
 let withNoCmd (model: Model) : Model * Cmd<Msg> =
     model, Cmd.none
+
+/// Implement action of top bar 'Back' button using the UISheetTrail
+let processSheetBackAction (dispatch: Msg -> unit) (model: Model)  =
+    let goodSheets = // filter trail to remove no-longer-valid sheets
+        model.UISheetTrail
+        |> List.filter (filterByOKSheets model) // make sure trail still exists!
+    let trail =
+        match goodSheets with
+        | [] ->
+            []
+        | (sheet :: others) ->
+            let p = Option.get model.CurrentProj
+            FileMenuView.openFileInProject sheet p model dispatch
+            others
+    model
+    |> set uISheetTrail_ trail
 
 
 /// Read persistent user data from file in userAppDir.

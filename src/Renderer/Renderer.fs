@@ -125,6 +125,10 @@ let reRouteWires dispatch =
         |> Optic.map (sheet_ >->  SheetT.wire_) (BusWireSeparate.reRouteWiresFrom model.Sheet.SelectedComponents)
     )
 
+//-----------------------------------------------------------------------------------------------------------//
+//-----------------------------------------------FILE MENU---------------------------------------------------//
+//-----------------------------------------------------------------------------------------------------------//
+
 let fileMenu (dispatch) =
     makeMenu false "Sheet" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
@@ -180,6 +184,10 @@ let fileMenu (dispatch) =
         ]
      ]
 
+//-----------------------------------------------------------------------------------------------------------//
+//-----------------------------------------------VIEW MENU---------------------------------------------------//
+//-----------------------------------------------------------------------------------------------------------//
+
 
 let viewMenu dispatch =
     let maindispatch = dispatch
@@ -201,8 +209,8 @@ let viewMenu dispatch =
         makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
-        makeItem "Diagram Zoom In" (Some "Shift+Plus") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomIn)
-        makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
+        makeItem "Diagram Zoom In" (Some "Alt+Up") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomIn)
+        makeItem "Diagram Zoom Out" (Some "Alt+Down") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
         makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
@@ -234,6 +242,9 @@ let viewMenu dispatch =
             renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
     ]
 
+//-----------------------------------------------------------------------------------------------------------//
+//-----------------------------------------------EDIT MENU---------------------------------------------------//
+//-----------------------------------------------------------------------------------------------------------//
 
 // Editor Keybindings (also items on Edit menu)
 // Use Elmish subscriptions to attach external source of events such as keyboard

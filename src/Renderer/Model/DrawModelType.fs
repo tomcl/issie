@@ -676,4 +676,6 @@ module SheetT =
     let lastMousePosForSnap_ = Lens.create (fun m -> m.LastMousePosForSnap) (fun w m -> {m with LastMousePosForSnap = w})
     let canvasSize_ = Lens.create (fun m -> m.CanvasSize) (fun w m -> {m with CanvasSize = w})
 
+    let zoom_ = Lens.create (fun m -> m.Zoom) (fun w m -> {m with Zoom = w})
+
 

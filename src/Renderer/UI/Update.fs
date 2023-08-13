@@ -527,7 +527,7 @@ let update (msg : Msg) oldModel =
 
     | ContextMenuItemClick(menuType, item, dispatch) ->
         processContextMenuClick menuType item dispatch model
-        |> withCmdNone
+
 
     | DiagramMouseEvent ->
         model, Cmd.none // this now does nothing and should be removed

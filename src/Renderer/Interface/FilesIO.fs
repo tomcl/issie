@@ -280,28 +280,12 @@ let getBaseNameNoExtension filePath =
             )
         firstSplit + rest
 
-let private projectFileFilters =
+let private makeFileFilters (name : string) (extn : string) =
     createObj !![
-        "name" ==> "ISSIE project file"
-        "extensions" ==> ResizeArray [ "dprj" ]
+        "name" ==> name
+        "extensions" ==> ResizeArray [ extn ]
     ] 
     |> unbox<FileFilter> 
-    |> Array.singleton
-
-let private ramFileFilters =
-    createObj !![
-        "name" ==> "Memory contents File"
-        "extensions" ==> ResizeArray [ "ram" ]
-    ] 
-    |> unbox<FileFilter> 
-    |> Array.singleton
-
-let private projectFilters =
-    createObj !![ 
-        "name" ==> "ISSIE project"   
-        "extensions" ==> ResizeArray [ "" ]
-    ]
-    |> unbox<FileFilter>
     |> Array.singleton
 
 
@@ -310,7 +294,7 @@ let private projectFilters =
 /// Return None if the user exits withouth selecting a path.
 let askForExistingProjectPath (defaultPath: string option) : string option =
     let options = createEmpty<OpenDialogSyncOptions>
-    options.filters <- Some (projectFileFilters |> ResizeArray)
+    options.filters <- Some (makeFileFilters "ISSIE project file" "dprj" |> ResizeArray)
     options.defaultPath <-
         defaultPath
         |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
@@ -324,13 +308,34 @@ let askForExistingProjectPath (defaultPath: string option) : string option =
         | p :: _ -> Some <| dirName p
     )
 
-
+/// Ask the user to choose a set of sheets they want to import, with a dialog window.
+/// Return a list of paths to these sheets.
+/// Return None if the user exits withouth selecting a sheet.
+let askForExistingSheetPaths (defaultPath: string option) : string list option =
+    let options = createEmpty<OpenDialogSyncOptions>
+    
+    options.filters <- Some (makeFileFilters "ISSIE sheet" "dgm" |> ResizeArray)
+    options.defaultPath <-
+        defaultPath
+        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+        |> Some
+    options.properties <- Some [|
+        OpenDialogOptionsPropertiesArray.MultiSelections
+        |]
+    let w = electronRemote.getCurrentWindow()
+    electronRemote.dialog.showOpenDialogSync(w,options)
+    |> Option.bind (
+        Seq.toList
+        >> function
+        | [] -> Option.None
+        | paths -> Some <| paths
+    )
 
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
 let rec askForNewProjectPath (defaultPath:string option) : string option =
     let options = createEmpty<SaveDialogSyncOptions>
-    options.filters <- Some (projectFilters |> ResizeArray)
+    options.filters <- Some (makeFileFilters "ISSIE project" "" |> ResizeArray)
     options.title <- Some "Enter new ISSIE project directory and name"
     options.nameFieldLabel <- Some "New project name"
     options.defaultPath <- defaultPath
@@ -681,7 +686,7 @@ let loadAllComponentFiles (folderPath:string)  =
 /// Return None if the user exits withouth selecting a path.
 let rec askForNewFile (projectPath: string) : string option =
     let options = createEmpty<SaveDialogSyncOptions>
-    options.filters <- Some (ramFileFilters |> ResizeArray)
+    options.filters <- Some (makeFileFilters "Memory Contents File" "ram" |> ResizeArray)
     options.defaultPath <- Some projectPath
     options.title <- Some "Enter new file name"
     options.nameFieldLabel <- Some "New file name"

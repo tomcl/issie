@@ -66,12 +66,17 @@ type MemoryEditorData = {
     NumberBase : NumberBase
 }
 
+type ImportDecision =
+    | Rename
+    | Overwrite
+
 /// Possible fields that may (or may not) be used in a dialog popup.
 type PopupDialogData = {
     Text : string option;
     Int : int option;
     Int2: int64 option
     ProjectPath: string
+    ImportDecisions : Map<string, ImportDecision option>
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     Progress: PopupProgress option
@@ -90,6 +95,7 @@ let text_ = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
 let int_ = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
 let int2_ = Lens.create (fun a -> a.Int2) (fun s a -> {a with Int2 = s})
 let projectPath_ = Lens.create (fun a -> a.ProjectPath) (fun s a -> {a with ProjectPath = s})
+let importDecisions_ = Lens.create (fun a -> a.ImportDecisions) (fun s a -> {a with ImportDecisions = s})
 let memorySetup_ = Lens.create (fun a -> a.MemorySetup) (fun s a -> {a with MemorySetup = s})
 let memoryEditorData_ = Lens.create (fun a -> a.MemoryEditorData) (fun s a -> {a with MemoryEditorData = s})
 let progress_ = Lens.create (fun a -> a.Progress) (fun s a -> {a with Progress = s})
@@ -123,6 +129,7 @@ type UICommandType =
     | RenameSheet
     | DeleteSheet
     | AddSheet
+    | ImportSheet
     | SaveSheet
     | StartWaveSim
     | ViewWaveSim
@@ -410,6 +417,7 @@ type Msg =
     | FinishUICmd
     | ReadUserData of string
     | SetUserData of UserData
+    | UpdateImportDecisions of (Map<string, ImportDecision option> -> Map<string, ImportDecision option>)
     | SetThemeUserData of DrawModelType.SymbolT.ThemeType
     | ExecCmd of Elmish.Cmd<Msg>
     | ExecFuncInMessage of (Model -> (Msg->Unit) -> Unit) * (Msg -> Unit)

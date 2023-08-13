@@ -144,6 +144,8 @@ let getText (dialogData : PopupDialogData) =
 let getCode (dialogData : PopupDialogData) =
     Option.defaultValue "" dialogData.VerilogCode
 
+let getImportDecisions (dialogData : PopupDialogData) =
+    dialogData.ImportDecisions
 
 let getErrorList (dialogData : PopupDialogData) =
     dialogData.VerilogErrors

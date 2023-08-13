@@ -21,6 +21,7 @@ open ElectronAPI
 /// add menus as here
 let contextMenus = [
         "CustomComponent", ["Go to sheet"]
+        "Canvas", ["Zoom-in (Alt-Up)" ; "Zoom-out (Alt-Down)" ; "Fit to window (Ctrl-W)"]
         "Menu1", ["Item1"; "Item with spaces"] // example menu
         "MenuB", ["Averylongitemwill still work"; "tiny"; "medium"] // example menu
         "", [] // Empty string for no context menu.

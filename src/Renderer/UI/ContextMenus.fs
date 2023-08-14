@@ -39,6 +39,7 @@ let makeClickableReturner
             : MenuItemConstructorOptions =
     [|
         "click", unbox (Some (fun _  ->
+                    printfn "dispatching: %s, %s" menuType s
                     dispatchToRenderer (menuType,s)
                     ev))
         "label", unbox Some s

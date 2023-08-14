@@ -380,7 +380,7 @@ let filterByOKSheets (model: Model) (sheet: string) =
 
 /// Adapter function to pipeline adding a default "Cmd.none" command to a model as returned
 /// in update function.
-let withNoCmd (model: Model) : Model * Cmd<Msg> =
+let withNoMsg (model: Model) : Model * Cmd<Msg> =
     model, Cmd.none
 
 /// Implement action of top bar 'Back' button using the UISheetTrail

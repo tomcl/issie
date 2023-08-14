@@ -35,10 +35,7 @@ let mutable uiStartTime: float = 0.
 /// Main MVU model update function
 let update (msg : Msg) oldModel =
 
-    let cmdOfTTMsg (ttMsg: TTMsg) = Cmd.ofMsg(TruthTableMsg ttMsg)
-    let withCmdTTMsg (ttMsg: TTMsg) (model:Model) = model, cmdOfTTMsg ttMsg
-
-    let withCmdNone (model: Model) = model, Cmd.none
+    let withNoMsg (model: Model) = model, Cmd.none
 
     let withMsg (msg: Msg) (model : Model)  = model,Cmd.ofMsg msg
 
@@ -76,7 +73,7 @@ let update (msg : Msg) oldModel =
             match uiCmd with
             | CloseProject ->
                 {model with CurrentProj = None; UIState = Some uiCmd}
-                |> withCmdNone
+                |> withNoMsg
             | _ -> 
                 {model with UIState = Some uiCmd}
                 |> withMsg (Sheet (SheetT.SetSpinner true))
@@ -111,29 +108,29 @@ let update (msg : Msg) oldModel =
         // this should disable the saev button by making loadedcomponent and draw blokc canvas the same
         model
         |> map openLoadedComponentOfModel_ (fun ldc -> {ldc with CanvasState = canvas})
-        |> withCmdNone
+        |> withNoMsg
         
     // special messages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode ->
         {model with DividerDragMode= mode}
-        |> withCmdNone
+        |> withNoMsg
 
     | SetViewerWidth w ->
         {model with WaveSimViewerWidth = w}
-        |> withCmdNone
+        |> withNoMsg
 
     | SheetBackAction dispatch ->
         processSheetBackAction dispatch model
-        |> withCmdNone        
+        |> withNoMsg        
 
     | UpdateUISheetTrail updateFun ->
         model
         |> map uISheetTrail_ (updateFun >> List.filter (filterByOKSheets model))
-        |> withCmdNone
+        |> withNoMsg
 
     | ReloadSelectedComponent width ->
         {model with LastUsedDialogWidth=width}
-        |> withCmdNone
+        |> withNoMsg
 
     | Benchmark ->
         let step = 2000
@@ -183,21 +180,21 @@ let update (msg : Msg) oldModel =
 
     | StartSimulation simData -> 
         {model with CurrentStepSimulationStep = Some simData }
-        |> withCmdNone
+        |> withNoMsg
 
     | SetWSModel wsModel ->
         setWSModel wsModel model
-        |> withCmdNone
+        |> withNoMsg
 
     | UpdateWSModel updateFn ->
         updateWSModel updateFn model
-        |> withCmdNone
+        |> withNoMsg
 
     | SetWSModelAndSheet (wsModel, wsSheet) ->
         model
         |> set waveSimSheet_ (if wsSheet = "" then None else Some wsSheet)
         |> setWSModel wsModel
-        |> withCmdNone
+        |> withNoMsg
 
     | UpdateModel( updateFn: Model -> Model) ->
         updateFn model, Cmd.none
@@ -205,7 +202,7 @@ let update (msg : Msg) oldModel =
     | UpdateImportDecisions importDecisions' ->
         model
         |> set (popupDialogData_ >-> importDecisions_) importDecisions'
-        |> withCmdNone
+        |> withNoMsg
 
     | RefreshWaveSim ws ->
         // restart the wave simulator after design change etc that invalidates all waves
@@ -214,7 +211,7 @@ let update (msg : Msg) oldModel =
     | AddWSModel (sheet, wsModel) ->
         model
         |> map waveSim_ (Map.add sheet wsModel)
-        |> withCmdNone
+        |> withNoMsg
 
     | GenerateWaveforms ws ->
         // Update the wave simulator with new waveforms
@@ -229,18 +226,18 @@ let update (msg : Msg) oldModel =
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveComponentSelectionOpen ws fIdL show)
-        |> withCmdNone
+        |> withNoMsg
 
     | SetWaveGroupSelectionOpen (fIdL, show) -> 
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveGroupSelectionOpen ws fIdL show)
-        |> withCmdNone
+        |> withNoMsg
 
         
     | SetWaveSheetSelectionOpen (fIdL, show) ->       
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveSheetSelectionOpen ws fIdL show)
-        |> withCmdNone    
+        |> withNoMsg    
 
     | TryStartSimulationAfterErrorFix simType ->
         SimulationView.tryStartSimulationAfterErrorFix simType model
@@ -252,7 +249,7 @@ let update (msg : Msg) oldModel =
             |> Ok |> Some
         model
         |> set currentStepSimulationStep_ simData
-        |> withCmdNone
+        |> withNoMsg
 
     | SetSimulationBase numBase ->
         let simData =
@@ -260,7 +257,7 @@ let update (msg : Msg) oldModel =
             |> set numberBase_ numBase
         model
         |> set currentStepSimulationStep_ (simData |> Ok |> Some)
-        |> withCmdNone
+        |> withNoMsg
 
     | IncrementSimulationClockTick n ->
         let simData =
@@ -268,12 +265,12 @@ let update (msg : Msg) oldModel =
             |> map clockTickNumber_ (fun n -> n+1)
         model
         |> set currentStepSimulationStep_ (simData |> Ok |> Some )
-        |> withCmdNone
+        |> withNoMsg
 
     | EndSimulation ->
         model
         |> set currentStepSimulationStep_ None
-        |> withCmdNone
+        |> withNoMsg
 
     | EndWaveSim -> 
         let model =
@@ -316,7 +313,7 @@ let update (msg : Msg) oldModel =
     | ChangeBuildTabVisibility ->
         model
         |> map buildVisible_ not
-        |> withCmdNone
+        |> withNoMsg
 
     | SetHighlighted (componentIds, connectionIds) ->
         SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model
@@ -326,78 +323,78 @@ let update (msg : Msg) oldModel =
 
     | SetClipboard components ->
         { model with Clipboard = components }
-        |> withCmdNone
+        |> withNoMsg
 
     | SetCreateComponent pos ->
         { model with LastCreatedComponent = Some pos}
-        |> withCmdNone
+        |> withNoMsg
 
     | SetProject project ->
         printf $"Setting project with component: '{project.OpenFileName}'"
         model
         |> set currentProj_ (Some project) 
         |> set (popupDialogData_ >-> projectPath_) project.ProjectPath
-        |> withCmdNone
+        |> withNoMsg
 
     | UpdateProject update ->
         CustomCompPorts.updateProjectFiles true update model
-        |> withCmdNone
+        |> withNoMsg
 
     | UpdateProjectWithoutSyncing update -> 
         CustomCompPorts.updateProjectFiles false update model
-        |> withCmdNone
+        |> withNoMsg
 
     | ShowPopup popup ->
         model
         |> set popupViewFunc_ (Some popup)
-        |> withCmdNone
+        |> withNoMsg
 
     | ShowStaticInfoPopup(title, body, dispatch) ->
         let foot = div [] []
         PopupHelpers.closablePopup title body foot [Width 800] dispatch
         model
-        |> withCmdNone
+        |> withNoMsg
 
     | ClosePopup ->
         { model with
             PopupViewFunc = None;
             PopupDialogData =
-            { model.PopupDialogData with
-                Text = None;
-                ImportDecisions = Map.empty;
-                Int = None;
-                Int2 = None;
-                MemorySetup = None;
-                MemoryEditorData = None;
-                VerilogCode = None;
-                VerilogErrors = [];
-            }}
-        |> withCmdNone
+                    { model.PopupDialogData with
+                        Text = None;
+                        ImportDecisions = Map.empty;
+                        Int = None;
+                        Int2 = None;
+                        MemorySetup = None;
+                        MemoryEditorData = None;
+                        VerilogCode = None;
+                        VerilogErrors = [];
+                    }}
+        |> withNoMsg
 
     | SetPopupDialogText text ->
         model
         |> set (popupDialogData_ >-> text_) text
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPopupDialogBadLabel isBad ->
         model
         |> set (popupDialogData_ >-> badLabel_) isBad
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPopupDialogCode code ->
         model
         |> set (popupDialogData_ >-> verilogCode_) code
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPopupDialogVerilogErrors errorList ->
         model
         |> set (popupDialogData_ >-> verilogErrors_) errorList
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPopupDialogInt int ->
         model
         |> set (popupDialogData_ >-> int_) int
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPopupDialogInt2 int ->
         set (popupDialogData_ >-> int2_) int model, Cmd.none
@@ -408,17 +405,17 @@ let update (msg : Msg) oldModel =
                     (match select with
                      | FirstInt -> set int_ (Option.map int32 n)
                      | SecondInt -> set int2_ n)
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPopupDialogMemorySetup m ->
         model
         |> set (popupDialogData_ >-> memorySetup_) m
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPopupMemoryEditorData m ->
         model
         |> set (popupDialogData_ >-> memoryEditorData_) m
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPopupProgress progOpt ->
         set (popupDialogData_ >-> progress_) progOpt model, Cmd.none
@@ -426,7 +423,7 @@ let update (msg : Msg) oldModel =
     | UpdatePopupProgress updateFn ->
         model
         |> map (popupDialogData_ >-> progress_) (Option.map updateFn)
-        |> withCmdNone
+        |> withNoMsg
 
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model
@@ -434,64 +431,64 @@ let update (msg : Msg) oldModel =
     | SetSelectedComponentMemoryLocation (addr,data) ->
         model
         |> map selectedComponent_ (updateComponentMemory addr data)
-        |> withCmdNone
+        |> withNoMsg
 
     | CloseDiagramNotification ->
         model
         |> set (notifications_ >-> fromDiagram_) None
-        |> withCmdNone
+        |> withNoMsg
 
     | SetSimulationNotification n ->
         model
         |> set (notifications_ >-> fromSimulation_) (Some n)
-        |> withCmdNone
+        |> withNoMsg
     | CloseSimulationNotification ->
         model
         |> set (notifications_ >-> fromSimulation_) None
-        |> withCmdNone
+        |> withNoMsg
 
     | CloseWaveSimNotification ->
         model
         |> set (notifications_ >-> fromWaveSim_) None
-        |> withCmdNone
+        |> withNoMsg
 
     | SetFilesNotification n ->
         model
         |> set (notifications_ >-> fromFiles_) (Some n)
-        |> withCmdNone
+        |> withNoMsg
 
     | CloseFilesNotification ->
         model
         |> set (notifications_ >-> fromFiles_) None
-        |> withCmdNone
+        |> withNoMsg
 
     | SetMemoryEditorNotification n ->
         model
         |> set (notifications_ >-> fromMemoryEditor_) (Some n)
-        |> withCmdNone
+        |> withNoMsg
 
     | CloseMemoryEditorNotification ->
         model
         |> set (notifications_ >-> fromMemoryEditor_) None
-        |> withCmdNone
+        |> withNoMsg
 
     | SetPropertiesNotification n ->
         model
         |> set (notifications_ >-> fromProperties_) (Some n)
-        |> withCmdNone
+        |> withNoMsg
 
     | ClosePropertiesNotification ->
         model
         |> set (notifications_ >-> fromProperties_) None
-        |> withCmdNone        
+        |> withNoMsg        
 
     | SetTopMenu t ->
         { model with TopMenuOpenState = t}
-        |> withCmdNone
+        |> withNoMsg
 
     | ExecFuncInMessage (f,dispatch)->
         (f model dispatch; model)
-        |> withCmdNone
+        |> withNoMsg
 
     | ExecCmd cmd ->
         model, cmd
@@ -540,7 +537,7 @@ let update (msg : Msg) oldModel =
 
     | SelectionHasChanged -> 
         { model with ConnsOfSelectedWavesAreHighlighted = true }
-        |> withCmdNone
+        |> withNoMsg
 
     | SetIsLoading b ->
         let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
@@ -555,7 +552,7 @@ let update (msg : Msg) oldModel =
         model
         |> set userData_  data
         |> userDataToDrawBlockModel
-        |> withCmdNone
+        |> withNoMsg
 
     | SetThemeUserData (theme: DrawModelType.SymbolT.ThemeType) ->
         let model =

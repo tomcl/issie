@@ -151,8 +151,11 @@ let fileMenu (dispatch) =
             makeDebugItem "Trace all times" None
                 (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint( 0.1, 0.1)
                           if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
+            makeDebugItem "Trace short, medium & long times" None
+                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint( 1.5, 1.5)
+                          if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
             makeDebugItem "Trace medium & long times" None
-                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(2.,2.)
+                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(3.,3.)
                           if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
             makeDebugItem "Trace long times" None
                 (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(20.,20.)
@@ -352,7 +355,11 @@ printfn "Starting renderer..."
 let view' model dispatch =
     let start = TimeHelpers.getTimeMs()
     view model dispatch
-    |> TimeHelpers.instrumentInterval "View" start
+    |> (fun view ->
+        if Set.contains "view" JSHelpers.debugTraceUI then
+            TimeHelpers.instrumentInterval ">>>View" start view
+        else
+            view)
 
 let mutable firstPress = true
 
@@ -382,8 +389,6 @@ let keyPressListener initial =
 
     let subContextMenuCommand dispatch =
         renderer.ipcRenderer.on("context-menu-command", fun ev args ->
-            dispatch Msg.DoNothing
-            //printfn "Found menu click in callback!"
             let arg:string = unbox args |> Array.map string |> String.concat ""
             printfn "%s" arg
             match arg.Split [|','|] |> Array.toList with

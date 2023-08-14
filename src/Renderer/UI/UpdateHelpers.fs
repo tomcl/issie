@@ -211,6 +211,7 @@ let getMessageTraceString (msg: Msg) =
         | None ->
             Helpers.sprintInitial 70 $"{msg}"
 
+let mutable updateTimeTotal = 0.
 
 let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
     if JSHelpers.debugLevel > 0 then
@@ -221,8 +222,12 @@ let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
             | _ -> ""
         TimeHelpers.instrumentInterval rootOfMsg startOfUpdateTime |> ignore
         let updateTime = TimeHelpers.getTimeMs() - startOfUpdateTime
+        updateTimeTotal <- match updateTimeTotal > 1000. with | true -> 0. | false -> updateTimeTotal + updateTime
         //if str <> "" then printfn "%s" $"**Upd:{str} %.1f{updateTime}ms ({int startOfUpdateTime % 10000}ms)"
-        Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
+        if Set.contains "update" JSHelpers.debugTraceUI then           
+            let logMsg = sprintf ">>Cmd:%.0f %s" updateTimeTotal (getMessageTraceString msg)
+            TimeHelpers.instrumentInterval logMsg (startOfUpdateTime)  msg|> ignore
+
     model,cmdL
 
 let mutable lastMemoryUpdateCheck = 0.

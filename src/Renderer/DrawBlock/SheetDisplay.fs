@@ -195,5 +195,5 @@ let view
 
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
-    |> TimeHelpers.instrumentInterval "SheetView" start
+    //|> TimeHelpers.instrumentInterval "SheetView" start
 

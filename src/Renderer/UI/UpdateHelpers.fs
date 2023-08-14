@@ -280,16 +280,18 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     let sheetXYPos = SheetDisplay.getDrawBlockPos e DiagramStyle.getHeaderHeight model.Sheet
     let element:Types.Element = unbox e.target
     let htmlId = try element.id with | e -> "invalid"
+    let elType = try element.nodeName with | e -> "invalid"
     let drawOn = Sheet.mouseOn model.Sheet sheetXYPos
     rightClickElement <- // mutable so that we have this info also in the callback from main
-        match drawOn, htmlId with
-        | SheetT.MouseOn.Canvas, "DrawBlockSVGTop" ->
+        match drawOn, htmlId, elType with
+        | SheetT.MouseOn.Canvas, _ , "path"
+        | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
             printfn "Draw block sheet 'canvas'"
             DBCanvas sheetXYPos
-        | SheetT.MouseOn.Canvas, x ->
-            printfn "Other issie element"
+        | SheetT.MouseOn.Canvas, x, _ ->
+            printfn "Other issie element: type:'%A'-> id:'%A'" elType x
             IssieElement (element.ToString())
-        | SheetT.MouseOn.Component compId, _ ->
+        | SheetT.MouseOn.Component compId, _, _->
             match Map.tryFind compId symbols with
             | None ->
                 NoMenu
@@ -297,7 +299,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
                 DBCustomComp (symbols[compId], ct)
             | Some sym ->
                 DBComp sym
-        | SheetT.MouseOn.Connection connId, _ ->
+        | SheetT.MouseOn.Connection connId, _, _ ->
             Map.tryFind connId bwModel.Wires
             |> function | None -> NoMenu
                         | Some wire ->
@@ -305,8 +307,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
                             match segs with
                             | [] -> NoMenu
                             | segs ->DBWire(wire, segs)
-        | SheetT.MouseOn.InputPort (InputPortId s, _),_ -> DBInputPort s
-        | SheetT.MouseOn.OutputPort (OutputPortId s, _),_ -> DBOutputPort s
+        | SheetT.MouseOn.InputPort (InputPortId s, _),_ , _ -> DBInputPort s
+        | SheetT.MouseOn.OutputPort (OutputPortId s, _),_ , _ -> DBOutputPort s
         | _ -> NoMenu
             
     // return the desired menu

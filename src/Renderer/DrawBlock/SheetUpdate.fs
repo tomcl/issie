@@ -207,7 +207,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
 
-    | UpdateBoundingBoxes -> 
+    | UpdateBoundingBoxes ->
         let model =
             model
             |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes model.Wire.Symbol)
@@ -263,6 +263,21 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 ScrollUpdateIsOutstanding = false
                 ScrollingLastMousePos = newLastScrollingPos }, 
                 cmd
+
+    | AddNotConnected (ldcs, port, pos, rotation) ->
+        let (newSymModel, ncID) = SymbolUpdate.addSymbol ldcs model.Wire.Symbol pos NotConnected ""
+        let ncPortId = newSymModel.Symbols[ncID].Component.InputPorts[0].Id
+        // add a newly created wire to the model
+        // then send BusWidths message which will re-infer bus widths
+        // the new wires (extarcted as connections) are not added back into Issie model. 
+        // This happens on save or when starting a simulation (I think)
+        let newWireModel, msgOpt = BusWireUpdate.newWire (InputPortId ncPortId) (OutputPortId port.Id) {model.Wire with Symbol = newSymModel}
+        let wCmd = BusWireUpdate.cmdMapFromMsgOpt wireCmd msgOpt
+            
+        {model with Wire = newWireModel}, Cmd.batch [wCmd;
+                                    symbolCmd (RotateAntiClockAng ([ncID], rotation));
+                                    wireCmd (UpdateConnectedWires [ncID]);
+                                    sheetCmd (UpdateBoundingBoxes)]
 
     // Zooming in increases model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomIn ->

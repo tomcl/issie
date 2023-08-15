@@ -788,6 +788,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | RotateLeft(compList, rotation) ->
         (transformSymbols (rotateSymbol rotation) model compList), Cmd.none
+    
+    | RotateAntiClockAng (compList, rotationDeg) ->
+        (transformSymbols (rotateAntiClockByAng rotationDeg) model compList), Cmd.none
 
     | Flip(compList, orientation) ->
         (transformSymbols (flipSymbol orientation) model compList), Cmd.none

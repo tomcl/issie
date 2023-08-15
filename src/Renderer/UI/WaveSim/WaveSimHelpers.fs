@@ -689,11 +689,21 @@ let endButtonAction canvasState model dispatch ev =
 let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel)  : WaveSimButtonOptions =
     let fs = ws.FastSim
     let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
-    let errored = 
-        match ws.State with
-        | SimError _ | NonSequential -> true
-        | _ -> false
+    // let errored = 
+    //     match ws.State with
+    //     | SimError _ | NonSequential -> true
+    //     | _ -> false
     let success = (ws.State = Success || ws.State=Loading)
+
+    let hasSimErr =
+        match SimulationView.simulateModel model.WaveSimSheet (ModelHelpers.Constants.maxLastClk + ModelHelpers.Constants.maxStepsOverflow) canv model with
+        | (Error e, _) -> true
+        | (Ok simData, canvState) -> false
+    let errored =
+        match hasSimErr, ws.State with
+        | true, _ -> true
+        | false, NonSequential -> true
+        | false, _ -> false
 
     let running = (success || errored) && simExists
         
@@ -703,6 +713,13 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
         not <| FastRun.compareLoadedStates fs canv model.CurrentProj &&
         model.UIState = None &&
         not model.IsLoading
+    
+    
+    let startEndMsg, startEndColor =
+        match running, errored with
+        | false, true -> "View Problems", IsWarning
+        | false, false -> "Start Simulation", IsSuccess
+        | true, _ -> "EndSimulation", IsDanger
 
     //printfn $"Running= {running}, Dirty={isDirty}"
 
@@ -711,8 +728,8 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
         IsDirty =  isDirty
         IsRunning = running
         IsErrored = errored
-        StartEndMsg = if running then "End Simulation" else "Start Simulation"
-        StartEndColor = if running then IsDanger else IsSuccess
+        StartEndMsg = startEndMsg
+        StartEndColor = startEndColor
     } 
 
                             

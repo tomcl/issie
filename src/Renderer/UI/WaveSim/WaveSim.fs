@@ -980,8 +980,12 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
     let model = MemoryEditorView.updateAllMemoryComps model
     let wsSheet = 
         match model.WaveSimSheet with
-        | None -> Option.get (getCurrFile model)
-        | Some sheet -> sheet
+        | None ->
+            printfn "Sheet was none"
+            Option.get (getCurrFile model)
+        | Some sheet ->
+            printfn "sheet already existing"
+            sheet
     printfn $"Refresh Button with width = {model.WaveSimViewerWidth}"
     let model = 
         model
@@ -1099,6 +1103,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
 
 /// Entry point to the waveform simulator.
 let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
+    printfn "viewing wave simulation"
     let wsModel = getWSModel model
     let notRunning = 
         div [ errorMessageStyle ] [ str "Start the waveform viewer by pressing the Start button." ]
@@ -1110,6 +1115,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     div [] [
         div [ viewWaveSimStyle ]
             [
+                printfn $"WSmodel state: {wsModel.State}"
                 topHalf canvasState model dispatch
                 match model.WaveSimSheet, wsModel.State with
                 | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->

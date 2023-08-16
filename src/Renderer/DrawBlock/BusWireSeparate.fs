@@ -460,6 +460,7 @@ let makeClusters (lines: Line array) : Cluster list =
 // Should decide what is an acceptable space between merged clusters so as not to move
 // segments too far.
 /// Return single cluster with segments from loc1 and loc2 merged
+(*
 let mergeLocs (lines: Line array) (loc1: Cluster) (loc2: Cluster) =
     if upperB lines loc1 < lowerB lines loc2 || not (hasOverlap loc1.Bound loc2.Bound) then
         [ loc1; loc2 ] // do not merge
@@ -483,7 +484,7 @@ let mergeLocalities (lines: Line array) (locL: Cluster list) =
             | None -> merge (mergeLocs lines currLoc loc @ mLocL) locL
 
     merge [] locL
-
+*)
 /// Function which given a cluster (loc) works out how to
 /// spread out the contained segments optimally, spacing them from other segments and symbols.
 /// Return value is a list of segments, represented as Lines, paired with where they move.
@@ -871,22 +872,38 @@ let removeModelSpikes (model: Model) =
 
 /// Perform complete segment ordering and separation for segments of given orientation.
 /// wires: set of wires allowed to be moved.
-let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orientation) (model: Model) =
+let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model) =
+
+    (*
+        TODO: would it be better, overall, to separate all wires?
+        This was done before excludeclustersWithoutWiresToRoute
+        To go back to this - remove excludeClustersWithoutWiresToRoute.
+    *)
     /// Add linked line changes before movement changes. Movement changes will override
     /// linked line chnages if need be.
-    let addLinkedLineChanges (lines: Line array) changes =
-        lines
-        |> Array.toList
-        |> List.collect (fun l -> l.SameNetLink |> List.map (fun line -> line, l.P))
-        |> fun linkedLines -> List.append linkedLines changes
+
+    let allWires = model.Wires |> Map.keys |> Seq.toList
+
+    /// We do the line generation for ALL wires
+    /// Then, after all  segments are clustered, we actually change segments only in clusters
+    /// that contains wiresToRoute. The other clusters should not need to be reseparated.
+    let excludeClustersWithoutWiresToRoute (lines: Line array) =
+        let routedLines =
+            lines
+            |> Array.filter (fun line -> List.contains line.Wid wiresToRoute)
+            
+        List.filter (fun (cluster:Cluster) ->
+            cluster.Segments
+            |> List.exists (fun seg -> (Array.exists (fun line -> line.Lid.Index = seg) routedLines)))
        
 
-    makeLines wires ori model
-    |> fun lines ->
-        makeClusters lines
-        //|> mergeLocalities lines // merging does not seem necessary?
-        |> List.iter (calcSegPositions model lines)
-        lines
+    let lines = makeLines allWires ori model
+
+    makeClusters lines
+    |> excludeClustersWithoutWiresToRoute lines
+    |> List.iter (calcSegPositions model lines)
+
+    lines
     |> Array.toList
     |> adjustSegmentsInModel ori model
 
@@ -895,9 +912,8 @@ let separateModelSegmentsOneOrientation (wires: ConnectionId list) (ori: Orienta
 let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
         // Currently: separate all wires - not just those (in wiresToRoute) that
         // have changed. This prevents unrouted segments from pinning new segments.
-        // TODO: see whetehr something better can be worked out,a nd whetehr routing segments
+        // TODO: see whetehr something better can be worked out, and whether routing segments
         // can be done interactively.
-        let wiresToRoute = model.Wires |> Map.keys |> Seq.toList
 
         /// convenience abbreviation
         let separate = separateModelSegmentsOneOrientation wiresToRoute

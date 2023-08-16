@@ -302,22 +302,33 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
                 DBComp sym
         | SheetT.MouseOn.Connection connId, _, _ ->
             Map.tryFind connId bwModel.Wires
-            |> function | None -> NoMenu
+            |> function | None ->
+                            NoMenu
                         | Some wire ->
                             let segs = getClickedSegment  bwModel connId sheetXYPos
                             match segs with
-                            | [] -> NoMenu
-                            | segs ->DBWire(wire, segs)
-        | SheetT.MouseOn.InputPort (InputPortId s, _),_ , _ -> DBInputPort s
-        | SheetT.MouseOn.OutputPort (OutputPortId s, _),_ , _ -> DBOutputPort s
+                            | [] ->
+                                NoMenu
+                            | segs ->
+                                DBWire(wire, segs)
+
+
+        | SheetT.MouseOn.InputPort (InputPortId s, _),_ , _ ->
+            DBInputPort s
+        | SheetT.MouseOn.OutputPort (OutputPortId s, _),_ , _ ->
+            DBOutputPort s
         | _ -> NoMenu
             
     // return the desired menu
     match rightClickElement with
     | DBCustomComp _->        
         "CustomComponent"
-    | DBCanvas x ->
+    | DBComp _ ->
+        "Component"
+    | DBCanvas _ ->
         "Canvas"
+    | DBWire _ ->
+        "Wire"
     | _ ->
         printfn $"Clicked on '{drawOn.ToString()}'"
         "" // default is no menu
@@ -336,16 +347,62 @@ let processContextMenuClick
 
     let withNoCmd (model: Model) = model, Cmd.none
     let withMsg (msg: Msg) (model : Model)  = model,Cmd.ofMsg msg
+    let withMsgs (msgs: Msg list) (model : Model)  = model, Cmd.batch ( msgs |> List.map Cmd.ofMsg)
+    let sheetDispatch = Sheet >> dispatch
+    let keyDispatch = SheetT.KeyPress >> sheetDispatch
+    let rotateDispatch = SheetT.Rotate >> sheetDispatch
+    let flipDispatch = SheetT.Flip >> sheetDispatch
+    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
 
     match rightClickElement,item with
-    | DBCustomComp(sym,ct), "Go to sheet" ->
+    | DBCustomComp(_,ct), "Go to sheet" ->
         let p = Option.get model.CurrentProj
         openFileInProject ct.Name p model dispatch
         model
         |> map uISheetTrail_ (fun trail -> p.OpenFileName :: trail)
         |> withNoCmd
 
-    | DBCanvas pos, "Zoom-in (Alt-Up)"  ->
+    | DBComp sym, "Properties" | DBCustomComp(sym, _), "Properties" ->
+       model
+       |> set selectedComponent_ (Some sym.Component)
+       |> set (sheet_ >-> SheetT.selectedWires_) []
+       |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+       |> set rightPaneTabVisible_ Properties
+       |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [sym.Id]))))
+
+    | DBComp sym, "Rotate Clockwise (Ctrl-Right)" ->
+        rotateDispatch SymbolT.RotateClockwise
+        model
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withNoCmd
+
+    | DBComp sym, "Rotate AntiClockwise (Ctrl-Left)" ->
+        rotateDispatch SymbolT.RotateAntiClockwise
+        model
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withNoCmd
+
+    | DBWire (wire, aSeg), "Unfix Wire" ->
+        let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
+            map BusWireT.mode_ (function | BusWireT.Manual -> BusWireT.Auto | m -> m)
+        model
+        |> map (sheet_ >-> SheetT.wireOf_ wire.WId >-> BusWireT.segments_)  (List.map changeManualSegToAuto)
+        |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
+        |> withNoCmd
+
+    | DBComp sym, "Flip Vertical (Ctrl-Up)" ->
+        flipDispatch SymbolT.FlipVertical
+        model
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withNoCmd
+
+    | DBComp sym, "Flip Horizontal (Ctrl-Down)" ->
+        flipDispatch SymbolT.FlipHorizontal
+        model
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withNoCmd
+
+    | DBCanvas pos, "Zoom-in (Alt-Up) and centre"  ->
         printf "Zoom-in!!"
         model
         |> map (sheet_ >-> SheetT.zoom_)  (fun zoom -> min Sheet.Constants.maxMagnification (zoom*Sheet.Constants.zoomIncrement))
@@ -358,6 +415,14 @@ let processContextMenuClick
     | DBCanvas _, "Fit to window (Ctrl-W)" ->
         model
         |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.CtrlW))
+
+    | DBCanvas _, "Properties" ->
+        model
+        |> set selectedComponent_ None
+        |> set (sheet_ >-> SheetT.selectedComponents_) []
+        |> set (sheet_ >-> SheetT.selectedWires_) []
+        |> set rightPaneTabVisible_ Properties
+        |> withNoCmd
 
     | _ ->
         printfn "%s" $"Context menu item not implemented: {rightClickElement} -> {item}"

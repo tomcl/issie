@@ -901,14 +901,28 @@ let private openProject model dispatch =
     | None -> () // User gave no path.
     | Some path -> openProjectFromPath path model dispatch
 
-// get sheets that are dependent on gievn sheet
-let getDependents (model:Model) (sheetName : string) =
+/// find all sheets that depend on the given sheet in the current project, return the sheet's signature as well
+/// if given sheet name doesn't exist in the project, return signature of working file
+let getDependentsFromSheet (model:Model) (sheetName : string) =
+    let getCorrectFileName (project:Project) = 
+        match project.WorkingFileName with
+        |Some name -> name
+        |None -> project.OpenFileName
+
     mapOverProject None model <| fun p ->
          
          let newSig =
              p.LoadedComponents
-             |> List.find (fun ldc -> ldc.Name = sheetName)
-             |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
+             |> List.tryFind (fun ldc -> ldc.Name = sheetName)
+             |> (fun ldcOption ->
+                    match ldcOption with
+                    | Some ldc -> parseDiagramSignature ldc.CanvasState
+                    | None ->
+                        p.LoadedComponents
+                        |> List.find (fun ldc -> ldc.Name = getCorrectFileName p)
+                        |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
+                )
+                          
          let instances =
              p.LoadedComponents
              |> List.filter (fun ldc -> ldc.Name <> sheetName)
@@ -919,6 +933,7 @@ let getDependents (model:Model) (sheetName : string) =
                          | {Type = Custom { Name=name; InputLabels=ins; OutputLabels=outs}
                             Id = cid} when name = sheetName-> [ldc.Name, cid,  (ins,outs)]
                          | _ -> []))
+
          Some(newSig, instances)
    
 // get relevant info about a sheet for display on popup
@@ -926,10 +941,10 @@ let getSheetInfo (model : Model) (oldSheetPath : string) (newSheetPath : string)
     let sheetName = oldSheetPath |> baseNameWithoutExtension
 
     // get sheets in current project that would depend on an existent sheet, same as one that's being imported
-    let exists, depSheets =
-
+    let projectHasSheet, depSheets =
+        log <| sprintf "new sheet path: %A" (newSheetPath |> exists)
         if newSheetPath |> exists then 
-            match getDependents model sheetName with
+            match getDependentsFromSheet model sheetName with
             | None -> true, ""
             | Some (newSig, instances) ->
                 true,
@@ -939,7 +954,7 @@ let getSheetInfo (model : Model) (oldSheetPath : string) (newSheetPath : string)
                 |> String.concat ","
         else false, ""
 
-    exists, depSheets
+    projectHasSheet, depSheets
 
 // import sheet from directory, ask user to sort out dependency issues
 let private importSheet model dispatch =
@@ -948,19 +963,24 @@ let private importSheet model dispatch =
     | Some project -> 
         let projectDir = project.ProjectPath
 
+        // log <| sprintf "proj dir: %s" projectDir
+
+        let importDecisions model = getImportDecisions model.PopupDialogData
+
         let onButtonClick (sheetPath: string) (decisionOption: ImportDecision option) =
-            let updatedDecisions = Map.add sheetPath decisionOption (getImportDecisions <| model.PopupDialogData)
+            let updatedDecisions = Map.add sheetPath decisionOption (importDecisions model)
             let printKeyValue key value =
                 printfn "Key: %s, Value: %A" key value
-            log <| Map.iter printKeyValue updatedDecisions
 
-            dispatch <| UpdateImportDecisions (fun (decisions : Map<string, ImportDecision option>) -> Map.add sheetPath decisionOption (getImportDecisions <| model.PopupDialogData))
+            dispatch <| UpdateImportDecisions updatedDecisions
+
+            log <| Map.iter printKeyValue updatedDecisions
            
         // Function to check if all decisions are made
         let allDecisionsMade allSheets =
             fun (model : Model) ->
                 allSheets
-                |> List.forall (fun sheetPath -> Map.containsKey sheetPath (model.PopupDialogData |> getImportDecisions))
+                |> List.forall (fun sheetPath -> Map.containsKey sheetPath (importDecisions model))
 
         let copySheet (sourcePath: string) (newPath: string) model dispatch =
             match readFile sourcePath |> writeFile newPath with
@@ -971,68 +991,90 @@ let private importSheet model dispatch =
 
         let createSheetInfo (sheetPath: string) =
             let fileName = baseName sheetPath
+            log <| sprintf "sheet: %s" sheetPath
             let newSheetPath = pathJoin [|projectDir; fileName|] 
             let sheetExists, depSheets = getSheetInfo model sheetPath newSheetPath
 
             if projectDir = dirName sheetPath then
                 displayFileErrorNotification "Cannot import sheet from curent directory" dispatch
+
                 div [] [
-                p [] [ str <| sprintf "Cannot import %s because it is from curent directory. Import has been disabled." fileName ]
+                p [] [ 
+                    str "Cannot imoprt "
+                    strong [] [ str fileName ]
+                    str " because it is from current directory. Import has been disabled. "
+                    ]
                 ]
 
             else 
-                let description =
-                    match sheetExists with
-                    | true -> sprintf "Sheet %s already exists in project. Sheets that depend on it: %s " fileName (match depSheets with
-                                                                                                                    | "" -> "None"
-                                                                                                                    | _ -> depSheets)
-                    | false ->
-                        if fileNameIsBad (pathWithoutExtension fileName)
-                        then
-                            sprintf @"Can't load file name '%s' from project '%s' because it contains incorrect characters.\n \
-                            File names used as sheets must contain only alphanumeric and space characters before the '.dgm' extension"  fileName sheetPath
-                 
-                        else 
-                            sprintf "Sheet %s can be imported. No conflicts." fileName
+                match sheetExists with
+                | true ->
+                                           
+                    let overwriteButton =
+                        [ Button.button
+                            [ 
+                                Button.Size IsSmall
+                                Button.IsOutlined
+                                Button.Color IsPrimary
+                                Button.OnClick(fun _ ->
+                                    onButtonClick sheetPath (Some Overwrite)
+                                )] [ str "Overwrite" ]             
+                        ]
 
-                let overwriteButton =
-                    let buttonText = if sheetExists then "Overwrite" else "Import as is"  
-                    [ Button.button
-                        [ 
-                            Button.Size IsSmall
-                            Button.IsOutlined
-                            Button.Color IsPrimary
-                            Button.OnClick(fun _ ->
-                                onButtonClick sheetPath (Some Overwrite)
-                            )] [ str buttonText ]             
+                    let renameButton =                  
+                        [ Button.button
+                            [ 
+                                Button.Size IsSmall
+                                Button.IsOutlined
+                                Button.Color IsPrimary
+                                Button.OnClick(fun _ ->
+                                    onButtonClick sheetPath (Some Rename)
+                                )] [ str "Rename" ] 
+                        ]
+
+                    div [] [
+                    p [] [
+                    str "Sheet "
+                    strong [] [str fileName]
+                    str <| sprintf " already exists in project. Sheets that depend on it: %s " (match depSheets with
+                                                                                                | "" -> "None"
+                                                                                                | _ -> depSheets)
                     ]
-
-                let renameButton =                  
-                    [ Button.button
-                        [ 
-                            Button.Size IsSmall
-                            Button.IsOutlined
-                            Button.Color IsPrimary
-                            Button.OnClick(fun _ ->
-                                onButtonClick sheetPath (Some Rename)
-                            )] [ str "Rename" ] 
-                    ]
-
-                div [] [
-                p [] [ str description ]
-                Navbar.Item.div [ Navbar.Item.Props [] ]
-                    [ Level.level [ Level.Level.Props []]
-                          [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str fileName ] ]
-                            Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
-                                [        
-                                  Level.item []
-                                    overwriteButton
+                    Navbar.Item.div [ Navbar.Item.Props [] ]
+                        [ Level.level [ Level.Level.Props []]
+                              [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str "Decision: " ] ]
+                                Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
+                                    [        
+                                      Level.item []
+                                        overwriteButton
                                
-                                  Level.item []
-                                    renameButton
+                                      Level.item []
+                                        renameButton
 
-                                ] ] ]
-                ]
+                                    ] ] ]
+                    ]
+                                
+                | false ->
+                    if fileNameIsBad (pathWithoutExtension fileName)
+                    then
+
+                        div [] [
+                        p [] [ 
+                            str "Can't load file name "
+                            strong [] [ str fileName ]
+                            str <| sprintf" from project %s" sheetPath
+                            str " because it contains incorrect characters.\nFile names used as sheets must contain only alphanumeric and space characters before the '.dgm' extension"  
+                        ]]
+
+                    else
+                        onButtonClick sheetPath None
+
+                        div [] [
+                        p [] [
+                            str "Sheet "
+                            strong [] [ str fileName ]
+                            str " has been imported."]
+                        ]
 
         match askForExistingSheetPaths model.UserData.LastUsedDirectory with
         | None -> () // User gave no path.
@@ -1045,34 +1087,32 @@ let private importSheet model dispatch =
             let popupBody _ = (div [] popupContent)
 
             let buttonAction =
-                fun (model : Model) ->
+                fun (model' : Model) ->
                     // based on the decision, make new sheet path and copy sheet over
-                    let decisions = (model.PopupDialogData |> getImportDecisions)
 
-                    decisions
+                    (importDecisions model')
                     |> Map.toList
                     |> List.iter (fun (sheetPath, decision) ->
                         match decision with
                         | Some Overwrite | None ->
-                            let fileName = baseName sheetPath
-                            let newSheetPath = pathJoin [|projectDir; fileName|]
+                            let newSheetPath = pathJoin [|projectDir; baseName sheetPath|]
 
-                            copySheet sheetPath newSheetPath model dispatch
+                            copySheet sheetPath newSheetPath model' dispatch
 
                         | Some Rename ->
-                            let newBaseName = baseNameWithoutExtension sheetPath + "1" + ".dgm"
-                            let newSheetPath = pathJoin [|projectDir; newBaseName|]
+                            let newSheetPath = pathJoin [|projectDir; baseNameWithoutExtension sheetPath + "1" + ".dgm"|]
 
-                            copySheet sheetPath newSheetPath model dispatch
+                            copySheet sheetPath newSheetPath model' dispatch
                     )
 
                     dispatch ClosePopup
+                    dispatch FinishUICmd
 
             let isDisabled =
-                fun (model: Model) ->
-                    not <| allDecisionsMade paths model
+                fun (model': Model) ->
+                    not <| allDecisionsMade paths model'
 
-            dialogPopup "Resolve import conflicts" popupBody "Import" buttonAction isDisabled [] dispatch  
+            dialogPopup "Resolve import conflicts" popupBody "OK" buttonAction isDisabled [] dispatch  
 
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.

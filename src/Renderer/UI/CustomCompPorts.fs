@@ -260,7 +260,7 @@ let makePortName (nameWidth :(string*int) option) =
     |> str
 
 /// returns IO signature of current sheet, and all its instances in other sheets
-let getDependents (model:Model)  =
+let getDependents (model:Model) =
     mapOverProject None model <| fun p ->
          let sheetName = getCorrectFileName p
          let newSig = 
@@ -277,7 +277,7 @@ let getDependents (model:Model)  =
                          | {Type = Custom { Name=name; InputLabels=ins; OutputLabels=outs}
                             Id = cid} when name = sheetName-> [ldc.Name, cid,  (ins,outs)]
                          | _ -> []))
-         Some(newSig, instances)
+         Some(newSig, instances) 
 
 let dependencyDoesNotMatchSignature newSig oldSig =
     let sortLists (a,b) = a, b // we now require signature order to match

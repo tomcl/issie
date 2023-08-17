@@ -417,7 +417,7 @@ type Msg =
     | FinishUICmd
     | ReadUserData of string
     | SetUserData of UserData
-    | UpdateImportDecisions of (Map<string, ImportDecision option> -> Map<string, ImportDecision option>)
+    | UpdateImportDecisions of Map<string, ImportDecision option>
     | SetThemeUserData of DrawModelType.SymbolT.ThemeType
     | ExecCmd of Elmish.Cmd<Msg>
     | ExecFuncInMessage of (Model -> (Msg->Unit) -> Unit) * (Msg -> Unit)

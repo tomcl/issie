@@ -202,9 +202,9 @@ let update (msg : Msg) oldModel =
     | UpdateModel( updateFn: Model -> Model) ->
         updateFn model, Cmd.none
 
-    | UpdateImportDecisions updateFn ->
+    | UpdateImportDecisions importDecisions' ->
         model
-        |> map (popupDialogData_ >-> importDecisions_) updateFn
+        |> set (popupDialogData_ >-> importDecisions_) importDecisions'
         |> withCmdNone
 
     | RefreshWaveSim ws ->
@@ -497,16 +497,16 @@ let update (msg : Msg) oldModel =
         model, cmd
 
     | ExecFuncAsynch func ->
-             let cmd' = 
-                Elmish.Cmd.OfAsyncImmediate.result (async { 
-                //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
-                //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
-                    do! (Async.Sleep 100) 
-                    if Set.contains "update" JSHelpers.debugTraceUI then
-                        printfn "Starting ExecFuncAsynch payload"
-                    let cmd = func ()                    
-                    return (ExecCmd cmd)})
-             model, cmd'
+        let cmd' = 
+            Elmish.Cmd.OfAsyncImmediate.result (async { 
+            //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
+            //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
+                do! (Async.Sleep 100) 
+                if Set.contains "update" JSHelpers.debugTraceUI then
+                    printfn "Starting ExecFuncAsynch payload"
+                let cmd = func ()                    
+                return (ExecCmd cmd)})
+        model, cmd'
 
     | ExecCmdAsynch cmd ->
         let cmd' = 

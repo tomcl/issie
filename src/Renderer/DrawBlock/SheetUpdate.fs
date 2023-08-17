@@ -56,8 +56,8 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 sheetCmd UpdateBoundingBoxes; 
                 ]
     | Wire wMsg ->
-        let wModel, (wCmd) = BusWireUpdate.update wMsg model.Wire
-        { model with Wire = wModel }, Cmd.map (Msg.Wire >> ModelType.Msg.Sheet) wCmd
+        let wModel, (wCmd) = BusWireUpdate.update wMsg issieModel
+        { model with Wire = wModel.Sheet.Wire }, wCmd
     | ToggleGrid ->
         {model with ShowGrid = not model.ShowGrid}, Cmd.none
     | KeyPress DEL ->

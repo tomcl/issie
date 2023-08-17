@@ -202,7 +202,7 @@ let update (msg : Msg) oldModel =
     | UpdateImportDecisions importDecisions' ->
         model
         |> set (popupDialogData_ >-> importDecisions_) importDecisions'
-        |> withCmdNone
+        |> withNoMsg
 
     | RefreshWaveSim ws ->
         // restart the wave simulator after design change etc that invalidates all waves

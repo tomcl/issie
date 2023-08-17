@@ -1090,21 +1090,21 @@ let private importSheet model dispatch =
                 fun (model' : Model) ->
                     // based on the decision, make new sheet path and copy sheet over
 
-                    (importDecisions model')
-                    |> Map.toList
-                    |> List.iter (fun (sheetPath, decision) ->
-                        match decision with
-                        | Some Overwrite | None ->
-                            let newSheetPath = pathJoin [|projectDir; baseName sheetPath|]
+                    let newSheetPaths = 
+                        (importDecisions model')
+                        |> Map.toList
+                        |> List.map (fun (sheetPath, decision) ->
+                            match decision with
+                            | Some Overwrite | None ->
+                                sheetPath, pathJoin [|projectDir; baseName sheetPath|]
 
-                            copySheet sheetPath newSheetPath model' dispatch
+                            | Some Rename ->
+                                sheetPath, pathJoin [|projectDir; baseNameWithoutExtension sheetPath + "1" + ".dgm"|]
 
-                        | Some Rename ->
-                            let newSheetPath = pathJoin [|projectDir; baseNameWithoutExtension sheetPath + "1" + ".dgm"|]
+                        )
 
-                            copySheet sheetPath newSheetPath model' dispatch
-                    )
-
+                    newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) -> copySheet oldSheetPath newSheetPath model' dispatch)
+                    
                     dispatch ClosePopup
                     dispatch FinishUICmd
 

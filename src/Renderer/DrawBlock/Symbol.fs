@@ -480,7 +480,6 @@ let makeMapsConsistent (portIdMap: Map<string,string>) (sym: Symbol) =
 /// leaves other symbols unchanged
 let autoScaleHAndW (sym:Symbol) : Symbol =
     //height same as before, just take max of left and right
-        printfn "autoscaling..."
         match sym.Component.Type with
         | Custom ct ->
                 let portIdMap = getCustomPortIdMap sym.Component

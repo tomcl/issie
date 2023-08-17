@@ -617,7 +617,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
             }
     )
     |> ofList
-    |> TimeHelpers.instrumentInterval "SymbolView" start
+    //|> TimeHelpers.instrumentInterval "SymbolView" start
 
 /// init function for initial Symbol Model
 let init () = 

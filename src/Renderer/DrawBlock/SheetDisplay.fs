@@ -52,13 +52,15 @@ let displaySvgWithZoom
 
     /// Dispatch a MouseMsg (compensated for zoom)
     let mouseOp op (ev:Types.MouseEvent) =
-        dispatch <| MouseMsg {
-            Op = op ;
-            ShiftKeyDown = ev.shiftKey
-            ScreenMovement = {X= ev.movementX;Y=ev.movementY}
-            ScreenPage = {X=ev.pageX; Y=ev.pageY}
-            Pos = getDrawBlockPos ev headerHeight model
-            }
+        // right button oprations are only used for context menus
+        if int ev.button = 0 then // button = 0 => left, button = 2 => right
+            dispatch <| MouseMsg {
+                Op = op ;
+                ShiftKeyDown = ev.shiftKey
+                ScreenMovement = {X= ev.movementX;Y=ev.movementY}
+                ScreenPage = {X=ev.pageX; Y=ev.pageY}
+                Pos = getDrawBlockPos ev headerHeight model
+                }
 
     let wheelUpdate (ev: Types.WheelEvent) =
         if Set.contains "CONTROL" model.CurrentKeyPresses then
@@ -195,5 +197,5 @@ let view
 
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
-    |> TimeHelpers.instrumentInterval "SheetView" start
+    //|> TimeHelpers.instrumentInterval "SheetView" start
 

@@ -20,10 +20,10 @@ open ElectronAPI
 /// menu and item names can be arbitrary strings
 /// add menus as here
 let contextMenus = [
-        "CustomComponent", ["Go to sheet"]
-        "Canvas", ["Zoom-in (Alt-Up)" ; "Zoom-out (Alt-Down)" ; "Fit to window (Ctrl-W)"]
-        "Menu1", ["Item1"; "Item with spaces"] // example menu
-        "MenuB", ["Averylongitemwill still work"; "tiny"; "medium"] // example menu
+        "CustomComponent", ["Go to sheet" ; "Properties"]
+        "Component", ["Rotate Clockwise (Ctrl-Right)"; "Rotate AntiClockwise (Ctrl-Left)" ; "Flip Vertical (Ctrl-Up)"; "Flip Horizontal (Ctrl-Down)" ; "Properties"]
+        "Canvas", ["Zoom-in (Alt-Up) and centre" ; "Zoom-out (Alt-Down)" ; "Fit to window (Ctrl-W)" ; "Properties"]
+        "Wire", ["Unfix Wire"]
         "", [] // Empty string for no context menu.
     ]
 
@@ -39,6 +39,8 @@ let makeClickableReturner
             : MenuItemConstructorOptions =
     [|
         "click", unbox (Some (fun _  ->
+                    printfn "dispatching: %s, %s" menuType s
+                    ev.preventDefault()
                     dispatchToRenderer (menuType,s)
                     ev))
         "label", unbox Some s

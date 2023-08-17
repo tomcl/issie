@@ -61,25 +61,45 @@ let dragSegment wire index (mMsg: MouseT) model =
             model
             
 /// Handles messages
-let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
+let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<ModelType.Msg> =
+    let model = issieModel.Sheet.Wire
+
+    let withNoMsg (model: ModelType.Model) = model, Cmd.none
+
+    /// Command to issie level
+    let withIssieMsg (msg: ModelType.Msg) (model: ModelType.Model) = model, Cmd.ofMsg msg
+    
+    /// Command to Sheet level
+    let withSheetMsg (msg: DrawModelType.SheetT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet msg)
+    
+    /// Command to BusWire level
+    let withMsg (msg: DrawModelType.BusWireT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg))
+    
+    /// Command to Symbol level
+    let withSymbolMsg (msg: DrawModelType.SymbolT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire (DrawModelType.BusWireT.Symbol msg)))
+
+    ///
+    let withMsgs (msgs: Msg list) (model : Model) =
+        let wireMsg msg = Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg))
+        model, Cmd.batch (List.map wireMsg msgs)
 
     match msg with
     | Symbol sMsg ->
         // update Symbol model with a Symbol message
         let sm,sCmd = SymbolUpdate.update sMsg model.Symbol
-        {model with Symbol=sm}, Cmd.map Symbol sCmd
+        {issieModel with Sheet={issieModel.Sheet with Wire={model with Symbol=sm}}}, (Cmd.map (fun msg -> ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg)) sCmd)
 
 
     | UpdateWires (componentIdList, diff) ->
         // update wires after moving components in componentIdList by diff
         // wires between components are translated not routed as optimisation
-        updateWires model componentIdList diff, Cmd.none
+        {issieModel with Sheet={issieModel.Sheet with Wire=updateWires model componentIdList diff}} |> withNoMsg
 
     | UpdateSymbolWires compId ->
         // update all the wires coming from a single symbol
         // useful if the symbol has been flipped or ports have been moved
         // partial routing will be done if this makes sense
-        BusWireSeparate.routeAndSeparateSymbolWires model compId, Cmd.none
+        {issieModel with Sheet={issieModel.Sheet with Wire=BusWireSeparate.routeAndSeparateSymbolWires model compId}} |> withNoMsg
 
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
         // add a newly created wire to the model
@@ -102,14 +122,14 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
         if Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) model.Wires then
             // wire already exists
-            model, Cmd.none
+            {issieModel with Sheet={issieModel.Sheet with Wire=model}} |> withNoMsg
         else       
             let newModel = 
                 model
                 |> Optic.set (wireOf_ newWire.WId) newWire
                 |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
         
-            newModel, Cmd.ofMsg BusWidths
+            {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> withMsg BusWidths
     | AddNotConnected (ldcs, port, pos) ->
         let (newSymModel, ncID) = SymbolUpdate.addSymbol ldcs model.Symbol pos NotConnected ""
         let ncPortId = newSymModel.Symbols[ncID].Component.InputPorts[0].Id
@@ -136,7 +156,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             |> Optic.set (wireOf_ newWire.WId) newWire
             |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
         
-        newModel, Cmd.ofMsg BusWidths
+        {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> withMsg BusWidths
     | BusWidths ->
         // (1) Call Issie bus inference
         // (2) Add widths to maps on symbols on wires
@@ -175,12 +195,18 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             let symbolsWithWidths =
                 (model.Symbol.Symbols, newWires) ||> Map.fold addSymbolWidthFolder
 
-            { model with
-                Wires = newWires; 
-                Notifications = None;
-                ErrorWires=[];
-                Symbol = {model.Symbol with Symbols = symbolsWithWidths}
-            }, Cmd.none
+            { issieModel with
+                Sheet=
+                    { issieModel.Sheet with
+                        Wire=
+                            { model with
+                                Wires = newWires; 
+                                Notifications = None;
+                                ErrorWires=[];
+                                Symbol = {model.Symbol with Symbols = symbolsWithWidths}
+                            }
+                    }
+            } |> withNoMsg
 
         let canvasState = (SymbolUpdate.extractComponents model.Symbol, extractConnections model)
 
@@ -188,12 +214,12 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         | Ok connWidths ->
             processConWidths connWidths
         | Error e ->
-                { model with Notifications = Some e.Msg }, Cmd.ofMsg (ErrorWires e.ConnectionsAffected)
+                { issieModel with Sheet={ issieModel.Sheet with Wire={ model with Notifications = Some e.Msg }}} |> withMsg (ErrorWires e.ConnectionsAffected)
 
     | CopyWires (connIds : list<ConnectionId>) ->
         // add given wires to Copiedwires state (NB, this contains wires at time of copy)
         let copiedWires = Map.filter (fun connId _ -> List.contains connId connIds) model.Wires
-        { model with CopiedWires = copiedWires }, Cmd.none
+        {issieModel with Sheet={issieModel.Sheet with Wire={ model with CopiedWires = copiedWires }}} |> withNoMsg
 
     | ErrorWires (connectionIds : list<ConnectionId>) ->
         // record these wires in model.ErrorWires and highlight them as red.
@@ -210,7 +236,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     else wire
                 )
 
-        { model with Wires = newWires ; ErrorWires = connectionIds }, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires ; ErrorWires = connectionIds }}} |> withNoMsg
 
     | SelectWires (connectionIds : list<ConnectionId>) -> 
         // selects all wires in connectionIds, and also deselects all other wires
@@ -229,7 +255,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                         {wire with Color = HighLightColor.DarkSlateGrey}
                 )
 
-        { model with Wires = newWires }, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires ; ErrorWires = connectionIds }}} |> withNoMsg
 
 
     | DeleteWires (connectionIds : list<ConnectionId>) ->
@@ -241,12 +267,12 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
              |> Map.filter (fun id wire -> not (List.contains id connectionIds))
         let model =
             {model with Wires = newWires}
-        { model with Wires = newWires }, Cmd.ofMsg BusWidths
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires ; ErrorWires = connectionIds }}} |> withMsg BusWidths
 
     | DeleteWiresOnPort (delPorts:(Port option) list) ->
         match delPorts with
         |[] ->
-            model, Cmd.none
+            issieModel |> withNoMsg
         |_ -> 
             let wires = model.Wires |> Map.toList
             let connIds = 
@@ -261,7 +287,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                         conns@localConns
                     |None -> conns                    
                 )
-            model, Cmd.ofMsg (DeleteWires connIds)
+            issieModel |> withMsg (DeleteWires connIds)
 
     | DragSegment (segIdL : SegmentId list, mMsg: MouseT) ->
         let checkSegmentOK segId =
@@ -271,22 +297,25 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         segIdL
         |> List.filter checkSegmentOK
         |> function
-            | [] -> model, Cmd.none
+            | [] -> issieModel |> withNoMsg
             | segIdL ->
                 match mMsg.Op with
                 | Down ->
-                    {model with SelectedSegment = segIdL}, Cmd.ofMsg (ResetJumps [])
+                    {issieModel with Sheet={ issieModel.Sheet with Wire={ model with SelectedSegment = segIdL}}} |> withMsg (ResetJumps [])
                 | Drag ->
                     (model, segIdL)
                     ||> List.fold (fun model segId ->
                             let index, connId = segId
                             let wire = model.Wires[connId]
                             dragSegment wire index mMsg model)
-                    |> (fun model -> model, Cmd.none)
-                | _ -> model, Cmd.none
+                    |> fun model -> {issieModel with Sheet={ issieModel.Sheet with Wire=model}}
+                    |> withNoMsg
+                | _ -> issieModel |> withNoMsg
 
     | CoalesceWire wId ->
-        coalesceInWire wId model, Cmd.none
+        coalesceInWire wId model
+        |> fun model -> {issieModel with Sheet={ issieModel.Sheet with Wire=model}}
+        |> withNoMsg
 
     | ColorWires (connIds, color) -> 
         // Just Changes the colour of the wires, Sheet calls pasteWires before this
@@ -298,24 +327,24 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     prevWires
                 | Some oldWire ->
                     Map.add cId { oldWire with Color = color } prevWires) model.Wires connIds)
-        { model with Wires = newWires }, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires }}} |> withNoMsg
 
     | ResetJumps connIds ->
         // removes wire 'jumps' at start of drag operation for neater component movement 
         // without jump recalculation
         // makejumps at end of a drag operation restores new jumps
         let newModel = resetWireSegmentJumps connIds model
-        newModel, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire=newModel}} |> withNoMsg
 
     | MakeJumps connIds ->
         // recalculates (slowly) wire jumps after a drag operation
         //printfn $"Making jumps with {connIds.Length} connections"
         let newModel = BusWireSeparate.updateWireSegmentJumpsAndSeparations connIds model
-        newModel, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire=newModel}} |> withNoMsg
 
     | ResetModel -> 
         // How we start with nothing loaded
-        { model with Wires = Map.empty; ErrorWires = []; Notifications = None }, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = Map.empty; ErrorWires = []; Notifications = None }}} |> withNoMsg
 
     | LoadConnections conns -> 
         // we assume components (and hence ports) are loaded before connections
@@ -381,29 +410,32 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             conns
             |> List.map (fun conn -> ConnectionId conn.Id)
 
-        { model with Wires = newWires }, Cmd.ofMsg (MakeJumps connIds)
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires }}} |> withMsg (MakeJumps connIds)
 
     | UpdateWireDisplayType (style: WireType) ->
         {model with Type = style }
         |> BusWireSeparate.updateWireSegmentJumpsAndSeparations []
-        |> (fun model -> model,Cmd.none)
+        |> fun model -> {issieModel with Sheet={ issieModel.Sheet with Wire=model}}
+        |> withNoMsg
 
     | ToggleArrowDisplay  ->
-        {model with ArrowDisplay = not model.ArrowDisplay}, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with ArrowDisplay = not model.ArrowDisplay}}} |> withNoMsg
 
     | UpdateConnectedWires (componentIds: ComponentId list) ->
         // partial or full autoroutes all ends of wires conencted to given symbols
         // typically used after rotating or flipping symbols
         printfn "Updating connected wires"
-        let updatePortIdMessages = 
+        let updatePortIdMessages: seq<Cmd<ModelType.Msg>> = 
             componentIds
             |> Symbol.getPortLocations model.Symbol
             |> (fun (m1,m2) -> 
                 let inputPorts = Seq.map (fun (InputPortId portId) -> portId) m1.Keys |> Seq.toList
                 let outputPorts = Seq.map (fun (OutputPortId portId) -> portId) m2.Keys |> Seq.toList
                 inputPorts @ outputPorts
-                |> List.map (Msg.RerouteWire >> Cmd.ofMsg))
-        model, Cmd.batch updatePortIdMessages
+                |> List.map (Msg.RerouteWire >> Cmd.ofMsg)
+                |> Seq.ofList)
+            |> Seq.map (Cmd.map (fun cmd -> ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire cmd)))
+        issieModel, Cmd.batch updatePortIdMessages
 
     | RerouteWire (portId: string) ->
         // parially or fully autoroutes wires connected to port
@@ -426,9 +458,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 let wire' = updateWire model wire (rerouteInputEnd wire)
                 Map.add wid wire' wires)
 
-        {model with Wires = newWires}, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire={model with Wires = newWires}}} |> withNoMsg
     | ToggleSnapToNet ->
-        {model with SnapToNet = not model.SnapToNet}, Cmd.none
+        {issieModel with Sheet={ issieModel.Sheet with Wire={model with SnapToNet = not model.SnapToNet}}} |> withNoMsg
 
 
 //---------------------------------------------------------------------------------//        

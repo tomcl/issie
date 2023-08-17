@@ -256,6 +256,7 @@ module SymbolT =
         | WriteMemoryType of ComponentId * ComponentType
         | UpdateMemory of ComponentId * (Memory1 -> Memory1)
         | RotateLeft of compList : ComponentId list * RotationType
+        | RotateAntiClockAng of compList : ComponentId list * Rotation
         | Flip of compList: ComponentId list * orientation: FlipType
         /// Taking the input and..
         | MovePort of portId: string * move: XYPos
@@ -374,7 +375,6 @@ module BusWireT =
     type Msg =
         | Symbol of SymbolT.Msg // record containing messages from Symbol module
         | AddWire of (InputPortId * OutputPortId) // add a new wire between these ports to the model
-        | AddNotConnected of (LoadedComponent list) * port:Port * pos:XYPos
         | BusWidths
         | CopyWires of list<ConnectionId>
         | DeleteWires of list<ConnectionId>
@@ -542,6 +542,7 @@ module SheetT =
         | UpdateSingleBoundingBox of ComponentId
         | UpdateScrollPos of XYPos
         | UpdateScrollPosFromCanvas of dispatch: ( Msg -> Unit)
+        | AddNotConnected of (LoadedComponent list) * port:Port * pos:XYPos * rotation:Rotation
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling

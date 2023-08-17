@@ -98,7 +98,18 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
             Component = newComponent
         } |> calcLabelBoundingBox
 
-
+let rec rotateAntiClockByAng (rotAngle: Rotation) (sym: Symbol) : Symbol =
+    match rotAngle with
+    | Degree0 -> sym
+    | deg ->
+        let newSym = rotateSymbol RotateAntiClockwise sym
+        match deg with
+        | Degree90 -> newSym
+        | Degree180 ->
+            rotateAntiClockByAng (Degree90) newSym
+        | Degree270 ->
+            rotateAntiClockByAng (Degree180) newSym
+        | Degree0 -> failwithf "Can't encounter Degree0 here"
 
 /// Flips a side horizontally
 let flipSideHorizontal (edge: Edge) : Edge =

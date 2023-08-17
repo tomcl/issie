@@ -272,7 +272,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         // the new wires (extarcted as connections) are not added back into Issie model. 
         // This happens on save or when starting a simulation (I think)
         let newWireModel, msgOpt = BusWireUpdate.newWire (InputPortId ncPortId) (OutputPortId port.Id) {model.Wire with Symbol = newSymModel}
-        let wCmd = BusWireUpdate.cmdMapFromMsgOpt wireCmd msgOpt
+        let wCmd = if msgOpt.IsSome then wireCmd (Option.get msgOpt) else Cmd.none
             
         {model with Wire = newWireModel}, Cmd.batch [wCmd;
                                     symbolCmd (RotateAntiClockAng ([ncID], rotation));

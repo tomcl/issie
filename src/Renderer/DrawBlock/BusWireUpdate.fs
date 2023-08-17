@@ -13,15 +13,6 @@ open Optics
 open Operators
 open BlockHelpers
 
-let cmdMapFromMsgOpt
-    (mapFn: 'b -> Cmd<'a>)
-    (msgOpt: 'b option)
-    : Cmd<'a>
-    =
-    msgOpt
-    |> Option.map mapFn
-    |> Option.defaultValue Cmd.none
-
 //---------------------------------------------------------------------------------//
 //------------------------------BusWire Init & Update functions--------------------//
 //---------------------------------------------------------------------------------//

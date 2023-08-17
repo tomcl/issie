@@ -200,9 +200,17 @@ let update (msg : Msg) oldModel =
         updateFn model, Cmd.none
 
     | UpdateImportDecisions importDecisions' ->
-        model
-        |> set (popupDialogData_ >-> importDecisions_) importDecisions'
-        |> withNoMsg
+        let updatedModel = 
+            model
+            |> set (popupDialogData_ >-> importDecisions_) importDecisions'
+        
+
+        let printKeyValue key value =
+            printfn "Key--: %s, Value: %A" key value
+
+        Map.iter printKeyValue updatedModel.PopupDialogData.ImportDecisions
+
+        updatedModel, Cmd.none
 
     | RefreshWaveSim ws ->
         // restart the wave simulator after design change etc that invalidates all waves

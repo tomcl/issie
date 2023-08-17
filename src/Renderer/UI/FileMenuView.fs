@@ -942,7 +942,7 @@ let getSheetInfo (model : Model) (oldSheetPath : string) (newSheetPath : string)
 
     // get sheets in current project that would depend on an existent sheet, same as one that's being imported
     let projectHasSheet, depSheets =
-        log <| sprintf "new sheet path: %A" (newSheetPath |> exists)
+        // log <| sprintf "new sheet path: %A" (newSheetPath |> exists)
         if newSheetPath |> exists then 
             match getDependentsFromSheet model sheetName with
             | None -> true, ""
@@ -967,31 +967,25 @@ let private importSheet model dispatch =
 
         let importDecisions model = getImportDecisions model.PopupDialogData
 
-        let onButtonClick (sheetPath: string) (decisionOption: ImportDecision option) =
-            let updatedDecisions = Map.add sheetPath decisionOption (importDecisions model)
-            let printKeyValue key value =
-                printfn "Key: %s, Value: %A" key value
+        let onButtonClick (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model)=
+            let updatedDecisions = Map.add sheetPath decisionOption (importDecisions model')
 
             dispatch <| UpdateImportDecisions updatedDecisions
-
-            log <| Map.iter printKeyValue updatedDecisions
-           
+       
         // Function to check if all decisions are made
         let allDecisionsMade allSheets =
             fun (model : Model) ->
                 allSheets
                 |> List.forall (fun sheetPath -> Map.containsKey sheetPath (importDecisions model))
-
+               
         let copySheet (sourcePath: string) (newPath: string) model dispatch =
             match readFile sourcePath |> writeFile newPath with
             | Ok _ -> ()
             | Error msg -> displayFileErrorNotification msg dispatch
 
-            openProjectFromPath projectDir model dispatch
-
-        let createSheetInfo (sheetPath: string) =
+        let createSheetInfo (model : Model) (sheetPath: string) =
             let fileName = baseName sheetPath
-            log <| sprintf "sheet: %s" sheetPath
+            // log <| sprintf "sheet: %s" sheetPath
             let newSheetPath = pathJoin [|projectDir; fileName|] 
             let sheetExists, depSheets = getSheetInfo model sheetPath newSheetPath
 
@@ -1000,7 +994,7 @@ let private importSheet model dispatch =
 
                 div [] [
                 p [] [ 
-                    str "Cannot imoprt "
+                    str "Cannot import "
                     strong [] [ str fileName ]
                     str " because it is from current directory. Import has been disabled. "
                     ]
@@ -1017,7 +1011,7 @@ let private importSheet model dispatch =
                                 Button.IsOutlined
                                 Button.Color IsPrimary
                                 Button.OnClick(fun _ ->
-                                    onButtonClick sheetPath (Some Overwrite)
+                                    onButtonClick sheetPath (Some Overwrite) model
                                 )] [ str "Overwrite" ]             
                         ]
 
@@ -1028,7 +1022,7 @@ let private importSheet model dispatch =
                                 Button.IsOutlined
                                 Button.Color IsPrimary
                                 Button.OnClick(fun _ ->
-                                    onButtonClick sheetPath (Some Rename)
+                                    onButtonClick sheetPath (Some Rename) model
                                 )] [ str "Rename" ] 
                         ]
 
@@ -1067,7 +1061,7 @@ let private importSheet model dispatch =
                         ]]
 
                     else
-                        onButtonClick sheetPath None
+                        onButtonClick sheetPath None model
 
                         div [] [
                         p [] [
@@ -1079,12 +1073,14 @@ let private importSheet model dispatch =
         match askForExistingSheetPaths model.UserData.LastUsedDirectory with
         | None -> () // User gave no path.
         | Some paths ->           
-            let popupContent =
-                paths
-                |> List.map createSheetInfo
-                |> List.toArray
-                
-            let popupBody _ = (div [] popupContent)
+
+            let popupBody =
+                fun (model' : Model) ->
+                    let content =
+                        paths
+                        |> List.map (createSheetInfo model')
+                        |> List.toArray
+                    (div [] content)
 
             let buttonAction =
                 fun (model' : Model) ->
@@ -1104,7 +1100,8 @@ let private importSheet model dispatch =
                         )
 
                     newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) -> copySheet oldSheetPath newSheetPath model' dispatch)
-                    
+
+                    openProjectFromPath projectDir model' dispatch
                     dispatch ClosePopup
                     dispatch FinishUICmd
 

@@ -1061,13 +1061,29 @@ let private importSheet model dispatch =
                         ]]
 
                     else
-                        onButtonClick sheetPath None model
-
+                       
                         div [] [
                         p [] [
                             str "Sheet "
                             strong [] [ str fileName ]
-                            str " has been imported."]
+                            str " can been imported without conflicts."]
+                        Navbar.Item.div [ Navbar.Item.Props [] ]
+                            [ Level.level [ Level.Level.Props []]
+                                  [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str "Decision: " ] ]
+                                    Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
+                                        [        
+                                          Level.item []
+                                            [ Button.button
+                                                [ 
+                                                    Button.Size IsSmall
+                                                    Button.IsOutlined
+                                                    Button.Color IsPrimary
+                                                    Button.OnClick(fun _ ->
+                                                        onButtonClick sheetPath None model
+                                                    )] [ str "Import alone" ]             
+                                            ]
+                               
+                                        ] ] ]
                         ]
 
         match askForExistingSheetPaths model.UserData.LastUsedDirectory with

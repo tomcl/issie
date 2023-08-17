@@ -666,10 +666,10 @@ module SheetT =
     let boundingBoxes_ = Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> {m with BoundingBoxes = bb})
 
     let wires_ = wire_ >-> BusWireT.wires_
+    let wireOf_ k = wires_ >-> Map.valueForce_ "What? Wire id lookup in model failed" k
     let symbol_ = wire_ >-> BusWireT.symbol_
     let symbols_ = wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
     let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
-
     let scrollingLastMousePos_ = Lens.create (fun m -> m.ScrollingLastMousePos) (fun w m -> {m with ScrollingLastMousePos = w})
     let lastMousePos_ = Lens.create (fun m -> m.LastMousePos) (fun w m -> {m with LastMousePos = w})
     let screenScrollPos_ = Lens.create (fun m -> m.ScreenScrollPos) (fun w m -> {m with ScreenScrollPos = w})

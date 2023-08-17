@@ -689,10 +689,6 @@ let endButtonAction canvasState model dispatch ev =
 let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel)  : WaveSimButtonOptions =
     let fs = ws.FastSim
     let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
-    // let errored = 
-    //     match ws.State with
-    //     | SimError _ | NonSequential -> true
-    //     | _ -> false
     let success = (ws.State = Success || ws.State=Loading)
 
     let hasSimErr =

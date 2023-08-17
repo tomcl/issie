@@ -1103,7 +1103,6 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
 
 /// Entry point to the waveform simulator.
 let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
-    printfn "viewing wave simulation"
     let wsModel = getWSModel model
     let notRunning = 
         div [ errorMessageStyle ] [ str "Start the waveform viewer by pressing the Start button." ]

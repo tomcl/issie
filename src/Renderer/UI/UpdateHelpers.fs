@@ -66,7 +66,7 @@ let shortDisplayMsg (msg:Msg) =
     | StartSimulation x -> Some $"""StartSimulation({match x with | Ok _ -> "OK" | Error x -> "Error"})"""
     | AddWSModel (s,ws) -> Some $"AddWSModel:{s}->{shortDWSM ws}"
     | SetWSModel ws -> Some $"SetWSModel:{ws.FastSim.SimulatedTopSheet}->{shortDWSM ws}"
-    | UpdateWSModel _ -> None
+    | UpdateWSModel _ -> Some "Updating WS model"
     | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM ws}"
     | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"
     | GenerateCurrentWaveforms -> Some $"Generate Current Waveforms"

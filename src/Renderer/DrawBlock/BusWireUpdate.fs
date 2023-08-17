@@ -13,8 +13,6 @@ open Optics
 open Operators
 open BlockHelpers
 
-
-
 //---------------------------------------------------------------------------------//
 //------------------------------BusWire Init & Update functions--------------------//
 //---------------------------------------------------------------------------------//
@@ -59,7 +57,32 @@ let dragSegment wire index (mMsg: MouseT) model =
         else
             printfn "Can't move undraggable"
             model
-            
+
+let newWire inputId outputId model =
+    let wireId = ConnectionId(JSHelpers.uuid())
+    let nWire =
+        {
+            WId = wireId
+            InputPort = inputId
+            OutputPort = outputId
+            Color = HighLightColor.DarkSlateGrey
+            Width = 1
+            Segments = []
+            StartPos = { X = 0; Y = 0 }
+            InitialOrientation = Horizontal
+        }
+        |> smartAutoroute model
+
+    if Map.exists (fun wid wire -> wire.InputPort=nWire.InputPort && wire.OutputPort = nWire.OutputPort) model.Wires then
+            // wire already exists
+            model, None
+        else       
+            let newModel = 
+                model
+                |> Optic.set (wireOf_ nWire.WId) nWire
+                |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [nWire.WId]
+            newModel, Some BusWidths
+
 /// Handles messages
 let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<ModelType.Msg> =
     let model = issieModel.Sheet.Wire
@@ -106,58 +129,11 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         // then send BusWidths message which will re-infer bus widths
         // the new wires (extarcted as connections) are not added back into Issie model. 
         // This happens on save or when starting a simulation (I think)
-        let wireId = ConnectionId(JSHelpers.uuid())
-        let newWire = 
-            {
-                WId = wireId
-                InputPort = inputId
-                OutputPort = outputId
-                Color = HighLightColor.DarkSlateGrey
-                Width = 1
-                Segments = []
-                StartPos = { X = 0; Y = 0 }
-                InitialOrientation = Horizontal
-            }
-            |> smartAutoroute model
-
-        if Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) model.Wires then
-            // wire already exists
-            {issieModel with Sheet={issieModel.Sheet with Wire=model}} |> withNoMsg
-        else       
-            let newModel = 
-                model
-                |> Optic.set (wireOf_ newWire.WId) newWire
-                |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
-        
-            {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> withMsg BusWidths
-    | AddNotConnected (ldcs, port, pos) ->
-        let (newSymModel, ncID) = SymbolUpdate.addSymbol ldcs model.Symbol pos NotConnected ""
-        let ncPortId = newSymModel.Symbols[ncID].Component.InputPorts[0].Id
-        // add a newly created wire to the model
-        // then send BusWidths message which will re-infer bus widths
-        // the new wires (extarcted as connections) are not added back into Issie model. 
-        // This happens on save or when starting a simulation (I think)
-        let wireId = ConnectionId(JSHelpers.uuid())
-        let newWire = 
-            {
-                WId = wireId
-                InputPort = InputPortId ncPortId
-                OutputPort = OutputPortId port.Id
-                Color = HighLightColor.DarkSlateGrey
-                Width = 1
-                Segments = []
-                StartPos = { X = 0; Y = 0 }
-                InitialOrientation = Horizontal
-            }
-            |> smartAutoroute {model with Symbol = newSymModel}
-        
-        let newModel = 
-            {model with Symbol = newSymModel}
-            |> Optic.set (wireOf_ newWire.WId) newWire
-            |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId]
-        
-        {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> withMsg BusWidths
+        let newModel, msgOpt = newWire inputId outputId model
+        {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> (if msgOpt.IsSome then withMsg (Option.get msgOpt) else withNoMsg)
+    
     | BusWidths ->
+        printfn "BusWidths Message"
         // (1) Call Issie bus inference
         // (2) Add widths to maps on symbols on wires
         let processConWidths (connWidths: ConnectionsWidth) =

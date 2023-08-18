@@ -203,13 +203,7 @@ let update (msg : Msg) oldModel =
         let updatedModel = 
             model
             |> set (popupDialogData_ >-> importDecisions_) importDecisions'
-        
-
-        let printKeyValue key value =
-            printfn "Key--: %s, Value: %A" key value
-
-        Map.iter printKeyValue updatedModel.PopupDialogData.ImportDecisions
-
+       
         updatedModel, Cmd.none
 
     | RefreshWaveSim ws ->

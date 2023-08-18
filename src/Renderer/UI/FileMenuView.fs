@@ -901,8 +901,44 @@ let private openProject model dispatch =
     | None -> () // User gave no path.
     | Some path -> openProjectFromPath path model dispatch
 
-/// find all sheets that depend on the given sheet in the current project, return the sheet's signature as well
-/// if given sheet name doesn't exist in the project, return signature of working file
+
+type SheetTree = {
+    Node: string
+    Size: int
+    SubSheets: SheetTree list
+    }
+
+
+/// get the subsheet tree for aa sheets
+let getSheetTrees (p:Project) =
+    let ldcMap = 
+        p.LoadedComponents
+        |> List.map (fun ldc -> ldc.Name,ldc)
+        |> Map.ofList
+    let rec subSheets (path: string list) (sheet: string) : SheetTree=
+        let ldc = Map.tryFind sheet ldcMap
+        match ldc with
+        | None -> {Node=sheet; Size = 1;SubSheets = []}
+        | Some ldc ->
+            let comps,_ = ldc.CanvasState
+            comps
+            |> List.collect (fun comp -> 
+                    match comp.Type with 
+                    | Custom ct when not <| List.contains ct.Name path -> 
+                        [subSheets (ct.Name :: path) ct.Name]
+                    | _ -> 
+                        [])
+            |> (fun subs -> {
+                Node=sheet; 
+                Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
+                SubSheets= subs
+                })
+    p.LoadedComponents
+    |> List.map (fun ldc ->ldc.Name, subSheets []  ldc.Name)
+    |> Map.ofList
+
+/// Find all sheets that depend on the given sheet in the current project, return the sheet's signature as well.
+/// If given sheet name doesn't exist in the project, return signature of working file
 let getDependentsFromSheet (model:Model) (sheetName : string) =
     let getCorrectFileName (project:Project) = 
         match project.WorkingFileName with
@@ -963,7 +999,12 @@ let private importSheet model dispatch =
     | Some project -> 
         let projectDir = project.ProjectPath
 
-        // log <| sprintf "proj dir: %s" projectDir
+        (*
+        let printKeyValue key value =
+            printfn "Key--: %s, Value: %A" key value
+
+        Map.iter printKeyValue (getSheetTrees project)
+        *)
 
         let importDecisions model = getImportDecisions model.PopupDialogData
 
@@ -1165,42 +1206,6 @@ let goBackToProject model dispatch _ =
 
 let closeApp model dispatch _ =
     dispatch CloseApp
-
-
-type SheetTree = {
-    Node: string
-    Size: int
-    SubSheets: SheetTree list
-    }
-
-
-/// get the subsheet tree for aa sheets
-let getSheetTrees (p:Project) =
-    let ldcMap = 
-        p.LoadedComponents
-        |> List.map (fun ldc -> ldc.Name,ldc)
-        |> Map.ofList
-    let rec subSheets (path: string list) (sheet: string) : SheetTree=
-        let ldc = Map.tryFind sheet ldcMap
-        match ldc with
-        | None -> {Node=sheet; Size = 1;SubSheets = []}
-        | Some ldc ->
-            let comps,_ = ldc.CanvasState
-            comps
-            |> List.collect (fun comp -> 
-                    match comp.Type with 
-                    | Custom ct when not <| List.contains ct.Name path -> 
-                        [subSheets (ct.Name :: path) ct.Name]
-                    | _ -> 
-                        [])
-            |> (fun subs -> {
-                Node=sheet; 
-                Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
-                SubSheets= subs
-                })
-    p.LoadedComponents
-    |> List.map (fun ldc ->ldc.Name, subSheets []  ldc.Name)
-    |> Map.ofList
 
 /// Display top menu.
 let getInfoButton (name:string) (project:Project) : ReactElement =

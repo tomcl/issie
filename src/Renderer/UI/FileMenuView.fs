@@ -1045,18 +1045,34 @@ let private importSheet model dispatch =
         Map.iter printKeyValue (getSheetTrees project)
         *)
 
+        dispatch <| (Sheet (SheetT.SetSpinner false))
+
         let importDecisions model = getImportDecisions model.PopupDialogData
 
-        let onButtonClick (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model)=
+        let updateDecisions (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model)=
             let updatedDecisions = Map.add sheetPath decisionOption (importDecisions model')
 
             dispatch <| UpdateImportDecisions updatedDecisions
        
+        /// Return only sheets that exist / don't exist in the destination directory based on boolean. True -> return existent. False -> return non-existent.
+        let filterExistingSheets (allSheets : string list) (existing : bool) =
+            allSheets
+            |> List.filter (fun sheetPath ->
+                   
+                let newSheetPath = pathJoin [|projectDir; baseName sheetPath|]
+
+                if existing then exists <| newSheetPath else not (exists <| newSheetPath)
+                   
+            )
+
         // Function to check if all decisions are made
         let allDecisionsMade allSheets =
             fun (model : Model) ->
-                allSheets
-                |> List.forall (fun sheetPath -> Map.containsKey sheetPath (importDecisions model))
+                match filterExistingSheets allSheets true with
+                | [] -> true
+                | sheets ->
+                    sheets
+                    |> List.forall (fun sheetPath -> Map.containsKey sheetPath (importDecisions model))
                
         let copySheet (sourcePath: string) (newPath: string) model dispatch =
             match readFile sourcePath |> writeFile newPath with
@@ -1068,6 +1084,14 @@ let private importSheet model dispatch =
             // log <| sprintf "sheet: %s" sheetPath
             let newSheetPath = pathJoin [|projectDir; fileName|] 
             let sheetExists, depSheets = getSheetInfo model sheetPath newSheetPath
+
+            let decisionMadeMatches (decision : ImportDecision option) =
+                fun (model : Model) ->
+                    let valueOption = Map.tryFind sheetPath (importDecisions model)
+
+                    match valueOption with
+                    | Some decision' -> decision' = decision
+                    | None -> false
 
             if projectDir = dirName sheetPath then
                 displayFileErrorNotification "Cannot import sheet from curent directory" dispatch
@@ -1090,8 +1114,9 @@ let private importSheet model dispatch =
                                 Button.Size IsSmall
                                 Button.IsOutlined
                                 Button.Color IsPrimary
+                                Button.IsFocused (decisionMadeMatches (Some Overwrite) model)
                                 Button.OnClick(fun _ ->
-                                    onButtonClick sheetPath (Some Overwrite) model
+                                    updateDecisions sheetPath (Some Overwrite) model
                                 )] [ str "Overwrite" ]             
                         ]
 
@@ -1100,9 +1125,10 @@ let private importSheet model dispatch =
                             [ 
                                 Button.Size IsSmall
                                 Button.IsOutlined
+                                Button.IsFocused (decisionMadeMatches (Some Rename) model)
                                 Button.Color IsPrimary
                                 Button.OnClick(fun _ ->
-                                    onButtonClick sheetPath (Some Rename) model
+                                    updateDecisions sheetPath (Some Rename) model
                                 )] [ str "Rename" ] 
                         ]
 
@@ -1146,25 +1172,7 @@ let private importSheet model dispatch =
                         p [] [
                             str "Sheet "
                             strong [] [ str fileName ]
-                            str " can been imported without conflicts."]
-                        Navbar.Item.div [ Navbar.Item.Props [] ]
-                            [ Level.level [ Level.Level.Props []]
-                                  [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str "Decision: " ] ]
-                                    Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
-                                        [        
-                                          Level.item []
-                                            [ Button.button
-                                                [ 
-                                                    Button.Size IsSmall
-                                                    Button.IsOutlined
-                                                    Button.Color IsPrimary
-                                                    Button.OnClick(fun _ ->
-                                                        onButtonClick sheetPath None model
-                                                    )] [ str "Import alone" ]             
-                                            ]
-
-                               
-                                        ] ] ]
+                            str " will be imported without conflicts."]
                         ]
 
         match askForExistingSheetPaths model.UserData.LastUsedDirectory with
@@ -1192,9 +1200,18 @@ let private importSheet model dispatch =
                                 sheetPath, pathJoin [|projectDir; baseName sheetPath|]
 
                             | Some Rename ->
-                                sheetPath, pathJoin [|projectDir; baseNameWithoutExtension sheetPath + "1" + ".dgm"|]
+                                sheetPath, pathJoin [|projectDir; baseNameWithoutExtension sheetPath + "_Copy" + ".dgm"|]
 
                         )
+
+
+                    filterExistingSheets paths false
+                    |> List.iter (fun oldSheetPath ->
+                        let newSheetPath = pathJoin [|projectDir; baseName oldSheetPath|] 
+
+                        copySheet oldSheetPath newSheetPath model' dispatch
+                       
+                    )
 
                     newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) -> copySheet oldSheetPath newSheetPath model' dispatch)
 

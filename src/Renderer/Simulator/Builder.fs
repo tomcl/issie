@@ -120,6 +120,7 @@ let private getDefaultState compType =
     | BusCompare1 _
     | Not
     | And
+    | AndN _
     | Or
     | Xor
     | Nand

@@ -25,7 +25,7 @@ let electronStarted = false;
     const renderSrvOpts = {
       hot: true,
       host: "localhost",
-      port: 9000
+      port: 8672
     };
 
     const server = new WebpackDevServer(renderSrvOpts, compilerRenderer);

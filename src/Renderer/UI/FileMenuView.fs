@@ -1061,7 +1061,10 @@ let private importSheet model dispatch =
                    
                 let newSheetPath = pathJoin [|projectDir; baseName sheetPath|]
 
-                if existing then exists <| newSheetPath else not (exists <| newSheetPath)
+                if not <| fileNameIsBad (baseNameWithoutExtension <| baseName sheetPath) then
+                    if existing then exists <| newSheetPath else not (exists <| newSheetPath)
+                else
+                    false
                    
             )
 

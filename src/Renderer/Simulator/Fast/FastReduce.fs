@@ -401,7 +401,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | Nand, true
     | Nor, true
     | Xnor, true
-    | Not, true -> failwith "This should never happen, 1-bit component should not use BigInt"
+    | Not, true
+    | AndN _, true -> failwith "This should never happen, 1-bit component should not use BigInt"
 
     | Mux2,false ->
 #if ASSERT

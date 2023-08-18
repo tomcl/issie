@@ -149,7 +149,7 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
             // run the dev tools
             if debug then window.webContents.openDevTools() // default open in this case
 
-            sprintf $"http://localhost:9000"
+            sprintf $"http://localhost:8672" // muts match renderSrvOpts {port:} in scripts/start.js
             |> window.loadURL
             |> ignore
 

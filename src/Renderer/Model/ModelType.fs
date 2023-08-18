@@ -66,10 +66,15 @@ type MemoryEditorData = {
     NumberBase : NumberBase
 }
 
+type ImportDecision =
+    | Overwrite
+    | Rename
+
 /// Possible fields that may (or may not) be used in a dialog popup.
 type PopupDialogData = {
     Text : string option;
     Int : int option;
+    ImportDecisions : Map<string, ImportDecision option>
     Int2: int64 option
     ProjectPath: string
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
@@ -88,6 +93,7 @@ type PopupDialogData = {
 
 let text_ = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
 let int_ = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
+let importDecisions_ = Lens.create (fun a -> a.ImportDecisions) (fun s a -> {a with ImportDecisions = s})
 let int2_ = Lens.create (fun a -> a.Int2) (fun s a -> {a with Int2 = s})
 let projectPath_ = Lens.create (fun a -> a.ProjectPath) (fun s a -> {a with ProjectPath = s})
 let memorySetup_ = Lens.create (fun a -> a.MemorySetup) (fun s a -> {a with MemorySetup = s})
@@ -121,6 +127,7 @@ type UICommandType =
     | CloseProject
     | ChangeSheet
     | RenameSheet
+    | ImportSheet
     | DeleteSheet
     | AddSheet
     | SaveSheet
@@ -363,6 +370,7 @@ type Msg =
     | SetProject of Project
     | UpdateProject of (Project -> Project)
     | UpdateModel of (Model -> Model)
+    | UpdateImportDecisions of Map<string, ImportDecision option>
     | UpdateProjectWithoutSyncing of (Project->Project)
     | ShowPopup of ((Msg -> Unit) -> Model -> ReactElement)
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))

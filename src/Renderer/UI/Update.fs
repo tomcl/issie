@@ -199,6 +199,13 @@ let update (msg : Msg) oldModel =
     | UpdateModel( updateFn: Model -> Model) ->
         updateFn model, Cmd.none
 
+    | UpdateImportDecisions importDecisions' ->
+        let updatedModel = 
+            model
+            |> set (popupDialogData_ >-> importDecisions_) importDecisions'
+       
+        updatedModel, Cmd.none
+
     | RefreshWaveSim ws ->
         // restart the wave simulator after design change etc that invalidates all waves
         WaveSim.refreshWaveSim true ws model
@@ -356,6 +363,7 @@ let update (msg : Msg) oldModel =
             PopupDialogData =
                     { model.PopupDialogData with
                         Text = None;
+                        ImportDecisions = Map.empty;
                         Int = None;
                         Int2 = None;
                         MemorySetup = None;

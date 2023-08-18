@@ -124,7 +124,8 @@ let shortDisplayMsg (msg:Msg) =
     | SetCreateComponent _ -> Some "SetCreateComponent"
     | SetProject _ -> Some "SetProject"
     | UpdateProject _ 
-    | UpdateModel _ 
+    | UpdateModel _
+    | UpdateImportDecisions _
     | UpdateProjectWithoutSyncing _ 
     | ShowPopup _ 
     | ShowStaticInfoPopup _ 

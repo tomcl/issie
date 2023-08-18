@@ -141,6 +141,9 @@ let preventDefault (e: Browser.Types.ClipboardEvent) = e.preventDefault()
 let getText (dialogData : PopupDialogData) =
     Option.defaultValue "" dialogData.Text
 
+let getImportDecisions (dialogData : PopupDialogData) =
+    dialogData.ImportDecisions
+
 let getCode (dialogData : PopupDialogData) =
     Option.defaultValue "" dialogData.VerilogCode
 

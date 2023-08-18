@@ -87,6 +87,7 @@ let init() = {
     PopupDialogData = {
         ProjectPath = ""
         Text = None
+        ImportDecisions = Map.empty
         Int = None
         Int2 = None
         MemorySetup = None

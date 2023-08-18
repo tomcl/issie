@@ -36,6 +36,7 @@ open Optics.Operators
 module Constants =
     let maxArraySize = 550
     let boxMaxChars = 34
+    let ncPortDist = 30.
 
 /// save verilog file
 /// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
@@ -418,9 +419,12 @@ let setSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
 
 
 
-/// get the position for inserting a new Not Connected component next to the component comp
+/// get the position and rotation for inserting a new component next to the given port
+/// at a given distance
+/// the rotation is such that the original left side of the component (input side)
+/// faces the given port
 /// returns None if another symbol is in the way
-let getNCPos (port: Port) (model: SymbolT.Model) (comp: Component) =
+let getPosRotNextToPort (port: Port) (model: SymbolT.Model) (dist: float) =
     let isPosInBoundingBox  (pos: XYPos) (boundingBox: BoundingBox) =
         (pos.X > boundingBox.TopLeft.X && pos.X < boundingBox.TopLeft.X + boundingBox.W &&
         pos.Y > boundingBox.TopLeft.Y && pos.Y < boundingBox.TopLeft.Y + boundingBox.H)
@@ -428,19 +432,27 @@ let getNCPos (port: Port) (model: SymbolT.Model) (comp: Component) =
     let sym =
         model.Symbols
         |> Map.toList
-        |> List.tryFind (fun (_, sym) -> sym.Component.Id = comp.Id)
+        |> List.tryFind (fun (_, sym) -> sym.Component.Id = port.HostId)
         |> function
             | Some (_, sym) -> sym
             | None -> failwithf "The given component should be in the list of symbols"
 
-    let h, w = Symbol.getRotatedHAndW sym
+    let edge = sym.PortMaps.Orientation[port.Id]
+    let portPos = Symbol.getPortPos sym port
     let pos, rot =
-        BlockHelpers.getPortOrientationFrmPortIdStr model port.Id
-        |> function
-            | Edge.Right -> {X = comp.X + w*1.5; Y = comp.Y + h/2.}, Degree0
-            | Edge.Left -> {X = comp.X - w/2.; Y = comp.Y + h/2.}, Degree180
-            | Edge.Top -> {X = comp.X + w/2.; Y = comp.Y - h/2.}, Degree90
-            | Edge.Bottom -> {X = comp.X + w/2.; Y = comp.Y + h*1.5}, Degree270
+        match edge with
+        | Right ->
+            {X = sym.Pos.X + portPos.X + dist; Y = sym.Pos.Y + portPos.Y},
+            Degree0
+        | Top ->
+            {X = sym.Pos.X + portPos.X; Y = sym.Pos.Y + portPos.Y - dist},
+            Degree90
+        | Left ->
+            {X = sym.Pos.X + portPos.X - dist; Y = sym.Pos.Y + portPos.Y},
+            Degree180
+        | Bottom ->
+            {X = sym.Pos.X + portPos.X; Y = sym.Pos.Y + portPos.Y + dist},
+            Degree270
 
     model.Symbols
     |> Map.toList
@@ -531,9 +543,9 @@ let viewSimulationError
                         Button.OnClick (fun _ -> deletePort())
                     ] [ str "Fix by deleting the port on the component" ]
                 | Unremovable ->
-                    getNCPos port model.Sheet.Wire.Symbol comp
+                    getPosRotNextToPort port model.Sheet.Wire.Symbol Constants.ncPortDist
                     |> function
-                        | Some (pos, rot) -> 
+                        | Some (pos, rot) ->
                             let addNCComp() =
                                 sheetDispatch <| SheetT.AddNotConnected
                                     ((ModelHelpers.tryGetLoadedComponents model),

@@ -229,6 +229,7 @@ module CommonTypes
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
         | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+        | AndN of int
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
         | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -438,6 +439,7 @@ module CommonTypes
             | BusSelection of OutputWidth: int * OutputLSBit: int
             | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+            | AndN of int
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
             | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
             | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -495,7 +497,8 @@ module CommonTypes
             | JSONComponent.ComponentType.BusSelection (a,b) -> BusSelection (a,b)
             | JSONComponent.ComponentType.Constant1 (a,b,c) -> Constant1 (a,b,c)
             | JSONComponent.ComponentType.Not -> Not
-            | JSONComponent.ComponentType.And -> And
+            | JSONComponent.ComponentType.And -> AndN 2
+            | JSONComponent.ComponentType.AndN n -> AndN n
             | JSONComponent.ComponentType.Or -> Or
             | JSONComponent.ComponentType.Xor -> Xor
             | JSONComponent.ComponentType.Nand -> Nand

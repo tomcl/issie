@@ -39,6 +39,7 @@ let couldBeSynchronousComponent compType : bool =
     | SplitWire _
     | Not
     | And
+    | AndN _
     | Or
     | Xor
     | Shift _
@@ -108,6 +109,7 @@ let rec hasSynchronousComponents graph : bool =
         | SplitWire _
         | Not
         | And
+        | AndN _
         | Or
         | Shift _
         | Xor

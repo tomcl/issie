@@ -309,6 +309,17 @@ let getVerilogBinaryOp cType op1 op2 =
     | Xnor -> sprintf "!((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
     | _ -> failwithf "operator %A not defined" cType
 
+/// implement binary operator for multi-input gate
+let getVerilogNInputBinaryOp cType portConversionFn =
+    match cType with
+    | AndN n ->
+        List.init n portConversionFn
+        |> String.concat " && "
+        |> (fun s ->
+            printfn "%A" s
+            s)
+    | _ -> failwithf "operator %A not defined" cType
+
 /// get valid Verilog constant for bus of given width (may be 1)
 let makeBits w (c: uint64) = 
     let c = c &&& ((1UL <<< w) - 1UL)
@@ -418,6 +429,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | Nor
     | Xnor
     | Xor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
+    | AndN n -> sprintf "assign %s = %s" (outs 0) (getVerilogNInputBinaryOp fc.FType ins)
     | DFFE
     | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
     | Counter _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 2} ? (%s{ins 1} ? %s{ins 0} : (%s{outs 0}+1'b1)) : %s{outs 0};\n"

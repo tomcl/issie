@@ -224,6 +224,14 @@ let private calculateOutputPortsWidth
         | [None; _] | [_; None]
         | [Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | AndN n ->
+        assertInputsSize inputConnectionsWidth n comp
+        let portWidths = getWidthsForPorts inputConnectionsWidth (List.init n (fun i -> InputPortNumber i))
+        portWidths
+        |> List.tryFindIndex (function | Some n -> n <> 1 | None -> false)
+        |> function
+            | Some idx -> makeWidthInferErrorEqual 1  (Option.get portWidths[idx]) [getConnectionIdForPort idx]
+            | None -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
     | Mux2 ->
         // Mux also allowes buses.
         assertInputsSize inputConnectionsWidth 3 comp

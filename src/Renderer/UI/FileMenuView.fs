@@ -1038,18 +1038,11 @@ let private importSheet model dispatch =
     | Some project -> 
         let projectDir = project.ProjectPath
 
-        (*
-        let printKeyValue key value =
-            printfn "Key--: %s, Value: %A" key value
-
-        Map.iter printKeyValue (getSheetTrees project)
-        *)
-
         dispatch <| (Sheet (SheetT.SetSpinner false))
 
         let importDecisions model = getImportDecisions model.PopupDialogData
 
-        let updateDecisions (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model)=
+        let updateDecisions (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model) =
             let updatedDecisions = Map.add sheetPath decisionOption (importDecisions model')
 
             dispatch <| UpdateImportDecisions updatedDecisions

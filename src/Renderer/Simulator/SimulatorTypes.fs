@@ -1091,6 +1091,13 @@ type FData =
 type StepArray<'T> = { Step: 'T array; Index: int }
 
 // [<Struct>] // TODO - check whether fable optimzed Struct
+
+/// This type represents an array of time steps of simulation data.
+/// In any simulation, for a given IOArray, only one of the three 'Step' arrays will be used.
+/// For (very strong) efficiency reasons this cannot be implemented as a disjoint union:
+/// the code that reads and writes IOArray array elements will access the appropriate array.
+/// Truthtable simulations use FDataStep everywhere.
+/// Normal simulations use UInt32step or BigIntStep according to the size of the relevant bus.
 type IOArray =
     { FDataStep: FData array
       UInt32Step: uint32 array
@@ -1098,6 +1105,10 @@ type IOArray =
       Width: int
       Index: int }
 
+/// Used for efficiency reasons.
+/// For a given normal simulation these arrays show whether the corresponding
+/// component input or output is a bigint or a unint32 type bus, and therefore
+/// show IOArray array is used for the data.
 type BigIntState =
     { InputIsBigInt: bool array // NOTE - whether each input uses BigInt or UInt32
       OutputIsBigInt: bool array }

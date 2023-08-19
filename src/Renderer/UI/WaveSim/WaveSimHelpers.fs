@@ -329,6 +329,8 @@ let getCompDetails fs wave =
         | Not | And | Or | Xor | Nand | Nor | Xnor -> 
             let gateType = $"{fc.FType}".ToUpper()
             $"{gateType} gate", false
+        | AndN n ->
+            $"{n} input AND gate", false 
         | BusCompare (width,v) -> $"Bus Compare ='{v}'", false
         | BusCompare1(width,v,s)-> $"Bus Compare ='{s}'", false
         | Mux2 -> "2 input multiplexer", false
@@ -375,7 +377,7 @@ let getCompGroup fs wave =
     match fs.WaveComps[wave.WaveId.Id].FType with
     | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel _ | NotConnected ->
         InputOutput
-    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+    | Not | And | Or | Xor | Nand | Nor | Xnor | AndN _ ->
         Gates
     | BusCompare _ | BusCompare1 _->
         Buses

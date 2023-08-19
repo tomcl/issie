@@ -692,6 +692,8 @@ let private makeDescription (comp:Component) model dispatch =
         ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
+    | AndN n ->
+        div [] [ str <| sprintf "%d input AND gate" n ]
     | Mux2 -> div [] [ 
         str "Multiplexer with two inputs and one output." 
         br []

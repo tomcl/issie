@@ -156,13 +156,14 @@ let inline private algXnor exp1 exp2 = algXor exp1 exp2 |> algNot
 
 //---------------------------------------------------------------------------------------//
 // ------------------------------MAIN COMPONENT SIMULATION FUNCTION----------------------//
+//--------------------------------------fastReduce---------------------------------------//
 //---------------------------------------------------------------------------------------//
 
 /// Given a component, compute its outputs from its inputs, which must already be evaluated.
 /// Outputs and inputs are both contained as time sequences in arrays. This function will calculate
 /// simStep outputs from (previously calculated) simStep outputs and clocked (simStep-1) outputs.
 /// Memory has state separate from simStep-1 output, for this the state is recalculated.
-
+/// Inputs and outputs come from either UInt32Step or BigIntStep arrays in IOArray record.
 let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =
     let componentType = comp.FType
 
@@ -268,7 +269,11 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         ()
 #endif
 
-    // reduce the component in this match
+    // Reduce the component in this match.
+    // Each case case calculated the output for its type of component
+    // NB CustomComponent is not needed since these are removed in the FastComponent
+    // generation stage - being replaced by the relavant sheet logic.
+
     match componentType, comp.UseBigInt with
     | ROM _, _
     | RAM _, _
@@ -1287,14 +1292,28 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     putUInt32 0 data
     | _ -> failwithf $"simulation error: deprecated component type {componentType}"
 
+//-----------------------------------------------------------------------------------------------------//
+//---------------------------------TRUTH TABLE SIMULATION FUNCTION-------------------------------------//
+//----------------------------------------FastReduceFData----------------------------------------------//
+//-----------------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------------------------------------------//
+
+/// Version of fastReduce which operates on the IOArray.FDataStep arrays,
+/// and simulates using posibly algebraic data.
+/// Given the input port values for a component comp, work out its output in the same clock cycle.
+/// Used by TruthTable simulations, which use FData type that includes algebraic data.
+/// Because TruthTable simulations are only combinational the match statement is much simpler than normal FastReduce.
+/// Clocked operations need not be implemented.
 let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =
+
+// TODO - the isClockedReduction = true code below under asyncRAM should be deleted. It is not used.
+// However, doing this needs careful testing juts in case I am wrong!
+
+
     let componentType = comp.FType
 
-    //printfn "Reducing %A...%A %A (step %d) clocked=%A"  comp.FType comp.ShortId comp.FullName numStep isClockedReduction
-    let n = comp.InputLinks.Length
-
-    let simStep = numStep % maxArraySize
-    let simStepOld =
+    let simStep = numStep % maxArraySize // the arrays (for v long simulations) warap round as circular arrays
+    let simStepOld = // previous step may be wrapped around
         if simStep = 0 then
             maxArraySize - 1
         else
@@ -1397,7 +1416,10 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         ()
 #endif
 
-    // reduce the component in this match
+    // Reduce the component in this match.
+    // Each case case calculated the output for its type of component
+    // NB CustomComponent is not needed since these are removed in the FastComponent
+    // generation stage - being replaced by the relavant sheet logic.
     match componentType with
     | ROM _
     | RAM _

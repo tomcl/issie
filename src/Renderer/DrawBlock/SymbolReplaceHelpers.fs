@@ -104,14 +104,16 @@ let changeReversedInputs (symModel: Model) (compId: ComponentId) =
     let newcompo = {symbol.Component with SymbolInfo = newSymbolInfo }
     {symbol with Component = newcompo; ReversedInputPorts = newValue}
 
-let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
-    let createNewPort no hostID portType = 
+
+let createNewPort no hostID portType = 
             {
                 Id = JSHelpers.uuid ()
                 PortNumber = Some no
                 PortType = portType
                 HostId = hostID
             } 
+
+let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
     let oldCompType = oldComp.Type
     let portNoDown (port:Port) =
         let no = port.PortNumber |> Option.get
@@ -224,13 +226,6 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
 
 
 let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
-    let createNewPort no hostID portType = 
-            {
-                Id = JSHelpers.uuid ()
-                PortNumber = Some no
-                PortType = portType
-                HostId = hostID
-            } 
     let oldCompType = oldComp.Type
     let portNoDown (port:Port) =
         let no = port.PortNumber |> Option.get
@@ -334,6 +329,68 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
         set inputPorts_ newInputPorts >>
         set h_ h' >>
         set w_ w'
+        )
+
+let changeGateComponent (symModel: Model) (compId: ComponentId) (n: int) =
+    let symbol = Map.find compId symModel.Symbols
+    let oldInputPorts = symbol.Component.InputPorts
+    let oldOutputPorts = symbol.Component.OutputPorts
+    let oldComp = symbol.Component
+
+    let newInputPorts, aPorts, rPorts =
+        match oldComp.Type, n with
+        | AndN n1, n2 when n2 < n1 ->
+            oldInputPorts[..n2-1], [], oldInputPorts[n2..]
+        | AndN n1, n2 when n2 > n1 ->
+            let newPorts =
+                [n1..n2-1]
+                |> List.map (fun no -> createNewPort no oldComp.Id PortType.Input)
+            oldInputPorts @ newPorts, newPorts, []
+        | _, _ -> oldInputPorts, [], []
+
+
+
+    let changePortMaps rotation flipped (oldMaps:PortMaps) addedIds removedIds =
+        let order,orientation = oldMaps.Order, oldMaps.Orientation
+        match addedIds,removedIds with
+        | [], [] -> oldMaps
+        | [], rIds ->
+            let newOrientation =
+                orientation
+                |> Map.filter (fun key edge -> not (List.contains key rIds))
+            let edge = Map.find rIds[0] orientation
+            let onEdge = Map.find edge order
+            let newOnEdge =
+                onEdge
+                |> List.filter (fun x -> not (List.contains x rIds))
+            let newOrder =
+                Map.add edge newOnEdge order
+            {Order = newOrder; Orientation = newOrientation}
+        | aIds, [] ->
+            let edge = Map.find oldComp.InputPorts[0].Id orientation
+            let newOrientation =
+                (orientation, aIds)
+                ||> List.fold (fun orientation i -> Map.add i edge orientation)
+            let onEdge = Map.find edge order
+            let newOrder = Map.add edge (onEdge @ aIds) order
+            {Order=newOrder;Orientation=newOrientation}
+        | _, _ -> oldMaps
+
+    let symbol = Map.find compId symModel.Symbols
+    
+    let aIds = aPorts |> List.map (fun port -> port.Id)
+    let rIds = rPorts |> List.map (fun port -> port.Id)
+    
+    let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.STransform.flipped symbol.PortMaps aIds rIds
+    
+    
+    symbol
+    |> set portMaps_ newPortMaps
+    |> map component_ (
+        set type_ (AndN n) >>
+        set inputPorts_ newInputPorts >>
+        set outputPorts_ oldOutputPorts >>
+        set h_ (1.5*(float Constants.gridSize) * (float n)/2.)
         )
 
 

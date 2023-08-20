@@ -32,6 +32,9 @@ NearleyBindings.importGrammar
 NearleyBindings.importFix
 NearleyBindings.importParser
 
+module Constants =
+    let maxGateInputs = 4
+
 let private menuItem styles label onClick =
     Menu.Item.li
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick; Style styles ] ]
@@ -230,7 +233,9 @@ let private createAndNPopup (model: Model) dispatch =
             createCompStdLabel (AndN inputInt) model dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (model': Model) -> getInt model'.PopupDialogData < 2
+        fun (model': Model) ->
+            let intIn = getInt model'.PopupDialogData
+            intIn < 2 || intIn > Constants.maxGateInputs
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitsAdderPopup (model:Model) dispatch =

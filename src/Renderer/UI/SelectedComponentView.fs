@@ -510,6 +510,22 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
                 dispatch ClosePropertiesNotification
     )
 
+let private makeNumberOfInputsField model (comp:Component) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
+    let title, nInp =
+        match comp.Type with
+        | AndN n -> "Number of inputs", n
+        | c -> failwithf "makeNumberOfInutsField called with invalid component: %A" c
+    intFormField title "60px" nInp 2 (
+        fun newInpNum ->
+            if newInpNum < 2 || newInpNum > Constants.maxGateInputs then
+                let props = errorPropsNotification <| sprintf "Must have between %d and %d inputs" 2 Constants.maxGateInputs
+                dispatch <| SetPropertiesNotification props
+            else
+                model.Sheet.ChangeGateInputs sheetDispatch (ComponentId comp.Id) newInpNum
+    )
+
 /// Used for Input1 Component types. Make field for users to enter a default value for
 /// Input1 Components when they are undriven.
 let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElement =
@@ -692,8 +708,8 @@ let private makeDescription (comp:Component) model dispatch =
         ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
-    | AndN n ->
-        div [] [ str <| sprintf "%d input AND gate" n ]
+    | AndN _ ->
+        div [] [ str "AND gate" ]
     | Mux2 -> div [] [ 
         str "Multiplexer with two inputs and one output." 
         br []
@@ -840,6 +856,11 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             [
                 makeNumberOfBitsField model comp text dispatch
                 makeDefaultValueField model comp dispatch
+            ]
+    | AndN n ->
+        div []
+            [
+                makeNumberOfInputsField model comp dispatch
             ]
     | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch

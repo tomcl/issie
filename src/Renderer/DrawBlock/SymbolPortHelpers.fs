@@ -25,6 +25,9 @@ let findDeletedPorts (symModel: Model) (compId: ComponentId) (oldComp:Component)
         |CounterNoEnable _,CounterNoEnableLoad _-> [symbol.Component.InputPorts[0].Id;symbol.Component.InputPorts[1].Id]
         |Counter _,CounterNoEnable _ -> [symbol.Component.InputPorts[2].Id]
         |CounterNoLoad _,CounterNoEnableLoad _-> [symbol.Component.InputPorts[0].Id]
+        |AndN n1, AndN n2 when n2 < n1 ->
+            symbol.Component.InputPorts[n2..]
+            |> List.map (fun x -> x.Id)
         |_,_ -> []
     removedIds
     |> List.map (fun x -> Map.tryFind x symModel.Ports)

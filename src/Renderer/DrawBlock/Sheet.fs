@@ -119,6 +119,13 @@ module SheetInterface =
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
             this.DoBusWidthInference dispatch
 
+        /// Given a compId and the number in inputs, set the number of inputs for a gate
+        member this.ChangeGateInputs (dispatch: Dispatch<Msg>) (compId: ComponentId) (n: int) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeGateInputs (compId, n))))
+            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) (AndN n)
+            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
+            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
+
         /// Given a compId and a LSB, update the LSB of the Component specified by compId
         member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeLsb (compId, lsb) ) ) )

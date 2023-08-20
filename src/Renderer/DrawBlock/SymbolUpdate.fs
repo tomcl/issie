@@ -771,6 +771,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newsymbol = changeBusComparef model compId newVal newText
         (replaceSymbol model newsymbol compId), Cmd.none
 
+    | ChangeGateInputs (compId, numInputs) ->
+        let newSymbol = changeGateComponent model compId numInputs
+        let newPorts = addToPortModel model newSymbol
+        let newModel = {model with Ports = newPorts}  
+        (replaceSymbol newModel newSymbol compId), Cmd.none
+
     | ResetModel -> 
         { model with Symbols = Map.empty; Ports = Map.empty; }, Cmd.none
     

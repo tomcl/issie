@@ -230,7 +230,7 @@ let private createAndNPopup (model: Model) dispatch =
             createCompStdLabel (AndN inputInt) model dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (model': Model) -> getInt model.PopupDialogData < 2
+        fun (model': Model) -> getInt model'.PopupDialogData < 2
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitsAdderPopup (model:Model) dispatch =
@@ -248,7 +248,7 @@ let private createNbitsAdderPopup (model:Model) dispatch =
             createCompStdLabel (NbitsAdder inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (model': Model) -> getInt model.PopupDialogData < 1
+        fun (model': Model) -> getInt model'.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -871,7 +871,7 @@ let viewCatalogue model dispatch =
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
                           catTip1 "And"  (fun _ -> createCompStdLabel And model dispatch) "Output is 1 if both the two inputs are 1"
-                          catTip1 "AndN"  (fun _ -> createAndNPopup model dispatch) "Output is 1 if all inputs are 1"
+                          catTip1 "AndN" (fun _ -> createAndNPopup model dispatch) "Output is 1 if all inputs are 1"
                           catTip1 "Or"   (fun _ -> createCompStdLabel Or model dispatch) "Output is 1 if either of the two inputs are 1"
                           catTip1 "Xor"  (fun _ -> createCompStdLabel Xor model dispatch) "Output is 1 if the two inputs have different values"
                           catTip1 "Nand" (fun _ -> createCompStdLabel Nand model dispatch) "Output is 0 if both the two inputs are 1"

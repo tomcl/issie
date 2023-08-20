@@ -247,11 +247,13 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         match comp.State with
         | None -> failwithf "Attempt to put state into component %s without state array" comp.FullName
         | Some stateArr -> stateArr.Step[simStep] <- state
-
-    /// implement a binary combinational operation
-    let inline getBinaryGateReducer (bitOp: uint32 -> uint32 -> uint32) : Unit =
-        let bit0, bit1 = insUInt32 0, insUInt32 1
-        putUInt32 0 <| bitOp bit1 bit0
+    
+    /// implement a binary combinational operation for n inputs
+    let inline getNInpBinaryGateReducer (nIns: int) (bitOp: uint32 -> uint32 -> uint32) : Unit =
+        [0..n-1]
+        |> List.map insUInt32
+        |> List.reduce bitOp
+        |> putUInt32 0
 
     /// Error checking (not required in production code) check widths are consistent
     let inline checkWidth width w =
@@ -388,12 +390,14 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 0u
 
         putUInt32 0 outNum
-    | And,false -> getBinaryGateReducer bitAnd
-    | Or,false -> getBinaryGateReducer bitOr
-    | Xor,false -> getBinaryGateReducer bitXor
-    | Nand,false -> getBinaryGateReducer bitNand
-    | Nor,false -> getBinaryGateReducer bitNor
-    | Xnor,false -> getBinaryGateReducer bitXnor
+    | And,false -> getNInpBinaryGateReducer 2 bitAnd
+    | Or,false -> getNInpBinaryGateReducer 2 bitOr
+    | Xor,false -> getNInpBinaryGateReducer 2 bitXor
+    | Nand,false -> getNInpBinaryGateReducer 2 bitNand
+    | Nor,false -> getNInpBinaryGateReducer 2 bitNor
+    | Xnor,false -> getNInpBinaryGateReducer 2 bitXnor
+
+    | AndN n,false -> getNInpBinaryGateReducer n bitAnd
 
     | And, true
     | Or, true

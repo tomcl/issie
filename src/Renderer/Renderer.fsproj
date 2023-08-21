@@ -100,6 +100,7 @@
     <Compile Include="UI\BuildView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
+    <Compile Include="UI\WaveSim\Breadcrumbs.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />

@@ -150,3 +150,17 @@ module MiscTests =
 
     let displayPerformance n m = TimeHelpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
 
+
+module Breadcrumbs =
+    open Fable.React
+    open Fable.React.Props
+    open Browser.Types
+    let testBreadcrumbs model dispatch =
+        let action _ _ = ()
+        PopupHelpers.closablePopup "Breadcrumbs" (Breadcrumbs.hierarchyBreadcrumbs action dispatch model) (div [] []) [] dispatch
+
+    let testAllHierarchiesBreadcrumbs model dispatch =
+        let action _ _ = ()
+        PopupHelpers.closablePopup "Breadcrumbs" (Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs action dispatch model) (div [] []) [] dispatch
+
+        

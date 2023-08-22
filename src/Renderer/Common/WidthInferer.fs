@@ -224,7 +224,7 @@ let private calculateOutputPortsWidth
         | [None; _] | [_; None]
         | [Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-    | AndN n ->
+    | GateN (_, n) ->
         assertInputsSize inputConnectionsWidth n comp
         let portWidths = getWidthsForPorts inputConnectionsWidth (List.init n (fun i -> InputPortNumber i))
         portWidths

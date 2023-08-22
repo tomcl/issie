@@ -35,7 +35,7 @@ NearleyBindings.importParser
 module Constants =
     let maxGateInputs = 4
 
-let private menuItem styles label onClick =
+let menuItem styles label onClick =
     Menu.Item.li
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick; Style styles ] ]
         [ str label ]
@@ -218,8 +218,8 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
             false  //allow all
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
-let private createAndNPopup (model: Model) dispatch =
-    let title = "Add N input And gate"
+let private createGateNPopup (gateType: GateComponentType) (model: Model) dispatch =
+    let title = $"Add N input {gateType} gate"
     let beforeInt =
         fun _ -> str "How many inputs should the gate have?"
     let intDefault = 2
@@ -229,8 +229,7 @@ let private createAndNPopup (model: Model) dispatch =
         fun (model': Model) ->
             let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
-            //printfn "creating adder %d" inputInt
-            createCompStdLabel (AndN inputInt) model dispatch
+            createCompStdLabel (GateN (gateType, inputInt)) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
@@ -876,12 +875,17 @@ let viewCatalogue model dispatch =
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
                           catTip1 "And"  (fun _ -> createCompStdLabel And model dispatch) "Output is 1 if both the two inputs are 1"
-                          catTip1 "AndN" (fun _ -> createAndNPopup model dispatch) "Output is 1 if all inputs are 1"
+                          catTip1 "AndN" (fun _ -> createGateNPopup AndT model dispatch) "Output is 1 if all inputs are 1"
                           catTip1 "Or"   (fun _ -> createCompStdLabel Or model dispatch) "Output is 1 if either of the two inputs are 1"
+                          catTip1 "OrN" (fun _ -> createGateNPopup OrT model dispatch) "Output is 1 if any of the inputs is 1"
                           catTip1 "Xor"  (fun _ -> createCompStdLabel Xor model dispatch) "Output is 1 if the two inputs have different values"
+                          catTip1 "XorN" (fun _ -> createGateNPopup XorT model dispatch) "Output if only one input is 1"
                           catTip1 "Nand" (fun _ -> createCompStdLabel Nand model dispatch) "Output is 0 if both the two inputs are 1"
+                          catTip1 "NandN" (fun _ -> createGateNPopup NandT model dispatch) "Output is 1 if all inputs are 1"
                           catTip1 "Nor"  (fun _ -> createCompStdLabel Nor model dispatch) "Output is 0 if either of the two inputs are 1"
-                          catTip1 "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) "Output is 1 if the two inputs have the same values"]
+                          catTip1 "NorN" (fun _ -> createGateNPopup NorT model dispatch) "Output is if any input is 1"
+                          catTip1 "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) "Output is 1 if the two inputs have the same values"
+                          catTip1 "XnorN" (fun _ -> createGateNPopup XnorT model dispatch) "Output is 1 if all inputs have the same value"]
                     makeMenuGroup
                         "Mux / Demux"
                         [ catTip1 "2-Mux" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"

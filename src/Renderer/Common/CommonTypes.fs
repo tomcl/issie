@@ -202,6 +202,14 @@ module CommonTypes
         |LSL
         |LSR
         |ASR
+    
+    type GateComponentType =
+        | AndT
+        | OrT
+        | XorT
+        | NandT
+        | NorT
+        | XnorT
 
     /// Option of this qualifies NBitsXOr to allow many different components
     /// None => Xor
@@ -229,7 +237,7 @@ module CommonTypes
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
         | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
-        | AndN of int
+        | GateN of GateType: GateComponentType * NumInputs: int
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
         | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -262,6 +270,11 @@ module CommonTypes
         match cType with
          | And | Or | Xor | Nand | Nor | Xnor -> IsBinaryGate
          | _ -> NotBinaryGate
+    
+    let isNegated gateType =
+        match gateType with
+        | NandT | NorT | XnorT -> true
+        | AndT | OrT | XorT -> false
 
     /// get memory component type constructor
     /// NB only works with new-style memory components
@@ -439,7 +452,7 @@ module CommonTypes
             | BusSelection of OutputWidth: int * OutputLSBit: int
             | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
-            | AndN of int
+            | GateN of GateType: GateComponentType * NumInputs: int
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
             | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
             | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -497,13 +510,13 @@ module CommonTypes
             | JSONComponent.ComponentType.BusSelection (a,b) -> BusSelection (a,b)
             | JSONComponent.ComponentType.Constant1 (a,b,c) -> Constant1 (a,b,c)
             | JSONComponent.ComponentType.Not -> Not
-            | JSONComponent.ComponentType.And -> AndN 2
-            | JSONComponent.ComponentType.AndN n -> AndN n
+            | JSONComponent.ComponentType.And -> And
             | JSONComponent.ComponentType.Or -> Or
             | JSONComponent.ComponentType.Xor -> Xor
             | JSONComponent.ComponentType.Nand -> Nand
             | JSONComponent.ComponentType.Nor -> Nor
             | JSONComponent.ComponentType.Xnor -> Xnor
+            | JSONComponent.ComponentType.GateN (gateType, n) -> GateN (gateType, n)
             | JSONComponent.ComponentType.Decode4 -> Decode4
             | JSONComponent.ComponentType.Mux2 -> Mux2
             | JSONComponent.ComponentType.Mux4 -> Mux4

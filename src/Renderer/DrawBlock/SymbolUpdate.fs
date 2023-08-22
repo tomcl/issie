@@ -771,8 +771,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newsymbol = changeBusComparef model compId newVal newText
         (replaceSymbol model newsymbol compId), Cmd.none
 
-    | ChangeGateInputs (compId, numInputs) ->
-        let newSymbol = changeGateComponent model compId numInputs
+    | ChangeGate (compId, gateType, numInputs) ->
+        let newSymbol = changeGateComponent model compId gateType numInputs
         let newPorts = addToPortModel model newSymbol
         let newModel = {model with Ports = newPorts}  
         (replaceSymbol newModel newSymbol compId), Cmd.none

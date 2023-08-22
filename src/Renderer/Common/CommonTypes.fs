@@ -275,6 +275,11 @@ module CommonTypes
         match gateType with
         | Nand | Nor | Xnor -> true
         | And | Or | Xor -> false
+    
+    let (|IsGate|NoGate|) cType =
+        match cType with
+        | GateN _ -> IsGate
+        | _ -> NoGate
 
     /// get memory component type constructor
     /// NB only works with new-style memory components

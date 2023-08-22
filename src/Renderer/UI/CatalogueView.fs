@@ -874,18 +874,12 @@ let viewCatalogue model dispatch =
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
-                          catTip1 "And2"  (fun _ -> createCompStdLabel (GateN (And, 2)) model dispatch) "Output is 1 if both the two inputs are 1"
-                          catTip1 "And" (fun _ -> createGateNPopup And model dispatch) "Output is 1 if all inputs are 1"
-                          catTip1 "Or2"   (fun _ -> createCompStdLabel (GateN (Or, 2)) model dispatch) "Output is 1 if either of the two inputs are 1"
-                          catTip1 "Or" (fun _ -> createGateNPopup Or model dispatch) "Output is 1 if any of the inputs is 1"
-                          catTip1 "Xor2"  (fun _ -> createCompStdLabel (GateN (Xor, 2)) model dispatch) "Output is 1 if the two inputs have different values"
-                          catTip1 "Xor" (fun _ -> createGateNPopup Xor model dispatch) "Output if only one input is 1"
-                          catTip1 "Nand2" (fun _ -> createCompStdLabel (GateN (Nand, 2)) model dispatch) "Output is 0 if both the two inputs are 1"
-                          catTip1 "Nand" (fun _ -> createGateNPopup Nand model dispatch) "Output is 1 if all inputs are 1"
-                          catTip1 "Nor2"  (fun _ -> createCompStdLabel (GateN (Nor, 2)) model dispatch) "Output is 0 if either of the two inputs are 1"
-                          catTip1 "Nor" (fun _ -> createGateNPopup Nor model dispatch) "Output is if any input is 1"
-                          catTip1 "Xnor2" (fun _ -> createCompStdLabel (GateN (Xnor, 2)) model dispatch) "Output is 1 if the two inputs have the same values"
-                          catTip1 "Xnor" (fun _ -> createGateNPopup Xnor model dispatch) "Output is 1 if all inputs have the same value"]
+                          catTip1 "And"  (fun _ -> createCompStdLabel (GateN (And, 2)) model dispatch) "Output is 1 if both the two inputs are 1"
+                          catTip1 "Or"   (fun _ -> createCompStdLabel (GateN (Or, 2)) model dispatch) "Output is 1 if either of the two inputs are 1"
+                          catTip1 "Xor"  (fun _ -> createCompStdLabel (GateN (Xor, 2)) model dispatch) "Output is 1 if the two inputs have different values"
+                          catTip1 "Nand" (fun _ -> createCompStdLabel (GateN (Nand, 2)) model dispatch) "Output is 0 if both the two inputs are 1"
+                          catTip1 "Nor"  (fun _ -> createCompStdLabel (GateN (Nor, 2)) model dispatch) "Output is 0 if either of the two inputs are 1"
+                          catTip1 "Xnor" (fun _ -> createCompStdLabel (GateN (Xnor, 2)) model dispatch) "Output is 1 if the two inputs have the same values"]
                     makeMenuGroup
                         "Mux / Demux"
                         [ catTip1 "2-Mux" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"

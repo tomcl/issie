@@ -11,6 +11,11 @@ module Constants =
     /// Needed to prevent possible overrun of simulation arrays
     let maxStepsOverflow = 3
 
+/// type used for CSS grids in the UI to position an item on a grid
+type CSSGridPos =
+    | PosElement of int * int
+    | PosAreaSpan of startX: int * startY: int * spanX: int * spanY: int
+    | PosAreaAbsolute of startX: int * startY: int * spanX: int * spanY: int
 
 
 let initWSModel  : WaveSimModel = {

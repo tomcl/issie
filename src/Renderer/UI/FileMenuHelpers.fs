@@ -207,4 +207,121 @@ let makeSourceMenu
                 [ Menu.list [] menu ]
         
         ]
+
+/// Node in the sheet tree, child nodes correspond to custom components in sheet.
+type SheetTree = {
+    /// path of custom component labels to node or [] if node is top level
+    LabelPath: string list 
+    /// name of sheet
+    SheetName: string
+    /// path of sheet names to current sheet name - NB this is not unique
+    SheetNamePath: string list
+    /// unique name to display on breadcrumbs
+    BreadcrumbName: string
+    /// size of tree including this node (1 for leaves)
+    Size: int
+    /// depth of tree beneth this need: 0 for leaves
+    Depth: int
+    /// children
+    SubSheets: SheetTree list
+    /// Use only to display tree on a grid
+    GridArea: CSSGridPos option
+    }
+
+with member this.lookupPath path =
+        let rec lookup sheet =
+            match sheet.LabelPath = path with
+            | true -> Some sheet
+            | false -> List.tryPick lookup sheet.SubSheets
+        lookup this
+
+let subSheets_ = Optics.Lens.create (fun a -> a.SubSheets) (fun s a -> {a with SubSheets = s})
+let breadcrumbName_ = Optics.Lens.create (fun a -> a.BreadcrumbName) (fun s a -> {a with BreadcrumbName = s})
+
+/// Throughout the tree of sheets adjust breadcrumbName so it is unique within the children of each sheet
+let rec makeBreadcrumbNamesUnique (tree: SheetTree) =
+    tree.SubSheets
+    |> List.map (fun subsheet ->
+        let nameNotUnique =
+            tree.SubSheets
+            |> List.exists (fun subs' ->
+                                subsheet.SheetName = subs'.SheetName &&
+                                subsheet.LabelPath <> subs'.LabelPath)
+        subsheet
+        |> match nameNotUnique with
+           | true -> Optic.set breadcrumbName_ $"{subsheet.SheetName}:{List.last subsheet.LabelPath}"
+           | false -> id
+        |> makeBreadcrumbNamesUnique)
+    |> fun subsheets -> {tree with SubSheets = List.sortBy (fun subs -> subs.BreadcrumbName) subsheets}
+
+            
+        
+    
+
+/// Get the subsheet tree for all sheets in the current project.
+/// Returns a map from sheet name to tree of SheetTree nodes
+let getSheetTrees (p:Project): Map<string,SheetTree> =
+    let ldcMap = 
+        p.LoadedComponents
+        |> List.map (fun ldc -> ldc.Name,ldc)
+        |> Map.ofList
+
+    let rec subSheets (path: string list) (sheet: string) (labelPath: string list) (sheetPath: string list): SheetTree=
+        let ldc = Map.tryFind sheet ldcMap
+        match ldc with
+        | None -> {
+            SheetName=sheet
+            LabelPath = []
+            SheetNamePath = []
+            Size = 1;
+            Depth = 0;
+            SubSheets = [];
+            GridArea = None
+            BreadcrumbName = ""
+            }
+        | Some ldc ->
+            let comps,_ = ldc.CanvasState
+            comps
+            |> List.collect (fun comp -> 
+                    match comp.Type with 
+                    | Custom ct when not <| List.contains ct.Name path -> 
+                        [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [sheet])] 
+                    | _ -> 
+                        [])
+            |> (fun subs -> {
+                    SheetName = sheet;
+                    BreadcrumbName = sheet
+                    LabelPath = labelPath
+                    SheetNamePath = sheetPath
+                    Depth =
+                        subs
+                        |> List.map (fun s -> s.Depth)
+                        |> fun l -> 0 :: l
+                        |> List.max
+                    Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
+                    SubSheets = subs
+                    GridArea = None
+                })
+        |> makeBreadcrumbNamesUnique
+
+    p.LoadedComponents
+    |> List.map (fun ldc ->ldc.Name, subSheets [] ldc.Name [] [])
+    |> Map.ofList
+
+
+
+let allRootSheets (sTrees:Map<string,SheetTree>) =
+    let rec subSheetsOf path sh =
+        match Map.tryFind sh sTrees with
+        | Some tree -> tree.SubSheets
+        | None -> []
+        |> List.collect (fun ssh -> 
+            match List.contains ssh.SheetName path with
+            | true -> []
+            | false -> ssh.SheetName :: subSheetsOf (ssh.SheetName :: path) ssh.SheetName)
+        |> List.distinct
+    mapKeys sTrees
+    |> Seq.collect (subSheetsOf [])
+    |> Set
+    |> Set.difference (set <| mapKeys sTrees)
        

@@ -531,22 +531,22 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
             Dropdown.menu [Props []] [
                 Dropdown.content [Props [Style [Height "140px"; OverflowY OverflowOptions.Scroll]]] [
                     Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) AndT nInp)]]
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) And nInp)]]
                         [str "And"]
                     Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) OrT nInp)]]
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Or nInp)]]
                         [str "Or"]
                     Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) XorT nInp)]]
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Xor nInp)]]
                         [str "Xor"]
                     Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) NandT nInp)]]
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Nand nInp)]]
                         [str "Nand"]
                     Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) NorT nInp)]]
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Nor nInp)]]
                         [str "Nor"]
                     Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) XnorT nInp)]]
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Xnor nInp)]]
                         [str "Xnor"]
                 ]
             ]
@@ -745,7 +745,7 @@ let private makeDescription (comp:Component) model dispatch =
         str "To join inputs and outputs without wires."; br []
         str "To prevent an unused output from giving an error."
         ]
-    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+    | Not ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | GateN (gateType, _) ->
         div [] [ str <| sprintf "%A gate." gateType ]

@@ -25,6 +25,7 @@ open FileMenuView
 
 module Constants =
     let labelUniqueMess = "Components must have a unique label within one sheet"
+    let dropDownHeightFraction = 2.5
 
 
 let private readOnlyFormField name body =
@@ -521,6 +522,8 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
         | GateN (gType, n) -> "Number of inputs", gType, n
         | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
     
+    let tabHeight = (Browser.Dom.document.getElementById "TabBody").getBoundingClientRect().height
+
     div [] [
         Dropdown.dropdown [Dropdown.IsHoverable] [
             Dropdown.trigger [] [
@@ -529,7 +532,11 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
                 ]
             ]
             Dropdown.menu [Props []] [
-                Dropdown.content [Props [Style [Height "140px"; OverflowY OverflowOptions.Scroll]]] [
+                Dropdown.content 
+                    [Props [
+                            Style [Height $"{int (tabHeight/Constants.dropDownHeightFraction)}px";
+                            OverflowY OverflowOptions.Scroll]]]
+                    [
                     Dropdown.Item.a
                         [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) And nInp)]]
                         [str "And"]

@@ -166,6 +166,11 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.MiscTests.testMaps())
             makeWinDebugItem  "Print names of static asset files" None 
                 (fun _ -> Playground.MiscTests.testAssets())
+            makeWinDebugItem  "Test Breadcrumbs" None 
+                (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testBreadcrumbs,dispatch))
+            makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
+                (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
+
             makeDebugItem "Force Exception" None
                 (fun ev -> failwithf "User exception from menus")
 

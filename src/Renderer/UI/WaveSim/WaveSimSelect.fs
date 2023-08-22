@@ -26,7 +26,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     match compType with
     | Not | BusCompare _ | BusCompare1 _ ->
         ".IN"
-    | And | Or | Xor | Nand | Nor | Xnor | GateN _ | NbitsNot _ | NbitSpreader _ ->
+    | GateN _ | NbitsNot _ | NbitSpreader _ ->
         ".IN" + string port
 
     | Mux2 ->
@@ -114,7 +114,7 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
     let portName : string = getInputPortName comp.FType port
     let bitLims : string =
         match comp.FType with
-        | Not | BusCompare _ | BusCompare1 _ | And | Or | Xor | Nand | Nor | Xnor | GateN _
+        | Not | BusCompare _ | BusCompare1 _ | GateN _
         | Mux2 | Mux4 | Mux8 | Decode4 | Demux2 | Demux4 | Demux8
         | DFF | Register _ | DFFE | RegisterE _ |Counter _
         |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _|NbitSpreader _ ->
@@ -149,7 +149,7 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
 /// Appended to comp.Label
 let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : string =
     match compType with
-    | Not | And | Or | Xor | Nand | Nor | Xnor | GateN _ | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | BusCompare1 _ | NbitsXor _ | NbitsNot _  | NbitSpreader _ | NbitsAnd _ | NbitsOr _ |Shift _->
+    | Not | GateN _ | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | BusCompare1 _ | NbitsXor _ | NbitsNot _  | NbitSpreader _ | NbitsAnd _ | NbitsOr _ |Shift _->
         ".OUT"
     | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel | NotConnected ->
         ""
@@ -182,7 +182,7 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
     let portName = getOutputPortName comp.FType port
     let bitLims =
         match comp.FType with
-        | Not | And | Or | Xor | Nand | Nor | Xnor | GateN _ | BusCompare _ | BusCompare1 _
+        | Not | GateN _ | BusCompare _ | BusCompare1 _
         | Decode4 | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | DFF | DFFE ->
             bitLimsString (0, 0)

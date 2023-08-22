@@ -38,13 +38,7 @@ let couldBeSynchronousComponent compType : bool =
     | MergeWires
     | SplitWire _
     | Not
-    | And
-    | Or
-    | Xor
     | Shift _
-    | Nand
-    | Nor
-    | Xnor
     | GateN _
     | Mux2
     | Mux4
@@ -108,13 +102,13 @@ let rec hasSynchronousComponents graph : bool =
         | MergeWires
         | SplitWire _
         | Not
-        | And
-        | Or
+        // | And
+        // | Or
         | Shift _
-        | Xor
-        | Nand
-        | Nor
-        | Xnor
+        // | Xor
+        // | Nand
+        // | Nor
+        // | Xnor
         | GateN _
         | Mux2
         | Mux4

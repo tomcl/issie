@@ -142,9 +142,9 @@ let inline private bitXnor bit0 bit1 = bitXor bit0 bit1 |> bitNot
 
 let inline private bitGate gateType =
     match gateType with
-    | AndT | NandT -> bitAnd
-    | OrT | NorT -> bitOr
-    | XorT | XnorT -> bitXor
+    | And | Nand -> bitAnd
+    | Or | Nor -> bitOr
+    | Xor | Xnor -> bitXor
 
 let inline private algNot exp = UnaryExp(NotOp, exp)
 
@@ -162,9 +162,9 @@ let inline private algXnor exp1 exp2 = algXor exp1 exp2 |> algNot
 
 let inline private algGate gateType =
     match gateType with
-    | AndT | NandT-> algAnd
-    | OrT | NorT -> algOr
-    | XorT | XnorT -> algXor
+    | And | Nand-> algAnd
+    | Or | Nor -> algOr
+    | Xor | Xnor -> algXor
 
 //---------------------------------------------------------------------------------------//
 // ------------------------------MAIN COMPONENT SIMULATION FUNCTION----------------------//
@@ -405,21 +405,15 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 0u
 
         putUInt32 0 outNum
-    | And,false -> getNInpBinaryGateReducer 2 AndT
-    | Or,false -> getNInpBinaryGateReducer 2 OrT
-    | Xor,false -> getNInpBinaryGateReducer 2 XorT
-    | Nand,false -> getNInpBinaryGateReducer 2 NandT
-    | Nor,false -> getNInpBinaryGateReducer 2 NorT
-    | Xnor,false -> getNInpBinaryGateReducer 2 XnorT
 
     | GateN (gateType, n),false -> getNInpBinaryGateReducer n gateType
 
-    | And, true
-    | Or, true
-    | Xor, true
-    | Nand, true
-    | Nor, true
-    | Xnor, true
+    // | And, true
+    // | Or, true
+    // | Xor, true
+    // | Nand, true
+    // | Nor, true
+    // | Xnor, true
     | Not, true
     | GateN _, true -> failwith "This should never happen, 1-bit component should not use BigInt"
 
@@ -1428,6 +1422,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         let inputs =
             [0..n-1]
             |> List.map ins
+        
         if (List.exists isAlgExp inputs) then
             // get nested binary expressions
             inputs
@@ -1597,12 +1592,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {(getAlgExpWidth exp)}")
 #endif
             put 0 <| Alg(ComparisonExp(exp, Equals, compareVal))
-    | And -> getNInpBinaryGateReducer 2 AndT
-    | Or -> getNInpBinaryGateReducer 2 OrT
-    | Xor -> getNInpBinaryGateReducer 2 XorT
-    | Nand -> getNInpBinaryGateReducer 2 NandT
-    | Nor -> getNInpBinaryGateReducer 2 NorT
-    | Xnor -> getNInpBinaryGateReducer 2 XnorT
 
     | GateN (gateType, n) -> getNInpBinaryGateReducer n gateType
 

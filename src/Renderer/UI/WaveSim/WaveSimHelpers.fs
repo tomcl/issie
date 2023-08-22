@@ -326,7 +326,7 @@ let getCompDetails fs wave =
         | Viewer _ -> "Viewer", true
         | IOLabel _-> "Wire Label", true
         | NotConnected -> "What? can't happen", true
-        | Not | And | Or | Xor | Nand | Nor | Xnor -> 
+        | Not ->
             let gateType = $"{fc.FType}".ToUpper()
             $"{gateType} gate", false
         | GateN (gateType, n) ->
@@ -377,7 +377,7 @@ let getCompGroup fs wave =
     match fs.WaveComps[wave.WaveId.Id].FType with
     | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel _ | NotConnected ->
         InputOutput
-    | Not | And | Or | Xor | Nand | Nor | Xnor | GateN _ ->
+    | Not | GateN _ ->
         Gates
     | BusCompare _ | BusCompare1 _->
         Buses

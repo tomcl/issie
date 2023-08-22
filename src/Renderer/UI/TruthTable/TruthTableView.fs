@@ -180,7 +180,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     | [] -> failwithf "what? Port HostId does not match any ComponentIds in model"
                     | _ -> failwithf "what? Port HostId matches multiple ComponentIds in model"
             match hostComponent.Type with
-            | Not | And | Or | Xor | Nand | Nor | Xnor ->
+            | Not | GateN _ ->
                 // Logic gates inputs/outputs always have width 1.
                 Some 1
             | Input w | Output w | Constant (w,_)| BusCompare (w,_)

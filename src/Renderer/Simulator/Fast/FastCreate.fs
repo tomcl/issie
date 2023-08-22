@@ -100,13 +100,12 @@ let getPortNumbers (sc: SimulationComponent) =
         | Demux2 -> 2, 2
         | Demux4 -> 2, 4
         | Demux8 -> 2, 8
-        | Not
-        | And
-        | Or
-        | Xor
-        | Nand
-        | Nor
-        | Xnor -> 2, 1
+        // | And
+        // | Or
+        // | Xor
+        // | Nand
+        // | Nor
+        // | Xnor -> 2, 1
         | GateN (_, n) -> n, 1
         | Custom ct -> ct.InputLabels.Length, ct.OutputLabels.Length
         | AsyncROM _
@@ -125,12 +124,6 @@ let findBigIntState (fc: FastComponent) =
     match fc.FType with
     // 1-bit components
     | Not
-    | And
-    | Or
-    | Xor
-    | Nand
-    | Nor
-    | Xnor
     | GateN _
     | DFF
     | DFFE -> false, None

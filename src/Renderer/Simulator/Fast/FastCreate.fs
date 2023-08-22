@@ -107,7 +107,7 @@ let getPortNumbers (sc: SimulationComponent) =
         | Nand
         | Nor
         | Xnor -> 2, 1
-        | AndN n -> n, 1
+        | GateN (_, n) -> n, 1
         | Custom ct -> ct.InputLabels.Length, ct.OutputLabels.Length
         | AsyncROM _
         | RAM _
@@ -131,7 +131,7 @@ let findBigIntState (fc: FastComponent) =
     | Nand
     | Nor
     | Xnor
-    | AndN _
+    | GateN _
     | DFF
     | DFFE -> false, None
     // N-bits components

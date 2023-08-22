@@ -296,25 +296,24 @@ let getInstanceOf (block: string) (instanceName: string) (ports: string array) =
     sprintf $"%s{block} %s{instanceName} (%s{portNames});\n"
 
 /// implement binary operator for two-input gate
-let getVerilogBinaryOp cType op1 op2 =
+let getVerilogBinaryOp gType op1 op2 =
     let bin opS = sprintf "%s %s %s" op1 opS op2
     let not exp = sprintf "!(%s)" exp
 
-    match cType with
-    | And -> bin "&&"
-    | Or -> bin "||"
-    | Nand -> not <| bin "&&"
-    | Nor -> not <| bin "||"
-    | Xor -> sprintf "((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
-    | Xnor -> sprintf "!((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
-    | _ -> failwithf "operator %A not defined" cType
+    match gType with
+    | AndT -> bin "&&"
+    | OrT -> bin "||"
+    | NandT -> not <| bin "&&"
+    | NorT -> not <| bin "||"
+    | XorT -> sprintf "((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
+    | XnorT -> sprintf "!((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
 
 /// implement binary operator for multi-input gate
 let getVerilogNInputBinaryOp cType portConversionFn =
     match cType with
-    | AndN n ->
+    | GateN (gateType, n) ->
         List.init n portConversionFn
-        |> String.concat " && "
+        |> List.reduce (getVerilogBinaryOp gateType)
         |> (fun s ->
             printfn "%A" s
             s)
@@ -422,14 +421,13 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | NotConnected -> ""
 
     | Not -> sprintf "assign %s = ! %s;\n" (outs 0) (ins 0)
-    | And
-    | Or
-    | Xor
-    | Nand
-    | Nor
-    | Xnor
-    | Xor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
-    | AndN n -> sprintf "assign %s = %s" (outs 0) (getVerilogNInputBinaryOp fc.FType ins)
+    | And -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp AndT (ins 0) (ins 1))
+    | Or -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp OrT (ins 0) (ins 1))
+    | Xor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp XorT (ins 0) (ins 1))
+    | Nand -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp NandT (ins 0) (ins 1))
+    | Nor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp NorT (ins 0) (ins 1))
+    | Xnor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp XnorT (ins 0) (ins 1))
+    | GateN (gateType, n) -> sprintf "assign %s = %s" (outs 0) (getVerilogNInputBinaryOp fc.FType ins)
     | DFFE
     | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
     | Counter _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 2} ? (%s{ins 1} ? %s{ins 0} : (%s{outs 0}+1'b1)) : %s{outs 0};\n"

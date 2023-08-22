@@ -120,9 +120,9 @@ module SheetInterface =
             this.DoBusWidthInference dispatch
 
         /// Given a compId and the number in inputs, set the number of inputs for a gate
-        member this.ChangeGateInputs (dispatch: Dispatch<Msg>) (compId: ComponentId) (n: int) =
-            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeGateInputs (compId, n))))
-            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) (AndN n)
+        member this.ChangeGate (dispatch: Dispatch<Msg>) (compId: ComponentId) (gateType: GateComponentType) (n: int) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeGate (compId, gateType, n))))
+            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) (GateN (gateType, n))
             dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
 

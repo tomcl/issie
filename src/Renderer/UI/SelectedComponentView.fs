@@ -130,6 +130,9 @@ let private int64FormFieldNoMin name (defaultValue:int64) (currentText:string op
         ]
     ]
 
+let private gateTypeDropdown =
+    ()
+
 
 let getInitSource (mem: Memory1) (model:Model)=
     let a = mem.AddressWidth
@@ -513,18 +516,54 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
 let private makeNumberOfInputsField model (comp:Component) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
-    let title, nInp =
+    let title, oldType, nInp =
         match comp.Type with
-        | AndN n -> "Number of inputs", n
-        | c -> failwithf "makeNumberOfInutsField called with invalid component: %A" c
-    intFormField title "60px" nInp 2 (
-        fun newInpNum ->
-            if newInpNum < 2 || newInpNum > Constants.maxGateInputs then
-                let props = errorPropsNotification <| sprintf "Must have between %d and %d inputs" 2 Constants.maxGateInputs
-                dispatch <| SetPropertiesNotification props
-            else
-                model.Sheet.ChangeGateInputs sheetDispatch (ComponentId comp.Id) newInpNum
-    )
+        | GateN (gType, n) -> "Number of inputs", gType, n
+        | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
+    
+    div [] [
+        Dropdown.dropdown [Dropdown.IsHoverable] [
+            Dropdown.trigger [] [
+                Button.button [Button.Color IsGrey; Button.IsLight] [
+                    str <| sprintf "Change %A gate type" oldType
+                ]
+            ]
+            Dropdown.menu [Props []] [
+                Dropdown.content [Props [Style [Height "140px"; OverflowY OverflowOptions.Scroll]]] [
+                    Dropdown.Item.a
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) AndT nInp)]]
+                        [str "And"]
+                    Dropdown.Item.a
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) OrT nInp)]]
+                        [str "Or"]
+                    Dropdown.Item.a
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) XorT nInp)]]
+                        [str "Xor"]
+                    Dropdown.Item.a
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) NandT nInp)]]
+                        [str "Nand"]
+                    Dropdown.Item.a
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) NorT nInp)]]
+                        [str "Nor"]
+                    Dropdown.Item.a
+                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) XnorT nInp)]]
+                        [str "Xnor"]
+                ]
+            ]
+        ]
+
+        intFormField title "60px" nInp 2 (
+            fun newInpNum ->
+                if newInpNum < 2 || newInpNum > Constants.maxGateInputs then
+                    let props = errorPropsNotification <| sprintf "Must have between %d and %d inputs" 2 Constants.maxGateInputs
+                    dispatch <| SetPropertiesNotification props
+                else
+                    model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) oldType newInpNum
+        )
+    ]
+    
+
+    
 
 /// Used for Input1 Component types. Make field for users to enter a default value for
 /// Input1 Components when they are undriven.
@@ -708,8 +747,8 @@ let private makeDescription (comp:Component) model dispatch =
         ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
-    | AndN _ ->
-        div [] [ str "AND gate" ]
+    | GateN (gateType, _) ->
+        div [] [ str <| sprintf "%A gate." gateType ]
     | Mux2 -> div [] [ 
         str "Multiplexer with two inputs and one output." 
         br []
@@ -857,7 +896,7 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
                 makeNumberOfBitsField model comp text dispatch
                 makeDefaultValueField model comp dispatch
             ]
-    | AndN n ->
+    | GateN _ ->
         div []
             [
                 makeNumberOfInputsField model comp dispatch

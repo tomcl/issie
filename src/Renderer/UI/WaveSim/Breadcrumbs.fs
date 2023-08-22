@@ -1,6 +1,9 @@
 ﻿module Breadcrumbs
 open Fable.React
 open Fable.React.Props
+open Fulma
+open Fable.React
+open Fable.React.Props
 open CommonTypes
 open ModelType
 open ModelHelpers
@@ -70,7 +73,8 @@ let gridElement cssProps styleProps (pos: CSSGridPos) (x: ReactElement) =
             //AlignSelf AlignSelfOptions.Center;
             JustifyContent "center"
             Border "2px"
-            BorderColor "Black"
+            BorderColor "LightGrey"
+            BorderRightColor "Black"
             BorderStyle "Solid"
             Background "LightGrey"
             Padding "5px"
@@ -130,10 +134,20 @@ let makeGridFromSheetsWithPositions
     posL
     |> List.map (fun (pos, sheet) ->
             gridElement
-                [OnClick (fun ev -> clickAction sheet.LabelPath dispatch)]
+                []
                 []
                 pos
-                (str $"{sheet.SheetName}"))
+                (Button.button [ 
+                    Button.Size IsSmall
+                    Button.IsOutlined
+                    Button.IsExpanded
+                    //Button.IsActive false
+                    Button.Disabled false
+                    Button.Color IsBlack
+                    Button.IsFocused true
+                    Button.OnClick(fun ev -> clickAction sheet.LabelPath dispatch)
+                    ] [ str $"{sheet.SheetName}" ]))             
+
     |> gridBox "5pt" 
     
 

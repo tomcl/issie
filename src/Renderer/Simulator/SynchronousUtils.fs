@@ -39,13 +39,13 @@ let couldBeSynchronousComponent compType : bool =
     | SplitWire _
     | Not
     | And
-    | AndN _
     | Or
     | Xor
     | Shift _
     | Nand
     | Nor
     | Xnor
+    | GateN _
     | Mux2
     | Mux4
     | Mux8
@@ -109,13 +109,13 @@ let rec hasSynchronousComponents graph : bool =
         | SplitWire _
         | Not
         | And
-        | AndN _
         | Or
         | Shift _
         | Xor
         | Nand
         | Nor
         | Xnor
+        | GateN _
         | Mux2
         | Mux4
         | Mux8

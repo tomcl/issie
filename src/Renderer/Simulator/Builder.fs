@@ -120,12 +120,12 @@ let private getDefaultState compType =
     | BusCompare1 _
     | Not
     | And
-    | AndN _
     | Or
     | Xor
     | Nand
     | Nor
     | Xnor
+    | GateN _
     | Mux2
     | Mux4
     | Mux8

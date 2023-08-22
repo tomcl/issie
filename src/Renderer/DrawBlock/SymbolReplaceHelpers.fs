@@ -331,17 +331,21 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
         set w_ w'
         )
 
-let changeGateComponent (symModel: Model) (compId: ComponentId) (n: int) =
+let changeGateComponent (symModel: Model) (compId: ComponentId) (gateType: GateComponentType) (n: int) =
     let symbol = Map.find compId symModel.Symbols
     let oldInputPorts = symbol.Component.InputPorts
     let oldOutputPorts = symbol.Component.OutputPorts
     let oldComp = symbol.Component
+    let oldGateType, oldN =
+        match oldComp.Type with
+        | GateN (gateType, n) -> gateType, n
+        | cType -> failwithf "Only gate type should be encountered here not %A" cType
 
     let newInputPorts, aPorts, rPorts =
-        match oldComp.Type, n with
-        | AndN n1, n2 when n2 < n1 ->
+        match oldN, n with
+        | n1, n2 when n2 < n1 ->
             oldInputPorts[..n2-1], [], oldInputPorts[n2..]
-        | AndN n1, n2 when n2 > n1 ->
+        | n1, n2 when n2 > n1 ->
             let newPorts =
                 [n1..n2-1]
                 |> List.map (fun no -> createNewPort no oldComp.Id PortType.Input)
@@ -387,7 +391,7 @@ let changeGateComponent (symModel: Model) (compId: ComponentId) (n: int) =
     symbol
     |> set portMaps_ newPortMaps
     |> map component_ (
-        set type_ (AndN n) >>
+        set type_ (GateN (gateType, n)) >>
         set inputPorts_ newInputPorts >>
         set outputPorts_ oldOutputPorts >>
         set h_ (1.5*(float Constants.gridSize) * (float n)/2.)

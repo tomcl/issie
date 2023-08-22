@@ -18,35 +18,44 @@ open Optics.Optic
     The tree of sheets can (worst case) be very large, so not all of the tree is displayed
 *)
 
+type BreadcrumbConfig = {
+    ColorFun: string list -> IColor
+    ClickAction: string list -> (Msg -> unit) -> unit
+    ElementProps: IHTMLProp list
+    ElementStyleProps: CSSProp list
+    /// button options (other than OnClick and Color)
+    ButtonOptions: Button.Option list 
+    }
 
+module Constants =
+    let gridBoxSeparation = "5px"
+
+    let colArrayStyle = Style [
+                BorderColor "white";
+                BorderWidth "10px";
+                BorderStyle "solid";
+                Padding "50px"]
+
+    let defaultConfig = {
+        ColorFun = fun _ -> IColor.IsBlack
+        ClickAction = fun _ _ -> ()
+        ElementProps = []
+        ElementStyleProps = [
+            Border "2px"
+            BorderColor "LightGrey"
+            BorderRightColor "Black"
+            BorderStyle "Solid"
+            Background "LightGrey"
+            Padding "5px"]
+        ButtonOptions = [
+                Button.Size IsSmall
+                Button.IsOutlined
+                Button.IsExpanded
+                Button.IsFocused true
+                Button.Disabled false
+                ]
+    }
     
-(*
-// better to use CSS Grid - so commented out for now.
-// might be useful somewhere?
-
-
-/// creates a ReactElement table
-/// crumbA must be a rectangular array
-/// crumbA[y][x] is will be column x in row y of the table (indexed from 0)
-
-let arrayToTable
-        (tableProps: Props.IHTMLProp list)
-        (colProps: Props.IHTMLProp list)
-        (rowProps: Props.IHTMLProp list)
-        (itemProps: Props.IHTMLProp list)
-        (crumbA: ReactElement array array)
-            : ReactElement =
-
-    let getTableRow (rowEls: ReactElement array) =
-        rowEls
-        |> Array.map (fun el -> td itemProps [el])
-        |> tr rowProps
-    
-    crumbA
-    |> Array.map getTableRow
-    |> Array.map (fun el -> tr colProps [el])
-    |> table tableProps
-*)   
 
 let gridBox (gap:string) s =
     div [Style [Display DisplayOptions.InlineGrid; GridGap gap; JustifyContent "Start"]] s
@@ -63,8 +72,8 @@ let rec gridArea (gridPos: CSSGridPos): string =
 
 
 /// a Grid item centre justified and occupying given area
-let gridElement cssProps styleProps (pos: CSSGridPos) (x: ReactElement) =
-    div (cssProps @ [
+let gridElement props styleProps (pos: CSSGridPos) (x: ReactElement) =
+    div (props @ [
         Style (styleProps @ [
             Display DisplayOptions.Flex
             FlexDirection "column"
@@ -72,12 +81,6 @@ let gridElement cssProps styleProps (pos: CSSGridPos) (x: ReactElement) =
             JustifySelf JustifySelfOptions.Center;
             //AlignSelf AlignSelfOptions.Center;
             JustifyContent "center"
-            Border "2px"
-            BorderColor "LightGrey"
-            BorderRightColor "Black"
-            BorderStyle "Solid"
-            Background "LightGrey"
-            Padding "5px"
             Width "100%"
             Height "100%"
             GridArea (gridArea pos) ])]) [x]
@@ -127,28 +130,22 @@ let positionRootAndFocusChildrenInGrid (root: string) (pathToFocus:string list) 
 
 
 let makeGridFromSheetsWithPositions
-        (clickAction:string list -> (Msg -> unit) -> unit)
+        (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
         (posL: (CSSGridPos*SheetTree) list)
             : ReactElement =
     posL
     |> List.map (fun (pos, sheet) ->
             gridElement
-                []
-                []
+                cfg.ElementProps
+                cfg.ElementStyleProps
                 pos
                 (Button.button [ 
-                    Button.Size IsSmall
-                    Button.IsOutlined
-                    Button.IsExpanded
-                    //Button.IsActive false
-                    Button.Disabled false
-                    Button.Color IsBlack
-                    Button.IsFocused true
-                    Button.OnClick(fun ev -> clickAction sheet.LabelPath dispatch)
+                    Button.Color (cfg.ColorFun sheet.LabelPath)
+                    Button.OnClick(fun ev -> cfg.ClickAction sheet.LabelPath dispatch)
                     ] [ str $"{sheet.SheetName}" ]))             
 
-    |> gridBox "5pt" 
+    |> gridBox Constants.gridBoxSeparation 
     
 
 /// display as a ReactElement the breadcrumbs.
@@ -156,25 +153,25 @@ let makeGridFromSheetsWithPositions
 /// project - the model project.
 let makeBreadcrumbsFromPositions
         (sheetTreeMap: Map<string,SheetTree>)
+        (cfg: BreadcrumbConfig)
         (positionSheetsInGrid: Map<string,SheetTree> -> (CSSGridPos*SheetTree) list)
-        (clickAction: string list -> (Msg -> unit) -> unit)
         (dispatch: Msg -> unit)
              : ReactElement =
         sheetTreeMap
         |> positionSheetsInGrid
-        |> makeGridFromSheetsWithPositions clickAction dispatch
+        |> makeGridFromSheetsWithPositions cfg dispatch
 
 /// Breadcrumbs of entire simulated design hierarchy.
 /// Display as a ReactElement the breadcrumbs.
 /// ClickAction - what happens when a given breadcrumb (labelled by its path to root) is clicked.
 let hierarchyBreadcrumbs
-        (clickAction: string list -> (Msg -> unit) -> unit)
+        (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
         (model: Model) =
     mapOverProject (div [] []) model (fun p ->
         let root = Option.defaultValue p.OpenFileName model.WaveSimSheet
         let sheetTreeMap = getSheetTrees p
-        makeBreadcrumbsFromPositions sheetTreeMap (positionDesignHierarchyInGrid root) clickAction dispatch)
+        makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch)
 
 
 
@@ -184,19 +181,19 @@ let hierarchyBreadcrumbs
 /// clickAction - what happens when a given breadcrumb (labelled by its path to root) is clicked.
 let hierarchyFromSheetBreadcrumbs
         (rootSheet: string)
-        (clickAction: string list -> (Msg -> unit) -> unit)
+        (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
         (model: Model) =
     mapOverProject (div [] []) model (fun p ->
         let sheetTreeMap = getSheetTrees p
-        makeBreadcrumbsFromPositions sheetTreeMap (positionDesignHierarchyInGrid rootSheet) clickAction dispatch)
+        makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid rootSheet) dispatch)
 
 /// Breadcrumbs of entire design hierarchy of every root sheet in project
 /// Display as a ReactElement the breadcrumbs.
 /// rootSheet - root of hierrarchy displayed
 /// clickAction - what happens when a given breadcrumb (labelled by its path to root) is clicked.
 let allRootHierarchiesFromProjectBreadcrumbs
-        (clickAction: string list -> (Msg -> unit) -> unit)
+        (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
         (model: Model) =
     mapOverProject ([div [] []]) model (fun p ->
@@ -204,8 +201,10 @@ let allRootHierarchiesFromProjectBreadcrumbs
         allRootSheets sheetTreeMap
         |> Set.toList
         |> List.map (fun root ->
-            makeBreadcrumbsFromPositions sheetTreeMap (positionDesignHierarchyInGrid root) clickAction dispatch))
-        |> List.mapi (fun i el -> tr [Style [ BorderColor "white"; BorderWidth "10px"; BorderStyle "solid" ;Padding "50px"]] [td [CellSpacing "50px"] [el]])
+            makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch))
+        |> List.mapi (fun i el ->
+            tr [ Constants.colArrayStyle
+                ] [ td [CellSpacing "50px"] [el]])
         |> table []
 
 
@@ -219,11 +218,11 @@ let allRootHierarchiesFromProjectBreadcrumbs
 let smallSimulationBreadcrumbs
         (rootName: string)
         (pathToFocus: string list)
-        (clickAction: string list -> (Msg -> unit) -> unit)
+        (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
         (model: Model)
              : ReactElement =
     mapOverProject (div [] []) model (fun p ->       
-        makeBreadcrumbsFromPositions (getSheetTrees p) (positionRootAndFocusChildrenInGrid rootName pathToFocus) clickAction dispatch)
+        makeBreadcrumbsFromPositions (getSheetTrees p) cfg (positionRootAndFocusChildrenInGrid rootName pathToFocus) dispatch)
 
 

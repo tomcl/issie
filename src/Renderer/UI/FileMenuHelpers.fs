@@ -210,10 +210,12 @@ let makeSourceMenu
 
 /// Node in the sheet tree, child nodes correspond to custom components in sheet.
 type SheetTree = {
-    /// path of custom component names to node or [] if node is top level
+    /// path of custom component labels to node or [] if node is top level
     LabelPath: string list 
     /// name of sheet
     SheetName: string
+    /// path of sheet names to current sheet name - NB this is not unique
+    SheetNamePath: string list
     /// unique name to display on breadcrumbs
     BreadcrumbName: string
     /// size of tree including this node (1 for leaves)
@@ -258,18 +260,19 @@ let rec makeBreadcrumbNamesUnique (tree: SheetTree) =
 
 /// Get the subsheet tree for all sheets in the current project.
 /// Returns a map from sheet name to tree of SheetTree nodes
-let getSheetTrees (p:Project) : Map<string,SheetTree>=
+let getSheetTrees (p:Project): Map<string,SheetTree> =
     let ldcMap = 
         p.LoadedComponents
         |> List.map (fun ldc -> ldc.Name,ldc)
         |> Map.ofList
 
-    let rec subSheets (path: string list) (sheet: string) (labelPath: string list): SheetTree=
+    let rec subSheets (path: string list) (sheet: string) (labelPath: string list) (sheetPath: string list): SheetTree=
         let ldc = Map.tryFind sheet ldcMap
         match ldc with
         | None -> {
-            SheetName=sheet;
-            LabelPath = [];
+            SheetName=sheet
+            LabelPath = []
+            SheetNamePath = []
             Size = 1;
             Depth = 0;
             SubSheets = [];
@@ -282,13 +285,14 @@ let getSheetTrees (p:Project) : Map<string,SheetTree>=
             |> List.collect (fun comp -> 
                     match comp.Type with 
                     | Custom ct when not <| List.contains ct.Name path -> 
-                        [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label])]
+                        [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [sheet])] 
                     | _ -> 
                         [])
             |> (fun subs -> {
                     SheetName = sheet;
                     BreadcrumbName = sheet
                     LabelPath = labelPath
+                    SheetNamePath = sheetPath
                     Depth =
                         subs
                         |> List.map (fun s -> s.Depth)
@@ -301,7 +305,7 @@ let getSheetTrees (p:Project) : Map<string,SheetTree>=
         |> makeBreadcrumbNamesUnique
 
     p.LoadedComponents
-    |> List.map (fun ldc ->ldc.Name, subSheets [] ldc.Name [])
+    |> List.map (fun ldc ->ldc.Name, subSheets [] ldc.Name [] [])
     |> Map.ofList
 
 

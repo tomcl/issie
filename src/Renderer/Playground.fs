@@ -155,12 +155,24 @@ module Breadcrumbs =
     open Fable.React
     open Fable.React.Props
     open Browser.Types
+
+    let config = Breadcrumbs.Constants.defaultConfig
+
     let testBreadcrumbs model dispatch =
         let action _ _ = ()
-        PopupHelpers.closablePopup "Breadcrumbs" (Breadcrumbs.hierarchyBreadcrumbs action dispatch model) (div [] []) [] dispatch
+        PopupHelpers.closablePopup
+            "Design Hierarchy of current sheet"
+            (Breadcrumbs.hierarchyBreadcrumbs config dispatch model)
+            (div [] []) []
+            dispatch
 
     let testAllHierarchiesBreadcrumbs model dispatch =
         let action _ _ = ()
-        PopupHelpers.closablePopup "Breadcrumbs" (Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs action dispatch model) (div [] []) [] dispatch
+        PopupHelpers.closablePopup
+            "Design Hierarchy of all sheets"
+            (Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs config dispatch model)
+            (div [] [])
+            []
+            dispatch
 
         

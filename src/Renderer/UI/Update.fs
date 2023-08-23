@@ -264,7 +264,7 @@ let update (msg : Msg) oldModel =
     | IncrementSimulationClockTick n ->
         let simData =
             getSimulationDataOrFail model "IncrementSimulationClockTick"
-            |> map clockTickNumber_ (fun n -> n+1)
+            |> map clockTickNumber_ (fun x -> x+n)
         model
         |> set currentStepSimulationStep_ (simData |> Ok |> Some )
         |> withNoMsg

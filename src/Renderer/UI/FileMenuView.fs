@@ -23,6 +23,8 @@ open Notifications
 open PopupHelpers
 open DrawModelType
 open Sheet.SheetInterface
+open Optics
+open FileMenuHelpers
 
 open System
 
@@ -941,40 +943,6 @@ let closeApp model dispatch _ =
     dispatch CloseApp
 
 
-type SheetTree = {
-    Node: string
-    Size: int
-    SubSheets: SheetTree list
-    }
-
-
-/// get the subsheet tree for aa sheets
-let getSheetTrees (p:Project) =
-    let ldcMap = 
-        p.LoadedComponents
-        |> List.map (fun ldc -> ldc.Name,ldc)
-        |> Map.ofList
-    let rec subSheets (path: string list) (sheet: string) : SheetTree=
-        let ldc = Map.tryFind sheet ldcMap
-        match ldc with
-        | None -> {Node=sheet; Size = 1;SubSheets = []}
-        | Some ldc ->
-            let comps,_ = ldc.CanvasState
-            comps
-            |> List.collect (fun comp -> 
-                    match comp.Type with 
-                    | Custom ct when not <| List.contains ct.Name path -> 
-                        [subSheets (ct.Name :: path) ct.Name]
-                    | _ -> 
-                        [])
-            |> (fun subs -> {
-                Node=sheet; 
-                Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
-                SubSheets= subs
-                })
-    p.LoadedComponents
-    |> List.map (fun ldc ->ldc.Name, subSheets []  ldc.Name)
-    |> Map.ofList
 
 /// Find all sheets that depend on the given sheet in the current project, return the sheet's signature as well.
 /// If given sheet name doesn't exist in the project, return signature of working file
@@ -1013,22 +981,23 @@ let getDependentsFromSheet (model:Model) (sheetName : string) =
    
 // get relevant info about a sheet for display on popup
 let getSheetInfo (model : Model) (oldSheetPath : string) (newSheetPath : string) =
+    let sheetName = oldSheetPath |> baseNameWithoutExtension
 
     // get sheets in current project that would depend on an existent sheet, same as one that's being imported
-    
-    if newSheetPath |> exists then
-        let sheetName = baseNameWithoutExtension oldSheetPath // could use newSheetPath as well here            
+    let projectHasSheet, depSheets =
+        // log <| sprintf "new sheet path: %A" (newSheetPath |> exists)
+        if newSheetPath |> exists then 
+            match getDependentsFromSheet model sheetName with
+            | None -> true, ""
+            | Some (newSig, instances) ->
+                true,
+                instances
+                |> List.map (fun (sheet,_,sg) -> sheet)
+                |> List.distinct
+                |> String.concat ","
+        else false, ""
 
-        match getDependentsFromSheet model sheetName with
-        | None -> Some ""
-        | Some (newSig, instances) ->
-            instances
-            |> List.map (fun (sheet,_,sg) -> sheet)
-            |> List.distinct
-            |> String.concat ","
-            |> Some
-
-    else None
+    projectHasSheet, depSheets
 
 // import sheet from directory, ask user to sort out dependency issues
 let private importSheet model dispatch =
@@ -1037,33 +1006,37 @@ let private importSheet model dispatch =
     | Some project -> 
         let projectDir = project.ProjectPath
 
+        (*
+        let printKeyValue key value =
+            printfn "Key--: %s, Value: %A" key value
+
+        Map.iter printKeyValue (getSheetTrees project)
+        *)
+
         dispatch <| (Sheet (SheetT.SetSpinner false))
 
         let importDecisions model = getImportDecisions model.PopupDialogData
 
-        let updateDecisions (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model) =
+        let updateDecisions (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model)=
             let updatedDecisions = Map.add sheetPath decisionOption (importDecisions model')
 
             dispatch <| UpdateImportDecisions updatedDecisions
-        
+       
         /// Return only sheets that exist / don't exist in the destination directory based on boolean. True -> return existent. False -> return non-existent.
-        let filterSheets (allSheets : string list) (existing : bool) =
+        let filterExistingSheets (allSheets : string list) (existing : bool) =
             allSheets
             |> List.filter (fun sheetPath ->
                    
                 let newSheetPath = pathJoin [|projectDir; baseName sheetPath|]
 
-                if not <| fileNameIsBad (baseNameWithoutExtension <| baseName sheetPath) then
-                    if existing then exists <| newSheetPath else not (exists <| newSheetPath)
-                else
-                    false
+                if existing then exists <| newSheetPath else not (exists <| newSheetPath)
                    
             )
 
         // Function to check if all decisions are made
         let allDecisionsMade allSheets =
             fun (model : Model) ->
-                match filterSheets allSheets true with
+                match filterExistingSheets allSheets true with
                 | [] -> true
                 | sheets ->
                     sheets
@@ -1074,15 +1047,11 @@ let private importSheet model dispatch =
             | Ok _ -> ()
             | Error msg -> displayFileErrorNotification msg dispatch
 
-        let createSheetInfo (model : Model) ((sheetPath, hasDependencies): string * bool) =
+        let createSheetInfo (model : Model) (sheetPath: string) =
             let fileName = baseName sheetPath
-
-            let newSheetPath = pathJoin [|projectDir; fileName|]
-
-            let sheetExists, depSheets =
-                match getSheetInfo model sheetPath newSheetPath with
-                | Some depSheets -> true, depSheets
-                | None -> false, ""
+            // log <| sprintf "sheet: %s" sheetPath
+            let newSheetPath = pathJoin [|projectDir; fileName|] 
+            let sheetExists, depSheets = getSheetInfo model sheetPath newSheetPath
 
             let decisionMadeMatches (decision : ImportDecision option) =
                 fun (model : Model) ->
@@ -1106,76 +1075,52 @@ let private importSheet model dispatch =
             else 
                 match sheetExists with
                 | true ->
-
-                    match tryLoadComponentFromPath sheetPath with
-                    | Error err ->
-                        log err
-                        div [] [str err]
-                    | Ok ldcSource ->
-
-                        let sourceSig = parseDiagramSignature ldcSource.CanvasState
-
-                        let destSig =
-                            tryGetLoadedComponents model
-                            |> List.find (fun ldc -> ldc.Name = baseNameWithoutExtension sheetPath)
-                            |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
                                            
-                        let Button (buttonDecision : ImportDecision option) (name : string) (isDisabled : bool)=
-                            [ Button.button
-                                [ 
-                                    Button.Size IsSmall
-                                    Button.IsOutlined
-                                    Button.Color IsPrimary
-                                    Button.Disabled isDisabled
-                                    Button.IsFocused (decisionMadeMatches buttonDecision model)
-                                    Button.OnClick(fun _ ->
-                                        updateDecisions sheetPath buttonDecision model
-                                    )] [ str name ]             
-                            ]
-
-                        div [] [
-                        p [] [
-                        str "Sheet "
-                        strong [] [str fileName]
-                        str <| sprintf " already exists in project. Dependents: %s " (match depSheets with
-                                                                                                    | "" -> "None"
-                                                                                                    | _ -> depSheets)
+                    let overwriteButton =
+                        [ Button.button
+                            [ 
+                                Button.Size IsSmall
+                                Button.IsOutlined
+                                Button.Color IsPrimary
+                                Button.IsFocused (decisionMadeMatches (Some Overwrite) model)
+                                Button.OnClick(fun _ ->
+                                    updateDecisions sheetPath (Some Overwrite) model
+                                )] [ str "Overwrite" ]             
                         ]
 
-                        match (sourceSig <> destSig) with
-                        | true ->
-                            if (depSheets <> "") then
-                                p [Style [Color "red"]] [
-                                    str "Overwrite disabled because sheets contain different hardware. Danger of conflicts in dependents."
-                                ]
-                            else
-                                p [Style [Color "green"]] [
-                                    str "Sheets contain different hardware, but overwrite allowed as there are no dependents."
-                                ]
+                    let renameButton =                  
+                        [ Button.button
+                            [ 
+                                Button.Size IsSmall
+                                Button.IsOutlined
+                                Button.IsFocused (decisionMadeMatches (Some Rename) model)
+                                Button.Color IsPrimary
+                                Button.OnClick(fun _ ->
+                                    updateDecisions sheetPath (Some Rename) model
+                                )] [ str "Rename" ] 
+                        ]
 
-                        | false ->
-                            str ""
-
-                        Navbar.Item.div [ Navbar.Item.Props [] ]
-                            [ Level.level [ Level.Level.Props []]
-                                  [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str "Decision: " ] ]
-                                    Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
-                                        [        
-                                          Level.item []
-                                            (Button (Some Overwrite) "Overwrite" ((sourceSig <> destSig) && (depSheets <> "")))
+                    div [] [
+                    p [] [
+                    str "Sheet "
+                    strong [] [str fileName]
+                    str <| sprintf " already exists in project. Sheets that depend on it: %s " (match depSheets with
+                                                                                                | "" -> "None"
+                                                                                                | _ -> depSheets)
+                    ]
+                    Navbar.Item.div [ Navbar.Item.Props [] ]
+                        [ Level.level [ Level.Level.Props []]
+                              [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str "Decision: " ] ]
+                                Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
+                                    [        
+                                      Level.item []
+                                        overwriteButton
                                
-                                          Level.item []
-                                            (Button (Some Rename) "Rename" false)
+                                      Level.item []
+                                        renameButton
 
-                                        ] ] ]
-
-                        match hasDependencies with
-                        | true ->
-                            p [Style [Color "red"; FontWeight "bold"]] [
-                                str "Warning: Sheet has dependencies!"
-                            ]
-                        | false -> str ""
-                        ]
+                                    ] ] ]
+                    ]
                                 
                 | false ->
                     if fileNameIsBad (pathWithoutExtension fileName)
@@ -1196,45 +1141,16 @@ let private importSheet model dispatch =
                             str "Sheet "
                             strong [] [ str fileName ]
                             str " will be imported without conflicts."]
-
-                        match hasDependencies with
-                        | true ->
-                            p [Style [Color "red"; FontWeight "bold"]] [
-                                str "Warning: Sheet has dependencies!"
-                            ]
-                        | false -> str ""
                         ]
 
         match askForExistingSheetPaths model.UserData.LastUsedDirectory with
         | None -> () // User gave no path.
-        | Some paths ->
+        | Some paths ->           
 
-            let hasDependencies oldSheetPath = 
-                // does sheet have dependencies?
-                match tryLoadComponentFromPath oldSheetPath with
-                | Error err ->
-                    log err
-                    false
-                | Ok ldc ->
-                    let comps, _ = ldc.CanvasState
-
-                    comps
-                    |> List.filter (fun comp ->
-                        match comp.Type with
-                        | Custom ct -> true
-                        | _ -> false
-                    )
-                    |>
-                    List.length <> 0
-
-            let pathsWithDependencies =
-                paths
-                |> List.map (fun path -> (path, hasDependencies path))
-        
             let popupBody =
                 fun (model' : Model) ->
                     let content =
-                        pathsWithDependencies
+                        paths
                         |> List.map (createSheetInfo model')
                         |> List.toArray
                     (div [] content)
@@ -1257,7 +1173,7 @@ let private importSheet model dispatch =
                         )
 
 
-                    filterSheets paths false
+                    filterExistingSheets paths false
                     |> List.iter (fun oldSheetPath ->
                         let newSheetPath = pathJoin [|projectDir; baseName oldSheetPath|] 
 
@@ -1268,11 +1184,6 @@ let private importSheet model dispatch =
                     newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) -> copySheet oldSheetPath newSheetPath model' dispatch)
 
                     openProjectFromPath projectDir model' dispatch
-
-                    //let y = (getLoadedComponentsFromProj (dirName paths[0]))[1]
-
-                    // log <| y.FilePath
-
                     dispatch ClosePopup
                     dispatch FinishUICmd
 
@@ -1434,21 +1345,8 @@ let viewTopMenu model dispatch =
 
             let sTrees = getSheetTrees project
 
-            let rec subSheetsOf path sh =
-                match Map.tryFind sh sTrees with
-                | Some tree -> tree.SubSheets
-                | None -> []
-                |> List.collect (fun ssh -> 
-                    match List.contains ssh.Node path with
-                    | true -> []
-                    | false -> ssh.Node :: subSheetsOf (ssh.Node :: path) ssh.Node)
-                |> List.distinct
-
-            let allSubSheets =
-                mapKeys sTrees
-                |> Seq.collect (subSheetsOf [])
-                |> Set
-            let isSubSheet sh = Set.contains sh allSubSheets
+            let allRoots = allRootSheets sTrees
+            let isSubSheet sh = not <| Set.contains sh allRoots
 
             let projectFiles = 
                 project.LoadedComponents 
@@ -1459,8 +1357,8 @@ let viewTopMenu model dispatch =
                 )
                 |> List.map (fun comp -> 
                     let tree = sTrees[comp.Name]
-                    makeFileLine (isSubSheet tree.Node) comp.Name project model , tree)
-                |> List.sortBy (fun (line,tree) -> isSubSheet tree.Node, tree.Node, -tree.Size, tree.Node.ToLower())
+                    makeFileLine (isSubSheet tree.SheetName) comp.Name project model , tree)
+                |> List.sortBy (fun (line,tree) -> isSubSheet tree.SheetName, tree.SheetName, -tree.Size, tree.SheetName.ToLower())
                 |> List.map fst
                 |> addVerticalScrollBars
             Navbar.Item.div

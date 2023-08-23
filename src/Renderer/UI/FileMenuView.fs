@@ -1014,44 +1014,21 @@ let getDependentsFromSheet (model:Model) (sheetName : string) =
 // get relevant info about a sheet for display on popup
 let getSheetInfo (model : Model) (oldSheetPath : string) (newSheetPath : string) =
 
-    let hasDependencies = 
-        // does sheet have dependencies?
-        match tryLoadComponentFromPath oldSheetPath with
-        | Error err ->
-            log err
-            false
-        | Ok ldc ->
-            let comps, _ = ldc.CanvasState
-
-            comps
-            |> List.filter (fun comp ->
-                match comp.Type with
-                | Custom ct -> true
-                | _ -> false
-            )
-            |>
-            List.length <> 0
-
-    log hasDependencies
-
     // get sheets in current project that would depend on an existent sheet, same as one that's being imported
-    let projectHasSheet, depSheets =
-        // log <| sprintf "new sheet path: %A" (newSheetPath |> exists)
-        if newSheetPath |> exists then
-            let sheetName = baseNameWithoutExtension oldSheetPath // could use newSheetPath as well here            
+    
+    if newSheetPath |> exists then
+        let sheetName = baseNameWithoutExtension oldSheetPath // could use newSheetPath as well here            
 
-            match getDependentsFromSheet model sheetName with
-            | None -> true, ""
-            | Some (newSig, instances) ->
-                true,
-                instances
-                |> List.map (fun (sheet,_,sg) -> sheet)
-                |> List.distinct
-                |> String.concat ","
+        match getDependentsFromSheet model sheetName with
+        | None -> Some ""
+        | Some (newSig, instances) ->
+            instances
+            |> List.map (fun (sheet,_,sg) -> sheet)
+            |> List.distinct
+            |> String.concat ","
+            |> Some
 
-        else false, ""
-
-    projectHasSheet, depSheets, hasDependencies
+    else None
 
 // import sheet from directory, ask user to sort out dependency issues
 let private importSheet model dispatch =
@@ -1097,11 +1074,15 @@ let private importSheet model dispatch =
             | Ok _ -> ()
             | Error msg -> displayFileErrorNotification msg dispatch
 
-        let createSheetInfo (model : Model) (sheetPath: string) =
+        let createSheetInfo (model : Model) ((sheetPath, hasDependencies): string * bool) =
             let fileName = baseName sheetPath
 
-            let newSheetPath = pathJoin [|projectDir; fileName|] 
-            let sheetExists, depSheets, hasDependencies = getSheetInfo model sheetPath newSheetPath 
+            let newSheetPath = pathJoin [|projectDir; fileName|]
+
+            let sheetExists, depSheets =
+                match getSheetInfo model sheetPath newSheetPath with
+                | Some depSheets -> true, depSheets
+                | None -> false, ""
 
             let decisionMadeMatches (decision : ImportDecision option) =
                 fun (model : Model) ->
@@ -1228,10 +1209,32 @@ let private importSheet model dispatch =
         | None -> () // User gave no path.
         | Some paths ->
 
+            let hasDependencies oldSheetPath = 
+                // does sheet have dependencies?
+                match tryLoadComponentFromPath oldSheetPath with
+                | Error err ->
+                    log err
+                    false
+                | Ok ldc ->
+                    let comps, _ = ldc.CanvasState
+
+                    comps
+                    |> List.filter (fun comp ->
+                        match comp.Type with
+                        | Custom ct -> true
+                        | _ -> false
+                    )
+                    |>
+                    List.length <> 0
+
+            let pathsWithDependencies =
+                paths
+                |> List.map (fun path -> (path, hasDependencies path))
+        
             let popupBody =
                 fun (model' : Model) ->
                     let content =
-                        paths
+                        pathsWithDependencies
                         |> List.map (createSheetInfo model')
                         |> List.toArray
                     (div [] content)

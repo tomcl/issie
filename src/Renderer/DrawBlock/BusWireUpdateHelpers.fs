@@ -705,7 +705,7 @@ let updateCirclesOnNet
             hsL 
             |> List.tryPick (fun hs -> 
                 if close hs.P join.Q && (close hs.Qmin join.P || close hs.Qmax join.P) then
-                    Some [hs.Qmin, hs.Index, hs.OfWire]
+                    Some [join.P, hs.Index, hs.OfWire]
                 else 
                     None)
             |> Option.defaultValue [])

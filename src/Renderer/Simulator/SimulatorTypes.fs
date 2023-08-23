@@ -1091,6 +1091,13 @@ type FData =
 type StepArray<'T> = { Step: 'T array; Index: int }
 
 // [<Struct>] // TODO - check whether fable optimzed Struct
+
+/// This type represents an array of time steps of simulation data.
+/// In any simulation, for a given IOArray, only one of the three 'Step' arrays will be used.
+/// For (very strong) efficiency reasons this cannot be implemented as a disjoint union:
+/// the code that reads and writes IOArray array elements will access the appropriate array.
+/// Truthtable simulations use FDataStep everywhere.
+/// Normal simulations use UInt32step or BigIntStep according to the size of the relevant bus.
 type IOArray =
     { FDataStep: FData array
       UInt32Step: uint32 array
@@ -1098,24 +1105,50 @@ type IOArray =
       Width: int
       Index: int }
 
+/// Used for efficiency reasons.
+/// For a given normal simulation these arrays show whether the corresponding
+/// component input or output is a bigint or a unint32 type bus, and therefore
+/// show IOArray array is used for the data.
 type BigIntState =
     { InputIsBigInt: bool array // NOTE - whether each input uses BigInt or UInt32
       OutputIsBigInt: bool array }
 
+/// FastComponent represents a physical component in a simulation. Because sheets can be
+/// instantiated in multiple places a given sheet component can have multiple FastComponents
+/// in the simulation.
+/// Arrays on FastComponent are filled up with simulation data per clock step as a clocked
+/// simulation progresses.
 type FastComponent =
-    { fId: FComponentId
+    {
+      /// contains component path to root of simulation - unique
+      fId: FComponentId
+      /// allows access to the underlying component
       cId: ComponentId
+      /// convenience access to the Type of the underlying component
       FType: ComponentType
+      /// Used only by clocked components, contains an array of the component state in
+      /// every clock cycle. Filled as simulation progresses.
       State: StepArray<SimulationComponentState> option
       mutable Active: bool
+      /// Most components have all bus inputs and outputs the same width. This gives the
+      /// default array field to use - BigIntStep or UInt32Step - in IOArray.
       mutable UseBigInt: bool
+      /// components that may have variable inputs and output widths use this instead of UseBigInt to
+      /// determine the correct array.
       mutable BigIntState: BigIntState option // This is only used for components that have variable input/output widths
+      /// Input data - this an array of fxed links to the relevant driver output data arrays
       InputLinks: IOArray array
+      /// info on where the drivers are for each input
       InputDrivers: (FComponentId * OutputPortNumber) option array
+      /// the output data for this component (this gets linked to all the conmponents driven
       Outputs: IOArray array
+      /// the legacy SimulationConmponent from which this FastComponent is generated.
       SimComponent: SimulationComponent
+      /// Path from thsi component to root of simulation, if it is in a subsheet.
       AccessPath: ComponentId list
+      /// for human use: long name of component
       FullName: string
+      /// label of component
       FLabel: string
       SheetName: string list
       // these fields are used only to determine component ordering for correct evaluation
@@ -1125,33 +1158,49 @@ type FastComponent =
       // these fields are used only by the Verilog output code
       mutable VerilogOutputName: string array
       mutable VerilogComponentName: string }
-
+    /// Number of component inputs
     member inline this.InputWidth(n) = this.InputLinks[n].Width
+    /// Number of component outputs
     member inline this.OutputWidth(n) = this.Outputs[n].Width
-
+    /// Get the uint32 data array for a given input
     member inline this.GetInputUInt32 (epoch) (InputPortNumber n) = this.InputLinks[n].UInt32Step[epoch]
+    /// Get the BigInt data array for a given input
     member inline this.GetInputBigInt (epoch) (InputPortNumber n) = this.InputLinks[n].BigIntStep[epoch]
+    /// Get the FData array for a given input
     member inline this.GetInputFData (epoch) (InputPortNumber n) = this.InputLinks[n].FDataStep[epoch]
-
+    /// for debugging - get a short usually unique truncation of the fId
     member this.ShortId =
         let (ComponentId sid, ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
-
+    /// write data to the Unint32Step output array for the given time step (epoch) and output (n)
     member inline this.PutOutputUInt32 (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].UInt32Step[ epoch ] <- dat
+    /// write data to the BigIntStep output array for the given time step (epoch) and output (n)
     member inline this.PutOutputBigInt (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].BigIntStep[ epoch ] <- dat
+    /// write data to the FData output array for the given time step (epoch) and output (n)
     member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].FDataStep[ epoch ] <- dat
     member inline this.Id = this.SimComponent.Id
     member inline this.SubSheet = this.SheetName[0 .. this.SheetName.Length - 2]
 
+/// Convenience array used so that waveform simulation can access
+/// component outputs (drivers) without a Map lookup
 type Driver =
-    { Index: int //index of this driver in the array, also
+    {
+      /// Index of this driver in the array or drivers
+      Index: int
+      /// Bus width of the driven bus
       DriverWidth: int
+      /// Simulation data for the driven bus
       DriverData: IOArray }
 
-type SheetPort = { Sheet: string; PortOnComp: Port } // muts include port number (which ports on connections do not)
+/// Type used to tie component ports to simulation data
+/// for advanved wavefor simulation features.
+type SheetPort = {
+    Sheet: string;
+    PortOnComp: Port
+    } // must include port number (which ports on connections do not)
 
 // The fast simulation components are similar to the issie components they are based on but with addition of arrays
 // for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the

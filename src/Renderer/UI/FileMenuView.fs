@@ -23,8 +23,6 @@ open Notifications
 open PopupHelpers
 open DrawModelType
 open Sheet.SheetInterface
-open Optics
-open FileMenuHelpers
 
 open System
 
@@ -943,6 +941,40 @@ let closeApp model dispatch _ =
     dispatch CloseApp
 
 
+type SheetTree = {
+    Node: string
+    Size: int
+    SubSheets: SheetTree list
+    }
+
+
+/// get the subsheet tree for aa sheets
+let getSheetTrees (p:Project) =
+    let ldcMap = 
+        p.LoadedComponents
+        |> List.map (fun ldc -> ldc.Name,ldc)
+        |> Map.ofList
+    let rec subSheets (path: string list) (sheet: string) : SheetTree=
+        let ldc = Map.tryFind sheet ldcMap
+        match ldc with
+        | None -> {Node=sheet; Size = 1;SubSheets = []}
+        | Some ldc ->
+            let comps,_ = ldc.CanvasState
+            comps
+            |> List.collect (fun comp -> 
+                    match comp.Type with 
+                    | Custom ct when not <| List.contains ct.Name path -> 
+                        [subSheets (ct.Name :: path) ct.Name]
+                    | _ -> 
+                        [])
+            |> (fun subs -> {
+                Node=sheet; 
+                Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
+                SubSheets= subs
+                })
+    p.LoadedComponents
+    |> List.map (fun ldc ->ldc.Name, subSheets []  ldc.Name)
+    |> Map.ofList
 
 /// Find all sheets that depend on the given sheet in the current project, return the sheet's signature as well.
 /// If given sheet name doesn't exist in the project, return signature of working file
@@ -1402,8 +1434,21 @@ let viewTopMenu model dispatch =
 
             let sTrees = getSheetTrees project
 
-            let allRoots = allRootSheets sTrees
-            let isSubSheet sh = not <| Set.contains sh allRoots
+            let rec subSheetsOf path sh =
+                match Map.tryFind sh sTrees with
+                | Some tree -> tree.SubSheets
+                | None -> []
+                |> List.collect (fun ssh -> 
+                    match List.contains ssh.Node path with
+                    | true -> []
+                    | false -> ssh.Node :: subSheetsOf (ssh.Node :: path) ssh.Node)
+                |> List.distinct
+
+            let allSubSheets =
+                mapKeys sTrees
+                |> Seq.collect (subSheetsOf [])
+                |> Set
+            let isSubSheet sh = Set.contains sh allSubSheets
 
             let projectFiles = 
                 project.LoadedComponents 
@@ -1414,8 +1459,8 @@ let viewTopMenu model dispatch =
                 )
                 |> List.map (fun comp -> 
                     let tree = sTrees[comp.Name]
-                    makeFileLine (isSubSheet tree.SheetName) comp.Name project model , tree)
-                |> List.sortBy (fun (line,tree) -> isSubSheet tree.SheetName, tree.SheetName, -tree.Size, tree.SheetName.ToLower())
+                    makeFileLine (isSubSheet tree.Node) comp.Name project model , tree)
+                |> List.sortBy (fun (line,tree) -> isSubSheet tree.Node, tree.Node, -tree.Size, tree.Node.ToLower())
                 |> List.map fst
                 |> addVerticalScrollBars
             Navbar.Item.div

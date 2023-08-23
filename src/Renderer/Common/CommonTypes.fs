@@ -202,6 +202,14 @@ module CommonTypes
         |LSL
         |LSR
         |ASR
+    
+    type GateComponentType =
+        | And
+        | Or
+        | Xor
+        | Nand
+        | Nor
+        | Xnor
 
     /// Option of this qualifies NBitsXOr to allow many different components
     /// None => Xor
@@ -228,7 +236,8 @@ module CommonTypes
         | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
-        | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+        | Not | Decode4
+        | GateN of GateType: GateComponentType * NumInputs: int
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
         | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -259,8 +268,18 @@ module CommonTypes
     /// NB - NOT gates are not included here.
     let (|IsBinaryGate|NotBinaryGate|) cType =
         match cType with
-         | And | Or | Xor | Nand | Nor | Xnor -> IsBinaryGate
+         | GateN (_, n) when n = 2 -> IsBinaryGate
          | _ -> NotBinaryGate
+    
+    let isNegated gateType =
+        match gateType with
+        | Nand | Nor | Xnor -> true
+        | And | Or | Xor -> false
+    
+    let (|IsGate|NoGate|) cType =
+        match cType with
+        | GateN _ -> IsGate
+        | _ -> NoGate
 
     /// get memory component type constructor
     /// NB only works with new-style memory components
@@ -438,6 +457,7 @@ module CommonTypes
             | BusSelection of OutputWidth: int * OutputLSBit: int
             | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+            | GateN of GateType: GateComponentType * NumInputs: int
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
             | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
             | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -495,12 +515,13 @@ module CommonTypes
             | JSONComponent.ComponentType.BusSelection (a,b) -> BusSelection (a,b)
             | JSONComponent.ComponentType.Constant1 (a,b,c) -> Constant1 (a,b,c)
             | JSONComponent.ComponentType.Not -> Not
-            | JSONComponent.ComponentType.And -> And
-            | JSONComponent.ComponentType.Or -> Or
-            | JSONComponent.ComponentType.Xor -> Xor
-            | JSONComponent.ComponentType.Nand -> Nand
-            | JSONComponent.ComponentType.Nor -> Nor
-            | JSONComponent.ComponentType.Xnor -> Xnor
+            | JSONComponent.ComponentType.And -> GateN (And, 2)
+            | JSONComponent.ComponentType.Or -> GateN (Or, 2)
+            | JSONComponent.ComponentType.Xor -> GateN (Xor, 2)
+            | JSONComponent.ComponentType.Nand -> GateN (Nand, 2)
+            | JSONComponent.ComponentType.Nor -> GateN (Nor, 2)
+            | JSONComponent.ComponentType.Xnor -> GateN (Xnor, 2)
+            | JSONComponent.ComponentType.GateN (gateType, n) -> GateN (gateType, n)
             | JSONComponent.ComponentType.Decode4 -> Decode4
             | JSONComponent.ComponentType.Mux2 -> Mux2
             | JSONComponent.ComponentType.Mux4 -> Mux4

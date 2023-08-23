@@ -144,6 +144,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
 
 type SimCache = {
     Name: string
+    ClockTickRefresh: int
     StoredState: LoadedComponent list
     StoredResult: Result<SimulationData, SimulationError>
     }
@@ -152,6 +153,7 @@ type SimCache = {
 
 let simCacheInit () = {
     Name = ""; 
+    ClockTickRefresh = 0
     StoredState = []
     StoredResult = Ok {
         FastSim = 
@@ -179,7 +181,17 @@ let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=
             |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
             |> Option.map (loadedComponentIsEqual ldc')
             |> (=) (Some true))
-            
+
+let storedstateisEqual (cache: SimCache) (ldcs: LoadedComponent list) : bool =
+    match cache.StoredState with
+    | [] -> false
+    | ldcsstate -> 
+        ldcsstate
+        |> List.forall (fun ldc' ->
+            ldcs
+            |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
+            |> Option.map (loadedComponentIsEqual ldc')
+            |> (=) (Some true))
 
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. 
@@ -206,11 +218,8 @@ let prepareSimulationMemoized
         printfn "New simulation"
         let name, state, ldcs = getStateAndDependencies diagramName ldcs
         let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs 
-        simCache <- {
-            Name = diagramName
-            StoredState = ldcs
-            StoredResult = simResult
-            }
+        simCache <- {simCache with Name = diagramName}
+        simCache <- {simCache with StoredResult = simResult}
         simResult, canvasState
    
 let makeDummySimulationError msg = {
@@ -913,6 +922,25 @@ let viewSimulation canvasState model dispatch =
                 Error simError
         |> StartSimulation
         |> dispatch
+        match model.CurrentProj with
+        | Some project ->
+            let loadedDependencies = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+            let ldcs = addStateToLoadedComponents simCache.Name canvasState loadedDependencies
+            simCache <- {simCache with StoredState = ldcs}
+        | None -> ()
+
+    let hasCanvasChanged
+        (currentCanvasState)
+        (simCache)
+        (model)
+        : bool = 
+        match model.CurrentProj with
+        | Some project ->
+            let loadedDependencies = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+            let ldcs = addStateToLoadedComponents simCache.Name currentCanvasState loadedDependencies
+            let isSame = storedstateisEqual simCache ldcs
+            not isSame
+        | _ -> false
 
     // let JSState = model.Diagram.GetCanvasState ()
     match model.CurrentStepSimulationStep with

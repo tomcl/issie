@@ -517,43 +517,32 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
 let private makeNumberOfInputsField model (comp:Component) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
+    let errText =
+        model.PopupDialogData.Int
+        |> Option.map (fun i ->
+            if i < 2 || i > Constants.maxGateInputs then
+                sprintf "Must have between %d and %d inputs" 2 Constants.maxGateInputs
+            else
+                "")
+        |> Option.defaultValue ""
+
     let title, oldType, nInp =
         match comp.Type with
         | GateN (gType, n) -> "Number of inputs", gType, n
         | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
-    
-    let tabHeight = (Browser.Dom.document.getElementById "TabBody").getBoundingClientRect().height
-
-    let gateTypeList = [And; Or; Xor; Nand; Nor; Xnor]
 
     div [] [
-        Dropdown.dropdown [Dropdown.IsHoverable] [
-            Dropdown.trigger [] [
-                Button.button [Button.Color IsGrey; Button.IsLight] [
-                    str <| sprintf "Change %A gate type" oldType
-                ]
-            ]
-            Dropdown.menu [Props []] [
-                Dropdown.content 
-                    [Props [
-                            Style [Height $"{int (tabHeight/Constants.dropDownHeightFraction)}px";
-                            OverflowY OverflowOptions.Scroll]]]
-                    
-                    (gateTypeList
-                    |> List.map (fun gT ->
-                        Dropdown.Item.a
-                            [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) gT nInp)]]
-                            [str <| sprintf "%A" gT]))
-            ]
-        ]
+        span
+            [Style [Color Red]]
+            [str errText]
 
         intFormField title "60px" nInp 2 (
             fun newInpNum ->
-                if newInpNum < 2 || newInpNum > Constants.maxGateInputs then
-                    let props = errorPropsNotification <| sprintf "Must have between %d and %d inputs" 2 Constants.maxGateInputs
-                    dispatch <| SetPropertiesNotification props
-                else
+                if newInpNum >= 2 && newInpNum <= Constants.maxGateInputs then
                     model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) oldType newInpNum
+                    dispatch <| SetPopupDialogInt (Some newInpNum)
+                else
+                    dispatch <| SetPopupDialogInt (Some newInpNum)
         )
     ]
     

@@ -314,9 +314,6 @@ let getVerilogNInputBinaryOp cType portConversionFn =
     | GateN (gateType, n) ->
         List.init n portConversionFn
         |> List.reduce (getVerilogBinaryOp gateType)
-        |> (fun s ->
-            printfn "%A" s
-            s)
     | _ -> failwithf "operator %A not defined" cType
 
 /// get valid Verilog constant for bus of given width (may be 1)

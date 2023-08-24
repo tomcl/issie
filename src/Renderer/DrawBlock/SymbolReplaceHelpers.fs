@@ -132,19 +132,15 @@ let portNoUp (port:Port) =
 /// if edgeOpt is None the port will be added on the same edge as the port
 /// with the highest number
 let addNumberPort (pType: PortType) (pNum: int) (sym: Symbol) (edgeOpt: Edge option) =
-    let newInputPorts, newOutputPorts, newPort =
+    let newPort = (createNewPort pNum sym.Component.Id pType)
+    let newInputPorts, newOutputPorts =
         match pType with
         | PortType.Input ->
-            let newPort = (createNewPort pNum sym.Component.Id pType)
             sym.Component.InputPorts[..pNum-1] @ [newPort] @ List.map portNoUp sym.Component.InputPorts[pNum..],
-            sym.Component.OutputPorts,
-            newPort
+            sym.Component.OutputPorts
         | PortType.Output ->
-            let newPort = (createNewPort pNum sym.Component.Id pType)
             sym.Component.InputPorts,
-            sym.Component.OutputPorts[..pNum-1] @ [newPort] @ List.map portNoUp sym.Component.OutputPorts[pNum..],
-            newPort
-    
+            sym.Component.OutputPorts[..pNum-1] @ [newPort] @ List.map portNoUp sym.Component.OutputPorts[pNum..]
     let insertIndex =
         match sym.STransform.flipped with
         | false -> pNum
@@ -217,7 +213,7 @@ let deleteNumberPort (pType: PortType) (pNum: int) (sym: Symbol) =
 /// with the highest number
 let addPorts (pType: PortType) (pNumList: int list) (edgeOpt: Edge option) (sym: Symbol) =
     (sym, pNumList)
-    ||> List.fold (fun sym pNum -> addNumberPort PortType.Input pNum sym edgeOpt)
+    ||> List.fold (fun sym pNum -> addNumberPort pType pNum sym edgeOpt)
 
 /// delete ports specified by the list of port numbers
 /// must be in ascending order because otherwise wrong ports will be deleted

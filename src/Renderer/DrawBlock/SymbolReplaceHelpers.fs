@@ -113,47 +113,147 @@ let createNewPort no hostID portType =
                 HostId = hostID
             } 
 
-let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
-    let oldCompType = oldComp.Type
-    let portNoDown (port:Port) =
-        let no = port.PortNumber |> Option.get
-        {port with PortNumber = Some (no-1)}
-    let portNoUp (port:Port) =
-        let no = port.PortNumber |> Option.get
-        {port with PortNumber = Some (no+1)}
-    let changeInputPortList (inputPortList:Port list) =
-        inputPortList
-        |> List.collect (fun port ->
-            match oldCompType,newCompType with
-            |NbitsAdder _,NbitsAdderNoCin _ 
-            |NbitsAdderNoCout _, NbitsAdderNoCinCout _-> 
-                match port.PortNumber with
-                |Some 0 -> []
-                |_ -> [portNoDown port]
-            |NbitsAdderNoCin _ , NbitsAdder _ 
-            |NbitsAdderNoCinCout _ , NbitsAdderNoCout _ ->
-                match port.PortNumber with
-                |Some 0 -> [(createNewPort 0 oldComp.Id PortType.Input);portNoUp port]
-                |_ -> [portNoUp port]
-            |_,_ -> [port] 
+let updateSymPortMaps newPortMaps newInputPorts newOutputPorts sym =
+    sym
+    |> set portMaps_ newPortMaps
+    |> map component_ (
+        set inputPorts_ newInputPorts >>
+        set outputPorts_ newOutputPorts
         )
 
-    let changeOutputPortList (outputPortList:Port list) =
-        outputPortList
-        |> List.collect (fun port ->
-            match oldCompType,newCompType with
-            |NbitsAdder _,NbitsAdderNoCout _ 
-            |NbitsAdderNoCin _, NbitsAdderNoCinCout _-> 
-                match port.PortNumber with
-                |Some 0 -> [port]
-                |_ -> []
-            |NbitsAdderNoCout _ , NbitsAdder _ 
-            |NbitsAdderNoCinCout _ , NbitsAdderNoCin _ ->
-                match port.PortNumber with
-                |Some x -> [port; createNewPort 1 oldComp.Id PortType.Output]
-                |_ -> []
-            |_,_ -> [port]
-        )
+let portNoDown (port:Port) =
+    let no = port.PortNumber |> Option.get
+    {port with PortNumber = Some (no-1)}
+let portNoUp (port:Port) =
+    let no = port.PortNumber |> Option.get
+    {port with PortNumber = Some (no+1)}
+
+/// add the port specified by its type and number to the given symbol
+/// if edgeOpt is None the port will be added on the same edge as the port
+/// with the highest number
+let addNumberPort (pType: PortType) (pNum: int) (sym: Symbol) (edgeOpt: Edge option) =
+    let newInputPorts, newOutputPorts, newPort =
+        match pType with
+        | PortType.Input ->
+            let newPort = (createNewPort pNum sym.Component.Id pType)
+            sym.Component.InputPorts[..pNum-1] @ [newPort] @ List.map portNoUp sym.Component.InputPorts[pNum..],
+            sym.Component.OutputPorts,
+            newPort
+        | PortType.Output ->
+            let newPort = (createNewPort pNum sym.Component.Id pType)
+            sym.Component.InputPorts,
+            sym.Component.OutputPorts[..pNum-1] @ [newPort] @ List.map portNoUp sym.Component.OutputPorts[pNum..],
+            newPort
+    
+    let insertIndex =
+        match sym.STransform.flipped with
+        | false -> pNum
+        | true ->
+            match pType with
+            | PortType.Input -> sym.Component.InputPorts.Length - 1 - pNum
+            | PortType.Output -> sym.Component.OutputPorts.Length - 1 - pNum
+
+    let addToPortMaps (port: Port) (edge: Edge) (sym: Symbol) =
+        let order, orientation = sym.PortMaps.Order, sym.PortMaps.Orientation
+        let newOrientation = Map.add newPort.Id edge orientation
+        let edgeOrder = Map.find edge order
+        let newOrder =
+            Map.add edge (List.insertAt insertIndex port.Id edgeOrder) order
+        {Order = newOrder; Orientation = newOrientation}
+    
+    let getDefaultEdge pType =
+        match pType with
+        | PortType.Input -> (List.tryItem (sym.Component.InputPorts.Length-1) sym.Component.InputPorts, Left)
+        | PortType.Output -> (List.tryItem (sym.Component.OutputPorts.Length-1) sym.Component.OutputPorts, Right)
+        ||> fun portOpt defaultEdge ->
+            (Option.map (fun (port: Port) -> port.Id) portOpt, defaultEdge)
+        ||> fun idOpt defaultEdge ->
+            (Option.map (fun id -> Map.find id sym.PortMaps.Orientation) idOpt, defaultEdge)
+        ||> fun edgeOpt defaultEdge ->
+            Option.defaultValue defaultEdge edgeOpt
+        
+    let newPortMaps = addToPortMaps newPort (Option.defaultWith (fun _ -> getDefaultEdge pType) edgeOpt) sym
+
+    updateSymPortMaps newPortMaps newInputPorts newOutputPorts sym
+
+/// remove the port specified by its type and number from the given symbol
+let deleteNumberPort (pType: PortType) (pNum: int) (sym: Symbol) =
+    let pIdOpt, newInputPorts, newOutputPorts =
+        match pType with
+        | PortType.Input ->
+            sym.Component.InputPorts
+            |> List.tryItem pNum
+            |> Option.map (fun port -> port.Id),
+            sym.Component.InputPorts[..pNum-1] @ List.map portNoDown sym.Component.InputPorts[pNum+1..],
+            sym.Component.OutputPorts
+        | PortType.Output ->
+            sym.Component.OutputPorts
+            |> List.tryItem pNum
+            |> Option.map (fun port -> port.Id),
+            sym.Component.InputPorts,
+            sym.Component.OutputPorts[..pNum-1] @ List.map portNoDown sym.Component.OutputPorts[pNum+1..]
+    
+    let removeFromPortMaps (pId) (sym: Symbol) =
+        let order, orientation = sym.PortMaps.Order, sym.PortMaps.Orientation
+        let edge = Map.find pId orientation
+        let newOrientation = Map.remove pId orientation
+        let edgeOrder = Map.find edge order
+        let newEdgeOrder =
+            edgeOrder
+            |> List.filter (fun id -> id <> pId)
+        let newOrder = Map.add edge newEdgeOrder order
+        {Order = newOrder; Orientation = newOrientation}
+
+        
+    let newPortMaps =
+        pIdOpt
+        |> Option.map (fun id -> removeFromPortMaps id sym)
+        |> Option.defaultValue sym.PortMaps
+    
+    updateSymPortMaps newPortMaps newInputPorts newOutputPorts sym
+
+/// add the ports specified by the type and the list of port numbers
+/// if edgeOpt is None they will be added on the same edge as the port
+/// with the highest number
+let addPorts (pType: PortType) (pNumList: int list) (edgeOpt: Edge option) (sym: Symbol) =
+    (sym, pNumList)
+    ||> List.fold (fun sym pNum -> addNumberPort PortType.Input pNum sym edgeOpt)
+
+/// delete ports specified by the list of port numbers
+/// must be in ascending order because otherwise wrong ports will be deleted
+let deletePorts (pType: PortType) (pNumList: int list) (sym: Symbol) =
+    (sym, List.rev pNumList) // reverse list to avoid deleting wrong elements
+    ||> List.fold (fun sym pNum -> deleteNumberPort pType pNum sym)
+    
+
+/// add and remove ports to obtain the given number of input and output ports
+/// the ports will be added at the highest index, as well as removed from the end
+/// of the port list
+let varyNumberOfPorts (pType: PortType) (numInPorts: int) (numOutPorts: int) (sym: Symbol) =
+    let comp = sym.Component
+    
+    match comp.InputPorts.Length, comp.OutputPorts.Length, numInPorts, numOutPorts with
+    | oldNIn, oldNOut, newNIn, newNOut when (newNIn >= oldNIn && newNOut >= oldNOut) ->
+        sym
+        |> addPorts PortType.Input [oldNIn..newNIn-1] None
+        |> addPorts PortType.Output [oldNOut..newNOut-1] None
+    | oldNIn, oldNOut, newNIn, newNOut when (newNIn >= oldNIn && newNOut < oldNOut) ->
+        sym
+        |> addPorts PortType.Input [oldNIn..newNIn-1] None
+        |> deletePorts PortType.Output [newNOut..oldNOut-1]
+    | oldNIn, oldNOut, newNIn, newNOut when (newNIn < oldNIn && newNOut >= oldNOut) ->
+        sym
+        |> deletePorts PortType.Input [newNIn..oldNIn-1]
+        |> addPorts PortType.Output [oldNOut..newNOut-1] None
+    | oldNIn, oldNOut, newNIn, newNOut when (newNIn < oldNIn && newNOut < oldNOut) ->
+        sym
+        |> deletePorts PortType.Input [newNIn..oldNIn-1]
+        |> deletePorts PortType.Output [newNOut..oldNOut-1]
+    | _ -> failwithf "new port counts can't be obtained"
+
+
+let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
+    let oldCompType = oldComp.Type
 
     let inputEdge (rotation:Rotation) flipped =
         match rotation,flipped with
@@ -162,99 +262,48 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
         |Degree180,true |Degree180,false  -> Top
         |Degree270,false |Degree90,true -> Left
 
-
-    let changePortMaps rotation flipped (oldMaps:PortMaps) addedId removedId =
-        let order,orientation = oldMaps.Order, oldMaps.Orientation
-        match addedId,removedId with
-        |None, Some i ->
-            let edge = Map.find i orientation
-            let newOrientation = Map.remove i orientation
-            let onEdge = Map.find edge order
-            let newOnEdge = List.filter(fun x -> x<>i) onEdge
-            let newOrder = Map.add edge newOnEdge order
-            {Order=newOrder;Orientation=newOrientation}
-        |Some i, None ->
-            let edge = 
-                match oldCompType,newCompType with
-                |NbitsAdderNoCin _,NbitsAdder _
-                |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> inputEdge rotation flipped
-                |NbitsAdderNoCout _, NbitsAdder _
-                |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> Map.find oldComp.OutputPorts[0].Id orientation
-                |_ -> failwithf "Can't happen"
-            let newOrientation = Map.add i edge orientation
-            let onEdge = Map.find edge order
-            let newOrder = 
-                match flipped with
-                |false -> Map.add edge (onEdge@[i]) order
-                |true -> Map.add edge ([i]@onEdge) order
-            {Order=newOrder;Orientation=newOrientation}
-        |_,_ -> oldMaps
-
-    let symbol = Map.find compId symModel.Symbols
     
-    //printfn "here"
-    let newInputPorts = (changeInputPortList symbol.Component.InputPorts)
-    let newOutputPorts = (changeOutputPortList symbol.Component.OutputPorts)
-    let removedId = 
+    let symbol = Map.find compId symModel.Symbols
+    let removeL, removePType = 
         match oldCompType,newCompType with
         |NbitsAdder _,NbitsAdderNoCin _
-        |NbitsAdderNoCout _,NbitsAdderNoCinCout _-> Some symbol.Component.InputPorts[0].Id
+        |NbitsAdderNoCout _,NbitsAdderNoCinCout _-> [0], PortType.Input
         |NbitsAdder _,NbitsAdderNoCout _
-        |NbitsAdderNoCin _,NbitsAdderNoCinCout _-> Some symbol.Component.OutputPorts[1].Id
-        |_ -> None 
+        |NbitsAdderNoCin _,NbitsAdderNoCinCout _-> [1], PortType.Output
+        |_ -> [], PortType.Input
 
-    let addedId =
+    let addL, addPType =
         match oldCompType,newCompType with
         |NbitsAdderNoCin _,NbitsAdder _
-        |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> Some newInputPorts[0].Id
+        |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> [0], PortType.Input
         |NbitsAdderNoCout _, NbitsAdder _
-        |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> Some newOutputPorts[1].Id
-        |_ -> None 
-    
-    let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.STransform.flipped symbol.PortMaps addedId removedId
-    
-    
+        |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> [1], PortType.Output
+        |_ -> [], PortType.Input
 
+
+    let getEdge() =
+        if addL <> [] then
+            match oldCompType,newCompType with
+            |NbitsAdderNoCin _,NbitsAdder _
+            |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> Some (inputEdge symbol.STransform.Rotation symbol.STransform.flipped)
+            |NbitsAdderNoCout _, NbitsAdder _
+            |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> Some (Map.find oldComp.OutputPorts[0].Id symbol.PortMaps.Orientation)
+            |_ -> failwithf "Can't happen"
+        else
+            None
+    
     symbol
-    |> set portMaps_ newPortMaps
+    |> addPorts addPType addL (getEdge())
+    |> deletePorts removePType removeL
     |> map component_ (
-        set type_ newCompType >>
-        set inputPorts_ newInputPorts >>
-        set outputPorts_ newOutputPorts
+        set type_ newCompType
         )
     
 
 
 let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
     let oldCompType = oldComp.Type
-    let portNoDown (port:Port) =
-        let no = port.PortNumber |> Option.get
-        {port with PortNumber = Some (no-1)}
-    let portNoUp (port:Port) =
-        let no = port.PortNumber |> Option.get
-        {port with PortNumber = Some (no+1)}
     let symbol = Map.find compId symModel.Symbols
-    let oldInputList = symbol.Component.InputPorts
-    let newInputPorts =
-        match oldCompType,newCompType with
-        |Counter _,CounterNoLoad _ ->
-            [portNoDown (portNoDown oldInputList[2])]        
-        |CounterNoEnable _, CounterNoEnableLoad _-> 
-            []
-        |CounterNoLoad _ , Counter _ ->
-            [(createNewPort 0 oldComp.Id PortType.Input);(createNewPort 1 oldComp.Id PortType.Input);portNoUp (portNoUp oldInputList[0])]
-        |CounterNoEnableLoad _ , CounterNoEnable _ ->
-            [(createNewPort 0 oldComp.Id PortType.Input);(createNewPort 1 oldComp.Id PortType.Input)]
-        |Counter _, CounterNoEnable _ ->
-            [oldInputList[0];oldInputList[1]]
-        |CounterNoLoad _, CounterNoEnableLoad _ ->
-            []
-        |CounterNoEnableLoad _ , CounterNoLoad _ ->
-            [(createNewPort 0 oldComp.Id PortType.Input)]
-        |CounterNoEnable _, Counter _ ->
-            oldInputList@[(createNewPort 2 oldComp.Id PortType.Input)]
-        |_,_ -> oldInputList 
-        
 
     let findOpposite (edge:Edge) =
         match edge with
@@ -262,138 +311,42 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
         |Top -> Bottom
         |Left -> Right
         |Bottom -> Top
-    
-    let changePortMaps flipped (oldMaps:PortMaps) removedId1 removedId2 added1 added2 =
-        let order,orientation = oldMaps.Order, oldMaps.Orientation
-        let edge = findOpposite (Map.find oldComp.OutputPorts[0].Id orientation)
-        match removedId1,removedId2,added1,added2 with
-        |Some i1, Some i2,None,None ->
-            let newOrientation = Map.remove i1 orientation
-            let newOrientation' =  Map.remove i2 newOrientation
-            let onEdge = Map.find edge order
-            let newOnEdge = List.filter(fun x -> (x<>i1)) onEdge
-            let newOnEdge' = List.filter(fun x -> (x<>i2)) newOnEdge
-            let newOrder = Map.add edge newOnEdge' order
-            {Order=newOrder;Orientation=newOrientation'}
-        |Some i, None, None, None ->
-            let newOrientation = Map.remove i orientation
-            let onEdge = Map.find edge order
-            let newOnEdge = List.filter(fun x -> x<>i) onEdge
-            let newOrder = Map.add edge newOnEdge order
-            {Order=newOrder;Orientation=newOrientation}
-        |None,None,Some i1, Some i2 ->
-            let newOrientation = Map.add i1 edge orientation
-            let newOrientation' = Map.add i2 edge newOrientation
-            let onEdge = Map.find edge order
-            let newOrder = 
-                match flipped with
-                |false -> Map.add edge ([i1;i2]@onEdge) order
-                |true -> Map.add edge (onEdge@[i1;i2]) order
-            {Order=newOrder;Orientation=newOrientation'}
-        |None,None,Some i,None ->
-            let newOrientation = Map.add i edge orientation
-            let onEdge = Map.find edge order
-            let newOrder = 
-                match flipped with
-                |false -> Map.add edge (onEdge@[i]) order
-                |true -> Map.add edge ([i]@onEdge) order
-            {Order=newOrder;Orientation=newOrientation}
-        |_,_,_,_ -> oldMaps
 
+    let edge = findOpposite (Map.find oldComp.OutputPorts[0].Id symbol.PortMaps.Orientation)
     
-    
-    //printfn "here"
-    let removedId1, removedId2 = 
+    let removeL = 
         match oldCompType,newCompType with
         |Counter _,CounterNoLoad _
-        |CounterNoEnable _,CounterNoEnableLoad _-> Some symbol.Component.InputPorts[0].Id, Some symbol.Component.InputPorts[1].Id
-        |Counter _,CounterNoEnable _ -> Some symbol.Component.InputPorts[2].Id, None
-        |CounterNoLoad _,CounterNoEnableLoad _-> Some symbol.Component.InputPorts[0].Id, None
-        |_,_ -> None, None
+        |CounterNoEnable _,CounterNoEnableLoad _-> [0; 1]
+        |Counter _,CounterNoEnable _ -> [2]
+        |CounterNoLoad _,CounterNoEnableLoad _-> [0]
+        |_,_ -> []
 
-    let added1,added2 =
+    let addL =
         match oldCompType,newCompType with
         |CounterNoLoad _, Counter _
-        |CounterNoEnableLoad _, CounterNoEnable _ -> Some newInputPorts[0].Id, Some newInputPorts[1].Id
-        |CounterNoEnable _,Counter _ -> Some newInputPorts[2].Id, None
-        |CounterNoEnableLoad _ , CounterNoLoad _ -> Some newInputPorts[0].Id, None
-        |_,_ -> None, None
-
-    let newPortMaps = changePortMaps symbol.STransform.flipped symbol.PortMaps removedId1 removedId2 added1 added2
-    let h',w' = match getComponentProperties newCompType "" with |_,_,h,w -> h,w
+        |CounterNoEnableLoad _, CounterNoEnable _ -> [0; 1]
+        |CounterNoEnable _,Counter _ -> [2]
+        |CounterNoEnableLoad _ , CounterNoLoad _ -> [0]
+        |_,_ -> []
     
+    let h',w' = match getComponentProperties newCompType "" with |_,_,h,w -> h,w
+
     symbol
-    |> set portMaps_ newPortMaps
+    |> addPorts PortType.Input addL (Some edge)
+    |> deletePorts PortType.Input removeL
     |> map component_ (
         set type_ newCompType >>
-        set inputPorts_ newInputPorts >>
         set h_ h' >>
         set w_ w'
         )
 
+
 let changeGateComponent (symModel: Model) (compId: ComponentId) (gateType: GateComponentType) (n: int) =
-    let symbol = Map.find compId symModel.Symbols
-    let oldInputPorts = symbol.Component.InputPorts
-    let oldOutputPorts = symbol.Component.OutputPorts
-    let oldComp = symbol.Component
-    let oldGateType, oldN =
-        match oldComp.Type with
-        | GateN (gateType, n) -> gateType, n
-        | cType -> failwithf "Only gate type should be encountered here not %A" cType
-
-    let newInputPorts, aPorts, rPorts =
-        match oldN, n with
-        | n1, n2 when n2 < n1 ->
-            oldInputPorts[..n2-1], [], oldInputPorts[n2..]
-        | n1, n2 when n2 > n1 ->
-            let newPorts =
-                [n1..n2-1]
-                |> List.map (fun no -> createNewPort no oldComp.Id PortType.Input)
-            oldInputPorts @ newPorts, newPorts, []
-        | _, _ -> oldInputPorts, [], []
-
-
-
-    let changePortMaps rotation flipped (oldMaps:PortMaps) addedIds removedIds =
-        let order,orientation = oldMaps.Order, oldMaps.Orientation
-        match addedIds,removedIds with
-        | [], [] -> oldMaps
-        | [], rIds ->
-            let newOrientation =
-                orientation
-                |> Map.filter (fun key edge -> not (List.contains key rIds))
-            let edge = Map.find rIds[0] orientation
-            let onEdge = Map.find edge order
-            let newOnEdge =
-                onEdge
-                |> List.filter (fun x -> not (List.contains x rIds))
-            let newOrder =
-                Map.add edge newOnEdge order
-            {Order = newOrder; Orientation = newOrientation}
-        | aIds, [] ->
-            let edge = Map.find oldComp.InputPorts[0].Id orientation
-            let newOrientation =
-                (orientation, aIds)
-                ||> List.fold (fun orientation i -> Map.add i edge orientation)
-            let onEdge = Map.find edge order
-            let newOrder = Map.add edge (onEdge @ aIds) order
-            {Order=newOrder;Orientation=newOrientation}
-        | _, _ -> oldMaps
-
-    let symbol = Map.find compId symModel.Symbols
-    
-    let aIds = aPorts |> List.map (fun port -> port.Id)
-    let rIds = rPorts |> List.map (fun port -> port.Id)
-    
-    let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.STransform.flipped symbol.PortMaps aIds rIds
-    
-    
-    symbol
-    |> set portMaps_ newPortMaps
+    Map.find compId symModel.Symbols
+    |> varyNumberOfPorts PortType.Input n 1
     |> map component_ (
         set type_ (GateN (gateType, n)) >>
-        set inputPorts_ newInputPorts >>
-        set outputPorts_ oldOutputPorts >>
         set h_ (1.5*(float Constants.gridSize) * (float n)/2.)
         )
 

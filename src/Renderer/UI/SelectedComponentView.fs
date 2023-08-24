@@ -524,6 +524,8 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
     
     let tabHeight = (Browser.Dom.document.getElementById "TabBody").getBoundingClientRect().height
 
+    let gateTypeList = [And; Or; Xor; Nand; Nor; Xnor]
+
     div [] [
         Dropdown.dropdown [Dropdown.IsHoverable] [
             Dropdown.trigger [] [
@@ -536,26 +538,12 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
                     [Props [
                             Style [Height $"{int (tabHeight/Constants.dropDownHeightFraction)}px";
                             OverflowY OverflowOptions.Scroll]]]
-                    [
-                    Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) And nInp)]]
-                        [str "And"]
-                    Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Or nInp)]]
-                        [str "Or"]
-                    Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Xor nInp)]]
-                        [str "Xor"]
-                    Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Nand nInp)]]
-                        [str "Nand"]
-                    Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Nor nInp)]]
-                        [str "Nor"]
-                    Dropdown.Item.a
-                        [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) Xnor nInp)]]
-                        [str "Xnor"]
-                ]
+                    
+                    (gateTypeList
+                    |> List.map (fun gT ->
+                        Dropdown.Item.a
+                            [Dropdown.Item.Props [OnClick (fun _ -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) gT nInp)]]
+                            [str <| sprintf "%A" gT]))
             ]
         ]
 

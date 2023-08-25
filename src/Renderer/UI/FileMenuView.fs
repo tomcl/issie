@@ -1042,17 +1042,19 @@ let private importSheet model dispatch =
             | Ok _ -> ()
             | Error msg -> displayFileErrorNotification msg dispatch
 
-        let createSheetInfo (model : Model) ((sheetPath, hasDependencies): string * bool) =
+        let createSheetInfo (model : Model) ((sheetPath, dependencies): string * Set<string>) =
             let fileName = baseName sheetPath
 
             let newSheetPath = pathJoin [|projectDir; fileName|]
+
+            let hasDependencies = Set.count dependencies <> 0
 
             let sheetExists, depSheets =
                 match getSheetInfo model sheetPath newSheetPath with
                 | Some depSheets -> true, depSheets
                 | None -> false, ""
 
-            let decisionMadeMatches (decision : ImportDecision option) =
+            let decisionMadeMatches (sheetPath : string) (decision : ImportDecision option) =
                 fun (model : Model) ->
                     let valueOption = Map.tryFind sheetPath (importDecisions model)
 
@@ -1071,7 +1073,57 @@ let private importSheet model dispatch =
                     ]
                 ]
 
-            else 
+            
+            else
+                let Button (sheetPath : string) (buttonDecision : ImportDecision option) (name : string) (isDisabled : bool) =
+                    [ Button.button
+                        [ 
+                            Button.Size IsSmall
+                            Button.IsOutlined
+                            Button.Color IsPrimary
+                            Button.Disabled isDisabled
+                            Button.IsFocused (decisionMadeMatches sheetPath buttonDecision model)
+                            Button.OnClick(fun _ ->
+                                updateDecisions sheetPath buttonDecision model
+                            )] [ str name ]             
+                    ]
+
+                let dependencyReactElement dependency =                            
+          
+                    match dependency with
+                    | dependencyPath ->
+                        match hasExtn ".dgm" dependencyPath with
+                        | true ->
+                        Navbar.Item.div [ Navbar.Item.Props [] ]
+                            [ Level.level [ Level.Level.Props []]
+                                  [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str <| baseNameWithoutExtension dependencyPath ] ]
+                                    Level.right [ Props [ Style [ MarginLeft "5px" ] ] ]
+                                        [
+                                          Level.item []
+                                            [
+                                            
+                                            match Map.containsKey dependencyPath (importDecisions model) with
+                                            | true ->
+                                                str "will be imported."
+                                            | false ->
+                                                str "will be ignored."
+                                 
+                                            ]
+
+                                          Level.item []
+                                            (Button dependencyPath (Some Overwrite) "Import" false)
+
+                                        ] ] ]
+                        | false ->
+          
+                            p [Style [Color "red"; FontWeight "Bold"]]
+                            [
+                                str "Warning: "
+                                strong [] [str dependencyPath]
+                                str " doesn't exist in source and destination directories."
+                            ]
+
+          
                 match sheetExists with
                 | true ->
 
@@ -1087,27 +1139,17 @@ let private importSheet model dispatch =
                             tryGetLoadedComponents model
                             |> List.find (fun ldc -> ldc.Name = baseNameWithoutExtension sheetPath)
                             |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
-                                           
-                        let Button (buttonDecision : ImportDecision option) (name : string) (isDisabled : bool)=
-                            [ Button.button
-                                [ 
-                                    Button.Size IsSmall
-                                    Button.IsOutlined
-                                    Button.Color IsPrimary
-                                    Button.Disabled isDisabled
-                                    Button.IsFocused (decisionMadeMatches buttonDecision model)
-                                    Button.OnClick(fun _ ->
-                                        updateDecisions sheetPath buttonDecision model
-                                    )] [ str name ]             
-                            ]
+                                        
 
                         div [] [
                         p [] [
                         str "Sheet "
                         strong [] [str fileName]
-                        str <| sprintf " already exists in project. Dependents: %s " (match depSheets with
-                                                                                                    | "" -> "None"
-                                                                                                    | _ -> depSheets)
+                        str <| sprintf " already exists in project. "
+                        str <| (match depSheets with
+                                | "" -> ""
+                                | _ -> sprintf "Dependents: %s " depSheets
+                                )
                         ]
 
                         match (sourceSig <> destSig) with
@@ -1130,18 +1172,30 @@ let private importSheet model dispatch =
                                     Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
                                         [        
                                           Level.item []
-                                            (Button (Some Overwrite) "Overwrite" ((sourceSig <> destSig) && (depSheets <> "")))
+                                            (Button sheetPath (Some Overwrite) "Overwrite" ((sourceSig <> destSig) && (depSheets <> "")))
                                
                                           Level.item []
-                                            (Button (Some Rename) "Rename" false)
+                                            (Button sheetPath (Some Rename) "Rename" false)
 
                                         ] ] ]
 
                         match hasDependencies with
                         | true ->
-                            p [Style [Color "red"; FontWeight "bold"]] [
-                                str "Warning: Sheet has dependencies!"
+                            p [Style [Color "blue"; FontWeight "bold"]] [
+                                str "Import dependencies: "
                             ]
+
+                            let content = 
+                                dependencies
+                                |> Set.toArray
+                                |> Array.map (fun dependency ->
+                   
+                                    dependencyReactElement dependency
+                                )
+
+                            (div [] content)
+
+                            
                         | false -> str ""
                         ]
                                 
@@ -1167,37 +1221,90 @@ let private importSheet model dispatch =
 
                         match hasDependencies with
                         | true ->
-                            p [Style [Color "red"; FontWeight "bold"]] [
-                                str "Warning: Sheet has dependencies!"
+                            p [Style [Color "blue"; FontWeight "bold"]] [
+                                str "Import dependencies: "
                             ]
+
+                            let content = 
+                                dependencies
+                                |> Set.toArray
+                                |> Array.map (fun dependency ->
+                                    dependencyReactElement dependency
+                                )
+
+                            (div [] content)   
+                        
                         | false -> str ""
                         ]
 
         match askForExistingSheetPaths model.UserData.LastUsedDirectory with
         | None -> () // User gave no path.
         | Some paths ->
-
-            let hasDependencies oldSheetPath = 
-                // does sheet have dependencies?
-                match tryLoadComponentFromPath oldSheetPath with
-                | Error err ->
-                    log err
-                    false
-                | Ok ldc ->
-                    let comps, _ = ldc.CanvasState
-
-                    comps
-                    |> List.filter (fun comp ->
-                        match comp.Type with
-                        | Custom ct -> true
-                        | _ -> false
-                    )
-                    |>
-                    List.length <> 0
+            let sourceProjectPath = dirName paths[0]
 
             let pathsWithDependencies =
                 paths
-                |> List.map (fun path -> (path, hasDependencies path))
+                |> List.map (fun path ->
+                    
+                    let rec parse2 (path : string) (deps : string list) =
+                        
+                        match tryLoadComponentFromPath path with
+                        | Error err ->
+                            log <| err
+                            deps  // the dependency doesn't exist in source directory
+                            
+                        | Ok ldc ->
+                            let comps, _ = ldc.CanvasState
+
+
+                            let customCompsPaths =
+                                comps
+                                |> List.filter (fun comp ->
+                                    match comp.Type with
+                                    | Custom _ -> true
+                                    | _ -> false
+                                )
+                                |> List.map (fun comp ->
+                                    match comp.Type with
+                                    | Custom ct ->
+                                        let dependencyPath = pathJoin [|sourceProjectPath; ct.Name + ".dgm"|]
+
+                                        match exists dependencyPath with
+                                        | true -> dependencyPath
+                                        | false -> ""
+
+                                    | _ -> ""
+                                )
+                                |> List.distinct
+                                |> List.filter (fun s -> s <> "")
+                            
+                                
+                            match List.length customCompsPaths with
+                            | 0 ->  deps
+                            | _ ->
+                                customCompsPaths
+                                |> List.collect (fun dependencyPath ->
+                                    let dependencyName = baseName dependencyPath
+
+                                    match exists dependencyPath with
+                                    | true ->
+                                        match (exists <| pathJoin [|projectDir; dependencyName|]) || (List.contains dependencyPath paths) with
+                                        | true -> parse2 dependencyPath deps
+                                        | false -> parse2 dependencyPath (dependencyPath :: deps)
+
+                                    | false ->
+                                        match (exists <| pathJoin [|projectDir; baseName dependencyPath|]) || (List.contains dependencyPath paths) with
+                                        | true -> parse2 dependencyPath deps
+                                        | false -> parse2 dependencyPath (dependencyName :: deps)  // dependency doesn't exist in either directory
+                                )
+
+                    let dependencies =
+                        parse2 path []
+                        |> Set.ofList
+
+                    (path, dependencies)
+                )
+
         
             let popupBody =
                 fun (model' : Model) ->
@@ -1216,11 +1323,13 @@ let private importSheet model dispatch =
                         |> Map.toList
                         |> List.map (fun (sheetPath, decision) ->
                             match decision with
-                            | Some Overwrite | None ->
+                            | Some Overwrite  ->
                                 sheetPath, pathJoin [|projectDir; baseName sheetPath|]
 
                             | Some Rename ->
                                 sheetPath, pathJoin [|projectDir; baseNameWithoutExtension sheetPath + "_Copy" + ".dgm"|]
+
+                            | None -> sheetPath, ""
 
                         )
 
@@ -1233,13 +1342,12 @@ let private importSheet model dispatch =
                        
                     )
 
-                    newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) -> copySheet oldSheetPath newSheetPath model' dispatch)
-
+                    newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) ->
+                                match newSheetPath with
+                                | "" -> ()
+                                | path -> copySheet oldSheetPath path model' dispatch)
+                               
                     openProjectFromPath projectDir model' dispatch
-
-                    //let y = (getLoadedComponentsFromProj (dirName paths[0]))[1]
-
-                    // log <| y.FilePath
 
                     dispatch ClosePopup
                     dispatch FinishUICmd

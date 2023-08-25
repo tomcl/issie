@@ -299,7 +299,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             | Some {Component = {Type = Custom ct}} ->
                 DBCustomComp (symbols[compId], ct)
             | Some sym ->
-                DBComp sym
+                if sym.Annotation = None then DBComp sym else NoMenu
         | SheetT.MouseOn.Connection connId, _, _ ->
             Map.tryFind connId bwModel.Wires
             |> function | None ->

@@ -234,14 +234,14 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
     let ins =
         [| 0 .. inPortNum - 1 |]
         |> Array.map (fun n -> makeIOArray maxArraySize)
-    printfn "Type: %A; ins array: %A" sComp.Type ins
+    //printfn "Type: %A; ins array: %A" sComp.Type ins
     let outs =
         match sComp.Type, sComp.OutputWidths.Length with
         | IOLabel, 0 -> [| makeIOArray maxArraySize |] // NOTE - create dumpy Outputs array for inavtive IOLabels
         | _ ->
             sComp.OutputWidths
             |> Array.map (fun w -> makeIOArrayW w maxArraySize)
-    printfn "Type: %A; outs array: %A" sComp.Type outs
+    //printfn "Type: %A; outs array: %A" sComp.Type outs
 
     let state =
         if couldBeSynchronousComponent sComp.Type then

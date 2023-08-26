@@ -32,7 +32,10 @@ NearleyBindings.importGrammar
 NearleyBindings.importFix
 NearleyBindings.importParser
 
-let private menuItem styles label onClick =
+module Constants =
+    let maxGateInputs = 4
+
+let menuItem styles label onClick =
     Menu.Item.li
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick; Style styles ] ]
         [ str label ]
@@ -215,6 +218,25 @@ let createSheetDescriptionPopup (model:Model) previousDescr sheetName dispatch =
             false  //allow all
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
+let private createGateNPopup (gateType: GateComponentType) (model: Model) dispatch =
+    let title = $"Add N input {gateType} gate"
+    let beforeInt =
+        fun _ -> str "How many inputs should the gate have?"
+    let intDefault = 2
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
+            let inputInt = getInt dialogData
+            createCompStdLabel (GateN (gateType, inputInt)) model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (model': Model) ->
+            let intIn = getInt model'.PopupDialogData
+            intIn < 2 || intIn > Constants.maxGateInputs
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
 let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"
     let beforeInt =
@@ -230,7 +252,7 @@ let private createNbitsAdderPopup (model:Model) dispatch =
             createCompStdLabel (NbitsAdder inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (model': Model) -> getInt model.PopupDialogData < 1
+        fun (model': Model) -> getInt model'.PopupDialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -852,12 +874,12 @@ let viewCatalogue model dispatch =
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
-                          catTip1 "And"  (fun _ -> createCompStdLabel And model dispatch) "Output is 1 if both the two inputs are 1"
-                          catTip1 "Or"   (fun _ -> createCompStdLabel Or model dispatch) "Output is 1 if either of the two inputs are 1"
-                          catTip1 "Xor"  (fun _ -> createCompStdLabel Xor model dispatch) "Output is 1 if the two inputs have different values"
-                          catTip1 "Nand" (fun _ -> createCompStdLabel Nand model dispatch) "Output is 0 if both the two inputs are 1"
-                          catTip1 "Nor"  (fun _ -> createCompStdLabel Nor model dispatch) "Output is 0 if either of the two inputs are 1"
-                          catTip1 "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) "Output is 1 if the two inputs have the same values"]
+                          catTip1 "And"  (fun _ -> createCompStdLabel (GateN (And, 2)) model dispatch) "Output is 1 if both the two inputs are 1"
+                          catTip1 "Or"   (fun _ -> createCompStdLabel (GateN (Or, 2)) model dispatch) "Output is 1 if either of the two inputs are 1"
+                          catTip1 "Xor"  (fun _ -> createCompStdLabel (GateN (Xor, 2)) model dispatch) "Output is 1 if the two inputs have different values"
+                          catTip1 "Nand" (fun _ -> createCompStdLabel (GateN (Nand, 2)) model dispatch) "Output is 0 if both the two inputs are 1"
+                          catTip1 "Nor"  (fun _ -> createCompStdLabel (GateN (Nor, 2)) model dispatch) "Output is 0 if either of the two inputs are 1"
+                          catTip1 "Xnor" (fun _ -> createCompStdLabel (GateN (Xnor, 2)) model dispatch) "Output is 1 if the two inputs have the same values"]
                     makeMenuGroup
                         "Mux / Demux"
                         [ catTip1 "2-Mux" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"

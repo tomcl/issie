@@ -25,6 +25,7 @@ open FileMenuView
 
 module Constants =
     let labelUniqueMess = "Components must have a unique label within one sheet"
+    let dropDownHeightFraction = 2.5
 
 
 let private readOnlyFormField name body =
@@ -129,6 +130,9 @@ let private int64FormFieldNoMin name (defaultValue:int64) (currentText:string op
             Input.OnChange (getTextEventValue >> onChange)
         ]
     ]
+
+let private gateTypeDropdown =
+    ()
 
 
 let getInitSource (mem: Memory1) (model:Model)=
@@ -510,6 +514,41 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
                 dispatch ClosePropertiesNotification
     )
 
+let private makeNumberOfInputsField model (comp:Component) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
+    let errText =
+        model.PopupDialogData.Int
+        |> Option.map (fun i ->
+            if i < 2 || i > Constants.maxGateInputs then
+                sprintf "Must have between %d and %d inputs" 2 Constants.maxGateInputs
+            else
+                "")
+        |> Option.defaultValue ""
+
+    let title, oldType, nInp =
+        match comp.Type with
+        | GateN (gType, n) -> "Number of inputs", gType, n
+        | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
+
+    div [] [
+        span
+            [Style [Color Red]]
+            [str errText]
+
+        intFormField title "60px" nInp 2 (
+            fun newInpNum ->
+                if newInpNum >= 2 && newInpNum <= Constants.maxGateInputs then
+                    model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) oldType newInpNum
+                    dispatch <| SetPopupDialogInt (Some newInpNum)
+                else
+                    dispatch <| SetPopupDialogInt (Some newInpNum)
+        )
+    ]
+    
+
+    
+
 /// Used for Input1 Component types. Make field for users to enter a default value for
 /// Input1 Components when they are undriven.
 let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElement =
@@ -690,8 +729,10 @@ let private makeDescription (comp:Component) model dispatch =
         str "To join inputs and outputs without wires."; br []
         str "To prevent an unused output from giving an error."
         ]
-    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+    | Not ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
+    | GateN (gateType, _) ->
+        div [] [ str <| sprintf "%A gate." gateType ]
     | Mux2 -> div [] [ 
         str "Multiplexer with two inputs and one output." 
         br []
@@ -838,6 +879,11 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             [
                 makeNumberOfBitsField model comp text dispatch
                 makeDefaultValueField model comp dispatch
+            ]
+    | GateN _ ->
+        div []
+            [
+                makeNumberOfInputsField model comp dispatch
             ]
     | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch

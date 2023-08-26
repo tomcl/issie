@@ -261,14 +261,33 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | Some stateArr -> stateArr.Step[simStep] <- state
     
     /// implement a binary combinational operation for n inputs
+    // let inline getNInpBinaryGateReducer (nIns: int) (gateType: GateComponentType) : Unit =
+    //     [0..nIns-1]
+    //     |> List.map insUInt32
+    //     |> List.reduce (bitGate gateType)
+    //     |> function
+    //         | x when (isNegated gateType) -> (if x = 1u then 0u else 1u)
+    //         | x -> x
+    //     |> putUInt32 0
+    
+    /// implement a binary combinational operation for n inputs
     let inline getNInpBinaryGateReducer (nIns: int) (gateType: GateComponentType) : Unit =
-        [0..nIns-1]
-        |> List.map insUInt32
-        |> List.reduce (bitGate gateType)
-        |> function
-            | x when (isNegated gateType) -> (if x = 1u then 0u else 1u)
-            | x -> x
-        |> putUInt32 0
+        if nIns = 2 then
+            bitAnd (insUInt32 0) (insUInt32 1)
+            |> putUInt32 0
+        else
+            let mutable gateResult = insUInt32 0
+            for gateInputNum = 1 to nIns-1 do
+                gateResult <- bitGate gateType gateResult (insUInt32 gateInputNum)
+            if (isNegated gateType) then
+                putUInt32 0 (bitNot gateResult)
+            else
+                putUInt32 0 gateResult
+        // gateResult
+        // |> function
+        //     | x when (isNegated gateType) -> bitNot x
+        //     | x -> x
+        // |> putUInt32 0
 
     /// Error checking (not required in production code) check widths are consistent
     let inline checkWidth width w =

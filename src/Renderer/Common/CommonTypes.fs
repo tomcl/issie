@@ -203,6 +203,7 @@ module CommonTypes
         |LSR
         |ASR
     
+    [<StringEnum>]
     type GateComponentType =
         | And
         | Or

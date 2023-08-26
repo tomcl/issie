@@ -337,6 +337,72 @@ let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Comp
         set w_ w'
         )
 
+let changeGateComponent (symModel: Model) (compId: ComponentId) (gateType: GateComponentType) (n: int) =
+    let symbol = Map.find compId symModel.Symbols
+    let oldInputPorts = symbol.Component.InputPorts
+    let oldOutputPorts = symbol.Component.OutputPorts
+    let oldComp = symbol.Component
+    let oldGateType, oldN =
+        match oldComp.Type with
+        | GateN (gateType, n) -> gateType, n
+        | cType -> failwithf "Only gate type should be encountered here not %A" cType
+
+    let newInputPorts, aPorts, rPorts =
+        match oldN, n with
+        | n1, n2 when n2 < n1 ->
+            oldInputPorts[..n2-1], [], oldInputPorts[n2..]
+        | n1, n2 when n2 > n1 ->
+            let newPorts =
+                [n1..n2-1]
+                |> List.map (fun no -> createNewPort no oldComp.Id PortType.Input)
+            oldInputPorts @ newPorts, newPorts, []
+        | _, _ -> oldInputPorts, [], []
+
+
+
+    let changePortMaps rotation flipped (oldMaps:PortMaps) addedIds removedIds =
+        let order,orientation = oldMaps.Order, oldMaps.Orientation
+        match addedIds,removedIds with
+        | [], [] -> oldMaps
+        | [], rIds ->
+            let newOrientation =
+                orientation
+                |> Map.filter (fun key edge -> not (List.contains key rIds))
+            let edge = Map.find rIds[0] orientation
+            let onEdge = Map.find edge order
+            let newOnEdge =
+                onEdge
+                |> List.filter (fun x -> not (List.contains x rIds))
+            let newOrder =
+                Map.add edge newOnEdge order
+            {Order = newOrder; Orientation = newOrientation}
+        | aIds, [] ->
+            let edge = Map.find oldComp.InputPorts[0].Id orientation
+            let newOrientation =
+                (orientation, aIds)
+                ||> List.fold (fun orientation i -> Map.add i edge orientation)
+            let onEdge = Map.find edge order
+            let newOrder = Map.add edge (onEdge @ aIds) order
+            {Order=newOrder;Orientation=newOrientation}
+        | _, _ -> oldMaps
+
+    let symbol = Map.find compId symModel.Symbols
+    
+    let aIds = aPorts |> List.map (fun port -> port.Id)
+    let rIds = rPorts |> List.map (fun port -> port.Id)
+    
+    let newPortMaps = changePortMaps symbol.STransform.Rotation symbol.STransform.flipped symbol.PortMaps aIds rIds
+    
+    
+    symbol
+    |> set portMaps_ newPortMaps
+    |> map component_ (
+        set type_ (GateN (gateType, n)) >>
+        set inputPorts_ newInputPorts >>
+        set outputPorts_ oldOutputPorts >>
+        set h_ (1.5*(float Constants.gridSize) * (float n)/2.)
+        )
+
 
 let changeGateComponent (symModel: Model) (compId: ComponentId) (gateType: GateComponentType) (n: int) =
     Map.find compId symModel.Symbols

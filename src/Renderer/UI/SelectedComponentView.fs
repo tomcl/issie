@@ -526,6 +526,7 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
                 "")
         |> Option.defaultValue ""
 
+
     let title, oldType, nInp =
         match comp.Type with
         | GateN (gType, n) -> "Number of inputs", gType, n

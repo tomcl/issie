@@ -146,6 +146,16 @@ let inline private bitGate gateType =
     | Or | Nor -> bitOr
     | Xor | Xnor -> bitXor
 
+
+let inline private getBinaryOp gateType =
+    match gateType with
+    | And -> bitAnd
+    | Or -> bitOr
+    | Xor -> bitXor
+    | Nand -> bitNand
+    | Nor -> bitNor
+    | Xnor -> bitXnor
+
 let inline private algNot exp = UnaryExp(NotOp, exp)
 
 let inline private algAnd exp1 exp2 = BinaryExp(exp1, BitAndOp, exp2)
@@ -260,6 +270,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | None -> failwithf "Attempt to put state into component %s without state array" comp.FullName
         | Some stateArr -> stateArr.Step[simStep] <- state
     
+    let inline getBinaryGateReducer (bitOp: uint32 -> uint32 -> uint32) : Unit =
+        let bit0, bit1 = insUInt32 0, insUInt32 1
+        putUInt32 0 <| bitOp bit1 bit0
 
     /// implement a binary combinational operation for n inputs
     let inline getNInpBinaryGateReducer (nIns: int) (gateType: GateComponentType) : Unit =
@@ -407,15 +420,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 
         putUInt32 0 outNum
 
-    // | GateN (gateType, n), false when n = 2 -> getBinaryGateReducer (getBinaryOp gateType)
-    | GateN (gateType, n),false -> getNInpBinaryGateReducer n gateType
+    | GateN (gateType, n),false ->
+        if n = 2 then
+            getBinaryGateReducer (getBinaryOp gateType)
+        else
+            getNInpBinaryGateReducer n gateType
 
-    // | And, true
-    // | Or, true
-    // | Xor, true
-    // | Nand, true
-    // | Nor, true
-    // | Xnor, true
     | Not, true
     | GateN _, true -> failwith "This should never happen, 1-bit component should not use BigInt"
 

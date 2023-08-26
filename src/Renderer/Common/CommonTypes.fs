@@ -272,7 +272,7 @@ module CommonTypes
          | GateN (_, n) when n = 2 -> IsBinaryGate
          | _ -> NotBinaryGate
     
-    let isNegated gateType =
+    let inline isNegated gateType =
         match gateType with
         | Nand | Nor | Xnor -> true
         | And | Or | Xor -> false

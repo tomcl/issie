@@ -89,6 +89,7 @@
     <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI\MemoryEditorView.fs" />
     <Compile Include="UI\FileMenuHelpers.fs" />
+    <Compile Include="UI\Breadcrumbs.fs" />
     <Compile Include="UI\FileMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI\SimulationView.fs" />
@@ -100,7 +101,6 @@
     <Compile Include="UI\BuildView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
-    <Compile Include="UI\WaveSim\Breadcrumbs.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />

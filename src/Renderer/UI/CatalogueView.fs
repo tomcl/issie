@@ -26,6 +26,7 @@ open Fable.SimpleJson
 open Fable.Core.JsInterop
 open System
 open FileMenuView
+open FileMenuHelpers
 open SheetCreator
 
 NearleyBindings.importGrammar

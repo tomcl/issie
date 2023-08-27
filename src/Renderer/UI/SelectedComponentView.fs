@@ -22,6 +22,7 @@ open DrawModelType
 open FilesIO
 open CatalogueView
 open FileMenuView
+open FileMenuHelpers
 
 module Constants =
     let labelUniqueMess = "Components must have a unique label within one sheet"

@@ -24,6 +24,7 @@ open PopupHelpers
 open DrawModelType
 open Sheet.SheetInterface
 open Optics
+open Optics.Operators
 open FileMenuHelpers
 
 open System
@@ -951,56 +952,30 @@ let sheetIsLocked sheet model =
     | _ -> false
 
     
-
-let changeLockState (isSubSheet: bool) (name: string) ((updateLock: LockState -> LockState))  (model: Model) (dispatch : Msg -> unit) =
-    let project = Option.get  model.CurrentProj
-    let ldc = List.find (fun ldc -> ldc.Name = name) project.LoadedComponents 
-    let lockState =
-        match ldc.Form with
-        | Some ProtectedTopLevel |Some ProtectedSubSheet -> Some Locked
-        | Some User -> Some Unlocked
+/// Change model to alter lock of sheet as determined by updateLock.
+/// Unlockable sheets are kept the same.
+/// isSubSheet must be true only if sheet is a root of the design hierarchy.
+let changeLockState (isSubSheet: bool) (sheet: SheetTree) (updateLock: LockState -> LockState) =
+    let lockState = function
+        | ProtectedTopLevel | ProtectedSubSheet ->
+            Some Locked
+        | User -> Some Unlocked
         | _ -> None
-    let lockUnlock updateLock form =
-        match Option.map updateLock lockState with
-        | Some Locked ->
-            if isSubSheet then Some ProtectedSubSheet else Some ProtectedTopLevel
-        | Some Unlocked-> Some User
+    let formUpdate form =
+        match Option.map updateLock (lockState form) with
+        | Some Unlocked -> User
+        | Some Locked when isSubSheet -> ProtectedSubSheet
+        | Some Locked -> ProtectedTopLevel
         | None -> form
-    let ldc' = {ldc with Form = (lockUnlock updateLock ldc.Form)}
-    let updatedLdcs = updateLdCompsWithCompOpt (Some ldc') project.LoadedComponents
-    let p' = {project with LoadedComponents = updatedLdcs}
-    let cs = ldc'.CanvasState
-    let sheetInfo = {Form = ldc'.Form; Description = ldc'.Description} 
-    let savedState = cs, getSavedWave model,(Some sheetInfo)
-    saveStateToFile project.ProjectPath name savedState
-    |> displayAlertOnError dispatch
-    printf "Changing lock state of %s (was '%A') to '%A'" name lockState (Option.map updateLock lockState)
-    dispatch <| SetProject p'
+    Optic.map (projectOpt_ >?> loadedComponentOf_ sheet.SheetName >?> formOpt_) (Option.map formUpdate)
 
-let getLockButton (name:string) (isSubSheet:bool) (project:Project) (model:Model) dispatch : ReactElement =
-    match JSHelpers.debugLevel <> 0 with
-    |true -> 
-        let ldc = List.find (fun ldc -> ldc.Name = name) project.LoadedComponents 
-        let buttonText =
-            match ldc.Form with
-            |Some ProtectedTopLevel |Some ProtectedSubSheet -> "Unlock"
-            |_ -> "Lock"
-        Level.item []
-            [ Button.button
-                [ 
-                    Button.Size IsSmall
-                    Button.IsOutlined
-                    Button.Color IsPrimary
-                    Button.OnClick(fun _ -> changeLockState
-                                                isSubSheet
-                                                name
-                                                invertSheetLockState
-                                                model
-                                                dispatch
+/// Change model to alter lock of tree with root sheet as determined by updateLock.
+/// Unlockable sheets are kept the same.
+/// isSubSheet must be true only if sheet is a root of the design hierarchy.
+let changeSubtreeLockState (isSubSheet: bool) (sheet: SheetTree) (updateLock: LockState -> LockState) =
+    foldOverTree isSubSheet (fun b sheet -> changeLockState b sheet updateLock) sheet
 
-                        )] [ str buttonText ] 
-            ]
-    |false -> null 
+
 
 let addVerticalScrollBars r =
     // dealwith case where Canvas does not exist
@@ -1031,49 +1006,7 @@ let viewTopMenu model dispatch =
         | None -> "no open project", "no open sheet"
         | Some project -> project.ProjectPath, project.OpenFileName
 
-    let makeFileLine isSubSheet name project model =
-        let nameProps = 
-            if isSubSheet then 
-                [] else  
-                [Props [Style [FontWeight "bold"]]]
-        Navbar.Item.div [ Navbar.Item.Props [ styleNoBorder  ] ]
-            [ Level.level [ Level.Level.Props [ styleNoBorder ]]
-                  [ Level.left nameProps [ Level.item [] [ str name] ]
-                    Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
-                        [ 
-                          (getInfoButton name project)
-                          Level.item []
-                              [ Button.button
-                                  [ Button.Size IsSmall
-                                    Button.IsOutlined
-                                    Button.Color IsPrimary
-                                    Button.Disabled(name = project.OpenFileName)
-                                    Button.OnClick(fun _ ->
-                                        dispatch (StartUICmd ChangeSheet)
-                                        printfn "Starting UI Cmd"
-                                        dispatch <| ExecFuncInMessage(
-                                            (fun model dispatch -> 
-                                                let p = Option.get model.CurrentProj
-                                                openFileInProject name p model dispatch), dispatch)) ] [ str "open" ] 
-                          ]
-                          // Add option to rename?
-                          Level.item [] [
-                              Button.button [
-                                  Button.Size IsSmall
-                                  Button.IsOutlined
-                                  Button.Color IsInfo
-                                  Button.OnClick(fun _ ->
-                                      dispatch (StartUICmd RenameSheet)
-                                      renameFileInProject name project model dispatch) ] [ str "rename" ]
-                          ]
-                          Level.item []
-                              [ Button.button
-                                  [ Button.Size IsSmall
-                                    Button.IsOutlined
-                                    Button.Color IsDanger
-                                    Button.OnClick (fun _ -> deleteFileConfirmationPopup name model dispatch) ]
-                                    [ str "delete" ] ] 
-                          (getLockButton name isSubSheet project model dispatch)] ] ]
+
 
     let fileTab model =
         match model.CurrentProj with
@@ -1112,19 +1045,6 @@ let viewTopMenu model dispatch =
                     Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch model
                     ]
 
-            let projectFiles = 
-                project.LoadedComponents 
-                |> List.filter (fun comp -> 
-                    match JSHelpers.debugLevel <> 0 with
-                    |true -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel || comp.Form = Some ProtectedSubSheet)
-                    |false -> (comp.Form = Some User)
-                )
-                |> List.map (fun comp -> 
-                    let tree = sTrees[comp.Name]
-                    makeFileLine (isSubSheet tree.SheetName) comp.Name project model , tree)
-                |> List.sortBy (fun (line,tree) -> isSubSheet tree.SheetName, tree.SheetName, -tree.Size, tree.SheetName.ToLower())
-                |> List.map fst
-                |> addVerticalScrollBars
             Navbar.Item.div
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props
@@ -1159,7 +1079,8 @@ let viewTopMenu model dispatch =
                                      [ str "Import Sheet" ]
                              Navbar.divider [] []
                              ]
-                           @ breadcrumbs)]
+                           @ breadcrumbs
+                           |> addVerticalScrollBars)]
                        
 
     div [   HTMLAttr.Id "TopMenu"

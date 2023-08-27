@@ -267,7 +267,7 @@ type RightClickElement =
     | DBInputPort of string
     | DBOutputPort of string
     | IssieElement of string
-    | SheetMenuBreadcrumb of Name: string * IsSubSheet: bool
+    | SheetMenuBreadcrumb of Sheet: SheetTree * IsSubSheet: bool
     | NoMenu
     
 
@@ -291,7 +291,14 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | _, elId, _ when String.startsWith "SheetMenuBreadcrumb:" elId ->
             let nameParts = elId.Split(":",System.StringSplitOptions.RemoveEmptyEntries)
             //printfn "NameParts: %A"nameParts
-            SheetMenuBreadcrumb (nameParts[1], nameParts.Length > 2)
+            model.CurrentProj
+            |> Option.map (fun p ->
+                Map.tryFind nameParts[1] (getSheetTrees p) 
+                |> Option.map ( fun sheet ->
+                    SheetMenuBreadcrumb (sheet, nameParts.Length > 2)))
+            |> Option.flatten
+            |> Option.defaultValue NoMenu
+
         | SheetT.MouseOn.Canvas, _ , "path"
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
             printfn "Draw block sheet 'canvas'"
@@ -366,23 +373,36 @@ let processContextMenuClick
     printfn "context Menu: '%A'  : '%s'" rightClickElement item
 
     match rightClickElement,item with
-    | SheetMenuBreadcrumb(name,_), "rename" ->
-        renameFileInProject name p model dispatch
+    | SheetMenuBreadcrumb(sheet,_), "Rename" ->
+        renameFileInProject sheet.SheetName p model dispatch
         withNoCmd model
-    | SheetMenuBreadcrumb(name,_), "delete" ->
-        deleteFileConfirmationPopup name model dispatch
-        withNoCmd model
-
-    | SheetMenuBreadcrumb(name,isSubSheet), "lock" ->
-        printfn "locking %s" name
-        changeLockState isSubSheet name (fun _ -> Locked) model dispatch
+    | SheetMenuBreadcrumb(sheet,_), "Delete" ->
+        deleteFileConfirmationPopup sheet.SheetName model dispatch
         withNoCmd model
 
-    | SheetMenuBreadcrumb(name,isSubSheet), "unlock" ->
-        printfn "Unlocking %s" name
-        changeLockState isSubSheet name (fun _ -> Unlocked) model dispatch
-        dispatch <| SetTopMenu Files
-        withNoCmd model
+    | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock" ->
+        printfn "locking %s" sheet.SheetName
+        model
+        |> changeLockState isSubSheet sheet (fun _ -> Locked)
+        |> withNoCmd
+
+    | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock" ->
+        printfn "Unlocking %s" sheet.SheetName
+        model
+        |> changeLockState isSubSheet sheet (fun _ -> Unlocked)
+        |> withNoCmd
+
+    | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock Subtree" ->
+        printfn "locking subtree %s" sheet.SheetName
+        model
+        |> changeSubtreeLockState isSubSheet sheet (fun _ -> Locked) 
+        |> withNoCmd 
+
+    | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock Subtree" ->
+        printfn "Unlocking subtree %s" sheet.SheetName
+        model
+        |> changeSubtreeLockState isSubSheet sheet (fun _ -> Unlocked)
+        |> withNoCmd 
 
     | DBCustomComp(_,ct), "Go to sheet" ->
         let p = Option.get model.CurrentProj

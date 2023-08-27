@@ -255,7 +255,11 @@ let rec makeBreadcrumbNamesUnique (tree: SheetTree) =
     |> fun subsheets -> {tree with SubSheets = List.sortBy (fun subs -> subs.BreadcrumbName) subsheets}
 
             
-        
+let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> Model) (tree: SheetTree) (model: Model)=
+    printf "traversing %A" tree.SheetName
+    model
+    |> folder isSubSheet tree
+    |> fun model -> List.fold (fun model tree -> foldOverTree false folder tree model) model tree.SubSheets
     
 
 /// Get the subsheet tree for all sheets in the current project.

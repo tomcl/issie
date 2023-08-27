@@ -919,6 +919,7 @@ module CommonTypes
 
     open Optics.Operators
 
+    let formOpt_ = Lens.create (fun a -> a.Form) (fun s a -> match s with | None -> a | Some s -> {a with Form = Some s})
     let canvasState_ = Lens.create (fun a -> a.CanvasState) (fun s a -> {a with CanvasState = s})
     let componentsState_ = canvasState_ >-> Optics.fst_
 

@@ -11582,3 +11582,7 @@ th, td {
 
 
 .info::before { content: "\1f6c8"; }
+
+.is-pink {
+  background-color: hotpink;
+}

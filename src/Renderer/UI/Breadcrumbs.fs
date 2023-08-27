@@ -19,8 +19,9 @@ open Optics.Optic
 *)
 
 type BreadcrumbConfig = {
-    ColorFun: string list -> IColor
-    ClickAction: string list -> (Msg -> unit) -> unit
+    BreadcrumbIdPrefix: string
+    ColorFun: SheetTree -> IColor
+    ClickAction: SheetTree -> (Msg -> unit) -> unit
     ElementProps: IHTMLProp list
     ElementStyleProps: CSSProp list
     /// button options (other than OnClick and Color)
@@ -37,6 +38,7 @@ module Constants =
                 Padding "50px"]
 
     let defaultConfig = {
+        BreadcrumbIdPrefix = "BreadcrumbDefault"
         ColorFun = fun _ -> IColor.IsBlack
         ClickAction = fun _ _ -> ()
         ElementProps = []
@@ -72,8 +74,9 @@ let rec gridArea (gridPos: CSSGridPos): string =
 
 
 /// a Grid item centre justified and occupying given area
-let gridElement props styleProps (pos: CSSGridPos) (x: ReactElement) =
-    div (props @ [
+let gridElement reactElementId props styleProps (pos: CSSGridPos) (x: ReactElement) =
+    div ( props @ [
+        Id reactElementId
         Style (styleProps @ [
             Display DisplayOptions.Flex
             FlexDirection "column"
@@ -136,13 +139,16 @@ let makeGridFromSheetsWithPositions
             : ReactElement =
     posL
     |> List.map (fun (pos, sheet) ->
+            let crumbId = cfg.BreadcrumbIdPrefix + ":" + sheet.SheetName + ":" + String.concat ":" sheet.LabelPath
             gridElement
+                crumbId
                 cfg.ElementProps
                 cfg.ElementStyleProps
                 pos
-                (Button.button [ 
-                    Button.Color (cfg.ColorFun sheet.LabelPath)
-                    Button.OnClick(fun ev -> cfg.ClickAction sheet.LabelPath dispatch)
+                (Button.button [
+                    Button.Props [Id crumbId]
+                    Button.Color (cfg.ColorFun sheet)
+                    Button.OnClick(fun ev -> cfg.ClickAction sheet dispatch)
                     ] [ str $"{sheet.SheetName}" ]))             
 
     |> gridBox Constants.gridBoxSeparation 

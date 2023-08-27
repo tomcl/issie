@@ -4,6 +4,10 @@ $fa-font-path: './../../../node_modules/font-awesome/fonts/';
 @import './../../../node_modules/bulma/bulma.sass';
 @import './../../../node_modules/bulma-tooltip/src/sass/index.sass';
 
+// class needed for custom Fulma color "pink"
+.is-pink {
+    background-color:hotpink
+}
 
 #Draw2dCanvas {
     z-index: -10

@@ -39,13 +39,13 @@ module Constants =
 
     let defaultConfig = {
         BreadcrumbIdPrefix = "BreadcrumbDefault"
-        ColorFun = fun _ -> IColor.IsBlack
+        ColorFun = fun _ -> IColor.IsGreyDark
         ClickAction = fun _ _ -> ()
-        ElementProps = []
-        ElementStyleProps = [
-            Border "2px"
+        ElementProps = [ ]
+        ElementStyleProps = [           
+            Border "2px"            
             BorderColor "LightGrey"
-            BorderRightColor "Black"
+            BorderRightColor "DarkGrey"
             BorderStyle "Solid"
             Background "LightGrey"
             Padding "5px"]
@@ -112,8 +112,6 @@ let positionDesignHierarchyInGrid (rootSheet: string) (trees: Map<string,SheetTr
                 offset', posL'')
             |> snd
             |> List.append [PosAreaSpan(startX, startY, 1, height), tree]
-
- 
     getSheetPositions 1 1 tree
 
 let positionRootAndFocusChildrenInGrid (root: string) (pathToFocus:string list) (trees: Map<string,SheetTree>) =
@@ -128,10 +126,6 @@ let positionRootAndFocusChildrenInGrid (root: string) (pathToFocus:string list) 
     children
     |> List.mapi (fun i sheet -> PosAreaSpan(sheetsInPath.Length + 1, 1, 1, children.Length),sheet)
       
-
-
-
-
 let makeGridFromSheetsWithPositions
         (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
@@ -140,16 +134,18 @@ let makeGridFromSheetsWithPositions
     posL
     |> List.map (fun (pos, sheet) ->
             let crumbId = cfg.BreadcrumbIdPrefix + ":" + sheet.SheetName + ":" + String.concat ":" sheet.LabelPath
+            let extraStyle = match sheet.SubSheets with | [] -> [BackgroundColor "white"; BorderWidth "0px"] | _ -> cfg.ElementStyleProps
             gridElement
                 crumbId
                 cfg.ElementProps
-                cfg.ElementStyleProps
+                (extraStyle)
                 pos
                 (Button.button [
                     Button.Props [Id crumbId]
                     Button.Color (cfg.ColorFun sheet)
+                    Button.Modifiers [Modifier.TextColor IColor.IsLight]
                     Button.OnClick(fun ev -> cfg.ClickAction sheet dispatch)
-                    ] [ str $"{sheet.SheetName}" ]))             
+                    ] [str $"{sheet.SheetName}" ]))             
 
     |> gridBox Constants.gridBoxSeparation 
     

@@ -805,3 +805,14 @@ let deleteFileConfirmationPopup (sheetName: string) (model: Model) (dispatch: Ms
             dispatch <| ExecFuncInMessage(removeFileInProject sheetName project,dispatch)
             dispatch ClosePopup
     confirmationPopup title body buttonText buttonAction dispatch
+
+//--------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------//
+//---------------------Code for CanvasState comparison and FILE BACKUP------------------------//
+//--------------------------------------------------------------------------------------------//
+
+let getHintPaneElement (model:Model) =
+    match model.Sheet.Wire.Symbol.HintPane, model.TopMenuOpenState with
+    | _, Files -> div [Style [FontSize "90%"]] [str "Click -> Open Sheet"; br []; str "Left-click -> Rename or Delete"]
+    | Some hint, _ -> hint
+    | _ -> str ""

@@ -11586,3 +11586,13 @@ th, td {
 .is-pink {
   background-color: hotpink;
 }
+
+.is-darkslategrey {
+    background-color: darkslategrey;
+    color: white;
+}
+
+.is-lightslategrey {
+  background-color: lightslategrey;
+  color: black;
+}

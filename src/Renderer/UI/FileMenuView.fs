@@ -1096,22 +1096,20 @@ let viewTopMenu model dispatch =
             let sheetColor (sheet:SheetTree) =
                 match sheet.SheetName = project.OpenFileName, sheetIsLocked sheet.SheetName model with
                 | true, true -> IColor.IsCustomColor "pink"
-                | true, false -> IColor.IsBlackTer
+                | true, false -> IColor.IsCustomColor "lightslategrey"
                 | false, true -> IColor.IsDanger
-                | false, false -> IColor.IsBlack
-            let config =  {
+                | false, false -> IColor.IsCustomColor "darkslategrey"
+
+            let breadcrumbConfig =  {
                 Breadcrumbs.Constants.defaultConfig with
                     ClickAction = openSheetAction
                     ColorFun = sheetColor
                     BreadcrumbIdPrefix = "SheetMenuBreadcrumb"
                 }
+
             let breadcrumbs = [
-                    div [Style [TextAlign TextAlignOptions.Center]] [strong [] [
-                        str "Sheets in Design Hierarchies";
-                        br [];
-                        str  "Click to open sheet, Right-click for other operations"];
-                        br []];
-                    Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs config dispatch model
+                    div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"]] [str "Sheets with Design Hierarchy"]
+                    Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch model
                     ]
 
             let projectFiles = 
@@ -1132,6 +1130,7 @@ let viewTopMenu model dispatch =
                   Navbar.Item.Props
                       [ OnClick(fun _ ->
                           //printSheetNames model
+                          printfn "OnClick - inverting TopMenuOpenState when current state is: %A" model.TopMenuOpenState
                           if model.TopMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch) ] ]
@@ -1248,17 +1247,17 @@ let viewTopMenu model dispatch =
                                   
                                     ]
                                 ])
-                      Navbar.End.div []
-                        [ Navbar.Item.div []
-                                [
-                                    Button.button [Button.IsGhost]
-                                        [
-                                            Option.defaultValue (str "") model.Sheet.Wire.Symbol.HintPane
-                                        ]
-                                    // add space padding on RH of navbar to improve top bar formatting
-                                    // this is a bit of a hack - but much easier than matching styles                                 
-                                    Text.div 
-                                      [Props [Style [PaddingRight "7000px"]]] [str ""]
-                                ]
-                                
-                          ] ] ] ]
+                      Navbar.End.div [] [                               
+                            div [                                    
+                                    Style [
+                                        Color "blue"
+                                        Display DisplayOptions.Flex;
+                                        Width "200px";                                    
+                                        AlignItems AlignItemsOptions.Center;
+                                        TextAlign TextAlignOptions.Center]]
+                                [getHintPaneElement model]
+                                        
+                            // add space padding on RH of navbar to improve top bar formatting
+                            // this is a bit of a hack - but much easier than matching styles                                 
+                            Text.div [Props [Style [PaddingRight "7000px"]]] [str ""]
+                        ] ] ]]

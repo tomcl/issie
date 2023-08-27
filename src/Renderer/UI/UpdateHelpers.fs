@@ -290,7 +290,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         match drawOn, htmlId, elType with
         | _, elId, _ when String.startsWith "SheetMenuBreadcrumb:" elId ->
             let nameParts = elId.Split(":",System.StringSplitOptions.RemoveEmptyEntries)
-            printfn "NameParts: %A"nameParts
+            //printfn "NameParts: %A"nameParts
             SheetMenuBreadcrumb (nameParts[1], nameParts.Length > 2)
         | SheetT.MouseOn.Canvas, _ , "path"
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
@@ -381,6 +381,7 @@ let processContextMenuClick
     | SheetMenuBreadcrumb(name,isSubSheet), "unlock" ->
         printfn "Unlocking %s" name
         changeLockState isSubSheet name (fun _ -> Unlocked) model dispatch
+        dispatch <| SetTopMenu Files
         withNoCmd model
 
     | DBCustomComp(_,ct), "Go to sheet" ->

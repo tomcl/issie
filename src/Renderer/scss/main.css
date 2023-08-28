@@ -11588,11 +11588,11 @@ th, td {
 }
 
 .is-darkslategrey {
-    background-color: darkslategrey;
+    background-color: #596673; /*roughly slategrey*/
     color: white;
 }
 
 .is-lightslategrey {
-  background-color: lightslategrey;
+  background-color: #9aa6b1;
   color: black;
 }

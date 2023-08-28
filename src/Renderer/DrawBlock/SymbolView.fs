@@ -44,6 +44,11 @@ let addText (pos: XYPos) name alignment weight size =
             {defaultText with TextAnchor = alignment; FontWeight = weight; FontSize = size}
     [makeText pos.X pos.Y name text]
 
+/// Text adding function using text record
+let addStyledText (pos: XYPos) text name =
+    makeText pos.X pos.Y name text
+
+
 /// Add one or two lines of text, two lines are marked by a . delimiter
 let addLegendText (pos: XYPos) (name:string) alignment weight size =
     let text =
@@ -56,10 +61,6 @@ let addLegendText (pos: XYPos) (name:string) alignment weight size =
          makeText pos.X (pos.Y+Constants.legendLineSpacingInPixels) bottomLine text]
     | _ ->
         failwithf "addLegendText does not work with more than two lines demarcated by ."
-
-
-let addStyledText (style:Text) (pos: XYPos) (name: string) = 
-    makeText pos.X pos.Y name style
 
 /// Generate circles on ports
 let inline private portCircles (pos: XYPos) (show:ShowPorts)= 
@@ -86,7 +87,7 @@ let private portText (pos: XYPos) name edge =
             | Right -> "end"
             | Left -> "start"
             | _ -> "middle"
-    (addText pos' name align Constants.portTextWeight Constants.portTextSize)
+    (addText pos' name align Constants.componentLabelStyle.FontWeight Constants.componentPortStyle.FontSize)
 
 
 /// Print the name of each port 
@@ -419,8 +420,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
 
     /// to deal with the label
     let addComponentLabel (comp: Component) transform colour = 
-        let weight = Constants.componentLabelStyle.FontWeight // bold or normal
-        let style = {Constants.componentLabelStyle with FontWeight = weight}
+        let style = Constants.componentLabelStyle 
         let box = symbol.LabelBoundingBox
         let margin = 
             match comp.Type with
@@ -429,7 +429,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
 
 
         let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
-        let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
+        let text = addStyledText pos {style with DominantBaseline="hanging"}  comp.Label
         match Constants.testShowLabelBoundingBoxes, colour with
         | false, "lightgreen" when comp.Label <> "" ->
             let x,y = pos.X - margin*0.8, pos.Y - margin*0.8
@@ -466,7 +466,9 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         let rhsPortNum = getNum Edge.Right
         let offset:XYPos = 
             match lhsPortNum % 2, rhsPortNum % 2, symbol.Component.Type with
-            | _, _, Custom _ -> {X=0;Y=0}
+            | 1, 0, Custom _ -> {X = 10.; Y = 0}
+            | 0, 1, Custom _ -> {X = -10.; Y = 0}
+            | _, _, Custom _ -> {X = 0; Y = 0}
             | _, _, Not -> {X=0;Y=0}
             | _, _, IsBinaryGate -> {X=0;Y=0}
             | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 0.5 else -3.)}
@@ -478,8 +480,8 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset
     let legendFontSize (ct:ComponentType) =
         match ct with
-        | Custom _ -> "16px"
-        | _ -> "14px"
+        | Custom _ -> Constants.customLegendFontSize
+        | _ -> Constants.otherLegendFontSize
 
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)

@@ -1199,7 +1199,7 @@ let viewTopMenu model dispatch =
                       Navbar.End.div [] [                               
                             div [                                    
                                     Style [
-                                        Color "blue"
+                                        Color "#5282d1"
                                         Display DisplayOptions.Flex;
                                         Width "200px";                                    
                                         AlignItems AlignItemsOptions.Center;

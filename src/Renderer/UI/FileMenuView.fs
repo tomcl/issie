@@ -32,6 +32,15 @@ open System
 module Constants =
     let numberOfRecentProjects: int  = 5
     let maxDisplayedPathLengthInRecentProjects: int  = 60
+    /// canvas width < this => use fewer chars in path
+    let largeScreenCanvasWidth = 1000
+    /// max number of chars in path before cropping
+    let maxNumPathChars = 25
+    /// min number of chars in path before cropping
+    let minNumPathChars = 7
+    // NB if numCharsHidePath > minNumPathChars than path is either full-size or hidden
+    let numCharsHidePath = 10 
+
 
 let private displayFileErrorNotification err dispatch =
     let note = errorFilesNotification err
@@ -977,19 +986,22 @@ let changeSubtreeLockState (isSubSheet: bool) (sheet: SheetTree) (updateLock: Lo
 
 
 
-let addVerticalScrollBars r =
+let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
     // dealwith case where Canvas does not exist
-    let (el :Browser.Types.HTMLElement option) = unbox (Browser.Dom.document.getElementById "Canvas")
     match el with
     | None -> r
-    | Some el -> 
-        let height =el.offsetHeight - 100.0
+    | Some el ->
+        let height = el.offsetHeight - 50.0
+        let width = el.offsetWidth - 150.0
+        printf "%s" $"Height={height}, width={width}"
+
         [div 
             [Style 
                 [
-                    MaxHeight height; 
+                    MaxHeight height;
+                    MaxWidth width;
                     OverflowY OverflowOptions.Auto
-                    OverflowX OverflowOptions.Clip
+                    OverflowX OverflowOptions.Auto
                 ]
             ] 
             r]
@@ -997,6 +1009,17 @@ let addVerticalScrollBars r =
 
 let viewTopMenu model dispatch =
     let compIds = getComponentIds model
+    // Used for geometry to keep app reasonably responsive
+    let (el:Browser.Types.HTMLElement option) = unbox (Browser.Dom.document.getElementById "Canvas")
+    let numPathChars =
+        match el with
+        | None -> Constants.maxNumPathChars
+        | Some el ->
+            if el.offsetWidth > Constants.largeScreenCanvasWidth then
+                Constants.maxNumPathChars
+            else
+                Constants.minNumPathChars
+    printfn "numpathChars = %d" numPathChars
 
     //printfn "FileView"
     let style = Style [ Width "100%" ; BorderBottom "2px solid lightgray"] //leftSectionWidth model
@@ -1063,7 +1086,7 @@ let viewTopMenu model dispatch =
                                        b) then
                                       DisplayOptions.Block
                                    else
-                                      DisplayOptions.None) 
+                                      DisplayOptions.None)
                                 ] ]
                       ]
                           ([ Navbar.Item.a [ Navbar.Item.Props 
@@ -1080,7 +1103,7 @@ let viewTopMenu model dispatch =
                              Navbar.divider [] []
                              ]
                            @ breadcrumbs
-                           |> addVerticalScrollBars)]
+                           |> addVerticalScrollBars el)]
                        
 
     div [   HTMLAttr.Id "TopMenu"
@@ -1095,7 +1118,8 @@ let viewTopMenu model dispatch =
                 [  Style
                     [ Height "100%"
                       Width "100%" 
-                      BorderBottom "2px solid lightgray"] ] ]
+                      BorderBottom "2px solid lightgray"]
+                   ] ]
             [ Navbar.Brand.div
                   [ Props
                       [ Style
@@ -1125,11 +1149,16 @@ let viewTopMenu model dispatch =
                                       [ str "Close project" ] ] ]
 
                       fileTab model
+                      // make the path in the navbar responsive
+                      let hidePath = numPathChars < Constants.numCharsHidePath
+                      let pathItem = Breadcrumb.item [] [ str <| if hidePath then "" else cropToLength numPathChars false projectPath]
+                      let nameItem = Breadcrumb.item [] [ span [ Style [ FontWeight "bold" ] ] [ str fileName ] ] 
                       Navbar.Item.div []
                           [ Navbar.Item.div []
-                                [ Breadcrumb.breadcrumb [ Breadcrumb.HasArrowSeparator ]
-                                      [ Breadcrumb.item [] [ str <| cropToLength 30 false projectPath ]
-                                        Breadcrumb.item [] [ span [ Style [ FontWeight "bold" ] ] [ str fileName ] ] ] ] ]
+                                [ Breadcrumb.breadcrumb
+                                    [ Breadcrumb.HasArrowSeparator ]
+                                    (if hidePath then [nameItem] else [pathItem ; nameItem])]]                                     
+                                        
                       Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Button.button
@@ -1148,7 +1177,7 @@ let viewTopMenu model dispatch =
                       Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Button.button 
-                                    [ Button.OnClick(fun _ -> PopupHelpers.viewInfoPopup dispatch) 
+                                    [ Button.OnClick(fun _ -> UIPopups.viewInfoPopup dispatch) 
                                       Button.Color IsInfo
                                     ] 
                                     [ str "Info" ] 

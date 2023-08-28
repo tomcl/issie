@@ -1029,7 +1029,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                     (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]] [str title]) 
                     button 
                         (infoButtonProps IsInfo)
-                        (fun _ -> PopupHelpers.viewWaveInfoPopup dispatch)
+                        (fun _ -> UIPopups.viewWaveInfoPopup dispatch)
                         (str Constants.infoSignUnicode)                        
                 ]
                 div [] 

@@ -648,7 +648,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                                     fun _ ->
                                         let numWaves = wsModel.SelectedWaves.Length
                                         if numWaves > 20 then
-                                            PopupHelpers.viewWaveSelectConfirmationPopup 
+                                            UIPopups.viewWaveSelectConfirmationPopup 
                                                 numWaves
                                                 (fun finish _ -> 
                                                         dispatch ClosePopup

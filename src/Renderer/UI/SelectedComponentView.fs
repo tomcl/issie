@@ -16,6 +16,7 @@ open ModelType
 open CommonTypes
 open MemoryEditorView
 open PopupHelpers
+open UIPopups
 open Notifications
 open Sheet.SheetInterface
 open DrawModelType

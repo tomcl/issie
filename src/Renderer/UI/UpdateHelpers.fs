@@ -618,7 +618,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         mapOverProject () model (fun p ->
             let sheet = p.OpenFileName
             let fPath = FilesIO.pathJoin [|p.ProjectPath ; sheet|]
-            PopupHelpers.choicePopup
+            choicePopup
                 "Verilog Output"
                 (verilogOutputPage sheet fPath)
                 "Write Synthesis Verilog"

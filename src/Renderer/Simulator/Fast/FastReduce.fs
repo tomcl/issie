@@ -140,6 +140,22 @@ let inline private bitNor bit0 bit1 = bitOr bit0 bit1 |> bitNot
 
 let inline private bitXnor bit0 bit1 = bitXor bit0 bit1 |> bitNot
 
+let inline private bitGate gateType =
+    match gateType with
+    | And | Nand -> bitAnd
+    | Or | Nor -> bitOr
+    | Xor | Xnor -> bitXor
+
+
+let inline private getBinaryOp gateType =
+    match gateType with
+    | And -> bitAnd
+    | Or -> bitOr
+    | Xor -> bitXor
+    | Nand -> bitNand
+    | Nor -> bitNor
+    | Xnor -> bitXnor
+
 let inline private algNot exp = UnaryExp(NotOp, exp)
 
 let inline private algAnd exp1 exp2 = BinaryExp(exp1, BitAndOp, exp2)
@@ -153,6 +169,12 @@ let inline private algNand exp1 exp2 = algAnd exp1 exp2 |> algNot
 let inline private algNor exp1 exp2 = algOr exp1 exp2 |> algNot
 
 let inline private algXnor exp1 exp2 = algXor exp1 exp2 |> algNot
+
+let inline private algGate gateType =
+    match gateType with
+    | And | Nand-> algAnd
+    | Or | Nor -> algOr
+    | Xor | Xnor -> algXor
 
 //---------------------------------------------------------------------------------------//
 // ------------------------------MAIN COMPONENT SIMULATION FUNCTION----------------------//
@@ -247,11 +269,20 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         match comp.State with
         | None -> failwithf "Attempt to put state into component %s without state array" comp.FullName
         | Some stateArr -> stateArr.Step[simStep] <- state
-
-    /// implement a binary combinational operation
+    
     let inline getBinaryGateReducer (bitOp: uint32 -> uint32 -> uint32) : Unit =
         let bit0, bit1 = insUInt32 0, insUInt32 1
         putUInt32 0 <| bitOp bit1 bit0
+
+    /// implement a binary combinational operation for n inputs
+    let inline getNInpBinaryGateReducer (nIns: int) (gateType: GateComponentType) : Unit =
+        let mutable gateResult = insUInt32 0
+        for gateInputNum = 1 to nIns-1 do
+            gateResult <- bitGate gateType gateResult (insUInt32 gateInputNum)
+        if (isNegated gateType) then
+            putUInt32 0 (bitNot gateResult)
+        else
+            putUInt32 0 gateResult
 
     /// Error checking (not required in production code) check widths are consistent
     let inline checkWidth width w =
@@ -388,20 +419,15 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 0u
 
         putUInt32 0 outNum
-    | And,false -> getBinaryGateReducer bitAnd
-    | Or,false -> getBinaryGateReducer bitOr
-    | Xor,false -> getBinaryGateReducer bitXor
-    | Nand,false -> getBinaryGateReducer bitNand
-    | Nor,false -> getBinaryGateReducer bitNor
-    | Xnor,false -> getBinaryGateReducer bitXnor
 
-    | And, true
-    | Or, true
-    | Xor, true
-    | Nand, true
-    | Nor, true
-    | Xnor, true
-    | Not, true -> failwith "This should never happen, 1-bit component should not use BigInt"
+    | GateN (gateType, n),false ->
+        if n = 2 then
+            getBinaryGateReducer (getBinaryOp gateType)
+        else
+            getNInpBinaryGateReducer n gateType
+
+    | Not, true
+    | GateN _, true -> failwith "This should never happen, 1-bit component should not use BigInt"
 
     | Mux2,false ->
 #if ASSERT
@@ -1381,18 +1407,63 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | Some stateArr -> stateArr.Step[simStep] <- state
 
     /// implement a binary combinational operation
-    let inline getBinaryGateReducer
-        (bitOp: uint32 -> uint32 -> uint32)
-        (algOp: FastAlgExp -> FastAlgExp -> FastAlgExp)
+    // let inline getBinaryGateReducer
+    //     (bitOp: uint32 -> uint32 -> uint32)
+    //     (algOp: FastAlgExp -> FastAlgExp -> FastAlgExp)
+    //     : Unit
+    //     =
+    //     match (ins 0), (ins 1) with
+    //     | Data d1, Data d2 ->
+    //         let bit0 = d1.GetQUint32
+    //         let bit1 = d2.GetQUint32
+
+    //         put 0 <| Data { Width = 1; Dat = Word(bitOp bit1 bit0) }
+    //     | A, B -> put 0 <| Alg(algOp A.toExp B.toExp)
+    
+    /// implement an N-input binary combinational operation
+    let inline getNInpBinaryGateReducer
+        (n: int)
+        (gateType: GateComponentType)
         : Unit
         =
-        match (ins 0), (ins 1) with
-        | Data d1, Data d2 ->
-            let bit0 = d1.GetQUint32
-            let bit1 = d2.GetQUint32
-
-            put 0 <| Data { Width = 1; Dat = Word(bitOp bit1 bit0) }
-        | A, B -> put 0 <| Alg(algOp A.toExp B.toExp)
+        let isAlgExp inp =
+            match inp with
+            | Data _ -> false
+            | _ -> true
+        
+        let inputs =
+            [0..n-1]
+            |> List.map ins
+        
+        if (List.exists isAlgExp inputs) then
+            // get nested binary expressions
+            inputs
+            |> List.map (fun el -> el.toExp)
+            |> List.reduce (algGate gateType)
+            |> function
+                | exp when (isNegated gateType) ->
+                    UnaryExp(NotOp, exp)
+                | exp -> exp
+            |> Alg
+            |> put 0
+            
+        else
+            // compute the result
+            inputs
+            |> List.map
+                (function
+                    | Data d -> d.GetQUint32
+                    | Alg _ -> failwith "Can't encounter algebraic expression here")
+            |> List.reduce (bitGate gateType)
+            |> function
+                | x when (isNegated gateType) ->
+                    if x = 1u then
+                        Data { Width = 1; Dat = Word(0u)}
+                    else
+                        Data { Width = 1; Dat = Word(1u)}
+                | x ->
+                    Data { Width = 1; Dat = Word(x)}
+            |> put 0
     // | Alg exp1, Alg exp2 ->
     //     put 0 <| Alg (algOp exp1 exp2)
     // | Alg exp1, Data d
@@ -1533,12 +1604,9 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {(getAlgExpWidth exp)}")
 #endif
             put 0 <| Alg(ComparisonExp(exp, Equals, compareVal))
-    | And -> getBinaryGateReducer bitAnd algAnd
-    | Or -> getBinaryGateReducer bitOr algOr
-    | Xor -> getBinaryGateReducer bitXor algXor
-    | Nand -> getBinaryGateReducer bitNand algNand
-    | Nor -> getBinaryGateReducer bitNor algNor
-    | Xnor -> getBinaryGateReducer bitXnor algXnor
+
+    | GateN (gateType, n) -> getNInpBinaryGateReducer n gateType
+
     | Mux2 ->
         match (ins 0), (ins 1), (ins 2) with
         | Alg exp1, Alg exp2, Data bitSelect ->

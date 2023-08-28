@@ -202,6 +202,15 @@ module CommonTypes
         |LSL
         |LSR
         |ASR
+    
+    [<StringEnum>]
+    type GateComponentType =
+        | And
+        | Or
+        | Xor
+        | Nand
+        | Nor
+        | Xnor
 
     /// Option of this qualifies NBitsXOr to allow many different components
     /// None => Xor
@@ -228,7 +237,8 @@ module CommonTypes
         | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
-        | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+        | Not | Decode4
+        | GateN of GateType: GateComponentType * NumInputs: int
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
         | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -259,8 +269,18 @@ module CommonTypes
     /// NB - NOT gates are not included here.
     let (|IsBinaryGate|NotBinaryGate|) cType =
         match cType with
-         | And | Or | Xor | Nand | Nor | Xnor -> IsBinaryGate
+         | GateN (_, n) when n = 2 -> IsBinaryGate
          | _ -> NotBinaryGate
+    
+    let inline isNegated gateType =
+        match gateType with
+        | Nand | Nor | Xnor -> true
+        | And | Or | Xor -> false
+    
+    let (|IsGate|NoGate|) cType =
+        match cType with
+        | GateN _ -> IsGate
+        | _ -> NoGate
 
     /// get memory component type constructor
     /// NB only works with new-style memory components
@@ -438,6 +458,7 @@ module CommonTypes
             | BusSelection of OutputWidth: int * OutputLSBit: int
             | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+            | GateN of GateType: GateComponentType * NumInputs: int
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
             | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
             | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
@@ -495,12 +516,13 @@ module CommonTypes
             | JSONComponent.ComponentType.BusSelection (a,b) -> BusSelection (a,b)
             | JSONComponent.ComponentType.Constant1 (a,b,c) -> Constant1 (a,b,c)
             | JSONComponent.ComponentType.Not -> Not
-            | JSONComponent.ComponentType.And -> And
-            | JSONComponent.ComponentType.Or -> Or
-            | JSONComponent.ComponentType.Xor -> Xor
-            | JSONComponent.ComponentType.Nand -> Nand
-            | JSONComponent.ComponentType.Nor -> Nor
-            | JSONComponent.ComponentType.Xnor -> Xnor
+            | JSONComponent.ComponentType.And -> GateN (And, 2)
+            | JSONComponent.ComponentType.Or -> GateN (Or, 2)
+            | JSONComponent.ComponentType.Xor -> GateN (Xor, 2)
+            | JSONComponent.ComponentType.Nand -> GateN (Nand, 2)
+            | JSONComponent.ComponentType.Nor -> GateN (Nor, 2)
+            | JSONComponent.ComponentType.Xnor -> GateN (Xnor, 2)
+            | JSONComponent.ComponentType.GateN (gateType, n) -> GateN (gateType, n)
             | JSONComponent.ComponentType.Decode4 -> Decode4
             | JSONComponent.ComponentType.Mux2 -> Mux2
             | JSONComponent.ComponentType.Mux4 -> Mux4
@@ -547,7 +569,62 @@ module CommonTypes
     /// This is always an identity transformation since the normal ComponentType
     /// muts be strict subset of teh JSON ComponentType.
     /// unboxing is ok here because we do not use equality in the conversion to JSON.
-    let convertToJSONComponent (comp: Component) : JSONComponent.Component = unbox comp
+    let convertToJSONComponent (comp: Component) : JSONComponent.Component =
+        let newType =
+            match comp.Type with
+            | Input1 (a, b) -> JSONComponent.ComponentType.Input1 (a, b)
+            | Output w -> JSONComponent.ComponentType.Output w
+            | Viewer w -> JSONComponent.ComponentType.Viewer w
+            | IOLabel -> JSONComponent.ComponentType.IOLabel
+            | NotConnected -> JSONComponent.ComponentType.NotConnected
+            | BusCompare1 (w, v, d) -> JSONComponent.ComponentType.BusCompare1 (w, v, d)
+            | BusSelection (w, b) -> JSONComponent.ComponentType.BusSelection (w, b)
+            | Constant1 (w, v, d) -> JSONComponent.ComponentType.Constant1 (w, v, d)
+            | Not -> JSONComponent.ComponentType.Not
+            | Decode4 -> JSONComponent.ComponentType.Decode4
+            | GateN (t, n) -> JSONComponent.ComponentType.GateN (t, n)
+            | Mux2 -> JSONComponent.ComponentType.Mux2
+            | Mux4 -> JSONComponent.ComponentType.Mux4
+            | Mux8 -> JSONComponent.ComponentType.Mux8
+            | Demux2 -> JSONComponent.ComponentType.Demux2
+            | Demux4 -> JSONComponent.ComponentType.Demux4
+            | Demux8 -> JSONComponent.ComponentType.Demux8
+            | NbitsAdder w -> JSONComponent.ComponentType.NbitsAdder w
+            | NbitsAdderNoCin w -> JSONComponent.ComponentType.NbitsAdderNoCin w
+            | NbitsAdderNoCout w -> JSONComponent.ComponentType.NbitsAdderNoCout w
+            | NbitsAdderNoCinCout w -> JSONComponent.ComponentType.NbitsAdderNoCinCout w
+            | NbitsXor (w, op) -> JSONComponent.ComponentType.NbitsXor (w, op)
+            | NbitsAnd w -> JSONComponent.ComponentType.NbitsAnd w
+            | NbitsNot w -> JSONComponent.ComponentType.NbitsNot w
+            | NbitsOr w -> JSONComponent.ComponentType.NbitsOr w
+            | NbitSpreader w -> JSONComponent.ComponentType.NbitSpreader w
+            | Custom t -> JSONComponent.ComponentType.Custom t // schematic sheet used as component
+            | MergeWires -> JSONComponent.ComponentType.MergeWires
+            | SplitWire w -> JSONComponent.ComponentType.SplitWire w // int is bus width
+            // DFFE is a DFF with an enable signal.
+            // No initial state for DFF or Register? Default 0.
+            | DFF -> JSONComponent.ComponentType.DFF
+            | DFFE -> JSONComponent.ComponentType.DFFE
+            | Register w -> JSONComponent.ComponentType.Register w
+            | RegisterE w -> JSONComponent.ComponentType.RegisterE w
+            | Counter w -> JSONComponent.ComponentType.Counter w
+            | CounterNoLoad w -> JSONComponent.ComponentType.CounterNoLoad w
+            | CounterNoEnable w -> JSONComponent.ComponentType.CounterNoEnable w
+            | CounterNoEnableLoad w -> JSONComponent.ComponentType.CounterNoEnableLoad w
+            | AsyncROM1 m -> JSONComponent.ComponentType.AsyncROM1 m
+            | ROM1 m -> JSONComponent.ComponentType.ROM1 m
+            | RAM1 m -> JSONComponent.ComponentType.RAM1 m
+            | AsyncRAM1 m -> JSONComponent.ComponentType.AsyncRAM1 m
+            // legacy components - to be deleted
+            | AsyncROM m -> JSONComponent.ComponentType.AsyncROM m
+            | ROM m -> JSONComponent.ComponentType.ROM m
+            | RAM m -> JSONComponent.ComponentType.RAM m
+            | Shift (w1, w2, t) -> JSONComponent.ComponentType.Shift (w1, w2, t)
+            // legacy cases to be deleted?
+            | BusCompare (w, v) -> JSONComponent.ComponentType.BusCompare (w, v)
+            | Input w -> JSONComponent.ComponentType.Input w
+            | Constant (w, v) -> JSONComponent.ComponentType.Constant (w, v)
+        {unbox comp with Type = newType}
 
     //---------------------------------------------------------------------------------------------------------------//
     //--------------------------END OF ComponentType CONVERSION - used when upgarding Component definitions----------//
@@ -842,6 +919,7 @@ module CommonTypes
 
     open Optics.Operators
 
+    let formOpt_ = Lens.create (fun a -> a.Form) (fun s a -> match s with | None -> a | Some s -> {a with Form = Some s})
     let canvasState_ = Lens.create (fun a -> a.CanvasState) (fun s a -> {a with CanvasState = s})
     let componentsState_ = canvasState_ >-> Optics.fst_
 

@@ -137,7 +137,7 @@ let fileMenu (dispatch) =
         //makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
         makeItem "Write design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
-        makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupHelpers.viewInfoPopup dispatch)
+        makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
@@ -166,6 +166,11 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.MiscTests.testMaps())
             makeWinDebugItem  "Print names of static asset files" None 
                 (fun _ -> Playground.MiscTests.testAssets())
+            makeWinDebugItem  "Test Breadcrumbs" None 
+                (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testBreadcrumbs,dispatch))
+            makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
+                (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
+
             makeDebugItem "Force Exception" None
                 (fun ev -> failwithf "User exception from menus")
 

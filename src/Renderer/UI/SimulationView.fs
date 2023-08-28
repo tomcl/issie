@@ -43,7 +43,7 @@ module Constants =
 /// maybe it should be a subfunction.
 let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) =
     printfn "Verilog output"
-    match FileMenuView.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
+    match FileMenuHelpers.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
             match model.UIState with  //TODO should this be its own UI operation?
             | Some _ ->
@@ -144,6 +144,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
 
 type SimCache = {
     Name: string
+    ClockTickRefresh: int
     StoredState: LoadedComponent list
     StoredResult: Result<SimulationData, SimulationError>
     }
@@ -152,6 +153,7 @@ type SimCache = {
 
 let simCacheInit () = {
     Name = ""; 
+    ClockTickRefresh = 0
     StoredState = []
     StoredResult = Ok {
         FastSim = 
@@ -179,8 +181,18 @@ let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=
             |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
             |> Option.map (loadedComponentIsEqual ldc')
             |> (=) (Some true))
-            
 
+let storedstateisEqual (cache: SimCache) (ldcs: LoadedComponent list) : bool =
+    match cache.StoredState with
+    | [] -> false
+    | ldcsstate -> 
+        ldcsstate
+        |> List.forall (fun ldc' ->
+            ldcs
+            |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
+            |> Option.map (loadedComponentIsEqual ldc')
+            |> (=) (Some true))
+            
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. 
 let prepareSimulationMemoized
@@ -206,11 +218,8 @@ let prepareSimulationMemoized
         printfn "New simulation"
         let name, state, ldcs = getStateAndDependencies diagramName ldcs
         let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs 
-        simCache <- {
-            Name = diagramName
-            StoredState = ldcs
-            StoredResult = simResult
-            }
+        simCache <- {simCache with Name = diagramName}
+        simCache <- {simCache with StoredResult = simResult}
         simResult, canvasState
    
 let makeDummySimulationError msg = {
@@ -913,11 +922,30 @@ let viewSimulation canvasState model dispatch =
                 Error simError
         |> StartSimulation
         |> dispatch
+        match model.CurrentProj with
+        | Some project ->
+            let loadedDependencies = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+            let ldcs = addStateToLoadedComponents simCache.Name canvasState loadedDependencies
+            simCache <- {simCache with StoredState = ldcs}
+        | None -> ()
 
+    let hasCanvasChanged
+        (currentCanvasState)
+        (simCache)
+        (model)
+        : bool = 
+        match model.CurrentProj with
+        | Some project ->
+            let loadedDependencies = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+            let ldcs = addStateToLoadedComponents simCache.Name currentCanvasState loadedDependencies
+            let isSame = storedstateisEqual simCache ldcs
+            not isSame
+        | _ -> false
+    
+    let simRes = simulateModel None Constants.maxArraySize canvasState model
     // let JSState = model.Diagram.GetCanvasState ()
     match model.CurrentStepSimulationStep with
     | None ->
-        let simRes = simulateModel None Constants.maxArraySize canvasState model
         let isSync = match simRes with | Ok {IsSynchronous=true},_ -> true | _ -> false
         let buttonColor, buttonText = 
             match simRes with
@@ -936,14 +964,18 @@ let viewSimulation canvasState model dispatch =
                 [ str buttonText ]
         ]
     | Some sim ->
+        let canvasStatechange = hasCanvasChanged canvasState simCache model
         let body = match sim with
                     | Error simError -> viewSimulationError canvasState simError model StepSim dispatch
-                    | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
+                    | Ok simData -> 
+                        if (simData.ClockTickNumber = 0 && not (simCache.ClockTickRefresh = 0)) then
+                            IncrementSimulationClockTick simCache.ClockTickRefresh |> dispatch
+                            FastRun.runFastSimulation None simCache.ClockTickRefresh simData.FastSim |> ignore
+                        viewSimulationData simData.ClockTickNumber simData model dispatch
         let setDefaultButton =
             match sim with
             | Error _ -> div [] []
             | Ok simData ->
-            div [] [
                 Button.button
                     [ 
                         Button.Color IsInfo;
@@ -952,8 +984,38 @@ let viewSimulation canvasState model dispatch =
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
                     ]
                     [ str "Save current input values as default" ]
-            ]
-        
+        let buttonColor, buttonText = 
+            match simRes with
+            | Ok _, _ -> IsSuccess, "Refresh"
+            | Error _, _ -> IsWarning, "See Problems"
+
+        let refreshButton = 
+            match canvasStatechange with 
+            | false -> div [Style [Height "100%"]] []
+            | true ->
+                match sim with
+                | Error _ -> 
+                    Button.button
+                        [
+                            Button.Color buttonColor;
+                            Button.OnClick (fun _ -> 
+                                let clock = simCache.ClockTickRefresh
+                                startSimulation()
+                                simCache <- {simCache with ClockTickRefresh = clock})
+                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
+                            ]
+                        [str buttonText]
+                | Ok simData ->
+                    Button.button
+                        [
+                            Button.Color buttonColor;
+                            Button.OnClick (fun _ -> 
+                                let clock = simData.ClockTickNumber
+                                startSimulation()
+                                simCache <- {simCache with ClockTickRefresh = clock})
+                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
+                            ]
+                        [str buttonText]
         div [Style [Height "100%"]] [
             Button.button
                 [
@@ -963,10 +1025,12 @@ let viewSimulation canvasState model dispatch =
                         dispatch EndSimulation);
                     Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left ]]]
                 [ str "End simulation" ]
+            refreshButton
             setDefaultButton
             br []; br []
+            div [Style [MarginTop "20px"]] []
             str "The simulation uses the diagram as it was at the moment of
-                 pressing the \"Start simulation\" button."
+                 pressing the \"Start simulation\" or \"Refresh\" button."
             hr []
             body
         ]

@@ -21,7 +21,7 @@ open CommonTypes
 open FilesIO
 open Extractor
 open PopupHelpers
-open FileMenuView
+open FileMenuHelpers
 
 
 let printSheetNames (model:Model) =

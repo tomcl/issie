@@ -11,6 +11,7 @@ open ModelType
 open ModelHelpers
 open CommonTypes
 open Extractor
+open FileMenuHelpers
 open FileMenuView
 open Sheet.SheetInterface
 open BusWireUpdateHelpers
@@ -22,6 +23,7 @@ open Browser
 open PopupHelpers
 open Optics.Optic
 open Optics.Operators
+open EEExtensions
 
 module Constants =
     let memoryUpdateCheckTime = 300.
@@ -265,6 +267,7 @@ type RightClickElement =
     | DBInputPort of string
     | DBOutputPort of string
     | IssieElement of string
+    | SheetMenuBreadcrumb of Sheet: SheetTree * IsSubSheet: bool
     | NoMenu
     
 
@@ -285,6 +288,17 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     let drawOn = Sheet.mouseOn model.Sheet sheetXYPos
     rightClickElement <- // mutable so that we have this info also in the callback from main
         match drawOn, htmlId, elType with
+        | _, elId, _ when String.startsWith "SheetMenuBreadcrumb:" elId ->
+            let nameParts = elId.Split(":",System.StringSplitOptions.RemoveEmptyEntries)
+            //printfn "NameParts: %A"nameParts
+            model.CurrentProj
+            |> Option.map (fun p ->
+                Map.tryFind nameParts[1] (getSheetTrees p) 
+                |> Option.map ( fun sheet ->
+                    SheetMenuBreadcrumb (sheet, nameParts.Length > 2)))
+            |> Option.flatten
+            |> Option.defaultValue NoMenu
+
         | SheetT.MouseOn.Canvas, _ , "path"
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
             printfn "Draw block sheet 'canvas'"
@@ -321,6 +335,9 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             
     // return the desired menu
     match rightClickElement with
+    | SheetMenuBreadcrumb _ ->
+        if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumbDev"
+
     | DBCustomComp _->        
         "CustomComponent"
     | DBComp _ ->
@@ -353,8 +370,40 @@ let processContextMenuClick
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
     let flipDispatch = SheetT.Flip >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
+    printfn "context Menu: '%A'  : '%s'" rightClickElement item
 
     match rightClickElement,item with
+    | SheetMenuBreadcrumb(sheet,_), "Rename" ->
+        renameFileInProject sheet.SheetName p model dispatch
+        withNoCmd model
+    | SheetMenuBreadcrumb(sheet,_), "Delete" ->
+        deleteFileConfirmationPopup sheet.SheetName model dispatch
+        withNoCmd model
+
+    | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock" ->
+        printfn "locking %s" sheet.SheetName
+        model
+        |> changeLockState isSubSheet sheet (fun _ -> Locked)
+        |> withNoCmd
+
+    | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock" ->
+        printfn "Unlocking %s" sheet.SheetName
+        model
+        |> changeLockState isSubSheet sheet (fun _ -> Unlocked)
+        |> withNoCmd
+
+    | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock Subtree" ->
+        printfn "locking subtree %s" sheet.SheetName
+        model
+        |> changeSubtreeLockState isSubSheet sheet (fun _ -> Locked) 
+        |> withNoCmd 
+
+    | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock Subtree" ->
+        printfn "Unlocking subtree %s" sheet.SheetName
+        model
+        |> changeSubtreeLockState isSubSheet sheet (fun _ -> Unlocked)
+        |> withNoCmd 
+
     | DBCustomComp(_,ct), "Go to sheet" ->
         let p = Option.get model.CurrentProj
         openFileInProject ct.Name p model dispatch
@@ -466,7 +515,7 @@ let processSheetBackAction (dispatch: Msg -> unit) (model: Model)  =
             []
         | (sheet :: others) ->
             let p = Option.get model.CurrentProj
-            FileMenuView.openFileInProject sheet p model dispatch
+            openFileInProject sheet p model dispatch
             others
     model
     |> set uISheetTrail_ trail
@@ -556,11 +605,11 @@ let verilogOutputPage sheet fPath  =
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     match act with
     | MenuSaveFile -> 
-        FileMenuView.saveOpenFileActionWithModelUpdate model dispatch |> ignore
+        FileMenuHelpers.saveOpenFileActionWithModelUpdate model dispatch |> ignore
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
     | MenuSaveProjectInNewFormat ->
-        FileMenuView.saveOpenProjectInNewFormat model |> ignore
+        FileMenuHelpers.saveOpenProjectInNewFormat model |> ignore
     | MenuNewFile -> 
         FileMenuView.addFileToProject model dispatch
     | MenuExit ->
@@ -569,7 +618,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         mapOverProject () model (fun p ->
             let sheet = p.OpenFileName
             let fPath = FilesIO.pathJoin [|p.ProjectPath ; sheet|]
-            PopupHelpers.choicePopup
+            choicePopup
                 "Verilog Output"
                 (verilogOutputPage sheet fPath)
                 "Write Synthesis Verilog"

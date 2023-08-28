@@ -33,14 +33,13 @@ module Constants =
     /// How large are component labels
     let labelFontSizeInPixels:float = 16 // otehr parameters scale correctly with this
 
-    /// Due to a bug in TextMetrics we are restricted to monospace font, bold or normal, or helvetica, if we want
-    /// accurate width
+    /// Most fonts now work perfectly - see playground.fs for some tests - add more as needed.
     let componentLabelStyle: Text = 
         {defaultText with 
             TextAnchor = "start"; 
             FontSize = $"%.0f{labelFontSizeInPixels}px"; 
-            FontFamily = "Times"; 
-            FontWeight="600"}
+            FontFamily = "Verdana"; 
+            FontWeight="500"}
 
     /// Style used by bus select bit legends
     let busSelectStyle: Text = 
@@ -266,7 +265,7 @@ let busSelectTitle (wob:int) (lsb:int) : string =
 ///Decodes the component type into component labels
 let getPrefix (compType:ComponentType) = 
     match compType with
-    | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
+    | Not | GateN _ -> "G"
     | Mux2 -> "MUX"
     | Mux4 -> "MUX"
     | Mux8 -> "MUX"
@@ -300,13 +299,16 @@ let getPrefix (compType:ComponentType) =
     |_  -> ""
 
 
+let getGateComponentLegend gType =
+    match gType with
+    | And | Nand -> "&"
+    | Or | Nor -> "≥1"
+    | Xor | Xnor -> "=1"
 
 // Text to be put inside different Symbols depending on their ComponentType
 let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     match componentType with
-    | And | Nand-> "&"
-    | Or | Nor-> "≥1"
-    | Xor | Xnor -> "=1"
+    | GateN (gateType, _) -> getGateComponentLegend gateType
     | Not -> "1"
     | Decode4 -> "Decode"
     | NbitsAdder n | NbitsAdderNoCin n
@@ -535,7 +537,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
-    | And | Or | Nand | Nor | Xor | Xnor ->  (2 , 1, 1.5*gS , 1.5*gS) 
+    | GateN (_, n) -> (n , 1, 1.5*gS * (float n)/2. , 1.5*gS)
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 

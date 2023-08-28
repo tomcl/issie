@@ -298,19 +298,10 @@ let displayView model dispatch =
     //JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
-    //let selectedComps, selectedconns = 
-    //    model.Diagram.GetSelected()
-    //    |> Option.map extractState
-    //    |> Option.defaultValue ([],[])
-    
-    // TODO
-//    let sd = scrollData model
-//    let x' = sd.SheetLeft+sd.SheetX
-//    let y' = sd.SheetTop+sd.SheetY
-
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
-        if topMenu <> Closed then 
+        if topMenu = Project then
+            printf "Setting Top menu closed from processappclick"
             dispatch <| Msg.SetTopMenu Closed
     /// used only to make the divider bar draggable
     let inline processMouseMove (keyUp: bool) (ev: Browser.Types.MouseEvent) =
@@ -369,7 +360,7 @@ let displayView model dispatch =
         FileMenuView.viewNoProjectMenu model dispatch
         
         
-        PopupHelpers.viewPopup model dispatch 
+        UIPopups.viewPopup model dispatch 
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model dispatch

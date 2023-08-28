@@ -100,13 +100,13 @@ let getPortNumbers (sc: SimulationComponent) =
         | Demux2 -> 2, 2
         | Demux4 -> 2, 4
         | Demux8 -> 2, 8
-        | Not
-        | And
-        | Or
-        | Xor
-        | Nand
-        | Nor
-        | Xnor -> 2, 1
+        // | And
+        // | Or
+        // | Xor
+        // | Nand
+        // | Nor
+        // | Xnor -> 2, 1
+        | GateN (_, n) -> n, 1
         | Custom ct -> ct.InputLabels.Length, ct.OutputLabels.Length
         | AsyncROM _
         | RAM _
@@ -124,12 +124,7 @@ let findBigIntState (fc: FastComponent) =
     match fc.FType with
     // 1-bit components
     | Not
-    | And
-    | Or
-    | Xor
-    | Nand
-    | Nor
-    | Xnor
+    | GateN _
     | DFF
     | DFFE -> false, None
     // N-bits components
@@ -239,13 +234,14 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
     let ins =
         [| 0 .. inPortNum - 1 |]
         |> Array.map (fun n -> makeIOArray maxArraySize)
-
+    //printfn "Type: %A; ins array: %A" sComp.Type ins
     let outs =
         match sComp.Type, sComp.OutputWidths.Length with
         | IOLabel, 0 -> [| makeIOArray maxArraySize |] // NOTE - create dumpy Outputs array for inavtive IOLabels
         | _ ->
             sComp.OutputWidths
             |> Array.map (fun w -> makeIOArrayW w maxArraySize)
+    //printfn "Type: %A; outs array: %A" sComp.Type outs
 
     let state =
         if couldBeSynchronousComponent sComp.Type then

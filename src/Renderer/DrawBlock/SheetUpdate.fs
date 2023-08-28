@@ -3,6 +3,7 @@
 open CommonTypes
 open Browser
 open Elmish
+open Fable.React
 open DrawHelpers
 open DrawModelType
 open DrawModelType.SymbolT
@@ -509,7 +510,17 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     // ---------------------------- Issie Messages ---------------------------- //
 
     | InitialiseCreateComponent (ldcs, compType, lbl) ->
-        { model with Action = (InitialisedCreateComponent (ldcs, compType, lbl)) ; TmpModel = Some model}, Cmd.none
+        match compType with
+        | IsGate -> 
+            { model with
+                Action = (InitialisedCreateComponent (ldcs, compType, lbl));
+                TmpModel = Some model;
+                Wire = {model.Wire with Symbol = {model.Wire.Symbol with HintPane = (Some (div [] [
+                                                                        str "You can change the number of inputs"
+                                                                        br []
+                                                                        str "in the component properties menu"]))}}}, Cmd.none
+        | NoGate ->
+            { model with Action = (InitialisedCreateComponent (ldcs, compType, lbl)) ; TmpModel = Some model}, Cmd.none
     | FlushCommandStack -> { model with UndoList = []; RedoList = []; TmpModel = None }, Cmd.none
     | ResetModel ->
         { model with

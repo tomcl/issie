@@ -326,9 +326,11 @@ let getCompDetails fs wave =
         | Viewer _ -> "Viewer", true
         | IOLabel _-> "Wire Label", true
         | NotConnected -> "What? can't happen", true
-        | Not | And | Or | Xor | Nand | Nor | Xnor -> 
+        | Not ->
             let gateType = $"{fc.FType}".ToUpper()
             $"{gateType} gate", false
+        | GateN (gateType, n) ->
+            $"{n} input {gateType} gate", false
         | BusCompare (width,v) -> $"Bus Compare ='{v}'", false
         | BusCompare1(width,v,s)-> $"Bus Compare ='{s}'", false
         | Mux2 -> "2 input multiplexer", false
@@ -375,7 +377,7 @@ let getCompGroup fs wave =
     match fs.WaveComps[wave.WaveId.Id].FType with
     | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel _ | NotConnected ->
         InputOutput
-    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+    | Not | GateN _ ->
         Gates
     | BusCompare _ | BusCompare1 _->
         Buses
@@ -655,7 +657,7 @@ let infoButton  (tooltipMessage:string) (style: CSSProp list) (tooltipPosition:s
 let waveInfoButton (dispatch: Msg -> Unit) : ReactElement =
     button 
         [Button.Props [Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]]]
-        (fun _ -> PopupHelpers.viewWaveInfoPopup dispatch)
+        (fun _ -> UIPopups.viewWaveInfoPopup dispatch)
         (str Constants.infoSignUnicode)
 
 /// button used to give hover message  about selection filter box.

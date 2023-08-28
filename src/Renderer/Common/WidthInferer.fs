@@ -216,14 +216,14 @@ let private calculateOutputPortsWidth
         | [None] | [Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | [Some n] -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-    | And | Or | Xor | Nand | Nor | Xnor ->
-        assertInputsSize inputConnectionsWidth 2 comp
-        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
-        | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
-        | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
-        | [None; _] | [_; None]
-        | [Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
-        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | GateN (_, n) ->
+        assertInputsSize inputConnectionsWidth n comp
+        let portWidths = getWidthsForPorts inputConnectionsWidth (List.init n (fun i -> InputPortNumber i))
+        portWidths
+        |> List.tryFindIndex (function | Some n -> n <> 1 | None -> false)
+        |> function
+            | Some idx -> makeWidthInferErrorEqual 1  (Option.get portWidths[idx]) [getConnectionIdForPort idx]
+            | None -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
     | Mux2 ->
         // Mux also allowes buses.
         assertInputsSize inputConnectionsWidth 3 comp

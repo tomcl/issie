@@ -613,6 +613,7 @@ let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scale:ScaleTyp
 let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float)=
     //Similar structure to rotateBlock, easy to understand
 
+    printfn "running scaleBlockGroup"
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 

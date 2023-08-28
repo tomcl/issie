@@ -1,3 +1,6 @@
+# demo file backups
+demos/**/backup
+
 # New Output Folder
 build/
 

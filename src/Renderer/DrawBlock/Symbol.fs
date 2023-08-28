@@ -21,17 +21,29 @@ module Constants =
     let mergeSplitTextSize = "12px"
     let busSelectTextSize = "12px"
     let customPortSpacing = 40.
-    let portFontSizeInPixels:float = 12
     let portPosEdgeGap = 0.7
     let gatePortPosEdgeGap = 0.3
     let legendVertOffset = 5.
     let legendLineSpacingInPixels = 16.
     let testShowLabelBoundingBoxes = false
 
-    /// How large are component labels
-    let labelFontSizeInPixels:float = 16 // other parameters scale correctly with this
+    /// Font size for ports
+    let portFontSizeInPixels :float = 12
+
+    /// Font size for  component labels
+    let labelFontSizeInPixels :float = 16 // other parameters scale correctly with this
+
+    /// Font size for legends (names) in custom components
+    let customLegendFontSizeInPixels: float = 16.
+
+    /// Font size for legends on otehr components
+    let otherLegendFontSizeInPixels: float = 14
+
+    /// Text weight for bottom line (bit indication) of legends
+    let bitIndicationFontWeight: string = "400"
 
     /// Most fonts now work perfectly - see playground.fs for some tests - add more as needed.
+    /// Font style used by all component labels
     let componentLabelStyle: Text = 
         {defaultText with 
             TextAnchor = "start"; 
@@ -39,6 +51,8 @@ module Constants =
             FontFamily = "Verdana"; 
             FontWeight="500"}
 
+    /// Most fonts now work perfectly - see playground.fs for some tests - add more as needed.
+    /// Font style used by all Ports
     let componentPortStyle: Text =
         {defaultText with 
             TextAnchor = "start"; 
@@ -46,6 +60,7 @@ module Constants =
             FontFamily = "Verdana"; 
             FontWeight="500"}
 
+    /// Most fonts now work perfectly - see playground.fs for some tests - add more as needed.
     /// Style used by bus select bit legends
     let busSelectStyle: Text = 
         {defaultText with 
@@ -54,12 +69,13 @@ module Constants =
             FontFamily = "helvetica"; 
             FontWeight="600"}
 
-    let customLegendFontSize = "16px"
-    let otherLegendFontSize = "14px"
 
     /// Offset between label position and symbol. This is also used as a margin for the label bounding box.
     let componentLabelOffsetDistance: float =  // offset from symbol outline, otehr parameters scale correctly
         if testShowLabelBoundingBoxes then 0. else 7.
+
+    /// Offset between label poistion and symbol for "thin" components.
+    /// Wire labels etc.
     let thinComponentLabelOffsetDistance: float = 
         if testShowLabelBoundingBoxes then 0. else 3.
     
@@ -131,17 +147,13 @@ let getLabelBoundingBox (model: Model) (compId: ComponentId) : BoundingBox =
     Map.find compId model.Symbols
     |> (fun sym -> sym.LabelBoundingBox)
 
-
-
-
-
 let inline invertRotation (rot: RotationType) =
     match rot with
     | RotateClockwise -> RotateAntiClockwise
     | RotateAntiClockwise -> RotateClockwise
 
 
-
+/// the output is the rotation got from the two inputs one after the other.
 let inline combineRotation (r1:Rotation) (r2:Rotation) =
     let rot90 rot =
         match rot with
@@ -162,7 +174,8 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
     | Degree270 -> (rot90 >> rot180) r2
 
 
-    
+/// Returns color for the fill of a symbol (when not selected)
+/// Depends on theme and whether symbol is closed or not.
 let getSymbolColour compType clocked (theme:ThemeType) =
     match theme with
     | White | Light -> "lightgray"
@@ -518,7 +531,7 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                 //need to check the sum of the lengths of top and bottom
                 let topLength = customStringToLength portLabels[Top] 
                 let bottomLength = customStringToLength portLabels[Bottom]
-                let labelLength = (Constants.legendLineSpacingInPixels/Constants.portFontSizeInPixels) * customStringToLength [ct.Name]
+                let labelLength = (Constants.customLegendFontSizeInPixels/Constants.portFontSizeInPixels) * customStringToLength [ct.Name]
                 //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
                 let maxW = 
                     [

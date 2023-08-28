@@ -554,6 +554,7 @@ let update (msg : Msg) oldModel =
         model
         |> set userData_  data
         |> userDataToDrawBlockModel
+        |> writeUserData
         |> withNoMsg
 
     | SetThemeUserData (theme: DrawModelType.SymbolT.ThemeType) ->

@@ -33,14 +33,13 @@ module Constants =
     /// How large are component labels
     let labelFontSizeInPixels:float = 16 // otehr parameters scale correctly with this
 
-    /// Due to a bug in TextMetrics we are restricted to monospace font, bold or normal, or helvetica, if we want
-    /// accurate width
+    /// Most fonts now work perfectly - see playground.fs for some tests - add more as needed.
     let componentLabelStyle: Text = 
         {defaultText with 
             TextAnchor = "start"; 
             FontSize = $"%.0f{labelFontSizeInPixels}px"; 
-            FontFamily = "Times"; 
-            FontWeight="600"}
+            FontFamily = "Verdana"; 
+            FontWeight="500"}
 
     /// Style used by bus select bit legends
     let busSelectStyle: Text = 

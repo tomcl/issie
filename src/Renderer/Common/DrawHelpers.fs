@@ -101,26 +101,15 @@ type Text = {
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()
 
-/// To get this to work, note:
-/// its seems only to do 10px size - that is compensated in the code below.
-/// It is more accurate for some fonts than others.
-/// serif fonts are pretty bad (try "times").
-/// sans serif fonts have varying accuracy. Helvetica is the best I have found and is nearly perfect: "A" is measured
-/// too narrow.
-/// note  that many fonts get converted to some standard serif or non-serif font.
-/// note that accuracy varies with font weight (normal = 400 usually more accurate than bold = 600).
-/// To test this, switch on Constants.testShowLabelBounding Boxes in symbol.fs
+/// To get this to work, note the fonts in the playground.fs test which work well.
+/// Add fonts there to test if you like.
 let getTextWidthInPixels (font:Text) (txt:string) =
-   canvasWidthContext.font <- String.concat " " ["10px"; font.FontWeight; font.FontFamily]; // e.g. "16px bold sans-serif";
-   let sizeInPx = float ((font.FontSize.ToLower()).Replace("px",""))
+   let askedFont = String.concat " " [font.FontWeight; font.FontSize;  font.FontFamily]; // e.g. "16px bold sans-serif";
+   canvasWidthContext.font <- askedFont
+   //printf "Measururing '%s' -> '%s' with txt '%s' - fontSize=%s, sizeInpx = %.2f" askedFont canvasWidthContext.font txt font.FontSize sizeInPx
    let textMetrics = canvasWidthContext.measureText(txt)
-   let ms = sizeInPx * textMetrics.width / 10.0
+   let ms = textMetrics.width 
    ms
-
-/// this is a hack that works for "monospace" font only
-let getMonospaceWidth (font: string) (txt: string) =
-    let sizeInPx = float ((font.ToLower()).Replace("px",""))
-    float txt.Length * 0.6 *sizeInPx 
 
 /// Default line, change this one to create new lines
 let defaultLine = {
@@ -159,7 +148,7 @@ let defaultCircle = {
 let defaultText = {
     TextAnchor = "middle"
     FontSize = "10px"
-    FontFamily = "helvetica" // helvetica seems to work for computing widths (most fonts don't)
+    FontFamily = "verdana"
     FontWeight = "normal"
     Fill = "black"
     UserSelect = UserSelectOptions.None

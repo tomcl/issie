@@ -15,12 +15,12 @@ module TestFonts =
     let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
     let canvasWidthContext = testCanvas.getContext_2d()
 
-    let fontString (font:DrawHelpers.Text) = String.concat " " [font.FontWeight; font.FontSize; font.FontFamily]
+    let fontString (font:DrawHelpers.Text) = String.concat " " [ font.FontWeight; font.FontSize; font.FontFamily]
 
     let textMeasureWidth (font:DrawHelpers.Text) (txt:string) =
         let fontStr = fontString font
         canvasWidthContext.font <- fontStr
-        printf $"font = {font} -> {canvasWidthContext.font}"
+        printf $"font = {font}\n\n '{fontStr}' -> {canvasWidthContext.font}\n\n"
         //canvasWidthContext.textAlign <- font.TextAnchor
         canvasWidthContext.measureText(txt).width
 
@@ -30,6 +30,7 @@ module TestFonts =
         "helvetica"
         "verdana"
         "tahoma"
+        "600 tahoma"
         "trebuchet ms"
         "times"
         "georgia"
@@ -51,18 +52,23 @@ module TestFonts =
         textToTestDefault |> Some |> SetPopupDialogText  |> dispatch
         fun (model: Model) ->
             let dialogData = model.PopupDialogData
-            let fontFamily =
+            let fontSpec =
                 match dialogData.ConstraintErrorMsg with
                 | None -> fontStyleDefault
                 | Some fs -> fs
             let textToTest = Option.defaultValue textToTestDefault dialogData.Text
             let fontSize = 20
+            let fontWeight,fontFamily =
+                match fontSpec.Split (" ",System.StringSplitOptions.RemoveEmptyEntries) with
+                | [|family|] -> "",family
+                | [|weight;family|] -> weight, family
+                | _ -> "", ""
             let font = {
                 DrawHelpers.defaultText with
                     FontFamily = fontFamily // arial,times,consolas,georgia,helvetica, verdana, trebuchet ms, impact, tahoma
                     FontSize = $"{fontSize}px"
                     TextAnchor = "left" // left, right, middle
-                    FontWeight = "" // "bold", ""
+                    FontWeight = fontWeight // "bold", ""
                 }
             let text = (Option.defaultValue textToTestDefault dialogData.Text)
             let width =  textMeasureWidth font text

@@ -993,7 +993,7 @@ let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
     | Some el ->
         let height = el.offsetHeight - 50.0
         let width = el.offsetWidth - 150.0
-        printf "%s" $"Height={height}, width={width}"
+        //printf "%s" $"Height={height}, width={width}"
 
         [div 
             [Style 
@@ -1019,7 +1019,6 @@ let viewTopMenu model dispatch =
                 Constants.maxNumPathChars
             else
                 Constants.minNumPathChars
-    printfn "numpathChars = %d" numPathChars
 
     //printfn "FileView"
     let style = Style [ Width "100%" ; BorderBottom "2px solid lightgray"] //leftSectionWidth model

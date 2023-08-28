@@ -437,6 +437,13 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         {issieModel with Sheet={ issieModel.Sheet with Wire={model with Wires = newWires}}} |> withNoMsg
     | ToggleSnapToNet ->
         {issieModel with Sheet={ issieModel.Sheet with Wire={model with SnapToNet = not model.SnapToNet}}} |> withNoMsg
+        
+    |> fun (inputModel, inputCmd) -> 
+        match inputModel.Sheet.ScalingBox with 
+        | Some scalingBox when scalingBox.MouseOnScaleButton -> 
+            inputModel, inputCmd
+        | _ -> 
+            {inputModel with Sheet = {inputModel.Sheet with UndoList = inputModel.Sheet :: inputModel.Sheet.UndoList}}, inputCmd
 
 
 //---------------------------------------------------------------------------------//        

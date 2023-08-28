@@ -409,17 +409,12 @@ module SheetT =
     // HLP 23: AUTHOR Khoury & Ismagilov
     // Types needed for scaling box
     type ScalingBox = {
-        TopLeftStart : XYPos
-        WidthStart : float
-        HeightStart : float
-        StartingPos: XYPos
-        StartingMouse: XYPos
-        ShowBox: bool
-        BoxBound: BoundingBox
-        ScaleButton: SymbolT.Symbol Option
-        RotateCWButton: SymbolT.Symbol Option
-        RotateACWButton: SymbolT.Symbol Option
-        MovingPos: XYPos List
+        ScaleButton: SymbolT.Symbol 
+        RotateCWButton: SymbolT.Symbol 
+        RotateACWButton: SymbolT.Symbol 
+        ScalingBoxBound: BoundingBox
+        MouseOnScaleButton: bool
+        ButtonList: ComponentId list
     }
 
   
@@ -497,7 +492,7 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | CtrlU | CtrlI
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -548,7 +543,6 @@ module SheetT =
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling
         | DoNothing
-        | DrawBox
         // ------------------- Popup Dialog Management Messages----------------------//
         | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
         | ClosePopup
@@ -618,7 +612,6 @@ module SheetT =
         NearbyComponents: CommonTypes.ComponentId list
         ErrorComponents: CommonTypes.ComponentId list
         DragToSelectBox: BoundingBox
-        ButtonList: ComponentId list
         ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
         TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
@@ -643,14 +636,14 @@ module SheetT =
         /// html scrolling position: this is in screen pixels, draw block X,Y values are 1/model.Zoom of this
         ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
         /// this is Drawblock X,Y values
-        LastMousePos: XYPos // For Symbol Movement
+        LastMousePos: XYPos // For Symbol Movement and Scaling
         ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
         LastMousePosForSnap: XYPos
         MouseCounter: int
         CtrlKeyDown : bool
         ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list
-        Box: ScalingBox
+        ScalingBox: ScalingBox Option
         Compiling: bool
         CompilationStatus: CompileStatus
         CompilationProcess: ChildProcess option

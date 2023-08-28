@@ -20,10 +20,8 @@ module Constants =
     let gridSize = 30 
     let mergeSplitTextSize = "12px"
     let busSelectTextSize = "12px"
-    let portTextSize = "12px"
-    let portTextCharWidth = 8.
-    let portTextWeight = "bold"
     let customPortSpacing = 40.
+    let portFontSizeInPixels:float = 12
     let portPosEdgeGap = 0.7
     let gatePortPosEdgeGap = 0.3
     let legendVertOffset = 5.
@@ -31,13 +29,20 @@ module Constants =
     let testShowLabelBoundingBoxes = false
 
     /// How large are component labels
-    let labelFontSizeInPixels:float = 16 // otehr parameters scale correctly with this
+    let labelFontSizeInPixels:float = 16 // other parameters scale correctly with this
 
     /// Most fonts now work perfectly - see playground.fs for some tests - add more as needed.
     let componentLabelStyle: Text = 
         {defaultText with 
             TextAnchor = "start"; 
             FontSize = $"%.0f{labelFontSizeInPixels}px"; 
+            FontFamily = "Verdana"; 
+            FontWeight="500"}
+
+    let componentPortStyle: Text =
+        {defaultText with 
+            TextAnchor = "start"; 
+            FontSize = $"%.0f{portFontSizeInPixels}px"; 
             FontFamily = "Verdana"; 
             FontWeight="500"}
 
@@ -48,6 +53,9 @@ module Constants =
             FontSize = "12px"; 
             FontFamily = "helvetica"; 
             FontWeight="600"}
+
+    let customLegendFontSize = "16px"
+    let otherLegendFontSize = "14px"
 
     /// Offset between label position and symbol. This is also used as a margin for the label bounding box.
     let componentLabelOffsetDistance: float =  // offset from symbol outline, otehr parameters scale correctly
@@ -388,11 +396,15 @@ let customToLength (lst : (string * int) list) =
 /// get the max length (in pixels) of any of the Text strings in a list
 /// Hack - for now assume text char width is constant
 let customStringToLength (lst: string list) =
-    let labelLengths = List.map String.length lst
-    if List.isEmpty labelLengths then 0
-    else List.max labelLengths
-    |> float
-    |> (*) Constants.portTextCharWidth
+    let getPortTextWidth (portLab:string) =
+        getTextWidthInPixels Constants.componentPortStyle portLab
+    match lst with
+    | [] -> 0.
+    | portStrL ->
+        portStrL
+        |> List.map getPortTextWidth
+        |> List.max
+
 
 let addPortToMaps (edge: Edge) (portMaps: PortMaps) (portId: string) =
     {
@@ -506,7 +518,7 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                 //need to check the sum of the lengths of top and bottom
                 let topLength = customStringToLength portLabels[Top] 
                 let bottomLength = customStringToLength portLabels[Bottom]
-                let labelLength = customStringToLength [ct.Name]
+                let labelLength = (Constants.legendLineSpacingInPixels/Constants.portFontSizeInPixels) * customStringToLength [ct.Name]
                 //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
                 let maxW = 
                     [

@@ -443,7 +443,7 @@ let addToRecents path recents =
     |> List.insertAt 0 path
     |> Some
 
-/// open an rxisting porject from its path
+/// open an existing project from its path
 let openProjectFromPath (path:string) model dispatch =
     dispatch (ExecFuncAsynch <| fun () ->
         traceIf "project" (fun () -> "loading files")
@@ -451,16 +451,20 @@ let openProjectFromPath (path:string) model dispatch =
         | Error err ->
             log err
             displayFileErrorNotification err dispatch
+            model.UserData.RecentProjects
+            |> Option.map (List.filter ((<>) path)) 
         | Ok (componentsToResolve: LoadStatus list) ->
             traceIf "project" (fun () -> "resolving popups...")
             
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
             traceIf "project" (fun () ->  "project successfully opened.")
-            dispatch <| SetUserData {
-                model.UserData with 
-                    LastUsedDirectory = Some path; 
-                    RecentProjects = addToRecents path model.UserData.RecentProjects
-                    }
+            addToRecents path model.UserData.RecentProjects
+        |> fun recents ->
+                dispatch <| SetUserData {
+                    model.UserData with 
+                        LastUsedDirectory = Some path; 
+                        RecentProjects = recents
+                        }
         Elmish.Cmd.none)
     
 
@@ -992,7 +996,7 @@ let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
     | None -> r
     | Some el ->
         let height = el.offsetHeight - 50.0
-        let width = el.offsetWidth - 150.0
+        let width = el.offsetWidth - 50.0
         //printf "%s" $"Height={height}, width={width}"
 
         [div 
@@ -1124,7 +1128,12 @@ let viewTopMenu model dispatch =
                       [ Style
                           [ Height "100%"
                             Width "100%" ] ] ]
-                    [ Navbar.Item.div
+                    [
+                      // Sheets menu
+                      fileTab model
+
+                      // Projects menu
+                      Navbar.Item.div
                         [ Navbar.Item.HasDropdown
                           Navbar.Item.Props
                               [ OnClick(fun _ ->
@@ -1147,7 +1156,6 @@ let viewTopMenu model dispatch =
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| doActionWithSaveFileDialog "Close project" (ExecFuncInMessage(forceCloseProject,dispatch)) model dispatch ] ]
                                       [ str "Close project" ] ] ]
 
-                      fileTab model
                       // make the path in the navbar responsive
                       let hidePath = numPathChars < Constants.numCharsHidePath
                       let pathItem = Breadcrumb.item [] [ str <| if hidePath then "" else cropToLength numPathChars false projectPath]

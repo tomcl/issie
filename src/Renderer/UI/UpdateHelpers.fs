@@ -555,6 +555,9 @@ let writeUserData (model:Model) =
         |> Result.mapError (fun mess -> $"Write error on directory {userAppDir}: %s{mess}")
         |> function | Error mess -> printfn "%s" mess | _ -> ())
     |> ignore
+    model
+
+
 /// subfunction used in model update function
 let getSimulationDataOrFail model msg =
     match model.CurrentStepSimulationStep with
@@ -707,7 +710,7 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
    
 let exitApp (model:Model) =
     // send message to main process to initiate window close and app shutdown
-    writeUserData model
+    writeUserData model |> ignore
     renderer.ipcRenderer.send("exit-the-app",[||])
 
 /// Tests physical equality on two objects.

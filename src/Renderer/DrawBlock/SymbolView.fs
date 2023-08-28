@@ -51,14 +51,15 @@ let addStyledText (pos: XYPos) text name =
 
 /// Add one or two lines of text, two lines are marked by a . delimiter
 let addLegendText (pos: XYPos) (name:string) alignment weight size =
-    let text =
+    let textStyle =
             {defaultText with TextAnchor = alignment; FontWeight = weight; FontSize = size}
+    let bottomTextStyle = {textStyle with FontWeight = Constants.bitIndicationFontWeight}
     match name.Split([|'.'|]) with
     | [|oneLine|] -> 
-        [makeText pos.X pos.Y name text]
+        [makeText pos.X pos.Y name textStyle]
     | [|topLine;bottomLine|] ->
-        [makeText pos.X pos.Y topLine text;
-         makeText pos.X (pos.Y+Constants.legendLineSpacingInPixels) bottomLine text]
+        [makeText pos.X pos.Y topLine textStyle;
+         makeText pos.X (pos.Y+Constants.legendLineSpacingInPixels) bottomLine bottomTextStyle]
     | _ ->
         failwithf "addLegendText does not work with more than two lines demarcated by ."
 
@@ -395,7 +396,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             addText {X = w/2. + xOffset; Y = h/1.5 + yOffset}  dialogVal align "normal" fontSize
         | BusCompare (_,y) ->
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
-        |BusCompare1 (_,_,t) -> 
+        | BusCompare1 (_,_,t) -> 
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("= " + t) "middle" "bold" "10px")
         // legacy component type: to be deleted
         | Input x
@@ -410,7 +411,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
     let outlineColour, strokeWidth =
         match comp.Type with
         | SplitWire _ | MergeWires -> outlineColor colour, "4.0"
-        |NbitSpreader _ -> outlineColor colour, "4.0"
+        | NbitSpreader _ -> outlineColor colour, "4.0"
         | IOLabel -> outlineColor colour, "4.0"
         | NotConnected -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"
@@ -480,8 +481,8 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset
     let legendFontSize (ct:ComponentType) =
         match ct with
-        | Custom _ -> Constants.customLegendFontSize
-        | _ -> Constants.otherLegendFontSize
+        | Custom _ -> Constants.customLegendFontSizeInPixels
+        | _ -> Constants.otherLegendFontSizeInPixels
 
     // Put everything together 
     (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
@@ -493,7 +494,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                         (getComponentLegend comp.Type transform.Rotation) 
                         "middle" 
                         "bold" 
-                        (legendFontSize comp.Type))
+                        ($"{legendFontSize comp.Type}px"))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)

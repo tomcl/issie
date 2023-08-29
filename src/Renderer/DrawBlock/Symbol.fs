@@ -540,7 +540,7 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                         float (portLabels[Bottom].Length + 1) * bottomLength
                     ] |> List.max |> (*) 1.1
                 let w = maxW
-                printfn $"MaxW = {maxW}"
+                //printfn $"MaxW = {maxW}"
                 let scaledW = max w (float Constants.gridSize * 4.) //Ensures a minimum width if the labels are very small
                 let scaledH = max h (float Constants.gridSize*2.)
                 {sym with

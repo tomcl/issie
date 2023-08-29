@@ -181,4 +181,11 @@ module Breadcrumbs =
             []
             dispatch
 
-        
+module Misc =
+    open ModelType
+    open DrawModelType
+
+
+    let highLightChangedConnections dispatch =
+        dispatch (Sheet (SheetT.Msg.SelectWires Extractor.debugChangedConnections))
+        Extractor.debugChangedConnections <- []

@@ -14,7 +14,7 @@ let sortQBy (byFun: 'a -> 'b) (ids: 'a list) =
         if byFun (ids[i]) > byFun (ids[i + 1]) then
             isSorted <- false
 
-    if isSorted then ids else List.sort ids
+    if isSorted then ids else List.sortBy byFun ids
 
 /// Transform the CanvasState into an f# data structure, with layout data removed (for checking electrically significant changes).
 /// Components and connections are sorted to make them order-invariant - selecting components alters order.
@@ -94,14 +94,31 @@ let verticesAreSame tolerance (conns1: (float * float * bool) list) (conns2: (fl
 //     ||> List.iter2 (fun (x1,y1,m1) (x2,y2,m2) -> errSum <- errSum + sq(x1-x2) + sq(y1-y2) + diff m1 m2)
 //     errSum < tolerance
 
+/// evil mutable for debugging only
+/// allows easy access to specific connections - so it can be highlighted in GUI
+let mutable debugChangedConnections: ConnectionId list = []
+
 /// Are two lists of connections identical
 let compareConns tolerance conns1 conns2 =
     let connIdA (conns: Connection List) = conns |> sortQBy (fun conn -> conn.Id)
     let connsA1 = connIdA conns1
     let connsA2 = connIdA conns2
+    match connsA1, connsA2 with
+    | a,b when connsA1.Length <> connsA2.Length ->
+        printfn "Connection list lengths don't match"
+        false
+    | a,b when not <| List.forall2 (fun c1 c2 -> verticesAreSame tolerance c1.Vertices c2.Vertices) a b ->
+        List.zip a b
+        |> List.filter (fun (c1,c2) -> not <| verticesAreSame tolerance c1.Vertices c2.Vertices)
+        |> List.map fst
+        |> List.map (fun (badConn: Connection) -> ConnectionId badConn.Id)
+        |> (fun lst ->
+            printfn "%d bad connections" lst.Length
+            debugChangedConnections <- lst)
+        false
+    | _ -> true
+        
 
-    connsA1.Length = connsA2.Length
-    && List.forall2 (fun c1 c2 -> verticesAreSame tolerance c1.Vertices c2.Vertices) connsA1 connsA2
 
 /// Are two lists of components identical
 let compareComps tolerance comps1 comps2 =
@@ -123,7 +140,11 @@ let compareCanvas (tolerance: float) ((comps1, conns1): CanvasState) ((comps2, c
     let compsOk = reduce comps1 = reduce comps2
     let compsSamePos = compareComps tolerance comps1 comps2
     let connsOk = compareConns tolerance conns1 conns2
-    compsOk && compsSamePos && connsOk
+    let comparesEqual = compsOk && compsSamePos && connsOk
+    if not comparesEqual then
+        printf "%s" $"comps:{compsOk}, compsSamePos:{compsSamePos}, connsOk:{connsOk}"
+    comparesEqual
+    
 
 /// Compare the name and IOs of two sheets as loadedcomponents
 /// For backups, if these chnage something major has happened

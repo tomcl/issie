@@ -554,7 +554,8 @@ let updateWire (model : Model) (wire : Wire) (reverse : bool) =
         |> Option.map reverseWire
     else 
         partialAutoroute model wire newPort false
-    |> Option.defaultValue (smartAutoroute model wire)
+    |> Option.defaultWith (fun () ->
+        smartAutoroute model wire)
 
 /// Re-routes the wires in the model based on a list of components that have been altered.
 /// If the wire input and output ports are both in the list of moved components, 

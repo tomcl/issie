@@ -931,35 +931,38 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
 /// Perform complete wire segment separation and ordering for all orientations.
 /// wiresToRoute: set of wires to have segments separated and ordered
 let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
-        printfn "Separating all segments!"
-        // Currently: separate all wires - not just those (in wiresToRoute) that
-        // have changed. This prevents unrouted segments from pinning new segments.
-        // TODO: see whetehr something better can be worked out, and whether routing segments
-        // can be done interactively.
+        if wiresToRoute = [] then
+            model // do nothing
+        else
+            printfn "Separating all segments!"
+            // Currently: separate all wires - not just those (in wiresToRoute) that
+            // have changed. This prevents unrouted segments from pinning new segments.
+            // TODO: see whetehr something better can be worked out, and whether routing segments
+            // can be done interactively.
 
-        /// convenience abbreviation
-        let separate = separateModelSegmentsOneOrientation wiresToRoute
+            /// convenience abbreviation
+            let separate = separateModelSegmentsOneOrientation wiresToRoute
 
-        // In theory one run Vertical and Horizontal of separate should be enough. However multiple runs work better
-        // chunking togetherclusters that should be connected etc.
-        // TODO: revisit this and see how necessary it is.
+            // In theory one run Vertical and Horizontal of separate should be enough. However multiple runs work better
+            // chunking togetherclusters that should be connected etc.
+            // TODO: revisit this and see how necessary it is.
 
-        separate Horizontal model // separate all horizontal wire segments
-        |> separate Vertical // separate all vertical wire segments
-        |> separate Horizontal // a final pair of checks allows ordering and "chunking" to work nicely in almost all cases
-        |> separate Vertical  //
-        |> separate Horizontal //
+            separate Horizontal model // separate all horizontal wire segments
+            |> separate Vertical // separate all vertical wire segments
+            |> separate Horizontal // a final pair of checks allows ordering and "chunking" to work nicely in almost all cases
+            |> separate Vertical  //
+            |> separate Horizontal //
 
-        // after normal separation there may be "fixed" segments which should be separated because they overlap
-        // one run for Vert and then Horiz segments is enough for this
-        // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
-        |> separateFixedSegments wiresToRoute Horizontal  
-        |> separateFixedSegments wiresToRoute Vertical  
+            // after normal separation there may be "fixed" segments which should be separated because they overlap
+            // one run for Vert and then Horiz segments is enough for this
+            // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
+            |> separateFixedSegments wiresToRoute Horizontal  
+            |> separateFixedSegments wiresToRoute Vertical  
 
-        // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
-        // this code attempts to remove such corners if it can be done while keeping routing ok
+            // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
+            // this code attempts to remove such corners if it can be done while keeping routing ok
 
-        |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
+            |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
 
 
 /// Top-level function to replace updateWireSegmentJumps
@@ -997,6 +1000,7 @@ let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
 /// all wires from comps have all segments made auto.
 /// then the separation logic is rerun on these wires
 let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
+    printfn "reseparating wires"
     let wires' =
         getConnectedWires model comps
         |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))
@@ -1010,6 +1014,7 @@ let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
 /// all wires from comps are autorouted from scratch
 /// then the separation logic is rerun on these wires
 let reRouteWiresFrom  (comps: ComponentId list) (model: Model) =
+    printfn "reroute wires"
     let wires' =
         getConnectedWires model comps
         |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))

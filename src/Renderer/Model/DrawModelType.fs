@@ -388,7 +388,7 @@ module BusWireT =
         | ColorWires of list<ConnectionId> * HighLightColor
         | ErrorWires of list<ConnectionId>
         | ResetJumps of list<ConnectionId>
-        | MakeJumps of list<ConnectionId>
+        | MakeJumps of separate: bool * conns: list<ConnectionId>
         | UpdateWireDisplayType of WireType
         | ToggleArrowDisplay
         | ResetModel // For Issie Integration

@@ -1044,9 +1044,9 @@ let viewTopMenu model dispatch =
             let allRoots = allRootSheets sTrees
             let isSubSheet sh = not <| Set.contains sh allRoots
             let openSheetAction  (sheet:SheetTree) dispatch =
-                printfn "Trying to open %s with %A" sheet.SheetName sheet.SheetNamePath
+                //printfn "Trying to open %s with %A" sheet.SheetName sheet.SheetNamePath
                 dispatch (StartUICmd ChangeSheet)
-                printfn "Starting UI Cmd"
+                //printfn "Starting UI Cmd"
                 dispatch <| ExecFuncInMessage(
                     (fun model dispatch -> 
                         let p = Option.get model.CurrentProj
@@ -1076,7 +1076,7 @@ let viewTopMenu model dispatch =
                   Navbar.Item.Props
                       [ OnClick(fun _ ->
                           //printSheetNames model
-                          printfn "OnClick - inverting TopMenuOpenState when current state is: %A" model.TopMenuOpenState
+                          //printfn "OnClick - inverting TopMenuOpenState when current state is: %A" model.TopMenuOpenState
                           if model.TopMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch) ] ]

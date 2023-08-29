@@ -662,7 +662,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         let coalesceCmds = connIdL |> List.map (fun conn -> wireCmd (BusWireT.CoalesceWire conn))
         { model with Action = Idle ; UndoList = appendUndoList model.UndoList newModel; RedoList = [] },
         Cmd.batch ([ wireCmd (BusWireT.DragSegment (segIdL, mMsg))                    
-                     wireCmd (BusWireT.MakeJumps connIdL ) ] @ coalesceCmds)
+                     wireCmd (BusWireT.MakeJumps (true,connIdL )) ] @ coalesceCmds)
     | Selecting ->
         //let box = model.DragToSelectBox
         let newComponents = findIntersectingComponents model model.DragToSelectBox
@@ -729,7 +729,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         SnapSegments = emptySnap
                         UndoList = appendUndoList model.UndoList newModel
                         AutomaticScrolling = false },
-                            wireCmd (BusWireT.MakeJumps movingWires)
+                            wireCmd (BusWireT.MakeJumps (false,movingWires))
                 | _ -> 
                     {model with
                         ErrorComponents = [];
@@ -742,7 +742,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                     Cmd.batch [ //symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
                                 symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
                                 //wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
-                                wireCmd (BusWireT.MakeJumps movingWires) 
+                                wireCmd (BusWireT.MakeJumps (false,movingWires))
                                 sheetCmd DoNothing]
             
 
@@ -758,7 +758,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         sheetCmd UpdateBoundingBoxes
                         symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
                         wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
-                        wireCmd (BusWireT.MakeJumps movingWires) ]
+                        wireCmd (BusWireT.MakeJumps (false,movingWires)) ]
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
             if model.TargetPortId <> "" // If a target has been found, connect a wire

@@ -656,8 +656,8 @@ let getLayoutInfoFromSymbol symbol =
       HScale = symbol.HScale
       VScale = symbol.VScale
     }
-/// Return a symbol with its embedded component correctly updated with symbol layoiut info.
-/// Should be called juts before saving a component.
+/// Return a symbol with its embedded component correctly updated with symbol layout info.
+/// Should be called just before saving a component.
 let storeLayoutInfoInComponent _ symbol =
     { symbol with
         Component =

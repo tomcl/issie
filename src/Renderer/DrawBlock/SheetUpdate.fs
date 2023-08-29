@@ -488,7 +488,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         model,
         Cmd.batch [
             wireCmd (BusWireT.UpdateWireDisplayType BusWireT.Jump)
-            wireCmd (BusWireT.MakeJumps wires)
+            wireCmd (BusWireT.MakeJumps (false,wires))
         ]
 
     | WireType Radiussed ->
@@ -496,7 +496,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         model,
         Cmd.batch [
             wireCmd (BusWireT.UpdateWireDisplayType BusWireT.Radial)
-            wireCmd (BusWireT.MakeJumps wires)
+            wireCmd (BusWireT.MakeJumps (false,wires))
         ]
        
     | WireType Modern ->
@@ -504,7 +504,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         model,
         Cmd.batch [
             wireCmd (BusWireT.UpdateWireDisplayType BusWireT.Modern)
-            wireCmd (BusWireT.MakeJumps wires)
+            wireCmd (BusWireT.MakeJumps (false,wires))
         ]
                 
     // ---------------------------- Issie Messages ---------------------------- //

@@ -14,7 +14,13 @@ let sortQBy (byFun: 'a -> 'b) (ids: 'a list) =
         if byFun (ids[i]) > byFun (ids[i + 1]) then
             isSorted <- false
 
-    if isSorted then ids else List.sort ids
+    if isSorted then ids else List.sortBy byFun ids
+
+/// Formats a ConnectionId for logging purposes
+let logConnId (id: ConnectionId) =
+    id
+    |> (fun (ConnectionId str) -> str)
+    |> (fun str -> str[0..2])
 
 /// Transform the CanvasState into an f# data structure, with layout data removed (for checking electrically significant changes).
 /// Components and connections are sorted to make them order-invariant - selecting components alters order.
@@ -74,13 +80,14 @@ let stateIsEqual (cs1: CanvasState) (cs2: CanvasState) =
     && List.forall2 connsAreEqual conns1 conns2
 
 /// Are two lists of vertices are very similar.
-let verticesAreSame tolerance (conns1: (float * float * bool) list) (conns2: (float * float * bool) list) =
+let verticesAreSame (fixedOffset:XYPos) tolerance (conns1: (float * float * bool) list) (conns2: (float * float * bool) list) =
     let diff m1 m2 = if m1 <> m2 then tolerance else 0.
     let sq x = x * x
     let mutable errSum = 0.
 
     (conns1, conns2)
-    ||> List.iter2 (fun (x1, y1, m1) (x2, y2, m2) -> errSum <- errSum + sq (x1 - x2) + sq (y1 - y2) + diff m1 m2)
+    ||> List.iter2 (fun (x1, y1, m1) (x2, y2, m2) ->
+        errSum <- errSum + sq (x1 - x2 - fixedOffset.X) + sq (y1 - y2 - fixedOffset.Y) + diff m1 m2)
 
     errSum < tolerance
     && conns1.Length = conns2.Length // REVIEW - check if the formatted code is the same as the original F# source code as shown below
@@ -94,14 +101,54 @@ let verticesAreSame tolerance (conns1: (float * float * bool) list) (conns2: (fl
 //     ||> List.iter2 (fun (x1,y1,m1) (x2,y2,m2) -> errSum <- errSum + sq(x1-x2) + sq(y1-y2) + diff m1 m2)
 //     errSum < tolerance
 
+/// evil mutable for debugging only
+/// allows easy access to specific connections - so it can be highlighted in GUI
+let mutable debugChangedConnections: ConnectionId list = []
+
+let printConnErrors (connFixedOffset: XYPos)=
+    List.mapi (fun i (c1,c2) ->
+        let lengthDiff = c1.Vertices.Length - c2.Vertices.Length
+        if c1.Id <> c2.Id then
+            printfn "*** Connection Ids don't match"
+        if lengthDiff <> 0 then
+            printf "%s" $"Conn {i} {logConnId (ConnectionId c1.Id)}: Length diff: {lengthDiff}"
+        else
+            printf "%s" $"Conn {i} {logConnId (ConnectionId c1.Id)}: \
+                Vertices don't match: fixedoffset = %.1f{connFixedOffset.X},%.1f{connFixedOffset.Y}"
+            printfn "Vertex deltas: %A" ((c1.Vertices,c2.Vertices) ||> List.map2 (fun (x1,y1,_) (x2,y2,_) -> (x1-x2),(y1-y2)))
+        c1,c2)
+
 /// Are two lists of connections identical
 let compareConns tolerance conns1 conns2 =
     let connIdA (conns: Connection List) = conns |> sortQBy (fun conn -> conn.Id)
     let connsA1 = connIdA conns1
     let connsA2 = connIdA conns2
+    /// if whole ckt has been translated this will be the offset.
+    /// This offset for all vertices => connections still the same.
+    let connFixedOffset =
+        let xy (x,y,_) = {X=x;Y=y}
+        match connsA1,connsA2 with
+        | c1::_, c2::_ ->
+            xy c1.Vertices[0] - xy c2.Vertices[0]
+        | _ ->
+            {X=0.; Y=0.}
+    match connsA1, connsA2 with
+    | a,b when a.Length <> b.Length ->
+        //printfn "Connection list lengths don't match"
+        false
+    | a,b when not <| List.forall2 (fun c1 c2 -> verticesAreSame connFixedOffset tolerance c1.Vertices c2.Vertices) a b ->
+        List.zip a b
+        |> List.filter (fun (c1,c2) -> not <| verticesAreSame connFixedOffset tolerance c1.Vertices c2.Vertices)
+        //|> printConnErrors connFixedOffset
+        |> List.map fst
+        |> List.map (fun (badConn: Connection) -> ConnectionId badConn.Id)
+        |> (fun lst ->
+            //printfn "%d bad connections" lst.Length
+            debugChangedConnections <- lst)
+        false
+    | _ -> true
+        
 
-    connsA1.Length = connsA2.Length
-    && List.forall2 (fun c1 c2 -> verticesAreSame tolerance c1.Vertices c2.Vertices) connsA1 connsA2
 
 /// Are two lists of components identical
 let compareComps tolerance comps1 comps2 =
@@ -123,7 +170,11 @@ let compareCanvas (tolerance: float) ((comps1, conns1): CanvasState) ((comps2, c
     let compsOk = reduce comps1 = reduce comps2
     let compsSamePos = compareComps tolerance comps1 comps2
     let connsOk = compareConns tolerance conns1 conns2
-    compsOk && compsSamePos && connsOk
+    let comparesEqual = compsOk && compsSamePos && connsOk
+    //if not comparesEqual then
+        //printf "%s" $"comps:{compsOk}, compsSamePos:{compsSamePos}, connsOk:{connsOk}"
+    comparesEqual
+    
 
 /// Compare the name and IOs of two sheets as loadedcomponents
 /// For backups, if these chnage something major has happened

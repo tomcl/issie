@@ -383,6 +383,13 @@ let linkAndRemoveSameNetSegments (lines: Line array) (cluster: Cluster) =
     |> List.map (fun line -> line.Lid.Index)
     |> (fun newSegs -> {cluster with Segments = newSegs})
 
+/// print diagnostics in rare case that a segment gets "orphaned"
+/// this should probably never happened and be fixed if anything is printed.
+let printLostSegmentInCluster (msg:string) (lines: Line array) (lostIndex: int) (loc: Cluster) =
+    printf "%s" msg
+    // TODO: add diagnostic info here
+    ()
+
 /// Scan through segments in P order creating a list of local Clusters.
 /// Within one cluster segments are adjacent and overlapping. Note that
 /// different clusters may occupy the same P values if their segments do
@@ -400,10 +407,32 @@ let makeClusters (lines: Line array) : Cluster list =
     let keepOnlyGroupableSegments (loc: Cluster) =
         { loc with Segments = List.filter groupable loc.Segments }
 
+    let markSegmentsAsGroupable (loc: Cluster) =
+        loc.Segments |> List.iter (fun seg -> groupableA[seg] <- false)
+
+    /// Recursive function identifies a new cluster from the 
     let rec getClusters lines =
         match Array.tryFindIndex ((=) true) groupableA with
         | None -> []
+        // nextIndex is the lowest groupable index in lines, around which another cluster can be constructed.
         | Some nextIndex ->
+            /// print diagnostics for unexpected case where the original segment in the cluster
+            /// ends up 'lost' and not included in any cluster.
+            /// Return original cluster in a list with new cluster containing lost segment if needed.
+            let handleLostNextIndex (msg: string) (loc: Cluster) =
+                if not <| List.contains nextIndex loc.Segments then
+                    printLostSegmentInCluster msg lines nextIndex loc
+                    let orphanLoc = {
+                        Segments = [nextIndex]
+                        UpperFix = None
+                        LowerFix = None
+                        Bound = loc.Bound}
+                    [orphanLoc; loc]
+                else
+                    [loc]
+
+                
+
             // to find a cluster of overlapping segments search forward first until there is a gap
             let loc1 = expandCluster nextIndex Upwards lines
             // now, using the (larger) union of bounds fond searching forward, search backwards. This may find
@@ -416,43 +445,35 @@ let makeClusters (lines: Line array) : Cluster list =
             match loc2 with
             | { Segments = lowestLoc2Index :: _
                 LowerFix = lowerFix } when lines[lowestLoc2Index].P > lines[nextIndex].P ->
-                List.except loc2.Segments loc1.Segments
-                |> (fun segs ->
-                    if segs = [] then
-                        [ loc2 ]
-                    else
-                        if not <| List.contains nextIndex segs then
-                            failwithf "What? nextIndex has got lost from loc1!"
+                    List.except loc2.Segments loc1.Segments
+                    |> (fun loc1LostSegs ->
+                        if loc1LostSegs = [] then
+                            // no original (upward search) segments not also found in loc2 (downward search).
+                            // So return loc2.
+                            [ loc2 ]  
+                        else
+                            // we have some loc1 segments (segs)  not captured by l2
+                            if not <| List.contains nextIndex loc1LostSegs then
+                                printf "What? nextIndex has got lost from loc1! Trying to repair..."
 
-                        segs
-                        |> (fun segs ->
                             { loc1 with
-                                Segments = segs
-                                UpperFix = lowerFix })
-                        |> (fun loc -> expandCluster (List.max loc.Segments) (Downwards loc) lines)
-                        |> (fun loc1 ->
-                            (if not <| List.contains nextIndex loc1.Segments then
-                                    failwithf "What? nextIndex has got lost from loc1 after expansion!")
-
-                            loc1)
-                        |> (fun loc1 -> [ loc2; loc1 ]))
+                                Segments = loc1LostSegs
+                                UpperFix = lowerFix }
+                            |> (fun loc -> expandCluster (List.max loc.Segments) (Downwards loc) lines)
+                            |> handleLostNextIndex "What? nextIndex has got lost from loc1 after expansion!"
+                            |> List.append [loc2]) // return the expanded loc1LostSegs as  a cluster with loc2
             | _ ->
-                (if not <| List.contains nextIndex loc2.Segments then
-                        failwithf "What? nextIndex has got lost from loc2!")
-
-                [ loc2 ]
+                if not <| List.contains nextIndex loc2.Segments then
+                    handleLostNextIndex  "What? nextIndex has got lost from loc2!" loc2
+                else
+                    [ loc2 ]
             |> List.map keepOnlyGroupableSegments
             |> List.filter (fun loc -> loc.Segments <> [])
             |> (fun newLocs ->
-                    newLocs
-                    |> List.iter (fun loc -> 
-                        loc.Segments |> List.iter (fun seg -> groupableA[seg] <- false))
-
+                    List.iter markSegmentsAsGroupable newLocs
                     if groupable nextIndex then
                         failwithf "Error: infinite loop detected in cluster find code"
-
                     newLocs @ getClusters lines)
-
     getClusters lines
     |> List.map (linkAndRemoveSameNetSegments lines)
 
@@ -910,34 +931,38 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
 /// Perform complete wire segment separation and ordering for all orientations.
 /// wiresToRoute: set of wires to have segments separated and ordered
 let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
-        // Currently: separate all wires - not just those (in wiresToRoute) that
-        // have changed. This prevents unrouted segments from pinning new segments.
-        // TODO: see whetehr something better can be worked out, and whether routing segments
-        // can be done interactively.
+        if wiresToRoute = [] then
+            model // do nothing
+        else
+            printfn "Separating all segments!"
+            // Currently: separate all wires - not just those (in wiresToRoute) that
+            // have changed. This prevents unrouted segments from pinning new segments.
+            // TODO: see whetehr something better can be worked out, and whether routing segments
+            // can be done interactively.
 
-        /// convenience abbreviation
-        let separate = separateModelSegmentsOneOrientation wiresToRoute
+            /// convenience abbreviation
+            let separate = separateModelSegmentsOneOrientation wiresToRoute
 
-        // In theory one run Vertical and Horizontal of separate should be enough. However multiple runs work better
-        // chunking togetherclusters that should be connected etc.
-        // TODO: revisit this and see how necessary it is.
+            // In theory one run Vertical and Horizontal of separate should be enough. However multiple runs work better
+            // chunking togetherclusters that should be connected etc.
+            // TODO: revisit this and see how necessary it is.
 
-        separate Horizontal model // separate all horizontal wire segments
-        |> separate Vertical // separate all vertical wire segments
-        |> separate Horizontal // a final pair of checks allows ordering and "chunking" to work nicely in almost all cases
-        |> separate Vertical  //
-        |> separate Horizontal //
+            separate Horizontal model // separate all horizontal wire segments
+            |> separate Vertical // separate all vertical wire segments
+            |> separate Horizontal // a final pair of checks allows ordering and "chunking" to work nicely in almost all cases
+            |> separate Vertical  //
+            |> separate Horizontal //
 
-        // after normal separation there may be "fixed" segments which should be separated because they overlap
-        // one run for Vert and then Horiz segments is enough for this
-        // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
-        |> separateFixedSegments wiresToRoute Horizontal  
-        |> separateFixedSegments wiresToRoute Vertical  
+            // after normal separation there may be "fixed" segments which should be separated because they overlap
+            // one run for Vert and then Horiz segments is enough for this
+            // TODO - include a comprehensive check for any remaining overlapping wires after this - and fix them
+            |> separateFixedSegments wiresToRoute Horizontal  
+            |> separateFixedSegments wiresToRoute Vertical  
 
-        // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
-        // this code attempts to remove such corners if it can be done while keeping routing ok
+            // after the previous two phases there may be artifacts where wires have an unnecessary number of corners.
+            // this code attempts to remove such corners if it can be done while keeping routing ok
 
-        |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
+            |> removeModelCorners wiresToRoute // code to clean up some non-optimal routing
 
 
 /// Top-level function to replace updateWireSegmentJumps
@@ -953,7 +978,8 @@ let updateWireSegmentJumpsAndSeparations wires model  =
 /// Uses partial routing if possible.
 let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
     let wires = filterWiresByCompMoved model [compId]
-    
+    printfn "Routing and separating symbol wires:\n\
+        %d inputs, %d outputs, %d both" wires.Inputs.Length wires.Outputs.Length wires.Both.Length
     let newWires =
         model.Wires
         |> Map.toList
@@ -974,6 +1000,7 @@ let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
 /// all wires from comps have all segments made auto.
 /// then the separation logic is rerun on these wires
 let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
+    printfn "reseparating wires"
     let wires' =
         getConnectedWires model comps
         |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))
@@ -987,6 +1014,7 @@ let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
 /// all wires from comps are autorouted from scratch
 /// then the separation logic is rerun on these wires
 let reRouteWiresFrom  (comps: ComponentId list) (model: Model) =
+    printfn "reroute wires"
     let wires' =
         getConnectedWires model comps
         |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))

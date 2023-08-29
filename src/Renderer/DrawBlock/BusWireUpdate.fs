@@ -76,7 +76,8 @@ let newWire inputId outputId model =
     if Map.exists (fun wid wire -> wire.InputPort=nWire.InputPort && wire.OutputPort = nWire.OutputPort) model.Wires then
             // wire already exists
             model, None
-        else       
+        else
+            printfn "Separating new wire"
             let newModel = 
                 model
                 |> Optic.set (wireOf_ nWire.WId) nWire
@@ -133,7 +134,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> (if msgOpt.IsSome then withMsg (Option.get msgOpt) else withNoMsg)
     
     | BusWidths ->
-        printfn "BusWidths Message"
+        //printfn "BusWidths Message"
         // (1) Call Issie bus inference
         // (2) Add widths to maps on symbols on wires
         let processConWidths (connWidths: ConnectionsWidth) =
@@ -312,10 +313,13 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         let newModel = resetWireSegmentJumps connIds model
         {issieModel with Sheet={ issieModel.Sheet with Wire=newModel}} |> withNoMsg
 
-    | MakeJumps connIds ->
+    | MakeJumps (separate, connIds) ->
         // recalculates (slowly) wire jumps after a drag operation
-        //printfn $"Making jumps with {connIds.Length} connections"
-        let newModel = BusWireSeparate.updateWireSegmentJumpsAndSeparations connIds model
+        let newModel =
+            if separate then
+                BusWireSeparate.updateWireSegmentJumpsAndSeparations connIds model
+            else
+                updateWireSegmentJumps connIds model
         {issieModel with Sheet={ issieModel.Sheet with Wire=newModel}} |> withNoMsg
 
     | ResetModel -> 
@@ -335,7 +339,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
             | None -> 
                 false
             | Some vertex ->
-                let epsilon = 0.00001
+                let epsilon = Constants.vertexLoadMatchTolerance
                 abs (pos.X - (fst vertex)) < epsilon &&
                 abs (pos.Y - (snd vertex)) < epsilon
         
@@ -386,9 +390,11 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
             conns
             |> List.map (fun conn -> ConnectionId conn.Id)
 
-        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires }}} |> withMsg (MakeJumps connIds)
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires }}}
+        |> withMsg (MakeJumps (false,connIds))
 
     | UpdateWireDisplayType (style: WireType) ->
+        printfn "Updating wire display type (=> reseparation of wires)"
         {model with Type = style }
         |> BusWireSeparate.updateWireSegmentJumpsAndSeparations []
         |> fun model -> {issieModel with Sheet={ issieModel.Sheet with Wire=model}}

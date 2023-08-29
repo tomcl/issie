@@ -41,6 +41,9 @@ module Constants =
     /// How close same net vertices must be before they are joined by modern routing circles
     let modernCirclePositionTolerance : float = 2.
 
+    /// determines how exactly connections must fit components before being autorouted on load
+    let vertexLoadMatchTolerance = 0.01
+
     let busWidthTextStyle =
         {
             TextAnchor = "left";

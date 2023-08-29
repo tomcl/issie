@@ -207,7 +207,7 @@ let allRootHierarchiesFromProjectBreadcrumbs
         |> List.mapi (fun i el ->
             tr [ Constants.colArrayStyle
                 ] [ td [CellSpacing "50px"] [el]])
-        |> table []
+        |> fun rows -> table [] [tbody [] rows]
 
 
 /// Breadcrumbs of the focus sheet, with sheets on its path to root, and its children.

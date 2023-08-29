@@ -729,7 +729,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         SnapSegments = emptySnap
                         UndoList = appendUndoList model.UndoList newModel
                         AutomaticScrolling = false },
-                            wireCmd (BusWireT.MakeJumps (false,movingWires))
+                            wireCmd (BusWireT.MakeJumps (true,movingWires))
                 | _ -> 
                     {model with
                         ErrorComponents = [];
@@ -742,7 +742,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                     Cmd.batch [ //symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
                                 symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
                                 //wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
-                                wireCmd (BusWireT.MakeJumps (false,movingWires))
+                                wireCmd (BusWireT.MakeJumps (true,movingWires))
                                 sheetCmd DoNothing]
             
 
@@ -758,7 +758,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         sheetCmd UpdateBoundingBoxes
                         symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
                         wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
-                        wireCmd (BusWireT.MakeJumps (false,movingWires)) ]
+                        wireCmd (BusWireT.MakeJumps (true,movingWires)) ]
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
             if model.TargetPortId <> "" // If a target has been found, connect a wire

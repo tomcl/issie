@@ -186,6 +186,7 @@ let manualSymbolResize
         (fixedCornerLoc: XYPos) // XYPos of corner opposite that which is clicked - this will not change
         (mPos: XYPos) // XYPos of mouse. Symbol will be resized to make its clicked corner match this
         = 
+    printfn "running manualSymbolResize"
     let symbol = model.Symbols[compId]
     let symPos = get posOfSym_ symbol
     let comp = symbol.Component 

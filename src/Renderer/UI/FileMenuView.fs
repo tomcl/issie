@@ -556,7 +556,7 @@ let getDependentsFromSheet (model:Model) (sheetName : string) =
                          | _ -> []))
 
          Some(newSig, instances)
-   
+
 // get relevant info about a sheet for display on popup
 let getSheetInfo (model : Model) (oldSheetPath : string) (newSheetPath : string) =
 
@@ -620,7 +620,51 @@ let private importSheet model dispatch =
             | Ok _ -> ()
             | Error msg -> displayFileErrorNotification msg dispatch
 
-        let createSheetInfo (model : Model) ((sheetPath, dependencies): string * Set<string>) =
+        /// rename file
+        let renameSheetBeforeImport oldPath project model dispatch =
+            match model.CurrentProj with
+            | None -> log "Warning: renameSheetBeforeImport called when no project is currently open"
+            | Some project ->
+                // Prepare dialog popup.
+                let title = "Duplicate sheet "
+
+                let sheetName = baseName oldPath
+                let before =
+                    fun (dialogData: PopupDialogData) ->
+                        let dialogText = getText dialogData
+
+                        div []
+                            [ 
+                              str <| sprintf "Warning: Sheet %s is from current directory." sheetName
+                              br []
+                              br []
+                              str <| sprintf "New name: %s" (dialogText + "_" + baseNameWithoutExtension oldPath)
+                              Option.defaultValue (div [] []) (maybeWarning (dialogText + "_" + baseNameWithoutExtension oldPath) project)]
+
+                let placeholder = "Prefix for design sheet"
+                let body = dialogPopupBodyOnlyText before placeholder dispatch
+                let buttonText = "Rename"
+
+                let buttonAction =
+                    fun (model': Model) ->
+                        // Create empty file.
+                        let newName = (getText model'.PopupDialogData).ToLower() + "_" + sheetName
+                        let newPath = pathJoin [|dirName oldPath; newName|]
+                        // copy the file over with its new name
+
+                        copySheet oldPath newPath model' dispatch
+                        openProjectFromPath projectDir model' dispatch
+                        dispatch ClosePopup
+
+                let isDisabled =
+                    fun (model': Model) ->
+                        let dialogData = model'.PopupDialogData
+                        let dialogText = getText dialogData
+                        (isFileInProject (dialogText + "_" + baseNameWithoutExtension oldPath) project) || (dialogText = "")
+
+                dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+        let createSheetInfo (model : Model) ((sheetPath, dependencies): string * Set<string>) : ReactElement array =
             let fileName = baseName sheetPath
 
             let newSheetPath = pathJoin [|projectDir; fileName|]
@@ -640,19 +684,26 @@ let private importSheet model dispatch =
                     | Some decision' -> decision' = decision
                     | None -> false
 
+            let getDecision (sheetPath : string) =
+                fun (model : Model) ->
+                     Map.tryFind sheetPath (importDecisions model)
+
             if projectDir = dirName sheetPath then
-                displayFileErrorNotification "Cannot import sheet from curent directory" dispatch
+                // displayFileErrorNotification "Cannot import sheet from curent directory" dispatch
 
-                div [] [
-                p [] [ 
-                    str "Cannot import "
-                    strong [] [ str fileName ]
-                    str " because it is from current directory. Import has been disabled. "
-                    ]
-                ]
-
+                [|tr [] [
+                    td [Style [FontWeight "bold"]] [str <| baseNameWithoutExtension sheetPath]
+                    td [] [str "Cannot be imported as it is from the current directory"]
+                    td [] [str "N/A"]
+                    td [] [str "N/A"]
+                ] |]
             
             else
+                let printMapKeyValuePairs (inputMap: Map<'Key, 'Value>) =
+                        inputMap
+                        |> Map.iter (fun key value ->
+                            printfn "Key: %A, Value: %A" key value
+                        )
                 let Button (sheetPath : string) (buttonDecision : ImportDecision option) (name : string) (isDisabled : bool) =
                     [ Button.button
                         [ 
@@ -666,49 +717,72 @@ let private importSheet model dispatch =
                             )] [ str name ]             
                     ]
 
-                let dependencyReactElement dependency =                            
-          
-                    match dependency with
-                    | dependencyPath ->
-                        match hasExtn ".dgm" dependencyPath with
-                        | true ->
-                        Navbar.Item.div [ Navbar.Item.Props [] ]
-                            [ Level.level [ Level.Level.Props []]
-                                  [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str <| baseNameWithoutExtension dependencyPath ] ]
-                                    Level.right [ Props [ Style [ MarginLeft "5px" ] ] ]
-                                        [
-                                          Level.item []
-                                            [
-                                            
-                                            match Map.containsKey dependencyPath (importDecisions model) with
-                                            | true ->
-                                                str "will be imported."
-                                            | false ->
-                                                str "will be ignored."
-                                 
-                                            ]
+                let getDecisionText path model sheetIsDependency decisionNeeded =
+                    match getDecision path model with
+                    | Some decision ->
+                        match decision with
+                        | Some Overwrite -> if sheetIsDependency then p [] [str "Import"] else p [Style [Color "blue"]] [str "Overwrite"]
+                        | Some Rename -> p [Style [Color "blue"]] [str "Rename"]
+                        | None -> p [Style [Color "red"]] [str "Ignore"]
+                    | None ->
+                        if (sheetIsDependency || decisionNeeded) then p [Style [Color "red"]] [str "Ignore"] else p [] [str "Import"]
 
-                                          Level.item []
-                                            (Button dependencyPath (Some Overwrite) "Import" false)
 
-                                        ] ] ]
-                        | false ->
-          
-                            p [Style [Color "red"; FontWeight "Bold"]]
-                            [
-                                str "Warning: "
-                                strong [] [str dependencyPath]
-                                str " doesn't exist in source and destination directories."
+                let dependencyReactElement dependencyPath =                           
+
+                    match hasExtn ".dgm" dependencyPath with
+                    | true ->
+                            
+                        tr [] [
+                            td [Style [FontWeight "bold"]] [str <| baseName dependencyPath]
+                            td [] [str "Dependency of "
+                                   strong [] [str <| baseName sheetPath]
+                                   str "."
                             ]
+                            td [] [
+                                
+                                    Level.level []
+                                            [        
+                                                Level.item []
+                                                    (Button dependencyPath (Some Overwrite) "Import" false)
+                               
+                                                Level.item []
+                                                    (Button dependencyPath None "Ignore" false)
 
-          
+                                            ]
+                            ]
+                            td [] [
+                                getDecisionText dependencyPath model true false
+                            ]
+                        ]
+                        
+
+
+                    | false ->
+
+                        tr [] [
+                            td [Style [FontWeight "bold"]] [str <| baseName dependencyPath]
+                            td [] [str "Dependency of "
+                                   strong [] [str <| baseName sheetPath]
+                                   str "."
+                                   p [Style [Color "red"]] [str "Doesn't exist in source and destination directories."]
+                            ]
+                            td [] [str "N/A"]
+                            td [] [str "Ignore"]
+                        ]
+
                 match sheetExists with
                 | true ->
 
                     match tryLoadComponentFromPath sheetPath with
                     | Error err ->
-                        log err
-                        div [] [str err]
+
+                        [|tr [] [
+                            td [Style [FontWeight "bold"]] [str fileName]
+                            td [] [str err]
+                            td [] []
+                            td [] [str "Ignore"]
+                        ]|]
                     | Ok ldcSource ->
 
                         let sourceSig = parseDiagramSignature ldcSource.CanvasState
@@ -717,224 +791,243 @@ let private importSheet model dispatch =
                             tryGetLoadedComponents model
                             |> List.find (fun ldc -> ldc.Name = baseNameWithoutExtension sheetPath)
                             |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
-                                        
 
-                        div [] [
-                        p [] [
-                        str "Sheet "
-                        strong [] [str fileName]
-                        str <| sprintf " already exists in project. "
-                        str <| (match depSheets with
-                                | "" -> ""
-                                | _ -> sprintf "Dependents: %s " depSheets
-                                )
-                        ]
+                        let hardwareDoesNotMatch = (sourceSig <> destSig)
 
-                        match (sourceSig <> destSig) with
-                        | true ->
-                            if (depSheets <> "") then
-                                p [Style [Color "red"]] [
-                                    str "Overwrite disabled because sheets contain different hardware. Danger of conflicts in dependents."
+                        let sheetRow = 
+                            [|tr [] [
+                                td [Style [FontWeight "bold"]] [str fileName]
+                                td [] [
+                                    str "Sheet already exists in destination directory. "
+                                    br []
+                                    match hasDependencies with
+                                    | true ->
+                                        str "Sheet has dependencies."
+
+                                    | false -> str ""
+                                    br []
+                                    match hardwareDoesNotMatch with
+                                    | true ->
+                                        if (depSheets <> "") then
+                                            p [Style [Color "red"]] [
+                                                str "Overwrite disabled because sheets contain different hardware. Danger of conflicts in dependents."
+                                            ]
+                                        else
+                                            p [Style [Color "green"]] [
+                                                str "Sheets contain different hardware, but overwrite allowed as there are no dependents."
+                                            ]
+
+                                    | false ->
+                                        str ""
                                 ]
-                            else
-                                p [Style [Color "green"]] [
-                                    str "Sheets contain different hardware, but overwrite allowed as there are no dependents."
+                                td [] [
+
+                                    Level.level []
+                                            [        
+                                                    Level.item []
+                                                        (Button sheetPath (Some Overwrite) "Overwrite" ((sourceSig <> destSig) && (depSheets <> "")))
+
+                                                    Level.item []
+                                                        (Button sheetPath (Some Rename) "Rename" false)
+
+                                            ]
                                 ]
+                                td [] [
 
-                        | false ->
-                            str ""
+                                    getDecisionText sheetPath model false true
+                                ]
+                            ]|]
 
-                        Navbar.Item.div [ Navbar.Item.Props [] ]
-                            [ Level.level [ Level.Level.Props []]
-                                  [ Level.left [Props [Style [FontWeight "bold"]]] [ Level.item [] [ str "Decision: " ] ]
-                                    Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
-                                        [        
-                                          Level.item []
-                                            (Button sheetPath (Some Overwrite) "Overwrite" ((sourceSig <> destSig) && (depSheets <> "")))
-                               
-                                          Level.item []
-                                            (Button sheetPath (Some Rename) "Rename" false)
+                        let dependencyRows =
+                            dependencies
+                            |> Set.toArray
+                            |> Array.map (fun dependency ->
+                                dependencyReactElement dependency 
+                            )
 
-                                        ] ] ]
-
-                        match hasDependencies with
-                        | true ->
-                            p [Style [Color "blue"; FontWeight "bold"]] [
-                                str "Import dependencies: "
-                            ]
-
-                            let content = 
-                                dependencies
-                                |> Set.toArray
-                                |> Array.map (fun dependency ->
-                   
-                                    dependencyReactElement dependency
-                                )
-
-                            (div [] content)
-
+                        Array.append sheetRow dependencyRows
                             
-                        | false -> str ""
-                        ]
-                                
+               
                 | false ->
                     if fileNameIsBad (pathWithoutExtension fileName)
                     then
 
-                        div [] [
-                        p [] [ 
-                            str "Can't load file name "
-                            strong [] [ str fileName ]
-                            str <| sprintf" from project %s" sheetPath
-                            str " because it contains incorrect characters.\nFile names used as sheets must contain only alphanumeric and space characters before the '.dgm' extension"  
-                        ]]
-
+                        [|tr [] [
+                            td [Style [FontWeight "bold"]] [str fileName]
+                            td [] [str "Cannot be imported because it contains incorrect characters. "]
+                            td [] []
+                            td [] [str "Ignore"]
+                        ]|]
                     else
-                       
-                        div [] [
-                        p [] [
-                            str "Sheet "
-                            strong [] [ str fileName ]
-                            str " will be imported without conflicts."]
 
-                        match hasDependencies with
-                        | true ->
-                            p [Style [Color "blue"; FontWeight "bold"]] [
-                                str "Import dependencies: "
-                            ]
+                        let sheetRow =
 
-                            let content = 
-                                dependencies
-                                |> Set.toArray
-                                |> Array.map (fun dependency ->
-                                    dependencyReactElement dependency
-                                )
+                            [|tr [] [
+                                td [Style [FontWeight "bold"]] [str fileName]
+                                td [] [
+                                
+                                    match hasDependencies with
+                                    | true ->
+                                        str "Sheet will be imported, but has dependencies."
+      
+                                    | false ->
+                                        str "Sheet will be imported without conflicts"
+                                ]
+                                td [] []
+                                td [] [
+                                    getDecisionText sheetPath model false false
+                                ]
+                                
+                            ]|]
 
-                            (div [] content)   
-                        
-                        | false -> str ""
-                        ]
+                        let dependencyRows =
+                            dependencies
+                            |> Set.toArray
+                            |> Array.map (fun dependency ->
+                                dependencyReactElement dependency 
+                            )
+
+                        Array.append sheetRow dependencyRows
 
         match askForExistingSheetPaths model.UserData.LastUsedDirectory with
         | None -> () // User gave no path.
         | Some paths ->
             let sourceProjectPath = dirName paths[0]
 
-            let pathsWithDependencies =
-                paths
-                |> List.map (fun path ->
-                    
-                    let rec parse2 (path : string) (deps : string list) =
+            
+            // handle if sheets from current directory
+            paths
+            |> List.iter (fun path ->
+                match projectDir = sourceProjectPath with
+                | true ->
+                    renameSheetBeforeImport path project model dispatch
+
+                | false -> 
+                
+                    let pathsWithDependencies =
+                        paths
+                        |> List.map (fun path ->
+
+                            /// Returns with a list of all paths of sheets that are dependencies of the sheet path 'path'. This includes dependencies of dependencies
+                            let rec parse (path : string) (deps : string list) =
                         
-                        match tryLoadComponentFromPath path with
-                        | Error err ->
-                            log <| err
-                            deps  // the dependency doesn't exist in source directory
-                            
-                        | Ok ldc ->
-                            let comps, _ = ldc.CanvasState
-
-
-                            let customCompsPaths =
-                                comps
-                                |> List.filter (fun comp ->
-                                    match comp.Type with
-                                    | Custom _ -> true
-                                    | _ -> false
-                                )
-                                |> List.map (fun comp ->
-                                    match comp.Type with
-                                    | Custom ct ->
-                                        let dependencyPath = pathJoin [|sourceProjectPath; ct.Name + ".dgm"|]
-
-                                        match exists dependencyPath with
-                                        | true -> dependencyPath
-                                        | false -> ""
-
-                                    | _ -> ""
-                                )
-                                |> List.distinct
-                                |> List.filter (fun s -> s <> "")
-                            
-                                
-                            match List.length customCompsPaths with
-                            | 0 ->  deps
-                            | _ ->
-                                customCompsPaths
-                                |> List.collect (fun dependencyPath ->
-                                    let dependencyName = baseName dependencyPath
-
-                                    match exists dependencyPath with
-                                    | true ->
-                                        match (exists <| pathJoin [|projectDir; dependencyName|]) || (List.contains dependencyPath paths) with
-                                        | true -> parse2 dependencyPath deps
-                                        | false -> parse2 dependencyPath (dependencyPath :: deps)
-
+                                match tryLoadComponentFromPath path with
+                                | Error err ->
+                                    match (exists <| pathJoin [|projectDir; baseName path|]) with
+                                    | true -> deps
                                     | false ->
-                                        match (exists <| pathJoin [|projectDir; baseName dependencyPath|]) || (List.contains dependencyPath paths) with
-                                        | true -> parse2 dependencyPath deps
-                                        | false -> parse2 dependencyPath (dependencyName :: deps)  // dependency doesn't exist in either directory
-                                )
+                                        (baseNameWithoutExtension path :: deps)  // dependency doesn't exist in either directory
+  
+                                | Ok ldc ->
+                                    let comps, _ = ldc.CanvasState
 
-                    let dependencies =
-                        parse2 path []
-                        |> Set.ofList
 
-                    (path, dependencies)
-                )
+                                    let customCompsPaths =
+                                        comps
+                                        |> List.filter (fun comp ->
+                                            match comp.Type with
+                                            | Custom _ -> true
+                                            | _ -> false
+                                        )
+                                        |> List.map (fun comp ->
+                                            match comp.Type with
+                                            | Custom ct ->
+                                                let dependencyPath = pathJoin [|sourceProjectPath; ct.Name + ".dgm"|]
 
-        
-            let popupBody =
-                fun (model' : Model) ->
-                    let content =
-                        pathsWithDependencies
-                        |> List.map (createSheetInfo model')
-                        |> List.toArray
-                    (div [] content)
+                                                dependencyPath
 
-            let buttonAction =
-                fun (model' : Model) ->
-                    // based on the decision, make new sheet path and copy sheet over
+                                            | _ -> ""
+                                        )
+                                        |> List.distinct
+                                        |> List.filter (fun s -> s <> "")
+                                
+                                    match List.length customCompsPaths with
+                                    | 0 -> deps
+                                    | _ ->
+                                        customCompsPaths
+                                        |> List.collect (fun dependencyPath ->
+                                            let dependencyName = baseName dependencyPath
 
-                    let newSheetPaths = 
-                        (importDecisions model')
-                        |> Map.toList
-                        |> List.map (fun (sheetPath, decision) ->
-                            match decision with
-                            | Some Overwrite  ->
-                                sheetPath, pathJoin [|projectDir; baseName sheetPath|]
+                                            match exists dependencyPath with
+                                            | true ->
+                                                match (exists <| pathJoin [|projectDir; dependencyName|]) || (List.contains dependencyPath paths) with
+                                                | true -> parse dependencyPath deps
+                                                | false -> parse dependencyPath (dependencyPath :: deps)
 
-                            | Some Rename ->
-                                sheetPath, pathJoin [|projectDir; baseNameWithoutExtension sheetPath + "_Copy" + ".dgm"|]
+                                            | false ->
+                                                match (exists <| pathJoin [|projectDir; baseName dependencyPath|]) || (List.contains dependencyPath paths) with
+                                                | true -> parse dependencyPath deps
+                                                | false -> parse dependencyPath (baseNameWithoutExtension dependencyPath :: deps)  // dependency doesn't exist in either directory
+                                        )
 
-                            | None -> sheetPath, ""
+                            let dependencies =
+                                parse path []
+                                |> Set.ofList
 
+                            (path, dependencies)
                         )
 
+                    let headCell heading =  th [ ] [ str heading ]
 
-                    filterSheets paths false
-                    |> List.iter (fun oldSheetPath ->
-                        let newSheetPath = pathJoin [|projectDir; baseName oldSheetPath|] 
+                    let popupBody =
+                        fun (model' : Model) ->
+                            let content =
+                                pathsWithDependencies
+                                |> List.map (createSheetInfo model')
+                                |> List.toArray
 
-                        copySheet oldSheetPath newSheetPath model' dispatch
+                            div [] [
+                                Table.table [] [
+                                        thead [] [ tr [] (List.map headCell ["Sheet" ;"Information"; "Decision"; "Action"]) ]
+                                        tbody [] ( Array.concat content )
                        
-                    )
+                                ]
+                            ]
 
-                    newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) ->
-                                match newSheetPath with
-                                | "" -> ()
-                                | path -> copySheet oldSheetPath path model' dispatch)
+                    let buttonAction =
+                        fun (model' : Model) ->
+                            // based on the decision, make new sheet path and copy sheet over
+
+                            let newSheetPaths = 
+                                (importDecisions model')
+                                |> Map.toList
+                                |> List.map (fun (sheetPath, decision) ->
+                                    match decision with
+                                    | Some Overwrite  ->
+                                        sheetPath, pathJoin [|projectDir; baseName sheetPath|]
+
+                                    | Some Rename ->
+                                        sheetPath, pathJoin [|projectDir; baseNameWithoutExtension sheetPath + "_Copy" + ".dgm"|]
+
+                                    | None -> sheetPath, ""
+
+                                )
+
+
+                            filterSheets paths false
+                            |> List.iter (fun oldSheetPath ->
+                                let newSheetPath = pathJoin [|projectDir; baseName oldSheetPath|]
+
+                                copySheet oldSheetPath newSheetPath model' dispatch
+                       
+                            )
+
+                            newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) ->
+                                        match newSheetPath with
+                                        | "" -> ()
+                                        | path -> copySheet oldSheetPath path model' dispatch)
                                
-                    openProjectFromPath projectDir model' dispatch
+                            openProjectFromPath projectDir model' dispatch
 
-                    dispatch ClosePopup
-                    dispatch FinishUICmd
+                            dispatch ClosePopup
+                            dispatch FinishUICmd
 
-            let isDisabled =
-                fun (model': Model) ->
-                    not <| allDecisionsMade paths model'
+                    let isDisabled =
+                        fun (model': Model) ->
+                            not <| allDecisionsMade paths model'
 
-            dialogPopup "Resolve import conflicts" popupBody "OK" buttonAction isDisabled [] dispatch
+                    dialogPopup "Resolve import conflicts" popupBody "OK" buttonAction isDisabled [] dispatch
+        )
 
 /// Display top menu.
 let getInfoButton (name:string) (project:Project) : ReactElement =

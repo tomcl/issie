@@ -102,6 +102,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         else 
             updateScalingBox (model,cmd)
     
+    
     match msg with
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
         // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
@@ -122,7 +123,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             |> Set.toList
 
         // let inputPorts, outputPorts = BusWire.getPortIdsOfWires model.Wire wireUnion
-        { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model ; RedoList = [] },
+        { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model; RedoList = [] },
         Cmd.batch [ wireCmd (BusWireT.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
                     symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
                     sheetCmd UpdateBoundingBoxes
@@ -176,7 +177,19 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         match model.UndoList with
         | [] -> model , Cmd.none
         | prevModel :: lst ->
-            {prevModel with RedoList = model :: model.RedoList; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
+            let appendRedoList (redoList: Model List) (model_in: Model): Model List =
+                let rec removeLast inputLst =
+                    match inputLst with
+                    | _ :: tl when List.isEmpty tl -> []
+                    | hd :: tl -> hd :: (removeLast tl)
+                    | [] -> []
+    
+                match List.length redoList with
+                |n when n < 500 -> model_in :: redoList
+                | _ -> model_in :: (removeLast redoList)
+
+            {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
+            // {prevModel with RedoList = model :: model.RedoList; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
             // let symModel = { prevModel.Wire.Symbol with CopiedSymbols = model.Wire.Symbol.CopiedSymbols }
             // let wireModel = { prevModel.Wire with CopiedWires = model.Wire.CopiedWires ; Symbol = symModel}
             // { prevModel with Wire = wireModel ; UndoList = lst ; RedoList = model :: model.RedoList ; CurrentKeyPresses = Set.empty } , Cmd.none
@@ -185,7 +198,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         printfn "Printing CtrlY"
         match model.RedoList with
         | [] -> model , Cmd.none
-        | newModel :: lst -> { newModel with UndoList = model :: model.UndoList ; RedoList = lst; CurrentKeyPresses = Set.empty} , Cmd.batch [sheetCmd DoNothing]
+        | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = Set.empty} , Cmd.batch [sheetCmd DoNothing]
         // | newModel :: lst -> { newModel with UndoList = model :: model.UndoList ; RedoList = lst} , Cmd.none
 
     | KeyPress CtrlA ->
@@ -873,9 +886,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     
     | ToggleSnapToNet ->
         model, (wireCmd BusWireT.ToggleSnapToNet)
-    
-    | MakeChannelToggle ->
-        {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none
         
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> postUpdateScalingBox

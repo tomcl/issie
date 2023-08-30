@@ -298,7 +298,6 @@ let editMenu dispatch' =
                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
                makeElmItem "Toggle Snap To Net" "CmdOrCtrl+T" (fun ev -> sheetDispatch SheetT.Msg.ToggleSnapToNet)
                makeElmItem "Beautify Sheet" "CmdOrCtrl+B" (fun ev -> sheetDispatch SheetT.Msg.BeautifySheet)
-               makeElmItem "Toggle Make Channel" "CmdOrCtrl+Y" (fun ev -> sheetDispatch SheetT.Msg.MakeChannelToggle)
                menuSeparator
                makeElmItem "Reorder Ports" "CmdOrCtrl+R" (fun ev -> sheetDispatch SheetT.Msg.ReorderPorts)
                makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)

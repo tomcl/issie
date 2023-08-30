@@ -245,12 +245,15 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
     let rec removeLast lst =
         match lst with
         | _ :: lst when List.isEmpty lst -> []
-        | hd :: lst -> hd :: (removeLast lst)
+        | hd :: tl -> hd :: (removeLast tl)
         | [] -> []
 
     match List.length undoList with
-    | n when n < 500 -> model_in :: undoList
-    | _ -> model_in :: (removeLast undoList)
+    | n when n < 500 -> 
+        model_in :: undoList
+    | _ -> 
+        printfn "removing last undoList"
+        model_in :: (removeLast undoList)
 
 
 /// Mouse Down Update, Can have clicked on: Label, InputPort / OutputPort / Component / Wire / Canvas. Do correct action for each.
@@ -280,8 +283,8 @@ let mDownUpdate
                 Action = nextAction
                 SnapSymbols = emptySnap
                 SnapSegments = emptySnap
-                UndoList = appendUndoList model.UndoList newModel
-                RedoList = []
+                // UndoList = appendUndoList model.UndoList newModel
+                // RedoList = []
                 AutomaticScrolling = false
             },
             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
@@ -352,7 +355,7 @@ let mDownUpdate
                         Action = Scaling;
                         LastMousePos = mMsg.Pos;
                         ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = true};
-                        UndoList = model :: model.UndoList; 
+                        // UndoList = appendUndoList model.UndoList model; 
                         // LastValidBoundingBoxes = model.BoundingBoxes;
                         TmpModel = Some model}, Cmd.none
                 
@@ -670,7 +673,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
     | MovingWire segIdL ->
         let connIdL = segIdL |> List.map snd
         let coalesceCmds = connIdL |> List.map (fun conn -> wireCmd (BusWireT.CoalesceWire conn))
-        { model with Action = Idle ; UndoList = appendUndoList model.UndoList newModel; RedoList = [] },
+        { model with Action = Idle; UndoList = appendUndoList model.UndoList newModel}, //RedoList = []},
         Cmd.batch ([ wireCmd (BusWireT.DragSegment (segIdL, mMsg))                    
                      wireCmd (BusWireT.MakeJumps (true,connIdL )) ] @ coalesceCmds)
     | Selecting ->
@@ -713,13 +716,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         {model with Action = Idle}, sheetCmd DoNothing
 
     | Scaling -> 
-        let oldModel = 
-            match model.TmpModel with
-            | None -> model
-            | Some m -> m
         match model.ErrorComponents with
-        |[] -> {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}}, sheetCmd DoNothing
-        | _ -> {oldModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}}, sheetCmd DoNothing
+        |[] -> {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
+        | _ -> {newModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
         // let symButton =  model.Wire.Symbol.Symbols
         //                 |> Map.find (model.ButtonList |> List.head)
         // {model with Action = Idle; Box = {model.Box with StartingPos = symButton.Pos}}, sheetCmd DoNothing
@@ -771,17 +770,21 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         wireCmd (BusWireT.MakeJumps (true,movingWires)) ]
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
-            if model.TargetPortId <> "" // If a target has been found, connect a wire
+            if model.TargetPortId <> "" // If a target has been found, connect a wire\
             then wireCmd (BusWireT.AddWire (inputPortId, (OutputPortId model.TargetPortId))),
-                           appendUndoList model.UndoList newModel, []
-            else Cmd.none , model.UndoList , model.RedoList
+                            appendUndoList model.UndoList newModel, newModel.RedoList
+                           //appendUndoList model.UndoList newModel, []
+            else Cmd.none , newModel.UndoList, newModel.RedoList
+            //else Cmd.none , model.UndoList, model.RedoList
         {model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false }, cmd
     | ConnectingOutput outputPortId ->
         let cmd , undoList , redoList =
             if model.TargetPortId <> "" // If a target has been found, connect a wire
             then  wireCmd (BusWireT.AddWire (InputPortId model.TargetPortId, outputPortId)),
-                           appendUndoList model.UndoList newModel , []
-            else Cmd.none , model.UndoList , model.RedoList
+                            appendUndoList model.UndoList newModel, newModel.RedoList
+                           // appendUndoList model.UndoList newModel , []
+            else Cmd.none , newModel.UndoList, newModel.RedoList
+           // else Cmd.none , model.UndoList , model.RedoList
         { model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false  }, cmd
     | MovingPort portId ->
         let symbol = getCompId model.Wire.Symbol portId

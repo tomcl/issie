@@ -367,7 +367,6 @@ module BusWireT =
             Type : WireType
             ArrowDisplay: bool
             SnapToNet: bool
-            MakeChannelToggle: bool
         }
     
     //----------------------------Message Type-----------------------------------//
@@ -589,7 +588,6 @@ module SheetT =
         | TestPortPosition
         | ToggleSnapToNet
         | BeautifySheet
-        | MakeChannelToggle
 
     type ReadLog = | ReadLog of int
 

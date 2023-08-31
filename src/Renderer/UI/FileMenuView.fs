@@ -1258,12 +1258,17 @@ let viewTopMenu model dispatch =
                       // make the path in the navbar responsive
                       let hidePath = numPathChars < Constants.numCharsHidePath
                       let pathItem = Breadcrumb.item [] [ str <| if hidePath then "" else cropToLength numPathChars false projectPath]
-                      let nameItem = Breadcrumb.item [] [ span [ Style [ FontWeight "bold" ] ] [ str fileName ] ] 
+                      let nameItem = Breadcrumb.item [] [ span [ Style [ FontWeight "bold" ] ] [ str fileName ] ]
+                      let tip = $"{projectPath}:{fileName}"
                       Navbar.Item.div []
                           [ Navbar.Item.div []
-                                [ Breadcrumb.breadcrumb
-                                    [ Breadcrumb.HasArrowSeparator ]
-                                    (if hidePath then [nameItem] else [pathItem ; nameItem])]]                                     
+                             [ div [
+                                    HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsTooltipBottom}"
+                                    Tooltip.dataTooltip tip
+                                ]
+                             [ Breadcrumb.breadcrumb
+                                   [ Breadcrumb.HasArrowSeparator ]
+                                   (if hidePath then [nameItem] else [pathItem ; nameItem])]]]                                     
                                         
                       Navbar.Item.div []
                           [ Navbar.Item.div []
@@ -1316,4 +1321,4 @@ let viewTopMenu model dispatch =
                             // add space padding on RH of navbar to improve top bar formatting
                             // this is a bit of a hack - but much easier than matching styles                                 
                             Text.div [Props [Style [PaddingRight "7000px"]]] [str ""]
-                        ] ] ]]
+                        ] ]]]

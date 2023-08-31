@@ -734,9 +734,9 @@ let private importSheet model dispatch =
                     | true ->
                             
                         tr [] [
-                            td [Style [FontWeight "bold"]] [str <| baseName dependencyPath]
+                            td [Style [FontWeight "bold"]] [str <| baseNameWithoutExtension dependencyPath]
                             td [] [str "Dependency of "
-                                   strong [] [str <| baseName sheetPath]
+                                   strong [] [str <| baseNameWithoutExtension sheetPath]
                                    str "."
                             ]
                             td [] [
@@ -761,7 +761,7 @@ let private importSheet model dispatch =
                     | false ->
 
                         tr [] [
-                            td [Style [FontWeight "bold"]] [str <| baseName dependencyPath]
+                            td [Style [FontWeight "bold"]] [str <| baseNameWithoutExtension dependencyPath]
                             td [] [str "Dependency of "
                                    strong [] [str <| baseName sheetPath]
                                    str "."
@@ -778,7 +778,7 @@ let private importSheet model dispatch =
                     | Error err ->
 
                         [|tr [] [
-                            td [Style [FontWeight "bold"]] [str fileName]
+                            td [Style [FontWeight "bold"]] [str <| baseNameWithoutExtension sheetPath]
                             td [] [str err]
                             td [] []
                             td [] [str "Ignore"]
@@ -796,7 +796,7 @@ let private importSheet model dispatch =
 
                         let sheetRow = 
                             [|tr [] [
-                                td [Style [FontWeight "bold"]] [str fileName]
+                                td [Style [FontWeight "bold"]] [str <| baseNameWithoutExtension sheetPath]
                                 td [] [
                                     str "Sheet already exists in destination directory. "
                                     br []
@@ -853,7 +853,7 @@ let private importSheet model dispatch =
                     then
 
                         [|tr [] [
-                            td [Style [FontWeight "bold"]] [str fileName]
+                            td [Style [FontWeight "bold"]] [str <| baseNameWithoutExtension sheetPath]
                             td [] [str "Cannot be imported because it contains incorrect characters. "]
                             td [] []
                             td [] [str "Ignore"]
@@ -863,7 +863,7 @@ let private importSheet model dispatch =
                         let sheetRow =
 
                             [|tr [] [
-                                td [Style [FontWeight "bold"]] [str fileName]
+                                td [Style [FontWeight "bold"]] [str <| baseNameWithoutExtension sheetPath]
                                 td [] [
                                 
                                     match hasDependencies with
@@ -1052,7 +1052,13 @@ let invertSheetLockState = function | Locked -> Unlocked | Unlocked -> Locked
 
 let sheetIsLocked sheet model =
     let project = Option.get  model.CurrentProj
-    let ldc = List.find (fun ldc -> ldc.Name = sheet) project.LoadedComponents 
+    let ldcOp = List.tryFind (fun ldc -> ldc.Name = sheet) project.LoadedComponents
+
+    let ldc = 
+        ldcOp
+        |>
+        Option.defaultValue (List.find (fun ldc -> ldc.Name = project.OpenFileName) project.LoadedComponents)
+
     match ldc.Form with
     | Some ProtectedTopLevel |Some ProtectedSubSheet -> true
     | _ -> false

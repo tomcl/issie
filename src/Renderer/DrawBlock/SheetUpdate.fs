@@ -52,7 +52,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         // |> (fun currentmodel -> {currentmodel with TmpModel = Some currentmodel})
     
     let updateScalingBox (model:Model, cmd:Cmd<ModelType.Msg>) =
-        // printfn "Hello, updating scaling box here"
         if (model.SelectedComponents.Length < 2) then 
             match model.ScalingBox with 
             | None ->  model, cmd
@@ -189,17 +188,12 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 | _ -> model_in :: (removeLast redoList)
 
             {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
-            // {prevModel with RedoList = model :: model.RedoList; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
-            // let symModel = { prevModel.Wire.Symbol with CopiedSymbols = model.Wire.Symbol.CopiedSymbols }
-            // let wireModel = { prevModel.Wire with CopiedWires = model.Wire.CopiedWires ; Symbol = symModel}
-            // { prevModel with Wire = wireModel ; UndoList = lst ; RedoList = model :: model.RedoList ; CurrentKeyPresses = Set.empty } , Cmd.none
 
     | KeyPress CtrlY ->
         printfn "Printing CtrlY"
         match model.RedoList with
         | [] -> model , Cmd.none
         | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = Set.empty} , Cmd.batch [sheetCmd DoNothing]
-        // | newModel :: lst -> { newModel with UndoList = model :: model.UndoList ; RedoList = lst} , Cmd.none
 
     | KeyPress CtrlA ->
         let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map fst

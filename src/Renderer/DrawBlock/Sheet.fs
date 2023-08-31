@@ -251,6 +251,7 @@ let centreOfScreen model : XYPos =
         Y = (edge.Top + edge.Bottom)/(2. * model.Zoom)
     }
 
+
 /// helper used inside Map.tryFind hence the unused parameter
 /// returns true if pos is insoie boundingbox
 let insideBox (pos: XYPos) boundingBox =

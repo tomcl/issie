@@ -111,6 +111,46 @@ let InputDefaultsEqualInputs fs (model:Model) =
     |> Map.values
     |> Seq.forall id
 
+let InputDefaultsEqualInputsRefresh fs (model:Model) (startsimulation: bool) =
+    let tick = fs.ClockTick
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun fid fc ->
+        let cid = fst fid
+        if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
+            let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
+            let currdefault = match typ with
+                                    | Input1(_, Some d) -> d
+                                    | _ -> 0
+            let outputarray =
+                if fc.OutputWidth 0 > 32 then
+                    Array.map (fun x -> convertBigIntToInt32 x) fc.Outputs[0].BigIntStep
+                else
+                    Array.map (fun x -> int x) fc.Outputs[0].UInt32Step
+            let slicedArray = Array.sub outputarray 0 (tick % fs.MaxArraySize)
+            let areAllElementsSame arr =
+                match arr with
+                | [||] -> 
+                    if startsimulation then
+                        match typ with
+                        | Input1(width, Some d)-> 
+                                if width > 32 then
+                                    fc.Outputs[0].BigIntStep[fs.MaxArraySize-1] <- bigint d
+                                else 
+                                    fc.Outputs[0].UInt32Step[fs.MaxArraySize-1] <- uint32 d
+                        | _ -> ()
+                    true
+                | [|elem|] -> 
+                    elem = outputarray[fs.MaxArraySize-1]
+                | _ -> 
+                    let first = arr[0]
+                    Array.forall (fun elem -> elem = first) arr
+            areAllElementsSame slicedArray
+        else
+            true)
+    |> Map.values
+    |> Seq.forall id
+
 let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
     let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
         let comp = sym.Component
@@ -145,6 +185,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
 type SimCache = {
     Name: string
     ClockTickRefresh: int
+    PrevInputEqualsDefaults: bool
     StoredState: LoadedComponent list
     StoredResult: Result<SimulationData, SimulationError>
     }
@@ -154,6 +195,7 @@ type SimCache = {
 let simCacheInit () = {
     Name = ""; 
     ClockTickRefresh = 0
+    PrevInputEqualsDefaults = true
     StoredState = []
     StoredResult = Ok {
         FastSim = 
@@ -916,7 +958,9 @@ let viewSimulation canvasState model dispatch =
     let startSimulation() =
         tryGetSimData canvasState model
         |> function
-            | Ok simData -> Ok simData
+            | Ok simData -> 
+                InputDefaultsEqualInputsRefresh simData.FastSim model true |> ignore
+                Ok simData
             | Error simError ->
                 setSimErrorFeedback simError model dispatch
                 Error simError
@@ -964,6 +1008,12 @@ let viewSimulation canvasState model dispatch =
                 [ str buttonText ]
         ]
     | Some sim ->
+        match sim with 
+            | Error simError -> () 
+            | Ok simData -> 
+                if not (InputDefaultsEqualInputsRefresh simData.FastSim model false) then
+                    simCache <- {simCache with PrevInputEqualsDefaults = false}
+        
         let canvasStatechange = hasCanvasChanged canvasState simCache model
         let body = match sim with
                     | Error simError -> viewSimulationError canvasState simError model StepSim dispatch
@@ -990,22 +1040,8 @@ let viewSimulation canvasState model dispatch =
             | Error _, _ -> IsWarning, "See Problems"
 
         let refreshButton = 
-            match canvasStatechange with 
-            | false -> div [Style [Height "100%"]] []
-            | true ->
-                match sim with
-                | Error _ -> 
-                    Button.button
-                        [
-                            Button.Color buttonColor;
-                            Button.OnClick (fun _ -> 
-                                let clock = simCache.ClockTickRefresh
-                                startSimulation()
-                                simCache <- {simCache with ClockTickRefresh = clock})
-                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
-                            ]
-                        [str buttonText]
-                | Ok simData ->
+            match canvasStatechange, simCache.PrevInputEqualsDefaults, (sim), (simRes) with 
+            | true, true, (Ok simData), _ ->
                     Button.button
                         [
                             Button.Color buttonColor;
@@ -1016,21 +1052,49 @@ let viewSimulation canvasState model dispatch =
                             Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
                             ]
                         [str buttonText]
+            | true, true, (Error _), _ ->
+                    //refresh simulation after error is fixed
+                    Button.button
+                        [
+                            Button.Color buttonColor;
+                            Button.OnClick (fun _ -> 
+                                let clock = simCache.ClockTickRefresh
+                                startSimulation()
+                                simCache <- {simCache with ClockTickRefresh = clock})
+                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
+                            ]
+                        [str buttonText]
+            | true, false, _, (Error _, _) ->
+                    //view simulation error after canvas change (after manual change of inputs)
+                    Button.button
+                        [
+                            Button.Color buttonColor;
+                            Button.OnClick (fun _ -> 
+                                let PrevInputEqualsDefaults_save = simCache.PrevInputEqualsDefaults
+                                startSimulation()
+                                simCache <- {simCache with PrevInputEqualsDefaults = PrevInputEqualsDefaults_save})
+                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
+                            ]
+                        [str buttonText]
+            | _, _, _ , _ -> div [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"; Height "100%"]] [ str " "]
         div [Style [Height "100%"]] [
+            div [Style [Height "40px"]] [
             Button.button
                 [
                     Button.Color IsDanger;
                     Button.OnClick (fun _ ->
                         simReset dispatch
                         dispatch EndSimulation);
-                    Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left ]]]
+                    Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left;]]]
                 [ str "End simulation" ]
             refreshButton
             setDefaultButton
-            br []; br []
-            div [Style [MarginTop "20px"]] []
+            ]
+            br []; 
+            div [Style [Display DisplayOptions.Block;]] []
             str "The simulation uses the diagram as it was at the moment of
-                 pressing the \"Start simulation\" or \"Refresh\" button."
+                 pressing the \"Start simulation\" or \"Refresh\" button using default input values. 
+                 \"Refresh\" is not enabled after any manual change of input values in previous clock ticks. "
             hr []
             body
         ]
@@ -1109,4 +1173,3 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
                     model
                     |> set currentStepSimulationStep_ (simData |> Ok |> Some)
                     |> withMsg (SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet))
-

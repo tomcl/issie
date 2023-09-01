@@ -24,7 +24,7 @@ let contextMenus = [
         "SheetMenuBreadcrumb", ["Rename"; "Delete"]
         "CustomComponent", ["Go to sheet" ; "Properties"]
         "Component", ["Rotate Clockwise (Ctrl-Right)"; "Rotate AntiClockwise (Ctrl-Left)" ; "Flip Vertical (Ctrl-Up)"; "Flip Horizontal (Ctrl-Down)" ; "Properties"]
-        "Canvas", ["Zoom-in (Alt-Up) and centre" ; "Zoom-out (Alt-Down)" ; "Fit to window (Ctrl-W)" ; "Properties"]
+        "Canvas", ["Zoom-in (Alt-Up) and centre" ; "Zoom-out (Alt-Down)" ; "Fit to window (Ctrl-W)" ; "Reroute all wires"; "Properties"]
         "Wire", ["Unfix Wire"]
         "", [] // Empty string for no context menu.
     ]

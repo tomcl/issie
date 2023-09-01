@@ -141,7 +141,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
     let nextAction, isDragAndDrop =
         match model.Action with
         | DragAndDrop -> DragAndDrop, true
-        | _ -> MovingSymbols, false
+        | _ -> MovingSymbols, false // DragAndDrop, false
 
     match model.SelectedComponents with
     | [] -> model, Cmd.none
@@ -158,7 +158,6 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
 
         let errorComponents  =
             if notIntersectingComponents model bBox compId then [] else [compId]
-
         {model with
             Action = nextAction
             SnapSymbols = snapXY
@@ -173,7 +172,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
         let errorComponents =
             model.SelectedComponents
-            |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
+            |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId)) 
         {model with Action = nextAction;
                     LastMousePos = mMsg.Pos; 
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}; 
@@ -265,7 +264,8 @@ let mDownUpdate
         match model.TmpModel with
         | None -> model
         | Some newModel -> newModel
-
+    // printfn "running mDownUpdate"
+    printfn "mDownUpdate Action: %A" model.Action
     match model.Action with
     | DragAndDrop ->
         let errorComponents =
@@ -277,7 +277,7 @@ let mDownUpdate
         | true ->
             let nextAction = match model.SelectedComponents.Length with
                                     | s when s<2 -> Idle 
-                                    | _ -> Scaling
+                                    | _ -> EndSomeAction
             {model with
                 BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol // TODO: Improve here in group stage when we are concerned with efficiency
                 Action = nextAction
@@ -466,6 +466,8 @@ let mDragUpdate
         (model: Model) 
         (mMsg: MouseT) 
             : Model * Cmd<ModelType.Msg> =
+    printfn "running mDragUpdate"
+    printfn "mDragUpdate Action: %A" model.Action
     let setDragCursor (model:Model, cmd: Cmd<ModelType.Msg>) : Model*Cmd<ModelType.Msg> =
         let dragCursor = 
             match model.Action with
@@ -635,7 +637,8 @@ let mDragUpdate
         model, sheetCmd (Msg.UpdateScrollPos sPos)
     | Idle 
     | InitialisedCreateComponent _ 
-    | Scrolling -> model, Cmd.none
+    | Scrolling 
+    | EndSomeAction -> model, Cmd.none
     |> setDragCursor
 /// Mouse Up Update, can have: finished drag-to-select, pressed on a component, finished symbol movement, connected a wire between ports
 let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mMsg is currently un-used, but kept for future possibilities
@@ -643,6 +646,8 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         match model.TmpModel with
         | None -> model
         | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
+    printfn "running mUpUpdate"
+    printfn "mUpUpdate Action: %A" model.Action
     match model.Action with
     | MovingWire segIdL ->
         let connIdL = segIdL |> List.map snd
@@ -667,7 +672,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         // HLP 23: AUTHOR Khoury & Ismagilov
         let nextAction = match selectComps.Length with
                                              | s when s<2 -> Idle 
-                                             | _ -> Scaling
+                                             | _ -> EndSomeAction // Scaling
         { model with 
             DragToSelectBox = resetDragToSelectBox; 
             Action = nextAction; SelectedComponents = selectComps; 
@@ -689,11 +694,11 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
     | MovingLabel ->
         {model with Action = Idle}, sheetCmd DoNothing
 
-    | Scaling -> 
+    | Scaling  | EndSomeAction -> 
         match model.ErrorComponents with
         |[] -> {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
         | _ -> {newModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
-        
+
     | MovingSymbols ->
         // Reset Movement State in Model
         match model.ErrorComponents with
@@ -713,7 +718,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                     {model with
                         ErrorComponents = [];
                         BoundingBoxes = model.LastValidBoundingBoxes;
-                        Action = Scaling;
+                        Action = EndSomeAction;
                         SnapSymbols = emptySnap;
                         SnapSegments = emptySnap;
                         UndoList = appendUndoList model.UndoList newModel;

@@ -9,6 +9,7 @@ open Browser
 open Elmish
 open DrawHelpers
 open DrawModelType
+// open DrawModelType.SymbolT
 open DrawModelType.SheetT
 open Optics
 open Operators
@@ -256,7 +257,7 @@ let centreOfScreen model : XYPos =
 /// returns true if pos is insoie boundingbox
 let insideBox (pos: XYPos) boundingBox =
     let {BoundingBox.TopLeft={X = xBox; Y=yBox}; H=hBox; W=wBox} = boundingBox
-    pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox
+    pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox  
 
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
 let inline insideBoxMap 
@@ -599,6 +600,17 @@ let findNearbyPorts (model: Model) =
 
     (inputPortsMap, outputPortsMap) ||> (fun x y -> (Map.toList x), (Map.toList y))
 
+// let insideScaleButton (model: Model) (pos:XYPos) = 
+//     let mouseOnScaleButton (pos:XYPos) (margin: float) (buttonCentre:XYPos)= 
+//         let radius = 3.5
+//         let distance = ((pos.X - buttonCentre.X) ** 2.0 + (pos.Y - buttonCentre.Y) ** 2.0) ** 0.5
+//         distance <= radius + margin
+//     let buttonCentre (scaleBox:BoundingBox) = 
+//         scaleBox.TopLeft + {X = scaleBox.W + 50.0; Y = - scaleBox.H - 50.0}
+//     model.ScalingBox.Value.ScalingBoxBound
+//     |> buttonCentre
+//     |> mouseOnScaleButton pos 1.5
+
 /// Returns what is located at pos.
 /// Priority Order: InputPort -> OutputPort -> Label -> Wire -> Component -> Canvas
 let mouseOn (model: Model) (pos: XYPos) : MouseOn =
@@ -621,6 +633,9 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
                     | None ->
                         match insideBoxMap model.BoundingBoxes pos with
                         | Some compId -> Component compId
+                            // match model.Wire.Symbol.Symbols[compId].Annotation with 
+                            // | Some ScaleButton -> if insideScaleButton model pos then Component compId else Canvas
+                            // | _ -> Component compId
                         | None -> Canvas
 
 

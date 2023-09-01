@@ -293,7 +293,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             pos.X >= xBox - 50.0 && pos.X <= xBox + wBox + 50.0 && pos.Y >= yBox - 50.0 && pos.Y <= yBox + hBox + 50.0
         match model.Sheet.ScalingBox with
         | None -> false
-        | Some b -> insideBox (model.Sheet.LastMousePos) b.ScalingBoxBound
+        | Some b -> insideBox sheetXYPos b.ScalingBoxBound
+            //insideBox (model.Sheet.LastMousePos) b.ScalingBoxBound
 
     rightClickElement <- // mutable so that we have this info also in the callback from main
         match drawOn, htmlId, elType with
@@ -311,7 +312,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | SheetT.MouseOn.Canvas, _ , "path"
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
             printfn "Draw block sheet 'canvas'"
-            if mouseInScalingBox then 
+            if mouseInScalingBox then  
                 DBScalingBox model.Sheet.SelectedComponents
             else 
                 DBCanvas sheetXYPos
@@ -321,7 +322,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             IssieElement (element.ToString())
 
         | SheetT.MouseOn.Component compId, _, _->
-            if mouseInScalingBox then 
+            if mouseInScalingBox then  
                 DBScalingBox model.Sheet.SelectedComponents
             else 
                 match Map.tryFind compId symbols with
@@ -445,7 +446,9 @@ let processContextMenuClick
     
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl-Right)"->
         rotateDispatch SymbolT.RotateClockwise
-        model |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
+        model 
+        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
+        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
 
     | DBComp sym, "Rotate AntiClockwise (Ctrl-Left)" ->
         rotateDispatch SymbolT.RotateAntiClockwise
@@ -455,7 +458,9 @@ let processContextMenuClick
 
     | DBScalingBox selectedcomps, "Rotate AntiClockwise (Ctrl-Left)"->
         rotateDispatch SymbolT.RotateAntiClockwise
-        model |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
+        model 
+        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
+        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
 
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
@@ -473,7 +478,9 @@ let processContextMenuClick
     
     | DBScalingBox selectedcomps, "Flip Vertical (Ctrl-Up)"->
         flipDispatch SymbolT.FlipVertical
-        model |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
+        model 
+        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
+        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
 
 
     | DBComp sym, "Flip Horizontal (Ctrl-Down)" ->
@@ -484,7 +491,9 @@ let processContextMenuClick
     
     | DBScalingBox selectedcomps, "Flip Horizontal (Ctrl-Down)" ->
         flipDispatch SymbolT.FlipHorizontal
-        model |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
+        model 
+        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
+        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
     
     | DBCanvas pos, "Zoom-in (Alt-Up) and centre"  ->
         printf "Zoom-in!!"

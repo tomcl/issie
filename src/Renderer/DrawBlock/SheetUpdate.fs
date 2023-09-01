@@ -53,12 +53,14 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     
     let updateScalingBox (model:Model, cmd:Cmd<ModelType.Msg>) =
         if (model.SelectedComponents.Length < 2) then 
+            // printfn "running UpdateScalingBox in length < 2"
             match model.ScalingBox with 
             | None ->  model, cmd
             | _ -> {model with ScalingBox = None}, 
                     Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
                                         sheetCmd SheetT.UpdateBoundingBoxes]
         else 
+            // printfn "running UpdateScalingBox newBox"
             let newBoxBound = 
                 model.SelectedComponents
                 |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
@@ -96,6 +98,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 {model with ScalingBox = Some initScalingBox; Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}}, newCmd
 
     let postUpdateScalingBox (model:Model, cmd) = 
+        // printfn "running postUpdateScalingBox"
         if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
             model, cmd
         else 
@@ -234,7 +237,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         match mMsg.Op with
         | Down when mouseAlreadyDown = true -> model, Cmd.none
         | Down -> mDownUpdate model mMsg
-        | Drag -> mDragUpdate model mMsg
+        | Drag -> 
+            printfn "running sheet.update"
+            mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
 

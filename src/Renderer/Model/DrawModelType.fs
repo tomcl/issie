@@ -452,6 +452,7 @@ module SheetT =
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
         | Scaling
+        | EndSomeAction
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?
@@ -656,6 +657,7 @@ module SheetT =
     let selectedComponents_ = Lens.create (fun m -> m.SelectedComponents) (fun sc m -> {m with SelectedComponents = sc})
     let selectedWires_ = Lens.create (fun m -> m.SelectedWires) (fun sw m -> {m with SelectedWires = sw})
     let boundingBoxes_ = Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> {m with BoundingBoxes = bb})
+    // let Action_ = Lens.create (fun m -> m.Action) (fun act m -> {m with Action = act})
 
     let wires_ = wire_ >-> BusWireT.wires_
     let wireOf_ k = wires_ >-> Map.valueForce_ "What? Wire id lookup in model failed" k

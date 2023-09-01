@@ -362,6 +362,7 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
 
 /// Create a new project.
 let private newProject model dispatch  =
+    warnAppWidth dispatch (fun _ ->
     match askForNewProjectPath model.UserData.LastUsedDirectory with
     | None -> () // User gave no path.
     | Some path ->
@@ -380,7 +381,7 @@ let private newProject model dispatch  =
             // Create empty initial diagram file.
             let initialComponent = createEmptyComponentAndFile path "main"
             dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
-            setupProjectFromComponents false "main" [initialComponent] model dispatch
+            setupProjectFromComponents false "main" [initialComponent] model dispatch)
 
 /// work out what to do opening a file
 let rec resolveComponentOpenPopup 
@@ -445,6 +446,7 @@ let addToRecents path recents =
 
 /// open an existing project from its path
 let openProjectFromPath (path:string) model dispatch =
+    warnAppWidth dispatch (fun _ ->
     dispatch (ExecFuncAsynch <| fun () ->
         traceIf "project" (fun () -> "loading files")
         match loadAllComponentFiles path with
@@ -465,13 +467,14 @@ let openProjectFromPath (path:string) model dispatch =
                         LastUsedDirectory = Some path; 
                         RecentProjects = recents
                         }
-        Elmish.Cmd.none)
+        Elmish.Cmd.none))
     
 
 /// open an existing project
 let private openProject model dispatch =
     //trying to force the spinner to load earlier
     //doesn't really work right now
+    warnAppWidth dispatch (fun _ -> 
     dispatch (Sheet (SheetT.SetSpinner true))
     let dirName =
         match Option.map readFilesFromDirectory model.UserData.LastUsedDirectory with
@@ -479,7 +482,7 @@ let private openProject model dispatch =
         | _ -> model.UserData.LastUsedDirectory
     match askForExistingProjectPath dirName with
     | None -> () // User gave no path.
-    | Some path -> openProjectFromPath path model dispatch
+    | Some path -> openProjectFromPath path model dispatch)
 
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.

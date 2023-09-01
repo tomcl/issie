@@ -13,10 +13,12 @@ open WaveSim
 open Sheet.SheetInterface
 open DrawModelType
 open CommonTypes
+open PopupHelpers
 
 open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
+
 
 
 

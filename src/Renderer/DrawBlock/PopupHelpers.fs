@@ -615,9 +615,7 @@ let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveB
             ]
     dynamicClosablePopup title body foot extraStyle dispatch
 
-/// A static confirmation popup.
-let confirmationPopup title body buttonText buttonAction dispatch =
-    let foot =
+let staticButtonFoot buttonAction buttonText dispatch =
         Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
             Level.left [] []
             Level.right [] [
@@ -635,7 +633,19 @@ let confirmationPopup title body buttonText buttonAction dispatch =
                 ]
             ]
         ]
+    
+
+/// A static confirmation popup.
+let confirmationPopup title buttonText body buttonAction dispatch =
+    let foot = staticButtonFoot (fun _ -> buttonAction()) buttonText dispatch
     closablePopup title body foot [] dispatch
+
+let dynamicConfirmationPopup title buttonText body buttonActionOpt dispatch =
+    let buttonAction =
+        buttonActionOpt
+        |> Option.defaultValue (fun _ -> dispatch Msg.ClosePopup)
+    let foot = staticButtonFoot (fun _ -> buttonAction()) buttonText dispatch
+    dynamicClosablePopup title body (fun _ -> foot) [] dispatch
 
 /// A static choice dialog popup returning the popup function
 let choicePopupFunc 
@@ -668,3 +678,4 @@ let choicePopupFunc
 let choicePopup title (body:ReactElement) buttonTrueText buttonFalseText (buttonAction: bool -> Browser.Types.MouseEvent -> Unit) dispatch =
     let popup = choicePopupFunc title (fun _ -> body) buttonTrueText buttonFalseText (fun bool dispatch-> buttonAction bool)
     dispatch <| ShowPopup popup
+

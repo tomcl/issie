@@ -758,7 +758,7 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
             setupProjectFromComponents true name ldcs updatedModel dispatch
 
 let openFileInProject name project (model:Model) dispatch =
-    openFileInProject' true name project (model:Model) dispatch
+    openFileInProject' model.SavedSheetIsOutOfDate name project (model:Model) dispatch
 
 
 

@@ -21,6 +21,41 @@ open Optics
 open Optics.Operators
 open System
 
+module Constants =
+    let minGoodAppWidth = 1250.
+    let minAppWidth = 1060.
+    let typicalAppWidth = 1600.
+
+
+let warnAppWidth (dispatch: Msg -> unit) (afterFun: _ -> unit ) =
+    let appWidth = Browser.Dom.self.innerWidth
+    let styledSpan styles txt = span [Style styles] [str <| txt]
+    let bSpan txt = styledSpan [FontWeight "bold"] txt
+    let tSpan txt = span [] [str txt]
+
+    if appWidth < Constants.minGoodAppWidth then
+        (Some afterFun, dispatch)
+        ||> PopupHelpers.dynamicConfirmationPopup "Issie Window Size Warning" "Continue" (fun model ->
+            let appWidth = Browser.Dom.self.innerWidth
+            let keyOf3 s1 s2 s3 = span [] [bSpan s1; tSpan " + "; bSpan s2 ; tSpan " + "; bSpan s3]
+            div [] ([
+                div [] [str $"The issie app window is currently "; bSpan $"{appWidth} pixels"; str " in width."]
+                div [] [str "Issie works best with a width of > 1250 pixels, and typically 1600 pixels."]
+                div [] [str "Issie UI will be "; bSpan "slightly degraded" ; str " when width < 1150 pixels."]
+                div [] [str "Issie UI will be "; bSpan "severely degraded" ; str " when width < 1050 pixels."]
+                div [] [
+                    str "Web Zoom Out ("
+                    (keyOf3 "Ctrl" "Shift" "-")
+                    str ") or In ("
+                    (keyOf3 "Ctrl" "Shift" "+")
+                    str ") will increase or decrease window width"]
+                (if appWidth < 1250 then bSpan "You are advised to Zoom Out now." else str "")
+                ] |> List.collect (fun s -> [s; br []])))
+    else
+        afterFun()
+        
+
+
 
 
 let extractLabelBase (text:string) : string =
@@ -702,7 +737,9 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
     let newModel = {model with CurrentProj = Some project}
     match getFileInProject name project with
     | None -> 
-        log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
+        SetFilesNotification <| (fun _ -> str (
+           $"Warning: Issie could not find the file '{name}.dgm' in the project. Did you delete a file manually?"))
+        |> dispatch
     | Some lc ->
         match updateProjectFromCanvas model dispatch with
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
@@ -808,7 +845,7 @@ let deleteFileConfirmationPopup (sheetName: string) (model: Model) (dispatch: Ms
             dispatch (StartUICmd DeleteSheet)
             dispatch <| ExecFuncInMessage(removeFileInProject sheetName project,dispatch)
             dispatch ClosePopup
-    confirmationPopup title body buttonText buttonAction dispatch
+    confirmationPopup title buttonText body buttonAction dispatch
 
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------//
@@ -820,3 +857,7 @@ let getHintPaneElement (model:Model) =
     | _, Files -> div [Style [FontSize "90%"]] [str "Click -> Open Sheet"; br []; str "Left-click -> Rename or Delete"]
     | Some hint, _ -> hint
     | _ -> str ""
+
+
+
+

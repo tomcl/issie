@@ -465,6 +465,13 @@ let processContextMenuClick
         model
         |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.CtrlW))
 
+    | DBCanvas _, "Reroute all wires" ->
+        model
+        |> Optics.Optic.map
+                (sheet_ >-> SheetT.wire_)
+                (model.Sheet.Wire.Wires.Keys |> Seq.toList |> BusWireSeparate.updateWireSegmentJumpsAndSeparations)
+        |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.CtrlW))
+
     | DBCanvas _, "Properties" ->
         model
         |> set selectedComponent_ None

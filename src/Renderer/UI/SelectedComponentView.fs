@@ -314,7 +314,7 @@ let makeVerilogDeleteButton (model:Model) (custom:CustomComponentType) dispatch 
                         [ 
                         Button.IsOutlined
                         Button.Color IsDanger
-                        Button.OnClick(fun _ -> confirmationPopup title body buttonText buttonAction dispatch) ]
+                        Button.OnClick(fun _ -> confirmationPopup title buttonText body  buttonAction dispatch) ]
                         [ str "Delete" ]
                     br []
                 ]

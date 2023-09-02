@@ -739,10 +739,12 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
 let openFileInProject' saveCurrent name project (model:Model) dispatch =
     let newModel = {model with CurrentProj = Some project}
     match getFileInProject name project with
-    | None -> 
-        SetFilesNotification <| (fun _ -> str (
-           $"Warning: Issie could not find the file '{name}.dgm' in the project. Did you delete a file manually?"))
+    | None ->
+        printf "%s" $"Anomalous project: sheet {name}.dgm not found"
+        SetFilesNotification <| errorFilesNotification 
+           $"Warning: Issie could not find the file '{name}.dgm' in the project. Did you delete a file manually?"
         |> dispatch
+        dispatch FinishUICmd
     | Some lc ->
         match updateProjectFromCanvas model dispatch with
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"

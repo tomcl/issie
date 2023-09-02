@@ -14,7 +14,15 @@ open BusWireRoutingHelpers
 open BlockHelpers
 open Browser
 
-
+let fitCircuitToScreenUpdate (model: Model) =
+    let model', paras = fitCircuitToWindowParas model
+    printf "Calculated Scroll = %A" paras.Scroll
+    model', 
+    Cmd.batch 
+        [
+            sheetCmd (SheetT.Msg.UpdateScrollPos paras.Scroll)
+            sheetCmd SheetT.Msg.UpdateBoundingBoxes
+        ]
 
 let rotateLabel (sym:Symbol) =
     let newRot =

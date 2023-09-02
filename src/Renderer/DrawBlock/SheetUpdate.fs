@@ -196,16 +196,8 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                         wireCmd (BusWireT.SelectWires wires) ]
 
     | KeyPress CtrlW ->
-            let model', paras = fitCircuitToWindowParas model
-            writeCanvasScroll paras.Scroll
-            model', 
-            Cmd.batch 
-                [
-                    sheetCmd (UpdateScrollPos paras.Scroll)
-                    sheetCmd UpdateBoundingBoxes
-                ]
+        fitCircuitToScreenUpdate model
     
-
     | PortMovementStart ->
         match model.Action with
         | Idle -> 
@@ -254,45 +246,41 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 , Cmd.none
         | false -> model, Cmd.none
 
-    | UpdateScrollPosFromCanvas dispatch ->
+    | UpdateScrollPosFromCanvas(sequence, pos, dispatch) ->
         let model =
-            match canvasDiv with
-            | None -> model
-            | Some el -> 
-                let canvas = document.getElementById "Canvas"
-                // UpdateScrollPos here is needed to make CheckAutomaticScrolling work properly
-                // Possibly UpdateScrollPos must be after view to trigger the next checkAutomaticScrolling
-                // When checkAutomaticScrolling is sone in a better way, this could be removed
-                dispatch <| UpdateScrollPos {X=canvas.scrollLeft; Y=canvas.scrollTop} 
-                {model with ScreenScrollPos = {X= el.scrollLeft; Y = el.scrollTop}}
+            match sequence - scrollSequence >= 0, canvasDiv with
+            | _, None | false, _ -> model
+            | true, Some el -> 
+                recentProgrammaticScrollPos
+                |> List.exists (fun recent -> euclideanDistance recent pos < 0.001 )
+                |> function | true -> model
+                            | false ->
+                                //printfn "%s" $"Canvas -> model {pos.X},{pos.Y}"
+                                {model with ScreenScrollPos = pos}
         model, Cmd.none
 
  
     | UpdateScrollPos scrollPos ->
-        if model.ScrollUpdateIsOutstanding then 
-            model, Cmd.none
-        else
-            let scrollDif = scrollPos - model.ScreenScrollPos
-            let newLastScrollingPos =
-                {
-                 Pos =
-                    {
-                        X = model.ScrollingLastMousePos.Pos.X + scrollDif.X / model.Zoom
-                        Y = model.ScrollingLastMousePos.Pos.Y + scrollDif.Y / model.Zoom
-                    }
-                 Move = model.ScrollingLastMousePos.Move
-                }
-            let cmd =
-                if model.AutomaticScrolling then
-                    sheetCmd CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
-                else
-                    Cmd.none
-            //Sheet.writeCanvasScroll scrollPos            
-            { model with 
-                ScreenScrollPos = scrollPos
-                ScrollUpdateIsOutstanding = false
-                ScrollingLastMousePos = newLastScrollingPos }, 
-                cmd
+        //printfn "%s" $"Model -> canvas {scrollPos.X},{scrollPos.Y}"
+        let scrollDif = scrollPos - model.ScreenScrollPos * (1. / model.Zoom)
+        let newLastScrollingPos =
+            {
+                Pos = model.ScrollingLastMousePos.Pos + scrollDif
+                Move = model.ScrollingLastMousePos.Move
+            }
+        let cmd =
+            if model.AutomaticScrolling then
+                sheetCmd CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
+            else
+                Cmd.none
+        // keep last 4 updates yo filte corresponding OnScroll events
+        recentProgrammaticScrollPos <- scrollPos :: List.truncate 4 recentProgrammaticScrollPos
+        scrollSequence <- scrollSequence + 1 // increment sequence counter
+        writeCanvasScroll scrollPos
+        { model with 
+            ScreenScrollPos = scrollPos
+            ScrollingLastMousePos = newLastScrollingPos }, 
+            cmd
 
     | AddNotConnected (ldcs, port, pos, rotation) ->
         let (newSymModel, ncID) = SymbolUpdate.addSymbol ldcs model.Wire.Symbol pos NotConnected ""
@@ -335,6 +323,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         let requiredOffset = oldScreenCentre - newScreenCentre
 
         // Update screen so that the zoom is centred around the middle of the screen.
+        printf "KeepZoomCentred"
         canvas.scrollLeft <- canvas.scrollLeft + requiredOffset.X * model.Zoom
         canvas.scrollTop <- canvas.scrollTop + requiredOffset.Y * model.Zoom
         model, Cmd.none
@@ -382,9 +371,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             let edgeDistance = abs (edge - mPos)
 
             if edgeDistance < scrollMargin && mMov >= -0.0000001 // just in case there are FP rounding errors
-            then scrollSpeed * (scrollMargin - edgeDistance) / scrollMargin // Speed should be faster the closer the mouse is to the screen edge
+            then
+                //printf "automaticScrolling adjustment..."
+                scrollSpeed * (scrollMargin - edgeDistance) / scrollMargin // Speed should be faster the closer the mouse is to the screen edge
             else 0.0
-
         canvas.scrollLeft <- canvas.scrollLeft - (checkForAutomaticScrolling1D leftScreenEdge mPosX -mMovX) // Check left-screen edge
         canvas.scrollLeft <- canvas.scrollLeft + (checkForAutomaticScrolling1D rightScreenEdge mPosX mMovX) // Check right-screen edge
         canvas.scrollTop <- canvas.scrollTop - (checkForAutomaticScrolling1D upperScreenEdge mPosY -mMovY) // Check upper-screen edge
@@ -929,7 +919,6 @@ let init () =
         MouseCounter = 0
         LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         CtrlKeyDown = false
-        ScrollUpdateIsOutstanding = false
         PrevWireSelection = []
         Compiling = false
         CompilationStatus = {Synthesis = Queued; PlaceAndRoute = Queued; Generate = Queued; Upload = Queued}

@@ -148,6 +148,8 @@ let fileMenu (dispatch) =
         makeWinDebugItem "Trace off" None (fun _ ->
             debugTraceUI <- Set.ofList [])
         makeMenu false "Play" [
+            makeDebugItem "Set Scroll" None
+                (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.;Y=1000.})
             makeDebugItem "Trace all times" None
                 (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint( 0.1, 0.1)
                           if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])

@@ -21,6 +21,17 @@ open BusWireRoutingHelpers
 /// Set in view function from react hook.
 let mutable canvasDiv:Types.Element option = None
 
+/// Used to filter OnScroll messages caused by recent scroll updates.
+/// These could reset scroll back to some previous value.
+let mutable recentProgrammaticScrollPos: XYPos list = []
+
+/// Used to filter out-of-sequence OnScroll messages.
+/// These could reset scroll to some previous value.
+/// Incremented by program UpdateScroll and OnScroll.
+let mutable scrollSequence: int = 0
+
+
+
 //-------------------------------------------------------------------------------------------------//
 //-----------------------------------Constants used in Sheet---------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -439,11 +450,12 @@ let ensureCanvasExtendsBeyondScreen model : Model =
                     X = if xIsOk then 0. else newSize/2.- centre.X
                     Y = if yIsOk then 0. else newSize/2. - centre.Y
                 })
-
+        scrollSequence <- scrollSequence + 1
         match canvasDiv, model.ScreenScrollPos + circuitMove*model.Zoom with
         | Some el, pos ->
             el.scrollLeft <- pos.X
             el.scrollTop <- pos.Y
+
         | None,_-> ()
         let posDelta :(XYPos -> XYPos) = ((+) circuitMove)
         let posScreenDelta :(XYPos -> XYPos) = ((+) (circuitMove*model.Zoom))

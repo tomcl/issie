@@ -537,7 +537,7 @@ module SheetT =
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
         | UpdateScrollPos of XYPos
-        | UpdateScrollPosFromCanvas of dispatch: ( Msg -> Unit)
+        | UpdateScrollPosFromCanvas of sequence: int * pos: XYPos * dispatch: ( Msg -> Unit)
         | AddNotConnected of (LoadedComponent list) * port:Port * pos:XYPos * rotation:Rotation
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
@@ -641,7 +641,6 @@ module SheetT =
         LastMousePosForSnap: XYPos
         MouseCounter: int
         CtrlKeyDown : bool
-        ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list
         ScalingBox: ScalingBox Option
         Compiling: bool

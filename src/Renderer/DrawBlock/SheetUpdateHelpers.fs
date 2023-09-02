@@ -16,12 +16,14 @@ open Browser
 
 let fitCircuitToScreenUpdate (model: Model) =
     let model', paras = fitCircuitToWindowParas model
-    printf "Calculated Scroll = %A" paras.Scroll
+    printf "CtrlW Calculated Scroll = %A" paras.Scroll
     model', 
     Cmd.batch 
         [
             sheetCmd (SheetT.Msg.UpdateScrollPos paras.Scroll)
             sheetCmd SheetT.Msg.UpdateBoundingBoxes
+            if abs (model.Zoom - model'.Zoom) > 0.001 then
+                sheetCmd (SheetT.Msg.KeyPress CtrlW)
         ]
 
 let rotateLabel (sym:Symbol) =

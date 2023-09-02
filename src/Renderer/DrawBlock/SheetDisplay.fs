@@ -13,8 +13,9 @@ open Sheet
 open SheetSnap
 
 /// This actually writes to the DOM a new scroll position.
-/// In the special case that DOM has not yel been created it does nothing.
+/// In the special case that DOM has not yet been created it does nothing.
 let writeCanvasScroll (scrollPos:XYPos) =
+    //printf "%s" $"***writing canvas scroll: {scrollPos.X},{scrollPos.Y}"
     canvasDiv
     |> Option.iter (fun el -> el.scrollLeft <- scrollPos.X; el.scrollTop <- scrollPos.Y)
 
@@ -79,12 +80,14 @@ let displaySvgWithZoom
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
-          OnScroll (fun _ -> dispatch <| (UpdateScrollPosFromCanvas dispatch))
+          OnScroll (fun _ ->
+            match canvasDiv with
+            | None -> ()
+            |Some el ->
+                dispatch <| UpdateScrollPosFromCanvas(scrollSequence,{X= el.scrollLeft; Y=el.scrollTop}, dispatch))
           Ref (fun el ->
             canvasDiv <- Some el
-            writeCanvasScroll model.ScreenScrollPos
-            )
-
+            writeCanvasScroll model.ScreenScrollPos)
           OnWheel wheelUpdate
         ]
         [

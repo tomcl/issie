@@ -680,8 +680,11 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
     // after the ctrl-w. We need anotehr ctrl-w to make sure this scroll event does not reset scroll
     // the order in which messages get processed is problematic here - and the solution ad hoc - a better
     // solution would be to understand exactly what determines event order in the event queue
-    dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
-    dispatch SynchroniseCanvas
+    //dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+    //dispatch SynchroniseCanvas
+    //dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+    //dispatch SynchroniseCanvas
+
 
 /// Load a new project as defined by parameters.
 /// Ends any existing simulation

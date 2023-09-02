@@ -72,7 +72,8 @@ let displaySvgWithZoom
                 dispatch <| KeyPress ZoomIn
         else () // Scroll normally if Ctrl is not held down
     let cursorText = model.CursorType.Text()
-
+    let firstView = viewIsAfterUpdateScroll
+    viewIsAfterUpdateScroll <- false
     div [ 
           HTMLAttr.Id "Canvas"
           Key cursorText // force cursor change to be rendered
@@ -84,9 +85,11 @@ let displaySvgWithZoom
             match canvasDiv with
             | None -> ()
             |Some el ->
-                dispatch <| UpdateScrollPosFromCanvas(scrollSequence,{X= el.scrollLeft; Y=el.scrollTop}, dispatch))
+                if not firstView then
+                    dispatch <| UpdateScrollPosFromCanvas(scrollSequence,{X= el.scrollLeft; Y=el.scrollTop}, dispatch))
           Ref (fun el ->
             canvasDiv <- Some el
+            //printfn "%s" $"Writing from Ref {scrollSequence}: {model.ScreenScrollPos.X},{model.ScreenScrollPos.Y}"
             writeCanvasScroll model.ScreenScrollPos)
           OnWheel wheelUpdate
         ]

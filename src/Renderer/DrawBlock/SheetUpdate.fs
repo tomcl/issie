@@ -26,11 +26,13 @@ importReadUart
 
 /// Update Function
 let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<ModelType.Msg> =
-    /// check things that might not have been correctly completed in the last update and if so do them
-    /// Mostly thsi is a hack to deal with the fact that dependent state is held separately rather than
-    /// being derived fucntionally from the state it depends on, so it muts be explicitly updated.
-    /// TODO: add something to check whether wires need updating
+    /// In this module model = Sheet model
     let model = issieModel.Sheet
+
+    /// check things that might not have been correctly completed in the last update and if so do them
+    /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than
+    /// being derived fucntionally from the state it depends on, so it must be explicitly updated.
+    /// TODO: add something to check whether wires need updating
     let postUpdateChecks (model: Model) : Model=
         // Executed every update so performance is important.
         // Since normally state will be correct it is only necessary to make the checking
@@ -255,13 +257,13 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 |> List.exists (fun recent -> euclideanDistance recent pos < 0.001 )
                 |> function | true -> model
                             | false ->
-                                //printfn "%s" $"Canvas -> model {pos.X},{pos.Y}"
+                                //printfn "%s" $"{scrollSequence}: Canvas -> model {pos.X},{pos.Y}"
                                 {model with ScreenScrollPos = pos}
         model, Cmd.none
 
  
     | UpdateScrollPos scrollPos ->
-        //printfn "%s" $"Model -> canvas {scrollPos.X},{scrollPos.Y}"
+        //printfn "%s" $"{scrollSequence}: Model -> canvas {scrollPos.X},{scrollPos.Y}"
         let scrollDif = scrollPos - model.ScreenScrollPos * (1. / model.Zoom)
         let newLastScrollingPos =
             {
@@ -276,6 +278,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         // keep last 4 updates yo filte corresponding OnScroll events
         recentProgrammaticScrollPos <- scrollPos :: List.truncate 4 recentProgrammaticScrollPos
         scrollSequence <- scrollSequence + 1 // increment sequence counter
+        viewIsAfterUpdateScroll <- true
         writeCanvasScroll scrollPos
         { model with 
             ScreenScrollPos = scrollPos

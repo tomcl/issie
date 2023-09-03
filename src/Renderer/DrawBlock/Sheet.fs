@@ -600,17 +600,6 @@ let findNearbyPorts (model: Model) =
 
     (inputPortsMap, outputPortsMap) ||> (fun x y -> (Map.toList x), (Map.toList y))
 
-// let insideScaleButton (model: Model) (pos:XYPos) = 
-//     let mouseOnScaleButton (pos:XYPos) (margin: float) (buttonCentre:XYPos)= 
-//         let radius = 3.5
-//         let distance = ((pos.X - buttonCentre.X) ** 2.0 + (pos.Y - buttonCentre.Y) ** 2.0) ** 0.5
-//         distance <= radius + margin
-//     let buttonCentre (scaleBox:BoundingBox) = 
-//         scaleBox.TopLeft + {X = scaleBox.W + 50.0; Y = - scaleBox.H - 50.0}
-//     model.ScalingBox.Value.ScalingBoxBound
-//     |> buttonCentre
-//     |> mouseOnScaleButton pos 1.5
-
 /// Returns what is located at pos.
 /// Priority Order: InputPort -> OutputPort -> Label -> Wire -> Component -> Canvas
 let mouseOn (model: Model) (pos: XYPos) : MouseOn =
@@ -633,9 +622,6 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
                     | None ->
                         match insideBoxMap model.BoundingBoxes pos with
                         | Some compId -> Component compId
-                            // match model.Wire.Symbol.Symbols[compId].Annotation with 
-                            // | Some ScaleButton -> if insideScaleButton model pos then Component compId else Canvas
-                            // | _ -> Component compId
                         | None -> Canvas
 
 

@@ -261,6 +261,7 @@ let updateAllMemoryCompsIfNeeded (model:Model) =
 
 type RightClickElement =
     | DBCustomComp of SymbolT.Symbol * CustomComponentType
+    | DBScalingBox of list<ComponentId>
     | DBComp of SymbolT.Symbol
     | DBWire of Wire: BusWireT.Wire * ASeg: BusWireT.ASegment list
     | DBCanvas of XYPos
@@ -286,6 +287,15 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     let htmlId = try element.id with | e -> "invalid"
     let elType = try element.nodeName with | e -> "invalid"
     let drawOn = Sheet.mouseOn model.Sheet sheetXYPos
+    let mouseInScalingBox = 
+        let insideBox (pos: XYPos) boundingBox =
+            let {BoundingBox.TopLeft={X = xBox; Y= yBox}; H=hBox; W=wBox} = boundingBox
+            pos.X >= xBox - 50.0 && pos.X <= xBox + wBox + 50.0 && pos.Y >= yBox - 50.0 && pos.Y <= yBox + hBox + 50.0
+        match model.Sheet.ScalingBox with
+        | None -> false
+        | Some b -> insideBox sheetXYPos b.ScalingBoxBound
+            //insideBox (model.Sheet.LastMousePos) b.ScalingBoxBound
+
     rightClickElement <- // mutable so that we have this info also in the callback from main
         match drawOn, htmlId, elType with
         | _, elId, _ when String.startsWith "SheetMenuBreadcrumb:" elId ->
@@ -302,18 +312,26 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | SheetT.MouseOn.Canvas, _ , "path"
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
             printfn "Draw block sheet 'canvas'"
-            DBCanvas sheetXYPos
+            if mouseInScalingBox then  
+                DBScalingBox model.Sheet.SelectedComponents
+            else 
+                DBCanvas sheetXYPos
+
         | SheetT.MouseOn.Canvas, x, _ ->
             printfn "Other issie element: type:'%A'-> id:'%A'" elType x
             IssieElement (element.ToString())
+
         | SheetT.MouseOn.Component compId, _, _->
-            match Map.tryFind compId symbols with
-            | None ->
-                NoMenu
-            | Some {Component = {Type = Custom ct}} ->
-                DBCustomComp (symbols[compId], ct)
-            | Some sym ->
-                if sym.Annotation = None then DBComp sym else NoMenu
+            if mouseInScalingBox then  
+                DBScalingBox model.Sheet.SelectedComponents
+            else 
+                match Map.tryFind compId symbols with
+                | Some {Component = {Type = Custom ct}} ->
+                    DBCustomComp (symbols[compId], ct)
+                | Some sym when sym.Annotation = None ->
+                    DBComp sym
+                | _ -> NoMenu
+
         | SheetT.MouseOn.Connection connId, _, _ ->
             Map.tryFind connId bwModel.Wires
             |> function | None ->
@@ -326,7 +344,6 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
                             | segs ->
                                 DBWire(wire, segs)
 
-
         | SheetT.MouseOn.InputPort (InputPortId s, _),_ , _ ->
             DBInputPort s
         | SheetT.MouseOn.OutputPort (OutputPortId s, _),_ , _ ->
@@ -337,7 +354,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     match rightClickElement with
     | SheetMenuBreadcrumb _ ->
         if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumbDev"
-
+    | DBScalingBox _ -> 
+        "ScalingBox"
     | DBCustomComp _->        
         "CustomComponent"
     | DBComp _ ->
@@ -365,6 +383,7 @@ let processContextMenuClick
     let withNoCmd (model: Model) = model, Cmd.none
     let withMsg (msg: Msg) (model : Model)  = model,Cmd.ofMsg msg
     let withMsgs (msgs: Msg list) (model : Model)  = model, Cmd.batch ( msgs |> List.map Cmd.ofMsg)
+    let withWireMsg msg = withMsg (Msg.Sheet (SheetT.Msg.Wire msg))
     let sheetDispatch = Sheet >> dispatch
     let keyDispatch = SheetT.KeyPress >> sheetDispatch
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
@@ -412,24 +431,36 @@ let processContextMenuClick
         |> withNoCmd
 
     | DBComp sym, "Properties" | DBCustomComp(sym, _), "Properties" ->
-       model
-       |> set selectedComponent_ (Some sym.Component)
-       |> set (sheet_ >-> SheetT.selectedWires_) []
-       |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
-       |> set rightPaneTabVisible_ Properties
-       |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [sym.Id]))))
+         model
+        |> set selectedComponent_ (Some sym.Component)
+        |> set (sheet_ >-> SheetT.selectedWires_) []
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> set rightPaneTabVisible_ Properties
+        |> withWireMsg (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [sym.Id]))
 
     | DBComp sym, "Rotate Clockwise (Ctrl-Right)" ->
         rotateDispatch SymbolT.RotateClockwise
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
+    
+    | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl-Right)"->
+        rotateDispatch SymbolT.RotateClockwise
+        model 
+        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
     | DBComp sym, "Rotate AntiClockwise (Ctrl-Left)" ->
         rotateDispatch SymbolT.RotateAntiClockwise
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
+
+    | DBScalingBox selectedcomps, "Rotate AntiClockwise (Ctrl-Left)"->
+        rotateDispatch SymbolT.RotateAntiClockwise
+        model 
+        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
@@ -444,13 +475,26 @@ let processContextMenuClick
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
+    
+    | DBScalingBox selectedcomps, "Flip Vertical (Ctrl-Up)"->
+        flipDispatch SymbolT.FlipVertical
+        model 
+        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
+
 
     | DBComp sym, "Flip Horizontal (Ctrl-Down)" ->
         flipDispatch SymbolT.FlipHorizontal
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
-
+    
+    | DBScalingBox selectedcomps, "Flip Horizontal (Ctrl-Down)" ->
+        flipDispatch SymbolT.FlipHorizontal
+        model 
+        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
+    
     | DBCanvas pos, "Zoom-in (Alt-Up) and centre"  ->
         printf "Zoom-in!!"
         model

@@ -9,6 +9,7 @@ open Browser
 open Elmish
 open DrawHelpers
 open DrawModelType
+// open DrawModelType.SymbolT
 open DrawModelType.SheetT
 open Optics
 open Operators
@@ -251,11 +252,12 @@ let centreOfScreen model : XYPos =
         Y = (edge.Top + edge.Bottom)/(2. * model.Zoom)
     }
 
+
 /// helper used inside Map.tryFind hence the unused parameter
 /// returns true if pos is insoie boundingbox
 let insideBox (pos: XYPos) boundingBox =
     let {BoundingBox.TopLeft={X = xBox; Y=yBox}; H=hBox; W=wBox} = boundingBox
-    pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox
+    pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox  
 
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
 let inline insideBoxMap 

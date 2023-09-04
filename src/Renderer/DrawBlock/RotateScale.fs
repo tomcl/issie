@@ -645,3 +645,5 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
+
+

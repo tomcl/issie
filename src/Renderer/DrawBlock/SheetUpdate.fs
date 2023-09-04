@@ -127,10 +127,8 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | prevModel :: lst ->
             let appendRedoList (redoList: Model List) (model_in: Model): Model List =
                 let rec removeLast inputLst =
-                    match inputLst with
-                    | _ :: tl when List.isEmpty tl -> []
-                    | hd :: tl -> hd :: (removeLast tl)
-                    | [] -> []
+                    inputLst
+                    |> List.truncate (max 0 (inputLst.Length - 1))
     
                 match List.length redoList with
                 |n when n < 500 -> model_in :: redoList

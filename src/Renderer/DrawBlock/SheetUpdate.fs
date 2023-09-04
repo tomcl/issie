@@ -51,60 +51,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         |> ensureCanvasExtendsBeyondScreen
         // |> (fun currentmodel -> {currentmodel with TmpModel = Some currentmodel})
     
-    let updateScalingBox (model:Model, cmd:Cmd<ModelType.Msg>) =
-        if (model.SelectedComponents.Length < 2) then 
-            // printfn "running UpdateScalingBox in length < 2"
-            match model.ScalingBox with 
-            | None ->  model, cmd
-            | _ -> {model with ScalingBox = None}, 
-                    Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                                        sheetCmd SheetT.UpdateBoundingBoxes]
-        else 
-            // printfn "running UpdateScalingBox newBox"
-            let newBoxBound = 
-                model.SelectedComponents
-                |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
-                |> RotateScale.getBlock
-            match model.ScalingBox with 
-            | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
-            | _ -> 
-                let topleft = newBoxBound.TopLeft
-                let CWOffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
-                let ACWOffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
-                let buttonOffSet: XYPos = {X = newBoxBound.W+46.5; Y = -53.5}
-
-                let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
-                let buttonSym = makeButton ScaleButton (topleft + buttonOffSet)
-                let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
-                let rotateCWSym = makeButton RotateCWButton (topleft + CWOffSet)
-                                        |> makeRotateSym
-                let rotateACWSym = {makeButton RotateACWButton (topleft + ACWOffSet) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
-                                        |> makeRotateSym
-
-                let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym |> Map.add rotateACWSym.Id rotateACWSym |> Map.add rotateCWSym.Id rotateCWSym
-                let initScalingBox = {
-                    ScalingBoxBound = newBoxBound;
-                    ScaleButton = buttonSym;
-                    RotateCWButton = rotateCWSym;
-                    RotateACWButton = rotateACWSym;
-                    ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id];
-                    MouseOnScaleButton = false;
-                }
-                let newCmd =
-                    match model.ScalingBox with
-                    | Some _ -> Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                                                    sheetCmd SheetT.UpdateBoundingBoxes]
-                    | None -> cmd
-                {model with ScalingBox = Some initScalingBox; Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}}, newCmd
-
-    let postUpdateScalingBox (model:Model, cmd) = 
-        // printfn "running postUpdateScalingBox"
-        if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
-            model, cmd
-        else 
-            updateScalingBox (model,cmd)
-    
-    
     match msg with
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
         // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
@@ -887,8 +833,8 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         model, (wireCmd BusWireT.ToggleSnapToNet)
         
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
-    |> postUpdateScalingBox
     |> Optic.map fst_ postUpdateChecks
+    |> postUpdateScalingBox
     |> (fun (model, (cmd: Cmd<ModelType.Msg>)) -> {issieModel with Sheet = model}, cmd)
 
 

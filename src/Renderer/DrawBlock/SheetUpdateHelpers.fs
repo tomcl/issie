@@ -13,6 +13,8 @@ open DrawHelpers
 open BusWireRoutingHelpers
 open BlockHelpers
 open Browser
+open Optics
+open Operators
 
 let fitCircuitToScreenUpdate (model: Model) =
     let model', paras = fitCircuitToWindowParas model
@@ -241,11 +243,9 @@ let hextoInt (s:string) =
 // (Kept in separate functions since Update function got too long otherwise)
 
 let appendUndoList (undoList: Model List) (model_in: Model): Model List =
-    let rec removeLast lst =
-        match lst with
-        | _ :: lst when List.isEmpty lst -> []
-        | hd :: tl -> hd :: (removeLast tl)
-        | [] -> []
+    let rec removeLast inputLst =
+        inputLst
+        |> List.truncate (max 0 (inputLst.Length - 1))
 
     match List.length undoList with
     | n when n < 500 -> 
@@ -905,3 +905,60 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox * Orientat
                 Some ( { TopLeft = topLeft; H = y1 - y2; W = union.W }, Horizontal )
                 
 
+let postUpdateScalingBox (model:Model, cmd) = 
+    // printfn "running postUpdateScalingBox"
+    if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
+        model, cmd
+    elif (model.SelectedComponents.Length < 2) then 
+        // printfn "running UpdateScalingBox in length < 2"
+        match model.ScalingBox with 
+        | None ->  model, cmd
+        | _ -> {model with ScalingBox = None}, 
+                Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                                    sheetCmd SheetT.UpdateBoundingBoxes]
+    else 
+        // printfn "running UpdateScalingBox newBox"
+        let newBoxBound = 
+            model.SelectedComponents
+            |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+            |> RotateScale.getBlock
+        match model.ScalingBox with 
+        | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
+        | _ -> 
+            let topleft = newBoxBound.TopLeft
+            let CWOffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
+            let ACWOffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
+            let buttonOffSet: XYPos = {X = newBoxBound.W+46.5; Y = -53.5}
+
+            let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
+            let buttonSym = makeButton ScaleButton (topleft + buttonOffSet)
+            let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
+            let rotateCWSym = 
+                makeButton RotateCWButton (topleft + CWOffSet)
+                |> makeRotateSym
+            let rotateACWSym = 
+                {makeButton RotateACWButton (topleft + ACWOffSet) 
+                    with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+                |> makeRotateSym
+
+            let newSymbolMap = model.Wire.Symbol.Symbols 
+                                                        |> Map.add buttonSym.Id buttonSym 
+                                                        |> Map.add rotateACWSym.Id rotateACWSym 
+                                                        |> Map.add rotateCWSym.Id rotateCWSym
+            let initScalingBox = {
+                ScalingBoxBound = newBoxBound;
+                ScaleButton = buttonSym;
+                RotateCWButton = rotateCWSym;
+                RotateACWButton = rotateACWSym;
+                ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id];
+                MouseOnScaleButton = false;
+            }
+            let newCmd =
+                match model.ScalingBox with
+                | Some _ -> Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                                                sheetCmd SheetT.UpdateBoundingBoxes]
+                | None -> cmd
+            model
+            |> Optic.set scalingBox_ (Some initScalingBox)
+            |> Optic.set symbols_ newSymbolMap, 
+            newCmd

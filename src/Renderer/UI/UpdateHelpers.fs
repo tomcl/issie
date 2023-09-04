@@ -326,12 +326,11 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
                 DBScalingBox model.Sheet.SelectedComponents
             else 
                 match Map.tryFind compId symbols with
-                | None ->
-                    NoMenu
                 | Some {Component = {Type = Custom ct}} ->
                     DBCustomComp (symbols[compId], ct)
-                | Some sym ->
-                    if sym.Annotation = None then DBComp sym else NoMenu
+                | Some sym when sym.Annotation = None ->
+                    DBComp sym
+                | _ -> NoMenu
 
         | SheetT.MouseOn.Connection connId, _, _ ->
             Map.tryFind connId bwModel.Wires
@@ -384,6 +383,7 @@ let processContextMenuClick
     let withNoCmd (model: Model) = model, Cmd.none
     let withMsg (msg: Msg) (model : Model)  = model,Cmd.ofMsg msg
     let withMsgs (msgs: Msg list) (model : Model)  = model, Cmd.batch ( msgs |> List.map Cmd.ofMsg)
+    let withWireMsg msg = withMsg (Msg.Sheet (SheetT.Msg.Wire msg))
     let sheetDispatch = Sheet >> dispatch
     let keyDispatch = SheetT.KeyPress >> sheetDispatch
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
@@ -436,7 +436,7 @@ let processContextMenuClick
         |> set (sheet_ >-> SheetT.selectedWires_) []
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> set rightPaneTabVisible_ Properties
-        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [sym.Id]))))
+        |> withWireMsg (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [sym.Id]))
 
     | DBComp sym, "Rotate Clockwise (Ctrl-Right)" ->
         rotateDispatch SymbolT.RotateClockwise
@@ -448,7 +448,7 @@ let processContextMenuClick
         rotateDispatch SymbolT.RotateClockwise
         model 
         // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
-        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
     | DBComp sym, "Rotate AntiClockwise (Ctrl-Left)" ->
         rotateDispatch SymbolT.RotateAntiClockwise
@@ -460,7 +460,7 @@ let processContextMenuClick
         rotateDispatch SymbolT.RotateAntiClockwise
         model 
         // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
-        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
@@ -480,7 +480,7 @@ let processContextMenuClick
         flipDispatch SymbolT.FlipVertical
         model 
         // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
-        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
 
     | DBComp sym, "Flip Horizontal (Ctrl-Down)" ->
@@ -493,7 +493,7 @@ let processContextMenuClick
         flipDispatch SymbolT.FlipHorizontal
         model 
         // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
-        |> withMsg (Msg.Sheet (SheetT.Msg.Wire (BusWireT.Msg.UpdateConnectedWires selectedcomps)))
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
     
     | DBCanvas pos, "Zoom-in (Alt-Up) and centre"  ->
         printf "Zoom-in!!"

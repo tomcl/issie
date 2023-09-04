@@ -672,4 +672,4 @@ module SheetT =
 
     let zoom_ = Lens.create (fun m -> m.Zoom) (fun w m -> {m with Zoom = w})
 
-
+    let scalingBox_ = Lens.create (fun m -> m.ScalingBox) (fun w m -> {m with ScalingBox = w})

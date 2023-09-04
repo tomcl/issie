@@ -3,6 +3,8 @@ open CommonTypes
 open Sheet.SheetInterface
 open ModelType
 open Elmish
+open Optics
+open Optics.Operators
 
 
 module Constants =
@@ -329,3 +331,9 @@ let execOneAsyncJobIfPossible (model: Model,cmd: Cmd<Msg>)=
             job.JobWork model
             |> (fun (model', cmd') -> model', Cmd.batch [cmd; cmd'])
 
+/// Return the project with with open file contents in loadedcomponents updated according to
+/// current Draw Block contents.
+let getUpdatedLoadedComponents (project: Project) (model: Model) : Project =
+    mapOverProject project model ( fun p ->
+        p
+        |> Optic.set (loadedComponentOf_ p.OpenFileName >-> canvasState_) (model.Sheet.GetCanvasState()))

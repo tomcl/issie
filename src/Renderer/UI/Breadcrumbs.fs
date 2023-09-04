@@ -19,6 +19,7 @@ open Optics.Optic
 *)
 
 type BreadcrumbConfig = {
+    AllowDuplicateSheets: bool
     BreadcrumbIdPrefix: string
     ColorFun: SheetTree -> IColor
     ClickAction: SheetTree -> (Msg -> unit) -> unit
@@ -38,6 +39,7 @@ module Constants =
                 Padding "50px"]
 
     let defaultConfig = {
+        AllowDuplicateSheets = false
         BreadcrumbIdPrefix = "BreadcrumbDefault"
         ColorFun = fun _ -> IColor.IsGreyDark
         ClickAction = fun _ _ -> ()
@@ -172,7 +174,7 @@ let hierarchyBreadcrumbs
         (model: Model) =
     mapOverProject (div [] []) model (fun p ->
         let root = Option.defaultValue p.OpenFileName model.WaveSimSheet
-        let sheetTreeMap = getSheetTrees p
+        let sheetTreeMap = getSheetTrees cfg.AllowDuplicateSheets p
         makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch)
 
 
@@ -187,7 +189,7 @@ let hierarchyFromSheetBreadcrumbs
         (dispatch: Msg -> unit)
         (model: Model) =
     mapOverProject (div [] []) model (fun p ->
-        let sheetTreeMap = getSheetTrees p
+        let sheetTreeMap = getSheetTrees cfg.AllowDuplicateSheets p
         makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid rootSheet) dispatch)
 
 /// Breadcrumbs of entire design hierarchy of every root sheet in project
@@ -199,7 +201,7 @@ let allRootHierarchiesFromProjectBreadcrumbs
         (dispatch: Msg -> unit)
         (model: Model) =
     mapOverProject ([div [] []]) model (fun p ->
-        let sheetTreeMap = getSheetTrees p
+        let sheetTreeMap = getSheetTrees cfg.AllowDuplicateSheets p
         allRootSheets sheetTreeMap
         |> Set.toList
         |> List.map (fun root ->
@@ -208,6 +210,18 @@ let allRootHierarchiesFromProjectBreadcrumbs
             tr [ Constants.colArrayStyle
                 ] [ td [CellSpacing "50px"] [el]])
         |> fun rows -> table [] [tbody [] rows]
+
+/// is there a duplicate sheet name anywhere in hierarchy?
+let hierarchiesHaveDuplicates (model: Model) =
+    mapOverProject false model (fun p ->
+        getSheetTrees true p
+        |> Map.toList
+        |> List.map (fun (_,sheet) ->
+            let sheetNames =
+                sheet.SubSheets
+                |> List.map (fun sheet -> sheet.SheetName)
+            sheetNames.Length = (List.distinct sheetNames).Length)
+        |> List.exists id)
 
 
 /// Breadcrumbs of the focus sheet, with sheets on its path to root, and its children.
@@ -225,6 +239,6 @@ let smallSimulationBreadcrumbs
         (model: Model)
              : ReactElement =
     mapOverProject (div [] []) model (fun p ->       
-        makeBreadcrumbsFromPositions (getSheetTrees p) cfg (positionRootAndFocusChildrenInGrid rootName pathToFocus) dispatch)
+        makeBreadcrumbsFromPositions (getSheetTrees cfg.AllowDuplicateSheets p) cfg (positionRootAndFocusChildrenInGrid rootName pathToFocus) dispatch)
 
 

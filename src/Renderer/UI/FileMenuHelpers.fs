@@ -299,7 +299,7 @@ let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> M
 
 /// Get the subsheet tree for all sheets in the current project.
 /// Returns a map from sheet name to tree of SheetTree nodes
-let getSheetTrees (p:Project): Map<string,SheetTree> =
+let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
     let ldcMap = 
         p.LoadedComponents
         |> List.map (fun ldc -> ldc.Name,ldc)
@@ -338,7 +338,7 @@ let getSheetTrees (p:Project): Map<string,SheetTree> =
                         |> fun l -> 0 :: l
                         |> List.max
                     Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
-                    SubSheets = subs
+                    SubSheets = if allowAllInstances then subs else (subs |> List.distinctBy (fun sh -> sh.SheetName))
                     GridArea = None
                 })
         |> makeBreadcrumbNamesUnique

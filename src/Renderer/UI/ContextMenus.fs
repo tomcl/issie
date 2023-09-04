@@ -23,6 +23,7 @@ let contextMenus = [
         "SheetMenuBreadcrumbDev", ["Rename"; "Delete"; "Lock"; "Unlock"; "Lock Subtree"; "Unlock Subtree"]
         "SheetMenuBreadcrumb", ["Rename"; "Delete"]
         "CustomComponent", ["Go to sheet" ; "Properties"]
+        "ScalingBox", ["Rotate Clockwise (Ctrl-Right)"; "Rotate AntiClockwise (Ctrl-Left)" ; "Flip Vertical (Ctrl-Up)"; "Flip Horizontal (Ctrl-Down)"]
         "Component", ["Rotate Clockwise (Ctrl-Right)"; "Rotate AntiClockwise (Ctrl-Left)" ; "Flip Vertical (Ctrl-Up)"; "Flip Horizontal (Ctrl-Down)" ; "Properties"]
         "Canvas", ["Zoom-in (Alt-Up) and centre" ; "Zoom-out (Alt-Down)" ; "Fit to window (Ctrl-W)" ; "Reroute all wires"; "Properties"]
         "Wire", ["Unfix Wire"]

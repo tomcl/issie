@@ -13,6 +13,8 @@ open DrawHelpers
 open BusWireRoutingHelpers
 open BlockHelpers
 open Browser
+open Optics
+open Operators
 
 let fitCircuitToScreenUpdate (model: Model) =
     let model', paras = fitCircuitToWindowParas model
@@ -141,7 +143,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
     let nextAction, isDragAndDrop =
         match model.Action with
         | DragAndDrop -> DragAndDrop, true
-        | _ -> MovingSymbols, false
+        | _ -> MovingSymbols, false // DragAndDrop, false
 
     match model.SelectedComponents with
     | [] -> model, Cmd.none
@@ -158,7 +160,6 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
 
         let errorComponents  =
             if notIntersectingComponents model bBox compId then [] else [compId]
-
         {model with
             Action = nextAction
             SnapSymbols = snapXY
@@ -173,7 +174,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
         let errorComponents =
             model.SelectedComponents
-            |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
+            |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId)) 
         {model with Action = nextAction;
                     LastMousePos = mMsg.Pos; 
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}; 
@@ -242,15 +243,16 @@ let hextoInt (s:string) =
 // (Kept in separate functions since Update function got too long otherwise)
 
 let appendUndoList (undoList: Model List) (model_in: Model): Model List =
-    let rec removeLast lst =
-        match lst with
-        | _ :: lst when List.isEmpty lst -> []
-        | hd :: lst -> hd :: (removeLast lst)
-        | [] -> []
+    let rec removeLast inputLst =
+        inputLst
+        |> List.truncate (max 0 (inputLst.Length - 1))
 
     match List.length undoList with
-    | n when n < 500 -> model_in :: undoList
-    | _ -> model_in :: (removeLast undoList)
+    | n when n < 500 -> 
+        model_in :: undoList
+    | _ -> 
+        printfn "removing last undoList"
+        model_in :: (removeLast undoList)
 
 
 /// Mouse Down Update, Can have clicked on: Label, InputPort / OutputPort / Component / Wire / Canvas. Do correct action for each.
@@ -262,7 +264,8 @@ let mDownUpdate
         match model.TmpModel with
         | None -> model
         | Some newModel -> newModel
-
+    // printfn "running mDownUpdate"
+    printfn "mDownUpdate Action: %A" model.Action
     match model.Action with
     | DragAndDrop ->
         let errorComponents =
@@ -274,14 +277,12 @@ let mDownUpdate
         | true ->
             let nextAction = match model.SelectedComponents.Length with
                                     | s when s<2 -> Idle 
-                                    | _ -> Scaling
+                                    | _ -> EndSomeAction
             {model with
                 BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol // TODO: Improve here in group stage when we are concerned with efficiency
                 Action = nextAction
                 SnapSymbols = emptySnap
                 SnapSegments = emptySnap
-                UndoList = appendUndoList model.UndoList newModel
-                RedoList = []
                 AutomaticScrolling = false
             },
             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
@@ -296,24 +297,6 @@ let mDownUpdate
         | Label compId ->
             {model with Action = InitialiseMovingLabel compId},
                 sheetCmd (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
-            // match model.ButtonList, model.ErrorComponents with
-            // | [], _ ->
-            //     {model with Action = InitialiseMovingLabel compId},
-            //     sheetCmd (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
-            // | buttons, [] ->
-            //     {model with Action = InitialiseMovingLabel compId; ButtonList = []; Box = {model.Box with ShowBox = false}},
-            //         Cmd.batch [
-            //             sheetCmd (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
-            //             symbolCmd (SymbolT.DeleteSymbols buttons)
-            //             sheetCmd UpdateBoundingBoxes
-            //         ]
-            // | _ ->   
-            //     printfn "Error components (Right)"
-            //     {model with Action = DragAndDrop; ButtonList = []; Box = {model.Box with ShowBox = false}}, 
-            //     Cmd.batch [
-            //             symbolCmd (SymbolT.DeleteSymbols model.ButtonList)
-            //             sheetCmd SheetT.UpdateBoundingBoxes
-            //     ]
                 
         | InputPort (portId, portLoc) ->
             if not model.CtrlKeyDown then
@@ -352,8 +335,6 @@ let mDownUpdate
                         Action = Scaling;
                         LastMousePos = mMsg.Pos;
                         ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = true};
-                        UndoList = model :: model.UndoList; 
-                        // LastValidBoundingBoxes = model.BoundingBoxes;
                         TmpModel = Some model}, Cmd.none
                 
                 | Some RotateCWButton | Some RotateACWButton-> 
@@ -485,6 +466,8 @@ let mDragUpdate
         (model: Model) 
         (mMsg: MouseT) 
             : Model * Cmd<ModelType.Msg> =
+    printfn "running mDragUpdate"
+    printfn "mDragUpdate Action: %A" model.Action
     let setDragCursor (model:Model, cmd: Cmd<ModelType.Msg>) : Model*Cmd<ModelType.Msg> =
         let dragCursor = 
             match model.Action with
@@ -499,10 +482,6 @@ let mDragUpdate
     // New Action, when we click on scaling button and drag the components and box should scale with mouse
     | Scaling ->
         let oldModel = model
-        // let oldModel = 
-        //     match model.TmpModel with
-        //     | Some x -> x
-        //     | _ -> model
         let symButton =  model.ScalingBox.Value.ScaleButton
         let rotateACWButton = model.ScalingBox.Value.RotateACWButton
         let rotateCWButton = model.ScalingBox.Value.RotateCWButton
@@ -658,7 +637,8 @@ let mDragUpdate
         model, sheetCmd (Msg.UpdateScrollPos sPos)
     | Idle 
     | InitialisedCreateComponent _ 
-    | Scrolling -> model, Cmd.none
+    | Scrolling 
+    | EndSomeAction -> model, Cmd.none
     |> setDragCursor
 /// Mouse Up Update, can have: finished drag-to-select, pressed on a component, finished symbol movement, connected a wire between ports
 let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mMsg is currently un-used, but kept for future possibilities
@@ -666,11 +646,13 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         match model.TmpModel with
         | None -> model
         | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
+    printfn "running mUpUpdate"
+    printfn "mUpUpdate Action: %A" model.Action
     match model.Action with
     | MovingWire segIdL ->
         let connIdL = segIdL |> List.map snd
         let coalesceCmds = connIdL |> List.map (fun conn -> wireCmd (BusWireT.CoalesceWire conn))
-        { model with Action = Idle ; UndoList = appendUndoList model.UndoList newModel; RedoList = [] },
+        { model with Action = Idle; UndoList = appendUndoList model.UndoList newModel}, 
         Cmd.batch ([ wireCmd (BusWireT.DragSegment (segIdL, mMsg))                    
                      wireCmd (BusWireT.MakeJumps (true,connIdL )) ] @ coalesceCmds)
     | Selecting ->
@@ -690,7 +672,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         // HLP 23: AUTHOR Khoury & Ismagilov
         let nextAction = match selectComps.Length with
                                              | s when s<2 -> Idle 
-                                             | _ -> Scaling
+                                             | _ -> EndSomeAction // Scaling
         { model with 
             DragToSelectBox = resetDragToSelectBox; 
             Action = nextAction; SelectedComponents = selectComps; 
@@ -712,18 +694,10 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
     | MovingLabel ->
         {model with Action = Idle}, sheetCmd DoNothing
 
-    | Scaling -> 
-        let oldModel = 
-            match model.TmpModel with
-            | None -> model
-            | Some m -> m
+    | Scaling  | EndSomeAction -> 
         match model.ErrorComponents with
-        |[] -> {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}}, sheetCmd DoNothing
-        | _ -> {oldModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}}, sheetCmd DoNothing
-        // let symButton =  model.Wire.Symbol.Symbols
-        //                 |> Map.find (model.ButtonList |> List.head)
-        // {model with Action = Idle; Box = {model.Box with StartingPos = symButton.Pos}}, sheetCmd DoNothing
-        
+        |[] -> {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
+        | _ -> {newModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
 
     | MovingSymbols ->
         // Reset Movement State in Model
@@ -744,7 +718,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                     {model with
                         ErrorComponents = [];
                         BoundingBoxes = model.LastValidBoundingBoxes;
-                        Action = Scaling;
+                        Action = EndSomeAction;
                         SnapSymbols = emptySnap;
                         SnapSegments = emptySnap;
                         UndoList = appendUndoList model.UndoList newModel;
@@ -769,20 +743,23 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
                         wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
                         wireCmd (BusWireT.MakeJumps (true,movingWires)) ]
+
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
-            if model.TargetPortId <> "" // If a target has been found, connect a wire
+            if model.TargetPortId <> "" // If a target has been found, connect a wire\
             then wireCmd (BusWireT.AddWire (inputPortId, (OutputPortId model.TargetPortId))),
-                           appendUndoList model.UndoList newModel, []
-            else Cmd.none , model.UndoList , model.RedoList
+                            appendUndoList model.UndoList newModel, newModel.RedoList
+            else Cmd.none , newModel.UndoList, newModel.RedoList
         {model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false }, cmd
+
     | ConnectingOutput outputPortId ->
         let cmd , undoList , redoList =
             if model.TargetPortId <> "" // If a target has been found, connect a wire
             then  wireCmd (BusWireT.AddWire (InputPortId model.TargetPortId, outputPortId)),
-                           appendUndoList model.UndoList newModel , []
-            else Cmd.none , model.UndoList , model.RedoList
+                            appendUndoList model.UndoList newModel, newModel.RedoList
+            else Cmd.none , newModel.UndoList, newModel.RedoList
         { model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false  }, cmd
+
     | MovingPort portId ->
         let symbol = getCompId model.Wire.Symbol portId
         {model with Action = Idle},
@@ -790,6 +767,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
             symbolCmd (SymbolT.MovePortDone (portId, mMsg.Pos))
             wireCmd (BusWireT.UpdateSymbolWires symbol);
             wireCmd (BusWireT.RerouteWire portId)]
+
     // HLP23 AUTHOR: BRYAN TAN
     | ResizingSymbol (compId, fixedCornerLoc) -> 
         match model.ErrorComponents with 
@@ -824,16 +802,6 @@ let mMoveUpdate
     match model.Action with
     | DragAndDrop ->
         moveSymbols model mMsg
-        // match model.ButtonList with
-        // | [] -> 
-        //     moveSymbols model mMsg
-        // | _ -> 
-
-        //     let symButton = model.Box.ScaleButton.Value
-        //     let rotateACWButton =  model.Box.RotateACWButton.Value
-        //     let rotateCWButton =  model.Box.RotateCWButton.Value
-        //     let newSymModel = {model.Wire.Symbol with Symbols = (model.Wire.Symbol.Symbols |> Map.remove symButton.Id |> Map.remove rotateACWButton.Id |> Map.remove rotateCWButton.Id)}
-        //     (moveSymbols ({model with ButtonList = []; Box = {model.Box with ShowBox = false;}; Wire = {model.Wire with Symbol = newSymModel}}) mMsg)
 
     | InitialisedCreateComponent (ldcs, compType, lbl) ->
         let labelTest = 
@@ -937,3 +905,60 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox * Orientat
                 Some ( { TopLeft = topLeft; H = y1 - y2; W = union.W }, Horizontal )
                 
 
+let postUpdateScalingBox (model:Model, cmd) = 
+    // printfn "running postUpdateScalingBox"
+    if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
+        model, cmd
+    elif (model.SelectedComponents.Length < 2) then 
+        // printfn "running UpdateScalingBox in length < 2"
+        match model.ScalingBox with 
+        | None ->  model, cmd
+        | _ -> {model with ScalingBox = None}, 
+                Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                                    sheetCmd SheetT.UpdateBoundingBoxes]
+    else 
+        // printfn "running UpdateScalingBox newBox"
+        let newBoxBound = 
+            model.SelectedComponents
+            |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+            |> RotateScale.getBlock
+        match model.ScalingBox with 
+        | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
+        | _ -> 
+            let topleft = newBoxBound.TopLeft
+            let CWOffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
+            let ACWOffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
+            let buttonOffSet: XYPos = {X = newBoxBound.W+46.5; Y = -53.5}
+
+            let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
+            let buttonSym = makeButton ScaleButton (topleft + buttonOffSet)
+            let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
+            let rotateCWSym = 
+                makeButton RotateCWButton (topleft + CWOffSet)
+                |> makeRotateSym
+            let rotateACWSym = 
+                {makeButton RotateACWButton (topleft + ACWOffSet) 
+                    with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+                |> makeRotateSym
+
+            let newSymbolMap = model.Wire.Symbol.Symbols 
+                                                        |> Map.add buttonSym.Id buttonSym 
+                                                        |> Map.add rotateACWSym.Id rotateACWSym 
+                                                        |> Map.add rotateCWSym.Id rotateCWSym
+            let initScalingBox = {
+                ScalingBoxBound = newBoxBound;
+                ScaleButton = buttonSym;
+                RotateCWButton = rotateCWSym;
+                RotateACWButton = rotateACWSym;
+                ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id];
+                MouseOnScaleButton = false;
+            }
+            let newCmd =
+                match model.ScalingBox with
+                | Some _ -> Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                                                sheetCmd SheetT.UpdateBoundingBoxes]
+                | None -> cmd
+            model
+            |> Optic.set scalingBox_ (Some initScalingBox)
+            |> Optic.set symbols_ newSymbolMap, 
+            newCmd

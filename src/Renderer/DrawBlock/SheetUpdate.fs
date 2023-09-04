@@ -51,57 +51,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         |> ensureCanvasExtendsBeyondScreen
         // |> (fun currentmodel -> {currentmodel with TmpModel = Some currentmodel})
     
-    let updateScalingBox (model:Model, cmd:Cmd<ModelType.Msg>) =
-        // printfn "Hello, updating scaling box here"
-        if (model.SelectedComponents.Length < 2) then 
-            match model.ScalingBox with 
-            | None ->  model, cmd
-            | _ -> {model with ScalingBox = None}, 
-                    Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                                        sheetCmd SheetT.UpdateBoundingBoxes]
-        else 
-            let newBoxBound = 
-                model.SelectedComponents
-                |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
-                |> RotateScale.getBlock
-            match model.ScalingBox with 
-            | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
-            | _ -> 
-                let topleft = newBoxBound.TopLeft
-                let CWOffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
-                let ACWOffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
-                let buttonOffSet: XYPos = {X = newBoxBound.W+46.5; Y = -53.5}
-
-                let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
-                let buttonSym = makeButton ScaleButton (topleft + buttonOffSet)
-                let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
-                let rotateCWSym = makeButton RotateCWButton (topleft + CWOffSet)
-                                        |> makeRotateSym
-                let rotateACWSym = {makeButton RotateACWButton (topleft + ACWOffSet) with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
-                                        |> makeRotateSym
-
-                let newSymbolMap = model.Wire.Symbol.Symbols |> Map.add buttonSym.Id buttonSym |> Map.add rotateACWSym.Id rotateACWSym |> Map.add rotateCWSym.Id rotateCWSym
-                let initScalingBox = {
-                    ScalingBoxBound = newBoxBound;
-                    ScaleButton = buttonSym;
-                    RotateCWButton = rotateCWSym;
-                    RotateACWButton = rotateACWSym;
-                    ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id];
-                    MouseOnScaleButton = false;
-                }
-                let newCmd =
-                    match model.ScalingBox with
-                    | Some _ -> Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                                                    sheetCmd SheetT.UpdateBoundingBoxes]
-                    | None -> cmd
-                {model with ScalingBox = Some initScalingBox; Wire = {model.Wire with Symbol = {model.Wire.Symbol with Symbols = newSymbolMap}}}, newCmd
-
-    let postUpdateScalingBox (model:Model, cmd) = 
-        if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
-            model, cmd
-        else 
-            updateScalingBox (model,cmd)
-    
     match msg with
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
         // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
@@ -122,7 +71,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             |> Set.toList
 
         // let inputPorts, outputPorts = BusWire.getPortIdsOfWires model.Wire wireUnion
-        { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model ; RedoList = [] },
+        { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model; RedoList = [] },
         Cmd.batch [ wireCmd (BusWireT.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
                     symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
                     sheetCmd UpdateBoundingBoxes
@@ -176,17 +125,22 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         match model.UndoList with
         | [] -> model , Cmd.none
         | prevModel :: lst ->
-            {prevModel with RedoList = model :: model.RedoList; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
-            // let symModel = { prevModel.Wire.Symbol with CopiedSymbols = model.Wire.Symbol.CopiedSymbols }
-            // let wireModel = { prevModel.Wire with CopiedWires = model.Wire.CopiedWires ; Symbol = symModel}
-            // { prevModel with Wire = wireModel ; UndoList = lst ; RedoList = model :: model.RedoList ; CurrentKeyPresses = Set.empty } , Cmd.none
+            let appendRedoList (redoList: Model List) (model_in: Model): Model List =
+                let rec removeLast inputLst =
+                    inputLst
+                    |> List.truncate (max 0 (inputLst.Length - 1))
+    
+                match List.length redoList with
+                |n when n < 500 -> model_in :: redoList
+                | _ -> model_in :: (removeLast redoList)
+
+            {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlY ->
         printfn "Printing CtrlY"
         match model.RedoList with
         | [] -> model , Cmd.none
-        | newModel :: lst -> { newModel with UndoList = model :: model.UndoList ; RedoList = lst; CurrentKeyPresses = Set.empty} , Cmd.batch [sheetCmd DoNothing]
-        // | newModel :: lst -> { newModel with UndoList = model :: model.UndoList ; RedoList = lst} , Cmd.none
+        | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = Set.empty} , Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlA ->
         let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map fst
@@ -227,7 +181,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         match mMsg.Op with
         | Down when mouseAlreadyDown = true -> model, Cmd.none
         | Down -> mDownUpdate model mMsg
-        | Drag -> mDragUpdate model mMsg
+        | Drag -> 
+            printfn "running sheet.update"
+            mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
 
@@ -873,13 +829,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     
     | ToggleSnapToNet ->
         model, (wireCmd BusWireT.ToggleSnapToNet)
-    
-    | MakeChannelToggle ->
-        {model with Wire = {model.Wire with MakeChannelToggle = not model.Wire.MakeChannelToggle}}, Cmd.none
         
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
-    |> postUpdateScalingBox
     |> Optic.map fst_ postUpdateChecks
+    |> postUpdateScalingBox
     |> (fun (model, (cmd: Cmd<ModelType.Msg>)) -> {issieModel with Sheet = model}, cmd)
 
 

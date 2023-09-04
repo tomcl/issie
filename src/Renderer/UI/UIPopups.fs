@@ -140,15 +140,14 @@ let viewInfoPopup dispatch =
         ]
 
     let intro = div [] [
-        str "Issie designs are hierarchical, made of one main sheet and optional subsheets. Include the hardware defined on one sheet in another
-        by adding a 'custom component' from the 'My Project' section of the Catalog. \
-        Top-level sheets which are not used as subsheets are bolded on the sheet menu." 
+        str "Issie designs are hierarchical, made of one main sheet and optional subsheets. Include the hardware defined on one sheet in another \
+        by adding any number of  'custom components' from the 'My Project' section of the Catalog. The Sheet menu shows the hierarchy." 
         br []; br []
-        str "Issie supports step simulation for all circuits, and waveform simulation to view the waveforms of clocked circuits.
+        str "Issie supports step simulation for all circuits, and waveform simulation to view the waveforms of clocked circuits. \
         Use whichever works for you." 
         br []; br [];
-        str "In Issie all clocked components use the same clock signal Clk. \
-        Clk connections are not shown: all Clk ports are
+        str "In Issie all clocked components (blue fill) use the same clock signal Clk. \
+        Clk connections are not shown: all Clk ports are \
         automatically connected together. In the waveform display active clock edges, 1 per clock cycle, are indicated \
         by vertical lines through the waveforms."
         br []  ; br [];  
@@ -161,8 +160,8 @@ let viewInfoPopup dispatch =
         Table.table [] [
                 tbody [] [
                     tr [] [
-                        td [] [str "Left-Click Menus"]
-                        td [] [str "Explore the Left-Click Menus to find context-dependent operations"]
+                        td [] [str "Right-Click Menus"]
+                        td [] [str "Explore the Right-Click Menus to find context-dependent operations"]
                     ]
  
                     tr [] [
@@ -249,7 +248,7 @@ let viewInfoPopup dispatch =
     let keyOf3 s1 s2 s3 = span [] [bSpan s1; tSpan " + "; bSpan s2 ; tSpan " + "; bSpan s3]
     let rule = hr [Style [MarginTop "0.5em"; MarginBottom "0.5em"]]
     let keys = div [] [
-        makeH "Keyboard & mouse gesture shortcuts - also available on top menus and left-click context menus"
+        makeH "Keyboard & mouse gesture shortcuts - also available on top menus and right-click context menus"
         span [Style [FontStyle "Italic"]] [str "On Mac use Cmd instead of Ctrl."]
         ul [] [
             li [] [rule; tSpan "Save: "; keyOf2 "Ctrl" "S"; rule]
@@ -258,7 +257,7 @@ let viewInfoPopup dispatch =
             li [] [tSpan "Paste diagram items: " ; keyOf2  "Ctrl" "V"; rule]
             li [] [tSpan "Undo last diagram action: " ; keyOf2  "Ctrl" "Z"]
             li [] [tSpan "Redo last diagram action: " ; keyOf2  "Ctrl" "Y"; rule]
-            li [] [tSpan "Zoom application in: " ; keyOf3  "Ctrl" "Shift" "="]
+            li [] [tSpan "Zoom application in: " ; keyOf3  "Ctrl" "Shift" "+"]
             li [] [tSpan "Zoom application out: " ; keyOf3  "Ctrl" "Shift" "-"; rule]
             li [] [tSpan "Zoom canvas in/out: " ; keyOf2  "Ctrl" "MouseWheel"]
             li [] [tSpan "Zoom canvas in: " ; keyOf2  "Alt" "Up"]

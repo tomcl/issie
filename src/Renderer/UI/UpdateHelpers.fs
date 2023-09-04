@@ -303,7 +303,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             //printfn "NameParts: %A"nameParts
             model.CurrentProj
             |> Option.map (fun p ->
-                Map.tryFind nameParts[1] (getSheetTrees p) 
+                Map.tryFind nameParts[1] (getSheetTrees false p) 
                 |> Option.map ( fun sheet ->
                     SheetMenuBreadcrumb (sheet, nameParts.Length > 2)))
             |> Option.flatten

@@ -1140,8 +1140,10 @@ let viewTopMenu model dispatch =
         match model.CurrentProj with
         | None -> Navbar.Item.div [] []
         | Some project ->
+            let updatedProject = getUpdatedLoadedComponents project model
+            let updatedModel = {model with CurrentProj = Some updatedProject}
 
-            let sTrees = getSheetTrees project
+            let sTrees = getSheetTrees false updatedProject
 
             let allRoots = allRootSheets sTrees
             let isSubSheet sh = not <| Set.contains sh allRoots
@@ -1155,7 +1157,7 @@ let viewTopMenu model dispatch =
                         openFileInProject (sheet.SheetName) p model dispatch), dispatch)
 
             let sheetColor (sheet:SheetTree) =
-                match sheet.SheetName = project.OpenFileName, sheetIsLocked sheet.SheetName model with
+                match sheet.SheetName = project.OpenFileName, sheetIsLocked sheet.SheetName updatedModel with
                 | true, true -> IColor.IsCustomColor "pink"
                 | true, false -> IColor.IsCustomColor "lightslategrey"
                 | false, true -> IColor.IsDanger
@@ -1170,7 +1172,7 @@ let viewTopMenu model dispatch =
 
             let breadcrumbs = [
                     div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"]] [str "Sheets with Design Hierarchy"]
-                    Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch model
+                    Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch updatedModel
                     ]
 
             Navbar.Item.div

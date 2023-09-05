@@ -295,7 +295,7 @@ let mDownUpdate
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
             {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
         | Label compId ->
-            {model with Action = InitialiseMovingLabel compId},
+            {model with Action = InitialiseMovingLabel compId; UndoList = appendUndoList model.UndoList model},
                 sheetCmd (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
                 
         | InputPort (portId, portLoc) ->
@@ -304,8 +304,8 @@ let mDownUpdate
                 symbolCmd SymbolT.ShowAllOutputPorts
             else
                 let  portIdstr = match portId with | InputPortId x -> x
-                {model with Action = MovingPort portIdstr}
-                , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
+                {model with Action = MovingPort portIdstr}, 
+                symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
 
         | OutputPort (portId, portLoc) ->
             if not model.CtrlKeyDown then
@@ -341,11 +341,13 @@ let mDownUpdate
                     let Button = model.Wire.Symbol.Symbols[compId]
                     match Button.STransform.Rotation with
                     | Degree0 ->
-                        model, Cmd.batch [sheetCmd (Rotate RotateClockwise); 
-                                                    wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)]
+                        {model with TmpModel = Some model}, 
+                            Cmd.batch [ sheetCmd (Rotate RotateClockwise); 
+                                        wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)]
                     | _ ->
-                        model, Cmd.batch [sheetCmd (Rotate RotateAntiClockwise); 
-                                                    wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)]
+                        {model with TmpModel = Some model}, 
+                            Cmd.batch [ sheetCmd (Rotate RotateAntiClockwise); 
+                                        wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)]
 
                 |_ ->  
                     let msg, action = DoNothing, InitialiseMoving compId
@@ -361,7 +363,8 @@ let mDownUpdate
                                     LastValidPos = mMsg.Pos; 
                                     LastValidBoundingBoxes=model.BoundingBoxes; 
                                     Action = action; LastMousePos = mMsg.Pos; 
-                                    TmpModel = Some model; 
+                                    UndoList = appendUndoList model.UndoList model;
+                                    //TmpModel = Some model; 
                                     PrevWireSelection = model.SelectedWires},
                             Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); sheetCmd msg]
                     else
@@ -380,7 +383,8 @@ let mDownUpdate
                                 LastValidPos = mMsg.Pos; 
                                 LastValidBoundingBoxes=model.BoundingBoxes; 
                                 SelectedWires = newWires; Action = action; 
-                                LastMousePos = mMsg.Pos; TmpModel = Some model},
+                                UndoList = appendUndoList model.UndoList model;
+                                LastMousePos = mMsg.Pos}, // TmpModel = Some model},
                             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                         wireCmd (BusWireT.SelectWires newWires)
                                         sheetCmd msg]
@@ -684,7 +688,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
             { model with Action = Idle}, wireCmd (BusWireT.SelectWires [])
 
     | InitialiseMovingLabel compId ->
-        { model with Action = Idle; SelectedLabel = Some compId },
+        { model with Action = Idle; SelectedLabel = Some compId},
         sheetCmd DoNothing
 
     | MovingLabel ->
@@ -692,7 +696,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
 
     | Scaling  | EndSomeAction -> 
         match model.ErrorComponents with
-        |[] -> {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
+        |[] -> 
+            printfn "running EndsomeAction1"
+            {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
         | _ -> {newModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
 
     | MovingSymbols ->
@@ -714,7 +720,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                     {model with
                         ErrorComponents = [];
                         BoundingBoxes = model.LastValidBoundingBoxes;
-                        Action = EndSomeAction;
+                        Action = Idle;
                         SnapSymbols = emptySnap;
                         SnapSegments = emptySnap;
                         UndoList = appendUndoList model.UndoList newModel;

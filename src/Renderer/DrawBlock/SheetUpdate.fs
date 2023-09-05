@@ -388,7 +388,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         
         match errorComponents with
             | [] -> 
-                {newModel with ErrorComponents = errorComponents; Action = Idle;},
+                {newModel with ErrorComponents = errorComponents; Action = EndSomeAction},
                         Cmd.batch [
                             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                             wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)

@@ -181,6 +181,27 @@ module Breadcrumbs =
             []
             dispatch
 
+module WebWorker =
+    open WorkerInterface
+    let testNumWorkers num =
+        printfn "Testing %d workers" num
+        let workers = List.init num (fun _ -> newWorkerUrl("./TestWorker.fs.js"))
+        workers
+        |> List.iteri (fun idx worker ->
+            setWorkerOnMsg (fun (msg: {|data: float|}) ->
+                    printfn "worker %d of %d: %.3f seconds" idx num msg.data) worker)
+        workers
+        |> List.iter (sendWorkerMsg "long")
+    
+    let testWorkerOverhead() =
+        let runs = 3
+        for i in [1..runs] do
+            let start = TimeHelpers.getTimeMs()
+            let worker = newWorkerUrl("./TestWorker.fs.js")
+            worker
+            |> setWorkerOnMsg (fun (msg: {|data: float|}) -> printfn "Worker overhead test no %d: %.5f seconds" i ((TimeHelpers.getInterval start)/1000.))
+            sendWorkerMsg "short" worker
+
 module Misc =
     open ModelType
     open DrawModelType

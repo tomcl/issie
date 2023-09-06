@@ -57,7 +57,6 @@ module SymbolT =
     [<StringEnum>]
     type FlipType =  FlipHorizontal | FlipVertical
     [<StringEnum>]
-    type RotationType = RotateClockwise | RotateAntiClockwise
     //Used in scaling in SmartRotate
     //HLP23: AUTHOR Ismagilov
     type ScaleType = ScaleUp | ScaleDown
@@ -83,7 +82,7 @@ module SymbolT =
     
     // HLP23 AUTHOR: BRYAN TAN
     type ShowCorners = | ShowAll | DontShow
-    type Annotation = ScaleButton | RotateCWButton |RotateACWButton
+    type Annotation = ScaleButton | RotateButton of Rotation
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
@@ -256,7 +255,7 @@ module SymbolT =
         | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
         | WriteMemoryType of ComponentId * ComponentType
         | UpdateMemory of ComponentId * (Memory1 -> Memory1)
-        | RotateLeft of compList : ComponentId list * RotationType
+        | RotateLeft of compList : ComponentId list * Rotation
         | RotateAntiClockAng of compList : ComponentId list * Rotation
         | Flip of compList: ComponentId list * orientation: FlipType
         /// Taking the input and..
@@ -409,8 +408,8 @@ module SheetT =
     // Types needed for scaling box
     type ScalingBox = {
         ScaleButton: SymbolT.Symbol 
-        RotateCWButton: SymbolT.Symbol 
-        RotateACWButton: SymbolT.Symbol 
+        RotateDeg90Button: SymbolT.Symbol 
+        RotateDeg270Button: SymbolT.Symbol 
         ScalingBoxBound: BoundingBox
         MouseOnScaleButton: bool
         ButtonList: ComponentId list
@@ -560,7 +559,7 @@ module SheetT =
         | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
         | SelectWires of ConnectionId list
         | SetSpinner of bool
-        | Rotate of SymbolT.RotationType
+        | Rotate of Rotation
         | Flip of SymbolT.FlipType
         | Arrangement of Arrange
         | RotateLabels
@@ -658,6 +657,7 @@ module SheetT =
     let selectedWires_ = Lens.create (fun m -> m.SelectedWires) (fun sw m -> {m with SelectedWires = sw})
     let boundingBoxes_ = Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> {m with BoundingBoxes = bb})
     // let Action_ = Lens.create (fun m -> m.Action) (fun act m -> {m with Action = act})
+    // let tmpModel_ = Lens.create (fun m -> m.TmpModel) (fun tmp m -> {m with TmpModel = tmp})
 
     let wires_ = wire_ >-> BusWireT.wires_
     let wireOf_ k = wires_ >-> Map.valueForce_ "What? Wire id lookup in model failed" k

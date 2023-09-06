@@ -507,9 +507,7 @@ let createDummyComponent (pos: XYPos) (h: float) (w:float) : Component =
 /// Create a new annotation symbol and add it to the map of symbols.
 /// pos: position of annotation on screen - middle of box (NOT top-left)
 let createAnnotation (theme: ThemeType) (a:Annotation) (pos: XYPos)  =
-    match a with
-    | ScaleButton -> (14.0,14.0)
-    | RotateCWButton | RotateACWButton -> (14.0,14.0)
+    (14.0,14.0)
     ||> createDummyComponent pos
     |> createSymbolRecord [] theme
     |> (fun sym -> {sym with Annotation= Some a})

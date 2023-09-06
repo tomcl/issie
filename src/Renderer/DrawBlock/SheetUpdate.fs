@@ -33,24 +33,29 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than
     /// being derived fucntionally from the state it depends on, so it must be explicitly updated.
     /// TODO: add something to check whether wires need updating
-    let postUpdateChecks (model: Model) : Model=
+    let postUpdateChecks (model:Model, cmd:Cmd<ModelType.Msg> ) = 
         // Executed every update so performance is important.
         // Since normally state will be correct it is only necessary to make the checking
         // fast.
         let start = TimeHelpers.getTimeMs()
         let sModel = Optic.get symbol_ model
-        sModel.Symbols
-        |> (fun sMap ->
-                (model,sMap)
-                ||> Map.fold (fun model sId sym -> 
-                        if Map.containsKey sId model.BoundingBoxes 
-                           && sym.Pos = model.BoundingBoxes[sId].TopLeft then
-                            model 
-                        else
-                            Optic.set boundingBoxes_ (Symbol.getBoundingBoxes sModel) model))
-        |> ensureCanvasExtendsBeyondScreen
+        let inputModel =
+            sModel.Symbols
+            |> (fun sMap ->
+                    (model,sMap)
+                    ||> Map.fold (fun model sId sym -> 
+                            if Map.containsKey sId model.BoundingBoxes 
+                                && sym.Pos = model.BoundingBoxes[sId].TopLeft then
+                                model 
+                            else
+                                Optic.set boundingBoxes_ (Symbol.getBoundingBoxes sModel) model))
+            |> ensureCanvasExtendsBeyondScreen
+        (inputModel, cmd)
+        |> RotateScale.postUpdateScalingBox
         // |> (fun currentmodel -> {currentmodel with TmpModel = Some currentmodel})
     
+    // printfn "Running Update in SheetUpdate with msg: %A" msg
+
     match msg with
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
         // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
@@ -121,7 +126,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | _ -> model, Cmd.none
 
     | KeyPress CtrlZ ->
-        printfn "Printing CtrlZ"
         match model.UndoList with
         | [] -> model , Cmd.none
         | prevModel :: lst ->
@@ -137,7 +141,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlY ->
-        printfn "Printing CtrlY"
         match model.RedoList with
         | [] -> model , Cmd.none
         | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = Set.empty} , Cmd.batch [sheetCmd DoNothing]
@@ -376,7 +379,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov
         let rotmodel = 
-            {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}}
+            {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}
+                        TmpModel = Some model
+                        UndoList = appendUndoList model.UndoList model}
 
         let newModel = {rotmodel with BoundingBoxes = Symbol.getBoundingBoxes rotmodel.Wire.Symbol}
          
@@ -388,7 +393,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         
         match errorComponents with
             | [] -> 
-                {newModel with ErrorComponents = errorComponents; Action = Idle;},
+                {newModel with ErrorComponents = errorComponents; Action = Idle},
                         Cmd.batch [
                             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                             wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
@@ -405,7 +410,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     //HLP23: Author Ismagilov
     | Flip orientation ->
         let flipmodel = 
-            {model with Wire = {model.Wire with Symbol = (RotateScale.flipBlock model.SelectedComponents model.Wire.Symbol orientation)}}
+            {model with Wire = {model.Wire with Symbol = (RotateScale.flipBlock model.SelectedComponents model.Wire.Symbol orientation)}
+                        TmpModel = Some model
+                        UndoList = appendUndoList model.UndoList model}
 
         let newModel = {flipmodel with BoundingBoxes = Symbol.getBoundingBoxes flipmodel.Wire.Symbol}
 
@@ -831,8 +838,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         model, (wireCmd BusWireT.ToggleSnapToNet)
         
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
-    |> Optic.map fst_ postUpdateChecks
-    |> postUpdateScalingBox
+    |> postUpdateChecks
+    // |> Optic.map fst_ postUpdateChecks
+    // |> RotateScale.postUpdateScalingBox
     |> (fun (model, (cmd: Cmd<ModelType.Msg>)) -> {issieModel with Sheet = model}, cmd)
 
 

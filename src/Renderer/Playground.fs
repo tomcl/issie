@@ -183,24 +183,93 @@ module Breadcrumbs =
 
 module WebWorker =
     open WorkerInterface
-    let testNumWorkers num =
-        printfn "Testing %d workers" num
-        let workers = List.init num (fun _ -> newWorkerUrl("./TestWorker.fs.js"))
-        workers
-        |> List.iteri (fun idx worker ->
-            setWorkerOnMsg (fun (msg: {|data: float|}) ->
-                    printfn "worker %d of %d: %.3f seconds" idx num msg.data) worker)
-        workers
-        |> List.iter (sendWorkerMsg "long")
+
+    type WorkerPerfTestConfig = {
+        OverheadRuns: int
+        OverheadWWs: int
+        ConcurrencyTestWWs: int list
+        NumRuns: int // number of times all tests are run
+    }
+
+    module Constants =
+        let workerTestConfig = {
+            OverheadRuns = 5
+            OverheadWWs = 100
+            ConcurrencyTestWWs = [2;4;6;8;10]
+            NumRuns = 3
+        }
     
-    let testWorkerOverhead() =
-        let runs = 3
-        for i in [1..runs] do
+    let geoMean (vals: float array) =
+        vals
+        |> Array.reduce ( * )
+        |> fun x -> x ** (1./(float vals.Length))
+
+
+    let runTestNTimes n testPromise =
+        promise {
+            let mutable result = 1.0
+            let! discardPromise = testPromise // discard first test
+            for _ in [1..n] do
+                let! testVal = testPromise
+                result <- result * testVal
+            return result
+        }
+        |> Promise.map (fun result -> result ** (1./(float n)))
+
+    let workerPromise (t: string) =
+        Promise.create (fun resolve reject ->
             let start = TimeHelpers.getTimeMs()
             let worker = newWorkerUrl("./TestWorker.fs.js")
             worker
-            |> setWorkerOnMsg (fun (msg: {|data: float|}) -> printfn "Worker overhead test no %d: %.5f seconds" i ((TimeHelpers.getInterval start)/1000.))
-            sendWorkerMsg "short" worker
+            |> setWorkerOnMsg (fun (msg: {|data: float|}) -> resolve ((TimeHelpers.getInterval start)/1000.))
+            sendWorkerMsg t worker
+        )
+    
+    let nWorkerPromise (t: string) (n: int) =
+        List.init n (fun _ -> workerPromise t)
+        |> Promise.all
+
+    let testWorkerConcurrency n =
+        promise {
+            let! worker1Time = workerPromise "long"
+
+            let! workers = nWorkerPromise "long" n
+            let parallelism = (float n) * (worker1Time / (geoMean workers))
+            return parallelism
+        }
+    
+    let testWorkerOverhead runs =
+        promise {
+            let mutable totalOverhead = 1.0;
+            for _ in [1..runs] do
+                let! overhead = workerPromise "short"
+                totalOverhead <- totalOverhead * overhead
+            return totalOverhead
+        }
+        |> Promise.map (fun total ->
+            total ** (1./(float runs)))
+
+    let testWorkerCPUOverhead numWorkers =
+        promise {
+            let start = TimeHelpers.getTimeMs()
+            let! nWorkers = nWorkerPromise "short" numWorkers
+            let timeTaken = (TimeHelpers.getInterval start)/1000.
+            return ((float numWorkers)/timeTaken)
+        }
+        
+
+    let testWorkers (conf: WorkerPerfTestConfig) =
+        promise {
+            let! overheadRes = runTestNTimes conf.NumRuns <| testWorkerOverhead conf.OverheadRuns
+            printfn "Average elapsed time overhead: %.2f seconds" overheadRes
+            let! cpuOverheadRes = runTestNTimes conf.NumRuns <| testWorkerCPUOverhead conf.OverheadWWs
+            printfn "Can start %.1f workers/second" cpuOverheadRes
+            for i in conf.ConcurrencyTestWWs do
+                let! parallelism = runTestNTimes conf.NumRuns <| testWorkerConcurrency i
+                printfn "Parallelism with %d workers: %.2f" i parallelism
+        } |> ignore
+
+            
 
 module Misc =
     open ModelType

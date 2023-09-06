@@ -183,16 +183,24 @@ module Breadcrumbs =
 
 module WebWorker =
     open WorkerInterface
-
-    let testWorkers() =
-        printfn "Starting workers"
-        let workers = List.init 5 (fun _ -> newWorkerUrl("./WebWorker.fs.js"))
+    let testNumWorkers num =
+        printfn "Testing %d workers" num
+        let workers = List.init num (fun _ -> newWorkerUrl("./TestWorker.fs.js"))
         workers
         |> List.iteri (fun idx worker ->
-            setWorkerOnMsg (fun (msg: {|data: string|}) ->
-                    printfn "Received from worker %d: '%s'" idx msg.data) worker)
+            setWorkerOnMsg (fun (msg: {|data: float|}) ->
+                    printfn "worker %d of %d: %.3f seconds" idx num msg.data) worker)
         workers
-        |> List.iteri (fun idx worker -> sendWorkerMsg (sprintf "sent from main thread to worker %d" idx) worker)
+        |> List.iter (sendWorkerMsg "long")
+    
+    let testWorkerOverhead() =
+        let runs = 3
+        for i in [1..runs] do
+            let start = TimeHelpers.getTimeMs()
+            let worker = newWorkerUrl("./TestWorker.fs.js")
+            worker
+            |> setWorkerOnMsg (fun (msg: {|data: float|}) -> printfn "Worker overhead test no %d: %.5f seconds" i ((TimeHelpers.getInterval start)/1000.))
+            sendWorkerMsg "short" worker
 
 module Misc =
     open ModelType

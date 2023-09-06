@@ -274,12 +274,9 @@ let mDownUpdate
         match List.isEmpty errorComponents with
         | false -> model, Cmd.none
         | true ->
-            let nextAction = match model.SelectedComponents.Length with
-                                    | s when s<2 -> Idle 
-                                    | _ -> Idle
             {model with
                 BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol // TODO: Improve here in group stage when we are concerned with efficiency
-                Action = nextAction
+                Action = Idle
                 SnapSymbols = emptySnap
                 SnapSegments = emptySnap
                 AutomaticScrolling = false
@@ -630,8 +627,7 @@ let mDragUpdate
         model, sheetCmd (Msg.UpdateScrollPos sPos)
     | Idle 
     | InitialisedCreateComponent _ 
-    | Scrolling 
-    | EndSomeAction -> model, Cmd.none
+    | Scrolling -> model, Cmd.none
     |> setDragCursor
 /// Mouse Up Update, can have: finished drag-to-select, pressed on a component, finished symbol movement, connected a wire between ports
 let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mMsg is currently un-used, but kept for future possibilities
@@ -661,12 +657,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
             else 
                 newComponents, newWires
         // HLP 23: AUTHOR Khoury & Ismagilov
-        let nextAction = match selectComps.Length with
-                                             | s when s<2 -> Idle 
-                                             | _ -> Idle // Scaling
         { model with 
             DragToSelectBox = resetDragToSelectBox; 
-            Action = nextAction; SelectedComponents = selectComps; 
+            Action = Idle; SelectedComponents = selectComps; 
             SelectedWires = selectWires; 
             AutomaticScrolling = false },
         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols selectComps)
@@ -685,11 +678,12 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
     | MovingLabel ->
         {model with Action = Idle; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
 
-    | Scaling  | EndSomeAction -> 
-        match model.ErrorComponents with
-        |[] -> 
-            {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
-        | _ -> {newModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
+    | Scaling -> 
+        let outputModel = 
+            match model.ErrorComponents with
+            |[] -> model
+            | _ -> newModel 
+        {outputModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
 
     | MovingSymbols ->
         // Reset Movement State in Model

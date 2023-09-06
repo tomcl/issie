@@ -153,7 +153,7 @@ let fileMenu (dispatch) =
             debugTraceUI <- Set.ofList ["update"])
         makeWinDebugItem "Trace off" None (fun _ ->
             debugTraceUI <- Set.ofList [])
-        makeMenuGen (debugLevel > 0)  false "Play" [
+        makeMenuGen (debugLevel > 0) false "Play" [
             makeDebugItem "Set Scroll" None
                 (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.;Y=1000.})
             makeDebugItem "Trace all times" None
@@ -183,6 +183,11 @@ let fileMenu (dispatch) =
 
             makeDebugItem "Force Exception" None
                 (fun ev -> failwithf "User exception from menus")
+
+            // TODO debug item for webworker
+            makeDebugItem "Test Web Worker" None
+                (fun _ -> Playground.WebWorker.testWorkers())
+
 
         ]
 

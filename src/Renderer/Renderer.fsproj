@@ -55,6 +55,7 @@
     <Compile Include="Interface\Version.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
     <Compile Include="Interface\FilesIO.fs" />
+    <Compile Include="Interface\WorkerInterface.fs" />
     <None Include="scss\main.scss" />
 
 	<!-- Elmish Model -->
@@ -112,7 +113,7 @@
     <Compile Include="UI\Update.fs" />
 
     <Compile Include="VerilogComponent\TestParser.fs" />
-
+    <Compile Include="WebWorker.fs" />
     <Compile Include="Playground.fs" />
 
     <Compile Include="Renderer.fs" />

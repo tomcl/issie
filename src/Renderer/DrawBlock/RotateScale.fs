@@ -333,16 +333,17 @@ let getBlock
 let rotatePointAboutBlockCentre 
             (point:XYPos) 
             (centre:XYPos) 
-            (rotation:RotationType) = 
+            (rotation:Rotation) = 
     let relativeToCentre = (fun x->x - centre)
     let rotateAboutCentre (pointIn:XYPos) = 
         match rotation with 
-        | RotateClockwise ->
-            
+        | Degree0 -> 
+            pointIn
+        | Degree90 ->
             {X = -pointIn.Y ; Y = pointIn.X}
-          
-        | RotateAntiClockwise ->
-            
+        | Degree180 -> 
+            {X = -pointIn.X ; Y = - pointIn.Y}
+        | Degree270 ->
             {X = pointIn.Y ; Y = -pointIn.X}
            
     let relativeToTopLeft = (fun x->x + centre)
@@ -374,15 +375,17 @@ let flipPointAboutBlockCentre
 /// <param name="sym"> Symbol</param>
 /// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockRotation
-        (rotation:RotationType) 
+        (rotation:Rotation) 
         (h: float)
         (w:float)
         (pos: XYPos)
          : XYPos =
     let posOffset =
         match rotation with
-        | RotateClockwise -> {X=(float)h ;Y=0}
-        | RotateAntiClockwise -> { X = 0 ;Y = (float)w }
+        | Degree0 -> {X = 0; Y = 0}
+        | Degree90 -> {X=(float)h ;Y=0}
+        | Degree180 -> {X= (float)w; Y= -(float)h}
+        | Degree270 -> { X = 0 ;Y = (float)w }
     pos - posOffset
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been flipped</summary>
@@ -408,7 +411,7 @@ let adjustPosForBlockFlip
 /// <param name="sym"> Symbol to be rotated</param>
 /// <returns>New symbol after rotated about block centre.</returns>
 let rotateSymbolInBlock 
-        (rotation: RotationType) 
+        (rotation: Rotation) 
         (blockCentre: XYPos)
         (sym: Symbol)  : Symbol =
       
@@ -423,9 +426,9 @@ let rotateSymbolInBlock
     let newSTransform = 
         match sym.STransform.flipped with
         | true -> 
-            {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation}  
+            {sym.STransform with Rotation = combineRotation (combineRotation Degree90 rotation) sym.STransform.Rotation}  
         | _-> 
-            {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
+            {sym.STransform with Rotation = combineRotation rotation sym.STransform.Rotation}
 
     { sym with 
         Pos = newTopLeft;
@@ -482,8 +485,8 @@ let flipSymbolInBlock
             let newblock = getBlock [sym]
             let newblockCenter = newblock.Centre()
             sym
-            |> rotateSymbolInBlock RotateAntiClockwise newblockCenter 
-            |> rotateSymbolInBlock RotateAntiClockwise newblockCenter)
+            |> rotateSymbolInBlock Degree270 newblockCenter 
+            |> rotateSymbolInBlock Degree270 newblockCenter)
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Scales selected symbol up or down.</summary>
 /// <param name="scaleType"> Scale up or down. Scaling distance is constant</param>
@@ -550,22 +553,18 @@ let scaleSymbolInBlockGroup
 /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
 
 let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
+    let pos = {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 }
     match degree with
     | Degree0 -> sym
-    | Degree90 -> rotateSymbolInBlock RotateClockwise {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 } sym
-    | Degree180 ->  rotateSymbolInBlock RotateClockwise {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 } sym
-                    |> rotateSymbolInBlock RotateClockwise {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 } 
-                    
-                   
-    | Degree270 -> rotateSymbolInBlock RotateAntiClockwise {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 } sym
-
+    | _ ->  rotateSymbolInBlock degree pos sym
+    
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
 /// <param name="rotation"> Type of rotation to do</param>
 /// <returns>New rotated symbol model</returns>
-let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:RotationType) = 
+let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
@@ -613,7 +612,6 @@ let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scale:ScaleTyp
 let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float)=
     //Similar structure to rotateBlock, easy to understand
 
-    printfn "running scaleBlockGroup"
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
@@ -646,4 +644,62 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+let postUpdateScalingBox (model:SheetT.Model, cmd) = 
+    
+    let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
+    let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
+
+    if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
+        model, cmd
+    elif (model.SelectedComponents.Length < 2) then 
+        match model.ScalingBox with 
+        | None ->  model, cmd
+        | _ -> {model with ScalingBox = None}, 
+                Elmish.Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                                    sheetCmd SheetT.UpdateBoundingBoxes]
+    else 
+        let newBoxBound = 
+            model.SelectedComponents
+            |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+            |> getBlock
+        match model.ScalingBox with 
+        | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
+        | _ -> 
+            let topleft = newBoxBound.TopLeft
+            let rotateDeg90OffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
+            let rotateDeg270OffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
+            let buttonOffSet: XYPos = {X = newBoxBound.W+46.5; Y = -53.5}
+
+            let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
+            let buttonSym = makeButton ScaleButton (topleft + buttonOffSet)
+            let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
+            let rotateDeg90Sym = 
+                makeButton (RotateButton Degree90) (topleft + rotateDeg90OffSet)
+                |> makeRotateSym
+            let rotateDeg270Sym = 
+                {makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet) 
+                    with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+                |> makeRotateSym
+
+            let newSymbolMap = model.Wire.Symbol.Symbols 
+                                                        |> Map.add buttonSym.Id buttonSym 
+                                                        |> Map.add rotateDeg270Sym.Id rotateDeg270Sym 
+                                                        |> Map.add rotateDeg90Sym.Id rotateDeg90Sym
+            let initScalingBox: SheetT.ScalingBox = {
+                ScalingBoxBound = newBoxBound;
+                ScaleButton = buttonSym;
+                RotateDeg90Button = rotateDeg90Sym;
+                RotateDeg270Button = rotateDeg270Sym;
+                ButtonList = [buttonSym.Id; rotateDeg270Sym.Id; rotateDeg90Sym.Id];
+                MouseOnScaleButton = false;
+            }
+            let newCmd =
+                match model.ScalingBox with
+                | Some _ -> Elmish.Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                                                sheetCmd SheetT.UpdateBoundingBoxes]
+                | None -> cmd
+            model
+            |> Optic.set SheetT.scalingBox_ (Some initScalingBox)
+            |> Optic.set SheetT.symbols_ newSymbolMap, 
+            newCmd
 

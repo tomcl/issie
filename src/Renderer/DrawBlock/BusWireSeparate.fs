@@ -480,7 +480,7 @@ let makeClusters (lines: Line array) : Cluster list =
 // Currently not used. Running the algorithm twice fixes problems otherwise needing merge (and other things).
 // Should decide what is an acceptable space between merged clusters so as not to move
 // segments too far.
-/// Return single cluster with segments from loc1 and loc2 merged
+// /// Return single cluster with segments from loc1 and loc2 merged
 (*
 let mergeLocs (lines: Line array) (loc1: Cluster) (loc2: Cluster) =
     if upperB lines loc1 < lowerB lines loc2 || not (hasOverlap loc1.Bound loc2.Bound) then

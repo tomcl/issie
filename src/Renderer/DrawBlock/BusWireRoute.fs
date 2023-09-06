@@ -102,18 +102,20 @@ let rec findMinWireSeparation
 /// Checks if a wire intersects any symbol within +/- minWireSeparation
 /// Returns list of bounding boxes of symbols intersected by wire.
 let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
-    let allSymbolBoundingBoxes =
+    let allSymbolsIntersected =
         model.Symbol.Symbols
         |> Map.values
         |> Seq.toList
-        |> List.map Symbol.getSymbolBoundingBox
+        |> List.map (fun s -> (s.Component.Type, Symbol.getSymbolBoundingBox s))
 
 
     let wireVertices =
         segmentsToIssieVertices wire.Segments wire
         |> List.map (fun (x, y, _) -> { X = x; Y = y })
 
-    let segVertices = List.pairwise wireVertices[1 .. wireVertices.Length - 2] // do not consider the nubs
+    let indexes = List.init ((List.length wireVertices)-2) (fun i -> i+1)
+
+    let segVertices = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] |> List.zip indexes // do not consider the nubs
 
     let inputCompId = model.Symbol.Ports[string wire.InputPort].HostId
     let outputCompId = model.Symbol.Ports[string wire.OutputPort].HostId
@@ -126,24 +128,34 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
 
     let isConnectedToSelf = inputCompId = outputCompId
 
-    let boxesIntersectedBySegment startPos endPos =
-        allSymbolBoundingBoxes
-        |> List.map (fun boundingBox ->
-            { W = boundingBox.W + minWireSeparation * 2.
-              H = boundingBox.H + minWireSeparation * 2.
-              TopLeft =
-                boundingBox.TopLeft
-                |> updatePos Left_ minWireSeparation
-                |> updatePos Up_ minWireSeparation })
-        |> List.filter (fun boundingBox ->
-            match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
-            | Some _ -> true // segment intersects bounding box
-            | None -> false // no intersection
+
+    let boxesIntersectedBySegment (lastSeg:bool) startPos endPos =
+        allSymbolsIntersected
+        |> List.map (fun (compType, boundingBox) ->
+            (
+                compType,
+                {
+                    W = boundingBox.W + minWireSeparation * 2.
+                    H = boundingBox.H + minWireSeparation * 2.
+                    TopLeft =
+                    boundingBox.TopLeft
+                    |> updatePos Left_ minWireSeparation
+                    |> updatePos Up_ minWireSeparation
+                }
+            ))
+        |> List.filter (fun (compType, boundingBox) ->
+            match compType, lastSeg with
+            | Mux2, true | Mux4, true | Mux8, true | Demux2, true | Demux4, true | Demux8, true -> false
+            | _, _ ->
+                 match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+                 | Some _ -> true // segment intersects bounding box
+                 | None -> false // no intersection
         )
+        |> List.map (fun (compType, boundingBox) -> boundingBox)
 
 
     segVertices
-    |> List.collect (fun (startPos, endPos) -> boxesIntersectedBySegment startPos endPos)
+    |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2) startPos endPos)
     |> List.distinct
 
 //------------------------------------------------------------------------//
@@ -514,7 +526,7 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
-
+     
     let initialWire = (autoroute model wire)
     
     // Snapping to Net only if model.SnapToNet toggled to be true
@@ -523,7 +535,7 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
         | _ -> initialWire // do not snap
         //| true -> snapToNet model initialWire
 
-    let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire
+    let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire 
 
     match intersectedBoxes.Length with
     | 0 -> snappedToNetWire

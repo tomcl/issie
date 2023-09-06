@@ -277,7 +277,7 @@ let mDownUpdate
         | true ->
             let nextAction = match model.SelectedComponents.Length with
                                     | s when s<2 -> Idle 
-                                    | _ -> EndSomeAction
+                                    | _ -> Idle
             {model with
                 BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol // TODO: Improve here in group stage when we are concerned with efficiency
                 Action = nextAction
@@ -295,7 +295,7 @@ let mDownUpdate
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
             {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
         | Label compId ->
-            {model with Action = InitialiseMovingLabel compId; UndoList = appendUndoList model.UndoList model},
+            {model with Action = InitialiseMovingLabel compId; TmpModel = Some model},
                 sheetCmd (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
                 
         | InputPort (portId, portLoc) ->
@@ -312,7 +312,7 @@ let mDownUpdate
                 {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
                 symbolCmd SymbolT.ShowAllInputPorts
             else
-                let  portIdstr = match portId with | OutputPortId x -> x
+                let portIdstr = match portId with | OutputPortId x -> x
                 {model with Action = MovingPort portIdstr}
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
         // HLP23 AUTHOR: BRYAN TAN
@@ -337,17 +337,10 @@ let mDownUpdate
                         ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = true};
                         TmpModel = Some model}, Cmd.none
                 
-                | Some RotateCWButton | Some RotateACWButton-> 
-                    let Button = model.Wire.Symbol.Symbols[compId]
-                    match Button.STransform.Rotation with
-                    | Degree0 ->
-                        {model with TmpModel = Some model}, 
-                            Cmd.batch [ sheetCmd (Rotate RotateClockwise); 
-                                        wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)]
-                    | _ ->
-                        {model with TmpModel = Some model}, 
-                            Cmd.batch [ sheetCmd (Rotate RotateAntiClockwise); 
-                                        wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)]
+                | Some (RotateButton rotation) ->
+                    {model with TmpModel = Some model; Action = Idle}, 
+                        Cmd.batch [ sheetCmd (Rotate rotation); 
+                                    wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)]
 
                 |_ ->  
                     let msg, action = DoNothing, InitialiseMoving compId
@@ -363,7 +356,6 @@ let mDownUpdate
                                     LastValidPos = mMsg.Pos; 
                                     LastValidBoundingBoxes=model.BoundingBoxes; 
                                     Action = action; LastMousePos = mMsg.Pos; 
-                                    UndoList = appendUndoList model.UndoList model;
                                     //TmpModel = Some model; 
                                     PrevWireSelection = model.SelectedWires},
                             Cmd.batch [symbolCmd (SymbolT.SelectSymbols newComponents); sheetCmd msg]
@@ -383,7 +375,6 @@ let mDownUpdate
                                 LastValidPos = mMsg.Pos; 
                                 LastValidBoundingBoxes=model.BoundingBoxes; 
                                 SelectedWires = newWires; Action = action; 
-                                UndoList = appendUndoList model.UndoList model;
                                 LastMousePos = mMsg.Pos}, // TmpModel = Some model},
                             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                         wireCmd (BusWireT.SelectWires newWires)
@@ -485,8 +476,8 @@ let mDragUpdate
     | Scaling ->
         let oldModel = model
         let symButton =  model.ScalingBox.Value.ScaleButton
-        let rotateACWButton = model.ScalingBox.Value.RotateACWButton
-        let rotateCWButton = model.ScalingBox.Value.RotateCWButton
+        let RotateDeg270Button = model.ScalingBox.Value.RotateDeg270Button
+        let RotateDeg90Button = model.ScalingBox.Value.RotateDeg90Button
         let startPos = symButton.Pos
         let startMouse = model.LastMousePos
         let startBoxPos = model.ScalingBox.Value.ScalingBoxBound.TopLeft
@@ -502,16 +493,16 @@ let mDragUpdate
         let newPos = {X=startPos.X+(distMovedXY); Y=(startPos.Y-(distMovedXY))}
         let symNewButton = {symButton with Pos = newPos;
                                                     Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
-        let rotateACWNewButton = {rotateACWButton with Pos = {X=startBoxPos.X-(76.5)-(distMovedXY); Y=rotateACWButton.Pos.Y}; 
-                                                                Component = {rotateACWButton.Component with X= startBoxPos.X-(76.5)-(distMovedXY)}}
-        let rotateCWNewButton = {rotateCWButton with Pos = {X=startBoxPos.X+(50.)+startWidth+(distMovedXY); Y=rotateCWButton.Pos.Y}; 
-                                                                Component = {rotateCWButton.Component with X= startBoxPos.X+(50.)+startWidth+(distMovedXY)}}
+        let rotateDeg270NewButton = {RotateDeg270Button with Pos = {X=startBoxPos.X-(76.5)-(distMovedXY); Y=RotateDeg270Button.Pos.Y}; 
+                                                                Component = {RotateDeg270Button.Component with X= startBoxPos.X-(76.5)-(distMovedXY)}}
+        let rotateDeg90NewButton = {RotateDeg90Button with Pos = {X=startBoxPos.X+(50.)+startWidth+(distMovedXY); Y=RotateDeg90Button.Pos.Y}; 
+                                                                Component = {RotateDeg90Button.Component with X= startBoxPos.X+(50.)+startWidth+(distMovedXY)}}
         let modelSymbols = (RotateScale.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol (distMovedXY))
         let newSymModel = {modelSymbols with Symbols = 
                                                         modelSymbols.Symbols 
                                                         |> Map.add symNewButton.Id symNewButton 
-                                                        |> Map.add rotateACWNewButton.Id rotateACWNewButton 
-                                                        |> Map.add rotateCWNewButton.Id rotateCWNewButton}
+                                                        |> Map.add rotateDeg270NewButton.Id rotateDeg270NewButton 
+                                                        |> Map.add rotateDeg90NewButton.Id rotateDeg90NewButton}
         let newTopLeft = {X=(startBoxPos.X-(distMovedXY)); Y=(startBoxPos.Y-(distMovedXY))}
         let newBox = {model.ScalingBox.Value with ScalingBoxBound = {TopLeft = newTopLeft; 
                                                                 W = (distMovedXY*2.) + startWidth; 
@@ -542,7 +533,7 @@ let mDragUpdate
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                     LastMousePos = mMsg.Pos
                     ErrorComponents = errorComponents
-                    ScalingBox = Some {newBox with ScaleButton = symNewButton; RotateACWButton = rotateACWNewButton; RotateCWButton = rotateCWNewButton}}, 
+                    ScalingBox = Some {newBox with ScaleButton = symNewButton; RotateDeg270Button = rotateDeg270NewButton; RotateDeg90Button = rotateDeg90NewButton}}, 
         Cmd.batch [ 
             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
             sheetCmd CheckAutomaticScrolling
@@ -565,10 +556,11 @@ let mDragUpdate
                 LastMousePos = mMsg.Pos
                 ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.ScreenMovement}
                 SelectedLabel = Some compId
+                TmpModel = Some model
             }, sheetCmd DoNothing
     | InitialiseMoving _ ->
         let newModel, cmd = moveSymbols model mMsg
-        newModel, Cmd.batch [cmd]
+        {newModel with TmpModel = Some newModel}, Cmd.batch [cmd]
 
 
     | MovingSymbols | DragAndDrop ->
@@ -672,7 +664,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         // HLP 23: AUTHOR Khoury & Ismagilov
         let nextAction = match selectComps.Length with
                                              | s when s<2 -> Idle 
-                                             | _ -> EndSomeAction // Scaling
+                                             | _ -> Idle // Scaling
         { model with 
             DragToSelectBox = resetDragToSelectBox; 
             Action = nextAction; SelectedComponents = selectComps; 
@@ -692,7 +684,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         sheetCmd DoNothing
 
     | MovingLabel ->
-        {model with Action = Idle}, sheetCmd DoNothing
+        {model with Action = Idle; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
 
     | Scaling  | EndSomeAction -> 
         match model.ErrorComponents with
@@ -711,9 +703,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                     {model with
                         BoundingBoxes = model.LastValidBoundingBoxes
                         Action = Idle
+                        UndoList = appendUndoList model.UndoList newModel
                         SnapSymbols = emptySnap
                         SnapSegments = emptySnap
-                        UndoList = appendUndoList model.UndoList newModel
                         AutomaticScrolling = false },
                             wireCmd (BusWireT.MakeJumps (true,movingWires))
                 | _ -> 
@@ -721,9 +713,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
                         ErrorComponents = [];
                         BoundingBoxes = model.LastValidBoundingBoxes;
                         Action = Idle;
+                        UndoList = appendUndoList model.UndoList newModel;
                         SnapSymbols = emptySnap;
                         SnapSegments = emptySnap;
-                        UndoList = appendUndoList model.UndoList newModel;
                         AutomaticScrolling = false },
                     Cmd.batch [ //symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
                                 symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
@@ -774,7 +766,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
     | ResizingSymbol (compId, fixedCornerLoc) -> 
         match model.ErrorComponents with 
         | [] ->
-            {model with Action = Idle; LastValidSymbol = None},
+            {model with Action = Idle; LastValidSymbol = None; UndoList = appendUndoList model.UndoList newModel},
             Cmd.batch [
                 symbolCmd (SymbolT.ResizeSymbolDone (compId, None, fixedCornerLoc, mMsg.Pos))
                 sheetCmd UpdateBoundingBoxes
@@ -905,62 +897,3 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox * Orientat
                 let y1, y2 = bb1.TopLeft.Y, bb2.TopLeft.Y + bb2.H
                 let topLeft = { X = union.TopLeft.X; Y = bb2.TopLeft.Y + bb2.H }
                 Some ( { TopLeft = topLeft; H = y1 - y2; W = union.W }, Horizontal )
-                
-
-let postUpdateScalingBox (model:Model, cmd) = 
-    // printfn "running postUpdateScalingBox"
-    if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
-        model, cmd
-    elif (model.SelectedComponents.Length < 2) then 
-        // printfn "running UpdateScalingBox in length < 2"
-        match model.ScalingBox with 
-        | None ->  model, cmd
-        | _ -> {model with ScalingBox = None}, 
-                Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                                    sheetCmd SheetT.UpdateBoundingBoxes]
-    else 
-        // printfn "running UpdateScalingBox newBox"
-        let newBoxBound = 
-            model.SelectedComponents
-            |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
-            |> RotateScale.getBlock
-        match model.ScalingBox with 
-        | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
-        | _ -> 
-            let topleft = newBoxBound.TopLeft
-            let CWOffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
-            let ACWOffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
-            let buttonOffSet: XYPos = {X = newBoxBound.W+46.5; Y = -53.5}
-
-            let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
-            let buttonSym = makeButton ScaleButton (topleft + buttonOffSet)
-            let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
-            let rotateCWSym = 
-                makeButton RotateCWButton (topleft + CWOffSet)
-                |> makeRotateSym
-            let rotateACWSym = 
-                {makeButton RotateACWButton (topleft + ACWOffSet) 
-                    with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
-                |> makeRotateSym
-
-            let newSymbolMap = model.Wire.Symbol.Symbols 
-                                                        |> Map.add buttonSym.Id buttonSym 
-                                                        |> Map.add rotateACWSym.Id rotateACWSym 
-                                                        |> Map.add rotateCWSym.Id rotateCWSym
-            let initScalingBox = {
-                ScalingBoxBound = newBoxBound;
-                ScaleButton = buttonSym;
-                RotateCWButton = rotateCWSym;
-                RotateACWButton = rotateACWSym;
-                ButtonList = [buttonSym.Id; rotateACWSym.Id; rotateCWSym.Id];
-                MouseOnScaleButton = false;
-            }
-            let newCmd =
-                match model.ScalingBox with
-                | Some _ -> Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                                                sheetCmd SheetT.UpdateBoundingBoxes]
-                | None -> cmd
-            model
-            |> Optic.set scalingBox_ (Some initScalingBox)
-            |> Optic.set symbols_ newSymbolMap, 
-            newCmd

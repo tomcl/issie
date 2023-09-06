@@ -16,32 +16,38 @@ module Constants =
     [<Literal>]
     let smallPosOffset = 0.0001
 
-let rotateSide (rotation: RotationType) (side:Edge) :Edge =
+let rotateSide (rotation: Rotation) (side:Edge) :Edge =
     match rotation, side with
-    | RotateAntiClockwise, Top -> Left
-    | RotateAntiClockwise, Left -> Bottom
-    | RotateAntiClockwise, Bottom -> Right
-    | RotateAntiClockwise, Right -> Top
-    | RotateClockwise, Top -> Right
-    | RotateClockwise, Left -> Top
-    | RotateClockwise, Bottom -> Left
-    | RotateClockwise, Right -> Bottom
+    | Degree0, _ -> side
+    | Degree90, Top -> Right
+    | Degree90, Left -> Top
+    | Degree90, Bottom -> Left
+    | Degree90, Right -> Bottom
+    | Degree180, Top -> Bottom
+    | Degree180, Bottom -> Top
+    | Degree180, Left -> Right
+    | Degree180, Right -> Left
+    | Degree270, Top -> Left
+    | Degree270, Left -> Bottom
+    | Degree270, Bottom -> Right
+    | Degree270, Right -> Top
 
 
-/// return a new orientation based on old one and a rotation
-let rotateAngle (rot: RotationType) (rotation: Rotation) : Rotation =
-    match rot, rotation with
-    | RotateAntiClockwise, Degree0 -> Degree90
-    | RotateAntiClockwise, Degree90 -> Degree180
-    | RotateAntiClockwise, Degree180 -> Degree270
-    | RotateAntiClockwise, Degree270 -> Degree0
-    | RotateClockwise, Degree0 -> Degree270
-    | RotateClockwise, Degree90 -> Degree0
-    | RotateClockwise, Degree180 -> Degree90
-    | RotateClockwise, Degree270 -> Degree180
+
+// ///return a new orientation based on old one and a rotation
+// let rotateAngle (rot: RotationType) (rotation: Rotation) : Rotation =
+//     match rot, rotation with
+//     | RotateAntiClockwise, Degree0 -> Degree90
+//     | RotateAntiClockwise, Degree90 -> Degree180
+//     | RotateAntiClockwise, Degree180 -> Degree270
+//     | RotateAntiClockwise, Degree270 -> Degree0
+//     | RotateClockwise, Degree0 -> Degree270
+//     | RotateClockwise, Degree90 -> Degree0
+//     | RotateClockwise, Degree180 -> Degree90
+//     | RotateClockwise, Degree270 -> Degree180
 
 /// rotates the portMap information left or right as per rotation
-let rotatePortInfo (rotation:RotationType) (portMaps:PortMaps) : PortMaps=
+let rotatePortInfo (rotation:Rotation) (portMaps:PortMaps) : PortMaps=
     //need to update portOrientation and portOrder
     let newPortOrientation = 
         portMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
@@ -54,20 +60,22 @@ let rotatePortInfo (rotation:RotationType) (portMaps:PortMaps) : PortMaps=
     {Orientation= newPortOrientation; Order = newPortOrder}
 
 let adjustPosForRotation 
-        (rotation:RotationType) 
+        (rotation:Rotation) 
         (h: float)
         (w:float)
         (pos: XYPos)
          : XYPos =
     let posOffset =
         match rotation with
-        | RotateClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-        | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+        | Degree90 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+        | Degree270 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+        | _ ->  printfn "Error in SymbolResizeHelpers/adjustPosForRotation function"
+                pos
     pos + posOffset
 
 
 /// Takes a symbol in and returns the same symbol rotated left or right
-let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
+let rotateSymbol (rotation: Rotation) (sym: Symbol) : Symbol =
     // update comp w h
     match sym.Component.Type with
     | Custom _->
@@ -87,9 +95,9 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
         let newSTransform = 
             match sym.STransform.flipped with
             | true -> 
-                {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
+                {sym.STransform with Rotation = combineRotation (combineRotation Degree90 rotation) sym.STransform.Rotation} // hack for rotating when flipped 
             | false -> 
-                {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
+                {sym.STransform with Rotation = combineRotation rotation sym.STransform.Rotation}
         { sym with 
             Pos = newPos;
             PortMaps = rotatePortInfo rotation sym.PortMaps
@@ -102,7 +110,7 @@ let rec rotateAntiClockByAng (rotAngle: Rotation) (sym: Symbol) : Symbol =
     match rotAngle with
     | Degree0 -> sym
     | deg ->
-        let newSym = rotateSymbol RotateAntiClockwise sym
+        let newSym = rotateSymbol Degree270 sym
         match deg with
         | Degree90 -> newSym
         | Degree180 ->
@@ -116,8 +124,7 @@ let flipSideHorizontal (edge: Edge) : Edge =
     match edge with
     | Left | Right ->
         edge
-        |> rotateSide RotateClockwise
-        |> rotateSide RotateClockwise
+        |> rotateSide Degree180
     | _ -> edge
 
 /// Takes in a symbol and returns the same symbol flipped
@@ -147,8 +154,7 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
         | FlipHorizontal -> sym
         | FlipVertical -> 
             sym
-            |> rotateSymbol RotateAntiClockwise
-            |> rotateSymbol RotateAntiClockwise)
+            |> rotateSymbol Degree180)
 
 let changeSymbolCorners showCorners sym = 
     set (appearance_ >-> showCorners_) showCorners sym

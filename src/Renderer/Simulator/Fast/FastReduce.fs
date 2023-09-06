@@ -1406,7 +1406,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | None -> failwithf "Attempt to put state into component %s without state array" comp.FullName
         | Some stateArr -> stateArr.Step[simStep] <- state
 
-    /// implement a binary combinational operation
+    // /// implement a binary combinational operation
     // let inline getBinaryGateReducer
     //     (bitOp: uint32 -> uint32 -> uint32)
     //     (algOp: FastAlgExp -> FastAlgExp -> FastAlgExp)

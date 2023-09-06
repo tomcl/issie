@@ -182,7 +182,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | Down when mouseAlreadyDown = true -> model, Cmd.none
         | Down -> mDownUpdate model mMsg
         | Drag -> 
-            printfn "running sheet.update"
+            //printfn "running sheet.update"
             mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg

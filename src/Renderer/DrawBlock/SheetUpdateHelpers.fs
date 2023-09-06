@@ -265,7 +265,7 @@ let mDownUpdate
         | None -> model
         | Some newModel -> newModel
     // printfn "running mDownUpdate"
-    printfn "mDownUpdate Action: %A" model.Action
+    //printfn "mDownUpdate Action: %A" model.Action
     match model.Action with
     | DragAndDrop ->
         let errorComponents =
@@ -466,8 +466,6 @@ let mDragUpdate
         (model: Model) 
         (mMsg: MouseT) 
             : Model * Cmd<ModelType.Msg> =
-    printfn "running mDragUpdate"
-    printfn "mDragUpdate Action: %A" model.Action
     let setDragCursor (model:Model, cmd: Cmd<ModelType.Msg>) : Model*Cmd<ModelType.Msg> =
         let dragCursor = 
             match model.Action with
@@ -646,8 +644,6 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         match model.TmpModel with
         | None -> model
         | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
-    printfn "running mUpUpdate"
-    printfn "mUpUpdate Action: %A" model.Action
     match model.Action with
     | MovingWire segIdL ->
         let connIdL = segIdL |> List.map snd

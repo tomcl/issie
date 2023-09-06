@@ -126,7 +126,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | _ -> model, Cmd.none
 
     | KeyPress CtrlZ ->
-        printfn "Printing CtrlZ"
         match model.UndoList with
         | [] -> model , Cmd.none
         | prevModel :: lst ->
@@ -142,7 +141,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlY ->
-        printfn "Printing CtrlY"
         match model.RedoList with
         | [] -> model , Cmd.none
         | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = Set.empty} , Cmd.batch [sheetCmd DoNothing]
@@ -380,7 +378,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | Rotate rotation ->
         //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov
-        printfn "In SheetUpdate running rotate %A" rotation
         let rotmodel = 
             {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}
                         TmpModel = Some model

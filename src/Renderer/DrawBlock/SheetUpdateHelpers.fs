@@ -251,7 +251,6 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
     | n when n < 500 -> 
         model_in :: undoList
     | _ -> 
-        printfn "removing last undoList"
         model_in :: (removeLast undoList)
 
 
@@ -689,7 +688,6 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
     | Scaling  | EndSomeAction -> 
         match model.ErrorComponents with
         |[] -> 
-            printfn "running EndsomeAction1"
             {model with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
         | _ -> {newModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
 

@@ -612,7 +612,6 @@ let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scale:ScaleTyp
 let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float)=
     //Similar structure to rotateBlock, easy to understand
 
-    printfn "running scaleBlockGroup"
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
@@ -646,7 +645,6 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
     )}
 
 let postUpdateScalingBox (model:SheetT.Model, cmd) = 
-    // printfn "running postUpdateScalingBox"
     
     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
     let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
@@ -654,14 +652,12 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
     if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
         model, cmd
     elif (model.SelectedComponents.Length < 2) then 
-        // printfn "running UpdateScalingBox in length < 2"
         match model.ScalingBox with 
         | None ->  model, cmd
         | _ -> {model with ScalingBox = None}, 
                 Elmish.Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
                                     sheetCmd SheetT.UpdateBoundingBoxes]
     else 
-        // printfn "running UpdateScalingBox newBox"
         let newBoxBound = 
             model.SelectedComponents
             |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)

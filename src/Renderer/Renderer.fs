@@ -103,13 +103,19 @@ let makeElmItem (label:string) (accelerator : string) (action : unit -> unit) =
         item.click <- Some (fun _ _ _ -> action())
 
 
-/// Make a new menu from a a list of menu items
-let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOptions list) =
+/// Make a new menu from a list of menu items
+let makeMenuGen (visible: bool) (topLevel: bool) (name : string) (table : MenuItemConstructorOptions list) =
    let subMenu = createEmpty<MenuItemConstructorOptions>
    subMenu.``type`` <- Some (if topLevel then MenuItemType.Normal else MenuItemType.Submenu)
    subMenu.label <-Some name
    subMenu.submenu <- Some (U2.Case1 (table |> ResizeArray))
+   subMenu.visible <-  Some visible
    subMenu
+
+
+/// Make a new menu from a list of menu items
+let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOptions list) =
+    makeMenuGen true topLevel name table
 
 open JSHelpers
 
@@ -147,7 +153,7 @@ let fileMenu (dispatch) =
             debugTraceUI <- Set.ofList ["update"])
         makeWinDebugItem "Trace off" None (fun _ ->
             debugTraceUI <- Set.ofList [])
-        makeMenu false "Play" [
+        makeMenuGen (debugLevel > 0)  false "Play" [
             makeDebugItem "Set Scroll" None
                 (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.;Y=1000.})
             makeDebugItem "Trace all times" None
@@ -296,13 +302,6 @@ let editMenu dispatch' =
                menuSeparator
                makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
-               makeElmItem "Toggle Snap To Net" "CmdOrCtrl+T" (fun ev -> sheetDispatch SheetT.Msg.ToggleSnapToNet)
-               makeElmItem "Beautify Sheet" "CmdOrCtrl+B" (fun ev -> sheetDispatch SheetT.Msg.BeautifySheet)
-               menuSeparator
-               makeElmItem "Reorder Ports" "CmdOrCtrl+R" (fun ev -> sheetDispatch SheetT.Msg.ReorderPorts)
-               makeItem "TestChannel" None (fun ev -> sheetDispatch SheetT.Msg.TestSmartChannel)
-               makeItem "TestResize" None (fun ev -> sheetDispatch SheetT.Msg.TestPortPosition)
-               
             |]
             |> ResizeArray
             |> U2.Case1

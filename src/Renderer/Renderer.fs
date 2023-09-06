@@ -178,6 +178,11 @@ let fileMenu (dispatch) =
             makeDebugItem "Force Exception" None
                 (fun ev -> failwithf "User exception from menus")
 
+            // TODO debug item for webworker
+            makeDebugItem "Test Web Worker" None
+                (fun _ -> Playground.WebWorker.testWorkers())
+
+
         ]
 
         makeMenu false "Verilog" [

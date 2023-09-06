@@ -181,6 +181,19 @@ module Breadcrumbs =
             []
             dispatch
 
+module WebWorker =
+    open WorkerInterface
+
+    let testWorkers() =
+        printfn "Starting workers"
+        let workers = List.init 5 (fun _ -> newWorkerUrl("./WebWorker.fs.js"))
+        workers
+        |> List.iteri (fun idx worker ->
+            setWorkerOnMsg (fun (msg: {|data: string|}) ->
+                    printfn "Received from worker %d: '%s'" idx msg.data) worker)
+        workers
+        |> List.iteri (fun idx worker -> sendWorkerMsg (sprintf "sent from main thread to worker %d" idx) worker)
+
 module Misc =
     open ModelType
     open DrawModelType

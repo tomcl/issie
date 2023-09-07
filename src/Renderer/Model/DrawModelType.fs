@@ -451,7 +451,6 @@ module SheetT =
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
         | Idle
         | Scaling
-        | EndSomeAction
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
         | MovingPort of portId: string//?? should it have the port id?

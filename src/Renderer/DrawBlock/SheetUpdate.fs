@@ -53,8 +53,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         (inputModel, cmd)
         |> RotateScale.postUpdateScalingBox
         // |> (fun currentmodel -> {currentmodel with TmpModel = Some currentmodel})
-    
-    // printfn "Running Update in SheetUpdate with msg: %A" msg
 
     match msg with
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
@@ -378,6 +376,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | Rotate rotation ->
         //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov
+        printfn "Running Rotate %A" rotation
         let rotmodel = 
             {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}
                         TmpModel = Some model

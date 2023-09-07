@@ -19,18 +19,18 @@ module Constants =
 let rotateSide (rotation: Rotation) (side:Edge) :Edge =
     match rotation, side with
     | Degree0, _ -> side
-    | Degree270, Top -> Right
-    | Degree270, Left -> Top
-    | Degree270, Bottom -> Left
-    | Degree270, Right -> Bottom
-    | Degree180, Top -> Bottom
-    | Degree180, Bottom -> Top
-    | Degree180, Left -> Right
-    | Degree180, Right -> Left
     | Degree90, Top -> Left
     | Degree90, Left -> Bottom
     | Degree90, Bottom -> Right
     | Degree90, Right -> Top
+    | Degree180, Top -> Bottom
+    | Degree180, Bottom -> Top
+    | Degree180, Left -> Right
+    | Degree180, Right -> Left
+    | Degree270, Top -> Right
+    | Degree270, Left -> Top
+    | Degree270, Bottom -> Left
+    | Degree270, Right -> Bottom
 
 
 
@@ -57,8 +57,7 @@ let adjustPosForRotation
     let posOffset =
         match rotation with
         | Degree90 | Degree270 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-        | _ ->  printfn "Error in SymbolResizeHelpers/adjustPosForRotation function"
-                pos
+        | _ ->  failwithf "Can't encounter Degree0 or Degree180 here in SymbolResizeHelpers/adjustPosForRotation function"
     pos - posOffset
 
 

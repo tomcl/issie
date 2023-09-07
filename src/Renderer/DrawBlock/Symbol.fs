@@ -147,10 +147,12 @@ let getLabelBoundingBox (model: Model) (compId: ComponentId) : BoundingBox =
     Map.find compId model.Symbols
     |> (fun sym -> sym.LabelBoundingBox)
 
-// let inline invertRotation (rot: Rotation) =
-//     match rot with
-//     | RotateClockwise -> RotateAntiClockwise
-//     | RotateAntiClockwise -> RotateClockwise
+let inline invertRotation (rot: Rotation) =
+    match rot with
+    | Degree0 -> Degree180
+    | Degree180 -> Degree0
+    | Degree90 -> Degree270
+    | Degree270 -> Degree90
 
 
 /// the output is the rotation got from the two inputs one after the other.

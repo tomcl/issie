@@ -19,36 +19,25 @@ module Constants =
 let rotateSide (rotation: Rotation) (side:Edge) :Edge =
     match rotation, side with
     | Degree0, _ -> side
-    | Degree90, Top -> Right
-    | Degree90, Left -> Top
-    | Degree90, Bottom -> Left
-    | Degree90, Right -> Bottom
+    | Degree270, Top -> Right
+    | Degree270, Left -> Top
+    | Degree270, Bottom -> Left
+    | Degree270, Right -> Bottom
     | Degree180, Top -> Bottom
     | Degree180, Bottom -> Top
     | Degree180, Left -> Right
     | Degree180, Right -> Left
-    | Degree270, Top -> Left
-    | Degree270, Left -> Bottom
-    | Degree270, Bottom -> Right
-    | Degree270, Right -> Top
+    | Degree90, Top -> Left
+    | Degree90, Left -> Bottom
+    | Degree90, Bottom -> Right
+    | Degree90, Right -> Top
 
 
-
-// ///return a new orientation based on old one and a rotation
-// let rotateAngle (rot: RotationType) (rotation: Rotation) : Rotation =
-//     match rot, rotation with
-//     | RotateAntiClockwise, Degree0 -> Degree90
-//     | RotateAntiClockwise, Degree90 -> Degree180
-//     | RotateAntiClockwise, Degree180 -> Degree270
-//     | RotateAntiClockwise, Degree270 -> Degree0
-//     | RotateClockwise, Degree0 -> Degree270
-//     | RotateClockwise, Degree90 -> Degree0
-//     | RotateClockwise, Degree180 -> Degree90
-//     | RotateClockwise, Degree270 -> Degree180
 
 /// rotates the portMap information left or right as per rotation
 let rotatePortInfo (rotation:Rotation) (portMaps:PortMaps) : PortMaps=
     //need to update portOrientation and portOrder
+    printfn "running rotatePortInfo"
     let newPortOrientation = 
         portMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
 
@@ -67,11 +56,10 @@ let adjustPosForRotation
          : XYPos =
     let posOffset =
         match rotation with
-        | Degree90 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-        | Degree270 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+        | Degree90 | Degree270 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
         | _ ->  printfn "Error in SymbolResizeHelpers/adjustPosForRotation function"
                 pos
-    pos + posOffset
+    pos - posOffset
 
 
 /// Takes a symbol in and returns the same symbol rotated left or right
@@ -95,13 +83,13 @@ let rotateSymbol (rotation: Rotation) (sym: Symbol) : Symbol =
         let newSTransform = 
             match sym.STransform.flipped with
             | true -> 
-                {sym.STransform with Rotation = combineRotation (combineRotation Degree90 rotation) sym.STransform.Rotation} // hack for rotating when flipped 
+                {sym.STransform with Rotation = combineRotation (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
             | false -> 
                 {sym.STransform with Rotation = combineRotation rotation sym.STransform.Rotation}
         { sym with 
             Pos = newPos;
             PortMaps = rotatePortInfo rotation sym.PortMaps
-            STransform =newSTransform 
+            STransform = newSTransform 
             LabelHasDefaultPos = true
             Component = newComponent
         } |> calcLabelBoundingBox

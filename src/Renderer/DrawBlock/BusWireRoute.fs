@@ -117,14 +117,21 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
 
     let segVertices = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] |> List.zip indexes // do not consider the nubs
 
-    let inputCompId = model.Symbol.Ports[string wire.InputPort].HostId
-    let outputCompId = model.Symbol.Ports[string wire.OutputPort].HostId
+    let inputCompId = model.Symbol.Ports.[string wire.InputPort].HostId
+    let outputCompId = model.Symbol.Ports.[string wire.OutputPort].HostId
+
+    // this was added to fix MUX SEL port wire rooting bug, it is irrelevant in other cases
+    let inputIsSelect =
+        let inputSymbol = model.Symbol.Symbols.[ComponentId inputCompId]
+        let inputCompInPorts = inputSymbol.Component.InputPorts
+        
+        inputCompInPorts.[List.length inputCompInPorts - 1].Id = string wire.InputPort
 
     let inputCompRotation =
-        model.Symbol.Symbols[ComponentId inputCompId].STransform.Rotation
+        model.Symbol.Symbols.[ComponentId inputCompId].STransform.Rotation
 
     let outputCompRotation =
-        model.Symbol.Symbols[ComponentId outputCompId].STransform.Rotation
+        model.Symbol.Symbols.[ComponentId outputCompId].STransform.Rotation
 
     let isConnectedToSelf = inputCompId = outputCompId
 
@@ -144,6 +151,7 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
                 }
             ))
         |> List.filter (fun (compType, boundingBox) ->
+            // don't check if the final segments of a wire that connects to a MUX SEL port intersect with the MUX bounding box
             match compType, lastSeg with
             | Mux2, true | Mux4, true | Mux8, true | Demux2, true | Demux4, true | Demux8, true -> false
             | _, _ ->
@@ -155,7 +163,7 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
 
 
     segVertices
-    |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2) startPos endPos)
+    |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
     |> List.distinct
 
 //------------------------------------------------------------------------//

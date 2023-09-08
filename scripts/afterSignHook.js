@@ -4,7 +4,8 @@ const path = require('path')
 const getPackageJson = require('./getPackageJson');
 const execSync = require("child_process").execSync;
 
-const { build: { appId, productName } } = getPackageJson('build');
+const { build: { appId } } = getPackageJson('build');
+const { version } = getPackageJson('version');
 const opts = { stdio: 'pipe' };
 
 module.exports = async function (params) {
@@ -16,7 +17,7 @@ module.exports = async function (params) {
 
     const appPath = path.join(
         params.outDir,
-        `${productName}-darwin.dmg`
+        `issie-${version}-arm64.dmg`
     )
     if (!fs.existsSync(appPath)) {
         console.log('appPath not found', appPath);
@@ -60,7 +61,7 @@ module.exports = async function (params) {
 
     } catch (error) {
         console.error("Notarization failed!")
-        // console.error('ERR', error)
+        console.error('ERR', error)
     }
 }
 

@@ -484,6 +484,127 @@ let private openProject model dispatch =
     | None -> () // User gave no path.
     | Some path -> openProjectFromPath path model dispatch)
 
+
+/// open an existing demo project from its path
+let openDemoProjectFromPath (path:string) model dispatch =
+
+    warnAppWidth dispatch (fun _ ->
+
+        traceIf "project" (fun () -> "loading files")
+        match loadAllComponentFiles path with
+        | Error err ->
+            log err
+            displayFileErrorNotification err dispatch
+
+        | Ok (componentsToResolve: LoadStatus list) ->
+            traceIf "project" (fun () -> "resolving popups...")
+            
+            resolveComponentOpenPopup path [] componentsToResolve model dispatch
+            traceIf "project" (fun () ->  "project successfully opened.")
+
+    )
+
+/// show dialog for loading a some demo project
+let loadDemoProject model dispatch basename =
+    warnAppWidth dispatch (fun _ ->
+
+        let newDir = "./demos/" + basename
+        let sourceDir = FilesIO.staticDir() + "/demos/" + basename
+        ensureDirectory newDir
+
+        dispatch EndSimulation // End any running simulation.
+        dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
+        dispatch EndWaveSim
+
+        // copy over files from source path to new path
+        let projectFile = baseName newDir + ".dprj"
+        writeFile (pathJoin [| newDir; projectFile |]) ""
+        |> displayAlertOnError dispatch
+
+        let files = readFilesFromDirectory sourceDir
+
+        let isNotDir path =
+            hasExtn ".dgm" path || hasExtn ".txt" path || hasExtn ".ram" path
+                
+        files
+        |> List.filter isNotDir
+        |> List.iter (fun basename ->
+            let newPath = pathJoin [|newDir; basename|]
+            log <| printf "haha: %A" (dirName <| dirName newPath)
+            copyFile (pathJoin [|sourceDir; basename|]) newPath)
+
+        openDemoProjectFromPath newDir model dispatch
+        
+    )
+
+
+
+/// show menu for choosing demo project
+let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
+    match model.CurrentProj with
+    | Some proj -> ()
+    | None ->
+    
+        let menuItem demoInfo action =
+            let basename =
+                match demoInfo with
+                | (basename, _, _) ->
+                    let basenameL = String.length basename
+                    basename[1..basenameL-1]
+       
+            Menu.Item.li
+                [ Menu.Item.IsActive false
+                  Menu.Item.OnClick action ] [
+                  div [] [
+                        p [Style [FontWeight "bold"]] [str basename]
+                        br []
+                        match basename with
+                        | "cpu" ->
+                            div [] [
+                                str "The EEP1 architecture designed in Year 1 labs"
+                            ]
+                        | "fulladder" ->
+                            div [] [
+                                str "Full adder circuit built from 2 half adders"
+                            ]
+                        | "registerFile" ->
+                            div [] [
+                                str "regx16x8 file from EEP1 demo using wire labels to simplify wiring"
+                            ]
+                        | _ -> str "Information about other design"
+                        //br []
+                      
+                        //div [] [
+                        //    str "Components: "
+                        //    str (string <| componentsCount)
+                        //    str " Sheets: "
+                        //    str (string <| sheetsCount)
+                        //]
+                  ]
+
+               ]
+    
+        let demosContent =
+            fun (model' : Model) ->
+                demosInfo
+                |> List.map(fun (path, componentsCount, sheetsCount) -> 
+                            menuItem (path, componentsCount, sheetsCount)
+                                (fun _ -> loadDemoProject model' dispatch path))
+        
+        
+        let demosList =
+            fun (model' : Model) ->
+                Menu.menu []
+                    [ Menu.list []
+                          (demosContent model)
+                    ]
+
+        let foot =
+            fun (model' : Model) ->
+                div [] []
+
+        dynamicClosablePopup "Choose Demo Project" demosList foot [] dispatch
+
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.
 let viewNoProjectMenu model dispatch =
@@ -491,7 +612,18 @@ let viewNoProjectMenu model dispatch =
         Menu.Item.li
             [ Menu.Item.IsActive false
               Menu.Item.OnClick action ] [ str label ]
-    
+
+    let demos = FilesIO.staticDir() + "/demos"
+
+    let demoProjects =
+        FilesIO.readdir demos
+        |> Seq.toList
+
+    let demosInfo =
+        demoProjects
+        |> List.map(fun basename ->
+            (basename, 0, 0))
+
     let recentsList = 
         model.UserData
         |> (fun ud -> ud.RecentProjects)
@@ -505,7 +637,8 @@ let viewNoProjectMenu model dispatch =
         Menu.menu []
             [ Menu.list []
                   ([ menuItem "New project" (fun _ -> newProject model dispatch)
-                     menuItem "Open project" (fun _ -> openProject model dispatch)]
+                     menuItem "Open project" (fun _ -> openProject model dispatch)
+                     menuItem "Open demo project" (fun _ -> showDemoProjects model dispatch demosInfo)]
                   @ (if recentsList <> [] then [hr []] else [])
                   @ recentsList)
             ]
@@ -618,11 +751,6 @@ let private importSheet model dispatch =
                     sheets
                     |> List.forall (fun sheetPath -> Map.containsKey sheetPath (importDecisions model))
                
-        let copySheet (sourcePath: string) (newPath: string) model dispatch =
-            match readFile sourcePath |> writeFile newPath with
-            | Ok _ -> ()
-            | Error msg -> displayFileErrorNotification msg dispatch
-
         /// rename file
         let renameSheetBeforeImport oldPath project model dispatch =
             match model.CurrentProj with
@@ -655,7 +783,7 @@ let private importSheet model dispatch =
                         let newPath = pathJoin [|dirName oldPath; newName|]
                         // copy the file over with its new name
 
-                        copySheet oldPath newPath model' dispatch
+                        copyFile oldPath newPath
                         openProjectFromPath projectDir model' dispatch
                         dispatch ClosePopup
 
@@ -663,7 +791,8 @@ let private importSheet model dispatch =
                     fun (model': Model) ->
                         let dialogData = model'.PopupDialogData
                         let dialogText = getText dialogData
-                        (isFileInProject (dialogText + "_" + baseNameWithoutExtension oldPath) project) || (dialogText = "")
+                        (isFileInProject (dialogText + "_" + baseNameWithoutExtension oldPath) project) || (dialogText = "") ||
+                        fileNameIsBad (dialogText + "_" + baseNameWithoutExtension oldPath)
 
                 dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
@@ -702,11 +831,6 @@ let private importSheet model dispatch =
                 ] |]
             
             else
-                let printMapKeyValuePairs (inputMap: Map<'Key, 'Value>) =
-                        inputMap
-                        |> Map.iter (fun key value ->
-                            printfn "Key: %A, Value: %A" key value
-                        )
                 let Button (sheetPath : string) (buttonDecision : ImportDecision option) (name : string) (isDisabled : bool) =
                     [ Button.button
                         [ 
@@ -766,12 +890,12 @@ let private importSheet model dispatch =
                         tr [] [
                             td [Style [FontWeight "bold"]] [str <| baseNameWithoutExtension dependencyPath]
                             td [] [str "Dependency of "
-                                   strong [] [str <| baseName sheetPath]
+                                   strong [] [str <| baseNameWithoutExtension sheetPath]
                                    str "."
                                    p [Style [Color "red"]] [str "Doesn't exist in source and destination directories."]
                             ]
                             td [] [str "N/A"]
-                            td [] [str "Ignore"]
+                            td [] [p [Style [Color "red"]] [str "Ignore"]]
                         ]
 
                 match sheetExists with
@@ -1011,14 +1135,14 @@ let private importSheet model dispatch =
                             |> List.iter (fun oldSheetPath ->
                                 let newSheetPath = pathJoin [|projectDir; baseName oldSheetPath|]
 
-                                copySheet oldSheetPath newSheetPath model' dispatch
+                                copyFile oldSheetPath newSheetPath
                        
                             )
 
                             newSheetPaths |> List.iter (fun (oldSheetPath, newSheetPath) ->
                                         match newSheetPath with
                                         | "" -> ()
-                                        | path -> copySheet oldSheetPath path model' dispatch)
+                                        | path -> copyFile oldSheetPath path )
                                
                             openProjectFromPath projectDir model' dispatch
 

@@ -509,23 +509,53 @@ let buildFastSimulationFData
 
 /// sets up default no-change input values for the next step
 let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
-    if step > 0 then
-        fastSim.FGlobalInputComps
-        |> Array.iter (fun fc ->
-            let vec = fc.Outputs[0]
-            if vec.Width > 32 then
-                vec.BigIntStep[step] <- vec.BigIntStep[step - 1]
-            else
-                vec.UInt32Step[step] <- vec.UInt32Step[step - 1])
+    let stepsim = 
+        if step = 0 then
+            fastSim.MaxArraySize
+        else 
+            step
+    fastSim.FGlobalInputComps
+    |> Array.iter (fun fc ->
+        let vec = fc.Outputs[0]
+        if vec.Width > 32 then
+            vec.BigIntStep[step] <- vec.BigIntStep[stepsim - 1]
+        else
+            vec.UInt32Step[step] <- vec.UInt32Step[stepsim - 1])
+
+
+let private setInputstoDefault (fastSim: FastSimulation) =
+    fastSim.FGlobalInputComps
+    |> Array.iter (fun fc ->
+        match fc.FType with
+        | Input1(w, defaultVal) ->
+            match defaultVal with
+            | Some defaultVal -> 
+                let vec = fc.Outputs[0]
+                if vec.Width > 32 then
+                    vec.BigIntStep[0] <- bigint defaultVal
+                else
+                    vec.UInt32Step[0] <- uint32 defaultVal
+            | None -> ()
+        | _ -> ()
+    )
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
     let index = (fs.ClockTick + 1) % fs.MaxArraySize // index of circular array
+    
     propagateInputsFromLastStep index fs
-    Array.iter (fastReduce fs.MaxArraySize index true) fs.FClockedComps
-    Array.iter (fastReduce fs.MaxArraySize index false) fs.FOrderedComps
+    Array.iter (fastReduce fs.MaxArraySize (fs.ClockTick + 1) true) fs.FClockedComps
+    Array.iter (fastReduce fs.MaxArraySize (fs.ClockTick + 1) false) fs.FOrderedComps
 
     fs.ClockTick <- fs.ClockTick + 1
+
+/// set simulation data for clock tick 0 when regenerating data
+let private restartSimulation (fs: FastSimulation) =
+    setInputstoDefault fs
+    Array.iter (fastReduce fs.MaxArraySize 0 true) fs.FClockedComps
+    Array.iter (fastReduce fs.MaxArraySize 0 false) fs.FOrderedComps
+
+    fs.ClockTick <- 0
 
 /// sets the mutable simulation data for a given input at a given time step
 let private setSimulationInput (cid: ComponentId) (fd: FastData) (step: int) (fs: FastSimulation) =
@@ -635,12 +665,18 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
     if fs.MaxArraySize = 0 then
         failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
-    //printfn $"running sim steps={numberOfSteps}, arraySize = {fs.MaxArraySize}, maxstepnum={fs.MaxStepNum}"
+    // printfn $"running sim clocktick={fs.ClockTick}, arraySize = {fs.MaxArraySize}, laststepneeded={lastStepNeeded}"
     let simStartTime = getTimeMs ()
     let stepsToDo = lastStepNeeded - fs.ClockTick
 
     if stepsToDo <= 0 then
-        None // do nothing
+        if (fs.ClockTick - lastStepNeeded) < 550 then
+            None
+        else 
+            restartSimulation fs
+            while fs.ClockTick < lastStepNeeded do
+                stepSimulation fs
+            None
     else
         let startTick = fs.ClockTick
         let mutable time = simStartTime

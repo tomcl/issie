@@ -254,11 +254,15 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     /// get last cycle data from output i for component
     let inline insOldUInt32 i =
         checkInputPortNumber i
-        comp.GetInputUInt32 (simStepOld) (InputPortNumber i)
+        match numStep with
+        | 0 -> 0u
+        | _ -> comp.GetInputUInt32 (simStepOld) (InputPortNumber i)
 
     let inline insOldBigInt i =
         checkInputPortNumber i
-        comp.GetInputBigInt (simStepOld) (InputPortNumber i)
+        match numStep with
+        | 0 -> 0I
+        | _ -> comp.GetInputBigInt (simStepOld) (InputPortNumber i)
 
     /// Write current step output data for output port pn
     let inline putUInt32 pn fd = comp.PutOutputUInt32 (simStep) (OutputPortNumber pn) fd
@@ -328,7 +332,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | Constant(width, cVal), true -> putBigInt 0 <| (convertInt64ToBigInt width cVal)
     | Output width, false ->
         let bits = insUInt32 0
-        //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
+        // printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width (comp.InputWidth 0)
         putUInt32 0 bits
     | Output width, true ->

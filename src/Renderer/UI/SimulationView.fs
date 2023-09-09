@@ -90,8 +90,8 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
         | _, None -> cid, convertIntToFastData w 0u)
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
-let InputDefaultsEqualInputs fs (model:Model) =
-    let tick = fs.ClockTick
+let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
+    let tick = clocktick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
     |> Map.map (fun fid fc ->
@@ -112,7 +112,7 @@ let InputDefaultsEqualInputs fs (model:Model) =
     |> Seq.forall id
 
 
-let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
+let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
     let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
         let comp = sym.Component
         let comp' = 
@@ -122,7 +122,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
                 | x -> x
             {comp with Type = ct}
         {sym with Component = comp'}
-    let tick = fs.ClockTick
+    let tick = clocktick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
     |> Map.map (fun fid fc ->
@@ -674,19 +674,23 @@ let viewSimulationError
 let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg -> Unit) (model':Model) =
     let dialog = model'.PopupDialogData
     let step = simData.ClockTickNumber
+    let restartsimrequired (lastStepNeeded: int) = (simData.FastSim.ClockTick - lastStepNeeded) > 550
     div [] 
         [
             h6 [] [str $"This simulation contains {simData.FastSim.FComps.Count} components"]
             (match dialog.Int with 
-            | Some n when n > step -> 
-                Text.p [
-                    Modifiers [Modifier.TextWeight TextWeight.Bold] 
-                  ] [str "Goto Tick:"]
-            | _ -> Text.p [
-                            Modifiers [
-                                Modifier.TextWeight TextWeight.Bold
-                                Modifier.TextColor IsDanger] 
-                          ] [str $"The clock tick must be > {step}"])
+            | Some n when restartsimrequired n -> 
+                Text.p 
+                    [Modifiers [
+                        Modifier.TextWeight TextWeight.Bold
+                        Modifier.TextColor IsDanger] 
+                    ] 
+                    [str $"To generate data for time step {n}, 
+                          the hardware will be resimulated using default inputs. "]
+            | _ -> 
+                Text.p [Modifiers [
+                    Modifier.TextWeight TextWeight.Bold]] 
+                    [str $"Go to Tick:"])
             br []
             Input.number [
                 Input.Props [AutoFocus true;Style [Width "100px"]]
@@ -813,11 +817,30 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             div [] [
                 Button.button [
                     Button.Color IsSuccess
+                    Button.Disabled (simData.ClockTickNumber = 0)
+                    Button.OnClick (fun _ ->
+                        if SimulationRunner.simTrace <> None then
+                            printfn "*********************Incrementing clock from simulator button******************************"
+                            printfn "-------------------------------------------------------------------------------------------"
+                        //let graph = feedClockTick simData.Graph
+                        printfn "clock %d "simData.ClockTickNumber
+                        FastRun.runFastSimulation None (simData.ClockTickNumber-1) simData.FastSim |> ignore
+                        dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
+                        if SimulationRunner.simTrace <> None then
+                            printfn "-------------------------------------------------------------------------------------------"
+                            printfn "*******************************************************************************************"
+                        IncrementSimulationClockTick -1 |> dispatch
+                    )
+                ] [ str "◀" ]
+                str " "
+                str " "
+                Button.button [
+                    Button.Color IsSuccess
                     Button.OnClick (fun _ ->
                         let isDisabled (model': Model) =
                             let dialogData = model'.PopupDialogData
                             match dialogData.Int with
-                            | Some n -> n <= step
+                            | Some n -> n < 0
                             | None -> true
                         dialogPopup 
                             "Advance Simulation"
@@ -827,7 +850,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             isDisabled
                             []
                             dispatch)
-                        ] [ str "Goto" ]
+                        ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
                 str " "
                 str " "
                 Button.button [
@@ -844,7 +867,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             printfn "*******************************************************************************************"
                         IncrementSimulationClockTick 1 |> dispatch
                     )
-                ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
+                ] [ str "▶" ]
             ]
     let maybeStatefulComponents() =
         let stateful = 
@@ -877,7 +900,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             ] [str txt] ]
     div [] [
         splittedLine maybeBaseSelector maybeClockTickBtn
-
+        Heading.h6 [ Heading.Props [ Style [ Float FloatOptions.Right ] ]] [ str <| sprintf "Simulated up to clock tick %d" simData.FastSim.ClockTick]
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
             simData.NumberBase
@@ -989,8 +1012,8 @@ let viewSimulation canvasState model dispatch =
                 Button.button
                     [ 
                         Button.Color IsInfo;
-                        Button.Disabled (InputDefaultsEqualInputs simData.FastSim model)
-                        Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch) ; 
+                        Button.Disabled (InputDefaultsEqualInputs simData.FastSim model simData.ClockTickNumber)
+                        Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch simData.ClockTickNumber) ; 
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
                     ]
                     [ str "Save current input values as default" ]
@@ -1094,8 +1117,7 @@ let viewSimulation canvasState model dispatch =
             br []; 
             div [Style [Display DisplayOptions.Block;]] []
             str "The simulation uses the diagram as it was at the moment of
-                 pressing the \"Start simulation\" or \"Refresh\" button using default input values. 
-                 \"Refresh\" is not enabled after any manual change of input values in previous clock ticks. "
+                 pressing the \"Start simulation\" or \"Refresh\" button using default input values."
             hr []
             body
         ]

@@ -575,6 +575,27 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
             ]
     dynamicClosablePopup title body foot extraStyle dispatch
 
+// Used for refresh popup
+let dialogPopupRefresh title body extraStyle dispatch =
+    let foot =
+        fun (model: Model) ->
+            let dialogData = model.PopupDialogData
+            Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsLight
+                            Button.OnClick (fun _ -> 
+                                dispatch ClosePopup
+                                dispatch FinishUICmd) 
+                        ] [ str "Cancel" ]
+                    ]
+                ]
+            ]
+    
+    dynamicClosablePopup title body foot extraStyle dispatch
+
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
 let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =

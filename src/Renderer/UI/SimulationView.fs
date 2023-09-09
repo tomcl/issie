@@ -90,8 +90,8 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
         | _, None -> cid, convertIntToFastData w 0u)
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
-let InputDefaultsEqualInputs fs (model:Model) =
-    let tick = fs.ClockTick
+let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
+    let tick = clocktick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
     |> Map.map (fun fid fc ->
@@ -111,47 +111,8 @@ let InputDefaultsEqualInputs fs (model:Model) =
     |> Map.values
     |> Seq.forall id
 
-let InputDefaultsEqualInputsRefresh fs (model:Model) (startsimulation: bool) =
-    let tick = fs.ClockTick
-    fs.FComps
-    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
-    |> Map.map (fun fid fc ->
-        let cid = fst fid
-        if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
-            let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
-            let currdefault = match typ with
-                                    | Input1(_, Some d) -> d
-                                    | _ -> 0
-            let outputarray =
-                if fc.OutputWidth 0 > 32 then
-                    Array.map (fun x -> convertBigIntToInt32 x) fc.Outputs[0].BigIntStep
-                else
-                    Array.map (fun x -> int x) fc.Outputs[0].UInt32Step
-            let slicedArray = Array.sub outputarray 0 (tick % fs.MaxArraySize)
-            let areAllElementsSame arr =
-                match arr with
-                | [||] -> 
-                    if startsimulation then
-                        match typ with
-                        | Input1(width, Some d)-> 
-                                if width > 32 then
-                                    fc.Outputs[0].BigIntStep[fs.MaxArraySize-1] <- bigint d
-                                else 
-                                    fc.Outputs[0].UInt32Step[fs.MaxArraySize-1] <- uint32 d
-                        | _ -> ()
-                    true
-                | [|elem|] -> 
-                    elem = outputarray[fs.MaxArraySize-1]
-                | _ -> 
-                    let first = arr[0]
-                    Array.forall (fun elem -> elem = first) arr
-            areAllElementsSame slicedArray
-        else
-            true)
-    |> Map.values
-    |> Seq.forall id
 
-let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
+let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
     let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
         let comp = sym.Component
         let comp' = 
@@ -161,7 +122,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
                 | x -> x
             {comp with Type = ct}
         {sym with Component = comp'}
-    let tick = fs.ClockTick
+    let tick = clocktick
     fs.FComps
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
     |> Map.map (fun fid fc ->
@@ -185,7 +146,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) =
 type SimCache = {
     Name: string
     ClockTickRefresh: int
-    PrevInputEqualsDefaults: bool
+    RestartSim: bool
     StoredState: LoadedComponent list
     StoredResult: Result<SimulationData, SimulationError>
     }
@@ -195,7 +156,7 @@ type SimCache = {
 let simCacheInit () = {
     Name = ""; 
     ClockTickRefresh = 0
-    PrevInputEqualsDefaults = true
+    RestartSim = false
     StoredState = []
     StoredResult = Ok {
         FastSim = 
@@ -713,19 +674,23 @@ let viewSimulationError
 let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg -> Unit) (model':Model) =
     let dialog = model'.PopupDialogData
     let step = simData.ClockTickNumber
+    let restartsimrequired (lastStepNeeded: int) = (simData.FastSim.ClockTick - lastStepNeeded) > 550
     div [] 
         [
             h6 [] [str $"This simulation contains {simData.FastSim.FComps.Count} components"]
             (match dialog.Int with 
-            | Some n when n > step -> 
-                Text.p [
-                    Modifiers [Modifier.TextWeight TextWeight.Bold] 
-                  ] [str "Goto Tick:"]
-            | _ -> Text.p [
-                            Modifiers [
-                                Modifier.TextWeight TextWeight.Bold
-                                Modifier.TextColor IsDanger] 
-                          ] [str $"The clock tick must be > {step}"])
+            | Some n when restartsimrequired n -> 
+                Text.p 
+                    [Modifiers [
+                        Modifier.TextWeight TextWeight.Bold
+                        Modifier.TextColor IsDanger] 
+                    ] 
+                    [str $"To generate data for time step {n}, 
+                          the hardware will be resimulated using default inputs. "]
+            | _ -> 
+                Text.p [Modifiers [
+                    Modifier.TextWeight TextWeight.Bold]] 
+                    [str $"Go to Tick:"])
             br []
             Input.number [
                 Input.Props [AutoFocus true;Style [Width "100px"]]
@@ -852,11 +817,30 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             div [] [
                 Button.button [
                     Button.Color IsSuccess
+                    Button.Disabled (simData.ClockTickNumber = 0)
+                    Button.OnClick (fun _ ->
+                        if SimulationRunner.simTrace <> None then
+                            printfn "*********************Incrementing clock from simulator button******************************"
+                            printfn "-------------------------------------------------------------------------------------------"
+                        //let graph = feedClockTick simData.Graph
+                        printfn "clock %d "simData.ClockTickNumber
+                        FastRun.runFastSimulation None (simData.ClockTickNumber-1) simData.FastSim |> ignore
+                        dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
+                        if SimulationRunner.simTrace <> None then
+                            printfn "-------------------------------------------------------------------------------------------"
+                            printfn "*******************************************************************************************"
+                        IncrementSimulationClockTick -1 |> dispatch
+                    )
+                ] [ str "◀" ]
+                str " "
+                str " "
+                Button.button [
+                    Button.Color IsSuccess
                     Button.OnClick (fun _ ->
                         let isDisabled (model': Model) =
                             let dialogData = model'.PopupDialogData
                             match dialogData.Int with
-                            | Some n -> n <= step
+                            | Some n -> n < 0
                             | None -> true
                         dialogPopup 
                             "Advance Simulation"
@@ -866,7 +850,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             isDisabled
                             []
                             dispatch)
-                        ] [ str "Goto" ]
+                        ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
                 str " "
                 str " "
                 Button.button [
@@ -883,7 +867,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             printfn "*******************************************************************************************"
                         IncrementSimulationClockTick 1 |> dispatch
                     )
-                ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
+                ] [ str "▶" ]
             ]
     let maybeStatefulComponents() =
         let stateful = 
@@ -916,7 +900,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             ] [str txt] ]
     div [] [
         splittedLine maybeBaseSelector maybeClockTickBtn
-
+        Heading.h6 [ Heading.Props [ Style [ Float FloatOptions.Right ] ]] [ str <| sprintf "Simulated up to clock tick %d" simData.FastSim.ClockTick]
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
             simData.NumberBase
@@ -959,7 +943,6 @@ let viewSimulation canvasState model dispatch =
         tryGetSimData canvasState model
         |> function
             | Ok simData -> 
-                InputDefaultsEqualInputsRefresh simData.FastSim model true |> ignore
                 Ok simData
             | Error simError ->
                 setSimErrorFeedback simError model dispatch
@@ -1008,19 +991,19 @@ let viewSimulation canvasState model dispatch =
                 [ str buttonText ]
         ]
     | Some sim ->
-        match sim with 
-            | Error simError -> () 
-            | Ok simData -> 
-                if not (InputDefaultsEqualInputsRefresh simData.FastSim model false) then
-                    simCache <- {simCache with PrevInputEqualsDefaults = false}
-        
         let canvasStatechange = hasCanvasChanged canvasState simCache model
         let body = match sim with
                     | Error simError -> viewSimulationError canvasState simError model StepSim dispatch
                     | Ok simData -> 
+                        if simCache.RestartSim then
+                            let clock = simData.ClockTickNumber
+                            startSimulation()
+                            simCache <- {simCache with RestartSim = false}
+                            simCache <- {simCache with ClockTickRefresh = clock}
                         if (simData.ClockTickNumber = 0 && not (simCache.ClockTickRefresh = 0)) then
                             IncrementSimulationClockTick simCache.ClockTickRefresh |> dispatch
                             FastRun.runFastSimulation None simCache.ClockTickRefresh simData.FastSim |> ignore
+                            simCache <- {simCache with ClockTickRefresh = 0}
                         viewSimulationData simData.ClockTickNumber simData model dispatch
         let setDefaultButton =
             match sim with
@@ -1029,8 +1012,8 @@ let viewSimulation canvasState model dispatch =
                 Button.button
                     [ 
                         Button.Color IsInfo;
-                        Button.Disabled (InputDefaultsEqualInputs simData.FastSim model)
-                        Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch) ; 
+                        Button.Disabled (InputDefaultsEqualInputs simData.FastSim model simData.ClockTickNumber)
+                        Button.OnClick (fun _ -> setInputDefaultsFromInputs simData.FastSim dispatch simData.ClockTickNumber) ; 
                         Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
                     ]
                     [ str "Save current input values as default" ]
@@ -1039,9 +1022,42 @@ let viewSimulation canvasState model dispatch =
             | Ok _, _ -> IsSuccess, "Refresh"
             | Error _, _ -> IsWarning, "See Problems"
 
+        let confirmrefresh (model:Model) dispatch simData =
+            fun (model:Model) ->
+                div [] 
+                    [
+                    div [Style [Height "60px"; Display DisplayOptions.Block; MarginBottom "5px"]] [
+                    h6 [Style [Width "80%"; Float FloatOptions.Left;]] [str $"Refresh the simulation using current values of the inputs and the latest design? 
+                    The current values will be used as default for future simulations."]
+                    Button.button [
+                        Button.Color IsSuccess
+                        Button.OnClick (fun _ ->
+                            printfn "did a refresh with ok"
+                            setInputDefaultsFromInputs simData.FastSim dispatch simData.ClockTickNumber
+                            simCache <- {simCache with RestartSim = true}
+                            ClosePopup |> dispatch
+                        )
+                        Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right; MarginTop "10px";]]
+                    ] [ str "Ok" ]]
+                    hr [Style [Width "100%"; Float FloatOptions.Left;]]
+                    div [Style [Height "50px"; Display DisplayOptions.Block;]] [
+                    h6 [Style [Width "80%"; Float FloatOptions.Left ]] [str $"Refresh the simulation using default values of inputs, current values will be lost."]
+                    Button.button [
+                        Button.Color IsInfo
+                        Button.OnClick (fun _ ->
+                            let clock = simData.ClockTickNumber
+                            startSimulation()
+                            simCache <- {simCache with ClockTickRefresh = clock}
+                            ClosePopup |> dispatch
+                        )
+                        Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Right ]]
+                    ] [ str "Reset" ]]
+                ]
+
         let refreshButton = 
-            match canvasStatechange, simCache.PrevInputEqualsDefaults, (sim), (simRes) with 
-            | true, true, (Ok simData), _ ->
+            match canvasStatechange, sim with 
+            | true, Ok simData ->
+                if InputDefaultsEqualInputs simData.FastSim model simData.ClockTickNumber then
                     Button.button
                         [
                             Button.Color buttonColor;
@@ -1052,31 +1068,39 @@ let viewSimulation canvasState model dispatch =
                             Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
                             ]
                         [str buttonText]
-            | true, true, (Error _), _ ->
-                    //refresh simulation after error is fixed
+                else
+                    // add pop up
+                    Button.button
+                        [
+                            Button.Color buttonColor;
+                            Button.OnClick (fun _ -> 
+                                match simRes with 
+                                | Ok _, _ ->
+                                    dialogPopupRefresh
+                                        "Refresh"
+                                        (confirmrefresh model dispatch simData)
+                                        []
+                                        dispatch
+                                | Error _, _ -> 
+                                    let clock = simData.ClockTickNumber
+                                    startSimulation()
+                                    simCache <- {simCache with ClockTickRefresh = clock})
+                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
+                            ]
+                        [str buttonText]
+            | true, Error _ ->
                     Button.button
                         [
                             Button.Color buttonColor;
                             Button.OnClick (fun _ -> 
                                 let clock = simCache.ClockTickRefresh
                                 startSimulation()
-                                simCache <- {simCache with ClockTickRefresh = clock})
+                                simCache <- {simCache with ClockTickRefresh = clock}
+                                )
                             Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
                             ]
                         [str buttonText]
-            | true, false, _, (Error _, _) ->
-                    //view simulation error after canvas change (after manual change of inputs)
-                    Button.button
-                        [
-                            Button.Color buttonColor;
-                            Button.OnClick (fun _ -> 
-                                let PrevInputEqualsDefaults_save = simCache.PrevInputEqualsDefaults
-                                startSimulation()
-                                simCache <- {simCache with PrevInputEqualsDefaults = PrevInputEqualsDefaults_save})
-                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
-                            ]
-                        [str buttonText]
-            | _, _, _ , _ -> div [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"; Height "100%"]] [ str " "]
+            | false, _ -> div [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"; Height "100%"]] [ str " "]
         div [Style [Height "100%"]] [
             div [Style [Height "40px"]] [
             Button.button
@@ -1093,8 +1117,7 @@ let viewSimulation canvasState model dispatch =
             br []; 
             div [Style [Display DisplayOptions.Block;]] []
             str "The simulation uses the diagram as it was at the moment of
-                 pressing the \"Start simulation\" or \"Refresh\" button using default input values. 
-                 \"Refresh\" is not enabled after any manual change of input values in previous clock ticks. "
+                 pressing the \"Start simulation\" or \"Refresh\" button using default input values."
             hr []
             body
         ]

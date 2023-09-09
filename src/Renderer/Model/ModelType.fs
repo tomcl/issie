@@ -426,6 +426,8 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
+    | RunWaveGenWorker of ws:WaveSimModel * index:WaveIndexT * wave:Wave
+    | UpdateWave of index:WaveIndexT * wave:Wave
 
 
 //================================//
@@ -576,6 +578,7 @@ type Model = {
     UIState: UICommandType Option
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
+    WaveGenWorker: obj
 } 
 
     with member this.WaveSimOrCurrentSheet =

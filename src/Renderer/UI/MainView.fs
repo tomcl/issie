@@ -18,6 +18,7 @@ open PopupHelpers
 open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
+open WorkerInterface
 
 
 
@@ -120,6 +121,7 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
+    WaveGenWorker = newWorkerUrl("../WaveGenWorker.fs.js")
 }
 
 

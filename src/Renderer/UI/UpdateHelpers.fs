@@ -186,6 +186,8 @@ let shortDisplayMsg (msg:Msg) =
     | ExecFuncAsynch _ -> Some "ExecFuncAsync"
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
+    | RunWaveGenWorker _ -> Some "RunWaveGenWorker"
+    | UpdateWave _ -> Some "UpdateWave"
 
 
 

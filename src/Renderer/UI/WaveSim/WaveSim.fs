@@ -837,7 +837,59 @@ let updateSpinner (name:string) payload (numToDo:int) (model: Model) =
 /// remove the spinner popup
 let cancelSpinner (model:Model) =
     {model with SpinnerPayload = None}
-    
+
+let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
+    wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
+
+
+
+
+let updateWaveSimOutput (allWaves: Map<WaveIndexT,Wave>) (wsModel: WaveSimModel) (model: Model) =
+    let fs = wsModel.FastSim
+    let ramComps =
+        let isRAMOrROM fcid (fc: FastComponent) =
+            match fc.FType with
+            | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ ->
+                true
+            | _ -> false
+        Map.filter isRAMOrROM fs.FComps
+        |> Map.toList
+        |> List.map (fun (fcid,fc) -> fc)
+        |> List.sortBy (fun fc -> fc.FullName)
+
+    let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
+    let allWaveA = Map.keys allWaves |> Seq.toArray
+    // arrayIndex may have changed, so we have to use new arrayIndex
+    // if we cannot find it, then the selected wave no longer exists and is dropped
+    let selectedWaves = 
+        wsModel.SelectedWaves
+        |> List.collect (fun wi -> match Array.tryFind (isSameWave wi) allWaveA with Some w -> [w] | None -> [])
+
+    let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
+
+    let ws =
+        {
+            wsModel with
+                State = Success
+                AllWaves = allWaves
+                SelectedWaves = selectedWaves
+                RamComps = ramComps
+                SelectedRams = selectedRams
+                FastSim = fs
+        }
+    printfn "model updated"
+    model |> updateWSModel (fun _ -> ws), Elmish.Cmd.none
+
+let updateWave (idx: WaveIndexT) (newWave: Wave) (model: Model) =
+    // get ws model
+    let wsModel = getWSModel model
+    // get update allWaves map
+    let allWaves =
+        getWaves wsModel wsModel.FastSim
+        |> Map.add idx newWave
+
+    // call updateWaveSimOutput
+    updateWaveSimOutput allWaves wsModel model
 
 /// Major function called after changes to extend simulation and/or redo waveforms.
 /// Note that after design change simulation muts be redonne externally, and function called with
@@ -847,9 +899,7 @@ let cancelSpinner (model:Model) =
 /// timeOut and callback from Spinner.
 /// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
 /// a constant. To get the estimate some initial execution must be completed (1 clock cycle and one waveform).
-let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
-    let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
-        wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
+let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> =
     // use given (more uptodate) wsModel
     let model = updateWSModel (fun _ -> wsModel) model
     let start = TimeHelpers.getTimeMs ()
@@ -867,6 +917,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             match speedOpt with
             | Some speed when  float cyclesToDo / speed + Constants.initSimulationTime > Constants.maxSimulationTimeWithoutSpinner  &&
                                Option.isNone model.Spinner ->
+                printfn "speedOpt needs spinner"
                 // long simulation, set spinner on and dispatch another refresh 
                 let spinnerFunc = fun model -> fst (refreshWaveSim newSimulation wsModel model)
                 let model = model |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
@@ -874,7 +925,9 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 model, Elmish.Cmd.none
                 |> TimeHelpers.instrumentInterval "refreshWaveSim" start
             | _ ->
+                printfn "speedOpt = something else"
                 if speedOpt <> None then 
+                    printfn "running fast simulation"
                     //printfn "Force running simulation"
                     // force simulation to finish now
                     FastRun.runFastSimulation None lastCycleNeeded fs |> ignore                
@@ -913,66 +966,154 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         List.exists (fun wi' -> isSameWave wi wi') wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
                     |> Map.toList                   
                     |> List.map fst
+                match wavesToBeMade with
+                | [] ->
+                    updateWaveSimOutput allWaves wsModel model
+                | wavesToBeMade ->
+                    model,
+                        wavesToBeMade
+                        |> List.map (fun idx ->
+                            allWaves
+                            |> Map.tryFind idx
+                            |> function
+                                // | Some wave -> printfn "worker msg to cmd"; (Elmish.Cmd.ofMsg <| StartWorker (generateWaveform, {WS = wsModel; Index = idx; Wave = wave}))
+                                | Some wave -> (Elmish.Cmd.ofMsg <| RunWaveGenWorker (wsModel, idx, wave))
+                                | None -> Elmish.Cmd.none)
+                        |> Elmish.Cmd.batch)
 
-                let model, allWaves, spinnerPayload, numToDo =
-                    //printfn $"{wavesToBeMade.Length} waves to make."
-                    let numToDo = wavesToBeMade.Length
-                    makeWaveformsWithTimeOut (Some Constants.initSimulationTime) wsModel allWaves wavesToBeMade
-                    |> (fun (allWaves, numDone, timeOpt) ->
-                            match wavesToBeMade.Length - numDone, timeOpt with
-                            | n, None -> 
-                                model, allWaves, None, n // finished
-                            | _ when numDone = 0 -> 
-                                failwithf "What? makewaveformsWithTimeOut must make at least one waveform"
-                            | numToDo, Some t when 
-                                    float wavesToBeMade.Length * t / float numDone < Constants.maxSimulationTimeWithoutSpinner ->
-                                let (allWaves, numDone, timeOpt) = makeWaveformsWithTimeOut None wsModel allWaves wavesToBeMade
-                                model, allWaves, None, numToDo - numDone
-                            | numToDo, _ ->
-                                let payload = Some ("Making waves", refreshWaveSim false {wsModel with AllWaves = allWaves} >> fst)
-                                model,  allWaves, payload, numToDo)
+/// Major function called after changes to extend simulation and/or redo waveforms.
+/// Note that after design change simulation muts be redonne externally, and function called with
+/// newSimulation = true.
+/// First extend simulation, if needed, with timeout and callback from Spinner if needed.
+/// Then remake any waveforms which have changed and not yet been remade. Again if needed with
+/// timeOut and callback from Spinner.
+/// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
+/// a constant. To get the estimate some initial execution must be completed (1 clock cycle and one waveform).
+// let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
+//     let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
+//         wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
+//     // use given (more uptodate) wsModel
+//     let model = updateWSModel (fun _ -> wsModel) model
+//     let start = TimeHelpers.getTimeMs ()
+//     let fs = wsModel.FastSim
+//     if fs.NumStepArrays = 0 then
+//         model, Elmish.Cmd.none
+//     else
+//     // starting runSimulation
+//         //printfn "Starting refresh"
+//         let lastCycleNeeded = wsModel.StartCycle + wsModel.ShownCycles + 1
 
-                let ramComps =
-                    let isRAMOrROM fcid (fc: FastComponent) =
-                        match fc.FType with
-                        | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ ->
-                            true
-                        | _ -> false
-                    Map.filter isRAMOrROM fs.FComps
-                    |> Map.toList
-                    |> List.map (fun (fcid,fc) -> fc)
-                    |> List.sortBy (fun fc -> fc.FullName)
+//         FastRun.runFastSimulation (Some Constants.initSimulationTime) lastCycleNeeded fs
+//         |> (fun speedOpt ->
+//             let cyclesToDo = lastCycleNeeded - wsModel.FastSim.ClockTick
+//             match speedOpt with
+//             | Some speed when  float cyclesToDo / speed + Constants.initSimulationTime > Constants.maxSimulationTimeWithoutSpinner  &&
+//                                Option.isNone model.Spinner ->
+//                 // long simulation, set spinner on and dispatch another refresh 
+//                 let spinnerFunc = fun model -> fst (refreshWaveSim newSimulation wsModel model)
+//                 let model = model |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
+//                 //printfn "ending refresh with continuation..."
+//                 model, Elmish.Cmd.none
+//                 |> TimeHelpers.instrumentInterval "refreshWaveSim" start
+//             | _ ->
+//                 if speedOpt <> None then 
+//                     //printfn "Force running simulation"
+//                     // force simulation to finish now
+//                     FastRun.runFastSimulation None lastCycleNeeded fs |> ignore                
+//                 // simulation has finished so can generate waves
 
-                let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
-                let allWaveA = Map.keys allWaves |> Seq.toArray
-                // arrayIndex may have changed, so we have to use new arrayIndex
-                // if we cannot find it, then the selected wave no longer exists and is dropped
-                let selectedWaves = 
-                    wsModel.SelectedWaves
-                    |> List.collect (fun wi -> match Array.tryFind (isSameWave wi) allWaveA with Some w -> [w] | None -> [])
+//                 printfn $"Ending refresh now at Tick {fs.ClockTick}..."
+//                 let allWavesStart = TimeHelpers.getTimeMs ()    
+//                     //printfn "starting getwaves"
+//                 // redo waves based on new simulation
+//                 let allWaves = 
+//                     if newSimulation then
+//                         //printfn "making new waves..."
+//                         getWaves wsModel fs 
+//                     else wsModel.AllWaves
+//                 let model = updateWSModel (fun ws -> {ws with AllWaves = allWaves}) model
+//                 // redo viewer width (and therefore shown cycles etc) based on selected waves names
+//                 // which are currently only calculatable after getwaves has generated waves
+//                 let model = updateViewerWidthInWaveSim model.WaveSimViewerWidth model 
+//                 // extract wsModel from updated model for processing below
+//                 let wsModel = getWSModel model
 
-                let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
+//                 let simulationIsUptodate = wsModel.FastSim.ClockTick > wsModel.ShownCycles + wsModel.StartCycle
 
-                let ws =  
-                    {
-                        wsModel with
-                            State = Success
-                            AllWaves = allWaves
-                            SelectedWaves = selectedWaves
-                            RamComps = ramComps
-                            SelectedRams = selectedRams
-                            FastSim = fs
-                    }
+//                 match simulationIsUptodate with
+//                 | falae ->
+                    
+//                 printfn $"Simulationuptodate: {simulationIsUptodate}"
+//                 // need to use isSameWave here becasue sarray index may have changed
+//                 let wavesToBeMade =
+//                     allWaves
+//                     |> Map.filter (fun wi wave ->
+//                         // Only generate waveforms for selected waves.
+//                         // Regenerate waveforms whenever they have changed
+//                         let hasChanged = not <| waveformIsUptodate wsModel wave
+//                         //if List.contains index ws.SelectedWaves then 
+//                         List.exists (fun wi' -> isSameWave wi wi') wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
+//                     |> Map.toList                   
+//                     |> List.map fst
 
-                let model = 
-                    match spinnerPayload with
-                    | None -> cancelSpinner model
-                    | Some sp -> 
-                        updateSpinner (fst sp) (snd sp) numToDo model
-                    |> updateWSModel (fun _ -> ws)
-                model, Elmish.Cmd.none
-                |> TimeHelpers.instrumentInterval "refreshWaveSim" start)
-//}
+//                 let model, allWaves, spinnerPayload, numToDo =
+//                     //printfn $"{wavesToBeMade.Length} waves to make."
+//                     let numToDo = wavesToBeMade.Length
+//                     makeWaveformsWithTimeOut (Some Constants.initSimulationTime) wsModel allWaves wavesToBeMade
+//                     |> (fun (allWaves, numDone, timeOpt) ->
+//                             match wavesToBeMade.Length - numDone, timeOpt with
+//                             | n, None -> 
+//                                 model, allWaves, None, n // finished
+//                             | _ when numDone = 0 -> 
+//                                 failwithf "What? makewaveformsWithTimeOut must make at least one waveform"
+//                             | numToDo, Some t when 
+//                                     float wavesToBeMade.Length * t / float numDone < Constants.maxSimulationTimeWithoutSpinner ->
+//                                 let (allWaves, numDone, timeOpt) = makeWaveformsWithTimeOut None wsModel allWaves wavesToBeMade
+//                                 model, allWaves, None, numToDo - numDone
+//                             | numToDo, _ ->
+//                                 let payload = Some ("Making waves", refreshWaveSim false {wsModel with AllWaves = allWaves} >> fst)
+//                                 model,  allWaves, payload, numToDo)
+
+//                 let ramComps =
+//                     let isRAMOrROM fcid (fc: FastComponent) =
+//                         match fc.FType with
+//                         | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ ->
+//                             true
+//                         | _ -> false
+//                     Map.filter isRAMOrROM fs.FComps
+//                     |> Map.toList
+//                     |> List.map (fun (fcid,fc) -> fc)
+//                     |> List.sortBy (fun fc -> fc.FullName)
+
+//                 let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
+//                 let allWaveA = Map.keys allWaves |> Seq.toArray
+//                 // arrayIndex may have changed, so we have to use new arrayIndex
+//                 // if we cannot find it, then the selected wave no longer exists and is dropped
+//                 let selectedWaves = 
+//                     wsModel.SelectedWaves
+//                     |> List.collect (fun wi -> match Array.tryFind (isSameWave wi) allWaveA with Some w -> [w] | None -> [])
+
+//                 let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
+
+//                 let ws =  
+//                     {
+//                         wsModel with
+//                             State = Success
+//                             AllWaves = allWaves
+//                             SelectedWaves = selectedWaves
+//                             RamComps = ramComps
+//                             SelectedRams = selectedRams
+//                             FastSim = fs
+//                     }
+
+//                 let model = 
+//                     match spinnerPayload with
+//                     | None -> cancelSpinner model
+//                     | Some sp -> 
+//                         updateSpinner (fst sp) (snd sp) numToDo model
+//                     |> updateWSModel (fun _ -> ws)
+//                 model, Elmish.Cmd.none
+//                 |> TimeHelpers.instrumentInterval "refreshWaveSim" start)
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.

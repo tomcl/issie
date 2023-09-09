@@ -22,6 +22,8 @@ open Optics
 open Optics.Operators
 open TestParser
 open ContextMenus
+open WorkerInterface
+open CommonTypes
 
 importSideEffects "./scss/main.css"
 
@@ -419,7 +421,13 @@ let keyPressListener initial =
 
 
     
-
+let waveGenWorkerSub (model: Model) =
+    let subWaveGenWorker dispatch =
+        let onMsgFn (msg: {|data: {|idx: WaveIndexT; wave: Wave|}|}) =
+            dispatch <| UpdateWave (msg.data.idx, msg.data.wave)
+        setWorkerOnMsg onMsgFn model.WaveGenWorker
+    Cmd.ofSub subWaveGenWorker
+        
 
 
     
@@ -428,4 +436,5 @@ Program.mkProgram init update view'
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
 |> Program.withSubscription keyPressListener
+|> Program.withSubscription waveGenWorkerSub
 |> Program.run

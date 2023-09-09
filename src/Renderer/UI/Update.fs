@@ -16,6 +16,7 @@ open UpdateHelpers
 open Optics
 open Optics.Optic
 open Optics.Operators
+open WorkerInterface
 
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
@@ -579,6 +580,13 @@ let update (msg : Msg) oldModel =
 
     | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
+    
+    | RunWaveGenWorker (ws, index, wave) ->
+        sendWorkerMsg {|WS = ws; Index = index; Wave = wave|} model.WaveGenWorker
+        model, Cmd.none
+
+    | UpdateWave (index, wave) ->
+        WaveSim.updateWave index wave model
 
     // post-processing of update function (Model * Cmd<Msg>)
     |> map fst_ (fun model' -> resetDialogIfSelectionHasChanged model' oldModel)

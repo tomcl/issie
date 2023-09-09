@@ -114,6 +114,7 @@
 
     <Compile Include="VerilogComponent\TestParser.fs" />
     <Compile Include="TestWorker.fs" />
+    <Compile Include="WaveGenWorker.fs" />
     <Compile Include="Playground.fs" />
 
     <Compile Include="Renderer.fs" />

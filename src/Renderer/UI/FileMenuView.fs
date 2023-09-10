@@ -571,6 +571,10 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                             div [] [
                                 str "regx16x8 file from EEP1 demo using wire labels to simplify wiring"
                             ]
+                        | "adder (4-bit)" ->
+                            div [] [
+                                str "Cascading full adders to create 4-bit adder"
+                            ]
                         | _ -> str "Information about other design"
                         //br []
                       

@@ -594,10 +594,14 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
         
         let demosList =
             fun (model' : Model) ->
+                div [] [
+                p [Style [FontWeight "bold"]] [str "Note: Reloading the demo deletes all changes made to it."]
+                br []
                 Menu.menu []
                     [ Menu.list []
                           (demosContent model)
                     ]
+            ]
 
         let foot =
             fun (model' : Model) ->

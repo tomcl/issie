@@ -504,7 +504,7 @@ let openDemoProjectFromPath (path:string) model dispatch =
 
     )
 
-/// show dialog for loading a some demo project
+/// load demo project into Issie executables
 let loadDemoProject model dispatch basename =
     warnAppWidth dispatch (fun _ ->
 

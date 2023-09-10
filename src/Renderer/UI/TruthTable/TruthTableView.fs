@@ -62,11 +62,11 @@ let updateMergeSplitWireLabels (model: Model) dispatch =
         | MergeWires, "" | MergeWires, "L" ->
             let newLabel = sprintf "MW%i" mwIdx
             mwIdx <- mwIdx + 1
-            FileMenuHelpers.setComponentLabel model sheetDispatch c newLabel
+            MenuHelpers.setComponentLabel model sheetDispatch c newLabel
         | SplitWire _, "" | SplitWire _, "L" ->
             let newLabel = sprintf "SW%i" swIdx
             swIdx <- swIdx + 1
-            FileMenuHelpers.setComponentLabel model sheetDispatch c newLabel
+            MenuHelpers.setComponentLabel model sheetDispatch c newLabel
         | _ -> ())
 
 //-------------------------------------------------------------------------------------//

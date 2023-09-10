@@ -90,9 +90,9 @@
     <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI\UIPopups.fs" />
     <Compile Include="UI\MemoryEditorView.fs" />
-    <Compile Include="UI\FileMenuHelpers.fs" />
-    <Compile Include="UI\Breadcrumbs.fs" />
-    <Compile Include="UI\FileMenuView.fs" />
+    <Compile Include="UI\MenuHelpers.fs" />
+    <Compile Include="UI\MiscMenuView.fs" />
+    <Compile Include="UI\TopMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI\SimulationView.fs" />
     <Compile Include="UI\TruthTable\TruthTableReduce.fs" />

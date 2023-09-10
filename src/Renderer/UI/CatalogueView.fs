@@ -25,8 +25,8 @@ open CodeEditorHelpers
 open Fable.SimpleJson
 open Fable.Core.JsInterop
 open System
-open FileMenuView
-open FileMenuHelpers
+open TopMenuView
+open MenuHelpers
 open SheetCreator
 
 NearleyBindings.importGrammar
@@ -126,7 +126,7 @@ let private createInputPopup typeStr (compType: int * int option -> ComponentTyp
             let inputText = getText dialogData
             let widthInt = getInt dialogData
             let defaultValueInt = int (getInt2 dialogData)
-            createComponent (compType (widthInt, Some defaultValueInt)) (FileMenuHelpers.formatLabelFromType (compType (widthInt, Some defaultValueInt)) inputText) model dispatch
+            createComponent (compType (widthInt, Some defaultValueInt)) (MenuHelpers.formatLabelFromType (compType (widthInt, Some defaultValueInt)) inputText) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
@@ -157,7 +157,7 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
             // TODO: repeat this throughout this file and selectedcomponentview (use functions)
             let inputText = getText dialogData
             let inputInt = getInt dialogData
-            createComponent (compType inputInt) (FileMenuHelpers.formatLabelFromType (compType inputInt) inputText) model dispatch
+            createComponent (compType inputInt) (MenuHelpers.formatLabelFromType (compType inputInt) inputText) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->

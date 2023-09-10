@@ -9,7 +9,7 @@ open CommonTypes
 open ModelType
 open WaveSimStyle
 open WaveSimHelpers
-open FileMenuView
+open TopMenuView
 open SimulatorTypes
 
 

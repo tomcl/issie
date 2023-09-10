@@ -118,11 +118,14 @@ let pathWithoutExtension filePath =
 let baseNameWithoutExtension =
     pathWithoutExtension >> baseName
 
-let fileNameIsBad name = 
-    name 
-    |> Seq.filter (fun ch -> not (ch = ' ' || Char.IsLetterOrDigitOrUnderscore ch))
-    |> Seq.isEmpty
-    |> not
+let fileNameIsBad name =
+    match (name |> Seq.tryItem 0) |> Option.map (fun c -> System.Char.IsDigit c || c = '_') with
+    | Some true -> true
+    | Some false | None -> 
+        name
+        |> Seq.filter (fun ch -> not (ch = ' ' || Char.IsLetterOrDigitOrUnderscore ch))
+        |> Seq.isEmpty
+        |> not
 
 let filePathIsBad = 
     baseNameWithoutExtension >> fileNameIsBad
@@ -179,6 +182,12 @@ let readFilesFromDirectory (path:string) : string list =
 
 let hasExtn extn fName =
     (String.toLower fName).EndsWith (String.toLower extn)
+
+/// copy a sheet from some source path to a destination path
+let copyFile (sourcePath: string) (newPath: string) =
+    match readFile sourcePath |> writeFile newPath with
+    | Ok _ -> ()
+    | Error msg -> log <| msg
 
 
 let readFilesFromDirectoryWithExtn (path:string) (extn:string) : string list =

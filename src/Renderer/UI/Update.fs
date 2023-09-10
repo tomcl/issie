@@ -17,6 +17,7 @@ open Optics
 open Optics.Optic
 open Optics.Operators
 open WorkerInterface
+open WaveSim
 
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
@@ -582,7 +583,7 @@ let update (msg : Msg) oldModel =
         model, Cmd.none
     
     | RunWaveGenWorker (ws, index, wave) ->
-        sendWorkerMsg {|WS = ws; Index = index; Wave = wave|} model.WaveGenWorker
+        sendWorkerMsg {|WaveParams = (getWaveGenParams ws); Index = index; Wave = wave|} model.WaveGenWorker
         model, Cmd.none
 
     | UpdateWave (index, wave) ->

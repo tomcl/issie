@@ -273,7 +273,7 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
         WaveId = wi
         StartCycle = ws.StartCycle
         ShownCycles = ws.ShownCycles
-        CycleWidth = singleWaveWidth ws
+        CycleWidth = singleWaveWidthFromModel ws
         Radix = ws.Radix
         SubSheet = fc.SubSheet
         DisplayName = dispName

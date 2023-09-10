@@ -262,8 +262,8 @@ let zoomInSVG =
         ]
 
 /// Props for displaying values on non-binary waves
-let valueOnWaveProps m i start width : IProp list = [
-    X (start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
+let valueOnWaveProps waveParams i start width : IProp list = [
+    X (start * (singleWaveWidth waveParams) + Constants.nonBinaryTransLen + float i * width)
     Y (0.6 * Constants.viewBoxHeight)
     Style [
         FontSize Constants.fontSizeValueOnWave
@@ -515,10 +515,10 @@ let showWaveformsStyle = Style [
 
 
 /// Props for text in clock cycle row
-let clkCycleText m i : IProp list = [
+let clkCycleText (m: WaveSimModel) i : IProp list = [
     SVGAttr.FontSize "12px"
     SVGAttr.TextAnchor "middle"
-    X (singleWaveWidth m * (float i + 0.5))
+    X (singleWaveWidthFromModel m * (float i + 0.5))
     Y (0.6 * Constants.viewBoxHeight)
 ]
 
@@ -529,7 +529,7 @@ let clkCycleSVGStyle = Style [
 ]
 
 /// Props for waveform column rows
-let waveformColumnRowProps m : IProp list = [
+let waveformColumnRowProps (m: WaveSimModel) : IProp list = [
     SVGAttr.Height Constants.rowHeight
     SVGAttr.Width (viewBoxWidth m)
     // min-x, min-y, width, height
@@ -538,7 +538,7 @@ let waveformColumnRowProps m : IProp list = [
 ]
 
 /// Props for row of clock cycle numbers
-let clkCycleNumberRowProps m : IProp list = 
+let clkCycleNumberRowProps (m: WaveSimModel) : IProp list = 
     waveformColumnRowProps m @ [
     clkCycleSVGStyle
 ]
@@ -572,7 +572,7 @@ let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
             Y2 (Constants.viewBoxHeight * float (count + 1))
         ] []
     [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
-    |> List.map (fun x -> clkLine (float x * singleWaveWidth wsModel))
+    |> List.map (fun x -> clkLine (float x * singleWaveWidthFromModel wsModel))
 
 /// Controls the background highlighting of which clock cycle is selected
 let clkCycleHighlightSVG m dispatch =
@@ -596,16 +596,16 @@ let clkCycleHighlightSVG m dispatch =
             /// ev.clientX is X-coord of mouse click. bcr.left is x-coord of start of SVG.
             /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
             /// add m.StartCycle to account for when viewBoxMinX is not 0
-            let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
+            let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidthFromModel m) + m.StartCycle
             dispatch <| UpdateWSModel (fun m -> {m with CurrClkCycle = cycle})
         )
         ]
         (List.append 
             [
                 rect [
-                    SVGAttr.Width (singleWaveWidth m)
+                    SVGAttr.Width (singleWaveWidthFromModel m)
                     SVGAttr.Height "100%"
-                    X (float m.CurrClkCycle * (singleWaveWidth m))
+                    X (float m.CurrClkCycle * (singleWaveWidthFromModel m))
                 ] []
             ]
             (backgroundSVG m count)
@@ -703,13 +703,13 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     let waveColWidth = w - otherDivWidths - namesColWidth - valuesColumnWidth
 
     /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
-    let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidth wsModel))
+    let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidthFromModel wsModel))
 
 
     let singleCycleWidth = float waveColWidth / float wholeCycles
 
     let viewerWidth = namesColWidth + Constants.valuesColWidth + int (singleCycleWidth * float wholeCycles) + otherDivWidths
-    let updateFn wsModel = 
+    let updateFn (wsModel: WaveSimModel) = 
         {
         wsModel with
             ShownCycles = wholeCycles

@@ -5,9 +5,9 @@ open WaveSim
 open CommonTypes
 open ModelType
 
-let waveGen (msg: {|ws: WaveSimModel; index: WaveIndexT; wave: Wave|}) =
-    let outWave = generateWaveform msg.ws msg.index msg.wave
-    postMessage outWave
+let waveGen (msg: {|waveParams: WaveGenParams; index: WaveIndexT; wave: Wave|}) =
+    let outWave = generateWaveform msg.waveParams msg.index msg.wave
+    postMessage (msg.index, outWave)
     closeWorker()
 
 defineWorkerOnMsg waveGen

@@ -122,15 +122,16 @@ let xShift clkCycleWidth =
 
 /// Width of one clock cycle.
 let singleWaveWidth m = max 5.0 (float m.WaveformColumnWidth / float m.ShownCycles)
+let singleWaveWidthFromModel (m: WaveSimModel) = max 5.0 (float m.WaveformColumnWidth / float m.ShownCycles)
 
 /// Left-most coordinate of the SVG viewbox.
-let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
+let viewBoxMinX (m: WaveSimModel) = string (float m.StartCycle * singleWaveWidthFromModel m)
 
 /// Total width of the SVG viewbox.
-let viewBoxWidth m = string (max 5.0 (m.WaveformColumnWidth))
+let viewBoxWidth (m: WaveSimModel) = string (max 5.0 (m.WaveformColumnWidth))
 
 /// Right-most visible clock cycle.
-let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
+let endCycle (wsModel: WaveSimModel) = wsModel.StartCycle + (wsModel.ShownCycles) - 1
 
 /// Helper function to create Bulma buttons
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]

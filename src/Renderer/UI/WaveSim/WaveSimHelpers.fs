@@ -8,7 +8,7 @@ open Fable.React.Props
 open CommonTypes
 open ModelType
 open ModelHelpers
-open FileMenuView
+open TopMenuView
 open SimulatorTypes
 open FastRun
 open NumberHelpers

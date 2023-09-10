@@ -6,7 +6,7 @@ open Fable.React.Props
 
 open DiagramStyle
 open ModelType
-open FileMenuView
+open TopMenuView
 open WaveSimHelpers
 open WaveSimStyle
 open WaveSim
@@ -359,13 +359,13 @@ let displayView model dispatch =
             Cursor topCursorText ] ] [
         // transient
         
-        FileMenuView.viewNoProjectMenu model dispatch
+        TopMenuView.viewNoProjectMenu model dispatch
         
         
         UIPopups.viewPopup model dispatch 
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
-        FileMenuView.viewTopMenu model dispatch
+        TopMenuView.viewTopMenu model dispatch
 
         if model.PopupDialogData.Progress = None then
             SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch

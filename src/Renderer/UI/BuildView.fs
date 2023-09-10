@@ -49,7 +49,7 @@ let private makeRowForCompilationStage (name: string) (stage: SheetT.Compilation
     ]
 
 let verilogOutput (vType: Verilog.VMode) (model: Model) (profile: Verilog.CompilationProfile) (dispatch: Msg -> Unit) =
-    match FileMenuHelpers.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
+    match MenuHelpers.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
             match model.UIState with
             | Some _ -> () // do nothing if in middle of I/O operation

@@ -22,8 +22,8 @@ open Sheet.SheetInterface
 open DrawModelType
 open FilesIO
 open CatalogueView
-open FileMenuView
-open FileMenuHelpers
+open TopMenuView
+open MenuHelpers
 
 module Constants =
     let labelUniqueMess = "Components must have a unique label within one sheet"
@@ -230,7 +230,7 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
                 
                 (makePopupButton
                     "Memory Initial Data Source"
-                    (FileMenuHelpers.makeSourceMenu 
+                    (MenuHelpers.makeSourceMenu 
                         model
                         (model.Sheet.UpdateMemory sheetDispatch) 
                         compId 
@@ -503,7 +503,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
                 dispatch <| SetPropertiesNotification props
             else
                 model.Sheet.ChangeWidth sheetDispatch (ComponentId comp.Id) newWidth
-                let text' = match comp.Type with | BusSelection _ -> text | _ -> FileMenuHelpers.formatLabelAsBus newWidth text
+                let text' = match comp.Type with | BusSelection _ -> text | _ -> MenuHelpers.formatLabelAsBus newWidth text
                 //SetComponentLabelFromText model comp text' // change the JS component label
                 let lastUsedWidth = 
                     match comp.Type with 
@@ -1018,7 +1018,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         dispatch <| SetPopupDialogBadLabel (true)
                         dispatch <| SetPopupDialogText (Some text)
                     | Ok label -> 
-                        FileMenuHelpers.setComponentLabel model sheetDispatch comp label
+                        MenuHelpers.setComponentLabel model sheetDispatch comp label
                         dispatch <| SetPopupDialogText (Some label)
                         dispatch <| SetPopupDialogBadLabel (false)
                     dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component

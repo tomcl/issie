@@ -11,8 +11,8 @@ open ModelType
 open ModelHelpers
 open CommonTypes
 open Extractor
-open FileMenuHelpers
-open FileMenuView
+open MenuHelpers
+open TopMenuView
 open Sheet.SheetInterface
 open BusWireUpdateHelpers
 open DrawModelType
@@ -660,15 +660,15 @@ let verilogOutputPage sheet fPath  =
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     match act with
     | MenuSaveFile -> 
-        FileMenuHelpers.saveOpenFileActionWithModelUpdate model dispatch |> ignore
+        MenuHelpers.saveOpenFileActionWithModelUpdate model dispatch |> ignore
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
     | MenuSaveProjectInNewFormat ->
-        FileMenuHelpers.saveOpenProjectInNewFormat model |> ignore
+        MenuHelpers.saveOpenProjectInNewFormat model |> ignore
     | MenuNewFile -> 
-        FileMenuView.addFileToProject model dispatch
+        TopMenuView.addFileToProject model dispatch
     | MenuExit ->
-        FileMenuView.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
+        TopMenuView.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
     | MenuVerilogOutput ->
         mapOverProject () model (fun p ->
             let sheet = p.OpenFileName

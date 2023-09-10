@@ -9,7 +9,7 @@ open ModelType
 open ModelHelpers
 open WaveSimStyle
 open WaveSimHelpers
-open FileMenuView
+open TopMenuView
 open SimulatorTypes
 open NumberHelpers
 open DrawModelType

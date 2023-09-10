@@ -43,7 +43,7 @@ module Constants =
 /// maybe it should be a subfunction.
 let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) =
     printfn "Verilog output"
-    match FileMenuHelpers.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
+    match MenuHelpers.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
             match model.UIState with  //TODO should this be its own UI operation?
             | Some _ ->

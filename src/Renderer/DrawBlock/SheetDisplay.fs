@@ -160,12 +160,76 @@ let view
 
         makePolygon polygonPoints selectionBox
 
+        
+    /// Draws an annotation on the SVG canvas - equivalent of drawSymbol but used for visual objects
+    /// with no underlying electrical component.
+    /// annotations have an Annotation field and a dummy Component used to provide expected H,W
+    let drawAnnotation (symbol:SymbolT.Symbol) =
+        let transform = symbol.STransform
+        let outlineColour, strokeWidth = "black", "1.0"
+        let H,W = symbol.Component.H, symbol.Component.W
+        let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour = 
+            [makeAnyPath startingPoint pathAttr {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]
+        match symbol.Annotation with
+        | None -> 
+            failwithf "Should not be getting Annotation = None for drawing scalingBox buttons "
+        | Some a ->
+            match a with
+            | SymbolT.ScaleButton ->
+                let shapePoints = 
+                    [   (7.75, 6.75); 
+                        (-1.75, -1.75); (6.5, 0.); (0., 7.); (-1.75, -2.);
+                        (-6.25, 6.); 
+                        (1.5, 1.5); (-7., 0.); (0, -6.5); (2., 2.);
+                        (6.75, -6.25)
+                    ]
+                    |> List.map (fun (x,y) -> {X=x;Y=y})
+                let arrowHeadTopRight = ((makeLineAttr (shapePoints[1].X) shapePoints[1].Y)) + ((makeLineAttr (shapePoints[2].X) shapePoints[2].Y)) + ((makeLineAttr (shapePoints[3].X) shapePoints[3].Y)) + ((makeLineAttr (shapePoints[4].X) shapePoints[4].Y))+ ((makeLineAttr (shapePoints[5].X) shapePoints[5].Y))
+                let arrowHeadBottomLeft = ((makeLineAttr (shapePoints[6].X) shapePoints[6].Y)) + ((makeLineAttr (shapePoints[7].X) shapePoints[7].Y)) + ((makeLineAttr (shapePoints[8].X) shapePoints[8].Y)) + ((makeLineAttr (shapePoints[9].X) shapePoints[9].Y))+ ((makeLineAttr (shapePoints[10].X) shapePoints[10].Y))
+                (createAnyPath (symbol.Pos+shapePoints[0])(arrowHeadTopRight+arrowHeadBottomLeft) "grey" strokeWidth outlineColour)
+            
+            | SymbolT.RotateButton _ ->
+            
+                //chooses the shape of curvy components so flip and rotations are correct
+                //HLP23: Author Ismagilov
+                let adjustCurvyPoints (points:XYPos[] List) = 
+                    match transform.Rotation,transform.flipped with 
+                        | Degree0, false -> points[0]
+                        | Degree0, true -> points[2]
+                        | Degree90, _-> points[1]
+                        | Degree180, true -> points[0]
+                        | Degree180, false -> points[2]
+                        | Degree270,_ -> points[3]
+
+                let curvyShape =
+                    [   [| (W/3., 7.*H/9.); (0.,(-H/9.)); (-W/4.,(H/6.));(W/4.,H/6.);(0, -H/9.);(0., -W/2.);
+                            (0, W/2.);(-W/4., 0);(0, H/9.);(W/4., 0);(0.001, 7.*W/18.);(0.001, -7.*W/18.)
+                        |]
+                        [|  (2.*W/3., 7.*H/9.); (0.,(-H/9.)); (W/4.,(H/6.));(-W/4.,H/6.);(0, -H/9.);(0.001, -W/2.);
+                            (0.001, W/2.);(W/4., 0);(0, H/9.);(-W/4., 0);(0, 7.*W/18.);(0, -7.*W/18.)
+                        |]
+                    ]                                   
+                    |> List.map (Array.map (fun (x,y) -> {X=x;Y=y}))
+                    |> adjustCurvyPoints
+
+                let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
+                let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
+                let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
+                let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
+
+                (createAnyPath (symbol.Pos + curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
+
+
     let scalingBox = 
         match model.ScalingBox with
         | None -> [makeAnyPath {X=0;Y=0} (makeLineAttr 0.0 0.0) defaultPath] @ [makeCircle 0.0 0.0 {defaultCircle with R=0.0}]
         | _ -> 
             let {BoundingBox.TopLeft = {X=fX; Y=fY}; H=fH; W=fW} = model.ScalingBox.Value.ScalingBoxBound
-            [makeAnyPath {X=fX+50.0+fW;Y=(fY-46.5)} ((makeLineAttr 0.0 (fH+96.5))+(makeLineAttr -(fW+100.0) 0)+(makeLineAttr 0.0 (-(fH)-100.0))+(makeLineAttr (fW+96.5) 0.0)) {defaultPath with StrokeDashArray="4,4"}]
+            [makeAnyPath {X=fX+50.0+fW;Y=(fY-46.5)} ((makeLineAttr 0.0 (fH+96.5))+(makeLineAttr -(fW+100.0) 0)+(makeLineAttr 0.0 (-(fH)-100.0))+(makeLineAttr (fW+96.5) 0.0)) {defaultPath with StrokeDashArray="4,4"}] 
+            @ drawAnnotation model.ScalingBox.Value.RotateDeg270Button
+            @ drawAnnotation model.ScalingBox.Value.RotateDeg90Button
+            @ drawAnnotation model.ScalingBox.Value.ScaleButton
+
 
     let connectingPortsWire =
         let connectPortsLine = { defaultLine with Stroke = "Green"; StrokeWidth = "2.0px"; StrokeDashArray = "5, 5" }

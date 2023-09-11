@@ -566,7 +566,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
 /// Finds all components that touch a bounding box (which is usually the drag-to-select box)
 let findIntersectingComponents (model: Model) (box1: BoundingBox) =
     model.BoundingBoxes
-    |> Map.filter (fun _ boundingBox -> boxesIntersect boundingBox box1)
+    |> Map.filter (fun id boundingBox -> (Map.find id (model.Wire.Symbol.Symbols)).Annotation = None && boxesIntersect boundingBox box1)
     |> Map.toList
     |> List.map fst
 

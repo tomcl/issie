@@ -256,6 +256,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | Degree90 -> {X= 5.+ w/2.; Y=h/2. }, "start"
         addText pos text align "bold" Constants.busSelectTextSize
 
+
     let clockTxtPos = 
         match transform.Rotation, transform.flipped with
         | Degree0, false -> {X = 17.; Y = H - 13.}
@@ -266,6 +267,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         | Degree0, true -> {X = W - 17.; Y = H - 13.}
         | Degree270, false -> {X = 10.; Y = 11.}
         | Degree90, true -> {X = 8.; Y = float h - 20.}
+
 
     /// Points that define the edges of the symbol
     let points =
@@ -316,7 +318,6 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
         |> toString 
-
 
 
     let additions =       // Helper function to add certain characteristics on specific symbols (inverter, enables, clocks)
@@ -408,6 +409,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             (addText (Array.head (rotatePoints [|{X = 15.; Y = float H - 11.}|] {X=W/2.;Y=H/2.} transform )) " clk" "middle" "normal" "12px")
         | _ -> []
 
+
     let outlineColour, strokeWidth =
         match comp.Type with
         | SplitWire _ | MergeWires -> outlineColor colour, "4.0"
@@ -416,7 +418,6 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         | NotConnected -> outlineColor colour, "4.0"
         | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"
-    
 
 
     /// to deal with the label
@@ -427,7 +428,6 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             match comp.Type with
             | BusSelection _ | IOLabel -> Constants.thinComponentLabelOffsetDistance
             | _ -> Constants.componentLabelOffsetDistance
-
 
         let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
         let text = addStyledText pos {style with DominantBaseline="hanging"}  comp.Label
@@ -450,12 +450,9 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                     let c' = c - symbol.Pos
                     makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
             text :: corners
-
-
-
- 
             
     let labelcolour = outlineColor symbol.Appearance.Colour
+
     let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
         let pMap = symbol.PortMaps.Order
         let vertFlip = symbol.STransform.Rotation = Degree180
@@ -479,6 +476,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | _ -> failwithf "What? Can't happen"
 
         {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset
+
     let legendFontSize (ct:ComponentType) =
         match ct with
         | Custom _ -> Constants.customLegendFontSizeInPixels
@@ -499,67 +497,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
     |> List.append (additions)
     |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
     |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth comp)
-    // |> 
 
-/// Draws an annotation on the SVG canvas - equivalent of drawSymbol but used for visual objects
-/// with no underlying electrical component.
-/// annotations have an Annotation field and a dummy Component used to provide expected H,W
-let drawAnnotation (symbol:Symbol) (theme:ThemeType) =
-    let transform = symbol.STransform
-    let outlineColour, strokeWidth = "black", "1.0"
-    let H,W = symbol.Component.H, symbol.Component.W
-    match symbol.Annotation with
-    | None -> []
-    | Some a ->
-        //chooses the shape of curvy components so flip and rotations are correct
-        //HLP23: Author Ismagilov
-        let adjustCurvyPoints (points:XYPos[] List) = 
-            match transform.Rotation,transform.flipped with 
-                | Degree0, false -> points[0]
-                | Degree0, true -> points[2]
-                | Degree90, _-> points[1]
-                | Degree180, true -> points[0]
-                | Degree180, false -> points[2]
-                | Degree270,_ -> points[3]
-
-        let curvyShape =
-            [   [| (W/3., 7.*H/9.); (0.,(-H/9.)); (-W/4.,(H/6.));(W/4.,H/6.);(0, -H/9.);(0., -W/2.);
-                    (0, W/2.);(-W/4., 0);(0, H/9.);(W/4., 0);(0.001, 7.*W/18.);(0.001, -7.*W/18.)
-                |]
-                [|  (2.*W/3., 7.*H/9.); (0.,(-H/9.)); (W/4.,(H/6.));(-W/4.,H/6.);(0, -H/9.);(0.001, -W/2.);
-                    (0.001, W/2.);(W/4., 0);(0, H/9.);(-W/4., 0);(0, 7.*W/18.);(0, -7.*W/18.)
-                |]
-            ]                                   
-            |> List.map (Array.map (fun (x,y) -> {X=x;Y=y}))
-            |> adjustCurvyPoints
-        match a with
-        | ScaleButton ->
-            [ makeCircle (10.0) (10.0){defaultCircle with R = 3.5; Fill = "Grey"} ]
-        | RotateButton _ ->
-            let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
-            let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
-            let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
-            let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
-            (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
-            // match symbol.STransform.Rotation with
-            //     | Degree90 ->
-            //         let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
-            //         let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
-            //         let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
-            //         let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
-            //         (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
-            //     | _ -> 
-            //         let arrowHead = ((makeLineAttr (curvyShape[1].X) curvyShape[1].Y)) + ((makeLineAttr (curvyShape[2].X) curvyShape[2].Y)) + ((makeLineAttr (curvyShape[3].X) curvyShape[3].Y)) + ((makeLineAttr (curvyShape[4].X) curvyShape[4].Y))
-            //         let arcAttr1  = makePartArcAttr (W/2.)(curvyShape[5].Y) (curvyShape[5].X) (curvyShape[6].Y) (curvyShape[6].X)
-            //         let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
-            //         let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
-            //         (createAnyPath (curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
-   
-
-let drawSymbol (symbol:Symbol) (theme:ThemeType) =
-    match symbol.Annotation with
-    | Some ann -> drawAnnotation symbol theme
-    | _ -> drawComponent symbol theme
 //----------------------------------------------------------------------------------------//
 //---------------------------------View Function for Symbols------------------------------//
 //----------------------------------------------------------------------------------------//
@@ -582,41 +520,29 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol props.Theme)
+                (drawComponent props.Symbol props.Theme)
             
         , "Symbol"
         , equalsButFunctions
         )
-    
-/// View function for symbol layer of SVG
-let MapsIntoLists map =
-    let listMoving = 
-        Map.filter (fun _ sym -> not sym.Moving) map
-        |>Map.toList
-        |>List.map snd
-    let listNotMoving =
-        Map.filter (fun _ sym -> sym.Moving) map
-        |>Map.toList
-        |>List.map snd
-    listMoving @ listNotMoving
 
 
 let view (model : Model) (dispatch : Msg -> unit) =    
     /// View function for symbol layer of SVG
-    let toListOfMovingAndNot map =
-        let listMoving = 
-            Map.filter (fun _ sym -> not sym.Moving) map
+    let toListOfNotMovingAndMoving map =
+        let listNotMoving = 
+            Map.filter (fun _ sym -> not sym.Moving && sym.Annotation = None) map
             |> Map.toList
             |> List.map snd
-        let listNotMoving =
-            Map.filter (fun _ sym -> sym.Moving) map
+        let listMoving =
+            Map.filter (fun _ sym -> sym.Moving && sym.Annotation = None) map
             |> Map.toList
             |> List.map snd
-        listMoving @ listNotMoving
+        listNotMoving @ listMoving
 
     let start = TimeHelpers.getTimeMs()
     model.Symbols
-    |> toListOfMovingAndNot
+    |> toListOfNotMovingAndMoving
     |> List.map (fun ({Id = ComponentId id} as symbol) ->
         renderSymbol
             {

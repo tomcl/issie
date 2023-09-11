@@ -629,12 +629,15 @@ let mDragUpdate
     | InitialisedCreateComponent _ 
     | Scrolling -> model, Cmd.none
     |> setDragCursor
+
+
 /// Mouse Up Update, can have: finished drag-to-select, pressed on a component, finished symbol movement, connected a wire between ports
 let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mMsg is currently un-used, but kept for future possibilities
     let newModel =
         match model.TmpModel with
         | None -> model
         | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
+    printfn "mUpUpdate with action: %A" model.Action
     match model.Action with
     | MovingWire segIdL ->
         let connIdL = segIdL |> List.map snd
@@ -821,7 +824,10 @@ let mMoveUpdate
                 // | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
                 | Label _ -> GrabLabel
                 | Connection _ -> GrabWire
-                | Component _ -> GrabSymbol
+                | Component compId -> 
+                    match model.Wire.Symbol.Symbols[compId].Annotation with 
+                    | Some ScaleButton -> ResizeNESW
+                    | _ -> GrabSymbol
                 | ComponentCorner (_,_,idx) when ctrlPressed -> 
                     match (idx % 2) with
                     | 0 -> ResizeNWSE

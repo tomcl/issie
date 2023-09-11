@@ -506,11 +506,13 @@ let createDummyComponent (pos: XYPos) (h: float) (w:float) : Component =
 
 /// Create a new annotation symbol and add it to the map of symbols.
 /// pos: position of annotation on screen - middle of box (NOT top-left)
+/// annotation always has moving true because we want the symbol to be drawn last
+/// so it is always on top of other not moving symbols
 let createAnnotation (theme: ThemeType) (a:Annotation) (pos: XYPos)  =
     (14.0,14.0)
     ||> createDummyComponent pos
     |> createSymbolRecord [] theme
-    |> (fun sym -> {sym with Annotation= Some a})
+    |> (fun sym -> {sym with Annotation= Some a; Moving = true}) 
 
 /// Given a model and a list of components, it creates and adds the symbols containing
 /// the specified components and returns the updated model.
@@ -675,9 +677,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         // message used to update symbol bounding boxes in sheet.
         failwithf "What? This message is intercepted by Sheet update function and never found here"
     | DeleteSymbols compIds ->
+        // printfn "update msg: DeleteSymbol"
         (deleteSymbols model compIds), Cmd.none
 
     | AddSymbol (ldcs, pos,compType, lbl) ->
+        // printfn "update msg: AddSymbol"
         let (newModel, _) = addSymbol ldcs model pos compType lbl
         newModel, Cmd.none
 
@@ -708,6 +712,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         (symbolsHaveError model compList), Cmd.none
 
     | SelectSymbols compList ->
+        // printfn "update msg: selectsymbols"
         (selectSymbols model compList), Cmd.none  
 
     | ErrorSymbols (errorCompList,selectCompList,isDragAndDrop) -> 

@@ -646,14 +646,17 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
     let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
 
+    // when mouseOnScaleButton we are going to update the ScalingBox in updateHelper function instead
     if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
         model, cmd
     elif (model.SelectedComponents.Length < 2) then 
         match model.ScalingBox with 
         | None ->  model, cmd
         | _ -> {model with ScalingBox = None}, 
-                Elmish.Cmd.batch [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                                    sheetCmd SheetT.UpdateBoundingBoxes]
+                [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                 sheetCmd SheetT.UpdateBoundingBoxes]
+                |> List.append [cmd]
+                |> Elmish.Cmd.batch
     else 
         let newBoxBound = 
             model.SelectedComponents
@@ -692,8 +695,10 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
             }
             let newCmd =
                 match model.ScalingBox with
-                | Some _ -> Elmish.Cmd.batch [ symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                                               sheetCmd SheetT.UpdateBoundingBoxes]
+                | Some _ -> [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                             sheetCmd SheetT.UpdateBoundingBoxes]
+                            |> List.append [cmd]
+                            |> Elmish.Cmd.batch
                 | None -> cmd
             model
             |> Optic.set SheetT.scalingBox_ (Some initScalingBox)

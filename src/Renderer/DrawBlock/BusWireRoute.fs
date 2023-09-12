@@ -120,12 +120,17 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
     let inputCompId = model.Symbol.Ports.[string wire.InputPort].HostId
     let outputCompId = model.Symbol.Ports.[string wire.OutputPort].HostId
 
+    let componentIsMux (comp:Component) =
+        match comp.Type with
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> true
+        | _ -> false
+
     // this was added to fix MUX SEL port wire rooting bug, it is irrelevant in other cases
     let inputIsSelect =
         let inputSymbol = model.Symbol.Symbols.[ComponentId inputCompId]
         let inputCompInPorts = inputSymbol.Component.InputPorts
         
-        inputCompInPorts.[List.length inputCompInPorts - 1].Id = string wire.InputPort
+        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = string wire.InputPort)
 
     let inputCompRotation =
         model.Symbol.Symbols.[ComponentId inputCompId].STransform.Rotation
@@ -161,10 +166,16 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
         )
         |> List.map (fun (compType, boundingBox) -> boundingBox)
 
+    printfn "The size of the wire is: %A" (List.length wire.Segments)
+    let test = segVertices
+               |> List.map (fun (i, (startPos, endPos)) -> (i, (boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)))
+
+    printfn "The segments have the following intersections: %A" test
 
     segVertices
     |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
     |> List.distinct
+
 
 //------------------------------------------------------------------------//
 //--------------------------Shifting Vertical Segment---------------------//
@@ -206,22 +217,18 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
             match dir, wire.InitialOrientation with
             | Left_, Horizontal ->
                 let initialAttemptPos = updatePos Left_ smallOffset boundBox.TopLeft
-
-                findMinWireSeparation model initialAttemptPos wire Left_ Vertical boundBox.H
+                initialAttemptPos
             | Right_, Horizontal ->
                 let initialAttemptPos =
                     updatePos Right_ (boundBox.W + smallOffset) boundBox.TopLeft
-
-                findMinWireSeparation model initialAttemptPos wire Right_ Vertical boundBox.H
+                initialAttemptPos
             | Left_, Vertical ->
                 let initialAttemptPos = updatePos Up_ smallOffset boundBox.TopLeft
-
-                findMinWireSeparation model initialAttemptPos wire Up_ Horizontal boundBox.W
+                initialAttemptPos
             | Right_, Vertical ->
                 let initialAttemptPos =
                     updatePos Down_ (boundBox.H + smallOffset) boundBox.TopLeft
-
-                findMinWireSeparation model initialAttemptPos wire Down_ Horizontal boundBox.W
+                initialAttemptPos
             | _ -> failwith "Invalid direction to shift wire"
 
         let amountToShift =
@@ -235,15 +242,16 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
 
     let leftShiftedWireIntersections =
         findWireSymbolIntersections model tryShiftLeftWire
+    printfn "the left-shifted wire has these intersections: %A" leftShiftedWireIntersections
 
     let rightShiftedWireIntersections =
         findWireSymbolIntersections model tryShiftRightWire
 
     // Check which newly generated wire has no intersections, return that
     match leftShiftedWireIntersections, rightShiftedWireIntersections with
-    | [], _ -> Some tryShiftLeftWire
+    | [], _ -> printfn "left wire is good"; Some tryShiftLeftWire
     | _, [] -> Some tryShiftRightWire
-    | _, _ -> None
+    | _, _ -> printfn "both options invalid"; None
 
 //------------------------------------------------------------------------//
 //-------------------------Shifting Horizontal Segment--------------------//
@@ -308,7 +316,7 @@ let rec tryShiftHorizontalSeg
     (wire: Wire)
     : Wire option =
     match callsLeft with
-    | 0 -> None
+    | 0 -> printfn "max depth reached"; None
     | n ->
         let tryShiftHorizontalSeg = tryShiftHorizontalSeg (n - 1)
 
@@ -403,6 +411,7 @@ let rec tryShiftHorizontalSeg
 
             match findWireSymbolIntersections model shiftedWire with
             | [] -> Ok shiftedWire
+            //| intersectedBoxes -> printfn "new wire intersects with: %A" intersectedBoxes; Error(intersectedBoxes, shiftedWire)
             | intersectedBoxes -> Error(intersectedBoxes, shiftedWire)
 
         // If newly generated wire has no intersections, return that

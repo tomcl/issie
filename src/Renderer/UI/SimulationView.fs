@@ -1054,43 +1054,66 @@ let viewSimulation canvasState model dispatch =
                     ] [ str "Reset" ]]
                 ]
 
+        let blankrefresh = div [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"; Height "100%"]] [ str " "]
+
         let refreshButton = 
             match canvasStatechange, sim with 
             | true, Ok simData ->
-                if InputDefaultsEqualInputs simData.FastSim model simData.ClockTickNumber then
-                    Button.button
-                        [
-                            Button.Color buttonColor;
-                            Button.OnClick (fun _ -> 
-                                let clock = simData.ClockTickNumber
-                                startSimulation()
-                                simCache <- {simCache with ClockTickRefresh = clock})
-                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
-                            ]
-                        [str buttonText]
-                else
-                    // add pop up
-                    Button.button
-                        [
-                            Button.Color buttonColor;
-                            Button.OnClick (fun _ -> 
-                                match simRes with 
-                                | Ok _, _ ->
-                                    dialogPopupRefresh
-                                        "Refresh"
-                                        (confirmrefresh model dispatch simData)
-                                        []
-                                        dispatch
-                                | Error _, _ -> 
+                match simData.IsSynchronous, simData.ClockTickNumber with
+                | true, n when n <> 0 ->
+                    if InputDefaultsEqualInputs simData.FastSim model simData.ClockTickNumber then
+                        Button.button
+                            [
+                                Button.Color buttonColor;
+                                Button.OnClick (fun _ -> 
                                     let clock = simData.ClockTickNumber
                                     startSimulation()
                                     simCache <- {simCache with ClockTickRefresh = clock})
-                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
-                            ]
-                        [str buttonText]
+                                Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
+                                ]
+                            [str buttonText]
+                    else
+                        // add pop up
+                        Button.button
+                            [
+                                Button.Color buttonColor;
+                                Button.OnClick (fun _ -> 
+                                    match simRes with 
+                                    | Ok _, _ ->
+                                        dialogPopupRefresh
+                                            "Refresh"
+                                            (confirmrefresh model dispatch simData)
+                                            []
+                                            dispatch
+                                    | Error _, _ -> 
+                                        let clock = simData.ClockTickNumber
+                                        startSimulation()
+                                        simCache <- {simCache with ClockTickRefresh = clock})
+                                Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
+                                ]
+                            [str buttonText]
+                | _, _ -> 
+                    match simRes with 
+                    | Error _, _ -> 
+                        //view error
+                        Button.button
+                            [
+                                Button.Color buttonColor;
+                                Button.OnClick (fun _ -> 
+                                    let clock = simData.ClockTickNumber
+                                    startSimulation()
+                                    simCache <- {simCache with ClockTickRefresh = clock})
+                                Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
+                                ]
+                            [str buttonText]
+                    | Ok _, _ -> blankrefresh
             | true, Error _ ->
-                    Button.button
-                        [
+                match simRes with
+                | Ok simData, _ -> 
+                    match simData.IsSynchronous, simCache.ClockTickRefresh with
+                    | true, n when n > 0 ->
+                        Button.button
+                            [
                             Button.Color buttonColor;
                             Button.OnClick (fun _ -> 
                                 let clock = simCache.ClockTickRefresh
@@ -1099,8 +1122,10 @@ let viewSimulation canvasState model dispatch =
                                 )
                             Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
                             ]
-                        [str buttonText]
-            | false, _ -> div [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"; Height "100%"]] [ str " "]
+                            [str buttonText]
+                    | _, _ ->  blankrefresh
+                | Error _, _ -> blankrefresh
+            | false, _ -> blankrefresh
         div [Style [Height "100%"]] [
             div [Style [Height "40px"]] [
             Button.button

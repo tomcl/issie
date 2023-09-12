@@ -637,7 +637,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         match model.TmpModel with
         | None -> model
         | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
-    printfn "mUpUpdate with action: %A" model.Action
+    //printfn "mUpUpdate with action: %A" model.Action
     match model.Action with
     | MovingWire segIdL ->
         let connIdL = segIdL |> List.map snd

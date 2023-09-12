@@ -448,13 +448,11 @@ let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
     | _ -> failwithf "What? can't happen"
 
 let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
-    printfn "starting defn read"
-    tryReadFileSync fPath
+     tryReadFileSync fPath
     |> Result.bind (
         //(fun contents -> printfn "read file:\n contents={contents}"; contents)
         String.splitRemoveEmptyEntries [|'\n';'\r'|]
         >> readMemLines addressWidth wordWidth 
-        >> (fun x -> printfn "read lines"; x)
         >> Result.map Map.ofArray)
 
     

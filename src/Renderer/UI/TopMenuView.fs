@@ -390,7 +390,7 @@ let loadDemoProject model dispatch basename =
         |> List.filter isNotDir
         |> List.iter (fun basename ->
             let newPath = pathJoin [|newDir; basename|]
-            log <| printf "haha: %A" (dirName <| dirName newPath)
+            //log <| printf "haha: %A" (dirName <| dirName newPath)
             copyFile (pathJoin [|sourceDir; basename|]) newPath)
 
         openDemoProjectFromPath newDir model dispatch

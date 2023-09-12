@@ -166,11 +166,6 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
         )
         |> List.map (fun (compType, boundingBox) -> boundingBox)
 
-    printfn "The size of the wire is: %A" (List.length wire.Segments)
-    let test = segVertices
-               |> List.map (fun (i, (startPos, endPos)) -> (i, (boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)))
-
-    printfn "The segments have the following intersections: %A" test
 
     segVertices
     |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
@@ -242,16 +237,15 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
 
     let leftShiftedWireIntersections =
         findWireSymbolIntersections model tryShiftLeftWire
-    printfn "the left-shifted wire has these intersections: %A" leftShiftedWireIntersections
 
     let rightShiftedWireIntersections =
         findWireSymbolIntersections model tryShiftRightWire
 
     // Check which newly generated wire has no intersections, return that
     match leftShiftedWireIntersections, rightShiftedWireIntersections with
-    | [], _ -> printfn "left wire is good"; Some tryShiftLeftWire
+    | [], _ -> Some tryShiftLeftWire
     | _, [] -> Some tryShiftRightWire
-    | _, _ -> printfn "both options invalid"; None
+    | _, _ ->  None
 
 //------------------------------------------------------------------------//
 //-------------------------Shifting Horizontal Segment--------------------//
@@ -316,7 +310,7 @@ let rec tryShiftHorizontalSeg
     (wire: Wire)
     : Wire option =
     match callsLeft with
-    | 0 -> printfn "max depth reached"; None
+    | 0 -> None
     | n ->
         let tryShiftHorizontalSeg = tryShiftHorizontalSeg (n - 1)
 
@@ -411,7 +405,6 @@ let rec tryShiftHorizontalSeg
 
             match findWireSymbolIntersections model shiftedWire with
             | [] -> Ok shiftedWire
-            //| intersectedBoxes -> printfn "new wire intersects with: %A" intersectedBoxes; Error(intersectedBoxes, shiftedWire)
             | intersectedBoxes -> Error(intersectedBoxes, shiftedWire)
 
         // If newly generated wire has no intersections, return that

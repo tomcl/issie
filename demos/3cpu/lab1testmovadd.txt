@@ -1,0 +1,12 @@
+MOV R5, #3 // set up known values on R5...R7, test MOV with literal op2
+MOV R6, #-1
+MOV R7, #13
+MOV R0, R6 // test MOV
+ADD R1, R5, R7 // test ADD
+ADD R2, #3 // test ADD with literal op2
+ADD R4, #255 // test ADD with literal op2
+
+
+
+
+

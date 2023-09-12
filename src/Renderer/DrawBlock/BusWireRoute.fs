@@ -49,55 +49,6 @@ Implemented the following Smart Routing Algorithm:
 open BusWireRoutingHelpers.Constants
 
 
-/// Recursively tries to find the minimum wire separation between a wire and a symbol.
-/// If attempted position is too close to another parallel wire, increment separation by minWireSeparation
-let rec findMinWireSeparation
-    (model: Model)
-    (pos: XYPos)
-    (wire: Wire)
-    (direction: DirectionToMove)
-    (movedSegOrientation: Orientation)
-    (symbolEdgeLength: float)
-    =
-    // Search for intersecting wires in a search box given by symbolEdgeLength
-    let searchH, searchW =
-        match movedSegOrientation with
-        | Horizontal -> minWireSeparation * 2., symbolEdgeLength
-        | Vertical -> symbolEdgeLength, minWireSeparation * 2.
-
-    let searchBox =
-        { TopLeft =
-            pos
-            |> updatePos Up_ (minWireSeparation / 2.)
-            |> updatePos Left_ (minWireSeparation / 2.)
-          H = searchH
-          W = searchW }
-
-    let intersectingWires = getWiresInBox searchBox model
-    // If wires are in same net, do not need to increment wire separation
-    let wiresInSameNet = isWireInNet model wire
-
-    let isWireInNetlist (w: Wire) : bool =
-        match wiresInSameNet with
-        | None -> false
-        | Some(_, netlist) -> netlist |> List.exists (fun (_, w2) -> w2.WId = w.WId)
-
-    let rec isShiftNeeded =
-        function
-        | [] -> false
-        | (w, segIndex) :: rest ->
-            let segIndex = segIndex + if wire.InitialOrientation = Vertical then 1 else 0
-
-            match w.WId = wire.WId, isWireInNetlist w, movedSegOrientation, segIndex % 2 with
-            | false, false, movedSegOrientation, 1 when movedSegOrientation = Vertical -> true
-            | false, false, movedSegOrientation, 0 when movedSegOrientation = Horizontal -> true
-            | _ -> isShiftNeeded rest
-
-    match isShiftNeeded intersectingWires with
-    | false -> pos
-    | true ->
-        let newPos = updatePos direction minWireSeparation pos
-        findMinWireSeparation model newPos wire direction movedSegOrientation symbolEdgeLength
 
 /// Checks if a wire intersects any symbol within +/- minWireSeparation
 /// Returns list of bounding boxes of symbols intersected by wire.

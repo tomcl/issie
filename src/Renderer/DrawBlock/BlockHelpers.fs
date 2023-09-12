@@ -321,11 +321,11 @@ let getCopiedSymbols (symModel: SymbolT.Model) : (ComponentId list) =
 
 /// Returns the port object associated with a given portId
 let inline getPort (symModel: SymbolT.Model) (portId: string) =
-    symModel.Ports[portId]
+    symModel.Ports.[portId]
 
 let inline getSymbol (model: SymbolT.Model) (portId: string) =
     let port = getPort model portId
-    model.Symbols[ComponentId port.HostId]
+    model.Symbols.[ComponentId port.HostId]
 
 let inline getCompId (model: SymbolT.Model) (portId: string) =
     let symbol = getSymbol model portId

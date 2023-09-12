@@ -49,102 +49,79 @@ Implemented the following Smart Routing Algorithm:
 open BusWireRoutingHelpers.Constants
 
 
-/// Recursively tries to find the minimum wire separation between a wire and a symbol.
-/// If attempted position is too close to another parallel wire, increment separation by minWireSeparation
-let rec findMinWireSeparation
-    (model: Model)
-    (pos: XYPos)
-    (wire: Wire)
-    (direction: DirectionToMove)
-    (movedSegOrientation: Orientation)
-    (symbolEdgeLength: float)
-    =
-    // Search for intersecting wires in a search box given by symbolEdgeLength
-    let searchH, searchW =
-        match movedSegOrientation with
-        | Horizontal -> minWireSeparation * 2., symbolEdgeLength
-        | Vertical -> symbolEdgeLength, minWireSeparation * 2.
-
-    let searchBox =
-        { TopLeft =
-            pos
-            |> updatePos Up_ (minWireSeparation / 2.)
-            |> updatePos Left_ (minWireSeparation / 2.)
-          H = searchH
-          W = searchW }
-
-    let intersectingWires = getWiresInBox searchBox model
-    // If wires are in same net, do not need to increment wire separation
-    let wiresInSameNet = isWireInNet model wire
-
-    let isWireInNetlist (w: Wire) : bool =
-        match wiresInSameNet with
-        | None -> false
-        | Some(_, netlist) -> netlist |> List.exists (fun (_, w2) -> w2.WId = w.WId)
-
-    let rec isShiftNeeded =
-        function
-        | [] -> false
-        | (w, segIndex) :: rest ->
-            let segIndex = segIndex + if wire.InitialOrientation = Vertical then 1 else 0
-
-            match w.WId = wire.WId, isWireInNetlist w, movedSegOrientation, segIndex % 2 with
-            | false, false, movedSegOrientation, 1 when movedSegOrientation = Vertical -> true
-            | false, false, movedSegOrientation, 0 when movedSegOrientation = Horizontal -> true
-            | _ -> isShiftNeeded rest
-
-    match isShiftNeeded intersectingWires with
-    | false -> pos
-    | true ->
-        let newPos = updatePos direction minWireSeparation pos
-        findMinWireSeparation model newPos wire direction movedSegOrientation symbolEdgeLength
 
 /// Checks if a wire intersects any symbol within +/- minWireSeparation
 /// Returns list of bounding boxes of symbols intersected by wire.
 let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
-    let allSymbolBoundingBoxes =
+    let allSymbolsIntersected =
         model.Symbol.Symbols
         |> Map.values
         |> Seq.toList
-        |> List.map Symbol.getSymbolBoundingBox
+        |> List.map (fun s -> (s.Component.Type, Symbol.getSymbolBoundingBox s))
 
 
     let wireVertices =
         segmentsToIssieVertices wire.Segments wire
         |> List.map (fun (x, y, _) -> { X = x; Y = y })
 
-    let segVertices = List.pairwise wireVertices[1 .. wireVertices.Length - 2] // do not consider the nubs
+    let indexes = List.init ((List.length wireVertices)-2) (fun i -> i+1)
 
-    let inputCompId = model.Symbol.Ports[string wire.InputPort].HostId
-    let outputCompId = model.Symbol.Ports[string wire.OutputPort].HostId
+    let segVertices = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] |> List.zip indexes // do not consider the nubs
+
+    let inputCompId = model.Symbol.Ports.[string wire.InputPort].HostId
+    let outputCompId = model.Symbol.Ports.[string wire.OutputPort].HostId
+
+    let componentIsMux (comp:Component) =
+        match comp.Type with
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> true
+        | _ -> false
+
+    // this was added to fix MUX SEL port wire rooting bug, it is irrelevant in other cases
+    let inputIsSelect =
+        let inputSymbol = model.Symbol.Symbols.[ComponentId inputCompId]
+        let inputCompInPorts = inputSymbol.Component.InputPorts
+        
+        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = string wire.InputPort)
 
     let inputCompRotation =
-        model.Symbol.Symbols[ComponentId inputCompId].STransform.Rotation
+        model.Symbol.Symbols.[ComponentId inputCompId].STransform.Rotation
 
     let outputCompRotation =
-        model.Symbol.Symbols[ComponentId outputCompId].STransform.Rotation
+        model.Symbol.Symbols.[ComponentId outputCompId].STransform.Rotation
 
     let isConnectedToSelf = inputCompId = outputCompId
 
-    let boxesIntersectedBySegment startPos endPos =
-        allSymbolBoundingBoxes
-        |> List.map (fun boundingBox ->
-            { W = boundingBox.W + minWireSeparation * 2.
-              H = boundingBox.H + minWireSeparation * 2.
-              TopLeft =
-                boundingBox.TopLeft
-                |> updatePos Left_ minWireSeparation
-                |> updatePos Up_ minWireSeparation })
-        |> List.filter (fun boundingBox ->
-            match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
-            | Some _ -> true // segment intersects bounding box
-            | None -> false // no intersection
+
+    let boxesIntersectedBySegment (lastSeg:bool) startPos endPos =
+        allSymbolsIntersected
+        |> List.map (fun (compType, boundingBox) ->
+            (
+                compType,
+                {
+                    W = boundingBox.W + minWireSeparation * 2.
+                    H = boundingBox.H + minWireSeparation * 2.
+                    TopLeft =
+                    boundingBox.TopLeft
+                    |> updatePos Left_ minWireSeparation
+                    |> updatePos Up_ minWireSeparation
+                }
+            ))
+        |> List.filter (fun (compType, boundingBox) ->
+            // don't check if the final segments of a wire that connects to a MUX SEL port intersect with the MUX bounding box
+            match compType, lastSeg with
+            | Mux2, true | Mux4, true | Mux8, true | Demux2, true | Demux4, true | Demux8, true -> false
+            | _, _ ->
+                 match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+                 | Some _ -> true // segment intersects bounding box
+                 | None -> false // no intersection
         )
+        |> List.map (fun (compType, boundingBox) -> boundingBox)
 
 
     segVertices
-    |> List.collect (fun (startPos, endPos) -> boxesIntersectedBySegment startPos endPos)
+    |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
     |> List.distinct
+
 
 //------------------------------------------------------------------------//
 //--------------------------Shifting Vertical Segment---------------------//
@@ -186,22 +163,18 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
             match dir, wire.InitialOrientation with
             | Left_, Horizontal ->
                 let initialAttemptPos = updatePos Left_ smallOffset boundBox.TopLeft
-
-                findMinWireSeparation model initialAttemptPos wire Left_ Vertical boundBox.H
+                initialAttemptPos
             | Right_, Horizontal ->
                 let initialAttemptPos =
                     updatePos Right_ (boundBox.W + smallOffset) boundBox.TopLeft
-
-                findMinWireSeparation model initialAttemptPos wire Right_ Vertical boundBox.H
+                initialAttemptPos
             | Left_, Vertical ->
                 let initialAttemptPos = updatePos Up_ smallOffset boundBox.TopLeft
-
-                findMinWireSeparation model initialAttemptPos wire Up_ Horizontal boundBox.W
+                initialAttemptPos
             | Right_, Vertical ->
                 let initialAttemptPos =
                     updatePos Down_ (boundBox.H + smallOffset) boundBox.TopLeft
-
-                findMinWireSeparation model initialAttemptPos wire Down_ Horizontal boundBox.W
+                initialAttemptPos
             | _ -> failwith "Invalid direction to shift wire"
 
         let amountToShift =
@@ -223,7 +196,7 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
     match leftShiftedWireIntersections, rightShiftedWireIntersections with
     | [], _ -> Some tryShiftLeftWire
     | _, [] -> Some tryShiftRightWire
-    | _, _ -> None
+    | _, _ ->  None
 
 //------------------------------------------------------------------------//
 //-------------------------Shifting Horizontal Segment--------------------//
@@ -514,7 +487,7 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
-
+     
     let initialWire = (autoroute model wire)
     
     // Snapping to Net only if model.SnapToNet toggled to be true
@@ -523,7 +496,7 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
         | _ -> initialWire // do not snap
         //| true -> snapToNet model initialWire
 
-    let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire
+    let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire 
 
     match intersectedBoxes.Length with
     | 0 -> snappedToNetWire

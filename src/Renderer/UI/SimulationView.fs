@@ -835,6 +835,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                 str " "
                 str " "
                 Button.button [
+                    Button.Props [Tooltip.dataTooltip "Click to goto"]
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
                         let isDisabled (model': Model) =
@@ -900,7 +901,6 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             ] [str txt] ]
     div [] [
         splittedLine maybeBaseSelector maybeClockTickBtn
-        Heading.h6 [ Heading.Props [ Style [ Float FloatOptions.Right ] ]] [ str <| sprintf "Simulated up to clock tick %d" simData.FastSim.ClockTick]
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
             simData.NumberBase
@@ -1060,7 +1060,7 @@ let viewSimulation canvasState model dispatch =
             match canvasStatechange, sim with 
             | true, Ok simData ->
                 match simData.IsSynchronous, simData.ClockTickNumber with
-                | true, n when n <> 0 ->
+                | true, n when n > 0 ->
                     if InputDefaultsEqualInputs simData.FastSim model simData.ClockTickNumber then
                         Button.button
                             [

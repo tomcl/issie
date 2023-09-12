@@ -369,6 +369,7 @@ let loadDemoProject model dispatch basename =
 
         let newDir = "./demos/" + basename
         let sourceDir = FilesIO.staticDir() + "/demos/" + basename
+        ensureDirectory "./demos/"
         ensureDirectory newDir
 
         dispatch EndSimulation // End any running simulation.

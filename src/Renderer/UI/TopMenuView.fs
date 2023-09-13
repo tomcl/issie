@@ -455,10 +455,17 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
     
         let demosContent =
             fun (model' : Model) ->
-                demosInfo
-                |> List.map(fun (path, componentsCount, sheetsCount) -> 
-                            menuItem (path, componentsCount, sheetsCount)
-                                (fun _ -> loadDemoProject model' dispatch path))
+                if List.isEmpty demosInfo then
+                    [
+                    div [] [
+                        str "The directory that is supposed to contain the demos doesn't exist!"
+                    ]
+                    ]
+                else
+                    demosInfo
+                    |> List.map(fun (path, componentsCount, sheetsCount) -> 
+                                menuItem (path, componentsCount, sheetsCount)
+                                    (fun _ -> loadDemoProject model' dispatch path))
         
         
         let demosList =
@@ -489,8 +496,7 @@ let viewNoProjectMenu model dispatch =
     let demos = FilesIO.staticDir() + "/demos"
 
     let demoProjects =
-        FilesIO.readdir demos
-        |> Seq.toList
+        readFilesFromDirectory demos
 
     let demosInfo =
         demoProjects

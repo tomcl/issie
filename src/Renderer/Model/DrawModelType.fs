@@ -594,6 +594,8 @@ module SheetT =
         | NotDebugging
         | Paused
         | Running
+    
+    type ScalingDirection = ScaleUp | ScaleDown
 
     type Model = {
         Wire: BusWireT.Model
@@ -634,6 +636,7 @@ module SheetT =
         ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
         /// this is Drawblock X,Y values
         LastMousePos: XYPos // For Symbol Movement and Scaling
+        LastScalingDirectionandMouseYDiffIsNeg: (ScalingDirection*bool) Option
         ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
         LastMousePosForSnap: XYPos
         MouseCounter: int

@@ -529,18 +529,22 @@ let scaleSymbolInBlockGroup
     (block: BoundingBox)
     (sym: Symbol) : Symbol =
 
-    let symCenter = getRotatedSymbolCentre sym
+    if mag = 0 then 
+        sym 
+    else 
 
-    //Get x and y proportion of symbol to block
-    let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
+        let symCenter = getRotatedSymbolCentre sym
 
-    let newCenter = {X = (block.TopLeft.X-mag) + ((block.W+(mag*2.)) * xProp); Y = (block.TopLeft.Y-mag) + ((block.H+(mag*2.)) * yProp)}
+        //Get x and y proportion of symbol to block
+        let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
 
-    let h,w = getRotatedHAndW sym
-    let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
-    let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
+        let newCenter = {X = (block.TopLeft.X-mag) + ((block.W+(mag*2.)) * xProp); Y = (block.TopLeft.Y-mag) + ((block.H+(mag*2.)) * yProp)}
 
-    {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+        let h,w = getRotatedHAndW sym
+        let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
+        let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
+
+        {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
 
 

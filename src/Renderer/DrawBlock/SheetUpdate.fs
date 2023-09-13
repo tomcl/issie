@@ -892,6 +892,7 @@ let init () =
         DebugMappings = [||]
         DebugDevice = None
         ScalingBox = None
+        LastScalingDirectionandMouseYDiffIsNeg = None
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

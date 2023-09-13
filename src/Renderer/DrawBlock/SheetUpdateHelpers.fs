@@ -479,13 +479,30 @@ let mDragUpdate
         let startBoxPos = model.ScalingBox.Value.ScalingBoxBound.TopLeft
         let startWidth = model.ScalingBox.Value.ScalingBoxBound.W
         let startHeight = model.ScalingBox.Value.ScalingBoxBound.H
-        let distanceMoved = sqrt((mMsg.Pos.X-startMouse.X)**2 + (mMsg.Pos.Y-startMouse.Y)**2)
+        let distanceMoved = sqrt((mMsg.Pos.X-startMouse.X)**2 + (startMouse.Y - mMsg.Pos.Y)**2)
 
+        let mouseYDiffIsNeg = 
+            let mouseYDfif = (mMsg.Pos.Y - startMouse.Y) 
+            match model.LastScalingDirectionandMouseYDiffIsNeg with 
+            | Some x when abs mouseYDfif < 1. -> snd x
+            | _ -> mouseYDfif <= 0.
+
+        let scalingDirection = 
+            match (startMouse.X - mMsg.Pos.X) with 
+            | x when abs x < 3. ->
+                match model.LastScalingDirectionandMouseYDiffIsNeg with 
+                | None -> if (mMsg.Pos.Y - startMouse.Y) >= 0 then ScaleUp else ScaleDown
+                | Some x when snd x = mouseYDiffIsNeg -> 
+                    fst x
+                | Some x -> if fst x = ScaleUp then ScaleDown else ScaleUp
+            | x when x < -3 -> ScaleUp
+            |  _ -> ScaleDown 
+        
         let distMovedXY = 
-            match (startMouse.X - mMsg.Pos.X) with
-            | x when x < 0. -> distanceMoved*(1.414/2.)
-            | _ -> -1.*distanceMoved*(1.414/2.)
-                    
+            match scalingDirection with 
+            | ScaleUp -> distanceMoved*(1.414/2.)
+            | ScaleDown -> -1.*distanceMoved*(1.414/2.)
+
         let newPos = {X=startPos.X+(distMovedXY); Y=(startPos.Y-(distMovedXY))}
         let symNewButton = {symButton with Pos = newPos;
                                                     Component = {symButton.Component with X = newPos.X; Y = newPos.Y}}
@@ -517,7 +534,9 @@ let mDragUpdate
         if (newBox.ScalingBoxBound.TopLeft.X - 50. > newBlock.TopLeft.X) || (newBox.ScalingBoxBound.TopLeft.Y - 50. > newBlock.TopLeft.Y) || (newBox.ScalingBoxBound.TopLeft.X + newBox.ScalingBoxBound.W + 50. < newBlock.TopLeft.X + newBlock.W) || (newBox.ScalingBoxBound.TopLeft.Y + newBox.ScalingBoxBound.H + 50. < newBlock.TopLeft.Y + newBlock.H || errorSelectedComponents<>[]) then
             {model with
                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                        LastMousePos = mMsg.Pos}, 
+                        LastMousePos = mMsg.Pos
+                        LastScalingDirectionandMouseYDiffIsNeg = Some (scalingDirection, mouseYDiffIsNeg)
+                        }, 
                     Cmd.batch [
                         sheetCmd CheckAutomaticScrolling
                         wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
@@ -529,6 +548,7 @@ let mDragUpdate
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                     LastMousePos = mMsg.Pos
                     ErrorComponents = errorComponents
+                    LastScalingDirectionandMouseYDiffIsNeg = Some (scalingDirection, mouseYDiffIsNeg)
                     ScalingBox = Some {newBox with ScaleButton = symNewButton; RotateDeg270Button = rotateDeg270NewButton; RotateDeg90Button = rotateDeg90NewButton}}, 
         Cmd.batch [ 
             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
@@ -686,7 +706,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
             match model.ErrorComponents with
             |[] -> model
             | _ -> newModel 
-        {outputModel with Action = Idle; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
+        {outputModel with Action = Idle; LastScalingDirectionandMouseYDiffIsNeg = None; ScalingBox = Some {model.ScalingBox.Value with MouseOnScaleButton = false}; UndoList = appendUndoList model.UndoList newModel}, sheetCmd DoNothing
 
     | MovingSymbols ->
         // Reset Movement State in Model

@@ -5,11 +5,11 @@
 *)
 
 module TopMenuView
+open System
 open EEExtensions
-open Fulma
+
 open Fable.React
 open Fable.React.Props
-open Fulma.Extensions.Wikiki
 
 open Helpers
 open JSHelpers
@@ -27,7 +27,12 @@ open Optics
 open Optics.Operators
 open MenuHelpers
 open MiscMenuView
-open System
+
+open Fulma.Extensions.Wikiki
+
+open Fulma
+open Fulma.Color
+
 
 
 /// Save the Verilog file currently open, return the new sheet's Loadedcomponent if this has changed.
@@ -772,24 +777,24 @@ let viewTopMenu model dispatch =
                                         
                       Navbar.Item.div []
                           [ Navbar.Item.div []
-                                [ Button.button
+                                [ Fulma.Button.button
                                     ((if model.SavedSheetIsOutOfDate  then 
                                         []
-                                       else
-                                        [ Button.Color IsLight ]) @
+                                      else
+                                        [ Fulma.Button.Color IsLight ]) @
                                     [
-                                      Button.Color IsSuccess  
+                                      Fulma.Button.Color IsSuccess  
                                       
-                                      Button.OnClick(fun _ -> 
+                                      Fulma.Button.OnClick(fun _ -> 
                                         dispatch (StartUICmd SaveSheet)
                                         saveOpenFileActionWithModelUpdate model dispatch |> ignore
                                         dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
                       Navbar.Item.div []
                           [ Navbar.Item.div []
-                                [ Button.button 
-                                    [ Button.OnClick(fun _ -> UIPopups.viewInfoPopup dispatch) 
-                                      Button.Color IsInfo
+                                [ Fulma.Button.button 
+                                    [ Fulma.Button.OnClick(fun _ -> UIPopups.viewInfoPopup dispatch) 
+                                      Fulma.Button.Color IsInfo
                                     ] 
                                     [ str "Info" ] 
                                   
@@ -800,9 +805,9 @@ let viewTopMenu model dispatch =
                                 []
                           else
                                 [ Navbar.Item.div []
-                                    [ Button.button 
-                                        [   Button.OnClick(fun _ -> dispatch <| SheetBackAction dispatch) 
-                                            Button.Color IsSuccess
+                                    [ Fulma.Button.button 
+                                        [   Fulma.Button.OnClick(fun _ -> dispatch <| SheetBackAction dispatch) 
+                                            Fulma.Button.Color IsSuccess
                                         ] 
                                         [ str "Back" ] 
                                   

@@ -371,9 +371,10 @@ let openDemoProjectFromPath (path:string) model dispatch =
 /// load demo project into Issie executables
 let loadDemoProject model dispatch basename =
     warnAppWidth dispatch (fun _ ->
-
         let newDir = "./demos/" + basename
         let sourceDir = FilesIO.staticDir() + "/demos/" + basename
+        printf "%s" $"loading demo {sourceDir} into {newDir}"
+
         ensureDirectory "./demos/"
         ensureDirectory newDir
 
@@ -493,10 +494,14 @@ let viewNoProjectMenu model dispatch =
             [ Menu.Item.IsActive false
               Menu.Item.OnClick action ] [ str label ]
 
-    let demos = FilesIO.staticDir() + "/demos"
+    let demos = FilesIO.staticDir()
+    printfn "%s" $"staticDir={demos}"
+    let demos = demos + "/demos"
+    printfn "%s" $"demos={demos}"
 
     let demoProjects =
         readFilesFromDirectory demos
+    printfn "%s" $"demoprojects={demoProjects}"
 
     let demosInfo =
         demoProjects

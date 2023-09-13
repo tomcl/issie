@@ -116,6 +116,12 @@ let mutable debugLevel = 1
 let mutable debugLevel = 0
 #endif
 
+#if PRODUCTION
+let productionBuild = true
+#else
+let productionBuild = false
+#endif
+
 /// trace UI execution: "view" - mark view function. "update" print update messages.
 let mutable debugTraceUI: string Set = Set []
 

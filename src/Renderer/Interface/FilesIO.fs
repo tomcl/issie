@@ -23,14 +23,31 @@ open System.IO
 [<Emit("process.cwd()")>]
 let getCWD (u:unit): string = jsNative
 
+//----------------Static Asset Handling------------------------------//
+
+(*
+Static assets come from file ./static in repo but are then placed differently
+in porduction and dvelopmnet builds.
+*)
+
+/// This will only work for development
 [<Emit("__static")>]
-let staticDir() :string = jsNative
+let staticDirFromStatic() :string = jsNative
+
+/// This uses a fixed directory for production as a hack.
+/// it is dependent on the electron build which positions static assets there.
+/// productionbuild is defined in JSHelpers to be true for production (binary) builds only
+let staticDir() =
+    if productionBuild then
+        "./resources/static"
+    else
+        staticDirFromStatic()
 
 /// absolute path to repo directory ./static
 /// NB this path is not fixed (even as relative path) between
 /// production and dev builds, so this must be used to access static
 /// assets.
-// let staticFileDirectory = staticDir()
+let staticFileDirectory = staticDir()
 
 let pathJoin args = 
     #if FABLE_COMPILER

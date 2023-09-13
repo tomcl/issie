@@ -430,6 +430,31 @@ let processContextMenuClick
         |> map uISheetTrail_ (fun trail -> p.OpenFileName :: trail)
         |> withNoCmd
 
+    | DBComp sym, "Rotate Clockwise (Ctrl+Right)" ->
+        rotateDispatch Degree90
+        model
+        // |> set (sheet_ >-> SheetT.tmpModel_) 
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withNoCmd
+
+    | DBComp sym, "Rotate AntiClockwise (Ctrl+Left)" ->
+        rotateDispatch Degree270
+        model
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withNoCmd
+    
+    | DBComp sym, "Flip Vertical (Ctrl+Up)" ->
+        flipDispatch SymbolT.FlipVertical
+        model
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withNoCmd
+    
+     | DBComp sym, "Flip Horizontal (Ctrl+Down)" ->
+        flipDispatch SymbolT.FlipHorizontal
+        model
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withNoCmd
+    
     | DBComp sym, "Properties" | DBCustomComp(sym, _), "Properties" ->
          model
         |> set selectedComponent_ (Some sym.Component)
@@ -437,32 +462,17 @@ let processContextMenuClick
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> set rightPaneTabVisible_ Properties
         |> withWireMsg (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [sym.Id]))
-
-    | DBComp sym, "Rotate Clockwise (Ctrl-Right)" ->
-        rotateDispatch Degree90
-        model
-        // |> set (sheet_ >-> SheetT.tmpModel_) 
-        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+    
+    | DBComp _, "Delete (DEL)" ->
+        keyDispatch SheetT.KeyboardMsg.DEL
+        model  
         |> withNoCmd
     
-    | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl-Right)"->
-        rotateDispatch Degree90
-        model 
-        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
-        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
-
-    | DBComp sym, "Rotate AntiClockwise (Ctrl-Left)" ->
-        rotateDispatch Degree270
-        model
-        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+    | DBComp _, "Copy (Ctrl+C)" ->
+        keyDispatch SheetT.KeyboardMsg.CtrlC
+        model  
         |> withNoCmd
-
-    | DBScalingBox selectedcomps, "Rotate AntiClockwise (Ctrl-Left)"->
-        rotateDispatch Degree270
-        model 
-        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
-        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
-
+    
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
             map BusWireT.mode_ (function | BusWireT.Manual -> BusWireT.Auto | m -> m)
@@ -470,52 +480,66 @@ let processContextMenuClick
         |> map (sheet_ >-> SheetT.wireOf_ wire.WId >-> BusWireT.segments_)  (List.map changeManualSegToAuto)
         |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
         |> withNoCmd
-
-    | DBComp sym, "Flip Vertical (Ctrl-Up)" ->
-        flipDispatch SymbolT.FlipVertical
-        model
-        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
-        |> withNoCmd
     
-    | DBScalingBox selectedcomps, "Flip Vertical (Ctrl-Up)"->
-        flipDispatch SymbolT.FlipVertical
+    | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
+        rotateDispatch Degree90
         model 
         // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
-
-    | DBComp sym, "Flip Horizontal (Ctrl-Down)" ->
-        flipDispatch SymbolT.FlipHorizontal
-        model
-        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
-        |> withNoCmd
-    
-    | DBScalingBox selectedcomps, "Flip Horizontal (Ctrl-Down)" ->
-        flipDispatch SymbolT.FlipHorizontal
+    | DBScalingBox selectedcomps, "Rotate AntiClockwise (Ctrl+Left)"->
+        rotateDispatch Degree270
         model 
-        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
     
-    | DBCanvas pos, "Zoom-in (Alt-Up) and centre"  ->
+    | DBScalingBox selectedcomps, "Flip Vertical (Ctrl+Up)"->
+        flipDispatch SymbolT.FlipVertical
+        model 
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
+    
+    | DBScalingBox selectedcomps, "Flip Horizontal (Ctrl+Down)" ->
+        flipDispatch SymbolT.FlipHorizontal
+        model 
+        |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
+    
+    | DBScalingBox _, "Delete Box (DEL)" ->
+        keyDispatch SheetT.KeyboardMsg.DEL
+        model  
+        |> withNoCmd
+    
+    | DBScalingBox _, "Copy Box (Ctrl+C)" ->
+        keyDispatch SheetT.KeyboardMsg.CtrlC
+        model  
+        |> withNoCmd
+    
+    | DBCanvas pos, "Zoom-in (Alt+Up) and centre"  ->
         printf "Zoom-in!!"
         model
         |> map (sheet_ >-> SheetT.zoom_)  (fun zoom -> min Sheet.Constants.maxMagnification (zoom*Sheet.Constants.zoomIncrement))
         |> withMsg (Sheet (SheetT.Msg.KeepZoomCentered pos))
 
-    | DBCanvas pos, "Zoom-out (Alt-Down)" ->
+    | DBCanvas pos, "Zoom-out (Alt+Down)" ->
+        keyDispatch SheetT.KeyboardMsg.ZoomOut
         model
-        |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.ZoomOut))
+        |> withNoCmd
 
-    | DBCanvas _, "Fit to window (Ctrl-W)" ->
+    | DBCanvas _, "Fit to window (Ctrl+W)" ->
+        keyDispatch SheetT.KeyboardMsg.CtrlW
         model
-        |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.CtrlW))
+        |> withNoCmd
+    
+    | DBCanvas pos, "Paste (Ctrl+V)" ->
+        keyDispatch SheetT.KeyboardMsg.CtrlV
+        model
+        |> withNoCmd
 
     | DBCanvas _, "Reroute all wires" ->
+        keyDispatch SheetT.KeyboardMsg.CtrlW
         model
         |> Optics.Optic.map
                 (sheet_ >-> SheetT.wire_)
                 (model.Sheet.Wire.Wires.Keys |> Seq.toList |> BusWireSeparate.updateWireSegmentJumpsAndSeparations)
-        |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.CtrlW))
+        |> withNoCmd
 
     | DBCanvas _, "Properties" ->
         model

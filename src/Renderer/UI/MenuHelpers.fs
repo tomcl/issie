@@ -36,8 +36,12 @@ module Constants =
     /// min number of chars in path before cropping
     let minNumPathChars = 7
     // NB if numCharsHidePath > minNumPathChars than path is either full-size or hidden
-    let numCharsHidePath = 10 
-
+    let numCharsHidePath = 10
+    let boldStyle = FontWeight "bold"
+    let redColor = Color "red"
+    let blueColor = Color "blue"
+    let greenColor = Color "green"
+   
 let displayFileErrorNotification err dispatch =
     let note = errorFilesNotification err
     dispatch <| SetFilesNotification note

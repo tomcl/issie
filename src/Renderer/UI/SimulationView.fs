@@ -674,7 +674,7 @@ let viewSimulationError
 let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg -> Unit) (model':Model) =
     let dialog = model'.PopupDialogData
     let step = simData.ClockTickNumber
-    let restartsimrequired (lastStepNeeded: int) = (simData.FastSim.ClockTick - lastStepNeeded) > 550
+    let restartsimrequired (lastStepNeeded: int) = (simData.FastSim.ClockTick - lastStepNeeded) >= simData.FastSim.MaxArraySize
     div [] 
         [
             h6 [] [str $"This simulation contains {simData.FastSim.FComps.Count} components"]
@@ -702,7 +702,7 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
 let simulateWithTime timeOut steps simData =
     let startTime = getTimeMs()
-    FastRun.runFastSimulation None (steps + simData.ClockTickNumber) simData.FastSim |> ignore
+    FastRun.runFastSimulation None steps simData.FastSim |> ignore
     getTimeMs() - startTime
 
 let cmd block =
@@ -750,12 +750,27 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         match dialog.Int with
         | None -> failwithf "What - must have some number from dialog"
         | Some clock -> clock
-    let initClock = simData.ClockTickNumber
-    let steps = clock - initClock
+    let initClock = 
+        if clock > simData.ClockTickNumber then 
+            simData.ClockTickNumber
+        else 
+            0
+    let steps = 
+        if clock > simData.ClockTickNumber then 
+            clock - simData.ClockTickNumber
+        else 
+            clock
     let numComps = simData.FastSim.FComps.Count
     let initChunk = min steps (20000/(numComps + 1))
     let initTime = getTimeMs()
-    let estimatedTime = (float steps / float initChunk) * (simulateWithTime None initChunk simData + 0.0000001)
+    let estimatedTime = 
+        match clock - simData.FastSim.ClockTick with
+        | n when n > 0 -> 
+            (float steps / float initChunk) * (simulateWithTime None (initChunk+initClock) simData + 0.0000001)
+        | n when n <= -simData.FastSim.MaxArraySize -> 
+            (float steps / float initChunk) * (simulateWithTime None initChunk simData + 0.0000001)
+        | _ -> 
+            (float steps / float initChunk) * (simulateWithTime None steps simData + 0.0000001)
     let chunkTime = min 2000. (estimatedTime / 5.)
     let chunk = int <| float steps * chunkTime / estimatedTime
     if steps > 2*initChunk && estimatedTime > 500. then 
@@ -769,7 +784,7 @@ let simulationClockChangeAction dispatch simData (model': Model) =
                 })
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
-            IncrementSimulationClockTick (initChunk)
+            IncrementSimulationClockTick (initChunk-simData.ClockTickNumber+initClock)
             ClosePopup
             SimulateWithProgressBar {
                 FinalClock = clock; 
@@ -783,7 +798,7 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         |> dispatch
     else
         FastRun.runFastSimulation None clock simData.FastSim |> ignore
-        printfn $"test2 clock={clock}, clokcticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
+        printfn $"test2 clock={clock}, clockticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
             IncrementSimulationClockTick (clock - simData.ClockTickNumber)

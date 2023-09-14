@@ -495,13 +495,10 @@ let viewNoProjectMenu model dispatch =
               Menu.Item.OnClick action ] [ str label ]
 
     let demos = FilesIO.staticDir()
-    printfn "%s" $"staticDir={demos}"
     let demos = demos + "/demos"
-    printfn "%s" $"demos={demos}"
 
     let demoProjects =
         readFilesFromDirectory demos
-    printfn "%s" $"demoprojects={demoProjects}"
 
     let demosInfo =
         demoProjects

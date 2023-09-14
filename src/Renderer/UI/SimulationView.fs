@@ -939,7 +939,6 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
 
 
 let tryGetSimData canvasState model =
-    printfn "startSimulation called"
     let model = MemoryEditorView.updateAllMemoryComps model
     simCache <- simCacheInit ()
     simulateModel None Constants.maxArraySize canvasState model
@@ -953,7 +952,6 @@ let tryGetSimData canvasState model =
             Error simError
 
 let viewSimulation canvasState model dispatch =
-    printf "Viewing Simulation"
     let startSimulation() =
         tryGetSimData canvasState model
         |> function

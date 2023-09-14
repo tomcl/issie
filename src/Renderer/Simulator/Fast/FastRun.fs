@@ -572,12 +572,10 @@ let private setSimulationInputFData (cid: ComponentId) (fd: FData) (step: int) (
 /// Re-evaluates the combinational logic for the given timestep - used if a combinational
 /// input has changed
 let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
-    printfn "runCombinational logic called"
     fastSim.FOrderedComps
     |> Array.iter (fastReduce fastSim.MaxArraySize step false)
 
 let private runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
-    printfn "runCombinationalLogicFData called"
     fastSim.FOrderedComps
     |> Array.iter (fastReduceFData fastSim.MaxArraySize step false)
 

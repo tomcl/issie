@@ -14,6 +14,7 @@ open SimulatorTypes
 open NumberHelpers
 open DrawModelType
 open WaveSimSelect
+open DiagramStyle
 
 /// Generates SVG to display values on non-binary waveforms when there is enough space.
 /// TODO: Fix this so it does not generate all 500 cycles.

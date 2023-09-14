@@ -273,8 +273,8 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
         mapInputPortIdToPortNumber components
     let mapper = buildSimulationComponent sourceToTargetPort portIdToPortNumber
 
-    let debugPrint =
-        printfn "Building Simulation Graph"
+    let debugPrint() =
+        printfn "Building Simulation Graph for Debug"
         List.map (fun (id, comp) ->
             printfn
                 "Built sComp %A │ %-30A │ %-25A │ %A"
@@ -296,7 +296,7 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
             |> Array.sortBy fst
             |> Array.map snd
         ComponentId comp.Id, mapper comp ws)
-    // |> debugPrint // NOTE - for debugging only
+    // |> debugPrint() // NOTE - for debugging only
     |> Map.ofList
 
 // Find out width of outputs of components from ConnectionsWidth map. Map<ConnectionId, "Width" option> -> Map<(ComponentId * "PortNumber"), "Width">

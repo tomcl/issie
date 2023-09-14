@@ -26,7 +26,6 @@ let emptyGather =
       AllComps = Map.empty }
 
 let emptyFastSimulation diagramName =
-    printfn $"Creating empty simulation: {diagramName}"
 
     { ClockTick = 0
       MaxArraySize = 0 // must be larger than max number of wavesim clocks
@@ -517,7 +516,6 @@ let addWavesToFastSimulation (fs: FastSimulation) : FastSimulation =
     let waveComps =
         (fs.FComps, fs.FCustomComps)
         ||> Map.fold (fun s fid fc -> Map.add fid fc s)
-    printfn $"add waves 1: numStepArray = {fs.NumStepArrays}"
     // Add WaveComps
     // Create null driver array large enough for all created step arrays
     // each step array is given a sequentially generated id as it is created
@@ -530,7 +528,6 @@ let addWavesToFastSimulation (fs: FastSimulation) : FastSimulation =
     // One array can be referenced by multiple ports.
     // The mutable changes to fs.Drivers here are write-once, from None to Some array.
     |> (fun x ->
-        printfn "add waves 2"
         x)
     |> (fun fs -> { fs with WaveIndex = addWaveIndexAndDrivers waveComps fs })
 
@@ -538,7 +535,7 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
     let numSteps = simulationArraySize
     stepArrayIndex <- -1
     let start = getTimeMs ()
-    printfn $"Creating init fast comp phase of sim with {numSteps} array size"
+    //printfn $"Creating init fast comp phase of sim with {numSteps} array size"
 
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]

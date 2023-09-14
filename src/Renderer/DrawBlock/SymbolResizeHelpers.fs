@@ -161,7 +161,7 @@ let showCompCorners (model: Model) (cornerShow) (compIds: ComponentId list) =
     
     let updateSymbolInMap prevMap cId = 
         prevMap
-        |> Map.add cId (changeSymbolCorners cornerShow model.Symbols[cId])
+        |> if (Map.containsKey cId model.Symbols) then  Map.add cId (changeSymbolCorners cornerShow model.Symbols[cId]) else id
 
     let newSymbols = 
         (resetSymbols, compIds) 

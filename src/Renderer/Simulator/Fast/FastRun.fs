@@ -670,13 +670,29 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
     let stepsToDo = lastStepNeeded - fs.ClockTick
 
     if stepsToDo <= 0 then
-        if (fs.ClockTick - lastStepNeeded) < 550 then
+        if (fs.ClockTick - lastStepNeeded) < fs.MaxArraySize then
             None
         else 
             restartSimulation fs
-            while fs.ClockTick < lastStepNeeded do
-                stepSimulation fs
-            None
+            let startTick = fs.ClockTick
+            let mutable time = simStartTime
+
+            let stepsBeforeCheck = 100 // REVIEW - make this a parameter or move this to Constants
+
+            match timeOut with
+            | None ->
+                while fs.ClockTick < lastStepNeeded do
+                    stepSimulation fs
+            | Some incr ->
+                while fs.ClockTick < lastStepNeeded
+                    && time < simStartTime + incr do
+                    stepSimulation fs
+
+                    if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
+                        time <- getTimeMs ()
+
+            float lastStepNeeded / (getTimeMs () - simStartTime)
+            |> Some
     else
         let startTick = fs.ClockTick
         let mutable time = simStartTime

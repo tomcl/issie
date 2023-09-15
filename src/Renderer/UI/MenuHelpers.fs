@@ -686,6 +686,25 @@ let addToRecents path recents =
     |> List.insertAt 0 path
     |> Some
 
+/// open an existing demo project from its path
+let openDemoProjectFromPath (path:string) model dispatch =
+
+    warnAppWidth dispatch (fun _ ->
+
+        traceIf "project" (fun () -> "loading files")
+        match loadAllComponentFiles path with
+        | Error err ->
+            log err
+            displayFileErrorNotification err dispatch
+
+        | Ok (componentsToResolve: LoadStatus list) ->
+            traceIf "project" (fun () -> "resolving popups...")
+            
+            resolveComponentOpenPopup path [] componentsToResolve model dispatch
+            traceIf "project" (fun () ->  "project successfully opened.")
+
+    )
+
 /// open an existing project from its path
 let openProjectFromPath (path:string) model dispatch =
     warnAppWidth dispatch (fun _ ->

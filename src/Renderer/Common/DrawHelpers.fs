@@ -98,18 +98,20 @@ type Text = {
     DominantBaseline: string
 }
 
-let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
-let canvasWidthContext = testCanvas.getContext_2d()
+let getCanvasWidthContext() =
+    let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
+    testCanvas.getContext_2d()
 
 /// To get this to work, note the fonts in the playground.fs test which work well.
 /// Add fonts there to test if you like.
 let getTextWidthInPixels (font:Text) (txt:string) =
-   let askedFont = String.concat " " [font.FontWeight; font.FontSize;  font.FontFamily]; // e.g. "16px bold sans-serif";
-   canvasWidthContext.font <- askedFont
-   //printf "Measururing '%s' -> '%s' with txt '%s' - fontSize=%s, sizeInpx = %.2f" askedFont canvasWidthContext.font txt font.FontSize sizeInPx
-   let textMetrics = canvasWidthContext.measureText(txt)
-   let ms = textMetrics.width 
-   ms
+    let canvasWidthContext = getCanvasWidthContext()
+    let askedFont = String.concat " " [font.FontWeight; font.FontSize;  font.FontFamily]; // e.g. "16px bold sans-serif";
+    canvasWidthContext.font <- askedFont
+    //printf "Measururing '%s' -> '%s' with txt '%s' - fontSize=%s, sizeInpx = %.2f" askedFont canvasWidthContext.font txt font.FontSize sizeInPx
+    let textMetrics = canvasWidthContext.measureText(txt)
+    let ms = textMetrics.width 
+    ms
 
 /// Default line, change this one to create new lines
 let defaultLine = {

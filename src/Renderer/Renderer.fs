@@ -24,6 +24,8 @@ open TestParser
 open ContextMenus
 open WorkerInterface
 open CommonTypes
+open Thoth.Json
+open Fable.React
 
 importSideEffects "./scss/main.css"
 
@@ -419,13 +421,20 @@ let keyPressListener initial =
 
 
 
-
-    
 let waveGenWorkerSub (model: Model) =
     let subWaveGenWorker dispatch =
-        let onMsgFn (msg: {|data: {|idx: WaveIndexT; wave: Wave|}|}) =
-            dispatch <| UpdateWave (msg.data.idx, msg.data.wave)
-        setWorkerOnMsg onMsgFn model.WaveGenWorker
+        let onMsgFn (msg: {|data: {|Idx: string; Waveform: string|}|}) =
+            let extraCoders =
+                Extra.empty
+                |> Extra.withCustom encoderIprop decoderWaveIprop
+                |> Extra.withCustom encoderReactElement decoderReactElement
+                |> Extra.withBigInt
+            let idx = Decode.Auto.fromString<WaveIndexT>(msg.data.Idx) |> unpackJsonDecode
+            let waveform = Decode.Auto.fromString<ReactElement>(msg.data.Waveform, extra = extraCoders) |> unpackJsonDecode
+            printfn "worker reply received"
+            dispatch <| UpdateWave (idx, waveform)
+        UpdateHelpers.Constants.allWaveGenWorkers
+        |> List.iter (setWorkerOnMsg onMsgFn)
     Cmd.ofSub subWaveGenWorker
         
 

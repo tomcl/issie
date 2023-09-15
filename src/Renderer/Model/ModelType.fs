@@ -260,6 +260,10 @@ type WaveGenParams = {
     Radix: NumberBase
 }
 
+type SVGValues = {
+    WavePoints: XYPos array array array
+    Values: ReactElement array
+}
 
 
 type DiagEl = | Comp of Component | Conn of Connection
@@ -435,8 +439,8 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
-    | RunWaveGenWorker of ws:WaveSimModel * index:WaveIndexT * wave:Wave
-    | UpdateWave of index:WaveIndexT * wave:Wave
+    | RunWaveGenWorker of ws:WaveSimModel * svgVals:SVGValues * index:WaveIndexT * wave:Wave
+    | UpdateWave of index:WaveIndexT * waveform:ReactElement
 
 
 //================================//
@@ -587,7 +591,8 @@ type Model = {
     UIState: UICommandType Option
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
-    WaveGenWorker: obj
+    AllWaveGenWorkers: obj list
+    BusyWaveGenWorkers: Map<WaveIndexT, obj * int>
 } 
 
     with member this.WaveSimOrCurrentSheet =

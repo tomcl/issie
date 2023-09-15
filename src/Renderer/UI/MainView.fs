@@ -21,8 +21,6 @@ open Browser.Dom
 open WorkerInterface
 
 
-
-
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
 
@@ -121,7 +119,8 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
-    WaveGenWorker = newWorkerUrl("../WaveGenWorker.fs.js")
+    AllWaveGenWorkers = []
+    BusyWaveGenWorkers = Map.empty
 }
 
 

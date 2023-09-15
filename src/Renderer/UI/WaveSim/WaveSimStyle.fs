@@ -381,10 +381,11 @@ let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
 
 let calcNamesColWidth (ws:WaveSimModel) : int =
     let cWidth =
-        DrawHelpers.canvasWidthContext.font <- String.concat " " ["10px"; Constants.columnFontFamily]; // e.g. "16px bold sans-serif";
+        let canvasWidthContext = DrawHelpers.getCanvasWidthContext()
+        canvasWidthContext.font <- String.concat " " ["10px"; Constants.columnFontFamily]; // e.g. "16px bold sans-serif";
         let getWidth (txt:string) =
             let sizeInPx = float ((Constants.columnFontSize.ToLower()).Replace("px",""))   
-            sizeInPx * DrawHelpers.canvasWidthContext.measureText(txt).width / 10.0
+            sizeInPx * canvasWidthContext.measureText(txt).width / 10.0
         ws.SelectedWaves
         |> listCollectSomes (
             fun wi -> 
@@ -633,12 +634,12 @@ let radixTabsStyle = Style [
 ]
 
 /// Style of polyline used to draw waveforms
-let wavePolylineStyle points : IProp list = [
-    SVGAttr.Stroke "blue"
-    SVGAttr.Fill "none"
-    SVGAttr.StrokeWidth Constants.lineThickness
-    Points (pointsToString points)
-]
+// let wavePolylineStyle points : IProp list = [
+//     SVGAttr.Stroke "blue"
+//     SVGAttr.Fill "none"
+//     SVGAttr.StrokeWidth Constants.lineThickness
+//     Points (pointsToString points)
+// ]
 
 /// Props for HTML Summary element
 let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = [

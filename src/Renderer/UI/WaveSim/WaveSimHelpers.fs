@@ -142,11 +142,11 @@ let selectedWaves (wsModel: WaveSimModel) : Wave list =
     |> List.map (fun wi -> Map.tryFind wi wsModel.AllWaves |> Option.toList)
     |> List.concat
 
-/// Convert XYPos list to string
-let pointsToString (points: XYPos array) : string =
-    Array.fold (fun str (point: XYPos) ->
-        $"{str} %.1f{point.X},%.1f{point.Y} "
-    ) "" points
+// /// Convert XYPos list to string
+// let pointsToString (points: XYPos array) : string =
+//     Array.fold (fun str (point: XYPos) ->
+//         $"{str} %.1f{point.X},%.1f{point.Y} "
+//     ) "" points
 
 /// Retrieve value of wave at given clock cycle as an int.
 let getWaveValue (currClkCycle: int) (wave: Wave) (width: int) : FastData =

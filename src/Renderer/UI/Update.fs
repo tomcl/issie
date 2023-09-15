@@ -17,7 +17,7 @@ open Optics
 open Optics.Optic
 open Optics.Operators
 open WorkerInterface
-open WaveSim
+open Thoth.Json
 
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
@@ -582,12 +582,31 @@ let update (msg : Msg) oldModel =
     | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
     
-    | RunWaveGenWorker (ws, index, wave) ->
-        sendWorkerMsg {|WaveParams = (getWaveGenParams ws); Index = index; Wave = wave|} model.WaveGenWorker
-        model, Cmd.none
+    | RunWaveGenWorker (ws, svgVals, index, wave) ->
+        [0..Constants.allWaveGenWorkers.Length-1]
+        |> List.filter (fun i -> not (Map.exists (fun _ (_, idx) -> i = idx) model.BusyWaveGenWorkers))
+        |> List.tryItem 0
+        |> function
+            | Some idx ->
+                let worker = Constants.allWaveGenWorkers[idx]
+                let extraCoders =
+                    Extra.empty
+                    |> Extra.withBigInt
+                    |> Extra.withCustom encoderReactElement decoderReactElement
+                let encodedParameters = {|
+                        WaveParams = Encode.toString 0 (WaveSim.getWaveGenParams ws)
+                        SVGValues = Encode.Auto.toString (0, svgVals, extra = extraCoders)
+                        Index = Encode.toString 0 index
+                        Wave = Encode.Auto.toString (0, wave, extra = extraCoders)
+                    |}
+                sendWorkerMsg encodedParameters worker
+                { model with BusyWaveGenWorkers = (Map.add index (worker, idx) model.BusyWaveGenWorkers)}, Cmd.none
+            | None ->
+                model, Cmd.ofMsg (RunWaveGenWorker (ws, svgVals, index, wave))
 
-    | UpdateWave (index, wave) ->
-        WaveSim.updateWave index wave model
+    | UpdateWave (index, waveform) ->
+        let newWorkerMap = Map.remove index model.BusyWaveGenWorkers
+        WaveSim.updateWave index waveform { model with BusyWaveGenWorkers = newWorkerMap }
 
     // post-processing of update function (Model * Cmd<Msg>)
     |> map fst_ (fun model' -> resetDialogIfSelectionHasChanged model' oldModel)

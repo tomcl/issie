@@ -27,6 +27,8 @@ open EEExtensions
 
 module Constants =
     let memoryUpdateCheckTime = 300.
+    let numWaveGenWorkers = 10
+    let allWaveGenWorkers : obj list = List.init numWaveGenWorkers (fun _ -> WorkerInterface.newWorkerUrl("../WaveGenWorker.fs.js"))
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------MESSAGE TRACING---------------------------------------------//

@@ -123,7 +123,10 @@ let inline getRotatedSymbolCentre (symbol:Symbol) =
 /// Works with rotation. For a rotated symbol, TopLeft = Pos, and H,W swapped in getrotatedHAndW
 let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
     let h,w = getRotatedHAndW sym
-    {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
+    if sym.Annotation = Some ScaleButton then 
+        {TopLeft = sym.Pos - {X = 9.; Y = 9.}; H = 17. ; W = 17.}
+    else 
+        {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
 
 type Symbol with
     member this.SymbolBoundingBox = getSymbolBoundingBox this

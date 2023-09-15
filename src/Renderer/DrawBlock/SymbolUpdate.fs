@@ -489,7 +489,8 @@ let createSymbol ldcs theme prevSymbols comp =
         |> Map.add newSymbol.Id newSymbol
 
 /// Create a new dummy component which can be used in an annotation.
-/// pos: position of annotation on screen - middle of box (NOT top-left)
+/// pos: for RotateButtons: position of annotation on screen - middle of box (NOT top-left)
+/// pos: for ScaleButton: top-right of the box
 let createDummyComponent (pos: XYPos) (h: float) (w:float) : Component =
     {
         H = h
@@ -505,7 +506,8 @@ let createDummyComponent (pos: XYPos) (h: float) (w:float) : Component =
     }
 
 /// Create a new annotation symbol and add it to the map of symbols.
-/// pos: position of annotation on screen - middle of box (NOT top-left)
+/// pos: for RotateButtons: position of annotation on screen - middle of box (NOT top-left)
+/// pos: for ScaleButton: top-right of the box
 /// annotation always has moving true because we want the symbol to be drawn last
 /// so it is always on top of other not moving symbols
 let createAnnotation (theme: ThemeType) (a:Annotation) (pos: XYPos)  =

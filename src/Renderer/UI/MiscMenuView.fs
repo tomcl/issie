@@ -720,8 +720,13 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
                         match newSheetPath with
                         | "" -> ()
                         | path -> copyFile oldSheetPath path )
-                               
-            openProjectFromPath destProjectDir model' dispatch
+
+            JSHelpers.log destProjectDir
+
+            if dirName destProjectDir = "demos" then
+                openDemoProjectFromPath destProjectDir model' dispatch
+            else
+                openProjectFromPath destProjectDir model' dispatch
 
             dispatch ClosePopup
             dispatch FinishUICmd

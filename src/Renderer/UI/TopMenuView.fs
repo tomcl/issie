@@ -348,26 +348,6 @@ let private openProject model dispatch =
     | None -> () // User gave no path.
     | Some path -> openProjectFromPath path model dispatch)
 
-
-/// open an existing demo project from its path
-let openDemoProjectFromPath (path:string) model dispatch =
-
-    warnAppWidth dispatch (fun _ ->
-
-        traceIf "project" (fun () -> "loading files")
-        match loadAllComponentFiles path with
-        | Error err ->
-            log err
-            displayFileErrorNotification err dispatch
-
-        | Ok (componentsToResolve: LoadStatus list) ->
-            traceIf "project" (fun () -> "resolving popups...")
-            
-            resolveComponentOpenPopup path [] componentsToResolve model dispatch
-            traceIf "project" (fun () ->  "project successfully opened.")
-
-    )
-
 /// load demo project into Issie executables
 let loadDemoProject model dispatch basename =
     warnAppWidth dispatch (fun _ ->
@@ -378,25 +358,27 @@ let loadDemoProject model dispatch basename =
         ensureDirectory "./demos/"
         ensureDirectory newDir
 
+        readFilesFromDirectory newDir
+        |> List.iter (fun path -> unlink <| pathJoin[|newDir; path|])
+
         dispatch EndSimulation // End any running simulation.
         dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
         dispatch EndWaveSim
 
-        // copy over files from source path to new path
-        let projectFile = baseName newDir + ".dprj"
-        writeFile (pathJoin [| newDir; projectFile |]) ""
-        |> displayAlertOnError dispatch
+        //let projectFile = baseName newDir + ".dprj"
+        //writeFile (pathJoin [| newDir; projectFile |]) ""
+        //|> displayAlertOnError dispatch
 
         let files = readFilesFromDirectory sourceDir
 
         let isNotDir path =
             hasExtn ".dgm" path || hasExtn ".txt" path || hasExtn ".ram" path
-                
+
+        // copy over files from source path to new path
         files
         |> List.filter isNotDir
         |> List.iter (fun basename ->
             let newPath = pathJoin [|newDir; basename|]
-            //log <| printf "haha: %A" (dirName <| dirName newPath)
             copyFile (pathJoin [|sourceDir; basename|]) newPath)
 
         openDemoProjectFromPath newDir model dispatch
@@ -464,7 +446,7 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                     ]
                 else
                     demosInfo
-                    |> List.map(fun (path, componentsCount, sheetsCount) -> 
+                    |> List.map(fun (path, componentsCount, sheetsCount) ->
                                 menuItem (path, componentsCount, sheetsCount)
                                     (fun _ -> loadDemoProject model' dispatch path))
         

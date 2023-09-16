@@ -222,7 +222,7 @@ let storedstateisEqual (cache: SimCache) (ldcs: LoadedComponent list) : bool =
         |> List.forall (fun ldc' ->
             ldcs
             |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
-            |> Option.map (loadedComponentIsEqual ldc')
+            |> Option.map (loadedComponentIsEqualExInputDefault ldc')
             |> (=) (Some true))
             
 /// Start up a simulation, doing all necessary checks and generating simulation errors

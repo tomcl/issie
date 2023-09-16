@@ -69,6 +69,18 @@ let inline compsAreEqual (comp1: Component) (comp2: Component) =
     && comp1.OutputPorts = comp2.OutputPorts
     && comp1.Type = comp2.Type
 
+let inline compsAreEqualExInputDefault (comp1: Component) (comp2: Component) =
+    match comp1.Type, comp2.Type with
+    | Input1 _, Input1 _ ->
+        comp1.Id = comp2.Id
+        && comp1.InputPorts = comp2.InputPorts
+        && comp1.OutputPorts = comp2.OutputPorts
+    | _ ->
+        comp1.Id = comp2.Id
+        && comp1.InputPorts = comp2.InputPorts
+        && comp1.OutputPorts = comp2.OutputPorts
+        && comp1.Type = comp2.Type
+
 /// Is circuit (not geometry) the same for two CanvasStates? fast comparison
 let stateIsEqual (cs1: CanvasState) (cs2: CanvasState) =
     let comps1, conns1 = cs1
@@ -77,6 +89,15 @@ let stateIsEqual (cs1: CanvasState) (cs2: CanvasState) =
     comps1.Length = comps2.Length
     && conns1.Length = conns2.Length
     && List.forall2 compsAreEqual comps1 comps2
+    && List.forall2 connsAreEqual conns1 conns2
+
+let stateIsEqualExInputDefault (cs1: CanvasState) (cs2: CanvasState) =
+    let comps1, conns1 = cs1
+    let comps2, conns2 = cs2
+
+    comps1.Length = comps2.Length
+    && conns1.Length = conns2.Length
+    && List.forall2 compsAreEqualExInputDefault comps1 comps2
     && List.forall2 connsAreEqual conns1 conns2
 
 /// Are two lists of vertices are very similar.
@@ -187,6 +208,13 @@ let loadedComponentIsEqual (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
     ldc1.InputLabels = ldc2.InputLabels
     && ldc1.OutputLabels = ldc2.OutputLabels
     && stateIsEqual ldc1.CanvasState ldc2.CanvasState
+    && ldc1.Name = ldc2.Name
+
+/// Is circuit (not geometry) the same for two LoadedComponents? They must also have the same name
+let loadedComponentIsEqualExInputDefault (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
+    ldc1.InputLabels = ldc2.InputLabels
+    && ldc1.OutputLabels = ldc2.OutputLabels
+    && stateIsEqualExInputDefault ldc1.CanvasState ldc2.CanvasState
     && ldc1.Name = ldc2.Name
 
 /// get sheet I/O labels in correct order based on position of components

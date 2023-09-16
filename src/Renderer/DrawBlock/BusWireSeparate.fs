@@ -183,8 +183,11 @@ let makeLines (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model
     let symLines =
         model.Symbol.Symbols
         |> Map.toList
-        |> List.collect (fun (_, sym) -> 
-            Symbol.getSymbolBoundingBox sym |> bBoxToLines ori)
+        |> List.collect (fun (_, sym) ->
+            if sym.Annotation = None then
+                Symbol.getSymbolBoundingBox sym |> bBoxToLines ori
+            else
+                [])
     symLines @ segLines
     |> List.toArray
     |> Array.sortBy (fun line -> line.P)

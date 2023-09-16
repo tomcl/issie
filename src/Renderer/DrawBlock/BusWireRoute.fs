@@ -57,6 +57,7 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
         model.Symbol.Symbols
         |> Map.values
         |> Seq.toList
+        |> List.filter (fun s -> s.Annotation = None)
         |> List.map (fun s -> (s.Component.Type, Symbol.getSymbolBoundingBox s))
 
 

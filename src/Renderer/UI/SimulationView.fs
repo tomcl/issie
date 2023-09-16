@@ -111,6 +111,35 @@ let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
     |> Map.values
     |> Seq.forall id
 
+let InputDefaultsEqualInputsRefresh fs (model:Model) =
+    let tick = fs.ClockTick
+    fs.FComps
+    |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
+    |> Map.map (fun fid fc ->
+        let cid = fst fid
+        if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
+            let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
+            let currdefault = match typ with
+                                    | Input1(_, Some d) -> d
+                                    | _ -> 0
+            let outputarray =
+                if fc.OutputWidth 0 > 32 then
+                    Array.map (fun x -> convertBigIntToInt32 x) fc.Outputs[0].BigIntStep
+                else
+                    Array.map (fun x -> int x) fc.Outputs[0].UInt32Step
+            let slicedArray = Array.sub outputarray 0 ((tick+1) % fs.MaxArraySize)
+            let areAllElementsSame (arr: int32 array) =
+                match tick with
+                | n when n < 2 ->
+                    true
+                | _ ->
+                    Array.forall (fun elem -> elem = currdefault) arr
+            areAllElementsSame slicedArray
+        else
+            true)
+    |> Map.values
+    |> Seq.forall id
+
 
 let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
     let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
@@ -1035,7 +1064,7 @@ let viewSimulation canvasState model dispatch =
             | Ok _, _ -> IsSuccess, "Refresh"
             | Error _, _ -> IsWarning, "See Problems"
 
-        let confirmrefresh (model:Model) dispatch simData =
+        let confirmRefresh (model:Model) dispatch simData =
             fun (model:Model) ->
                 div [] 
                     [
@@ -1067,78 +1096,50 @@ let viewSimulation canvasState model dispatch =
                     ] [ str "Reset" ]]
                 ]
 
-        let blankrefresh = div [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"; Height "100%"]] [ str " "]
+        let blankRefresh = div [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"; Height "100%"]] [ str " "]
 
         let refreshButton = 
             match canvasStatechange, sim with 
             | true, Ok simData ->
-                match simData.IsSynchronous, simData.ClockTickNumber with
-                | true, n when n > 0 ->
-                    if InputDefaultsEqualInputs simData.FastSim model simData.ClockTickNumber then
-                        Button.button
-                            [
-                                Button.Color buttonColor;
-                                Button.OnClick (fun _ -> 
-                                    let clock = simData.ClockTickNumber
-                                    startSimulation()
-                                    simCache <- {simCache with ClockTickRefresh = clock})
-                                Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
-                                ]
-                            [str buttonText]
-                    else
-                        // add pop up
-                        Button.button
-                            [
-                                Button.Color buttonColor;
-                                Button.OnClick (fun _ -> 
-                                    match simRes with 
-                                    | Ok _, _ ->
-                                        dialogPopupRefresh
-                                            "Refresh"
-                                            (confirmrefresh model dispatch simData)
-                                            []
-                                            dispatch
-                                    | Error _, _ -> 
-                                        let clock = simData.ClockTickNumber
-                                        startSimulation()
-                                        simCache <- {simCache with ClockTickRefresh = clock})
-                                Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
-                                ]
-                            [str buttonText]
-                | _, _ -> 
-                    match simRes with 
-                    | Error _, _ -> 
-                        //view error
-                        Button.button
-                            [
-                                Button.Color buttonColor;
-                                Button.OnClick (fun _ -> 
-                                    let clock = simData.ClockTickNumber
-                                    startSimulation()
-                                    simCache <- {simCache with ClockTickRefresh = clock})
-                                Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
-                                ]
-                            [str buttonText]
-                    | Ok _, _ -> blankrefresh
-            | true, Error _ ->
-                match simRes with
-                | Ok simData, _ -> 
-                    match simData.IsSynchronous, simCache.ClockTickRefresh with
-                    | true, n when n > 0 ->
-                        Button.button
-                            [
+                if InputDefaultsEqualInputsRefresh simData.FastSim model then
+                    Button.button [
+                        Button.Color buttonColor;
+                        Button.OnClick (fun _ -> 
+                            let clock = simData.ClockTickNumber
+                            startSimulation()
+                            simCache <- {simCache with ClockTickRefresh = clock})
+                        Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]]
+                        [str buttonText]
+                else
+                    // add pop up
+                    Button.button [
+                        Button.Color buttonColor;
+                        Button.OnClick (fun _ -> 
+                            match simRes with 
+                            | Ok _, _ ->
+                                dialogPopupRefresh
+                                    "Refresh"
+                                    (confirmRefresh model dispatch simData)
+                                    []
+                                    dispatch
+                            | Error _, _ -> 
+                                let clock = simData.ClockTickNumber
+                                startSimulation()
+                                simCache <- {simCache with ClockTickRefresh = clock})
+                        Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]]
+                        [str buttonText]
+            | _, Error _ -> 
+                    Button.button
+                        [
                             Button.Color buttonColor;
                             Button.OnClick (fun _ -> 
                                 let clock = simCache.ClockTickRefresh
                                 startSimulation()
-                                simCache <- {simCache with ClockTickRefresh = clock}
-                                )
-                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px"]]
+                                simCache <- {simCache with ClockTickRefresh = clock})
+                            Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.None; MarginLeft "5px" ]]
                             ]
-                            [str buttonText]
-                    | _, _ ->  blankrefresh
-                | Error _, _ -> blankrefresh
-            | false, _ -> blankrefresh
+                        [str buttonText]
+            | _, _ -> blankRefresh
         div [Style [Height "100%"]] [
             div [Style [Height "40px"]] [
             Button.button

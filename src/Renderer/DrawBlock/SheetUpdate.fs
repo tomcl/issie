@@ -865,6 +865,7 @@ let init () =
         Action = Idle
         ShowGrid = false
         LastMousePos = { X = 0.0; Y = 0.0 }
+        ScalingBoxCentrePos = { X = 0.0; Y = 0.0 }
         SnapSymbols=emptySnap
         SnapSegments = emptySnap
         CursorType = Default
@@ -892,7 +893,6 @@ let init () =
         DebugMappings = [||]
         DebugDevice = None
         ScalingBox = None
-        LastScalingDirectionandMouseYDiffIsNeg = None
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

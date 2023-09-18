@@ -411,7 +411,6 @@ module SheetT =
         RotateDeg90Button: SymbolT.Symbol 
         RotateDeg270Button: SymbolT.Symbol 
         ScalingBoxBound: BoundingBox
-        MouseOnScaleButton: bool
         ButtonList: ComponentId list
     }
 
@@ -636,7 +635,7 @@ module SheetT =
         ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
         /// this is Drawblock X,Y values
         LastMousePos: XYPos // For Symbol Movement and Scaling
-        LastScalingDirectionandMouseYDiffIsNeg: (ScalingDirection*bool) Option
+        ScalingBoxCentrePos: XYPos
         ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
         LastMousePosForSnap: XYPos
         MouseCounter: int

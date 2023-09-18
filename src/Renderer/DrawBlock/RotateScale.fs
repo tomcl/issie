@@ -522,32 +522,59 @@ let scaleSymbolInBlock
 /// <param name="mag">  Positive scales up, negative scales down.</param>
 /// <param name="block"> Bounding box of selected components</param>
 /// <param name="sym"> Symbol to be rotated</param>
-/// <returns>New symbol after scaled about block centre.</returns>
-let scaleSymbolInBlockGroup
-    (mag: float)
-    //(scaleType: ScaleType)
-    (block: BoundingBox)
-    (sym: Symbol) : Symbol =
+// /// <returns>New symbol after scaled about block centre.</returns>
+// let scaleSymbolInBlockGroup
+//     (mag: float)
+//     //(scaleType: ScaleType)
+//     (block: BoundingBox)
+//     (sym: Symbol) : Symbol =
 
-    if mag = 0 then 
-        sym 
+//     if mag = 0 then 
+//         sym 
+//     else 
+
+//         let symCenter = getRotatedSymbolCentre sym
+
+//         //Get x and y proportion of symbol to block
+//         let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
+
+//         let newCenter = {X = (block.TopLeft.X-mag) + ((block.W+(mag*2.)) * xProp); Y = (block.TopLeft.Y-mag) + ((block.H+(mag*2.)) * yProp)}
+
+//         let h,w = getRotatedHAndW sym
+//         let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
+//         let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
+
+//         {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+let scaleSymbolInBlockGroup 
+    (scalingFactor: float)
+    (offSet: XYPos) 
+    (sym: Symbol) = 
+
+    if scalingFactor = 1 then
+        sym
     else 
+        let symCentreOffsetFromTopLeft = {X = (sym.Component.W/2.); Y = (sym.Component.H/2.)}
+        let symCentrePos= sym.Pos + symCentreOffsetFromTopLeft
 
-        let symCenter = getRotatedSymbolCentre sym
-
-        //Get x and y proportion of symbol to block
-        let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
-
-        let newCenter = {X = (block.TopLeft.X-mag) + ((block.W+(mag*2.)) * xProp); Y = (block.TopLeft.Y-mag) + ((block.H+(mag*2.)) * yProp)}
-
-        let h,w = getRotatedHAndW sym
-        let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
-        let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
-
-        {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
-
-
-
+        let translateInRelationToOrigin pos = pos - offSet 
+        let scalingFromOrigin (pos:XYPos) : XYPos = pos * scalingFactor
+        let translateBackFromOrigin pos = pos + offSet
+        let getTopLeftFromSymCentre pos  = pos - symCentreOffsetFromTopLeft
+        let newTopLeftPos = 
+            symCentrePos
+            |> translateInRelationToOrigin 
+            |> scalingFromOrigin 
+            |> translateBackFromOrigin 
+            |> getTopLeftFromSymCentre 
+        let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
+        {sym with Pos =  newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
+        // let rotPos = {newTopLeftPos with Y = sym.Pos.Y}
+        // let rotComp = {newComp with Y = sym.Pos.Y}
+        // match sym.Annotation with
+        // | Some (RotateButton _) -> 
+        //     {sym with Pos = rotPos; Component = rotComp; LabelHasDefaultPos = true}
+        // | _ -> 
+        //     {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
 
 
 /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
@@ -610,7 +637,8 @@ let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scale:ScaleTyp
 /// <param name="scale"> Type of scaling to do</param>
 /// <returns>New scaled symbol model</returns>
 //Note: This scaling is used for the new UI scaling block, and takes in a variable scale factor
-let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float)=
+// let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float)=
+let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (scalingFactor:float) (boxCentrePos:XYPos)=
     //Similar structure to rotateBlock, easy to understand
 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
@@ -618,7 +646,9 @@ let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float
 
     let block = getBlock SelectedSymbols
       
-    let newSymbols = List.map (scaleSymbolInBlockGroup mag block) SelectedSymbols
+    // let newSymbols = List.map (scaleSymbolInBlockGroup mag block) SelectedSymbols
+    let newSymbols = List.map (scaleSymbolInBlockGroup scalingFactor boxCentrePos) SelectedSymbols
+
 
     {model with Symbols = 
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
@@ -650,10 +680,7 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
     let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
 
-    // when mouseOnScaleButton we are going to update the ScalingBox in updateHelper function instead
-    if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
-        model, cmd
-    elif (model.SelectedComponents.Length < 2) then 
+    if (model.SelectedComponents.Length < 2) then 
         match model.ScalingBox with 
         | None ->  model, cmd
         | _ -> {model with ScalingBox = None}, 
@@ -696,7 +723,6 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
                 RotateDeg90Button = rotateDeg90Sym;
                 RotateDeg270Button = rotateDeg270Sym;
                 ButtonList = [buttonSym.Id; rotateDeg270Sym.Id; rotateDeg90Sym.Id];
-                MouseOnScaleButton = false;
             }
             let newCmd =
                 match model.ScalingBox with

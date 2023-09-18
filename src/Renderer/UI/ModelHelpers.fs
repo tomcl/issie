@@ -108,6 +108,15 @@ let mapOverProject defaultValue (model: Model) transform =
     | None -> defaultValue
     | Some p -> transform p
 
+/// The same as mapOverProject, but for waveSimModel
+let mapOverWaveSimModel defaultValue (wsModel: WaveSimModel) transform =
+    // Check if TopSheet is not null or empty
+    match wsModel.TopSheet with
+    | null -> defaultValue // Use null check if TopSheet is a nullable string
+    | "" -> defaultValue // Use empty string check if TopSheet is a non-nullable string
+    | _ ->
+        // If TopSheet exists, apply the transformation
+        transform wsModel
 let getComponentIds (model: Model) =
     let extractIds ((comps,conns): Component list * Connection list) = 
         conns

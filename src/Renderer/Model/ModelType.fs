@@ -426,6 +426,7 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
+    | MakeSheetRow of string list
 
 
 //================================//

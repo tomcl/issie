@@ -11,7 +11,8 @@ open WaveSimStyle
 open WaveSimHelpers
 open FileMenuView
 open SimulatorTypes
-
+open Breadcrumbs
+open ModelHelpers
 
 let cap (sheet:string) = sheet.ToUpper()
 
@@ -533,26 +534,29 @@ let rec makeComponentGroup showDetails (ws: WaveSimModel) (dispatch: Msg->Unit) 
 
         makeSelectionGroup showDetails ws dispatch summaryReact compRows cBox waves  
 
-let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: string list) (waves: Wave list) =  
+//change makeSheetRow such that it takes a single subsheet as an argument
+//add breadcrumb display such that it chooses subsheet onClick
+//non-recursive function to display component inputs and outputs
+let makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: string list) (waves: Wave list) =  
     let cBox = SheetItem subSheet
     let fs = ws.FastSim
     let wavesBySheet = 
         waves
-        |> List.groupBy (fun w -> List.truncate (subSheet.Length + 1) w.SubSheet)
+        |> List.groupBy (fun w -> List.truncate (subSheet.Length + 1) w.SubSheet) //i assume that this should be able to give all the waves needed
 
     let componentRows = 
-        wavesBySheet
-        |> List.filter (fun (g,wLst) -> g = subSheet)
+        wavesBySheet //waves, grouped by subsheet
+        |> List.filter (fun (g,wLst) -> g = subSheet) //this is where the magic happens: filtering waves that equal to the specific subsheet
         |> List.collect snd
-        |> List.groupBy (fun wave -> getCompGroup fs wave) 
+        |> List.groupBy (fun wave -> getCompGroup fs wave) //sorts by component
         |> List.map (fun (grp,groupWaves) -> makeComponentGroup showDetails ws dispatch subSheet grp groupWaves)
 
-    let subSheetRows =
+    (*let subSheetRows =
         wavesBySheet
-        |> List.filter (fun (g,_) -> g <> subSheet)
-        |> List.map (fun (subSheet',waves') ->  makeSheetRow showDetails ws dispatch subSheet' waves')
+        |> List.filter (fun (g,_) -> g <> subSheet) //"negative filtering" - filtering out everything else when g is not equal to subsheet
+        |> List.map (fun (subSheet',waves') ->  makeSheetRow showDetails ws dispatch subSheet' waves')*)
     
-    let rows = List.append subSheetRows componentRows
+    let rows = List.append (*subSheetRows*) componentRows []
     if subSheet = [] then
         Table.table [
             Table.IsBordered
@@ -562,6 +566,48 @@ let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> U
             ]] [tbody [] rows]
     else
         makeSelectionGroup showDetails ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
+
+//when i have the breadcrumb hierarchy, the click action that I want is for it to filter 
+//custom message so update function can handle
+(*type Msg =
+    | MakeSheetRow of string list*)
+
+//need to edit
+(*
+let update wsModel msg =
+    match msg with
+    | MakeSheetRow singleSheet ->
+        // Call makeSheetRow with the single sheet and update your model/UI if necessary
+        let newRow = makeSheetRow showDetails wsModel dispatch singleSheet waves
+        // Update your model or UI with the newRow as needed
+        { wsModel with CurrentSheetRow = newRow } *)
+//focus on sheet
+let focusOnNewSheet (sheet:FileMenuHelpers.SheetTree) dispatch =
+//instead of whatever i'm doing below i should:
+//filter waves by subsheet
+//keep the wsModel intact
+//i.e. get the component rows
+// run makeSheetRow
+
+
+    //i want to dispatch to run makeSheetRow with a single sheet
+    //therefore, i would need to match sheet.SheetName with makeSheetRow for the subsheet
+
+    //match the sheetName with wsModel
+    let singleSheet = [sheet.SheetName]
+    dispatch (MakeSheetRow singleSheet)
+
+let breadcrumbsSelectConfig = {
+    Breadcrumbs.Constants.defaultConfig with
+        ClickAction = focusOnNewSheet
+}
+
+//allRootHierarchiesfromBreadcrumbs applied to this:
+(*let breadcrumbs = [
+                    div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"]] [str "Sheets with Design Hierarchy"]
+                    Breadcrumbs.allRootHierarchiesFromProjectBreadcrumbs breadcrumbsSelectConfig dispatch model
+                    ]*)
+
 
 /// This is a workaropund for a potential data inconsistency in the waves and selected waves of a FastSimulation
 /// it ensure that the selector only lists valid waves by filyering all waves against valid components
@@ -603,7 +649,7 @@ let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> uni
                 List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) okWaves
         let showDetails = ((wavesToDisplay.Length < 10) || searchText.Length > 0) && searchText <> "-"
         wavesToDisplay
-        |> makeSheetRow showDetails ws dispatch []
+        |> makeSheetRow showDetails ws dispatch [] //this is what you're looking for
 
 
 
@@ -664,7 +710,8 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                     ]
                 ]
             ]
-            Modal.Card.body [Props [Style [OverflowY OverflowOptions.Visible]]] [   
+            Modal.Card.body [Props [Style [OverflowY OverflowOptions.Visible]]] [
+                str "Breadcrumb Hierarchy"
                 searchBar wsModel dispatch
                 selectWaves wsModel [] dispatch
             ]

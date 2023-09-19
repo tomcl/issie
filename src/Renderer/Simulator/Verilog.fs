@@ -523,7 +523,17 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         $"assign {outs 0} = {ins 0}{sel};\n"
     | BusCompare (w, c) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
     | BusCompare1 (w, c, _) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
-    | MergeWires -> $"assign {outs 0} = {{ {ins 1},{ins 0} }};\n"  
+    | MergeWires -> $"assign {outs 0} = {{ {ins 1},{ins 0} }};\n" 
+    | MergeN (n, _)->  
+        let mergedInputs = 
+            [| for i in n - 1 .. -1 .. 0 ->
+                if i = 0 then
+                    $"{ins i}"
+                else
+                    $"{ins i},"
+            |]
+            |> String.concat ""
+        $"assign {outs 0} = {{ {mergedInputs} }};\n" 
     | SplitWire _ ->
         let lsbBits = outW 0
         let msbBits = outW 1

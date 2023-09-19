@@ -445,6 +445,22 @@ let private calculateOutputPortsWidth
         | [None; _] | [_; None] -> Ok Map.empty // Keep on waiting.
         | [Some n; Some m] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n + m)
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | MergeN (n, expectedWidths) ->
+        assertInputsSize inputConnectionsWidth n comp
+        let portWidths = getWidthsForPorts inputConnectionsWidth (List.init n (fun i -> InputPortNumber i))
+        let maybeError =
+            (portWidths, expectedWidths)
+            ||> List.mapi2 (fun idx actual expected ->
+                match actual with
+                | None -> None // Cannot determine if it is ok yet.
+                | Some w when w = expected -> None // No error.
+                | Some w -> Some <| makeWidthInferErrorEqual expected w [getConnectionIdForPort idx]
+            )
+        match List.tryFind (fun el -> el <> None) maybeError with
+        | Some (Some err) -> err
+        | None -> Map.empty.Add (getOutputPortId comp 0, List.sum expectedWidths) |> Ok
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+        
     | SplitWire topWireWidth ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with

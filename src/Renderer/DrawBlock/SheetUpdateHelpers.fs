@@ -329,11 +329,18 @@ let mDownUpdate
                     let lastBoxTopLeft = model.ScalingBox.Value.ScalingBoxBound.TopLeft
                     let startWidth = model.ScalingBox.Value.ScalingBoxBound.W
                     let startHeight = model.ScalingBox.Value.ScalingBoxBound.H
+
                     let scalingBoxCentrePos = 
                             {X = lastBoxTopLeft.X + (startWidth/2.); Y = lastBoxTopLeft.Y + (startHeight/2.)}
+
+                    let initMouseToCentreVec = {X = (startWidth/2.) + 50.; Y = (startHeight/2.) + 50.}
+                    let modelSetSymCentre = RotateScale.groupNewSelectedSymsModel (model.SelectedComponents) (model.Wire.Symbol) (RotateScale.setSymCentre)
+
                     {model with
+                        Wire = {model.Wire with Symbol = modelSetSymCentre};
                         Action = Scaling;
-                        ScalingBoxCentrePos = scalingBoxCentrePos
+                        ScalingBoxCentrePos = scalingBoxCentrePos;
+                        InitMouseToScalingBoxCentre = initMouseToCentreVec;
                         LastMousePos = mMsg.Pos;
                         TmpModel = Some model}, Cmd.none
                 
@@ -475,39 +482,32 @@ let mDragUpdate
     // New Action, when we click on scaling button and drag the components and box should scale with mouse
     | Scaling ->
         let oldModel = model
-        let lastMousePos = model.LastMousePos
+        let startMouseToCentreDistance = model.InitMouseToScalingBoxCentre
         let currentMousePos = mMsg.Pos
-        let lastBoxTopLeft = model.ScalingBox.Value.ScalingBoxBound.TopLeft
-        let startWidth = model.ScalingBox.Value.ScalingBoxBound.W
-        let startHeight = model.ScalingBox.Value.ScalingBoxBound.H
-        let boxCentrePos = model.ScalingBoxCentrePos
+        let scalingBoxCentrePos = model.ScalingBoxCentrePos
+        let initMouseToCentre = model.InitMouseToScalingBoxCentre
 
         let vectorLength vec = 
             let {XYPos.X = x; XYPos.Y = y} = vec
             sqrt(x**2 + y**2)
 
-        let adjustWhenZero x = if x = 0. then 1. else x 
-
-        let lastMouseToCentreDistance = 
-            (lastMousePos - boxCentrePos )
-            |> vectorLength
-            |> adjustWhenZero
-
         let currentMouseToCentreDistance = 
-            (currentMousePos - boxCentrePos)
+            (currentMousePos - scalingBoxCentrePos)
             |> vectorLength
-            |> adjustWhenZero
-        
-        let setCurrentMousePos = if currentMouseToCentreDistance <= 1. then lastMousePos else mMsg.Pos
 
-        let scalingFactor = currentMouseToCentreDistance / lastMouseToCentreDistance
+        let startMouseToCentreDistance = 
+            initMouseToCentre
+            |> vectorLength
 
-        printfn "currentMouseToCentreDistance:%A lastMouseToCentreDistance:%A scalingFactor:%A" currentMouseToCentreDistance lastMouseToCentreDistance scalingFactor
+        let scalingFactor = currentMouseToCentreDistance / startMouseToCentreDistance
 
-        let modelSymbols = RotateScale.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol scalingFactor boxCentrePos
-        let newSymModel = {modelSymbols with Symbols = modelSymbols.Symbols}
-    
-        let newBlock = RotateScale.getBlock ((List.map (fun x -> modelSymbols.Symbols |> Map.find x) oldModel.SelectedComponents) )
+        // printfn "currentMouseToCentreDistance:%A lastMouseToCentreDistance:%A scalingFactor:%A" currentMouseToCentreDistance lastMouseToCentreDistance scalingFactor
+
+        let scaleSymFunc = RotateScale.scaleSymbol scalingBoxCentrePos scalingFactor
+        let newSymModel = RotateScale.groupNewSelectedSymsModel oldModel.SelectedComponents oldModel.Wire.Symbol scaleSymFunc
+
+        // let modelSymbols = RotateScale.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol scalingFactor boxCentrePos
+        // let newSymModel = {modelSymbols with Symbols = modelSymbols.Symbols}
 
         let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes =  Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}
 
@@ -521,7 +521,6 @@ let mDragUpdate
         if (errorSelectedComponents<>[]) then
             {model with
                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                        LastMousePos = setCurrentMousePos
                         }, 
                     Cmd.batch [
                         sheetCmd CheckAutomaticScrolling
@@ -532,7 +531,6 @@ let mDragUpdate
 
         {newModel with
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
-                    LastMousePos = setCurrentMousePos
                     ErrorComponents = errorComponents},
         Cmd.batch [ 
             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))

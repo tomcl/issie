@@ -866,6 +866,7 @@ let init () =
         ShowGrid = false
         LastMousePos = { X = 0.0; Y = 0.0 }
         ScalingBoxCentrePos = { X = 0.0; Y = 0.0 }
+        InitMouseToScalingBoxCentre = { X = 0.0; Y = 0.0 }
         SnapSymbols=emptySnap
         SnapSegments = emptySnap
         CursorType = Default

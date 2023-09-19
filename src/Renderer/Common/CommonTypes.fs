@@ -248,6 +248,7 @@ module CommonTypes
         | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
+        | MergeN of NumInputs: int * InputWidths: int list
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
@@ -468,6 +469,7 @@ module CommonTypes
             | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
             | Custom of CustomComponentType // schematic sheet used as component
             | MergeWires | SplitWire of BusWidth: int // int is bus width
+            | MergeN of NumInputs: int * InputWidths: int list
             // DFFE is a DFF with an enable signal.
             // No initial state for DFF or Register? Default 0.
             | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
@@ -541,6 +543,7 @@ module CommonTypes
             | JSONComponent.ComponentType.NbitSpreader x -> NbitSpreader x
             | JSONComponent.ComponentType.Custom x -> Custom x // schematic sheet used as component
             | JSONComponent.ComponentType.MergeWires -> MergeWires
+            | JSONComponent.ComponentType.MergeN (a, b) -> MergeN (a,b)
             | JSONComponent.ComponentType.SplitWire x -> SplitWire x // int is bus width
             | JSONComponent.ComponentType.DFF -> DFF
             | JSONComponent.ComponentType.DFFE -> DFFE
@@ -600,6 +603,7 @@ module CommonTypes
             | NbitSpreader w -> JSONComponent.ComponentType.NbitSpreader w
             | Custom t -> JSONComponent.ComponentType.Custom t // schematic sheet used as component
             | MergeWires -> JSONComponent.ComponentType.MergeWires
+            | MergeN (a , b) -> JSONComponent.ComponentType.MergeN (a,b)
             | SplitWire w -> JSONComponent.ComponentType.SplitWire w // int is bus width
             // DFFE is a DFF with an enable signal.
             // No initial state for DFF or Register? Default 0.

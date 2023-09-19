@@ -36,6 +36,7 @@ let couldBeSynchronousComponent compType : bool =
     | BusCompare _
     | BusCompare1 _
     | MergeWires
+    | MergeN _
     | SplitWire _
     | Not
     | Shift _
@@ -100,6 +101,7 @@ let rec hasSynchronousComponents graph : bool =
         | BusCompare _
         | BusCompare1 _
         | MergeWires
+        | MergeN _
         | SplitWire _
         | Not
         // | And

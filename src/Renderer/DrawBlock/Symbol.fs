@@ -568,6 +568,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
     | GateN (_, n) -> (n , 1, 1.5*gS * (float n)/2. , 1.5*gS)
+    | MergeN (n, _) -> (n , 1, 1.5*gS * (float n)/2. , 1.5*gS)
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 

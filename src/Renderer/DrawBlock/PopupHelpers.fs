@@ -135,6 +135,9 @@ let getInt (dialogData : PopupDialogData) =
 let getInt2 (dialogData : PopupDialogData) : int64 =
     Option.defaultValue 0L dialogData.Int2
 
+let getIntList (dialogData : PopupDialogData) (numInputsDefault : int ) (widthDefault)=
+    Option.defaultValue [for _ in 1..numInputsDefault -> widthDefault] dialogData.IntList
+
 let getMemorySetup (dialogData : PopupDialogData) wordWidthDefault =
     Option.defaultValue (4,wordWidthDefault,FromData,None) dialogData.MemorySetup
 
@@ -359,6 +362,73 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
                 Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
             ]
         ]
+
+let dialogPopupBodyNInts beforeInt numInputsDefault intDefault dispatch =
+    numInputsDefault |> Some |> SetPopupDialogInt |> dispatch
+    [for _ in 1..numInputsDefault -> intDefault] |> Some |> SetPopupDialogIntList |> dispatch
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
+        let setupWidthList =
+            match dialogData.IntList with 
+            | None -> 
+                let setup = getIntList dialogData numInputsDefault intDefault
+                printfn "setup list %A" setup
+                dispatch <| SetPopupDialogIntList (Some setup)
+                setup
+            | Some inputWidthList -> 
+                let newNumInputs = getInt dialogData
+                printfn "list %A" inputWidthList
+                printfn "new num %d" newNumInputs
+                match inputWidthList.Length with
+                | n when n > newNumInputs -> 
+                    inputWidthList[..(newNumInputs-1)]
+                | n when n < newNumInputs ->
+                    List.append inputWidthList (List.init (newNumInputs-n) (fun _ -> 1)) 
+                | _ -> inputWidthList
+        
+        if dialogData.IntList <> Some setupWidthList then
+            dispatch <| SetPopupDialogIntList (Some setupWidthList)
+
+        div [] [
+            beforeInt dialogData
+            br []
+            Input.number [
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
+                Input.DefaultValue <| sprintf "%d" numInputsDefault
+                Input.OnChange (
+                    let checkChange = fun newNumInputs -> 
+                        if newNumInputs < 2 then 
+                            getInt dialogData
+                        else 
+                            newNumInputs
+                    getIntEventValue >> checkChange >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+            br []
+            br []
+            str $"How many bits should each input have?"
+            br []; br [];
+            setupWidthList
+            |> List.mapi (fun index defaultValue ->
+                div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]] [
+                    label [Style[MarginRight "10px"]] [str (sprintf "Input Port %d Width :" (index + 1))] 
+                    Input.number [
+                        Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
+                        Input.DefaultValue <| sprintf "%d" defaultValue
+                        Input.OnChange (
+                            let setWidth = 
+                                fun newWidth -> 
+                                    setupWidthList
+                                    |> List.mapi (fun i x -> if i = index then newWidth else x)
+                            getIntEventValue >> setWidth >> Some >> SetPopupDialogIntList >> dispatch)
+                    ]
+                ]
+                )
+            |> div [] 
+            br []
+            br []
+
+        ]
+            
 /// Create the body of a dialog Popup with two ints.
 let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (width2:string) dispatch =
 

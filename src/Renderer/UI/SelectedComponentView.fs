@@ -752,6 +752,8 @@ let private makeDescription (comp:Component) model dispatch =
     | Demux8 -> div [] [ str "Demultiplexer with one input and eight outputs." ]
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m. \
                                   The bit numbers of the whole and each branch are shown when the component is connected." ]
+    | MergeN _ -> div [] [ str "Merge n wires of various widths into a single wire. \
+                                  The bit numbers of the whole and each branch are shown when the component is connected." ]
     | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m. \
                                    The bit numbers of the whole and each branch are shown when the component is connected."]
     | NbitsAdder numberOfBits 

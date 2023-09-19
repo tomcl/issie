@@ -238,6 +238,27 @@ let private createGateNPopup (gateType: GateComponentType) (model: Model) dispat
             intIn < 2 || intIn > Constants.maxGateInputs
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
+let private createMergeNPopup (model: Model) dispatch =
+    let title = $"Add N input merge"
+    let beforeInt =
+        fun _ -> str "How many inputs should the merge component have?"
+    let numInputsDefault = 2
+    let intDefault = 1
+    let body = dialogPopupBodyNInts beforeInt numInputsDefault intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
+            let inputInt = getInt dialogData 
+            let inputList = getIntList dialogData numInputsDefault intDefault
+            createCompStdLabel (MergeN (inputInt, inputList)) model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (model': Model) ->
+            let intIn = getInt model'.PopupDialogData
+            intIn < 2
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
 let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"
     let beforeInt =
@@ -859,19 +880,23 @@ let viewCatalogue model dispatch =
                           catTip1 "Not Connected" (fun _ -> createComponent (NotConnected) "" model dispatch) "Not connected component to terminate unused output."]                          
                     makeMenuGroup
                         "Buses"
-                        [ catTip1 "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewires when you want to \
+                        [ 
+                        catTip1 "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewires when you want to \
                                                                                        join the bits of a two busses to make a wider bus. \
                                                                                        Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                        after placing component to change this."
-                          catTip1 "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
+                            
+                        catTip1 "MergeN"  (fun _ -> createMergeNPopup model dispatch) "Use Mergewires when you want to \
+                                                                                       join the bits of N busses to make a wider bus."
+                        catTip1 "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
                                                                                              bits of a bus into two sets. \
                                                                                              Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                              after placing component to change this."
-                          catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or \
+                        catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or \
                                                                                                 more selected bits of its input"
-                          catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \
+                        catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \
                                                                                                  matches a constant value as written in decimal, hex, or binary." 
-                          catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "1-to-N bits spreader"]
+                        catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "1-to-N bits spreader"]
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"

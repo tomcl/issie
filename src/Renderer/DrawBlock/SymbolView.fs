@@ -360,6 +360,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                         mergeWiresTextPos[i] 
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
+        // add MergeN later
         | NbitSpreader n -> 
             //let lo = 1
             //let msb = hi + lo - 1
@@ -472,6 +473,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 0.5 else -3.)}
             | 0, 0, _ -> {X = 0.; Y = 0.}
             | 1, 0, _ -> {X = 10.; Y = 0.}
+            | _, _, MergeN _ -> {X=0;Y=0}
             | 0, 1, _ -> {X = -10.; Y = 0.}
             | _ -> failwithf "What? Can't happen"
 

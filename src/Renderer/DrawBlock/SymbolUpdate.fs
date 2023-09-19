@@ -471,6 +471,7 @@ let createSymbolRecord ldcs theme comp =
             Moving = false
             InWidth0 = None
             InWidth1 = None
+            InWidths = None
             STransform = getSTransformWithDefault comp.SymbolInfo
             ReversedInputPorts = match comp.SymbolInfo with |Some si -> si.ReversedInputPorts |_ -> None
             PortMaps = portMaps
@@ -780,6 +781,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | ChangeGate (compId, gateType, numInputs) ->
         let newSymbol = changeGateComponent model compId gateType numInputs
+        let newPorts = addToPortModel model newSymbol
+        let newModel = {model with Ports = newPorts}  
+        (replaceSymbol newModel newSymbol compId), Cmd.none
+    
+    | ChangeMergeN (compId, numInputs, widths) ->
+        let newSymbol = changeMergeNComponent model compId numInputs widths
         let newPorts = addToPortModel model newSymbol
         let newModel = {model with Ports = newPorts}  
         (replaceSymbol newModel newSymbol compId), Cmd.none

@@ -321,6 +321,7 @@ let getPrefix (compType:ComponentType) =
     | Counter _ |CounterNoEnable _
     | CounterNoLoad _ |CounterNoEnableLoad _ -> "CNT"
     | MergeWires -> "MW"
+    | MergeN _ -> "MN"
     | SplitWire _ -> "SW"
     |_  -> ""
 
@@ -358,6 +359,7 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | NbitsNot (x)->  nBitsGateTitle "NOT" x
     | Shift (n,_,_) -> busTitleAndBits "Shift" n
     | Custom x -> x.Name.ToUpper()
+    | MergeN _ -> "Merge"
     | _ -> ""
 
 
@@ -568,7 +570,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
     | GateN (_, n) -> (n , 1, 1.5*gS * (float n)/2. , 1.5*gS)
-    | MergeN (n, _) -> (n , 1, 1.5*gS * (float n)/2. , 1.5*gS)
+    | MergeN (n, _) -> (n , 1, 1.5*gS * (float n)/2. , 2.0*gS)
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
@@ -665,6 +667,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
           }
       InWidth0 = None // set by BusWire
       InWidth1 = None
+      InWidths = None
       Id = ComponentId id
       Component = comp
       Moving = false

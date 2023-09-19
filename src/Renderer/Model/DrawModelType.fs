@@ -132,6 +132,9 @@ module SymbolT =
             InWidth0: int option
             InWidth1: int option
 
+            /// for MergeN later
+            InWidths: int list option
+
             /// the following fields define the position and size of the component label.
             /// labels will rotate when the symbol is rotated.
             /// labels can be manually adjusted, if not position is as default (for given rotation)
@@ -256,6 +259,7 @@ module SymbolT =
         | ChangeAdderComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ChangeGate of compId: ComponentId * gateType: GateComponentType * numInputs: int
+        | ChangeMergeN of compId: ComponentId * numInputs: int * widths: int list
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
         | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 

@@ -106,6 +106,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     | Input _ -> failwithf "Legacy Input component types should never occur"
     | IOLabel -> failwithf "IOLabel should not occur in getInputPortName"
     | MergeWires -> failwithf "MergeWires should not occur in getInputPortName"
+    | MergeN _ -> failwithf "MergeN should not occur in getInputPortName"
     | SplitWire _ -> failwithf "SplitWire should not occur in getInputPortName"
     | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
 
@@ -137,6 +138,7 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
         | NotConnected -> failwithf "NotConnected should not occur in getInputName"
         | IOLabel -> failwithf "IOLabel should not occur in getInputName"
         | MergeWires -> failwithf "MergeWires should not occur in getInputName"
+        | MergeN _ -> failwithf "MergeN should not occur in getInputName"
         | SplitWire _ -> failwithf "SplitWire should not occur in getInputName"
         | BusSelection _ -> failwithf "BusSeleciton should not occur in getInputName"
 
@@ -174,6 +176,7 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
     | Input _ -> failwithf "Legacy Input component types should never occur"
     | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
+    | MergeN _ -> failwithf "MergeN should not occur in getOutputName"
     | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
     | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
 
@@ -215,6 +218,7 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
         | Input _ -> failwithf "Legacy Input component types should never occur"
         | NotConnected -> failwithf "NotConnected should not occur in getOutputName"
         | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
+        | MergeN _ -> failwithf "MergeN should not occur in getOutputName"
         | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
         | BusSelection _ -> failwithf "BusSelection should not occur in getOutputName"
 

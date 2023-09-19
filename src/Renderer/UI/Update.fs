@@ -569,6 +569,9 @@ let update (msg : Msg) oldModel =
     | TruthTableMsg ttMsg ->
         TruthTableUpdate.truthTableUpdate model ttMsg
 
+    | DisplayReactElement reactElement ->
+        //need to figure out what to add
+
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out
     | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 

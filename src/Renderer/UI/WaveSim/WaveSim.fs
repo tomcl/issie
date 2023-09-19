@@ -1102,7 +1102,6 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
         ]
 
 /// Entry point to the waveform simulator.
-//maybe possible entry point for breadcrumb formation also??
 let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
     let notRunning = 

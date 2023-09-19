@@ -549,7 +549,57 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
     ]
     
 
+let private changeMergeN model (comp:Component) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
+    let errText =
+        model.PopupDialogData.Int
+        |> Option.map (fun i ->
+            if i < 2 then
+                sprintf "Must have more than 2 inputs"
+            else
+                "")
+        |> Option.defaultValue ""
+
+    let title, nInp, widths =
+        match comp.Type with
+        | MergeN (nInputs, widths) -> "Number of inputs", nInputs, widths
+        | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
+    
+    let changeWidths = fun (widths: int list) (newNumInputs: int ) -> 
+        match widths.Length with
+        | n when n > newNumInputs -> 
+            widths[..(newNumInputs-1)]
+        | n when n < newNumInputs ->
+            List.append widths (List.init (newNumInputs-n) (fun _ -> 1)) 
+        | _ -> widths
+
+    div [] [
+        span
+            [Style [Color Red]]
+            [str errText]
+
+        intFormField title "60px" nInp 2 (
+            fun newInpNum ->
+                if newInpNum >= 2 then
+                    let newWidths = changeWidths widths newInpNum
+                    model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newInpNum newWidths
+                    dispatch <| SetPopupDialogInt (Some newInpNum)
+                else
+                    dispatch <| SetPopupDialogInt (Some newInpNum)
+        )
+        widths
+        |> List.mapi (fun index defaultValue ->
+            let portTitle = sprintf "Input Port %d Width :" (index + 1)
+            intFormField portTitle "60px" defaultValue 1 (
+                fun newWidth -> 
+                    widths
+                    |> List.mapi (fun i x -> if i = index then newWidth else x)
+                    |> model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) nInp
+            )
+        )
+        |> div [] 
+    ]
 
 /// Used for Input1 Component types. Make field for users to enter a default value for
 /// Input1 Components when they are undriven.
@@ -888,6 +938,11 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
         div []
             [
                 makeNumberOfInputsField model comp dispatch
+            ]
+    | MergeN _ -> 
+        div []
+            [
+                changeMergeN model comp dispatch
             ]
     | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch

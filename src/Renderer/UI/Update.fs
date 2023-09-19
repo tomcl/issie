@@ -408,6 +408,11 @@ let update (msg : Msg) oldModel =
                      | FirstInt -> set int_ (Option.map int32 n)
                      | SecondInt -> set int2_ n)
         |> withNoMsg
+    
+    | SetPopupDialogIntList intlist->
+        model
+        |> set (popupDialogData_ >-> intlist_) intlist
+        |> withNoMsg
 
     | SetPopupDialogMemorySetup m ->
         model

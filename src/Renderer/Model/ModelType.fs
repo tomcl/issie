@@ -89,6 +89,7 @@ type PopupDialogData = {
     VerilogCode: string option
     VerilogErrors: ErrorInfo list
     BadLabel: bool
+    IntList: int list option;
 }
 
 let text_ = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
@@ -108,8 +109,7 @@ let algebraError_ = Lens.create (fun a -> a.AlgebraError) (fun s a -> {a with Al
 let verilogCode_ = Lens.create (fun a -> a.VerilogCode) (fun s a -> {a with VerilogCode = s})
 let verilogErrors_ = Lens.create (fun a -> a.VerilogErrors) (fun s a -> {a with VerilogErrors = s})
 let badLabel_ = Lens.create (fun a -> a.BadLabel) (fun s a -> {a with BadLabel = s})
-
-
+let intlist_ = Lens.create (fun a -> a.IntList) (fun s a -> {a with IntList = s})
 
 type TopMenu = | Closed | Project | Files
 
@@ -382,6 +382,7 @@ type Msg =
     | SetPopupDialogInt of int option
     | SetPopupDialogInt2 of int64 option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
+    | SetPopupDialogIntList of int list option
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option

@@ -20,9 +20,6 @@ open Optics.Optic
 type BreadcrumbData =
     | WSModelData of WaveSimModel
     | ModelData of Model
-type Transformation<'a> =
-    | ProjectTransform of (Project -> 'a)
-    | WaveSimModelTransform of (WaveSimModel -> 'a)
 type BreadcrumbConfig = {
     BreadcrumbIdPrefix: string
     ColorFun: SheetTree -> IColor
@@ -170,32 +167,27 @@ let makeBreadcrumbsFromPositions
         |> positionSheetsInGrid
         |> makeGridFromSheetsWithPositions cfg dispatch
 
-let mapOverModelOrWSModel defaultValue (data: BreadcrumbData) (transform: Transformation<'a>) =
-    match data, transform with
-    | ModelData model, ProjectTransform projectTransform ->
+let mapOverModelOrWSModel defaultValue (data: BreadcrumbData) (transform: BreadcrumbData -> 'a) :'a =
+    let projectTransform (project:Project) = transform (ModelData {UserData= project;}) 
+    let waveSimTransform (wsModel: WaveSimModel) = transform (WSModelData wsModel)
+
+    match data with
+    | ModelData model ->
         mapOverProject defaultValue model projectTransform
-    | WSModelData wsModel, WaveSimModelTransform wsModelTransform ->
-        mapOverWaveSimModel defaultValue wsModel wsModelTransform
-    | _, _ -> defaultValue
+    | WSModelData wsModel ->
+        mapOverWaveSimModel defaultValue wsModel waveSimTransform
+    | _ -> defaultValue
 /// Breadcrumbs of entire simulated design hierarchy.
 /// Display as a ReactElement the breadcrumbs.
 /// ClickAction - what happens when a given breadcrumb (labelled by its path to root) is clicked.
-/// Edited to include wsModel and Model
 let hierarchyBreadcrumbs
         (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
-        (data: BreadcrumbData) =
-    mapOverModelorWSModel (div [] []) data (fun p ->
-        let root = match data with
-        | ModelData model -> Option.defaultValue p.OpenFileName model.WaveSimSheet
-        | WSModelData wsModel ->
-            let topSheetOption =
-                if System.String.IsNullOrEmpty(wsModel.TopSheet) then None
-                else Some wsModel.TopSheet
-            Option.defaultValue p.OpenFileName topSheetOption
+        (data: Model) =
+    mapOverProject (div [] []) data (fun (p) ->
+        let root =Option.defaultValue p.OpenFileName data.WaveSimSheet
         let sheetTreeMap = getSheetTrees p
         makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch)
-
 
 
 /// Breadcrumbs of entire design hierarchy from given sheet

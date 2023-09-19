@@ -880,7 +880,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | None -> failwith "MergeWires with BigIntState"
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
             // Little endian, bits coming from the top wire are the least significant.
-            match ins[0], outs[0] with
+            match ins[0], ins[1] with
             | false, false ->
                 let bits0, bits1 = insUInt32 0, insUInt32 1
                 let res = ((bigint bits1) <<< comp.InputWidth 0) ||| (bigint bits0)
@@ -897,6 +897,19 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let bits0, bits1 = insBigInt 0, insBigInt 1
                 let res = (bits1 <<< comp.InputWidth 0) ||| bits0
                 putBigInt 0 res
+    | MergeN (inputs, widths) , false -> 
+        let mergeTwoValues (width: int) (value1: uint32) (value2: uint32) =
+            (value1 <<< width) ||| value2
+        let res = List.fold2 (fun acc width input ->
+            if input < 0 then
+                failwith "Input values must be non-negative"
+            mergeTwoValues width acc (insUInt32 input)) 0u (List.rev widths) [for x in inputs-1..-1..0 -> x]
+        putUInt32 0 res
+    | MergeN (inputs, widths) , true ->
+        match comp.BigIntState with
+        | None -> failwith "MergeN with BigIntState"
+        | Some { InputIsBigInt = ins; OutputIsBigInt = outs } -> 
+            failwith "TODO"
     | SplitWire topWireWidth, false ->
         let bits = insUInt32 0
 #if ASSERTS

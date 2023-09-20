@@ -122,6 +122,7 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
+    ReactElementToDisplay = None
 }
 
 

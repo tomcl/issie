@@ -11,7 +11,7 @@ open WaveSimStyle
 open WaveSimHelpers
 open TopMenuView
 open SimulatorTypes
-
+open MenuHelpers
 
 let cap (sheet:string) = sheet.ToUpper()
 
@@ -570,7 +570,20 @@ let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> U
             ]] [tbody [] rows]
     else
         makeSelectionGroup showDetails ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
-
+/// Version of makeSheetRow that only takes a subSheet string rather than string list
+let makeRowByComponent  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> unit) (subSheet: string) (waves: Wave list) =
+    let componentGroup =
+        waves
+        |> List.groupBy (fun wave -> getCompGroup ws.FastSim wave)
+        |> List.map (fun (grp, groupWaves) -> makeComponentGroup showDetails ws dispatch [subSheet] grp groupWaves)
+    
+    let rows = componentGroup
+    Table.table [
+            Table.IsBordered
+            Table.IsFullWidth
+            Table.Props [
+                Style [BorderWidth 0]
+            ]] [tbody [] rows]
 /// This is a workaropund for a potential data inconsistency in the waves and selected waves of a FastSimulation
 /// it ensure that the selector only lists valid waves by filyering all waves against valid components
 /// It would be better to understand the (occasional) bug taht leads to this inconsistency.
@@ -629,13 +642,33 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
         (str "Select Waves")
 
 /// Modal that, when active, allows users to select waves to be viewed.
-let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let endModal _ = 
         dispatch <| UpdateWSModel (fun ws ->
             {wsModel with
                 WaveModalActive = false
                 SearchString = ""
             })
+    let sheetColor (sheet:SheetTree) =
+                IColor.IsCustomColor "pink"
+    
+    let customClickAction (sheet: SheetTree) (dispatch: Msg -> unit) =
+        let reactElement = makeRowByComponent false wsModel dispatch sheet.SheetName []
+        dispatch <| DisplayReactElement reactElement
+
+    let breadcrumbConfig =  {
+                MiscMenuView.Constants.defaultConfig with
+                    ColorFun = sheetColor
+                    ClickAction = (fun sheetTree dispatch -> customClickAction sheetTree dispatch)
+                    BreadcrumbIdPrefix = "SheetMenuBreadcrumb"
+                }
+    let breadcrumbs = [
+                    div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"]] [str "Sheets with Design Hierarchy"]
+                    MiscMenuView.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch model
+                    ]
+
+    
+
     Modal.modal [
         Modal.IsActive wsModel.WaveModalActive
     ] [
@@ -672,9 +705,10 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                     ]
                 ]
             ]
-            Modal.Card.body [Props [Style [OverflowY OverflowOptions.Visible]]] [   
+            Modal.Card.body [Props [Style [OverflowY OverflowOptions.Visible]]] [
+                div [] breadcrumbs
                 searchBar wsModel dispatch
-                selectWaves wsModel [] dispatch
+                /// to change selectWaves wsModel [] dispatch
             ]
             Modal.Card.foot [Props [Style [Display DisplayOptions.InlineBlock; Float FloatOptions.Right]]]
                 [

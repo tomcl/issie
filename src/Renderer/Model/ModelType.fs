@@ -430,6 +430,7 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
+    | DisplayReactElement of ReactElement
 
 
 //================================//
@@ -580,6 +581,7 @@ type Model = {
     UIState: UICommandType Option
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
+    ReactElementToDisplay: ReactElement Option
 } 
 
     with member this.WaveSimOrCurrentSheet =

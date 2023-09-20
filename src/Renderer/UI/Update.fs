@@ -16,7 +16,7 @@ open UpdateHelpers
 open Optics
 open Optics.Optic
 open Optics.Operators
-
+open WaveSimSelect
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
 //---------------------------------- Update Model ---------------------------------------------//
@@ -578,6 +578,11 @@ let update (msg : Msg) oldModel =
 
     | TruthTableMsg ttMsg ->
         TruthTableUpdate.truthTableUpdate model ttMsg
+
+    /// new Update function to render a reactElement
+    | DisplayReactElement reactElement ->
+        {model with ReactElementToDisplay = Some reactElement},
+        Cmd.none
 
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out

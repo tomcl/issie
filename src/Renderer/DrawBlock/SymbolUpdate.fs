@@ -453,6 +453,7 @@ let createSymbolRecord ldcs theme comp =
         { 
             Pos = xyPos
             CentrePos = {X = 0.; Y = 0}
+            OffsetFromBBCentre = {X = 0.; Y = 0.}
             LabelHasDefaultPos = hasDefault
             LabelBoundingBox = labelBoundingBox
             LabelRotation = comp.SymbolInfo |> Option.bind (fun info -> info.LabelRotation)

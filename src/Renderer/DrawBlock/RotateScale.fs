@@ -552,40 +552,119 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+/// topEdgeSym: Op is (+)
+/// bottomEdgeSym: Op is (-)
+let scalingFactorYTopBottom (sym) (matchScalingBoxY: float) (op: float -> float -> float)= 
+    let symH = sym.Component.H
+    let startSymCentreY = sym.CentrePos.Y
+    let startSymCentreYOffset = sym.OffsetFromBBCentre.Y
+    let bbCentreY = startSymCentreY - startSymCentreYOffset
+    //printfn "bbCentreY:%A" bbCentreY
+    let newSymCentreYOffset=  (op matchScalingBoxY (symH/2.)) - bbCentreY
+    //printfn "newSymCentreYOffset:%A, startSymCentreYOffset:%A, factor:%A" newSymCentreYOffset startSymCentreYOffset (abs (newSymCentreYOffset / startSymCentreYOffset))
+    //printfn "matchScalingBoxY:%A" (sym.CentrePos.Y+newSymCentreYOffset)
+    (newSymCentreYOffset / startSymCentreYOffset)
 
-let setSymCentre (sym:Symbol): Symbol = 
+/// leftEdgeSym: Op is (+)
+/// rightEdgeSym: Op is (-)
+let scalingFactorXLeftRight (sym) (matchScalingBoxX: float) (op: float -> float -> float)= 
+    let symW = sym.Component.W
+    let startSymCentreX = sym.CentrePos.X
+    let startSymCentreXOffset = sym.OffsetFromBBCentre.X
+    let bbCentreX = startSymCentreX - startSymCentreXOffset
+    printfn "caluclated bbCentreX:%A" bbCentreX
+    let newSymCentreXOffset= (op matchScalingBoxX (symW/2.)) - bbCentreX
+    printfn "matchScalingBoxX:%A" (sym.CentrePos.X+newSymCentreXOffset)
+    printfn "newSymCentreXOffset:%A, startSymCentreXOffset:%A, factor:%A" newSymCentreXOffset startSymCentreXOffset (abs (newSymCentreXOffset / startSymCentreXOffset))
+    (newSymCentreXOffset / startSymCentreXOffset)
+
+let scalingFactorSymLRTB
+    (scalingBoxCentre:XYPos)
+    (scalingBoxTopLeft:XYPos) 
+    (mouseScalingFactor:float) 
+    (compList:ComponentId list) 
+    (model:SymbolT.Model) : (float*float)*(float*float) =
+    
+    let scalingBoxTopLeftToCentre = scalingBoxTopLeft - scalingBoxCentre
+    let scaledSymsBBTopLeft = scalingBoxCentre + (scalingBoxTopLeftToCentre * mouseScalingFactor) + {X = 50.; Y = 50.}
+    printfn " scaledSymsBBTopLeft:%A" scaledSymsBBTopLeft
+    let scalingBoxBottomRightToCentre = scalingBoxTopLeftToCentre * (-1.0)
+    let scaledSymsBBBottomRight = scalingBoxCentre + (scalingBoxBottomRightToCentre * mouseScalingFactor) - {X = 50.; Y = 50.}
+    printfn " scaledSymsBBBottomRight:%A" scaledSymsBBBottomRight
+
+    let {XYPos.X = scaledBBMinX; XYPos.Y = scaledBBMinY} = scaledSymsBBTopLeft
+    let {XYPos.X = scaledBBMaxX; XYPos.Y = scaledBBMaxY} = scaledSymsBBBottomRight
+
+    let selectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let maxXsym = List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) selectedSymbols
+    let minXsym = List.minBy (fun (x:Symbol) -> x.Pos.X) selectedSymbols
+    let maxYsym = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) selectedSymbols
+    let minYsym = List.minBy (fun (x:Symbol) -> x.Pos.Y) selectedSymbols
+
+    let topScalingFactor = scalingFactorYTopBottom minYsym scaledBBMinY (+)
+    //printfn "topScalingFactor:%A" topScalingFactor
+    let bottomScalingFactor = scalingFactorYTopBottom maxYsym scaledBBMaxY (-)
+    let leftScalingFactor = scalingFactorXLeftRight minXsym scaledBBMinX (+)
+    printfn "leftScalingFactor:%A" leftScalingFactor
+    let rightScalingFactor = scalingFactorXLeftRight maxXsym scaledBBMaxX (-)
+    
+    (leftScalingFactor, rightScalingFactor), (topScalingFactor, bottomScalingFactor)
+    
+let setSymCentre (bbCentrePos:XYPos) (sym:Symbol): Symbol = 
     let centreOffsetFromTopLeft = {X = (sym.Component.W/2.); Y = (sym.Component.H/2.)}
-    let centrePos = sym.Pos + centreOffsetFromTopLeft
-    {sym with CentrePos = centrePos}
+    let symCentrePos = sym.Pos + centreOffsetFromTopLeft
+    let offsetFromBBCentre = symCentrePos - bbCentrePos
+    {sym with CentrePos = symCentrePos; OffsetFromBBCentre = offsetFromBBCentre}
 
-let scaleSymbol (scalingBoxCentrePos:XYPos) (scalingFactor:float) (sym:Symbol): Symbol = 
-    if scalingFactor = 1 then
-        sym
-    else 
-        let symCentreOffsetFromTopLeft = {X = (sym.Component.W/2.); Y = (sym.Component.H/2.)}
+let scaleSymbol 
+    (scalingFactorSymLRTB:(float*float)*(float*float)) 
+    (bbCentrePos:XYPos) 
+    (sym:Symbol): Symbol = 
 
-        let translateInRelationToOrigin pos = pos - scalingBoxCentrePos
-        let scalingFromOrigin (pos:XYPos) : XYPos = pos * scalingFactor
-        let translateBackFromOrigin pos = pos + scalingBoxCentrePos
-        let getTopLeftFromSymCentre pos  = pos - symCentreOffsetFromTopLeft
+    let startCentreOffSetFromBBCentre = sym.OffsetFromBBCentre
+    let symCentreOffsetFromTopLeft = {X = (sym.Component.W/2.); Y = (sym.Component.H/2.)}
 
-        let newTopLeftPos = 
-            sym.CentrePos
-            |> translateInRelationToOrigin 
-            |> scalingFromOrigin 
-            |> translateBackFromOrigin 
-            |> getTopLeftFromSymCentre 
+    let xScalingFactor =
+        if (startCentreOffSetFromBBCentre.X < 0) then fst (fst scalingFactorSymLRTB) else snd (fst scalingFactorSymLRTB)
+    
+    let yScalingFactor = 
+        if (startCentreOffSetFromBBCentre.Y < 0) then fst (snd scalingFactorSymLRTB) else snd (snd scalingFactorSymLRTB)
+    
+    let newCentreOffSetFromBBCentre (pos:XYPos) = 
+       // printfn "yPos:%A, yScalingFactor:%A, newCentreOffSetFromBBCentreY: %A" pos.Y yScalingFactor (pos.Y * yScalingFactor)
+        printfn "xPos:%A, xScalingFactor:%A, newCentreOffSetFromBBCentreX: %A" pos.X xScalingFactor (pos.X * xScalingFactor)
+        {X = pos.X * xScalingFactor; Y = pos.Y * yScalingFactor}
 
-        let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
+    let translateFromBBCentrePos (pos:XYPos) = pos + bbCentrePos
+    let getTopLeftFromSymCentre (pos:XYPos)  = pos - symCentreOffsetFromTopLeft
 
-        {sym with Pos =  newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
-        // let rotPos = {newTopLeftPos with Y = sym.Pos.Y}
-        // let rotComp = {newComp with Y = sym.Pos.Y}
-        // match sym.Annotation with
-        // | Some (RotateButton _) -> 
-        //     {sym with Pos = rotPos; Component = rotComp; LabelHasDefaultPos = true}
-        // | _ -> 
-        //     {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
+    let newTopLeftPos = 
+        startCentreOffSetFromBBCentre
+        |> newCentreOffSetFromBBCentre 
+        |> translateFromBBCentrePos
+        |> getTopLeftFromSymCentre
+    
+    let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
+
+    {sym with Pos =  newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
+    
+
+    // if scalingFactor = 1 then
+    //     sym
+    // else 
+    //     let symCentreOffsetFromTopLeft = {X = (sym.Component.W/2.); Y = (sym.Component.H/2.)}
+
+    //     let translateInRelationToOrigin pos = pos - scalingBoxCentrePos
+    //     let scalingFromOrigin (pos:XYPos) : XYPos = pos * scalingFactor
+    //     let translateBackFromOrigin pos = pos + scalingBoxCentrePos
+    //     let getTopLeftFromSymCentre pos  = pos - symCentreOffsetFromTopLeft
+
+    //     let newTopLeftPos = 
+    //         sym.CentrePos
+    //         |> translateInRelationToOrigin 
+    //         |> scalingFromOrigin 
+    //         |> translateBackFromOrigin 
+    //         |> getTopLeftFromSymCentre 
 
 let groupNewSelectedSymsModel
     (compList:ComponentId list) 
@@ -595,30 +674,16 @@ let groupNewSelectedSymsModel
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
-    let newSymbols = List.map (modifySymbolFunc) SelectedSymbols
+    let block = getBlock SelectedSymbols
+    printfn "bbCentreX:%A" (block.Centre()).X
+
+    let newSymbols = List.map (modifySymbolFunc (block.Centre())) SelectedSymbols
 
     {model with Symbols = 
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
-
-// let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (scalingFactor:float) (boxCentrePos:XYPos)=
-//     //Similar structure to rotateBlock, easy to understand
-
-//     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-//     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
-
-//     let block = getBlock SelectedSymbols
-      
-//     // let newSymbols = List.map (scaleSymbolInBlockGroup mag block) SelectedSymbols
-//     let newSymbols = List.map (scaleSymbolInBlockGroup scalingFactor boxCentrePos) SelectedSymbols
-
-
-//     {model with Symbols = 
-//                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-//                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-//     )}
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>

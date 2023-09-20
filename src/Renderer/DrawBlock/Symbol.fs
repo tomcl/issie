@@ -649,6 +649,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       CentrePos = {X = 0.; Y = 0.}
+      OffsetFromBBCentre = {X = 0.; Y = 0}
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
       LabelHasDefaultPos = true
       LabelRotation = None

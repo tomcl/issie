@@ -482,34 +482,36 @@ let mDragUpdate
     // New Action, when we click on scaling button and drag the components and box should scale with mouse
     | Scaling ->
         let oldModel = model
-        let startMouseToCentreDistance = model.InitMouseToScalingBoxCentre
         let currentMousePos = mMsg.Pos
-        let scalingBoxCentrePos = model.ScalingBoxCentrePos
+        let initScalingBoxCentrePos = model.ScalingBoxCentrePos
         let initMouseToCentre = model.InitMouseToScalingBoxCentre
+
+        printfn "Should be this mMsg.Pos.Y = %A " mMsg.Pos.Y
 
         let vectorLength vec = 
             let {XYPos.X = x; XYPos.Y = y} = vec
             sqrt(x**2 + y**2)
 
         let currentMouseToCentreDistance = 
-            (currentMousePos - scalingBoxCentrePos)
+            (currentMousePos - initScalingBoxCentrePos)
             |> vectorLength
 
         let startMouseToCentreDistance = 
             initMouseToCentre
             |> vectorLength
 
-        let scalingFactor = currentMouseToCentreDistance / startMouseToCentreDistance
+        let scalingBoxScalingFactor = currentMouseToCentreDistance / startMouseToCentreDistance
 
-        // printfn "currentMouseToCentreDistance:%A lastMouseToCentreDistance:%A scalingFactor:%A" currentMouseToCentreDistance lastMouseToCentreDistance scalingFactor
+        let initScalingBoxBound = oldModel.ScalingBox.Value.ScalingBoxBound
+        let initscalingBoxTopLeft = initScalingBoxBound.TopLeft - {X=50.;Y=50.}
 
-        let scaleSymFunc = RotateScale.scaleSymbol scalingBoxCentrePos scalingFactor
+        let scalingFactorSymLRTB = 
+            RotateScale.scalingFactorSymLRTB (initScalingBoxCentrePos) (initscalingBoxTopLeft) (scalingBoxScalingFactor) (oldModel.SelectedComponents) (oldModel.Wire.Symbol)
+            
+        let scaleSymFunc = RotateScale.scaleSymbol scalingFactorSymLRTB 
         let newSymModel = RotateScale.groupNewSelectedSymsModel oldModel.SelectedComponents oldModel.Wire.Symbol scaleSymFunc
 
-        // let modelSymbols = RotateScale.scaleBlockGroup oldModel.SelectedComponents oldModel.Wire.Symbol scalingFactor boxCentrePos
-        // let newSymModel = {modelSymbols with Symbols = modelSymbols.Symbols}
-
-        let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes =  Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}
+        let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes = Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}
 
         let errorComponents =
             oldModel.SelectedComponents

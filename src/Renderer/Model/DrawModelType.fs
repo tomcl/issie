@@ -120,6 +120,9 @@ module SymbolT =
 
             /// Initial coordinates of the symbol's centre when ScaleButton is pressed
             CentrePos: XYPos
+
+            /// symbol's centre to the selected components' boundingBox centre when ScaleButton is pressed
+            OffsetFromBBCentre: XYPos
         
             /// Width of the wires connected to input ports 0 & 1
             /// This is needed on the symbol only for  bus splitter and bus merge symbols

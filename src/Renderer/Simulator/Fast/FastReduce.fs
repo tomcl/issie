@@ -2158,6 +2158,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             let exp0, exp1 = fd0.toExp, fd1.toExp
             let newExp = [ exp1; exp0 ] |> foldAppends |> AppendExp
             put 0 <| Alg newExp
+    //add MergeN
 
     | SplitWire topWireWidth ->
         let fd = ins 0

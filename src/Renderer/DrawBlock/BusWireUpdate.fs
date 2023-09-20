@@ -165,6 +165,17 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                             Map.add symId {symbol with InWidth1 = Some wire.Width} m
                         | x -> failwithf $"What? wire found with input port {x} other than 0 or 1 connecting to MergeWires"
                     // add MergeN later
+                    | MergeN (nInps, _) -> 
+                        match inPort.PortNumber with
+                        | Some n when (n < nInps && n >= 0) -> 
+                            let newInWidths: int option list = 
+                                match symbol.InWidths with
+                                | None -> List.init nInps (fun i -> 
+                                    if i = n then Some wire.Width else None)
+                                | Some list -> List.mapi (fun i x -> 
+                                    if i = n then Some wire.Width else x) list
+                            Map.add symId {symbol with InWidths = Some newInWidths} m
+                        | x -> failwithf $"What? wire found with input port {x} other than [0..N-1] connecting to MergeN"
                     | _ -> m
 
             let newWires = ((Map.empty, model.Wires) ||> Map.fold addWireWidthFolder)

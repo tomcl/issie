@@ -570,7 +570,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
     | GateN (_, n) -> (n , 1, 1.5*gS * (float n)/2. , 1.5*gS)
-    | MergeN (n, _) -> (n , 1, 1.5*gS * (float n)/2. , 2.0*gS)
+    | MergeN (n, _) -> (n , 1, 2.*gS * (float n)/2. , 2.*gS)
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
@@ -698,7 +698,7 @@ let addToPortModel (model: Model) (sym: Symbol) =
 let inline getPortPosEdgeGap (ct: ComponentType) =
     match ct with
     | MergeWires | SplitWire _  -> 0.25
-    | IsBinaryGate | Mux2 -> Constants.gatePortPosEdgeGap
+    | IsBinaryGate | Mux2 | MergeN _ -> Constants.gatePortPosEdgeGap
     | _ -> Constants.portPosEdgeGap
 
 ///Given a symbol and a Port, it returns the orientation of the port

@@ -351,7 +351,7 @@ let changeMergeNComponent (symModel: Model) (compId: ComponentId) (numInputs: in
     |> varyNumberOfPorts PortType.Input numInputs 1
     |> map component_ (
         set type_ (MergeN (numInputs, widths)) >>
-        set h_ (1.5*(float Constants.gridSize) * (float numInputs)/2.)
+        set h_ (2.*(float Constants.gridSize) * (float numInputs)/2.)
         )
 
 

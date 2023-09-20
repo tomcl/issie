@@ -27,6 +27,7 @@ let contextMenus = [
         "Component", ["Rotate Clockwise (Ctrl-Right)"; "Rotate AntiClockwise (Ctrl-Left)" ; "Flip Vertical (Ctrl-Up)"; "Flip Horizontal (Ctrl-Down)" ; "Properties"]
         "Canvas", ["Zoom-in (Alt-Up) and centre" ; "Zoom-out (Alt-Down)" ; "Fit to window (Ctrl-W)" ; "Reroute all wires"; "Properties"]
         "Wire", ["Unfix Wire"]
+        "WaveSimHelp", ["Waveform and RAM selection"; "Waveform Operations"; "Miscellaneous"]
         "", [] // Empty string for no context menu.
     ]
 
@@ -59,6 +60,8 @@ let makeMenu
     (dispatchToRenderer)
     (args: ResizeArray<obj option>) =
     let menuType:string = unbox args
+
+    printf "%A" menuType
     let cases =
         Map.tryFind menuType menuMap
         |> function

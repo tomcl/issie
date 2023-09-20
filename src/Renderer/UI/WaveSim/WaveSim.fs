@@ -1013,7 +1013,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
     let title =
         match model.WaveSimSheet with
         | None -> "Waveform Viewer"
-        | Some sheet -> $"Simulating sheet '{sheet}'"
+        | Some sheet -> $"Simulating '{sheet}'"
     let wsModel = getWSModel model
     //printfn $"Active wsModel sheet={model.WaveSimSheet}, state = {wsModel.State}"
     //printfn $"""Wavesim states: {model.WaveSim |> Map.toList |> List.map (fun (sh, ws) -> sh, ws.State.ToString(),ws.Sheets)}"""
@@ -1027,26 +1027,31 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
         Columns.columns [] [
             Column.column [Column.Props [Style [Height "200px"; OverflowY OverflowOptions.Clip]]] [
                 Heading.h4 [] [ 
-                    (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]] [str title]) 
-                    button 
-                        (infoButtonProps IsInfo)
-                        (fun _ -> UIPopups.viewWaveInfoPopup dispatch)
-                        (str Constants.infoSignUnicode)                        
+                    (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]; Id "WaveSimHelp"] [str title])
+                   
                 ]
-                div [] 
-                    (if model.WaveSimSheet <> None then 
-                        [
-                            str "Use 'Select Waves' to select and add clocked logic waveforms. "
-                            str "Use 'Select RAM' to view RAM or ROM contents during the simulation. "
-                            str "View or change any sheet with the simulation running. "
-                            str "After design changes use "
-                            refreshSvg "green" "12px"
-                            str " to update waveforms."
-                        ] else
-                        [
-                            str "Use 'Start Simulation' button to simulate the current sheet. "
-                            str "Drag the grey divider to change the Viewer width."
-                        ])
+                let startOrRenew = refreshButtonAction canvasState model dispatch
+                let waveEnd = endButtonAction canvasState model dispatch
+                let wbo = getWaveSimButtonOptions canvasState model wsModel
+                let startEndButton =
+                    button 
+                        (topHalfButtonProps wbo.StartEndColor) 
+                        (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
+                        (str wbo.StartEndMsg)
+                let needsRefresh = wbo.IsDirty && wbo.IsRunning
+                div 
+                    [Style [MarginBottom "20px" ]]                      
+                    (if not wbo.IsRunning then [
+                        startEndButton
+                    ] 
+                    else [
+                        if needsRefresh then
+                            button
+                                (topHalfButtonProps IsSuccess)
+                                startOrRenew
+                                refreshButtonSvg
+                        startEndButton
+                    ])
                 ]
 
             Column.column 
@@ -1054,27 +1059,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                     Column.Option.Width (Screen.All, Column.IsNarrow)
                 ] 
                 [ 
-                    let startOrRenew = refreshButtonAction canvasState model dispatch
-                    let waveEnd = endButtonAction canvasState model dispatch
-                    let wbo = getWaveSimButtonOptions canvasState model wsModel
-                    let startEndButton =
-                        button 
-                            (topHalfButtonProps wbo.StartEndColor) 
-                            (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
-                            (str wbo.StartEndMsg)
-                    let needsRefresh = wbo.IsDirty && wbo.IsRunning
-                    div 
-                        [Style [MarginBottom "20px" ]]                      
-                        (if not wbo.IsRunning then [
-                            startEndButton
-                         ] 
-                        else [
-                            startEndButton
-                            button
-                                (Button.Disabled (not needsRefresh) :: topHalfButtonProps IsSuccess)
-                                startOrRenew
-                                refreshButtonSvg
-                        ])
+                    div [Style[MarginBottom "50px"]] []
 
                     Level.level [] [
                         Level.item [ ] [
@@ -1087,15 +1072,6 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                             ]
                         ]
                     ]
-                    Level.level [] [
-                        Level.left [GenericOption.Props [Style [MarginLeft "5px"]]] [
-                            zoomButtons wsModel dispatch
-                        ]
-                        Level.right [] [
-                            radixButtons wsModel dispatch
-                        ]
-                    ]
-                    clkCycleButtons wsModel dispatch
                 ]
             ]
         hr [ Style [ MarginBottom "0px" ] ]
@@ -1135,11 +1111,26 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
                     div [ errorMessageStyle ]
                         [ str "Please open a project to use the waveform viewer." ]
                 | _,Loading | _,Success ->
-                    //printfn $"Showing waveforms: fs= {wsModel.FastSim}"
-                    div [showWaveformsAndRamStyle] [
-                        showWaveforms model wsModel dispatch
-                        hr []
-                        ramTables wsModel
+                    //printfn $"Showing waveforms: fs= {wsModel.FastSim}"]
+
+                    if List.isEmpty wsModel.SelectedWaves then
+                        div [Id "WaveSimHelp"] [str "Use 'Select Waves' to add waves for simulation. Right-click for help."]
+                    else
+                        Level.level [] [
+                            Level.left [GenericOption.Props [Style [MarginLeft "5px"]]] [
+                                zoomButtons wsModel dispatch
+                            ]
+                            Level.right [] [
+                                Level.left [GenericOption.Props [Style [MarginRight "75px"]]] [
+                                    radixButtons wsModel dispatch
+                                ]
+                                clkCycleButtons wsModel dispatch
+                            ]
+                        ]
+                        div [showWaveformsAndRamStyle] [
+                            showWaveforms model wsModel dispatch
+                            hr []
+                            ramTables wsModel
                         ]
 
                 hr []

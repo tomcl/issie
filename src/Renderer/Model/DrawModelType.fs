@@ -133,7 +133,7 @@ module SymbolT =
             InWidth1: int option
 
             /// for MergeN later
-            InWidths: int list option
+            InWidths: int option list option
 
             /// the following fields define the position and size of the component label.
             /// labels will rotate when the symbol is rotated.

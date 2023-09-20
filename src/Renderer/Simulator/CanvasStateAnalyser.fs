@@ -68,6 +68,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | DFF -> (["D"],["Q"])
     | DFFE -> (["D";"EN"],["Q"])
     | Mux2 -> (["0"; "1";"SEL"],["OUT"])
+    | MergeN (nInp, _) -> (List.init nInp (fun i -> sprintf "%d" i), ["OUT"])
     | Mux4 -> (["0"; "1"; "2"; "3" ;"SEL"],["OUT"])
     | Mux8 -> (["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7";"SEL"],["OUT"])
     | Demux2 -> (["DATA" ; "SEL"],["0"; "1"])

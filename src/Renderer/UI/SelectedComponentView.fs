@@ -93,6 +93,17 @@ let private intFormField name (width:string) defaultValue minValue onChange =
         ]
     ]
 
+let private intFormFieldInline name (width: string) defaultValue minValue onChange =
+    Field.div [Field.Props[Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]]] [
+        Label.label [Label.Props [Style [Flex "0 0 auto"; MarginRight "8px"]]] [str name] // Label with flex properties and margin
+        Input.number [
+            Input.Props [Style [Width width;]; Min minValue] // Input with flex property
+            Input.DefaultValue <| sprintf "%d" defaultValue
+            Input.OnChange (getIntEventValue >> onChange)
+        ]
+        hr []
+    ]
+
 let private floatFormField name (width:string) defaultValue minValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
@@ -590,15 +601,15 @@ let private changeMergeN model (comp:Component) dispatch =
         )
         widths
         |> List.mapi (fun index defaultValue ->
-            let portTitle = sprintf "Input Port %d Width :" (index + 1)
-            intFormField portTitle "60px" defaultValue 1 (
+            let portTitle = sprintf "Input Port %d Width :" index
+            intFormFieldInline portTitle "60px" defaultValue 1 (
                 fun newWidth -> 
                     widths
                     |> List.mapi (fun i x -> if i = index then newWidth else x)
                     |> model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) nInp
             )
         )
-        |> div [] 
+        |> div [Style [MarginBottom "20px"]] 
     ]
 
 /// Used for Input1 Component types. Make field for users to enter a default value for

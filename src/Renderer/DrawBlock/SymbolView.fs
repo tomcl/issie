@@ -471,9 +471,9 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | _, _, Not -> {X=0;Y=0}
             | _, _, IsBinaryGate -> {X=0;Y=0}
             | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 0.5 else -3.)}
+            | 0, 1, MergeN _ -> {X = 0.; Y = Constants.legendVertOffset *1.6* (if vertFlip then 0.5 else -3.)}
             | 0, 0, _ -> {X = 0.; Y = 0.}
             | 1, 0, _ -> {X = 10.; Y = 0.}
-            | _, _, MergeN _ -> {X=0;Y=0}
             | 0, 1, _ -> {X = -10.; Y = 0.}
             | _ -> failwithf "What? Can't happen"
 

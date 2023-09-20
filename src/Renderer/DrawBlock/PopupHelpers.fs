@@ -410,7 +410,7 @@ let dialogPopupBodyNInts beforeInt numInputsDefault intDefault dispatch =
             setupWidthList
             |> List.mapi (fun index defaultValue ->
                 div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]] [
-                    label [Style[MarginRight "10px"]] [str (sprintf "Input Port %d Width :" (index + 1))] 
+                    label [Style[MarginRight "10px"]] [str (sprintf "Input Port %d Width :" index)] 
                     Input.number [
                         Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
                         Input.DefaultValue <| sprintf "%d" defaultValue
@@ -421,6 +421,7 @@ let dialogPopupBodyNInts beforeInt numInputsDefault intDefault dispatch =
                                     |> List.mapi (fun i x -> if i = index then newWidth else x)
                             getIntEventValue >> setWidth >> Some >> SetPopupDialogIntList >> dispatch)
                     ]
+                    hr []
                 ]
                 )
             |> div [] 

@@ -269,6 +269,7 @@ type RightClickElement =
     | DBOutputPort of string
     | IssieElement of string
     | SheetMenuBreadcrumb of Sheet: SheetTree * IsSubSheet: bool
+    | WaveSimHelp
     | NoMenu
     
 
@@ -310,6 +311,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             |> Option.defaultValue NoMenu
 
         | SheetT.MouseOn.Canvas, _ , "path"
+        | SheetT.MouseOn.Canvas, "WaveSimHelp", _ ->
+            WaveSimHelp
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
             printfn "Draw block sheet 'canvas'"
             if mouseInScalingBox then  
@@ -364,6 +367,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         "Canvas"
     | DBWire _ ->
         "Wire"
+    | WaveSimHelp ->
+        "WaveSimHelp"
     | _ ->
         printfn $"Clicked on '{drawOn.ToString()}'"
         "" // default is no menu
@@ -516,6 +521,10 @@ let processContextMenuClick
                 (sheet_ >-> SheetT.wire_)
                 (model.Sheet.Wire.Wires.Keys |> Seq.toList |> BusWireSeparate.updateWireSegmentJumpsAndSeparations)
         |> withMsg (Sheet (SheetT.Msg.KeyPress SheetT.KeyboardMsg.CtrlW))
+
+    | WaveSimHelp, feature ->
+        UIPopups.viewWaveInfoPopup dispatch feature
+        withNoCmd model
 
     | DBCanvas _, "Properties" ->
         model

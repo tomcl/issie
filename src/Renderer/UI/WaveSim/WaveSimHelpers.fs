@@ -657,7 +657,7 @@ let infoButton  (tooltipMessage:string) (style: CSSProp list) (tooltipPosition:s
 let waveInfoButton (dispatch: Msg -> Unit) : ReactElement =
     button 
         [Button.Props [Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]]]
-        (fun _ -> UIPopups.viewWaveInfoPopup dispatch)
+        (fun _ -> ())
         (str Constants.infoSignUnicode)
 
 /// button used to give hover message  about selection filter box.

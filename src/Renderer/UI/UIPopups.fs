@@ -308,7 +308,7 @@ let viewInfoPopup dispatch =
     let foot _ = div [] []
     dynamicClosablePopup title body foot [Width 900] dispatch
 
-let viewWaveInfoPopup dispatch =
+let viewWaveInfoPopup dispatch feature =
     let makeH h =
         Text.span [ Modifiers [
             Modifier.TextSize (Screen.Desktop, TextSize.Is6)
@@ -319,46 +319,51 @@ let viewWaveInfoPopup dispatch =
     let iSpan txt = styledSpan [FontStyle "italic"] txt
     let tSpan txt = span [] [str txt]
 
-    let title = "How to Use the Waveform Viewer"
+    let title = feature
 
-    let waveInfo = div [] [
-        makeH "Waveform and RAM Selection"
-        ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
-            li [] [str "The waveform viewer can view signals on"; bSpan  " any sheet"; str " in the design being simulated."]
+    let waveInfo =
+        div [] [
+        match feature with
+        | "Waveform and RAM selection" ->
+
+            ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
+                li [] [str "The waveform viewer can view signals on"; bSpan  " any sheet"; str " in the design being simulated."]
          
-            li [] [str "Use 'select waves' window to select which waveforms are viewed. The search box allows them to be selected by part of name. \
-                       Alternatively, expand groups to explore design and find components and ports."]
+                li [] [str "Use 'select waves' window to select which waveforms are viewed. The search box allows them to be selected by part of name. \
+                           Alternatively, expand groups to explore design and find components and ports."]
                     
-            li [] [str "The waveforms you view can be changed whenever the simulation is running. It is good practice to \
-                        delete waveforms you are not using, and order waveforms logically."]
-            li [] [str "Use 'select RAM' to view RAMs showing contents, read and write location, in the current (cursor) cycle."]
-            li [] [str "Selected waveforms are preserved from one simulation to the next."]
-        ]
-
-        makeH "Waveform Operations"
-        ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
-            li [] [ str "Hover mouse over a waveform name in the viewer to see it highlighted if it is on the current sheet."]
-            li [] [ str "Change sheet to view or alter components on subsheets."]
-            li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use 'select waves' to add."]
+                li [] [str "The waveforms you view can be changed whenever the simulation is running. It is good practice to \
+                            delete waveforms you are not using, and order waveforms logically."]
+                li [] [str "Use 'select RAM' to view RAMs showing contents, read and write location, in the current (cursor) cycle."]
+                li [] [str "Selected waveforms are preserved from one simulation to the next."]
+            ]
+        | "Waveform Operations" ->
+        
+            ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
+                li [] [ str "Hover mouse over a waveform name in the viewer to see it highlighted if it is on the current sheet."]
+                li [] [ str "Change sheet to view or alter components on subsheets."]
+                li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use 'select waves' to add."]
      
-            li [] [ str "Use cursor and zoom controls at any time to show which cycles to display."]
-            li [] [ str "The cursor current cycle is greyed and can be moved by clicking the the waveforms, \
-                        altering the number in the cursor box, or clicking arrows."]
-            li [] [ str "Drag the grey divider to alter space used by waveforms"]
-        ]
-        makeH "Miscellaneous"
-        ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
-            li [] [str "During a simulation you can move to any sheet and view or edit the design. \
-                       When any part of the design, or linked memory contents files, changes the green update button will be enabled allowing \
-                       update to the newer design."] 
-            li [] [str "You can change default values for sheet inputs in Input component property boxes. \
-                       The top sheet inputs of the simulation are given these values throughout the simulation. \
-                       Adjustable values anywhere else in the design can be implemented using constants."]
-            li [] [str "The waveform radix can be changed. When waveforms are too small to fit binary this will be changed to hex. \
-                        Numeric values not displayed on the waveform can be viewed using the cursor and the righthand panel."]
-        ]
+                li [] [ str "Use cursor and zoom controls at any time to show which cycles to display."]
+                li [] [ str "The cursor current cycle is greyed and can be moved by clicking the the waveforms, \
+                            altering the number in the cursor box, or clicking arrows."]
+                li [] [ str "Drag the grey divider to alter space used by waveforms"]
+            ]
+        | "Miscellaneous" ->
+        
+            ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
+                li [] [str "During a simulation you can move to any sheet and view or edit the design. \
+                           When any part of the design, or linked memory contents files, changes the green update button will be enabled allowing \
+                           update to the newer design."] 
+                li [] [str "You can change default values for sheet inputs in Input component property boxes. \
+                           The top sheet inputs of the simulation are given these values throughout the simulation. \
+                           Adjustable values anywhere else in the design can be implemented using constants."]
+                li [] [str "The waveform radix can be changed. When waveforms are too small to fit binary this will be changed to hex. \
+                            Numeric values not displayed on the waveform can be viewed using the cursor and the righthand panel."]
+            ]
+        | _ ->
+            p [] [str "Feature not explained"]
     ]
-
    
     let body (model: Model) =
         waveInfo

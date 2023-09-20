@@ -613,8 +613,8 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
     let waveCount = Map.count wsModel.AllWaves
     let props, buttonFunc =
         if waveCount > 0 && wsModel.State=Success then
-            selectWavesButtonProps, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = true}))
-        else selectWavesButtonPropsLight, (fun _ -> ())
+            selectWavesButtonProps "selectButton", (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = true}))
+        else selectWavesButtonPropsLight "selectButton", (fun _ -> ())
     button 
         props
         buttonFunc
@@ -690,8 +690,8 @@ let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
     let ramCount = List.length wsModel.RamComps
     let props, buttonFunc =
         if ramCount > 0 && wsModel.State=Success then
-            selectRamButtonProps, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = true}))
-        else selectRamButtonPropsLight, (fun _ -> ())
+            selectRamButtonProps "selectRamButton", (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = true}))
+        else selectRamButtonPropsLight "selectRamButton", (fun _ -> ())
     button 
         props
         buttonFunc

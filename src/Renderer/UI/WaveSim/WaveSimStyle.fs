@@ -145,21 +145,21 @@ let infoButtonProps color = [
         ]
     ]
 
-let topHalfButtonProps color = [
+let topHalfButtonProps color buttonId = [
     Button.Color color
-    Button.Props [topRowButtonStyle]
+    Button.Props [HTMLAttr.Id buttonId ; topRowButtonStyle]
 ]
 
-let selectRamButtonProps = topHalfButtonProps IsInfo
+let selectRamButtonProps buttonId = topHalfButtonProps IsInfo buttonId
 
 /// Props for selectRamButton when no RAMs are selectable
-let selectRamButtonPropsLight =
-    selectRamButtonProps @ [Button.IsLight]
+let selectRamButtonPropsLight buttonId =
+    selectRamButtonProps buttonId  @ [Button.IsLight]
 
 
-let topHalfButtonPropsWithWidth color = [
+let topHalfButtonPropsWithWidth buttonId color = [
     Button.Color color
-    Button.Props [topRowButtonStyle]
+    Button.Props [HTMLAttr.Id buttonId ; topRowButtonStyle]
 ]
 
 /// Props for selectWavesButton
@@ -167,8 +167,8 @@ let selectWavesButtonProps = topHalfButtonProps IsInfo
 
 
 /// Props for selectWavesButton when no waves are selectable
-let selectWavesButtonPropsLight =
-    selectWavesButtonProps @ [Button.IsLight]
+let selectWavesButtonPropsLight buttonId =
+    selectWavesButtonProps buttonId @ [Button.IsLight]
 
 let centerAlignStyle = Style [
     TextAlign TextAlignOptions.Center

@@ -602,7 +602,7 @@ let ensureWaveConsistency (ws:WaveSimModel) =
             printfn $"ok selected waves length = {okSelectedWaves.Length} <> selectedwaves length = {ws.SelectedWaves.Length}"
         okWaves, okSelectedWaves
 
-let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
+let selectWaves (ws: WaveSimModel) (subSheet: string) (dispatch: Msg -> unit) : ReactElement =
 
     if not ws.WaveModalActive then div [] []
     else
@@ -624,7 +624,7 @@ let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> uni
                 List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) okWaves
         let showDetails = ((wavesToDisplay.Length < 10) || searchText.Length > 0) && searchText <> "-"
         wavesToDisplay
-        |> makeSheetRow showDetails ws dispatch []
+        |> makeRowByComponent showDetails ws dispatch subSheet
 
 
 

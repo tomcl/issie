@@ -299,6 +299,11 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
 
     rightClickElement <- // mutable so that we have this info also in the callback from main
         match drawOn, htmlId, elType with
+        | _, "refreshButton", _
+        | _, "selectButton", _
+        | _, "selectRamButton", _
+        | _, "startEndButton", _ ->
+            WaveSimHelp
         | _, elId, _ when String.startsWith "SheetMenuBreadcrumb:" elId ->
             let nameParts = elId.Split(":",System.StringSplitOptions.RemoveEmptyEntries)
             //printfn "NameParts: %A"nameParts
@@ -311,7 +316,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             |> Option.defaultValue NoMenu
 
         | SheetT.MouseOn.Canvas, _ , "path"
-        | SheetT.MouseOn.Canvas, "WaveSimHelp", _ ->
+        | _, "WaveSimHelp", _ ->
             WaveSimHelp
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
             printfn "Draw block sheet 'canvas'"

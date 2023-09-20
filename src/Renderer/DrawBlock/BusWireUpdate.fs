@@ -231,7 +231,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                         {wire with Color = HighLightColor.DarkSlateGrey}
                 )
 
-        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires ; ErrorWires = connectionIds }}} |> withNoMsg
+        {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires ; ErrorWires = []}}} |> withNoMsg
 
 
     | DeleteWires (connectionIds : list<ConnectionId>) ->

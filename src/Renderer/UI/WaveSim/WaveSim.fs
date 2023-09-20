@@ -1035,7 +1035,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                 let wbo = getWaveSimButtonOptions canvasState model wsModel
                 let startEndButton =
                     button 
-                        (topHalfButtonProps wbo.StartEndColor) 
+                        (topHalfButtonProps wbo.StartEndColor "startEndButton") 
                         (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
                         (str wbo.StartEndMsg)
                 let needsRefresh = wbo.IsDirty && wbo.IsRunning
@@ -1047,7 +1047,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                     else [
                         if needsRefresh then
                             button
-                                (topHalfButtonProps IsSuccess)
+                                (topHalfButtonProps IsSuccess "RefreshButton")
                                 startOrRenew
                                 refreshButtonSvg
                         startEndButton

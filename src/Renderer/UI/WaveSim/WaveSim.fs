@@ -1025,7 +1025,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
 
     div [ topHalfStyle ] [
         Columns.columns [] [
-            Column.column [Column.Props [Style [Height "200px"; OverflowY OverflowOptions.Clip]]] [
+            Column.column [Column.Props [Style [Height "100px"; OverflowY OverflowOptions.Clip]]] [
                 Heading.h4 [] [ 
                     (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]; Id "WaveSimHelp"] [str title])
                    

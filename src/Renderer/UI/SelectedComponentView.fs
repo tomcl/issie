@@ -558,9 +558,41 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
                     dispatch <| SetPopupDialogInt (Some newInpNum)
         )
     ]
-    
 
 let private changeMergeN model (comp:Component) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
+    let errText =
+        model.PopupDialogData.Int
+        |> Option.map (fun i ->
+            if i < 2 then
+                sprintf "Must have more than 2 inputs"
+            else
+                "")
+        |> Option.defaultValue ""
+
+    let title, nInp =
+        match comp.Type with
+        | MergeN n -> "Number of inputs", n
+        | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
+
+    div [] [
+        span
+            [Style [Color Red]]
+            [str errText]
+
+        intFormField title "60px" nInp 2 (
+            fun newInpNum ->
+                if newInpNum >= 2 then
+                    model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newInpNum
+                    dispatch <| SetPopupDialogInt (Some newInpNum)
+                else
+                    dispatch <| SetPopupDialogInt (Some newInpNum)
+        )
+    ]
+
+(*
+let private changeSplitN model (comp:Component) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
     let errText =
@@ -611,6 +643,7 @@ let private changeMergeN model (comp:Component) dispatch =
         )
         |> div [Style [MarginBottom "20px"]] 
     ]
+*)
 
 /// Used for Input1 Component types. Make field for users to enter a default value for
 /// Input1 Components when they are undriven.

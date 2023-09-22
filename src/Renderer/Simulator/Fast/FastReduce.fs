@@ -897,15 +897,15 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let bits0, bits1 = insBigInt 0, insBigInt 1
                 let res = (bits1 <<< comp.InputWidth 0) ||| bits0
                 putBigInt 0 res
-    | MergeN (inputs, widths) , false -> 
+    | MergeN n , false -> 
         let mergeTwoValues (width: int) (value1: uint32) (value2: uint32) =
             (value1 <<< width) ||| value2
         let res = List.fold2 (fun acc width input ->
             if input < 0 then
                 failwith "Input values must be non-negative"
-            mergeTwoValues width acc (insUInt32 input)) 0u (List.rev widths) [for x in inputs-1..-1..0 -> x]
+            mergeTwoValues width acc (insUInt32 input)) 0u (List.rev (List.map (fun x -> comp.InputWidth x) [0..n-1])) [for x in n-1..-1..0 -> x]
         putUInt32 0 res
-    | MergeN (inputs, widths) , true ->
+    | MergeN n , true ->
         match comp.BigIntState with
         | None -> failwith "MergeN with BigIntState"
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } -> 
@@ -2159,7 +2159,51 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             let newExp = [ exp1; exp0 ] |> foldAppends |> AppendExp
             put 0 <| Alg newExp
     //add MergeN
-
+    
+    | MergeN n -> 
+        let fdata = List.map ins [0..n-1]
+        let allData = 
+            fdata 
+            |> List.forall (fun fdata -> 
+                match fdata with 
+                | Data _ -> true
+                | _ -> false)
+        match allData with
+        | true -> 
+            let (bitsList: FastData List) = List.map (fun n -> 
+                match n with 
+                | Data bits -> bits 
+                | _ -> failwithf $"Wrong Case") fdata
+            let wOut = List.sumBy (fun (bits: FastData) -> bits.Width) bitsList
+            
+            let outBits= 
+                if wOut <= 32 then
+                    let inBits = List.map (fun bits -> match bits.Dat with | Word b -> b | _ -> failwithf $"inconsistent merge widths") bitsList
+                    let mergeTwoValues (width: int) (value1: uint32) (value2: uint32) =
+                        (value1 <<< width) ||| value2
+                    List.fold2 (fun acc width (input: uint32) ->
+                        if input < 0u then
+                            failwith "Input values must be non-negative"
+                        mergeTwoValues width input acc) 0u (List.map (fun (bits: FastData) -> bits.Width) bitsList) inBits
+                    |> (fun n -> convertIntToFastData wOut n)
+                else 
+                    let inBits = List.map (fun bits -> convertFastDataToBigint bits) bitsList
+                    let mergeTwoValues (width: int) (value1: bigint) (value2: bigint) =
+                        (value1 <<< width) ||| value2
+                    List.fold2 (fun acc width (input: bigint) ->
+                        if input < 0I then
+                            failwith "Input values must be non-negative"
+                        mergeTwoValues width input acc) 0I (List.map (fun (bits: FastData) -> bits.Width) bitsList) inBits
+                    |> (fun n -> convertBigintToFastData wOut n)
+            put 0 <| Data outBits
+        | false -> 
+            List.fold (fun acc data -> 
+                match data with 
+                | Alg(AppendExp exps) -> exps @ acc
+                | fd -> (fd.toExp)::acc) [] fdata
+            |> foldAppends |> AppendExp
+            |> Alg |> put 0
+    
     | SplitWire topWireWidth ->
         let fd = ins 0
 #if ASSERTS

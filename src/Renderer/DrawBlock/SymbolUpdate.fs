@@ -785,8 +785,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newModel = {model with Ports = newPorts}  
         (replaceSymbol newModel newSymbol compId), Cmd.none
     
-    | ChangeMergeN (compId, numInputs, widths) ->
-        let newSymbol = changeMergeNComponent model compId numInputs widths
+    | ChangeMergeN (compId, numInputs) ->
+        let newSymbol = changeMergeNComponent model compId numInputs
         let newPorts = addToPortModel model newSymbol
         let newModel = {model with Ports = newPorts}  
         (replaceSymbol newModel newSymbol compId), Cmd.none

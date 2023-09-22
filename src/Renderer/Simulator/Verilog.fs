@@ -524,7 +524,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | BusCompare (w, c) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
     | BusCompare1 (w, c, _) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
     | MergeWires -> $"assign {outs 0} = {{ {ins 1},{ins 0} }};\n" 
-    | MergeN (n, _)->  
+    | MergeN n ->  
         let mergedInputs = 
             [| for i in n - 1 .. -1 .. 0 ->
                 if i = 0 then

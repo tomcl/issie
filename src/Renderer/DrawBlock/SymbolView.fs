@@ -344,7 +344,13 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             match rotatePoints [|pos|] {X=W/2.;Y=H/2.} transform with 
             | [|pos'|]-> pos' 
             | _ -> failwithf "What? Can't happen"
-
+        let mergeNTextPos = 
+            let inputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.InputPorts)
+            let modinputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = 5.}) inputTextPoints
+            let outputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.OutputPorts)
+            let modOutputTextPoints = Array.map (fun pos -> pos + {X = 18.; Y = 5.}) outputTextPoints
+            let textPoints = rotatePoints (Array.append modinputTextPoints modOutputTextPoints) {X=W/2.;Y=H/2.} transform
+            textPoints
         match comp.Type with
         | MergeWires -> 
             let lo, hi = 
@@ -360,7 +366,29 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                         mergeWiresTextPos[i] 
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
-        // add MergeN later
+        | MergeN n -> 
+            match symbol.InWidths with
+            | Some widths -> 
+                match List.exists (fun el -> el = None) widths with
+                | false -> 
+                    let valuesInput = 
+                        let _, ranges =
+                            widths
+                            |> List.map (fun x -> 
+                                match x with
+                                | Some m -> m
+                                | None -> -1)
+                            |> List.fold (fun (lsb, acc) width ->
+                                let msb = lsb + width - 1
+                                (msb + 1, (msb, lsb) :: acc)
+                                ) (0, [])
+                        List.rev ranges
+                    let values = List.append valuesInput [(fst (List.last valuesInput),0)]
+                    List.fold2 (fun og pos value -> 
+                        og @ mergeSplitLine pos (fst value) (snd value)) [] (Array.toList mergeNTextPos) values
+                | true -> []
+            | None -> []
+            
         | NbitSpreader n -> 
             //let lo = 1
             //let msb = hi + lo - 1
@@ -471,7 +499,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | _, _, Not -> {X=0;Y=0}
             | _, _, IsBinaryGate -> {X=0;Y=0}
             | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 0.5 else -3.)}
-            | 0, 1, MergeN _ -> {X = 0.; Y = Constants.legendVertOffset *1.6* (if vertFlip then 0.5 else -3.)}
+            | 0, 1, MergeN _ -> {X = 0.; Y = Constants.legendVertOffset *1.1* (if vertFlip then 0.5 else -3.)}
             | 0, 0, _ -> {X = 0.; Y = 0.}
             | 1, 0, _ -> {X = 10.; Y = 0.}
             | 0, 1, _ -> {X = -10.; Y = 0.}

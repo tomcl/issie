@@ -346,12 +346,13 @@ let changeGateComponent (symModel: Model) (compId: ComponentId) (gateType: GateC
         set h_ (1.5*(float Constants.gridSize) * (float n)/2.)
         )
 
-let changeMergeNComponent (symModel: Model) (compId: ComponentId) (numInputs: int) (widths: int list) =
+let changeMergeNComponent (symModel: Model) (compId: ComponentId) (numInputs: int) =
+    let numInputsEdit = if numInputs > 2 then numInputs else 3
     Map.find compId symModel.Symbols
     |> varyNumberOfPorts PortType.Input numInputs 1
     |> map component_ (
-        set type_ (MergeN (numInputs, widths)) >>
-        set h_ (2.*(float Constants.gridSize) * (float numInputs)/2.)
+        set type_ (MergeN numInputs) >>
+        set h_ (2.*(float Constants.gridSize) * (float numInputsEdit)/2.)
         )
 
 

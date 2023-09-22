@@ -445,20 +445,22 @@ let private calculateOutputPortsWidth
         | [None; _] | [_; None] -> Ok Map.empty // Keep on waiting.
         | [Some n; Some m] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n + m)
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-    | MergeN (n, expectedWidths) ->
+    | MergeN n ->
         assertInputsSize inputConnectionsWidth n comp
         let portWidths = getWidthsForPorts inputConnectionsWidth (List.init n (fun i -> InputPortNumber i))
         let maybeError =
-            (portWidths, expectedWidths)
-            ||> List.mapi2 (fun idx actual expected ->
-                match actual with
-                | None -> None // Cannot determine if it is ok yet.
-                | Some w when w = expected -> None // No error.
-                | Some w -> Some <| makeWidthInferErrorEqual expected w [getConnectionIdForPort idx]
+            portWidths
+            |> List.mapi (fun idx width ->
+                match width with
+                | Some w when w < 1 -> Some <| makeWidthInferErrorAtLeast 1 w [getConnectionIdForPort idx]
+                | _ -> None
             )
         match List.tryFind (fun el -> el <> None) maybeError with
         | Some (Some err) -> err
-        | None -> Map.empty.Add (getOutputPortId comp 0, List.sum expectedWidths) |> Ok
+        | None -> 
+            match List.exists (fun el -> el = None) portWidths with
+            | true -> Ok Map.empty
+            | false -> Map.empty.Add (getOutputPortId comp 0, portWidths |> List.sumBy (fun x -> match x with | Some x -> x| None -> 0)) |> Ok
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
         
     | SplitWire topWireWidth ->

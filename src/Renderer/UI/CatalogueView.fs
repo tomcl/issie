@@ -242,6 +242,26 @@ let private createMergeNPopup (model: Model) dispatch =
     let title = $"Add N input merge"
     let beforeInt =
         fun _ -> str "How many inputs should the merge component have?"
+    let intDefault = 2
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (model': Model) ->
+            let dialogData = model'.PopupDialogData
+            let inputInt = getInt dialogData
+            createCompStdLabel (MergeN inputInt) model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (model': Model) ->
+            let intIn = getInt model'.PopupDialogData
+            intIn < 2
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+(*
+let private createSplitNPopup (model: Model) dispatch =
+    let title = $"Add N input merge"
+    let beforeInt =
+        fun _ -> str "How many inputs should the merge component have?"
     let numInputsDefault = 2
     let intDefault = 1
     let body = dialogPopupBodyNInts beforeInt numInputsDefault intDefault dispatch
@@ -258,6 +278,7 @@ let private createMergeNPopup (model: Model) dispatch =
             let intIn = getInt model'.PopupDialogData
             intIn < 2
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+*)
 
 let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"

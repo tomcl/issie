@@ -28,7 +28,7 @@ let findDeletedPorts (symModel: Model) (compId: ComponentId) (oldComp:Component)
         |GateN (_, n1), GateN (_, n2) when n2 < n1 ->
             symbol.Component.InputPorts[n2..]
             |> List.map (fun x -> x.Id)
-        | MergeN (n1, _), MergeN (n2, _) when n2 < n1 ->
+        | MergeN n1, MergeN n2 when n2 < n1 ->
             symbol.Component.InputPorts[n2..]
             |> List.map (fun x -> x.Id)
         |_,_ -> []

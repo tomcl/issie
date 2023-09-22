@@ -555,49 +555,61 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
 let getBoundingBoxCentre (bb:Symbol) = 
     {X = bb.Component.X + bb.Component.W/2.; Y = bb.Component.Y + bb.Component.H/2.}
 
-let getScalingFactorAndOffsetCentre (x1:float) (matchX1:float) (x2:float) (matchX2:float) = 
+let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
     let scaleFact = 
-        if x1 = x2 then 1. 
-        else (matchX1 - matchX2) / (x1 - x2)
+        if min = max || matchMax <= matchMin then 1. 
+        else (matchMin - matchMax) / (min - max)
     let offsetC = 
         if scaleFact = 1. then 0.
-        else (matchX1 - x1 * scaleFact) / (1.-scaleFact)
+        else (matchMin - min * scaleFact) / (1.-scaleFact)
     (scaleFact, offsetC)
  
 let getScalingFactorAndOffsetCentreGroup
-    (newBBMin:XYPos)
-    (newBBMax:XYPos)
+    (matchBBMin:XYPos)
+    (matchBBMax:XYPos)
     (compList: ComponentId list)
     (model: SymbolT.Model) : (float * float) * (float * float) = 
 
     let selectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let maxXSymCentre = 
+
+    let maxXSym = 
             selectedSymbols
             |> List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) 
-            |> getBoundingBoxCentre
-    
-    let minXSymCentre =
+
+    let oldMaxX = (maxXSym |> getBoundingBoxCentre).X
+    let newMaxX = matchBBMax.X - maxXSym.Component.W/2.
+
+    let minXSym =
             selectedSymbols
             |> List.minBy (fun (x:Symbol) -> x.Pos.X)
-            |> getBoundingBoxCentre
+
+    let oldMinX = (minXSym |> getBoundingBoxCentre).X
+    let newMinX = matchBBMin.X + minXSym.Component.W/2.
     
-    let maxYSymCentre = 
+    let maxYSym = 
             selectedSymbols
             |> List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x)))
-            |> getBoundingBoxCentre
 
-    let minYSymCentre =
+    let oldMaxY = (maxYSym |> getBoundingBoxCentre).Y
+    let newMaxY = matchBBMax.Y - maxYSym.Component.H/2.
+
+    let minYSym =
             selectedSymbols
             |> List.minBy (fun (x:Symbol) -> x.Pos.Y)
-            |> getBoundingBoxCentre
+
+    let oldMinY = (minYSym |> getBoundingBoxCentre).Y
+    let newMinY = matchBBMin.Y + minYSym.Component.H/2.
     
-    let xSC = getScalingFactorAndOffsetCentre minXSymCentre.X newBBMin.X maxXSymCentre.X newBBMax.X
-    let ySC = getScalingFactorAndOffsetCentre minYSymCentre.Y newBBMin.Y maxYSymCentre.Y newBBMax.Y
-    printfn "OriginalY: %A" maxYSymCentre.Y
-    printfn "yMatch: %A" newBBMax.Y
-    printfn "scaleFact: %A" (fst ySC)
-    printfn "scaleC: %A" (snd ySC)
-    printfn "GotY: %A" (((maxYSymCentre.Y - (snd ySC)) * (fst ySC)) + (snd ySC))
+    let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
+    let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
+    // printfn "Max: OriginalX: %A" oldMaxX
+    // printfn "Max: XMatch: %A" newMaxX
+    // printfn "Min: OriginalX: %A" oldMinX
+    // printfn "Min: XMatch: %A" newMinX
+    // printfn "scaleFact: %A" (fst xSC)
+    // printfn "scaleC: %A" (snd xSC)
+    // printfn "Max: GotX: %A" (((oldMaxX- (snd xSC)) * (fst xSC)) + (snd xSC))
+    // printfn "Min: GotX: %A" (((oldMinX - (snd xSC)) * (fst xSC)) + (snd xSC))
     (xSC, ySC)
 
 let scaleSymbol
@@ -615,7 +627,7 @@ let scaleSymbol
     let newTopLeftPos = {X = newX; Y = newY} - symCentreOffsetFromTopLeft
     let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
 
-    {sym with Pos =  newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
+    {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
         
 let groupNewSelectedSymsModel
     (compList:ComponentId list) 

@@ -326,30 +326,13 @@ let mDownUpdate
             match model.Wire.Symbol.Symbols[compId].Annotation with
                 | Some ScaleButton ->   
                     let scalingBoxCentre:XYPos = model.ScalingBox.Value.ScalingBoxBound.Centre()
+                    // printfn "startCentre:%A" scalingBoxCentre
+                    // printfn "startMousePos:%A" mMsg.Pos
                     {model with
                         ScalingBoxCentrePos = scalingBoxCentre
                         Action = Scaling;
                         LastMousePos = mMsg.Pos;
                         TmpModel = Some model}, Cmd.none
-
-                    // //let symButton = (model.Wire.Symbol.Symbols[compId])
-                    // let lastBoxTopLeft = model.ScalingBox.Value.ScalingBoxBound.TopLeft
-                    // let startWidth = model.ScalingBox.Value.ScalingBoxBound.W
-                    // let startHeight = model.ScalingBox.Value.ScalingBoxBound.H
-
-                    // let scalingBoxCentrePos = 
-                    //         {X = lastBoxTopLeft.X + (startWidth/2.); Y = lastBoxTopLeft.Y + (startHeight/2.)}
-
-                    // let initMouseToCentreVec = {X = (startWidth/2.) + 50.; Y = (startHeight/2.) + 50.}
-                    // let modelSetSymCentre = RotateScale.groupNewSelectedSymsModel (model.SelectedComponents) (model.Wire.Symbol) (RotateScale.setSymCentre scalingBoxCentrePos)
-
-                    // {model with
-                    //     Wire = {model.Wire with Symbol = modelSetSymCentre};
-                    //     Action = Scaling;
-                    //     ScalingBoxCentrePos = scalingBoxCentrePos;
-                    //     InitMouseToScalingBoxCentre = initMouseToCentreVec;
-                    //     LastMousePos = mMsg.Pos;
-                    //     TmpModel = Some model}, Cmd.none
                 
                 | Some (RotateButton rotation) ->
                     {model with TmpModel = Some model; Action = Idle}, 
@@ -488,46 +471,21 @@ let mDragUpdate
     // HLP 23: AUTHOR Khoury & Ismagilov
     // New Action, when we click on scaling button and drag the components and box should scale with mouse
     | Scaling ->
-        // let oldModel = model
-        // let currentMousePos = mMsg.Pos
-        // let initScalingBoxCentrePos = model.ScalingBoxCentrePos
-        // let initMouseToCentre = model.InitMouseToScalingBoxCentre
-
-        // printfn "Should be this mMsg.Pos.Y = %A " mMsg.Pos.Y
-
-        // let vectorLength vec = 
-        //     let {XYPos.X = x; XYPos.Y = y} = vec
-        //     sqrt(x**2 + y**2)
-
-        // let currentMouseToCentreDistance = 
-        //     (currentMousePos - initScalingBoxCentrePos)
-        //     |> vectorLength
-
-        // let startMouseToCentreDistance = 
-        //     initMouseToCentre
-        //     |> vectorLength
-
-        // let scalingBoxScalingFactor = currentMouseToCentreDistance / startMouseToCentreDistance
-
-        // let initScalingBoxBound = oldModel.ScalingBox.Value.ScalingBoxBound
-
-        // let scalingFactorSymLRTB = 
-        //     RotateScale.scalingFactorSymLRTB (initScalingBoxCentrePos) (initMouseToCentre) (scalingBoxScalingFactor) (oldModel.SelectedComponents) (oldModel.Wire.Symbol)
-            
-        // let scaleSymFunc = RotateScale.scaleSymbol scalingFactorSymLRTB initScalingBoxCentrePos
-        // let newSymModel = RotateScale.groupNewSelectedSymsModel oldModel.SelectedComponents oldModel.Wire.Symbol scaleSymFunc
-    
         let oldModel = model
         let scalingBoxCentre:XYPos = model.ScalingBoxCentrePos
         let newScalingBoxOppositeMouse = 
             {X = scalingBoxCentre.X - (mMsg.Pos.X - scalingBoxCentre.X);
              Y = scalingBoxCentre.Y - (mMsg.Pos.Y - scalingBoxCentre.Y)}
+        
+        // printfn " mousePos:%A" mMsg.Pos
+        // printfn " newScalingBoxOppositeMouse:%A" newScalingBoxOppositeMouse
+
         let newBBMin = 
-            {X = min (newScalingBoxOppositeMouse.X) (mMsg.Pos.X)  + 75.;
-             Y = min (newScalingBoxOppositeMouse.Y) (mMsg.Pos.Y)  + 75.}
+            {X = min (newScalingBoxOppositeMouse.X) (mMsg.Pos.X)  + 50.;
+             Y = min (newScalingBoxOppositeMouse.Y) (mMsg.Pos.Y)  + 50.}
         let newBBMax = 
-            {X = max (newScalingBoxOppositeMouse.X) (mMsg.Pos.X)  - 75.;
-             Y = max (newScalingBoxOppositeMouse.Y) (mMsg.Pos.Y)  - 75.}
+            {X = max (newScalingBoxOppositeMouse.X) (mMsg.Pos.X)  - 50.;
+             Y = max (newScalingBoxOppositeMouse.Y) (mMsg.Pos.Y)  - 50.}
 
         let xYSC = RotateScale.getScalingFactorAndOffsetCentreGroup newBBMin newBBMax (oldModel.SelectedComponents) (oldModel.Wire.Symbol)
         let scaleSymFunc = RotateScale.scaleSymbol xYSC
@@ -561,8 +519,6 @@ let mDragUpdate
             wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
             sheetCmd UpdateBoundingBoxes
         ]
-
-
     | Selecting ->
         let initialX = model.DragToSelectBox.TopLeft.X
         let initialY = model.DragToSelectBox.TopLeft.Y

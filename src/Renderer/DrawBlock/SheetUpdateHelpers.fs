@@ -333,6 +333,7 @@ let mDownUpdate
                     // printfn "startMousePos:%A" mMsg.Pos
                     {model with
                         ScalingBoxCentrePos = scalingBoxCentre
+                        ScalingTmpModel = None
                         Action = Scaling;
                         LastMousePos = mMsg.Pos;
                         TmpModel = Some model}, Cmd.none
@@ -490,7 +491,7 @@ let mDragUpdate
             {X = max (newScalingBoxOppositeMouse.X) (mMsg.Pos.X)  - 50.;
              Y = max (newScalingBoxOppositeMouse.Y) (mMsg.Pos.Y)  - 50.}
 
-        let xYSC = RotateScale.getScalingFactorAndOffsetCentreGroup newBBMin newBBMax (oldModel.SelectedComponents) (oldModel.Wire.Symbol)
+        let xYSC, oneCompBoundsBothEdges = RotateScale.getScalingFactorAndOffsetCentreGroup newBBMin newBBMax (oldModel.SelectedComponents) (oldModel.Wire.Symbol)
         let scaleSymFunc = RotateScale.scaleSymbol xYSC
         let newSymModel = RotateScale.groupNewSelectedSymsModel (oldModel.SelectedComponents) (oldModel.Wire.Symbol) scaleSymFunc
         let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes = Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}
@@ -502,8 +503,14 @@ let mDragUpdate
             oldModel.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
 
-        if (errorSelectedComponents<>[]) then
-            {model with
+        let staySameModel = 
+            if errorSelectedComponents<>[] then (Some model)
+            elif (oneCompBoundsBothEdges || model.ScalingTmpModel.IsSome) then (model.ScalingTmpModel)
+            else None
+
+        if (staySameModel.IsSome) then
+            // printfn "scaling stay same"
+            {staySameModel.Value with
                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                         }, 
                     Cmd.batch [
@@ -514,6 +521,7 @@ let mDragUpdate
         else
 
         {newModel with
+                    ScalingTmpModel = Some newModel;
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                     ErrorComponents = errorComponents},
         Cmd.batch [ 

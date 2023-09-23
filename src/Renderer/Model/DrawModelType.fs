@@ -638,7 +638,8 @@ module SheetT =
         Zoom: float
         /// the size of teh canvas in DrawBlock units
         CanvasSize: float // how large is the circuit canvas - can be changed dynamically
-        TmpModel: Model Option
+        TmpModel: Model Option // Stored for Redo/Undo
+        ScalingTmpModel: Model Option // Stored to save expandable scaling model
         UndoList: Model List
         RedoList: Model List
         AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)

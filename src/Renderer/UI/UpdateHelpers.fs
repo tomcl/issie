@@ -445,7 +445,6 @@ let processContextMenuClick
     | DBComp sym, "Rotate Clockwise (Ctrl+Right)" ->
         rotateDispatch Degree90
         model
-        // |> set (sheet_ >-> SheetT.tmpModel_) 
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
 
@@ -496,7 +495,6 @@ let processContextMenuClick
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
         rotateDispatch Degree90
         model 
-        // |> set (sheet_ >-> SheetT.Action_) SheetT.Idle
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
     | DBScalingBox selectedcomps, "Rotate AntiClockwise (Ctrl+Left)"->

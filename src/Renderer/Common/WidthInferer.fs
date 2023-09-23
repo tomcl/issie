@@ -473,6 +473,19 @@ let private calculateOutputPortsWidth
             let out = out.Add (getOutputPortId comp 1, n - topWireWidth)
             Ok out
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | SplitN (n, outputWidths, lsBits) -> 
+        assertInputsSize inputConnectionsWidth 1 comp
+        let msb = 
+            (outputWidths, lsBits)
+            ||> List.map2 (fun width lsb -> lsb + width - 1)
+            |> List.max
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
+        | [None] -> Ok Map.empty
+        | [Some n] when n < msb + 1 -> makeWidthInferErrorAtLeast (msb + 1) n [getConnectionIdForPort 0]
+        | [Some n] -> 
+            let out = Map.empty
+            Ok (List.fold2 (fun (acc: Map<OutputPortId,int>) index width -> acc.Add (getOutputPortId comp index, width)) out [0..n-1] outputWidths)
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
     | DFF ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with

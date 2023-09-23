@@ -107,6 +107,7 @@ let getPortNumbers (sc: SimulationComponent) =
         // | Xnor -> 2, 1
         | GateN (_, n) -> n, 1
         | MergeN n -> n, 1
+        | SplitN (n, _, _) -> 1, n
         | Custom ct -> ct.InputLabels.Length, ct.OutputLabels.Length
         | AsyncROM _
         | RAM _
@@ -174,6 +175,13 @@ let findBigIntState (fc: FastComponent) =
         Some 
             { InputIsBigInt = Array.ofList(List.map (fun n -> fc.InputWidth n > 32) [0..n-1])
               OutputIsBigInt = [| fc.OutputWidth 0 > 32 |] }
+    | SplitN (n, _, _) -> 
+        fc.InputWidth 0 > 32
+        || List.exists (fun n -> fc.OutputWidth n > 32) [0..n-1], 
+        Some { 
+            InputIsBigInt = [| fc.InputWidth 0 > 32 |] 
+            OutputIsBigInt = Array.ofList(List.map (fun n -> fc.OutputWidth n > 32) [0..n-1])
+                }
     | SplitWire _ ->
         fc.InputWidth 0 > 32,
         Some
@@ -452,6 +460,7 @@ let addComponentWaveDrivers (f: FastSimulation) (fc: FastComponent) (pType: Port
             | BusSelection _
             | MergeWires
             | MergeN _
+            | SplitN _
             | Constant1 _ -> [||]
             | Output _ when fc.SubSheet <> [] -> [||]
             | Input1 _ when fc.SubSheet <> [] -> [||]

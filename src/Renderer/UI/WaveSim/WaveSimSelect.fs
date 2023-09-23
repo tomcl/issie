@@ -108,6 +108,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     | MergeWires -> failwithf "MergeWires should not occur in getInputPortName"
     | MergeN _ -> failwithf "MergeN should not occur in getInputPortName"
     | SplitWire _ -> failwithf "SplitWire should not occur in getInputPortName"
+    | SplitN _ -> failwithf "SplitN should not occur in getInputPortName"
     | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
 
 /// Get names for waves that are from Input ports
@@ -140,6 +141,7 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
         | MergeWires -> failwithf "MergeWires should not occur in getInputName"
         | MergeN _ -> failwithf "MergeN should not occur in getInputName"
         | SplitWire _ -> failwithf "SplitWire should not occur in getInputName"
+        | SplitN _ -> failwithf "SplitN should not occur in getInputName"
         | BusSelection _ -> failwithf "BusSeleciton should not occur in getInputName"
 
     if withComp then 
@@ -178,6 +180,7 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
     | MergeN _ -> failwithf "MergeN should not occur in getOutputName"
     | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
+    | SplitN _ -> failwithf "SplitN should not occur in getOutputName"
     | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
 
 /// Get names for waves that are from Output ports
@@ -220,6 +223,7 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
         | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
         | MergeN _ -> failwithf "MergeN should not occur in getOutputName"
         | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
+        | SplitN _ -> failwithf "SplitN should not occur in getOutputName"
         | BusSelection _ -> failwithf "BusSelection should not occur in getOutputName"
 
     if withComp then 

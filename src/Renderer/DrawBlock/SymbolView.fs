@@ -351,6 +351,13 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             let modOutputTextPoints = Array.map (fun pos -> pos + {X = 18.; Y = 5.}) outputTextPoints
             let textPoints = rotatePoints (Array.append modinputTextPoints modOutputTextPoints) {X=W/2.;Y=H/2.} transform
             textPoints
+        let splitNTextPos = 
+            let inputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.InputPorts)
+            let modinputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = 5.}) inputTextPoints
+            let outputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.OutputPorts)
+            let modOutputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = -5.}) outputTextPoints
+            let textPoints = rotatePoints (Array.append modinputTextPoints modOutputTextPoints) {X=W/2.;Y=H/2.} transform
+            textPoints
         match comp.Type with
         | MergeWires -> 
             let lo, hi = 
@@ -410,6 +417,20 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                         splitWiresTextPos[i] 
                         (fst values[i]) 
                         (snd values[i])) [] [0..2]
+        | SplitN (n, widths, lsbs) -> 
+            let msbs = 
+                List.map2 (fun width lsb -> 
+                    lsb + width - 1) widths lsbs
+            let inputValue =     
+                match symbol.InWidth0 with
+                | Some width when width > (List.max msbs) ->  (width-1, 0)
+                | _ -> (-2, -1)
+            let values = 
+                List.fold2 (fun acc lsb msb -> 
+                    List.append acc [(msb, lsb)]) [inputValue] lsbs msbs
+            List.fold2 (fun og pos value -> 
+                        og @ mergeSplitLine pos (fst value) (snd value)) [] (Array.toList splitNTextPos) values
+            
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
             (addText clockTxtPos " clk" "middle" "normal" "12px")
         | BusSelection(nBits,lsb) ->           

@@ -362,8 +362,8 @@ let getCompDetails fs wave =
         | ROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
         | RAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
         | AsyncRAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false             
-        | BusSelection _ | MergeWires | MergeN _ | SplitWire _ ->
-            failwithf "Bus select, MergeWires, MergeN, SplitWire should not appear"
+        | BusSelection _ | MergeWires | MergeN _ | SplitWire _ | SplitN _ ->
+            failwithf "Bus select, MergeWires, MergeN, SplitWire, SplitN should not appear"
         | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
             failwithf "Legacy component types should not appear"
         | Shift _ ->
@@ -390,7 +390,7 @@ let getCompGroup fs wave =
         FFRegister
     | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
         Memories                
-    | BusSelection _ | MergeWires | MergeN _ | SplitWire _ ->
+    | BusSelection _ | MergeWires | MergeN _ | SplitWire _ | SplitN _ ->
         failwithf "Bus select, MergeWires, MergeN, SplitWire should not appear"
     | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
         failwithf "Legacy component types should not appear"

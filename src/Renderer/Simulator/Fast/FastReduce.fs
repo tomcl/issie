@@ -909,7 +909,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         match comp.BigIntState with
         | None -> failwith "MergeN with BigIntState"
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } -> 
-            failwith "TODO"
+            failwith "TODO: MergeN with BigIntState"
     | SplitWire topWireWidth, false ->
         let bits = insUInt32 0
 #if ASSERTS
@@ -924,6 +924,25 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         // Little endian, bits leaving from the top wire are the least significant.
         putUInt32 0 bits0
         putUInt32 1 bits1
+    | SplitN (n, outputWidths, lsBits), false -> 
+        let msBits = List.map2(fun width lsb -> width+lsb-1) outputWidths lsBits
+        let bits = insUInt32 0
+#if ASSERTS
+        let maxMsb = List.max msBits
+        let w = comp.InputWidth 0
+        assertThat (w >= maxMsb+1)
+        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (maxMsb + 1) w
+#endif
+        (lsBits, msBits)
+        ||> List.iteri2 (
+            fun index lsb msb -> 
+                let outBits = getBitsFromUInt32 msb lsb bits
+                putUInt32 index outBits)
+    | SplitN _, true -> 
+        match comp.BigIntState with
+        | None -> failwith "SplitN with BigIntState"
+        | Some { InputIsBigInt = ins; OutputIsBigInt = outs } -> 
+            failwith "TODO: SplitN with BigIntState"
     | SplitWire topWireWidth, true ->
         let bits = insBigInt 0
 #if ASSERTS

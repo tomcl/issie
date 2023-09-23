@@ -349,15 +349,14 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             let modinputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = 5.}) inputTextPoints
             let outputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.OutputPorts)
             let modOutputTextPoints = Array.map (fun pos -> pos + {X = 18.; Y = 5.}) outputTextPoints
-            let textPoints = rotatePoints (Array.append modinputTextPoints modOutputTextPoints) {X=W/2.;Y=H/2.} transform
-            textPoints
+            Array.append modinputTextPoints modOutputTextPoints
+            
         let splitNTextPos = 
             let inputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.InputPorts)
             let modinputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = 5.}) inputTextPoints
             let outputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.OutputPorts)
             let modOutputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = -5.}) outputTextPoints
-            let textPoints = rotatePoints (Array.append modinputTextPoints modOutputTextPoints) {X=W/2.;Y=H/2.} transform
-            textPoints
+            Array.append modinputTextPoints modOutputTextPoints
         match comp.Type with
         | MergeWires -> 
             let lo, hi = 

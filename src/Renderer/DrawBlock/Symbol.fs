@@ -123,7 +123,10 @@ let inline getRotatedSymbolCentre (symbol:Symbol) =
 /// Works with rotation. For a rotated symbol, TopLeft = Pos, and H,W swapped in getrotatedHAndW
 let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
     let h,w = getRotatedHAndW sym
-    {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
+    if sym.Annotation = Some ScaleButton then 
+        {TopLeft = sym.Pos - {X = 9.; Y = 9.}; H = 17. ; W = 17.}
+    else 
+        {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
 
 type Symbol with
     member this.SymbolBoundingBox = getSymbolBoundingBox this
@@ -645,6 +648,8 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
 
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
+      CentrePos = {X = 0.; Y = 0.}
+      OffsetFromBBCentre = {X = 0.; Y = 0}
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
       LabelHasDefaultPos = true
       LabelRotation = None

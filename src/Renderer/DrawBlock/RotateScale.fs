@@ -518,33 +518,6 @@ let scaleSymbolInBlock
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
-/// <summary>HLP 23: AUTHOR Ismagilov - Scales symbol up or down. Scaling distance determined by 'mag' argument.</summary>
-/// <param name="mag">  Positive scales up, negative scales down.</param>
-/// <param name="block"> Bounding box of selected components</param>
-/// <param name="sym"> Symbol to be rotated</param>
-/// <returns>New symbol after scaled about block centre.</returns>
-let scaleSymbolInBlockGroup
-    (mag: float)
-    //(scaleType: ScaleType)
-    (block: BoundingBox)
-    (sym: Symbol) : Symbol =
-
-    let symCenter = getRotatedSymbolCentre sym
-
-    //Get x and y proportion of symbol to block
-    let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
-
-    let newCenter = {X = (block.TopLeft.X-mag) + ((block.W+(mag*2.)) * xProp); Y = (block.TopLeft.Y-mag) + ((block.H+(mag*2.)) * yProp)}
-
-    let h,w = getRotatedHAndW sym
-    let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
-    let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
-
-    {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
-
-
-
-
 
 /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
 
@@ -579,47 +552,102 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
-/// <summary>HLP 23: AUTHOR Ismagilov - Scales a block of symbols, returning the new symbol model</summary>
-/// <param name="compList"> List of ComponentId's of selected components</param>
-/// <param name="model"> Current symbol model</param>
-/// <param name="scale"> Type of scaling to do</param>
-/// <returns>New scaled symbol model</returns>
-//Note: This scaling is kept here as part of original individual code, and is used with Ctrl+U, Ctrl+I
-let scaleBlock (compList:ComponentId list) (model:SymbolT.Model) (scale:ScaleType)=
-    ///Similar structure to rotateBlock, easy to understand
+let getBoundingBoxCentre (bb:Symbol) = 
+    {X = bb.Component.X + bb.Component.W/2.; Y = bb.Component.Y + bb.Component.H/2.}
+
+let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
+    let scaleFact = 
+        if min = max || matchMax <= matchMin then 1. 
+        else (matchMin - matchMax) / (min - max)
+    let offsetC = 
+        if scaleFact = 1. then 0.
+        else (matchMin - min * scaleFact) / (1.-scaleFact)
+    (scaleFact, offsetC)
+ 
+let getScalingFactorAndOffsetCentreGroup
+    (matchBBMin:XYPos)
+    (matchBBMax:XYPos)
+    (compList: ComponentId list)
+    (model: SymbolT.Model) : (float * float) * (float * float) = 
+
+    let selectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+
+    let maxXSym = 
+            selectedSymbols
+            |> List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) 
+
+    let oldMaxX = (maxXSym |> getBoundingBoxCentre).X
+    let newMaxX = matchBBMax.X - maxXSym.Component.W/2.
+
+    let minXSym =
+            selectedSymbols
+            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
+
+    let oldMinX = (minXSym |> getBoundingBoxCentre).X
+    let newMinX = matchBBMin.X + minXSym.Component.W/2.
+    
+    let maxYSym = 
+            selectedSymbols
+            |> List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x)))
+
+    let oldMaxY = (maxYSym |> getBoundingBoxCentre).Y
+    let newMaxY = matchBBMax.Y - maxYSym.Component.H/2.
+
+    let minYSym =
+            selectedSymbols
+            |> List.minBy (fun (x:Symbol) -> x.Pos.Y)
+
+    let oldMinY = (minYSym |> getBoundingBoxCentre).Y
+    let newMinY = matchBBMin.Y + minYSym.Component.H/2.
+    
+    let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
+    let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
+    // printfn "Max: OriginalX: %A" oldMaxX
+    // printfn "Max: XMatch: %A" newMaxX
+    // printfn "Min: OriginalX: %A" oldMinX
+    // printfn "Min: XMatch: %A" newMinX
+    // printfn "scaleFact: %A" (fst xSC)
+    // printfn "scaleC: %A" (snd xSC)
+    // printfn "Max: GotX: %A" (((oldMaxX- (snd xSC)) * (fst xSC)) + (snd xSC))
+    // printfn "Min: GotX: %A" (((oldMinX - (snd xSC)) * (fst xSC)) + (snd xSC))
+    (xSC, ySC)
+
+let scaleSymbol
+    xYSC
+    sym = 
+
+    let symCentre = getBoundingBoxCentre sym
+    let translateFunc scaleFact offsetC coordinate = (coordinate - offsetC) * scaleFact + offsetC
+    let xSC = fst xYSC
+    let ySC = snd xYSC
+    let newX = translateFunc (fst xSC) (snd xSC) symCentre.X
+    let newY = translateFunc (fst ySC) (snd ySC) symCentre.Y
+
+    let symCentreOffsetFromTopLeft = {X = (sym.Component.W/2.); Y = (sym.Component.H/2.)}
+    let newTopLeftPos = {X = newX; Y = newY} - symCentreOffsetFromTopLeft
+    let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
+
+    {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
+        
+let groupNewSelectedSymsModel
+    (compList:ComponentId list) 
+    (model:SymbolT.Model) 
+    (modifySymbolFunc) = 
 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
-    let block = getBlock SelectedSymbols
-      
-    let newSymbols = List.map (scaleSymbolInBlock scale block) SelectedSymbols
+    // let block = getBlock SelectedSymbols
+    // printfn "bbCentreX:%A" (block.Centre()).X
+
+    // let newSymbols = List.map (modifySymbolFunc (block.Centre())) SelectedSymbols
+    let newSymbols = List.map (modifySymbolFunc) SelectedSymbols
 
     {model with Symbols = 
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
-/// <summary>HLP 23: AUTHOR Ismagilov - Scales a block of symbols, returning the new symbol model</summary>
-/// <param name="compList"> List of ComponentId's of selected components</param>
-/// <param name="model"> Current symbol model</param>
-/// <param name="scale"> Type of scaling to do</param>
-/// <returns>New scaled symbol model</returns>
-//Note: This scaling is used for the new UI scaling block, and takes in a variable scale factor
-let scaleBlockGroup (compList:ComponentId list) (model:SymbolT.Model) (mag:float)=
-    //Similar structure to rotateBlock, easy to understand
-
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
-
-    let block = getBlock SelectedSymbols
-      
-    let newSymbols = List.map (scaleSymbolInBlockGroup mag block) SelectedSymbols
-
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
@@ -646,10 +674,7 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
     let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
 
-    // when mouseOnScaleButton we are going to update the ScalingBox in updateHelper function instead
-    if (Option.isSome model.ScalingBox) && (model.ScalingBox.Value).MouseOnScaleButton then 
-        model, cmd
-    elif (model.SelectedComponents.Length < 2) then 
+    if (model.SelectedComponents.Length < 2) then 
         match model.ScalingBox with 
         | None ->  model, cmd
         | _ -> {model with ScalingBox = None}, 
@@ -668,10 +693,11 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
             let topleft = newBoxBound.TopLeft
             let rotateDeg90OffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
             let rotateDeg270OffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
-            let buttonOffSet: XYPos = {X = newBoxBound.W+46.5; Y = -53.5}
+            let buttonOffSet: XYPos = {X = newBoxBound.W + 47.5; Y = -47.5}
+            let dummyPos = (topleft + buttonOffSet)
 
             let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
-            let buttonSym = makeButton ScaleButton (topleft + buttonOffSet)
+            let buttonSym = {makeButton ScaleButton dummyPos with Pos = (topleft + buttonOffSet)}
             let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
             let rotateDeg90Sym = 
                 makeButton (RotateButton Degree90) (topleft + rotateDeg90OffSet)
@@ -691,7 +717,6 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
                 RotateDeg90Button = rotateDeg90Sym;
                 RotateDeg270Button = rotateDeg270Sym;
                 ButtonList = [buttonSym.Id; rotateDeg270Sym.Id; rotateDeg90Sym.Id];
-                MouseOnScaleButton = false;
             }
             let newCmd =
                 match model.ScalingBox with

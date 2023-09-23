@@ -376,7 +376,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | Rotate rotation ->
         //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov
-        printfn "Running Rotate %A" rotation
+        // printfn "Running Rotate %A" rotation
         let rotmodel = 
             {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}
                         TmpModel = Some model
@@ -865,6 +865,8 @@ let init () =
         Action = Idle
         ShowGrid = false
         LastMousePos = { X = 0.0; Y = 0.0 }
+        ScalingBoxCentrePos = { X = 0.0; Y = 0.0 }
+        InitMouseToScalingBoxCentre = { X = 0.0; Y = 0.0 }
         SnapSymbols=emptySnap
         SnapSegments = emptySnap
         CursorType = Default

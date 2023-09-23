@@ -73,6 +73,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
         | n when n = 0 -> "LSB"
         | n when n = nInp-1 -> "MSB"
         | _ -> ""), ["OUT"])
+    | SplitN (n, _, _) -> (["IN"], [])
     | Mux4 -> (["0"; "1"; "2"; "3" ;"SEL"],["OUT"])
     | Mux8 -> (["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7";"SEL"],["OUT"])
     | Demux2 -> (["DATA" ; "SEL"],["0"; "1"])

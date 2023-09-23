@@ -2260,6 +2260,41 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 0 <| Alg exp0
             put 1 <| Alg exp1
 
+    | SplitN (n, widths, lsbs) -> 
+        let fd = ins 0
+#if ASSERTS
+        assertThat (fd.Width >= topWireWidth + 1)
+        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width
+#endif
+        match fd with
+        | Data bits ->
+            List.iteri2 (fun i width lsb ->
+                getBits (lsb+width-1) lsb bits 
+                |> Data
+                |> put i
+                ) widths lsbs
+
+        | Alg(UnaryExp(BitRangeOp(l, u), exp)) ->
+            List.iteri2 (fun i width lsb ->
+                UnaryExp(BitRangeOp(l + lsb, l+lsb+width-1), exp)
+                |> Alg
+                |> put i
+            ) widths lsbs
+
+        | Alg(UnaryExp(NotOp, exp)) ->
+            List.iteri2 (fun i width lsb ->
+                let expi = UnaryExp(BitRangeOp(lsb, lsb+width-1), exp)
+                Alg(UnaryExp(NotOp, expi))
+                |> put i
+            ) widths lsbs
+
+        | Alg exp ->
+            List.iteri2 (fun i width lsb ->
+                UnaryExp(BitRangeOp(lsb, lsb+width-1), exp)
+                |> Alg
+                |> put i
+            ) widths lsbs
+
     | DFF ->
         match insOld 0 with
         | Data bits ->

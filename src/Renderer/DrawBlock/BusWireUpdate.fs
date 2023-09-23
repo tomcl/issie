@@ -157,6 +157,11 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                         | Some 0 -> {symbol with InWidth0 = Some wire.Width}
                         | x -> failwithf $"What? wire found with input port {x} other than 0 connecting to SplitWire"
                         |> (fun sym -> Map.add symId sym m)
+                    | SplitN _ -> 
+                        match inPort.PortNumber with
+                        | Some 0 -> {symbol with InWidth0 = Some wire.Width}
+                        | x -> failwithf $"What? wire found with input port {x} other than 0 connecting to SplitN"
+                        |> (fun sym -> Map.add symId sym m)
                     | MergeWires ->
                         match inPort.PortNumber with
                         | Some 0 ->

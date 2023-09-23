@@ -143,7 +143,10 @@ let addNumberPort (pType: PortType) (pNum: int) (sym: Symbol) (edgeOpt: Edge opt
             sym.Component.OutputPorts[..pNum-1] @ [newPort] @ List.map portNoUp sym.Component.OutputPorts[pNum..]
     let insertIndex =
         match sym.STransform.flipped with
-        | false -> pNum
+        | false -> 
+            match pType with
+            | PortType.Input -> pNum
+            | PortType.Output -> 0
         | true ->
             match pType with
             | PortType.Input -> sym.Component.InputPorts.Length - 1 - pNum
@@ -352,6 +355,15 @@ let changeMergeNComponent (symModel: Model) (compId: ComponentId) (numInputs: in
     |> varyNumberOfPorts PortType.Input numInputs 1
     |> map component_ (
         set type_ (MergeN numInputs) >>
+        set h_ (2.*(float Constants.gridSize) * (float numInputsEdit)/2.)
+        )
+
+let changeSplitNComponent (symModel: Model) (compId: ComponentId) (numOutputs: int) (widths: int list) (lsbs: int list)=
+    let numInputsEdit = if numOutputs > 2 then numOutputs else 3
+    Map.find compId symModel.Symbols
+    |> varyNumberOfPorts PortType.Output 1  numOutputs
+    |> map component_ (
+        set type_ (SplitN (numOutputs, widths, lsbs)) >>
         set h_ (2.*(float Constants.gridSize) * (float numInputsEdit)/2.)
         )
 

@@ -791,6 +791,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newModel = {model with Ports = newPorts}  
         (replaceSymbol newModel newSymbol compId), Cmd.none
 
+    | ChangeSplitN (compId, numInputs, widths, lsbs) ->
+        let newSymbol = changeSplitNComponent model compId numInputs widths lsbs
+        let newPorts = addToPortModel model newSymbol
+        let newModel = {model with Ports = newPorts}  
+        (replaceSymbol newModel newSymbol compId), Cmd.none
+
     | ResetModel -> 
         { model with Symbols = Map.empty; Ports = Map.empty; }, Cmd.none
     

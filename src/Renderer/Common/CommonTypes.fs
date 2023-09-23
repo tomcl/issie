@@ -249,6 +249,7 @@ module CommonTypes
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
         | MergeN of NumInputs: int
+        | SplitN of NumInputs: int * OutputWdiths: int list * OutputLSBits: int list
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
@@ -470,6 +471,7 @@ module CommonTypes
             | Custom of CustomComponentType // schematic sheet used as component
             | MergeWires | SplitWire of BusWidth: int // int is bus width
             | MergeN of NumInputs: int
+            | SplitN of NumInputs: int * OutputWdiths: int list * OutputLSBits: int list
             // DFFE is a DFF with an enable signal.
             // No initial state for DFF or Register? Default 0.
             | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
@@ -545,6 +547,7 @@ module CommonTypes
             | JSONComponent.ComponentType.MergeWires -> MergeWires
             | JSONComponent.ComponentType.MergeN x -> MergeN x
             | JSONComponent.ComponentType.SplitWire x -> SplitWire x // int is bus width
+            | JSONComponent.ComponentType.SplitN (a, b, c) -> SplitN (a, b, c)
             | JSONComponent.ComponentType.DFF -> DFF
             | JSONComponent.ComponentType.DFFE -> DFFE
             | JSONComponent.ComponentType.Register x -> Register x
@@ -605,6 +608,7 @@ module CommonTypes
             | MergeWires -> JSONComponent.ComponentType.MergeWires
             | MergeN x -> JSONComponent.ComponentType.MergeN x
             | SplitWire w -> JSONComponent.ComponentType.SplitWire w // int is bus width
+            | SplitN (a, b, c) -> JSONComponent.ComponentType.SplitN (a, b, c)
             // DFFE is a DFF with an enable signal.
             // No initial state for DFF or Register? Default 0.
             | DFF -> JSONComponent.ComponentType.DFF

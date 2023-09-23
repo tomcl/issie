@@ -257,28 +257,28 @@ let private createMergeNPopup (model: Model) dispatch =
             intIn < 2
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
-(*
+
 let private createSplitNPopup (model: Model) dispatch =
-    let title = $"Add N input merge"
+    let title = $"Add N output split"
     let beforeInt =
-        fun _ -> str "How many inputs should the merge component have?"
+        fun _ -> str "How many outputs should the split component have?"
     let numInputsDefault = 2
-    let intDefault = 1
-    let body = dialogPopupBodyNInts beforeInt numInputsDefault intDefault dispatch
+    let body = dialogPopupBodyNInts beforeInt numInputsDefault 1 dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
             let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData 
-            let inputList = getIntList dialogData numInputsDefault intDefault
-            createCompStdLabel (MergeN (inputInt, inputList)) model dispatch
+            let outputInt = getInt dialogData 
+            let outputWidthList = getIntList dialogData numInputsDefault 1
+            let outputLSBList = getIntList2 dialogData numInputsDefault 0
+            createCompStdLabel (SplitN (outputInt, outputWidthList, outputLSBList)) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
             let intIn = getInt model'.PopupDialogData
             intIn < 2
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
-*)
+
 
 let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"
@@ -913,6 +913,8 @@ let viewCatalogue model dispatch =
                                                                                              bits of a bus into two sets. \
                                                                                              Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                              after placing component to change this."
+                        catTip1 "SplitN" (fun _ -> createSplitNPopup model dispatch) "Use Splitwire when you want to split the \
+                                                                                             bits of a bus into multiple sets."                                                                          
                         catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or \
                                                                                                 more selected bits of its input"
                         catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \

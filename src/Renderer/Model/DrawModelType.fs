@@ -117,6 +117,12 @@ module SymbolT =
             /// Coordinates of the symbol's top left corner
             /// on component save/restore this is also X,Y on Component type.
             Pos: XYPos
+
+            /// Initial coordinates of the symbol's centre when ScaleButton is pressed
+            CentrePos: XYPos
+
+            /// symbol's centre to the selected components' boundingBox centre when ScaleButton is pressed
+            OffsetFromBBCentre: XYPos
         
             /// Width of the wires connected to input ports 0 & 1
             /// This is needed on the symbol only for  bus splitter and bus merge symbols
@@ -411,7 +417,6 @@ module SheetT =
         RotateDeg90Button: SymbolT.Symbol 
         RotateDeg270Button: SymbolT.Symbol 
         ScalingBoxBound: BoundingBox
-        MouseOnScaleButton: bool
         ButtonList: ComponentId list
     }
 
@@ -594,6 +599,8 @@ module SheetT =
         | NotDebugging
         | Paused
         | Running
+    
+    type ScalingDirection = ScaleUp | ScaleDown
 
     type Model = {
         Wire: BusWireT.Model
@@ -633,7 +640,9 @@ module SheetT =
         /// html scrolling position: this is in screen pixels, draw block X,Y values are 1/model.Zoom of this
         ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
         /// this is Drawblock X,Y values
-        LastMousePos: XYPos // For Symbol Movement and Scaling
+        LastMousePos: XYPos // For Symbol Movement
+        ScalingBoxCentrePos: XYPos
+        InitMouseToScalingBoxCentre: XYPos
         ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
         LastMousePosForSnap: XYPos
         MouseCounter: int

@@ -159,12 +159,20 @@ let view
         let selectionBox = { defaultPolygon with Stroke = "Black"; StrokeWidth = "0.1px"; Fill = "Blue"; FillOpacity = 0.05 }
 
         makePolygon polygonPoints selectionBox
+    
 
+    // rotating the default horizontal scaleButton icon to match the diagonal of the scalingBox    
+    let rotateScaleButtonPoint boxW  boxH  point =
+        let diagonal =  sqrt(boxW**2.0+boxH**2.0)
+        let cosTheta = - (boxW / diagonal)
+        let sinTheta = boxH / diagonal 
+        let {XYPos.X = x; XYPos.Y = y} = point
+        {X = x*cosTheta - y*sinTheta; Y = (y*cosTheta + x*sinTheta)}
         
     /// Draws an annotation on the SVG canvas - equivalent of drawSymbol but used for visual objects
     /// with no underlying electrical component.
     /// annotations have an Annotation field and a dummy Component used to provide expected H,W
-    let drawAnnotation (symbol:SymbolT.Symbol) =
+    let drawAnnotation (symbol:SymbolT.Symbol) boxH boxW=
         let transform = symbol.STransform
         let outlineColour, strokeWidth = "black", "1.0"
         let H,W = symbol.Component.H, symbol.Component.W
@@ -176,14 +184,21 @@ let view
         | Some a ->
             match a with
             | SymbolT.ScaleButton ->
-                let shapePoints = 
-                    [   (7.75, 6.75); 
-                        (-1.75, -1.75); (6.5, 0.); (0., 7.); (-1.75, -2.);
-                        (-6.25, 6.); 
-                        (1.5, 1.5); (-7., 0.); (0, -6.5); (2., 2.);
-                        (6.75, -6.25)
+                let shapePointsPre = 
+                    [   (4.5, -2.); 
+                        (4.5, -5.); (10.5, 0.); (4.5, 5.); (4.5, 2.);
+                        (-4.5, 2.); 
+                        (-4.5, 5.); (-10.5, 0.); (-4.5, -5.); (-4.5, -2.);
+                        (4.5, -2.)
                     ]
-                    |> List.map (fun (x,y) -> {X=x;Y=y})
+                    |> List.map (fun (x,y) -> rotateScaleButtonPoint boxW boxH {X=x;Y=y})
+
+
+                let shapePoints =  
+                    [1..10]
+                    |> List.fold (fun lst x -> (shapePointsPre[x] - shapePointsPre[x-1])::lst) [shapePointsPre[0]]
+                    |> List.rev
+
                 let arrowHeadTopRight = ((makeLineAttr (shapePoints[1].X) shapePoints[1].Y)) + ((makeLineAttr (shapePoints[2].X) shapePoints[2].Y)) + ((makeLineAttr (shapePoints[3].X) shapePoints[3].Y)) + ((makeLineAttr (shapePoints[4].X) shapePoints[4].Y))+ ((makeLineAttr (shapePoints[5].X) shapePoints[5].Y))
                 let arrowHeadBottomLeft = ((makeLineAttr (shapePoints[6].X) shapePoints[6].Y)) + ((makeLineAttr (shapePoints[7].X) shapePoints[7].Y)) + ((makeLineAttr (shapePoints[8].X) shapePoints[8].Y)) + ((makeLineAttr (shapePoints[9].X) shapePoints[9].Y))+ ((makeLineAttr (shapePoints[10].X) shapePoints[10].Y))
                 (createAnyPath (symbol.Pos+shapePoints[0])(arrowHeadTopRight+arrowHeadBottomLeft) "grey" strokeWidth outlineColour)
@@ -226,9 +241,9 @@ let view
         | _ -> 
             let {BoundingBox.TopLeft = {X=fX; Y=fY}; H=fH; W=fW} = model.ScalingBox.Value.ScalingBoxBound
             [makeAnyPath {X=fX+50.0+fW;Y=(fY-46.5)} ((makeLineAttr 0.0 (fH+96.5))+(makeLineAttr -(fW+100.0) 0)+(makeLineAttr 0.0 (-(fH)-100.0))+(makeLineAttr (fW+96.5) 0.0)) {defaultPath with StrokeDashArray="4,4"}] 
-            @ drawAnnotation model.ScalingBox.Value.RotateDeg270Button
-            @ drawAnnotation model.ScalingBox.Value.RotateDeg90Button
-            @ drawAnnotation model.ScalingBox.Value.ScaleButton
+            @ drawAnnotation model.ScalingBox.Value.RotateDeg270Button (fH+100.) (fW+100.)
+            @ drawAnnotation model.ScalingBox.Value.RotateDeg90Button (fH+100.) (fW+100.)
+            @ drawAnnotation model.ScalingBox.Value.ScaleButton (fH+100.) (fW+100.)
 
 
     let connectingPortsWire =

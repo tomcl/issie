@@ -540,6 +540,13 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
 
         $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
         + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{lsbBits}];\n"
+    | SplitN (n, outputWidths, lsBits) -> 
+        List.map3 (
+            fun index width lsb -> 
+                let msb = width+lsb-1
+                $"assign %s{outs index} = %s{ins 0}[%d{msb}:%d{lsb}];\n"
+        ) [0..n-1] outputWidths lsBits
+        |> List.fold (fun accstr outstr -> accstr+outstr) ""
     | AsyncROM1 mem -> sprintf $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0});\n"
     | ROM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, clk);\n"
     | RAM1 mem | AsyncRAM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"

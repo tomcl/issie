@@ -260,6 +260,7 @@ module SymbolT =
         | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ChangeGate of compId: ComponentId * gateType: GateComponentType * numInputs: int
         | ChangeMergeN of compId: ComponentId * numInputs: int
+        | ChangeSplitN of compId: ComponentId * numInputs: int * widths: int list * lsbs: int list
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
         | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 

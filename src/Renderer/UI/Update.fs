@@ -414,6 +414,11 @@ let update (msg : Msg) oldModel =
         |> set (popupDialogData_ >-> intlist_) intlist
         |> withNoMsg
 
+    | SetPopupDialogIntList2 intlist2->
+        model
+        |> set (popupDialogData_ >-> intlist2_) intlist2
+        |> withNoMsg
+
     | SetPopupDialogMemorySetup m ->
         model
         |> set (popupDialogData_ >-> memorySetup_) m

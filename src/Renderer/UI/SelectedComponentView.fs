@@ -59,7 +59,6 @@ let private textFormField isRequired name defaultValue isBad onChange onDeleteAt
                 OnPaste preventDefault; 
                 SpellCheck false; 
                 Name name; 
-                AutoFocus true; 
                 Style [ Width "200px"]; 
                 OnKeyDown onDelete]
             Input.DefaultValue defaultValue
@@ -93,13 +92,18 @@ let private intFormField name (width:string) defaultValue minValue onChange =
         ]
     ]
 
-let private intFormFieldInline name (width: string) defaultValue minValue onChange =
+let private intFormField2 name (width: string) defaultValue1 defaultValue2 minValue1 minValue2 onChange1 onChange2 =
     Field.div [Field.Props[Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]]] [
         Label.label [Label.Props [Style [Flex "0 0 auto"; MarginRight "8px"]]] [str name] // Label with flex properties and margin
         Input.number [
-            Input.Props [Style [Width width;]; Min minValue] // Input with flex property
-            Input.DefaultValue <| sprintf "%d" defaultValue
-            Input.OnChange (getIntEventValue >> onChange)
+            Input.Props [Style [Width width;]; Min minValue1] // Input with flex property
+            Input.DefaultValue <| sprintf "%d" defaultValue1
+            Input.OnChange (getIntEventValue >> onChange1)
+        ]
+        Input.number [
+            Input.Props [Style [Width width; MarginLeft "15px"]; Min minValue2] // Input with flex property
+            Input.DefaultValue <| sprintf "%d" defaultValue2
+            Input.OnChange (getIntEventValue >> onChange2)
         ]
         hr []
     ]
@@ -574,7 +578,7 @@ let private changeMergeN model (comp:Component) dispatch =
     let title, nInp =
         match comp.Type with
         | MergeN n -> "Number of inputs", n
-        | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
+        | c -> failwithf "changeMergeN called with invalid component: %A" c
 
     div [] [
         span
@@ -591,7 +595,7 @@ let private changeMergeN model (comp:Component) dispatch =
         )
     ]
 
-(*
+
 let private changeSplitN model (comp:Component) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     
@@ -599,23 +603,23 @@ let private changeSplitN model (comp:Component) dispatch =
         model.PopupDialogData.Int
         |> Option.map (fun i ->
             if i < 2 then
-                sprintf "Must have more than 2 inputs"
+                sprintf "Must have more than 2 outputs"
             else
                 "")
         |> Option.defaultValue ""
 
-    let title, nInp, widths =
+    let title, nInp, widths, lsbs =
         match comp.Type with
-        | MergeN (nInputs, widths) -> "Number of inputs", nInputs, widths
-        | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
+        | SplitN (nInputs, widths, lsblist) -> "Number of outputs", nInputs, widths, lsblist
+        | c -> failwithf "changeSplitN called with invalid component: %A" c
     
-    let changeWidths = fun (widths: int list) (newNumInputs: int ) -> 
-        match widths.Length with
+    let changeWidthsLsbs = fun (widthsLsbs: int list) (newNumInputs: int ) (defaultVal : int)-> 
+        match widthsLsbs.Length with
         | n when n > newNumInputs -> 
-            widths[..(newNumInputs-1)]
+            widthsLsbs[..(newNumInputs-1)]
         | n when n < newNumInputs ->
-            List.append widths (List.init (newNumInputs-n) (fun _ -> 1)) 
-        | _ -> widths
+            List.append widthsLsbs (List.init (newNumInputs-n) (fun _ -> defaultVal)) 
+        | _ -> widthsLsbs
 
     div [] [
         span
@@ -625,25 +629,37 @@ let private changeSplitN model (comp:Component) dispatch =
         intFormField title "60px" nInp 2 (
             fun newInpNum ->
                 if newInpNum >= 2 then
-                    let newWidths = changeWidths widths newInpNum
-                    model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newInpNum newWidths
+                    let newWidths = changeWidthsLsbs widths newInpNum 1
+                    let newLsbs = changeWidthsLsbs lsbs newInpNum 0
+                    model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) newInpNum newWidths newLsbs
                     dispatch <| SetPopupDialogInt (Some newInpNum)
                 else
                     dispatch <| SetPopupDialogInt (Some newInpNum)
         )
-        widths
-        |> List.mapi (fun index defaultValue ->
-            let portTitle = sprintf "Input Port %d Width :" index
-            intFormFieldInline portTitle "60px" defaultValue 1 (
-                fun newWidth -> 
-                    widths
-                    |> List.mapi (fun i x -> if i = index then newWidth else x)
-                    |> model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) nInp
-            )
-        )
+        div [Style [Display DisplayOptions.Flex; JustifyContent AlignContentOptions.Center;]] [
+        // Add headers for the "Width" and "LSB" columns
+            Label.label [Label.Props [Style[TextAlign TextAlignOptions.Center; MarginRight "20px"]]] [str "Width"]
+            Label.label [Label.Props [Style[TextAlign TextAlignOptions.Center; MarginLeft "20px"]]] [str "LSB"]
+        ]
+        List.mapi2 (fun index defaultWidth defaultLsb ->
+            let portTitle = sprintf "Output Port %d:" index
+            intFormField2 portTitle "60px" defaultWidth defaultLsb 1 0 
+                (fun newWidth -> 
+                    let neWidths = 
+                        widths
+                        |> List.mapi (fun i x -> if i = index then newWidth else x)
+                    model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) nInp neWidths lsbs
+                    )
+                (fun lsb -> 
+                    let newLsbs = 
+                        lsbs
+                        |> List.mapi (fun i x -> if i = index then lsb else x)
+                    model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) nInp widths newLsbs
+                    )
+        ) widths lsbs
         |> div [Style [MarginBottom "20px"]] 
     ]
-*)
+
 
 /// Used for Input1 Component types. Make field for users to enter a default value for
 /// Input1 Components when they are undriven.
@@ -850,6 +866,7 @@ let private makeDescription (comp:Component) model dispatch =
                                   The bit numbers of the whole and each branch are shown when the component is connected." ]
     | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m. \
                                    The bit numbers of the whole and each branch are shown when the component is connected."]
+    | SplitN _ -> div [] [ str "Split a wire into n wires of various widths m. "]
     | NbitsAdder numberOfBits 
     | NbitsAdderNoCin numberOfBits 
     | NbitsAdderNoCout numberOfBits 
@@ -998,6 +1015,11 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             ]
     | SplitWire _ ->
         makeNumberOfBitsField model comp text dispatch
+    | SplitN _ ->
+        div []
+            [
+                changeSplitN model comp dispatch
+            ]
     | Register _ | RegisterE _ ->
         makeNumberOfBitsField model comp text dispatch
     |Counter _ |CounterNoEnable _ |CounterNoEnableLoad _ |CounterNoLoad _ ->

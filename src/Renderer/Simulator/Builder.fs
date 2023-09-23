@@ -137,6 +137,7 @@ let private getDefaultState compType =
     | MergeWires
     | MergeN _
     | SplitWire _
+    | SplitN _
     | ROM1 _
     | Viewer _
     | NbitsAdderNoCin _

@@ -105,6 +105,7 @@ let init() = {
         VerilogErrors = []
         BadLabel = false
         IntList = None
+        IntList2 = None
     }
     Notifications = {
         FromDiagram = None

@@ -323,6 +323,7 @@ let getPrefix (compType:ComponentType) =
     | MergeWires -> "MW"
     | MergeN _ -> "MN"
     | SplitWire _ -> "SW"
+    | SplitN _ -> "SN"
     |_  -> ""
 
 
@@ -360,6 +361,7 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | Shift (n,_,_) -> busTitleAndBits "Shift" n
     | Custom x -> x.Name.ToUpper()
     | MergeN _ -> "Merge"
+    | SplitN _ -> "Split"
     | _ -> ""
 
 
@@ -575,6 +577,11 @@ let getComponentProperties (compType:ComponentType) (label: string)=
             if n < 3 then 3
             else n
         (n , 1, 2.*gS * (float k)/2. , 2.*gS)
+    | SplitN (n, _, _) -> 
+        let k = 
+            if n < 3 then 3
+            else n
+        (1 , n, 2.*gS * (float k)/2. , 2.*gS)
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
@@ -702,7 +709,7 @@ let addToPortModel (model: Model) (sym: Symbol) =
 let inline getPortPosEdgeGap (ct: ComponentType) =
     match ct with
     | MergeWires | SplitWire _  -> 0.25
-    | IsBinaryGate | Mux2 | MergeN _ -> Constants.gatePortPosEdgeGap
+    | IsBinaryGate | Mux2 | MergeN _ | SplitN _ -> Constants.gatePortPosEdgeGap
     | _ -> Constants.portPosEdgeGap
 
 ///Given a symbol and a Port, it returns the orientation of the port

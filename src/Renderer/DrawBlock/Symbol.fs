@@ -572,12 +572,12 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
     | GateN (_, n) -> (n , 1, 1.5*gS * (float n)/2. , 1.5*gS)
-    | MergeN n -> 
+    | MergeN n -> // make min height so doesn't squash label
         let k = 
             if n < 3 then 3
             else n
         (n , 1, 2.*gS * (float k)/2. , 2.*gS)
-    | SplitN (n, _, _) -> 
+    | SplitN (n, _, _) -> //make min height so doesn't squash label
         let k = 
             if n < 3 then 3
             else n

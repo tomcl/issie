@@ -45,6 +45,10 @@ let attachExitHandler dispatch =
         // send a message which will process the request to exit
         dispatch <| MenuAction(MenuExit,dispatch)
         )) |> ignore
+    renderer.ipcRenderer.on ("windowLostFocus", (fun (event: Event)->
+        // send a message which will process the request to exit
+        dispatch <| MenuAction(MenuLostFocus,dispatch)
+        )) |> ignore
 (*
 // Set up window close interlock using IPC from/to main process
 let attachGetAppHandler dispatch =

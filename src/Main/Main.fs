@@ -183,6 +183,11 @@ let rec addListeners (window: BrowserWindow) =
         mainWindow <- Option.None))
     |> ignore
 
+
+    window.on_blur <| (new Function (fun _ ->
+        window.webContents.send("windowLostFocus")))
+    |> ignore
+
     (window.on: (string * (obj -> unit)) -> Events.EventEmitter)(
             // called when attempt is made to close the window
             // send this to renderer to let it decide what to do

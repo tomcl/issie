@@ -707,6 +707,9 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         MenuHelpers.saveOpenProjectInNewFormat model |> ignore
     | MenuNewFile -> 
         TopMenuView.addFileToProject model dispatch
+    | MenuLostFocus ->
+        printf "Lost focus!"
+        
     | MenuExit ->
         TopMenuView.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
     | MenuVerilogOutput ->

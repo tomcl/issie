@@ -268,6 +268,7 @@ type MenuCommand =
     | MenuExit
     | MenuZoom of float
     | MenuVerilogOutput
+    | MenuLostFocus
 
 type SimulationProgress =
     {

@@ -401,7 +401,7 @@ let processContextMenuClick
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
     let flipDispatch = SheetT.Flip >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
-    printfn "context Menu: '%A'  : '%s'" rightClickElement item
+    //printfn "context Menu: '%A'  : '%s'" rightClickElement item
 
     match rightClickElement,item with
     | SheetMenuBreadcrumb(sheet,_), "Rename" ->

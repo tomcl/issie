@@ -280,10 +280,13 @@ let mDownUpdate
                 SnapSymbols = emptySnap
                 SnapSegments = emptySnap
                 AutomaticScrolling = false
-            },
-            Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
-                        wireCmd (BusWireT.SelectWires model.SelectedWires)
-                        wireCmd (BusWireT.ResetJumps [])]
+            }
+            |> Optic.map wire_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations model.SelectedWires)
+            |> (fun model ->
+                        model ,
+                        Cmd.batch [ symbolCmd (SymbolT.SelectSymbols model.SelectedComponents)
+                                    wireCmd (BusWireT.SelectWires model.SelectedWires)
+                                    wireCmd (BusWireT.ResetJumps [])])
     | _ ->
         match (mouseOn model mMsg.Pos) with
         | Canvas when mMsg.ShiftKeyDown ->

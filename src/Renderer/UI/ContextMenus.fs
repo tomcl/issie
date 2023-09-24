@@ -43,7 +43,7 @@ let makeClickableReturner
             : MenuItemConstructorOptions =
     [|
         "click", unbox (Some (fun _  ->
-                    printfn "dispatching: %s, %s" menuType s
+                    //printfn "dispatching: %s, %s" menuType s
                     ev.preventDefault()
                     dispatchToRenderer (menuType,s)
                     ev))
@@ -61,7 +61,7 @@ let makeMenu
     (args: ResizeArray<obj option>) =
     let menuType:string = unbox args
 
-    printf "%A" menuType
+    //printf "%A" menuType
     let cases =
         Map.tryFind menuType menuMap
         |> function

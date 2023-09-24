@@ -163,7 +163,14 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             /// PERFORMANCE: polyline takes royghly 50% of total time
             svg (waveRowProps ws)
                 [ polyline (wavePolylineStyle wavePoints) [] ]
-            |> (fun svg -> printfn "-----1BitTrans %d %.2f %.2f %.3f------" wavePoints.Length (t1-start) (t2-t1) (TimeHelpers.getInterval start - t2 + start); svg)
+            (*|> (fun svg ->
+                printfn
+                            "-----1BitTrans %d %.2f %.2f %.3f------"
+                            wavePoints.Length
+                            (t1-start)
+                            (t2-t1)
+                            (TimeHelpers.getInterval start - t2 + start);
+                svg)*)
         // Non-binary waveform
         | w when w <= 32 ->
             //printfn "starting non-binary"
@@ -1091,7 +1098,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     div [] [
         div [ viewWaveSimStyle ]
             [
-                printfn $"WSmodel state: {wsModel.State}"
+                //printfn $"WSmodel state: {wsModel.State}"
                 topHalf canvasState model dispatch
                 match model.WaveSimSheet, wsModel.State with
                 | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->

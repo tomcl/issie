@@ -136,12 +136,12 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 |n when n < 500 -> model_in :: redoList
                 | _ -> model_in :: (removeLast redoList)
 
-            {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst; CurrentKeyPresses = Set.empty}, Cmd.batch [sheetCmd DoNothing]
+            {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst; CurrentKeyPresses = []}, Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlY ->
         match model.RedoList with
         | [] -> model , Cmd.none
-        | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = Set.empty} , Cmd.batch [sheetCmd DoNothing]
+        | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = []} , Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlA ->
         let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map fst
@@ -289,18 +289,19 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         model, Cmd.none
 
     | ManualKeyDown key -> // Needed for e.g. Ctrl + C and Ctrl + V as they are not picked up by Electron
-        let newPressedKeys = model.CurrentKeyPresses.Add (key.ToUpper()) // Make it fully upper case to remove CAPS dependency
+        let containsKey key  = List.exists (fun (key',time) -> key'=key)
+        let newPressedKeys = (key.ToUpper(), TimeHelpers.getTimeMs()) :: getActivePressedKeys model  // Make it fully upper case to remove CAPS dependency
         //printfn $"Keys={newPressedKeys}, Key={key}"
         let newCmd =
-            match Set.contains "CONTROL" newPressedKeys || Set.contains "META" newPressedKeys with
+            match containsKey "CONTROL" newPressedKeys || containsKey "META" newPressedKeys with
             | true ->
-                if Set.contains "C" newPressedKeys then
+                if containsKey "C" newPressedKeys then
                     sheetCmd (KeyPress CtrlC)
-                elif Set.contains "V" newPressedKeys then
+                elif containsKey "V" newPressedKeys then
                     sheetCmd (KeyPress CtrlV)
-                elif Set.contains "A" newPressedKeys then
+                elif containsKey "A" newPressedKeys then
                     sheetCmd (KeyPress CtrlA)
-                elif Set.contains "W" newPressedKeys then
+                elif containsKey "W" newPressedKeys then
                     sheetCmd (KeyPress CtrlW)
                 else
                     Cmd.none
@@ -308,8 +309,11 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
         { model with CurrentKeyPresses = newPressedKeys }, newCmd
 
-    | ManualKeyUp key -> 
-        { model with CurrentKeyPresses = model.CurrentKeyPresses.Remove (key.ToUpper()) }, Cmd.none
+    | ManualKeyUp key ->
+        /// remove all (key,timestamp) elements matching key
+        let removeAllKeys key =
+            List.filter (fun (k,t) -> k <> key)
+        { model with CurrentKeyPresses = removeAllKeys (key.ToUpper()) model.CurrentKeyPresses}, Cmd.none
 
     | CheckAutomaticScrolling ->
         let canvas = document.getElementById "Canvas"
@@ -494,7 +498,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             SnapSegments = emptySnap
             //ScrollPos = { X = 0.0; Y = 0.0 } Fix for scroll bug on changing sheets
             LastValidPos = { X = 0.0; Y = 0.0 }
-            CurrentKeyPresses = Set.empty
+            CurrentKeyPresses = []
             UndoList = []
             RedoList = []
             TmpModel = None
@@ -873,7 +877,7 @@ let init () =
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }
         LastValidSymbol = None
-        CurrentKeyPresses = Set.empty
+        CurrentKeyPresses = []
         UndoList = []
         RedoList = []
         TmpModel = None

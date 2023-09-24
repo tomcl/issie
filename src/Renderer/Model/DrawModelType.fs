@@ -632,7 +632,7 @@ module SheetT =
         LastValidSymbol: SymbolT.Symbol option
         SnapSymbols: SnapXY
         SnapSegments: SnapXY
-        CurrentKeyPresses: Set<string> // For manual key-press checking, e.g. CtrlC
+        CurrentKeyPresses: (string*float) list // For manual key-press checking, e.g. CtrlC. The float is the key down time.
         /// how X,Y coordinates throughout draw block are scaled into screen pixels.
         /// All unscaled dimensions (screen pixels) have Screen prepended to name.
         Zoom: float

@@ -12,6 +12,18 @@ open Operators
 open Sheet
 open SheetSnap
 
+module Constants =
+    let KeyPressPersistTimeMs = 1000.
+
+/// Hack to deal with possible Ctrl Key up when window is not focussed.
+/// This will not register as a keyup and so will stay in CurrentKeyPresses forever.
+/// Use the fact that keys auto-repeat, and time-stamp each KeyDown.
+/// If the mots recent keydown is longer than some cutoff time assume key is no longer pressed.
+let getActivePressedKeys model =
+    let timeNow = TimeHelpers.getTimeMs()
+    List.filter (fun (_,time) -> timeNow - time < Constants.KeyPressPersistTimeMs) model.CurrentKeyPresses
+
+
 /// This actually writes to the DOM a new scroll position.
 /// In the special case that DOM has not yet been created it does nothing.
 let writeCanvasScroll (scrollPos:XYPos) =
@@ -38,12 +50,16 @@ let displaySvgWithZoom
     let zoom = model.Zoom
     // Hacky way to get keypresses such as Ctrl+C to work since Electron does not pick them up.
     document.onkeydown <- (fun key ->
+        //printf "%s" $"Down {key.key} ({model.CurrentKeyPresses})"
         if key.which = 32.0 then// Check for spacebar
             // key.preventDefault() // Disable scrolling with spacebar
             dispatch <| (ManualKeyDown key.key)
         else
             dispatch <| (ManualKeyDown key.key) )
-    document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
+    document.onkeyup <- (fun key ->
+        //printf "%s" $"Up {key.key} ({model.CurrentKeyPresses})"
+        dispatch <| (ManualKeyUp key.key))
+
 
     let sizeInPixels = sprintf "%.2fpx" ((model.CanvasSize * model.Zoom))
 
@@ -64,7 +80,7 @@ let displaySvgWithZoom
                 }
 
     let wheelUpdate (ev: Types.WheelEvent) =
-        if Set.contains "CONTROL" model.CurrentKeyPresses then
+        if List.exists (fun (k,_) -> k = "CONTROL") (getActivePressedKeys model) then
             // ev.preventDefault()
             if ev.deltaY > 0.0 then // Wheel Down
                 dispatch <| KeyPress ZoomOut

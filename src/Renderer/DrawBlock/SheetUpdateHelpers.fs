@@ -795,7 +795,7 @@ let mMoveUpdate
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
         
         // HLP23 AUTHOR: BRYAN TAN
-        let ctrlPressed = Set.contains "CONTROL" model.CurrentKeyPresses
+        let ctrlPressed = List.exists (fun (k,_) -> k = "CONTROL") (SheetDisplay.getActivePressedKeys model)
         let newCursor =
             match model.CursorType, model.Action with
             | Spinner,_ -> Spinner

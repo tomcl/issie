@@ -381,12 +381,14 @@ let keyPressListener initial =
                                                 let ke: KeyboardEvent = downcast e
                                                 if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
                                                     firstPress <- false
+                                                    //printf "Ctrl-Meta Key down (old method)"
                                                     dispatch <| Sheet(SheetT.PortMovementStart)
                                                 else
                                                     ())
     let subUp dispatch =
         Browser.Dom.document.addEventListener("keyup", fun e ->
                                                     firstPress <- true
+                                                    //printf "Any Key up (old method)"
                                                     dispatch <| Sheet(SheetT.PortMovementEnd))
     /// unfinished code
     /// add hook in main function to display a context menu

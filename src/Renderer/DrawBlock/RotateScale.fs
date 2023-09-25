@@ -552,6 +552,29 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
+    let maxXSymCentre = 
+            selectedSymbols
+            |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
+            |> getRotatedSymbolCentre
+    let minXSymCentre =
+            selectedSymbols
+            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
+            |> getRotatedSymbolCentre
+    let maxYSymCentre = 
+            selectedSymbols
+            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
+            |> getRotatedSymbolCentre
+    let minYSymCentre =
+            selectedSymbols
+            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
+            |> getRotatedSymbolCentre
+    (maxXSymCentre.X = minXSymCentre.X) || (maxYSymCentre.Y = minYSymCentre.Y)
+    
+
+let findSelectedSymbols (compList: ComponentId list) (model: SymbolT.Model) = 
+    List.map (fun x -> model.Symbols |> Map.find x) compList
+
 let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
     let scaleFact = 
         if min = max || matchMax <= matchMin then 1. 
@@ -564,16 +587,17 @@ let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (ma
 let getScalingFactorAndOffsetCentreGroup
     (matchBBMin:XYPos)
     (matchBBMax:XYPos)
-    (compList: ComponentId list)
-    (model: SymbolT.Model) : ((float * float) * (float * float)) * bool = 
+    (selectedSymbols: Symbol list) : ((float * float) * (float * float)) = 
+    //(compList: ComponentId list)
+    //(model: SymbolT.Model)
 
-    let selectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    //let selectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
 
     let maxXSym = 
             selectedSymbols
             |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
 
-    let oldMaxX = (maxXSym |>  getRotatedSymbolCentre).X
+    let oldMaxX = (maxXSym |> getRotatedSymbolCentre).X
     let newMaxX = matchBBMax.X - (snd (getRotatedHAndW maxXSym))/2.
 
     let minXSym =
@@ -587,7 +611,7 @@ let getScalingFactorAndOffsetCentreGroup
             selectedSymbols
             |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
 
-    let oldMaxY = (maxYSym |>  getRotatedSymbolCentre).Y
+    let oldMaxY = (maxYSym |> getRotatedSymbolCentre).Y
     let newMaxY = matchBBMax.Y - (fst (getRotatedHAndW maxYSym))/2.
 
     let minYSym =
@@ -599,7 +623,6 @@ let getScalingFactorAndOffsetCentreGroup
     
     let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
     let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
-    let oneCompBoundsBothEdges = (oldMinX >= oldMaxX) || (oldMinY = oldMaxY)
     // printfn "oneCompBoundsBothEdges:%A" oneCompBoundsBothEdges
     // printfn "Max: OriginalX: %A" oldMaxX
     // printfn "Max: XMatch: %A" newMaxX
@@ -617,7 +640,7 @@ let getScalingFactorAndOffsetCentreGroup
     // printfn "scaleC: %A" (snd ySC)
     // printfn "Max: GotY: %A" (((oldMaxY- (snd ySC)) * (fst ySC)) + (snd ySC))
     // printfn "Min: GotY: %A" (((oldMinY - (snd ySC)) * (fst ySC)) + (snd ySC))
-    (xSC, ySC), oneCompBoundsBothEdges
+    (xSC, ySC)
 
 let scaleSymbol
     xYSC
@@ -639,16 +662,17 @@ let scaleSymbol
 let groupNewSelectedSymsModel
     (compList:ComponentId list) 
     (model:SymbolT.Model) 
+    (selectedSymbols: Symbol list)
     (modifySymbolFunc) = 
 
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    //let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
     // let block = getBlock SelectedSymbols
     // printfn "bbCentreX:%A" (block.Centre()).X
 
     // let newSymbols = List.map (modifySymbolFunc (block.Centre())) SelectedSymbols
-    let newSymbols = List.map (modifySymbolFunc) SelectedSymbols
+    let newSymbols = List.map (modifySymbolFunc) selectedSymbols
 
     {model with Symbols = 
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)

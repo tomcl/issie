@@ -502,6 +502,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             UndoList = []
             RedoList = []
             TmpModel = None
+            ScalingTmpModel = None
             Zoom = 1.0
             AutomaticScrolling = false
             ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 };Move={X=0.0; Y=0.0}}
@@ -881,6 +882,7 @@ let init () =
         UndoList = []
         RedoList = []
         TmpModel = None
+        ScalingTmpModel = None
         Zoom = 1.0
         CanvasSize = Constants.defaultCanvasSize
         AutomaticScrolling = false

@@ -196,6 +196,7 @@ module SymbolT =
         }
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
+    let moving_ = Lens.create (fun a -> a.Moving) (fun s a -> {a with Moving = s})
     let labelBoundingBox_ = Lens.create (fun a -> a.LabelBoundingBox) (fun s a -> {a with LabelBoundingBox = s})
     let portMaps_ = Lens.create (fun a -> a.PortMaps) (fun s a -> {a with PortMaps = s})
     let movingPort_ = Lens.create (fun a -> a.MovingPort) (fun s a -> {a with MovingPort = s})
@@ -638,7 +639,8 @@ module SheetT =
         Zoom: float
         /// the size of teh canvas in DrawBlock units
         CanvasSize: float // how large is the circuit canvas - can be changed dynamically
-        TmpModel: Model Option
+        TmpModel: Model Option // Stored for Redo/Undo
+        ScalingTmpModel: Model Option // Stored to save expandable scaling model
         UndoList: Model List
         RedoList: Model List
         AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)

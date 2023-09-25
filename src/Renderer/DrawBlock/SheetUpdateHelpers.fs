@@ -333,6 +333,7 @@ let mDownUpdate
                     // printfn "startMousePos:%A" mMsg.Pos
                     {model with
                         ScalingBoxCentrePos = scalingBoxCentre
+                        ScalingTmpModel = None
                         Action = Scaling;
                         LastMousePos = mMsg.Pos;
                         TmpModel = Some model}, Cmd.none
@@ -474,7 +475,7 @@ let mDragUpdate
     // HLP 23: AUTHOR Khoury & Ismagilov
     // New Action, when we click on scaling button and drag the components and box should scale with mouse
     | Scaling ->
-        let oldModel = model
+        let modelBeforeUpdate = model
         let scalingBoxCentre:XYPos = model.ScalingBoxCentrePos
         let newScalingBoxOppositeMouse = 
             {X = scalingBoxCentre.X - (mMsg.Pos.X - scalingBoxCentre.X);
@@ -489,31 +490,52 @@ let mDragUpdate
         let newBBMax = 
             {X = max (newScalingBoxOppositeMouse.X) (mMsg.Pos.X)  - 50.;
              Y = max (newScalingBoxOppositeMouse.Y) (mMsg.Pos.Y)  - 50.}
+        
+        let selectedSymbols = RotateScale.findSelectedSymbols (modelBeforeUpdate.SelectedComponents) (modelBeforeUpdate.Wire.Symbol)
 
-        let xYSC = RotateScale.getScalingFactorAndOffsetCentreGroup newBBMin newBBMax (oldModel.SelectedComponents) (oldModel.Wire.Symbol)
+        let xYSC = RotateScale.getScalingFactorAndOffsetCentreGroup newBBMin newBBMax selectedSymbols
         let scaleSymFunc = RotateScale.scaleSymbol xYSC
-        let newSymModel = RotateScale.groupNewSelectedSymsModel (oldModel.SelectedComponents) (oldModel.Wire.Symbol) scaleSymFunc
+        let newSymModel = RotateScale.groupNewSelectedSymsModel (modelBeforeUpdate.SelectedComponents) (modelBeforeUpdate.Wire.Symbol) selectedSymbols scaleSymFunc
         let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes = Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}
 
+        let newSelectedSymbols = RotateScale.findSelectedSymbols (newModel.SelectedComponents) (newModel.Wire.Symbol)
+
+        let oneCompBoundsBothEdges = RotateScale.oneCompBoundsBothEdges newSelectedSymbols
+
         let errorComponents =
-            oldModel.SelectedComponents
+            modelBeforeUpdate.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
         let errorSelectedComponents =
-            oldModel.SelectedComponents
+            modelBeforeUpdate.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingSelectedComponents newModel newModel.BoundingBoxes[sId] sId))
 
-        if (errorSelectedComponents<>[]) then
-            {model with
+        let staySameModel = 
+            if errorSelectedComponents<>[] then (Some modelBeforeUpdate)
+            elif (oneCompBoundsBothEdges && model.ScalingTmpModel.IsSome) then (modelBeforeUpdate.ScalingTmpModel)
+            else None
+        
+        let scalingTmpModel = 
+            match oneCompBoundsBothEdges, modelBeforeUpdate.ScalingTmpModel.IsNone, errorSelectedComponents<>[] with 
+            | true, true, _ -> None
+            | false, _, false -> Some newModel
+            | _ -> modelBeforeUpdate.ScalingTmpModel
+        
+
+        if (staySameModel.IsSome) then
+            //printfn "scaling stay same"
+            {staySameModel.Value with
                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
+                        ScalingTmpModel = scalingTmpModel;
                         }, 
                     Cmd.batch [
                         sheetCmd CheckAutomaticScrolling
-                        wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
+                        wireCmd (BusWireT.UpdateConnectedWires staySameModel.Value.SelectedComponents)
                         sheetCmd UpdateBoundingBoxes
                     ]
         else
-
+        //printfn "scaling not same"
         {newModel with
+                    ScalingTmpModel = scalingTmpModel
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                     ErrorComponents = errorComponents},
         Cmd.batch [ 

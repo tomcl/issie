@@ -365,10 +365,11 @@ let inline selectSymbols model compList =
                 set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> 
                 set opacity_ 1.0 
             )
+            |> set moving_ false
         )
 
     let updateSymbolColour prevSymbols sId =
-        Map.add sId (set (appearance_ >-> colour_)  "lightgreen" resetSymbols[sId]) prevSymbols
+        Map.add sId (set (appearance_ >-> colour_) "lightgreen" (set moving_ true resetSymbols[sId])) prevSymbols
     
     let newSymbols =
         (resetSymbols, compList)

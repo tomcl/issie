@@ -473,13 +473,14 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | IsGate -> 
             { model with
                 Action = (InitialisedCreateComponent (ldcs, compType, lbl));
+                UndoList = appendUndoList model.UndoList model;
                 TmpModel = Some model;
                 Wire = {model.Wire with Symbol = {model.Wire.Symbol with HintPane = (Some (div [] [
                                                                         str "You can change the number of inputs"
                                                                         br []
                                                                         str "in the component properties menu"]))}}}, Cmd.none
         | NoGate ->
-            { model with Action = (InitialisedCreateComponent (ldcs, compType, lbl)) ; TmpModel = Some model}, Cmd.none
+            { model with Action = (InitialisedCreateComponent (ldcs, compType, lbl)) ; TmpModel = Some model; UndoList = appendUndoList model.UndoList model}, Cmd.none
     | FlushCommandStack -> { model with UndoList = []; RedoList = []; TmpModel = None }, Cmd.none
     | ResetModel ->
         { model with

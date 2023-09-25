@@ -368,11 +368,11 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | DFFE -> "DFFE"
     | Counter n |CounterNoEnable n
     | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
-    | NbitsXor (x, None)->   nBitsGateTitle "Xor-N" x
+    | NbitsXor (x, None)->   nBitsGateTitle "Xor" x
     | NbitsXor (x, Some Multiply)->   nBitsGateTitle "Multiply" x
-    | NbitsOr (x)->   nBitsGateTitle "Or-N" x
-    | NbitsAnd (x)->   nBitsGateTitle "And-N" x
-    | NbitsNot (x)->  nBitsGateTitle "Not-N" x
+    | NbitsOr (x)->   nBitsGateTitle "Or" x
+    | NbitsAnd (x)->   nBitsGateTitle "And" x
+    | NbitsNot (x)->  nBitsGateTitle "Not" x
     | Shift (n,_,_) -> busTitleAndBits "Shift" n
     | Custom x -> x.Name.ToUpper()
     | MergeN _ -> "Merge"

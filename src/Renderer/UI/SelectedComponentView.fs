@@ -811,6 +811,11 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
 
 
 let private makeDescription (comp:Component) model dispatch =
+    let gateDescription (numInputs: int) (gateType: GateComponentType) =
+        let gType = $"{gateType}"
+        let gTypeName = gType[0..0].ToUpper() + gType[1..gType.Length-1]
+        $"{numInputs} input {gTypeName} gate."
+        
     let gateNDescription (numInputs: int) (gateType: GateComponentType) =
         let gType = $"{gateType}"
         let gTypeName = gType[0..0].ToUpper() + gType[1..gType.Length-1]
@@ -848,7 +853,7 @@ let private makeDescription (comp:Component) model dispatch =
     | Not ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | GateN (gateType, n) ->
-        div [] [ str <| gateNDescription n gateType ]
+        div [] [ str <| gateDescription n gateType ]
     | Mux2 -> div [] [ 
         str "Multiplexer with two inputs and one output." 
         br []

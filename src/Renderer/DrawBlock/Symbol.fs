@@ -18,7 +18,7 @@ open BlockHelpers
 module Constants =
     [<Literal>]
     let gridSize = 30 
-    let mergeSplitTextSize = "12px"
+    let mergeSplitTextSize = "10px"
     let busSelectTextSize = "12px"
     let customPortSpacing = 40.
     let portPosEdgeGap = 0.7
@@ -278,7 +278,7 @@ let busTitleAndBits (t:string) (n:int) : string =
 let nBitsGateTitle (gateType:string) (n:int) : string =
     match n with
     |1 -> gateType
-    |_ -> (string n) + "-bit " + gateType 
+    |_ -> (string n) + "-bit." + gateType+ "-N"
 
 ///Insert titles for bus select
 /// used once 
@@ -353,11 +353,11 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | DFFE -> "DFFE"
     | Counter n |CounterNoEnable n
     | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
-    | NbitsXor (x, None)->   nBitsGateTitle "XOR" x
+    | NbitsXor (x, None)->   nBitsGateTitle "Xor" x
     | NbitsXor (x, Some Multiply)->   nBitsGateTitle "Multiply" x
-    | NbitsOr (x)->   nBitsGateTitle "OR" x
-    | NbitsAnd (x)->   nBitsGateTitle "AND" x
-    | NbitsNot (x)->  nBitsGateTitle "NOT" x
+    | NbitsOr (x)->   nBitsGateTitle "Or" x
+    | NbitsAnd (x)->   nBitsGateTitle "And" x
+    | NbitsNot (x)->  nBitsGateTitle "Not" x
     | Shift (n,_,_) -> busTitleAndBits "Shift" n
     | Custom x -> x.Name.ToUpper()
     | MergeN _ -> "Merge"

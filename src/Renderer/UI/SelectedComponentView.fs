@@ -811,6 +811,15 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
 
 
 let private makeDescription (comp:Component) model dispatch =
+    let gateDescription (numInputs: int) (gateType: GateComponentType) =
+        let gType = $"{gateType}"
+        let gTypeName = gType[0..0].ToUpper() + gType[1..gType.Length-1]
+        $"{numInputs} input {gTypeName} gate."
+        
+    let gateNDescription (numInputs: int) (gateType: GateComponentType) =
+        let gType = $"{gateType}"
+        let gTypeName = gType[0..0].ToUpper() + gType[1..gType.Length-1]
+        $"{gTypeName}-N block. {numInputs} {gTypeName} gates used one for each bit of the {numInputs}-bit input and output busses."
     match comp.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
@@ -843,8 +852,8 @@ let private makeDescription (comp:Component) model dispatch =
         ]
     | Not ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
-    | GateN (gateType, _) ->
-        div [] [ str <| sprintf "%A gate." gateType ]
+    | GateN (gateType, n) ->
+        div [] [ str <| gateDescription n gateType ]
     | Mux2 -> div [] [ 
         str "Multiplexer with two inputs and one output." 
         br []
@@ -860,13 +869,14 @@ let private makeDescription (comp:Component) model dispatch =
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
     | Demux4 -> div [] [ str "Demultiplexer with one input and four outputs." ]
     | Demux8 -> div [] [ str "Demultiplexer with one input and eight outputs." ]
-    | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m. \
+    | MergeWires -> div [] [ str "Merge two busses of width n and m into a single bus of width n+m. \
                                   The bit numbers of the whole and each branch are shown when the component is connected." ]
-    | MergeN _ -> div [] [ str "Merge n wires of various widths into a single wire. \
+    | MergeN _ -> div [] [ str "Merge N busses of various widths into a single bus. \
                                   The bit numbers of the whole and each branch are shown when the component is connected." ]
-    | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m. \
+    | SplitWire _ -> div [] [ str "Split a bus of width n+m exactly into two non-overlapping busses of width n and m. \
                                    The bit numbers of the whole and each branch are shown when the component is connected."]
-    | SplitN _ -> div [] [ str "Split a wire into n wires of various widths m. "]
+    | SplitN _ -> div [] [ str "Split a bus into N output busses of various widths. The output busses may overlap. \
+                                The output busses need not include all of the input bits"]
     | NbitsAdder numberOfBits 
     | NbitsAdderNoCin numberOfBits 
     | NbitsAdderNoCout numberOfBits 
@@ -874,14 +884,15 @@ let private makeDescription (comp:Component) model dispatch =
         -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
     | NbitsXor( numberOfBits, typ)  -> 
         match typ with
-        | None -> $"{numberOfBits} XOR gates with {numberOfBits} outputs."
-        | Some Multiply -> $"{numberOfBits}X{numberOfBits}->{numberOfBits} Multiply block. this \
-                              return sbits ({numberOfBits}:0) of the result. \
+        | None -> gateNDescription numberOfBits Xor
+        | Some Multiply -> $"{numberOfBits}X{numberOfBits}->{numberOfBits} Multiply block. This \
+                              returns bits ({numberOfBits}:0) of the result. \
                               For these bits, signed and unsigned multiplication are identical"
         |> (fun text -> div [] [str <| text])
-    | NbitsAnd numberOfBits  -> div [] [ str <| sprintf "%d AND gates with %d outputs." numberOfBits numberOfBits]
-    | NbitsOr numberOfBits  -> div [] [ str <| sprintf "%d OR gates with %d outputs." numberOfBits numberOfBits]
-    | NbitsNot numberOfBits  -> div [] [ str <| sprintf "%d NOT gates with %d outputs." numberOfBits numberOfBits]
+    | NbitsAnd numberOfBits  -> div [] [ str <| gateNDescription numberOfBits And]
+    | NbitsOr numberOfBits  -> div [] [ str <| gateNDescription numberOfBits Or]
+    | NbitsNot numberOfBits  -> div [] [ str <|
+        $"Not-N block. {numberOfBits} Not gates used one for each bit of the {numberOfBits}-bit input and output busses."]
     | NbitSpreader numberOfBits  -> div [] [ str <| sprintf "Bus Spreader: every bit in the %d-bit output wire is the same as the 1-bit input. \
                                                             Used to implement sign extension and shift operations." numberOfBits]
     | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]

@@ -53,7 +53,7 @@ let addStyledText (pos: XYPos) text name =
 let addLegendText (pos: XYPos) (name:string) alignment weight size =
     let textStyle =
             {defaultText with TextAnchor = alignment; FontWeight = weight; FontSize = size}
-    let bottomTextStyle = {textStyle with FontWeight = Constants.bitIndicationFontWeight}
+    let bottomTextStyle = textStyle
     match name.Split([|'.'|]) with
     | [|oneLine|] -> 
         [makeText pos.X pos.Y name textStyle]
@@ -227,6 +227,8 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
     let H = float comp.H*(Option.defaultValue 1.0 symbol.VScale)
     let W = float comp.W*(Option.defaultValue 1.0 symbol.HScale)
     let transform = symbol.STransform
+
+    printfn "%s" $"Comp = {comp.Type}, H={H}, W= {W}"
 
     let mergeSplitLine pos msb lsb  =
         let text = 

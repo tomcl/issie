@@ -18,7 +18,7 @@ open BlockHelpers
 module Constants =
     [<Literal>]
     let gridSize = 30 
-    let mergeSplitTextSize = "12px"
+    let mergeSplitTextSize = "10px"
     let busSelectTextSize = "12px"
     let customPortSpacing = 40.
     let portPosEdgeGap = 0.7
@@ -34,7 +34,7 @@ module Constants =
     let labelFontSizeInPixels :float = 16 // other parameters scale correctly with this
 
     /// Font size for legends (names) in custom components
-    let customLegendFontSizeInPixels: float = 16.
+    let customLegendFontSizeInPixels: float = 16
 
     /// Font size for legends on otehr components
     let otherLegendFontSizeInPixels: float = 14
@@ -278,7 +278,7 @@ let busTitleAndBits (t:string) (n:int) : string =
 let nBitsGateTitle (gateType:string) (n:int) : string =
     match n with
     |1 -> gateType
-    |_ -> (string n) + "-bit " + gateType 
+    |_ -> (string n) + "-bit." + gateType+ "-N"
 
 ///Insert titles for bus select
 /// used once 
@@ -333,10 +333,25 @@ let getGateComponentLegend gType =
     | Or | Nor -> "≥1"
     | Xor | Xnor -> "=1"
 
+
+let getTextGateComponentLegend gType =
+    match gType with
+    | And -> "And"
+    | Or -> "Or"
+    | Xor -> "Xor"
+    | Nand -> "Nand"
+    | Nor -> "Nor"
+    | Xnor -> "Xnor"
+
+let getGateNComponentLegend numInputs gType =
+    getTextGateComponentLegend gType
+    |> fun title -> nBitsGateTitle title numInputs
+
+
 // Text to be put inside different Symbols depending on their ComponentType
 let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     match componentType with
-    | GateN (gateType, _) -> getGateComponentLegend gateType
+    | GateN (gateType, numInputs) -> getGateComponentLegend gateType
     | Not -> "1"
     | Decode4 -> "Decode"
     | NbitsAdder n | NbitsAdderNoCin n
@@ -353,11 +368,11 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | DFFE -> "DFFE"
     | Counter n |CounterNoEnable n
     | CounterNoLoad n |CounterNoEnableLoad n -> busTitleAndBits "Counter" n
-    | NbitsXor (x, None)->   nBitsGateTitle "XOR" x
+    | NbitsXor (x, None)->   nBitsGateTitle "Xor" x
     | NbitsXor (x, Some Multiply)->   nBitsGateTitle "Multiply" x
-    | NbitsOr (x)->   nBitsGateTitle "OR" x
-    | NbitsAnd (x)->   nBitsGateTitle "AND" x
-    | NbitsNot (x)->  nBitsGateTitle "NOT" x
+    | NbitsOr (x)->   nBitsGateTitle "Or" x
+    | NbitsAnd (x)->   nBitsGateTitle "And" x
+    | NbitsNot (x)->  nBitsGateTitle "Not" x
     | Shift (n,_,_) -> busTitleAndBits "Shift" n
     | Custom x -> x.Name.ToUpper()
     | MergeN _ -> "Merge"

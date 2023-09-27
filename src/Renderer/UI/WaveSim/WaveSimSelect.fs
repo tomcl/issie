@@ -678,7 +678,7 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
     ///Click action needs to 1) find the path to specific breadcrumb per getPathToBreadcrumb
     /// 2) filterWavesBySubsheet, passing the string list as an argument
     (*let breadcrumbClickAction (sheet: SheetTree) (dispatch: Msg -> unit) =
-        let sheetTreeMap = getSheetTrees true 
+        (*let sheetTreeMap = getSheetTrees true *)
         let pathToBreadcrumb = getPathToBreadcrumb model.WaveSimSheet sheetTrees sheet.BreadcrumbName
 
         match pathToBreadcrumb with

@@ -479,10 +479,15 @@ let processContextMenuClick
         model  
         |> withNoCmd
     
-    | DBComp _, "Copy (Ctrl+C)" ->
-        keyDispatch SheetT.KeyboardMsg.CtrlC
+    | DBComp sym, "Copy (Ctrl+C)" ->
+        let model =
+            if model.Sheet.SelectedComponents = [] then // make sure at least one symbol is selected for copy
+                model
+                |> map (sheet_ >-> SheetT.wire_ >-> BusWireT.symbol_) (fun model -> SymbolUpdate.selectSymbols model [sym.Id])
+                |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+            else model
         model  
-        |> withNoCmd
+        |> withMsg (Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlC))
     
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =

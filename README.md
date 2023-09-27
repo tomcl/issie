@@ -33,17 +33,28 @@ If you just want to run the app go to the [releases page](https://github.com/tom
 download and run the latest prebuilt binary for your platform (Windows or Macos). Issie will require in total about 200M of disk space.
 
 * Windows: unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
+    * If you get a security warning saying something like: *Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.
+More info* then:
+        * Click **More Info**
+        * Then click **Run Anyway**
 * Macos: Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
-    * The binaries are not signed. You will need to [perform a one-off security bypass](https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac). Alternatively (and this may be simpler to do), you can do this by running:
+    * The binaries are not signed. You will need to 
+      [perform a one-off security bypass](https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac). 
+      Alternatively (and this may be simpler to do), you can do this by running:
 ```
 sudo xattr -rd com.apple.quarantine /Applications/issie.app
 ```
 
-Issie installs and runs without making system changes - all of its code is inside the directory you download. You can delete this and replace it by a later version of Issie. Each design sheet is stored in a similarly named file under the porject directory. The subdirectory `backup` there contains a large numbers of backup snapshots for design recovery. These are not needed for Issie operation so you can delete them - or even the whole `backup` directory, if you wish.
+Issie installs and runs without making system changes - all of its code is inside the directory you download. 
+You can delete this and replace it by a later version of Issie. Each design sheet is stored in a similarly named file under the project directory. 
+The subdirectory `backup` there contains a large numbers of backup snapshots for design recovery. 
+These are not needed for Issie operation so you can delete them - or even the whole `backup` directory, if you wish.
 
-Issie binaries will not run (in some cases) from a networked file location (found on many cluster machines). If you have this problem navigate to the top-level directory containing the Issie binaries in a command window and type `issie.exe --no-sandbox`. See https://github.com/tomcl/issie/issues/125 for details.
+Issie binaries will not run (in some cases) from a networked file location (found on many cluster machines). 
+If you have this problem navigate to the top-level directory containing the Issie binaries in a command window 
+and type `issie.exe --no-sandbox`. See https://github.com/tomcl/issie/issues/125 for details.
 
-Once you open up Issie and are ready to go, feel free to open one of the Demo Projects from the start-up window. These are there to show you what a complete Issie project looks like and enable you to have fun with it without having to design and build it from scratch.
+Once you open up Issie and are ready to go, feel free to open one of the Demo Projects from the start-up window. These are there to show you what a complete Issie project looks like and enable you to have fun with it without having to design and build it from scratch. Every time you reopen a demo project it will be reset to its initial state.
 
 ## Getting Started as Developer
 

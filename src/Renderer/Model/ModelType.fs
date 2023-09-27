@@ -250,6 +250,8 @@ type WaveSimModel = {
     /// The value of SelectedWaves when the user started dragging a label.
     /// Used to restore SelectedWaves if the user drops a label in an illegal location.
     PrevSelectedWaves: WaveIndexT list option
+    ///focusInstance: root sheet
+    focusInstance: string
 }
 
 
@@ -430,7 +432,6 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
-    | DisplayReactElement of ReactElement
 
 
 //================================//
@@ -581,7 +582,8 @@ type Model = {
     UIState: UICommandType Option
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
-    ReactElementToDisplay: ReactElement Option
+    /// Instance of focus sheet
+    FocusSheet: string option
 } 
 
     with member this.WaveSimOrCurrentSheet =

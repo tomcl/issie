@@ -95,7 +95,7 @@ let gridElement reactElementId props styleProps (pos: CSSGridPos) (x: ReactEleme
             FlexDirection "column"
             TextAlign TextAlignOptions.Center
             JustifySelf JustifySelfOptions.Center;
-            //AlignSelf AlignSelfOptions.Center;
+            //AlignSelf AlignSelfOpt   ions.Center;
             JustifyContent "center"
             Width "100%"
             Height "100%"
@@ -126,6 +126,7 @@ let positionDesignHierarchyInGrid (rootSheet: string) (trees: Map<string,SheetTr
             |> snd
             |> List.append [PosAreaSpan(startX, startY, 1, height), tree]
     getSheetPositions 1 1 tree
+
 
 let positionRootAndFocusChildrenInGrid (root: string) (pathToFocus:string list) (trees: Map<string,SheetTree>) =
     let tree = trees[root] // tree from root
@@ -181,13 +182,33 @@ let makeBreadcrumbsFromPositions
 let hierarchyBreadcrumbs
         (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
-        (model: Model) =
+        (model: Model)
+        (wsModel: WaveSimModel)=
     mapOverProject (div [] []) model (fun p ->
         let root = Option.defaultValue p.OpenFileName model.WaveSimSheet
+        printf $"{model.WaveSimSheet} is the top level sheet"
+        //let root = wsModel.TopSheet
         let sheetTreeMap = getSheetTrees cfg.AllowDuplicateSheets p
         makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch)
 
 
+let getPathToBreadcrumb (rootSheetName: string) (sheetTrees: Map<string, SheetTree>) (breadcrumbName: string): string list option =
+    // Define a helper function to recursively search for the breadcrumb
+    let rec findBreadcrumb (currentPath: string list) (currentSheet: SheetTree): string list option =
+        if currentSheet.BreadcrumbName = breadcrumbName then
+            Some (List.rev currentPath)
+        else
+            // Continue searching in sub-sheets
+            currentSheet.SubSheets
+            |> List.choose (fun subSheet ->
+                let newPath = subSheet.BreadcrumbName :: currentPath
+                findBreadcrumb newPath subSheet)
+            |> List.tryHead // Get the first path found (if any)
+    
+    // Start the search from the root breadcrumb
+    sheetTrees
+    |> Map.tryFind rootSheetName // Replace with the actual name of the root breadcrumb
+    |> Option.bind (findBreadcrumb [])
 
 /// Breadcrumbs of entire design hierarchy from given sheet
 /// Display as a ReactElement the breadcrumbs.

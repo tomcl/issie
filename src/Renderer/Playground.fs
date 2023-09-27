@@ -10,6 +10,7 @@ module TestFonts =
     open Browser.Types
     open JSHelpers
     open Helpers
+    open ModelHelpers
 
 
     let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
@@ -161,14 +162,17 @@ module Breadcrumbs =
     open Fable.React
     open Fable.React.Props
     open Browser.Types
+    open ModelHelpers
 
     let config = MiscMenuView.Constants.defaultConfig
-
+    
     let testBreadcrumbs model dispatch =
+        let wsModel = getWSModel model
         let action _ _ = ()
         PopupHelpers.closablePopup
             "Design Hierarchy of current sheet"
-            (MiscMenuView.hierarchyBreadcrumbs config dispatch model)
+            
+            (MiscMenuView.hierarchyBreadcrumbs config dispatch model wsModel)
             (div [] []) []
             dispatch
 

@@ -692,7 +692,7 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
                     getPathToBreadcrumb s (getSheetTrees MiscMenuView.Constants.defaultConfig.AllowDuplicateSheets p) model.FocusSheet
                     |> List.map(fun s -> s.ToUpper())
         else
-            failwithf "Wave modal is not active"
+            []
 
      // Get distinct subsheets from selected waves
     let selectedSubsheets = 

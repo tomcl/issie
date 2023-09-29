@@ -122,7 +122,7 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
-    FocusSheet = None
+    FocusSheet = ""
 }
 
 

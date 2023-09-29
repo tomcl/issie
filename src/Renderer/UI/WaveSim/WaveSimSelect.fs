@@ -2,6 +2,7 @@
 
 open Fulma
 open Fulma.Extensions.Wikiki
+open Fulma.Color
 open Fable.React
 open Fable.React.Props
 
@@ -556,12 +557,11 @@ let makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> Unit)
         |> List.collect snd
         |> List.groupBy (fun wave -> getCompGroup fs wave) 
         |> List.map (fun (grp,groupWaves) -> makeComponentGroup showDetails ws dispatch subSheet grp groupWaves)
-    printf$"{ws.AllWaves}"
 
     (*let subSheetRows =
         wavesBySheet
         |> List.filter (fun (g,_) -> g <> subSheet)
-        |> List.map (fun (subSheet',waves') ->  makeSheetRow showDetails ws dispatch subSheet' waves')*)
+        |> List.map (fun (subSheet',waves') ->  makeSheetRow showDetails ws dispatch subSheet' waves') *)
     
     let rows = List.append [] componentRows
     if subSheet = [] then
@@ -630,8 +630,8 @@ let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> uni
         |> makeSheetRow showDetails ws dispatch []
 
 ///Function to filter waves by subSheet
-let filterWavesBySubSheet (ws: WaveSimModel) (showDetails:bool) (dispatch: Msg -> unit) (pathToFocusSheet: string list) : ReactElement=
-    ///subfunction to check order
+let filterWavesBySubSheet (ws: WaveSimModel) (showDetails: bool) (dispatch: Msg -> unit) (pathToFocusSheet: string list) : ReactElement =
+    // Subfunction to check order
     let okWaves, okSelectedWaves = ensureWaveConsistency ws
     let rec checkOrder main sub =
         match main, sub with
@@ -639,14 +639,19 @@ let filterWavesBySubSheet (ws: WaveSimModel) (showDetails:bool) (dispatch: Msg -
         | x::xs, y::ys when x = y -> checkOrder xs ys  
         | _::xs, _ -> checkOrder xs sub 
         | [], _ -> false 
-        checkOrder main sub
-    let wavesToFocus = 
-        match pathToFocusSheet with
+
+    // Rest of your code here
+    let pathToFocusSheet' = 
+        pathToFocusSheet 
+        |> List.map (fun s -> s.ToUpper())
+    let wavesToFocus =
+        match pathToFocusSheet' with
         | [] -> okWaves
         | _ -> okWaves
-            |> List.filter(fun wave -> checkOrder wave.SubSheet pathToFocusSheet)
-    wavesToFocus
-    |> makeSheetRow showDetails ws dispatch []
+            |> List.filter (fun wave -> checkOrder wave.SubSheet pathToFocusSheet')
+    printf $"{pathToFocusSheet'}"
+    ///printf $"showing waves {wavesToFocus}"
+    makeSheetRow showDetails ws dispatch pathToFocusSheet' wavesToFocus
 
 
 
@@ -662,6 +667,7 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
         buttonFunc
         (str "Select Waves")
 
+
 /// Modal that, when active, allows users to select waves to be viewed.
 let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let endModal _ = 
@@ -670,37 +676,52 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
                 WaveModalActive = false
                 SearchString = ""
             })
-    let sheetColor (sheet:SheetTree) =
-                IColor.IsCustomColor "pink"
+    let deselectWaves _ =
+        dispatch <| UpdateWSModel (fun ws ->
+            {wsModel with
+                SelectedWaves = []
+                })
+    let getPathToCrumb =
+        if wsModel.WaveModalActive then
+            match model.CurrentProj with
+            | None -> failwithf "No project found"
+            | Some p ->
+                match model.WaveSimSheet with
+                | None -> failwithf "No root sheet!!!!"
+                | Some s ->
+                    getPathToBreadcrumb s (getSheetTrees MiscMenuView.Constants.defaultConfig.AllowDuplicateSheets p) model.FocusSheet
+                    |> List.map(fun s -> s.ToUpper())
+        else
+            failwithf "Wave modal is not active"
+
+     // Get distinct subsheets from selected waves
+    let selectedSubsheets = 
+            wsModel.SelectedWaves
+            |> List.map (fun waveIndexT ->
+                match Map.tryFind waveIndexT wsModel.AllWaves with
+                | Some wave -> wave.SubSheet
+                | None -> [])
+            //|> List.concat
+            |> List.distinct 
     
-    //let customClickAction (sheet: SheetTree) (dispatch: Msg -> unit) =
-    ///click action should be to call some sort of filtering function? to filter waves
-    ///Click action needs to 1) find the path to specific breadcrumb per getPathToBreadcrumb
-    /// 2) filterWavesBySubsheet, passing the string list as an argument
-    (*let breadcrumbClickAction (sheet: SheetTree) (dispatch: Msg -> unit) =
-        (*let sheetTreeMap = getSheetTrees true *)
-        let pathToBreadcrumb = getPathToBreadcrumb model.WaveSimSheet sheetTrees sheet.BreadcrumbName
-
-        match pathToBreadcrumb with
-        | Some path -> // Path found, call filterWavesBySubSheet
-            filterWavesBySubSheet wsModel showDetails dispatch waves path
-        // Do something with the filtered waves if needed
-        | None -> failwithf "Rip"// Path not found, handle the error or do nothin*)
-    (*let breadcrumbClickAction (sheet: SheetTree) (dispatch: Msg -> unit) : SheetTree -> (Msg -> unit) -> unit =
-        fun _ _ ->
-        // Get the path to the clicked breadcrumb
-            let pathToBreadcrumb = getPathToBreadcrumb model.WaveSimSheet (getSheetTrees true model.CurrentProj) sheet.BreadcrumbName
-
-            match pathToBreadcrumb with
-            | Some path -> // Path found, call filterWavesBySubSheet
-                let filteredWaves = filterWavesBySubSheet wsModel showDetails dispatch waves path
-                
-            // Do something with the filtered waves if needed
-            | None -> failwithf "No"// Path not found, handle the error or do nothing*)
+    let sheetColor (sheet:SheetTree) =
+        
+        printf$"{selectedSubsheets}"
+        printf$"{getPathToCrumb}"
+        if List.exists (fun crumb -> List.contains crumb selectedSubsheets) [getPathToCrumb] then
+            printf"Selected"
+            IColor.IsCustomColor "pink"
+        else
+            // Return the default color or another color if not matched
+            printf "default"
+            IColor.IsCustomColor "darkslategrey"
+    let breadcrumbClickAction (sheet:SheetTree) (dispatch: Msg->unit) =
+        dispatch (ChangeFocusSheet sheet.BreadcrumbName)
 
     let breadcrumbConfig =  {
                 MiscMenuView.Constants.defaultConfig with
                     ColorFun = sheetColor
+                    ClickAction = breadcrumbClickAction
                 }
     let breadcrumbs = [
                     div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"]] [str "Click on the breadcrumb to choose waves as required"]
@@ -750,23 +771,9 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
                     Level.left[][
                         div [] breadcrumbs
                     ]
-                    Level.right[Props[Style[Float FloatOptions.Left]]][
-                        //This block should be empty, unless I click on a breadcrumb
-                        //In which case it will display the grouped waves that correspond to the I/O of the breadcrumb
-                        match model.CurrentProj with
-                        |None -> failwithf "No project found"
-                        |Some p ->
-                            match model.WaveSimSheet with
-                            |None -> failwithf "No root sheet!"
-                            |Some s ->
-                                match model.FocusSheet with
-                                |None -> failwithf "No focus sheet!"
-                                |Some f ->
-                                let pathToCrumb = getPathToBreadcrumb s (getSheetTrees breadcrumbConfig.AllowDuplicateSheets p) f
-                                match pathToCrumb with
-                                |None -> failwithf "No path"
-                                |Some ptc -> 
-                                    filterWavesBySubSheet wsModel false dispatch ptc
+                    Level.right[Props[Style[Float FloatOptions.Right]]][
+                        filterWavesBySubSheet wsModel false dispatch getPathToCrumb
+                        
                     ]
                 ]
                 searchBar wsModel dispatch
@@ -775,12 +782,23 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
             ]
             Modal.Card.foot [Props [Style [Display DisplayOptions.InlineBlock; Float FloatOptions.Right]]]
                 [
-                    Button.button [
-                        Button.OnClick endModal; 
-                        Button.Color IsSuccess; 
-                        Button.Props [Style [Display DisplayOptions.InlineBlock; Float FloatOptions.Right]]
+                    Level.level[][
+                    Level.left[][
+                        Fulma.Button.button[
+                        Fulma.Button.OnClick deselectWaves;
+                        Fulma.Button.Color IsWarning;
+                        ][str "Clear All"]
+                    ]
+                    Level.right[][
+                        Fulma.Button.button [
+                        Fulma.Button.OnClick endModal; 
+                        Fulma.Button.Color IsSuccess; 
+                        Fulma.Button.Props [Style [Display DisplayOptions.InlineBlock; Float FloatOptions.Right]]
                         ] [str "Done"]
+                    ]
+                    
                 ]
+            ]
             
         ]
     ]

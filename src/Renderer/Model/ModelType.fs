@@ -432,6 +432,7 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
+    | ChangeFocusSheet of string
 
 
 //================================//
@@ -583,7 +584,7 @@ type Model = {
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
     /// Instance of focus sheet
-    FocusSheet: string option
+    FocusSheet: string 
 } 
 
     with member this.WaveSimOrCurrentSheet =

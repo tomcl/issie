@@ -192,23 +192,22 @@ let hierarchyBreadcrumbs
         makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch)
 
 
-let getPathToBreadcrumb (rootSheetName: string) (sheetTrees: Map<string, SheetTree>) (breadcrumbName: string): string list option =
+let getPathToBreadcrumb (rootSheetName: string) (sheetTrees: Map<string, SheetTree>) (breadcrumbName: string): string list =
     // Define a helper function to recursively search for the breadcrumb
-    let rec findBreadcrumb (currentPath: string list) (currentSheet: SheetTree): string list option =
+    let rec findBreadcrumb (currentPath: string list) (currentSheet: SheetTree): string list =
         if currentSheet.BreadcrumbName = breadcrumbName then
-            Some (List.rev currentPath)
+            List.rev currentPath
         else
             // Continue searching in sub-sheets
             currentSheet.SubSheets
-            |> List.choose (fun subSheet ->
+            |> List.collect (fun subSheet ->
                 let newPath = subSheet.BreadcrumbName :: currentPath
                 findBreadcrumb newPath subSheet)
-            |> List.tryHead // Get the first path found (if any)
     
     // Start the search from the root breadcrumb
-    sheetTrees
-    |> Map.tryFind rootSheetName // Replace with the actual name of the root breadcrumb
-    |> Option.bind (findBreadcrumb [])
+    match sheetTrees |> Map.tryFind rootSheetName with
+    | Some rootSheet -> findBreadcrumb [] rootSheet
+    | None -> [] // Return an empty list if the root sheet is not found
 
 /// Breadcrumbs of entire design hierarchy from given sheet
 /// Display as a ReactElement the breadcrumbs.

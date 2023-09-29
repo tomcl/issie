@@ -578,7 +578,10 @@ let update (msg : Msg) oldModel =
 
     | TruthTableMsg ttMsg ->
         TruthTableUpdate.truthTableUpdate model ttMsg
-
+    | ChangeFocusSheet (newFocusSheet:string) ->
+        printfn $"New focus {newFocusSheet}"
+        {model with FocusSheet = newFocusSheet}
+        |> withNoMsg
 
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out

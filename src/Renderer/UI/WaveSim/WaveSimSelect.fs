@@ -701,7 +701,6 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
                 match Map.tryFind waveIndexT wsModel.AllWaves with
                 | Some wave -> wave.SubSheet
                 | None -> [])
-            //|> List.concat
             |> List.distinct 
     
     let sheetColor (sheet:SheetTree) =

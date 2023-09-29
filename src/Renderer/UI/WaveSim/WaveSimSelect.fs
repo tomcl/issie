@@ -737,7 +737,7 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
                 OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = false}))
             ]
         ] []
-        Modal.Card.card [Props [Style [MinWidth "1500px"]]] [
+        Modal.Card.card [Props [Style [Width "95vw"; Height "100vh"]]] [
             Modal.Card.head [] [
                 Modal.Card.title [] [
                     Level.level [] [
@@ -766,12 +766,12 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
                 ]
             ]
             Modal.Card.body [Props [Style [OverflowY OverflowOptions.Visible]]] [
-                Level.level[][
-                    Level.left[][
-                        div [] breadcrumbs
+                Level.level [] [
+                    Level.left [] [
+                        div [Style [Height "calc(100vh - 300px)"; OverflowY OverflowOptions.Auto]] breadcrumbs
                     ]
-                    Level.right[Props[Style[Float FloatOptions.Right]]][
-                        filterWavesBySubSheet wsModel false dispatch getPathToCrumb
+                    Level.right[][
+                        div [Style [Height "calc(100vh - 300px)"; OverflowY OverflowOptions.Auto]] [filterWavesBySubSheet wsModel false dispatch getPathToCrumb]
                         
                     ]
                 ]

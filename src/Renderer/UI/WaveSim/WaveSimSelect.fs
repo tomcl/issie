@@ -650,7 +650,7 @@ let filterWavesBySubSheet (ws: WaveSimModel) (showDetails: bool) (dispatch: Msg 
         | _ -> okWaves
             |> List.filter (fun wave -> checkOrder wave.SubSheet pathToFocusSheet')
     printf $"{pathToFocusSheet'}"
-    ///printf $"showing waves {wavesToFocus}"
+    // printf $"showing waves {wavesToFocus}"
     makeSheetRow showDetails ws dispatch pathToFocusSheet' wavesToFocus
 
 
@@ -770,7 +770,7 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
                     Level.left [] [
                         div [Style [Height "calc(100vh - 300px)"; OverflowY OverflowOptions.Auto]] breadcrumbs
                     ]
-                    Level.right[][
+                    Level.right [] [
                         div [Style [Height "calc(100vh - 300px)"; OverflowY OverflowOptions.Auto]] [filterWavesBySubSheet wsModel false dispatch getPathToCrumb]
                         
                     ]
@@ -781,14 +781,14 @@ let selectWavesModal (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> un
             ]
             Modal.Card.foot [Props [Style [Display DisplayOptions.InlineBlock; Float FloatOptions.Right]]]
                 [
-                    Level.level[][
-                    Level.left[][
+                    Level.level [] [
+                    Level.left [] [
                         Fulma.Button.button[
                         Fulma.Button.OnClick deselectWaves;
                         Fulma.Button.Color IsWarning;
-                        ][str "Clear All"]
+                        ] [str "Clear All"]
                     ]
-                    Level.right[][
+                    Level.right [] [
                         Fulma.Button.button [
                         Fulma.Button.OnClick endModal; 
                         Fulma.Button.Color IsSuccess; 

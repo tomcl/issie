@@ -58,11 +58,12 @@ The download button on this page take you to the [Issie latest release page](htt
 - High Level Programming 2020/21 cohort for providing the base code of the new schematic editor
 - Jo Merrick for work improving ISSIE for her 3rd year BEng FYP
 - High Level Programming 2021/22 cohort for implementing a much enhanced schematic editor
-- Dr Tom Clarke for running HLP and his continued work maintaining and improving ISSIE throughout
 - All 2020/2021 1st year undergraduate students of the EEE department, Imperial College London, for acting as excellent and unpaid beta-testers in their DECA module!
 - Jason Zheng for improving the waveform simulator for his 4th year MEng FYP
 - Aditya Deshpande for creating the truth table for his 4th year MEng FYP
 - Archontis Pantelopoulos for creating the Verilog Component and improving ISSIE over Summer 2022
+- Petra Ratkai and Yujie Wang for imporving the Verilog compiler & Issie simulator in 2022-23.
+- Dr Tom Clarke for running HLP and his continued work maintaining and improving ISSIE throughout
 <br><br>
 
 

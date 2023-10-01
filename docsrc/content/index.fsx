@@ -1,19 +1,17 @@
 (**
 # What is Issie?
 
-Issie (Intuitive Schematic Simulator and Interactive Editor) is a very easy to use and capable block schematic based digital logic editor and simulator, 
+Issie (Intuitive Schematic Simulator with Interactive Editor) is a very easy to use and capable block schematic based digital logic editor and simulator, 
 originally made for the 1st year undergraduate Digital Electronics and Computer Architecture module at the 
 Department of Electronic and Electrical Engineering, Imperial College London.
 
-Issie is coded in F# transpiled to Javascript by [FABLE](http://fable.io), and uses the 
-very capable [Draw2D](https://github.com/freegroup/draw2d)
+Issie is coded in F# transpiled to Javascript by [FABLE](http://fable.io)
 library.
 
 ## Acknowledgements:
 
 * Marco Selvatici for the 8K lines of base code written for his 3rd year BEng [FYP](https://github.com/MarcoSelvatici/DEflow)
-* An awesome automatic FAKE build system based on Cody Johnson's [MordhausBuddy](https://github.com/Shmew/MordhauBuddy)
-* Edoardo Santi for work improving Issie over Summer 2020.
+* Very many Imperial College students working on FYPs or UROPs
 
 ## Background and Technical Details
 

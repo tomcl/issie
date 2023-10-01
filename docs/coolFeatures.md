@@ -1,12 +1,12 @@
 ---
 layout: page
-title: "Cool Features"
+title: "Features"
 permalink: /cool-features/
 ---
 
-# Cool Features list
+# Features list
 
-ISSIE provides numerous cool features to help you create nice and readable schematics. These are analysed in the table below:
+ISSIE provides numerous features to help you create nice and readable schematics. These are analysed in the table below:
 
 | Feature | How | Explanation   |
 | :----:      |    :----:   |    :----:     |
@@ -20,3 +20,4 @@ ISSIE provides numerous cool features to help you create nice and readable schem
 | **Grid** | `View` -> `Toggle grid` | Choose whether you want the grid to appear on your sheets  |
 | **Wire Type** | `View` -> `Wire Type` | Choose between the 3 supported wire types: `Jump`, `Radiussed` or `Modern` wires  |
 | **Wire Arrows** | `View` -> `Toggle Wire Arrows` | Choose whether you want arrows at the end-points of your wires to demonstrate the direction of signals |
+| **Auto-routing** |     | Issie will **nearly always** route and separate all schematic connections neatly with no manual routing required. |

@@ -359,12 +359,12 @@ let changeMergeNComponent (symModel: Model) (compId: ComponentId) (numInputs: in
         )
 
 let changeSplitNComponent (symModel: Model) (compId: ComponentId) (numOutputs: int) (widths: int list) (lsbs: int list)=
-    let numInputsEdit = if numOutputs > 2 then numOutputs else 3
+    let numOutputsEdit = if numOutputs > 2 then numOutputs else 3
     Map.find compId symModel.Symbols
     |> varyNumberOfPorts PortType.Output 1  numOutputs
     |> map component_ (
         set type_ (SplitN (numOutputs, widths, lsbs)) >>
-        set h_ (2.*(float Constants.gridSize) * (float numInputsEdit)/2.)
+        set h_ (2.*(float Constants.gridSize) * (float numOutputsEdit)/2.)
         )
 
 

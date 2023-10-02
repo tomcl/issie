@@ -92,16 +92,17 @@ let private intFormField name (width:string) defaultValue minValue onChange =
         ]
     ]
 
-let private intFormField2 name (width: string) defaultValue1 defaultValue2 minValue1 minValue2 onChange1 onChange2 =
+let private intFormField2 name bits (width: string) defaultValue1 defaultValue2 minValue1 minValue2 onChange1 onChange2 =
     Field.div [Field.Props[Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]]] [
-        Label.label [Label.Props [Style [Flex "0 0 auto"; MarginRight "8px"]]] [str name] // Label with flex properties and margin
+        Label.label [Label.Props [Style [Width "120px"; Flex "0 0 auto";]]] [str name]
+        Label.label [Label.Props [Style [TextAlign TextAlignOptions.Center; Width "50px"; MarginRight "8px"]]] [str bits] 
         Input.number [
-            Input.Props [Style [Width width;]; Min minValue1] // Input with flex property
+            Input.Props [Style [Width width;]; Min minValue1] 
             Input.DefaultValue <| sprintf "%d" defaultValue1
             Input.OnChange (getIntEventValue >> onChange1)
         ]
         Input.number [
-            Input.Props [Style [Width width; MarginLeft "15px"]; Min minValue2] // Input with flex property
+            Input.Props [Style [Width width; MarginLeft "15px"]; Min minValue2] 
             Input.DefaultValue <| sprintf "%d" defaultValue2
             Input.OnChange (getIntEventValue >> onChange2)
         ]
@@ -613,13 +614,22 @@ let private changeSplitN model (comp:Component) dispatch =
         | SplitN (nInputs, widths, lsblist) -> "Number of outputs", nInputs, widths, lsblist
         | c -> failwithf "changeSplitN called with invalid component: %A" c
     
-    let changeWidthsLsbs = fun (widthsLsbs: int list) (newNumInputs: int ) (defaultVal : int)-> 
-        match widthsLsbs.Length with
+    let changeWidths = fun (widths: int list) (newNumInputs: int ) (defaultVal : int)-> 
+        match widths.Length with
         | n when n > newNumInputs -> 
-            widthsLsbs[..(newNumInputs-1)]
+            widths[..(newNumInputs-1)]
         | n when n < newNumInputs ->
-            List.append widthsLsbs (List.init (newNumInputs-n) (fun _ -> defaultVal)) 
-        | _ -> widthsLsbs
+            List.append widths (List.init (newNumInputs-n) (fun _ -> defaultVal)) 
+        | _ -> widths
+
+    let changeLsbs = fun (lsbs: int list) (widths: int list) (newNumInputs: int ) -> 
+        match lsbs.Length with
+        | n when n > newNumInputs -> 
+            lsbs[..(newNumInputs-1)]
+        | n when n < newNumInputs ->
+            let msbs = List.map2 (fun lsb width -> lsb + width - 1) lsbs widths
+            List.append lsbs (List.init (newNumInputs-n) (fun x -> x + (List.max msbs) + 1)) 
+        | _ -> lsbs
 
     div [] [
         span
@@ -629,21 +639,28 @@ let private changeSplitN model (comp:Component) dispatch =
         intFormField title "60px" nInp 2 (
             fun newInpNum ->
                 if newInpNum >= 2 then
-                    let newWidths = changeWidthsLsbs widths newInpNum 1
-                    let newLsbs = changeWidthsLsbs lsbs newInpNum 0
+                    let newWidths = changeWidths widths newInpNum 1
+                    let newLsbs = changeLsbs lsbs widths newInpNum
                     model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) newInpNum newWidths newLsbs
                     dispatch <| SetPopupDialogInt (Some newInpNum)
                 else
                     dispatch <| SetPopupDialogInt (Some newInpNum)
         )
-        div [Style [Display DisplayOptions.Flex; JustifyContent AlignContentOptions.Center;]] [
+        div [Style [Display DisplayOptions.Flex; MarginLeft "180px"]] [
         // Add headers for the "Width" and "LSB" columns
             Label.label [Label.Props [Style[TextAlign TextAlignOptions.Center; MarginRight "20px"]]] [str "Width"]
             Label.label [Label.Props [Style[TextAlign TextAlignOptions.Center; MarginLeft "20px"]]] [str "LSB"]
         ]
         List.mapi2 (fun index defaultWidth defaultLsb ->
-            let portTitle = sprintf "Output Port %d:" index
-            intFormField2 portTitle "60px" defaultWidth defaultLsb 1 0 
+            let portTitle = 
+                match defaultWidth with
+                | n when n > 1 -> sprintf "Output Port %d" index
+                | _ -> sprintf "Output Port %d" index
+            let bits = 
+                match defaultWidth with
+                | n when n > 1 -> sprintf "(%d:%d)" (n+defaultLsb-1) defaultLsb
+                | _ -> sprintf "(%d)" defaultLsb
+            intFormField2 portTitle bits "60px" defaultWidth defaultLsb 1 0 
                 (fun newWidth -> 
                     let neWidths = 
                         widths

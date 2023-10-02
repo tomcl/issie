@@ -10,6 +10,7 @@ open DrawHelpers
 open DrawModelType.SymbolT
 open SymbolHelpers
 open Symbol
+open Browser.Types
 
 // // HLP23 AUTHOR: BRYAN TAN
 // open SmartHelpers
@@ -234,8 +235,40 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | _, false -> ""
             | true, _ -> sprintf $"({msb})"
             | false, _ -> sprintf $"({msb}:{lsb})"
+        
         addText pos text "middle" "bold" Constants.mergeSplitTextSize
 
+    let mergeSplitNLine (compType: ComponentType)(portType: PortType) pos msb lsb =
+        let text = 
+            match msb = lsb, msb >= lsb with
+            | _, false -> ""
+            | true, _ -> sprintf $"({msb})"
+            | false, _ -> sprintf $"({msb}:{lsb})"
+        let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
+        let canvasWidthContext = testCanvas.getContext_2d()
+
+        let fontString (font:DrawHelpers.Text) = String.concat " " [ font.FontWeight; font.FontSize; font.FontFamily]
+
+        let textMeasureWidth (font:DrawHelpers.Text) (txt:string) =
+            let fontStr = fontString font
+            canvasWidthContext.font <- fontStr
+            canvasWidthContext.measureText(txt).width
+
+        let textStyle =
+            {defaultText with TextAnchor = "middle"; FontWeight = "bold"; FontSize = Constants.mergeSplitTextSize}
+        let posNew = 
+            match compType with
+            | MergeN _ -> 
+                match portType with 
+                | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -4.}
+                | PortType.Output -> pos + {X = (textMeasureWidth textStyle text)/2.; Y = 4.}
+            | SplitN _ -> 
+                match portType with 
+                | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -4.}
+                | PortType.Output -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = 5.}
+            | _ -> pos
+        
+        addText posNew text "middle" "bold" Constants.mergeSplitTextSize
 
     let busSelectLine msb lsb  =
         let text = 
@@ -344,19 +377,10 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             match rotatePoints [|pos|] {X=W/2.;Y=H/2.} transform with 
             | [|pos'|]-> pos' 
             | _ -> failwithf "What? Can't happen"
-        let mergeNTextPos = 
-            let inputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.InputPorts)
-            let modinputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = 5.}) inputTextPoints
-            let outputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.OutputPorts)
-            let modOutputTextPoints = Array.map (fun pos -> pos + {X = 18.; Y = 5.}) outputTextPoints
-            Array.append modinputTextPoints modOutputTextPoints
-            
-        let splitNTextPos = 
-            let inputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.InputPorts)
-            let modinputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = 5.}) inputTextPoints
-            let outputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.OutputPorts)
-            let modOutputTextPoints = Array.map (fun pos -> pos + {X = -18.; Y = -5.}) outputTextPoints
-            Array.append modinputTextPoints modOutputTextPoints
+        
+        let inputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.InputPorts)
+        let outputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.OutputPorts)
+
         match comp.Type with
         | MergeWires -> 
             let lo, hi = 
@@ -389,9 +413,12 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                                 (msb + 1, (msb, lsb) :: acc)
                                 ) (0, [])
                         List.rev ranges
-                    let values = List.append valuesInput [(fst (List.last valuesInput),0)]
-                    List.fold2 (fun og pos value -> 
-                        og @ mergeSplitLine pos (fst value) (snd value)) [] (Array.toList mergeNTextPos) values
+                    let valuesOutput = [(fst (List.last valuesInput),0)]
+                    let inputEls = List.fold2 (fun og pos value -> 
+                        og @ mergeSplitNLine comp.Type PortType.Input pos (fst value) (snd value)) [] (Array.toList inputTextPoints) valuesInput
+                    let outputEls = List.fold2 (fun og pos value -> 
+                        og @ mergeSplitNLine comp.Type PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints) valuesOutput
+                    inputEls @ outputEls
                 | true -> []
             | None -> []
             
@@ -424,11 +451,14 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 match symbol.InWidth0 with
                 | Some width when width > (List.max msbs) ->  (width-1, 0)
                 | _ -> (-2, -1)
-            let values = 
+            let outputValues = 
                 List.fold2 (fun acc lsb msb -> 
-                    List.append acc [(msb, lsb)]) [inputValue] lsbs msbs
-            List.fold2 (fun og pos value -> 
-                        og @ mergeSplitLine pos (fst value) (snd value)) [] (Array.toList splitNTextPos) values
+                    List.append acc [(msb, lsb)]) [] lsbs msbs
+            let inputEls = List.fold2 (fun og pos value -> 
+                        og @ mergeSplitNLine comp.Type PortType.Input pos (fst value) (snd value)) [] (Array.toList inputTextPoints) [inputValue]
+            let outputEls = List.fold2 (fun og pos value -> 
+                        og @ mergeSplitNLine comp.Type PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints)outputValues
+            outputEls @ inputEls
             
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
             (addText clockTxtPos " clk" "middle" "normal" "12px")

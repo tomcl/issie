@@ -450,7 +450,7 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault dispatch =
             ]
             List.mapi2 (fun index (defaultWidthValue : int) (defaultLSBValue : int) ->
                 div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]] [
-                    label [Style[MarginRight "10px";]] [str (sprintf "Output Port %d:" index)] 
+                    label [Style[Width "105px"; MarginRight "10px";]] [str (sprintf "Output Port %d:" index)] 
                     Input.number [
                         Input.Props [OnPaste preventDefault; Style [Width "60px"]; ]
                         Input.DefaultValue <| sprintf "%d" defaultWidthValue

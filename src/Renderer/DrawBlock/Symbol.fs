@@ -195,6 +195,8 @@ let getSymbolColour compType clocked (theme:ThemeType) =
             -> "#E8D0A9"  //dark orange: for IO
         | SplitWire _ | MergeWires _ | BusSelection _ | NbitSpreader _ | IOLabel | NotConnected ->
             "rgb(120,120,120)"
+        | MergeN _| SplitN _ -> 
+            "lightgray"
         | _ -> "rgba(255,255,217,1)" //lightyellow: for combinational components
 
 
@@ -591,12 +593,12 @@ let getComponentProperties (compType:ComponentType) (label: string)=
         let k = 
             if n < 3 then 3
             else n
-        (n , 1, 2.*gS * (float k)/2. , 2.*gS)
+        (n , 1, 2.*gS * (float k)/2. , 3.*gS)
     | SplitN (n, _, _) -> //make min height so doesn't squash label
         let k = 
             if n < 3 then 3
             else n
-        (1 , n, 2.*gS * (float k)/2. , 2.*gS)
+        (1 , n, 2.*gS * (float k)/2. , 3.*gS)
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 

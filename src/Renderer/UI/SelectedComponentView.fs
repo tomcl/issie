@@ -94,7 +94,7 @@ let private intFormField name (width:string) defaultValue minValue onChange =
 
 let private intFormField2 name bits (width: string) defaultValue1 defaultValue2 minValue1 minValue2 onChange1 onChange2 =
     Field.div [Field.Props[Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]]] [
-        Label.label [Label.Props [Style [Width "120px"; Flex "0 0 auto";]]] [str name]
+        Label.label [Label.Props [Style [Width "115px"; Flex "0 0 auto";]]] [str name]
         Label.label [Label.Props [Style [TextAlign TextAlignOptions.Center; Width "50px"; MarginRight "8px"]]] [str bits] 
         Input.number [
             Input.Props [Style [Width width;]; Min minValue1] 

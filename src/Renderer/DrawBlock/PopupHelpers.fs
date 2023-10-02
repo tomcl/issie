@@ -368,7 +368,7 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
 let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault dispatch =
     numOutputsDefault |> Some |> SetPopupDialogInt |> dispatch
     [for _ in 1..numOutputsDefault -> intDefault] |> Some |> SetPopupDialogIntList |> dispatch
-    [for _ in 1..numOutputsDefault -> 0] |> Some |> SetPopupDialogIntList2 |> dispatch
+    [for x in 1..numOutputsDefault -> x-1] |> Some |> SetPopupDialogIntList2 |> dispatch
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
         let errText =
@@ -414,7 +414,11 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault dispatch =
                 | n when n > newNumInputs -> 
                     lsbList[..(newNumInputs-1)]
                 | n when n < newNumInputs ->
-                    List.append lsbList (List.init (newNumInputs-n) (fun _ -> 0)) 
+                    match dialogData.IntList with 
+                    | None -> failwith "No width list in dialogData"
+                    | Some widths -> 
+                        let msbs = List.map2 (fun lsb width -> lsb + width - 1) lsbList widths
+                        List.append lsbList (List.init (newNumInputs-n) (fun x -> x + (List.max msbs) + 1)) 
                 | _ -> lsbList
         
         if dialogData.IntList <> Some setupWidthList then

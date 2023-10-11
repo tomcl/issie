@@ -66,7 +66,7 @@ Download and install (if you already have these tools installed just check the v
 
 
 * [.Net 7 SDK](https://dotnet.microsoft.com/download/dotnet/7.0).  
-* [Node.js v16](https://nodejs.org/en/). **v16 LTS - NOT latest 18**
+* [Node.js v18](https://nodejs.org/en/). 
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
     * If you are using a different version of Node for developmnet on other projects, global install 
     (the default) may interfere with this. You will need to do a more complex local node install.
@@ -131,7 +131,7 @@ Although the dev chain is complex, it is now very smooth and identical for all p
 2. `dotnet tool restore` gets you the dev tools: `Fable` compiler, `Fake` build automation, `paket` dotnet package manager. (Node package management is via `npm` which comes with Node).
 3. `dotnet paket install` installs all of the dotnet-side packages needed
 4. `npm ci` downloads and audits correct versions of all of the npm packages. `npm install` will redo the versions if these have changed and generate an updated lock file.
-5. `npm run dev`, `npm run dist`, npm run `devfast`: scripts defined in `package.json` which control developmment (with HMR) or production compilation with Fable, and packing using Webpack 5.
+5. `npm run dev`, `npm run dist`, `npm run debug`: scripts defined in `package.json` which control developmment (with HMR) or production compilation with Fable, and packing using Webpack 5.
 6. The `build.cmd` and `build.sh` scripts package the above steps adding some not usually necessary directory cleaning - you can run them individually in order if you have problems.
 
 * To update the tool versions (not normally needed) edit `dotnet-tools.json`.
@@ -151,18 +151,21 @@ Electron bundles Chromium (View) and node.js (Engine), therefore as in every nod
 
 Additionally, the section `"scripts"`:
 ```
- "scripts": {
+"scripts": {
     "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
     "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
-    "compile": "dotnet fable src/Main -s && dotnet fable src/Renderer -s",
+    "compile": "dotnet fable src/Main -s && dotnet fable src/Renderer -s --define PRODUCTION",
+    "debug": "dotnet fable watch src/Main -s --run npm run debugrenderer",
+    "debugrenderer": "dotnet fable watch src/Renderer -s --define ASSERTS --run npm run start",
     "dev": "dotnet fable watch src/Main -s --run npm run devrenderer",
-    "devrenderer": "dotnet fable watch src/Renderer -s --define ASSERTS --run npm run start",
+    "devrenderer": "dotnet fable watch src/Renderer -s --run npm run start",
     "start": "cross-env NODE_ENV=development node scripts/start.js",
     "build": "cross-env NODE_ENV=production node scripts/build.js",
     "pack": "npm run compile && npm run build && electron-builder --dir",
     "dist": "npm run compile && npm run build && electron-builder",
     "buildonly": "electron-builder",
-    "compile-sass": "cd src/renderer/scss && node-sass main.scss main.css"
+    "compile-sass": "cd src/renderer/scss && node-sass main.scss main.css",
+    "testcompiler": "cd src/Renderer/VerilogComponent/test && dotnet fable --noCache && node testParser.fs.js"
   }
 ```
 Defines the in-project shortcut commands as a set of `<key> : <value` lines, so that when we use `npm run <stript_key>` it is equivalent to calling `<script_value>`. 
@@ -172,7 +175,7 @@ For example, in the root of the project, running in the terminal `npm run dev` i
 dotnet fable watch src/Main -s --run npm run devrenderer
 ```
 
-This runs fable 3 to transpile the main process, then (`--run` is an option of fable to run another command) runs script `devrenderer` to transpile to javascript and watch the F# files in the renderer process. After the renderer transpilation is finished 
+This runs fable 4 to transpile the main process, then (`--run` is an option of fable to run another command) runs script `devrenderer` to transpile to javascript and watch the F# files in the renderer process. After the renderer transpilation is finished 
 [start.js script](scripts/start.js) will be run. This invokes `webpack` to pack and lauch the javascript code, under electron, and also watches for changes in the javascript code, and *hot loads* these on the running application
 
 As result of this, at any time saving an edited F# renderer project file causes (nearly) immediate:

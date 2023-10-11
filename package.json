@@ -80,6 +80,7 @@
     "cross-zip": "^3",
     "font-awesome": "^4",
     "nearley-unparse": "^1.0.1",
+    "npm": "^10.2.0",
     "react-tooltip": "^4",
     "source-map-support": "^0.5",
     "usb": "^2.4.3"

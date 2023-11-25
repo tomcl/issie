@@ -342,6 +342,7 @@ let askForExistingSheetPaths (defaultPath: string option) : string list option =
         |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
         |> Some
     options.properties <- Some [|
+        OpenDialogOptionsPropertiesArray.OpenFile
         OpenDialogOptionsPropertiesArray.MultiSelections
         |]
     let w = electronRemote.getCurrentWindow()

@@ -1523,6 +1523,29 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         ()
 #endif
 
+    let makeSplitOutput fd outNum width lsb =
+        match fd with
+            | Data bits ->
+                let bits = getBits (lsb + width - 1) lsb bits
+                // Little endian, bits leaving from the top wire are the least
+                // significant.
+                put outNum <| Data bits
+
+            | Alg(UnaryExp(BitRangeOp(l, u), exp)) ->
+                let exp = UnaryExp(BitRangeOp(l + lsb, l + lsb + width - 1), exp)
+                put outNum <| Alg exp
+
+            | Alg(UnaryExp(NotOp, exp)) ->
+                let w = getAlgExpWidth (UnaryExp(NotOp, exp))
+                let exp = UnaryExp(BitRangeOp(lsb, lsb + width - 1), exp)
+                put outNum <| Alg(UnaryExp(NotOp, exp))
+
+
+            | Alg exp ->
+                let w = getAlgExpWidth exp
+                let exp = UnaryExp(BitRangeOp(lsb, lsb + width - 1), exp)
+                put outNum <| Alg exp
+
     // Reduce the component in this match.
     // Each case case calculated the output for its type of component
     // NB CustomComponent is not needed since these are removed in the FastComponent
@@ -2180,48 +2203,59 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     //add MergeN
     
     | MergeN n -> 
-        let fdata = List.map ins [0..n-1]
-        let allData = 
-            fdata 
+        let fDataL = List.map ins [0..n-1]
+        let isAllData = 
+            fDataL 
             |> List.forall (fun fdata -> 
                 match fdata with 
                 | Data _ -> true
                 | _ -> false)
-        match allData with
+        match isAllData with
         | true -> 
             let (bitsList: FastData List) = List.map (fun n -> 
                 match n with 
                 | Data bits -> bits 
-                | _ -> failwithf $"Wrong Case") fdata
+                | _ -> failwithf $"Cannot simulate truth tables with merge inputs part-algebraic") fDataL
             let wOut = List.sumBy (fun (bits: FastData) -> bits.Width) bitsList
             
             let outBits= 
                 if wOut <= 32 then
-                    let inBits = List.map (fun bits -> match bits.Dat with | Word b -> b | _ -> failwithf $"inconsistent merge widths") bitsList
-                    let mergeTwoValues (width: int) (value1: uint32) (value2: uint32) =
-                        (value1 <<< width) ||| value2
-                    List.fold2 (fun acc width (input: uint32) ->
-                        if input < 0u then
-                            failwith "Input values must be non-negative"
-                        mergeTwoValues width input acc) 0u (List.map (fun (bits: FastData) -> bits.Width) bitsList) inBits
-                    |> (fun n -> convertIntToFastData wOut n)
-                else 
-                    let inBits = List.map (fun bits -> convertFastDataToBigint bits) bitsList
-                    let mergeTwoValues (width: int) (value1: bigint) (value2: bigint) =
-                        (value1 <<< width) ||| value2
-                    List.fold2 (fun acc width (input: bigint) ->
-                        if input < 0I then
-                            failwith "Input values must be non-negative"
-                        mergeTwoValues width input acc) 0I (List.map (fun (bits: FastData) -> bits.Width) bitsList) inBits
-                    |> (fun n -> convertBigintToFastData wOut n)
+                    let inBitsAndWidths =
+                        bitsList
+                        |> List.map (fun bits ->
+                            match bits.Dat with
+                            | Word b -> b, bits.Width
+                            | _ -> failwithf $"inconsistent MergeN data for Truth Tables - cannot mix > 32 bit and < 32 bit") 
+                    let mergeTwoValues (lSWidth: int) (mSValue: uint32) (lSValue: uint32) =
+                        (mSValue <<< lSWidth) ||| lSValue
+                    ((0u,0), inBitsAndWidths)
+                    ||> List.fold (fun (lSBits,lSWidth) (inBits,inWidth) ->
+                            mergeTwoValues lSWidth inBits lSBits, inWidth + lSWidth)
+                    |> (fun (n,_) -> convertIntToFastData wOut n)
+                else // identical to int32 case except use bigints
+                    let inBitsAndWidths =
+                        bitsList
+                        |> List.map (fun bits ->
+                            match bits.Dat with
+                            | BigWord b -> b, bits.Width
+                            | _ -> failwithf $"inconsistent MergeN data for Truth Tables - cannot mix > 32 bit and < 32 bit") 
+                    let mergeTwoValues (lSWidth: int) (mSValue: bigint) (lSValue: bigint) =
+                        (mSValue <<< lSWidth) ||| lSValue
+                    ((0I,0), inBitsAndWidths)
+                    ||> List.fold (fun (lSBits,lSWidth) (inBits,inWidth) ->
+                            mergeTwoValues lSWidth inBits lSBits, inWidth + lSWidth)
+                    |> (fun (n,_) -> convertBigintToFastData wOut n)
             put 0 <| Data outBits
-        | false -> 
-            List.fold (fun acc data -> 
-                match data with 
-                | Alg(AppendExp exps) -> exps @ acc
-                | fd -> (fd.toExp)::acc) [] fdata
-            |> foldAppends |> AppendExp
-            |> Alg |> put 0
+        | false ->
+            ([], fDataL)
+            ||> List.fold (fun acc data -> 
+                    match data with 
+                    | Alg(AppendExp exps) -> exps @ acc
+                    | fd -> (fd.toExp)::acc) 
+            |> foldAppends
+            |> AppendExp
+            |> Alg
+            |> put 0
     
     | SplitWire topWireWidth ->
         let fd = ins 0
@@ -2262,6 +2296,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
 
     | SplitN (n, widths, lsbs) -> 
         let fd = ins 0
+        List.zip widths lsbs
+        |> List.iteri (fun i (width,lsb) -> makeSplitOutput fd i width lsb )
 #if ASSERTS
         assertThat (fd.Width >= topWireWidth + 1)
         <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width

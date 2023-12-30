@@ -160,7 +160,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
                 |> Array.concat
                 |> Array.distinct
             let t2 = TimeHelpers.getTimeMs()
-            /// PERFORMANCE: polyline takes royghly 50% of total time
+            // PERFORMANCE: polyline takes royghly 50% of total time
             svg (waveRowProps ws)
                 [ polyline (wavePolylineStyle wavePoints) [] ]
             (*|> (fun svg ->
@@ -1066,7 +1066,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                     Column.Option.Width (Screen.All, Column.IsNarrow)
                 ] 
                 [ 
-                    div [Style[MarginBottom "50px"]] []
+                    div [Style [MarginBottom "50px"]] []
 
                     Level.level [] [
                         Level.item [ ] [

@@ -25,9 +25,12 @@ open CatalogueView
 open TopMenuView
 open MenuHelpers
 
+open CatalogueView.Constants
+
 module Constants =
     let labelUniqueMess = "Components must have a unique label within one sheet"
     let dropDownHeightFraction = 2.5
+    
 
 
 let private readOnlyFormField name body =
@@ -570,8 +573,8 @@ let private changeMergeN model (comp:Component) dispatch =
     let errText =
         model.PopupDialogData.Int
         |> Option.map (fun i ->
-            if i < 2 then
-                sprintf "Must have more than 2 inputs"
+            if i < 2 || i > Constants.maxSplitMergeBranches then
+                sprintf $"Must have between 2 and {Constants.maxSplitMergeBranches} inputs"
             else
                 "")
         |> Option.defaultValue ""
@@ -588,7 +591,7 @@ let private changeMergeN model (comp:Component) dispatch =
 
         intFormField title "60px" nInp 2 (
             fun newInpNum ->
-                if newInpNum >= 2 then
+                if newInpNum >= 2 && newInpNum <= Constants.maxSplitMergeBranches then
                     model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newInpNum
                     dispatch <| SetPopupDialogInt (Some newInpNum)
                 else
@@ -603,8 +606,8 @@ let private changeSplitN model (comp:Component) dispatch =
     let errText =
         model.PopupDialogData.Int
         |> Option.map (fun i ->
-            if i < 2 then
-                sprintf "Must have more than 2 outputs"
+            if i < 2 || i > Constants.maxSplitMergeBranches then
+                sprintf $"Must have between 2 and {Constants.maxSplitMergeBranches} outputs"
             else
                 "")
         |> Option.defaultValue ""
@@ -638,7 +641,7 @@ let private changeSplitN model (comp:Component) dispatch =
 
         intFormField title "60px" nInp 2 (
             fun newInpNum ->
-                if newInpNum >= 2 then
+                if newInpNum >= 2 && newInpNum <= Constants.maxSplitMergeBranches then
                     let newWidths = changeWidths widths newInpNum 1
                     let newLsbs = changeLsbs lsbs widths newInpNum
                     model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) newInpNum newWidths newLsbs

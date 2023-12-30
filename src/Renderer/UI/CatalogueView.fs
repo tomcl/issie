@@ -34,7 +34,8 @@ NearleyBindings.importFix
 NearleyBindings.importParser
 
 module Constants =
-    let maxGateInputs = 4
+    let maxGateInputs = 19
+    let maxSplitMergeBranches = 19
 
 let menuItem styles label onClick =
     Menu.Item.li
@@ -243,7 +244,7 @@ let private createMergeNPopup (model: Model) dispatch =
     let beforeInt =
         fun _ -> str "How many inputs should the merge component have?"
     let intDefault = 2
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let body = dialogPopupBodyOnlyBoundedInt beforeInt intDefault 2 Constants.maxSplitMergeBranches dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
@@ -254,7 +255,7 @@ let private createMergeNPopup (model: Model) dispatch =
     let isDisabled =
         fun (model': Model) ->
             let intIn = getInt model'.PopupDialogData
-            intIn < 2
+            intIn < 2 || intIn > Constants.maxSplitMergeBranches
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -263,7 +264,7 @@ let private createSplitNPopup (model: Model) dispatch =
     let beforeInt =
         fun _ -> str "How many outputs should the split component have?"
     let numInputsDefault = 2
-    let body = dialogPopupBodyNInts beforeInt numInputsDefault 1 dispatch
+    let body = dialogPopupBodyNInts beforeInt numInputsDefault 1 Constants.maxSplitMergeBranches dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (model': Model) ->
@@ -276,7 +277,7 @@ let private createSplitNPopup (model: Model) dispatch =
     let isDisabled =
         fun (model': Model) ->
             let intIn = getInt model'.PopupDialogData
-            intIn < 2
+            intIn < 2 || intIn > Constants.maxSplitMergeBranches
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -374,7 +375,7 @@ let private createNbitsNotPopup (model:Model) dispatch =
 let private createNbitSpreaderPopup (model:Model) dispatch =
     let title = sprintf "Add 1-to-N bit spreader"
     let beforeInt =
-        fun _ -> str "How many bits should the output have?"
+        fun _ -> str "How many bits should the output bus contain?"
     let intDefault = model.LastUsedDialogWidth
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
@@ -907,28 +908,37 @@ let viewCatalogue model dispatch =
                                                                                        Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                        after placing component to change this."
                             
-                        catTip1 "MergeN"  (fun _ -> createMergeNPopup model dispatch) "Use Mergewires when you want to \
-                                                                                       join the bits of N busses to make a wider bus."
+                        catTip1 "MergeN"  (fun _ -> createMergeNPopup model dispatch)
+                                $"Use MergeN when you want to join the bits of between 2 \
+                                 and {Constants.maxSplitMergeBranches} busses to make a wider bus."
                         catTip1 "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
                                                                                              bits of a bus into two sets. \
                                                                                              Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                              after placing component to change this."
-                        catTip1 "SplitN" (fun _ -> createSplitNPopup model dispatch) "Use Splitwire when you want to split the \
-                                                                                             bits of a bus into multiple sets."                                                                          
-                        catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or \
-                                                                                                more selected bits of its input"
+                        catTip1 "SplitN" (fun _ -> createSplitNPopup model dispatch)
+                            $"Use SplitN when you want to split \
+                              between 2 and {Constants.maxSplitMergeBranches} separate fields from a bus."                                                                          
+                        catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch)
+                            "Bus Select output connects to one or \
+                             more selected bits of its input"
                         catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \
                                                                                                  matches a constant value as written in decimal, hex, or binary." 
-                        catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "1-to-N bits spreader"]
+                        catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "Replicates a 1 bit input onto all N bits of an output bus"]
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
-                          catTip1 "And"  (fun _ -> createCompStdLabel (GateN (And, 2)) model dispatch) "Output is 1 if both the two inputs are 1"
-                          catTip1 "Or"   (fun _ -> createCompStdLabel (GateN (Or, 2)) model dispatch) "Output is 1 if either of the two inputs are 1"
-                          catTip1 "Xor"  (fun _ -> createCompStdLabel (GateN (Xor, 2)) model dispatch) "Output is 1 if the two inputs have different values"
-                          catTip1 "Nand" (fun _ -> createCompStdLabel (GateN (Nand, 2)) model dispatch) "Output is 0 if both the two inputs are 1"
-                          catTip1 "Nor"  (fun _ -> createCompStdLabel (GateN (Nor, 2)) model dispatch) "Output is 0 if either of the two inputs are 1"
-                          catTip1 "Xnor" (fun _ -> createCompStdLabel (GateN (Xnor, 2)) model dispatch) "Output is 1 if the two inputs have the same values"]
+                          catTip1 "And"  (fun _ -> createCompStdLabel (GateN (And, 2)) model dispatch)
+                                                "Output is 1 if all the inputs are 1. Use Properties to add more inputs"
+                          catTip1 "Or"   (fun _ -> createCompStdLabel (GateN (Or, 2)) model dispatch)
+                                                "Output is 1 if any of the inputs are 1. Use Properties to add more inputs"
+                          catTip1 "Xor"  (fun _ -> createCompStdLabel (GateN (Xor, 2)) model dispatch)
+                                                "Output is 1 if an odd number of inputs are 1. Use Properties to add more inputs"
+                          catTip1 "Nand" (fun _ -> createCompStdLabel (GateN (Nand, 2)) model dispatch)
+                                                "Output is 0 if all the inputs are 1. Use Properties to add more inputs"
+                          catTip1 "Nor"  (fun _ -> createCompStdLabel (GateN (Nor, 2)) model dispatch)
+                                                "Output is 0 if any of the inputs are 1. Use Properties to add more inputs"
+                          catTip1 "Xnor" (fun _ -> createCompStdLabel (GateN (Xnor, 2)) model dispatch)
+                                                "Output is 1 if an even number of inputs are 1. Use Properties to add more inputs"]
                     makeMenuGroup
                         "Mux / Demux"
                         [ catTip1 "2-Mux" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"

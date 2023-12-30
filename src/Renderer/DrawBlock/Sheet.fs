@@ -101,6 +101,21 @@ let sheetCmd (msg: SheetT.Msg) = Cmd.ofMsg (ModelType.Msg.Sheet msg)
 
 module SheetInterface =
     type Model with
+
+        member this.ChangeComponent (dispatch: Dispatch<Msg>) (symModel: SymbolT.Model) (compId: ComponentId) (compType:ComponentType) =
+            printf "Change component"
+            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) compType
+            printf $"{delPorts.Length} deleted ports: compType={compType}"
+            let wireModel, wireMsgOpt =
+                BusWireUpdateHelpers.deleteWiresWithPort delPorts {this.Wire with Symbol = symModel}
+                |> (fun model -> BusWireSeparate.routeAndSeparateSymbolWires model compId)
+                |> BusWireUpdate.calculateBusWidths
+            printf "change complete"
+            dispatch <| SetWireModel wireModel
+            printf "model changed"
+            wireMsgOpt
+            |> Option.iter (fun msg -> dispatch <| Wire msg)
+
         /// Given a compType, return a label
         member this.GenerateLabel (compType: ComponentType) : string =
             SymbolUpdate.generateLabel this.Wire.Symbol compType
@@ -130,14 +145,14 @@ module SheetInterface =
         member this.ChangeAdderComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeAdderComponent (compId,(this.GetComponentById compId), newComp) ) ) )
             let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
-            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
+            dispatch <| (Wire (BusWireT.DeleteWiresWithPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
             //this.DoBusWidthInference dispatch
         
         member this.ChangeCounterComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeCounterComponent (compId,(this.GetComponentById compId), newComp) ) ) )
             let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
-            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
+            dispatch <| (Wire (BusWireT.DeleteWiresWithPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
         
         /// Given a compId, update the ReversedInputs property of the Component specified by compId
@@ -148,26 +163,20 @@ module SheetInterface =
 
         /// Given a compId and the number in inputs, set the number of inputs for a gate
         member this.ChangeGate (dispatch: Dispatch<Msg>) (compId: ComponentId) (gateType: GateComponentType) (n: int) =
-            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeGate (compId, gateType, n))))
-            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) (GateN (gateType, n))
-            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
-            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
+            let symModel = SymbolUpdate.ChangeGate (compId, gateType, n) this.Wire.Symbol
+            this.ChangeComponent dispatch symModel compId (GateN (gateType, n))
 
         /// Given a compId, number of inputs
         member this.ChangeMergeN (dispatch: Dispatch<Msg>) (compId: ComponentId) (numInputs: int) =
-            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeMergeN (compId, numInputs))))
-            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) (MergeN numInputs)
-            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
-            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
-            this.DoBusWidthInference dispatch
+            let symModel = SymbolUpdate.ChangeMergeN (compId,numInputs) this.Wire.Symbol
+            this.ChangeComponent dispatch symModel compId (MergeN numInputs)
+
 
         /// Given comId, number of inputs, widths and LSBs
         member this.ChangeSplitN (dispatch: Dispatch<Msg>) (compId: ComponentId) (numInputs: int) (widths : int list) (lsbs: int list) =
-            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeSplitN (compId, numInputs, widths, lsbs))))
-            let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) (SplitN (numInputs, widths, lsbs))
-            dispatch <| (Wire (BusWireT.DeleteWiresOnPort delPorts))
-            dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
-            this.DoBusWidthInference dispatch
+            let symModel = SymbolUpdate.ChangeSplitN (compId,numInputs,widths,lsbs) this.Wire.Symbol
+            this.ChangeComponent dispatch symModel compId  (SplitN (numInputs, widths, lsbs))
+
 
         /// Given a compId and a LSB, update the LSB of the Component specified by compId
         member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =

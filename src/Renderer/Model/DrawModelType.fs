@@ -259,9 +259,6 @@ module SymbolT =
         | ChangeReversedInputs of compId: ComponentId
         | ChangeAdderComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
-        | ChangeGate of compId: ComponentId * gateType: GateComponentType * numInputs: int
-        | ChangeMergeN of compId: ComponentId * numInputs: int
-        | ChangeSplitN of compId: ComponentId * numInputs: int * widths: int list * lsbs: int list
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
         | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
@@ -389,7 +386,7 @@ module BusWireT =
         | BusWidths
         | CopyWires of list<ConnectionId>
         | DeleteWires of list<ConnectionId>
-        | DeleteWiresOnPort of (Port option) list
+        | DeleteWiresWithPort of (Port option) list
         | SelectWires of list<ConnectionId>
         | UpdateWires of list<ComponentId> * XYPos
         | UpdateSymbolWires of ComponentId
@@ -539,6 +536,7 @@ module SheetT =
 
     type Msg =
         | Wire of BusWireT.Msg
+        | SetWireModel of BusWireT.Model
         | KeyPress of KeyboardMsg
         | ToggleGrid
         | KeepZoomCentered of XYPos
@@ -598,6 +596,7 @@ module SheetT =
         | TestPortPosition
         | ToggleSnapToNet
         | BeautifySheet
+        | SheetBatch of Msg list
 
     type ReadLog = | ReadLog of int
 

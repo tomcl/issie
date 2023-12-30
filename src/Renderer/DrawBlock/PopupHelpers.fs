@@ -365,7 +365,34 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
             ]
         ]
 
-let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault dispatch =
+/// Create the body of a dialog Popup with only an int whose value is bounded
+let dialogPopupBodyOnlyBoundedInt beforeInt intDefault minBound maxBound dispatch =
+    intDefault |> Some |> SetPopupDialogInt |> dispatch
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
+        let errText =
+            model.PopupDialogData.Int
+            |> Option.map (fun i ->
+                if i < minBound || i > maxBound then
+                    sprintf $"Must have between {minBound} and {maxBound} outputs"
+                else
+                    "")
+            |> Option.defaultValue ""
+        div [] [
+            beforeInt dialogData
+            br []
+            span
+                [Style [Color Red; ]]
+                [str errText]
+            br []
+            Input.number [
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
+                Input.DefaultValue <| sprintf "%d" intDefault
+                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+        ]
+
+let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs dispatch =
     numOutputsDefault |> Some |> SetPopupDialogInt |> dispatch
     [for _ in 1..numOutputsDefault -> intDefault] |> Some |> SetPopupDialogIntList |> dispatch
     [for x in 1..numOutputsDefault -> x-1] |> Some |> SetPopupDialogIntList2 |> dispatch
@@ -374,8 +401,8 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault dispatch =
         let errText =
             model.PopupDialogData.Int
             |> Option.map (fun i ->
-                if i < 2 then
-                    sprintf "Must have more than 2 outputs"
+                if i < 2 || i > maxNumOutputs then
+                    sprintf $"Must have between 2 and {maxNumOutputs} outputs"
                 else
                     "")
             |> Option.defaultValue ""

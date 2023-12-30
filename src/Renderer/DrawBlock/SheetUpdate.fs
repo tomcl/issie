@@ -841,7 +841,13 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     
     | ToggleSnapToNet ->
         model, (wireCmd BusWireT.ToggleSnapToNet)
-        
+
+    | SheetBatch sheetMsgs -> //  execute a set of sheet messages immediately without view function
+        model, Cmd.batch (List.map (ModelType.Msg.Sheet >> Cmd.ofMsg) sheetMsgs)
+
+    | SetWireModel wModel ->
+        {model with Wire = wModel}, Cmd.none
+       
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> postUpdateChecks
     // |> Optic.map fst_ postUpdateChecks

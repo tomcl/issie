@@ -10,6 +10,7 @@ open BusWireUpdateHelpers
 open BlockHelpers
 open BusWireRoute
 open Optics
+open Optics.Operators
 open Operators
 open BlockHelpers
 
@@ -83,56 +84,7 @@ let newWire inputId outputId model =
                 |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [nWire.WId]
             newModel, Some BusWidths
 
-/// Handles messages
-let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<ModelType.Msg> =
-    let model = issieModel.Sheet.Wire
-
-    let withNoMsg (model: ModelType.Model) = model, Cmd.none
-
-    /// Command to issie level
-    let withIssieMsg (msg: ModelType.Msg) (model: ModelType.Model) = model, Cmd.ofMsg msg
-    
-    /// Command to Sheet level
-    let withSheetMsg (msg: DrawModelType.SheetT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet msg)
-    
-    /// Command to BusWire level
-    let withMsg (msg: DrawModelType.BusWireT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg))
-    
-    /// Command to Symbol level
-    let withSymbolMsg (msg: DrawModelType.SymbolT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire (DrawModelType.BusWireT.Symbol msg)))
-
-    ///
-    let withMsgs (msgs: Msg list) (model : Model) =
-        let wireMsg msg = Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg))
-        model, Cmd.batch (List.map wireMsg msgs)
-
-    match msg with
-    | Symbol sMsg ->
-        // update Symbol model with a Symbol message
-        let sm,sCmd = SymbolUpdate.update sMsg model.Symbol
-        {issieModel with Sheet={issieModel.Sheet with Wire={model with Symbol=sm}}}, (Cmd.map (fun msg -> ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg)) sCmd)
-
-
-    | UpdateWires (componentIdList, diff) ->
-        // update wires after moving components in componentIdList by diff
-        // wires between components are translated not routed as optimisation
-        {issieModel with Sheet={issieModel.Sheet with Wire=updateWires model componentIdList diff}} |> withNoMsg
-
-    | UpdateSymbolWires compId ->
-        // update all the wires coming from a single symbol
-        // useful if the symbol has been flipped or ports have been moved
-        // partial routing will be done if this makes sense
-        {issieModel with Sheet={issieModel.Sheet with Wire=BusWireSeparate.routeAndSeparateSymbolWires model compId}} |> withNoMsg
-
-    | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
-        // add a newly created wire to the model
-        // then send BusWidths message which will re-infer bus widths
-        // the new wires (extarcted as connections) are not added back into Issie model. 
-        // This happens on save or when starting a simulation (I think)
-        let newModel, msgOpt = newWire inputId outputId model
-        {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> (if msgOpt.IsSome then withMsg (Option.get msgOpt) else withNoMsg)
-    
-    | BusWidths ->
+let calculateBusWidths model =
         //printfn "BusWidths Message"
         // (1) Call Issie bus inference
         // (2) Add widths to maps on symbols on wires
@@ -192,26 +144,82 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
             let symbolsWithWidths =
                 (model.Symbol.Symbols, newWires) ||> Map.fold addSymbolWidthFolder
 
-            { issieModel with
-                Sheet=
-                    { issieModel.Sheet with
-                        Wire=
-                            { model with
-                                Wires = newWires; 
-                                Notifications = None;
-                                ErrorWires=[];
-                                Symbol = {model.Symbol with Symbols = symbolsWithWidths}
-                            }
-                    }
-            } |> withNoMsg
-
+ 
+            { model with
+                Wires = newWires; 
+                Notifications = None;
+                ErrorWires=[];
+                Symbol = {model.Symbol with Symbols = symbolsWithWidths}
+            }
+                    
         let canvasState = (SymbolUpdate.extractComponents model.Symbol, extractConnections model)
 
         match BusWidthInferer.inferConnectionsWidth canvasState with
         | Ok connWidths ->
-            processConWidths connWidths
+            processConWidths connWidths, None
         | Error e ->
-                { issieModel with Sheet={ issieModel.Sheet with Wire={ model with Notifications = Some e.Msg }}} |> withMsg (ErrorWires e.ConnectionsAffected)
+            { model with Notifications = Some e.Msg }, Some (ErrorWires e.ConnectionsAffected)
+
+
+/// Handles messages
+let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<ModelType.Msg> =
+    let model = issieModel.Sheet.Wire
+
+    let toIssieModel wireModel = {issieModel with Sheet={issieModel.Sheet with Wire=wireModel}}
+
+
+
+    let withNoMsg (model: ModelType.Model) = model, Cmd.none
+
+    /// Command to issie level
+    let withIssieMsg (msg: ModelType.Msg) (model: ModelType.Model) = model, Cmd.ofMsg msg
+    
+    /// Command to Sheet level
+    let withSheetMsg (msg: DrawModelType.SheetT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet msg)
+    
+    /// Command to BusWire level
+    let withMsg (msg: DrawModelType.BusWireT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg))
+    
+    /// Command to Symbol level
+    let withSymbolMsg (msg: DrawModelType.SymbolT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire (DrawModelType.BusWireT.Symbol msg)))
+
+    let withOptMsg (msgOpt: Msg option) = (if msgOpt.IsSome then withMsg (Option.get msgOpt) else withNoMsg)
+
+    ///
+    let withMsgs (msgs: Msg list) (model : Model) =
+        let wireMsg msg = Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg))
+        model, Cmd.batch (List.map wireMsg msgs)
+
+    match msg with
+    | Symbol sMsg ->
+        // update Symbol model with a Symbol message
+        let sm,sCmd = SymbolUpdate.update sMsg model.Symbol
+        {issieModel with Sheet={issieModel.Sheet with Wire={model with Symbol=sm}}}, (Cmd.map (fun msg -> ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg)) sCmd)
+
+
+    | UpdateWires (componentIdList, diff) ->
+        // update wires after moving components in componentIdList by diff
+        // wires between components are translated not routed as optimisation
+        {issieModel with Sheet={issieModel.Sheet with Wire=updateWires model componentIdList diff}} |> withNoMsg
+
+    | UpdateSymbolWires compId ->
+        // update all the wires coming from a single symbol
+        // useful if the symbol has been flipped or ports have been moved
+        // partial routing will be done if this makes sense
+        {issieModel with Sheet={issieModel.Sheet with Wire=BusWireSeparate.routeAndSeparateSymbolWires model compId}} |> withNoMsg
+
+    | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
+        // add a newly created wire to the model
+        // then send BusWidths message which will re-infer bus widths
+        // the new wires (extarcted as connections) are not added back into Issie model. 
+        // This happens on save or when starting a simulation (I think)
+        let newModel, msgOpt = newWire inputId outputId model
+        {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> (if msgOpt.IsSome then withMsg (Option.get msgOpt) else withNoMsg)
+    
+    | BusWidths ->
+        let newModel, msgOpt = calculateBusWidths model
+        toIssieModel newModel
+        |> withOptMsg msgOpt
 
     | CopyWires (connIds : list<ConnectionId>) ->
         // add given wires to Copiedwires state (NB, this contains wires at time of copy)
@@ -266,25 +274,11 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
             {model with Wires = newWires}
         {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires ; ErrorWires = connectionIds }}} |> withMsg BusWidths
 
-    | DeleteWiresOnPort (delPorts:(Port option) list) ->
-        match delPorts with
-        |[] ->
-            issieModel |> withNoMsg
-        |_ -> 
-            let wires = model.Wires |> Map.toList
-            let connIds = 
-                ([],delPorts)
-                ||> List.fold (fun conns p ->
-                    match p with
-                    |Some port ->
-                        let localConns = 
-                            wires
-                            |> List.filter (fun (connId,wire) -> ((wire.InputPort.ToString() = port.Id) || (wire.OutputPort.ToString() = port.Id)))
-                            |> List.map fst
-                        conns@localConns
-                    |None -> conns                    
-                )
-            issieModel |> withMsg (DeleteWires connIds)
+    | DeleteWiresWithPort (delPorts:(Port option) list) ->
+        issieModel
+        |> Optic.set (ModelType.sheet_ >-> DrawModelType.SheetT.wire_) (deleteWiresWithPort delPorts model)
+        |> withNoMsg
+
 
     | DragSegment (segIdL : SegmentId list, mMsg: MouseT) ->
         let checkSegmentOK segId =

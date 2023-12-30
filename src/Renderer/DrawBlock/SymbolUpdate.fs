@@ -676,6 +676,25 @@ let checkSymbolIntegrity (sym: Symbol) =
     failwithf ""
 
 
+let ChangeGate (compId, gateType, numInputs) model =
+    let newSymbol = changeGateComponent model compId gateType numInputs
+    let newPorts = addToPortModel model newSymbol
+    let newModel = {model with Ports = newPorts}  
+    (replaceSymbol newModel newSymbol compId)
+    
+let ChangeMergeN (compId, numInputs) model =
+    let newSymbol = changeMergeNComponent model compId numInputs
+    let newPorts = addToPortModel model newSymbol
+    let newModel = {model with Ports = newPorts}  
+    (replaceSymbol newModel newSymbol compId)
+
+let ChangeSplitN (compId, numInputs, widths, lsbs) model =
+        let newSymbol = changeSplitNComponent model compId numInputs widths lsbs
+        let newPorts = addToPortModel model newSymbol
+        let newModel = {model with Ports = newPorts}  
+        (replaceSymbol newModel newSymbol compId)
+
+
 /// Update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =     
     match msg with
@@ -779,24 +798,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | ChangeBusCompare (compId, newVal, newText) -> 
         let newsymbol = changeBusComparef model compId newVal newText
         (replaceSymbol model newsymbol compId), Cmd.none
-
-    | ChangeGate (compId, gateType, numInputs) ->
-        let newSymbol = changeGateComponent model compId gateType numInputs
-        let newPorts = addToPortModel model newSymbol
-        let newModel = {model with Ports = newPorts}  
-        (replaceSymbol newModel newSymbol compId), Cmd.none
-    
-    | ChangeMergeN (compId, numInputs) ->
-        let newSymbol = changeMergeNComponent model compId numInputs
-        let newPorts = addToPortModel model newSymbol
-        let newModel = {model with Ports = newPorts}  
-        (replaceSymbol newModel newSymbol compId), Cmd.none
-
-    | ChangeSplitN (compId, numInputs, widths, lsbs) ->
-        let newSymbol = changeSplitNComponent model compId numInputs widths lsbs
-        let newPorts = addToPortModel model newSymbol
-        let newModel = {model with Ports = newPorts}  
-        (replaceSymbol newModel newSymbol compId), Cmd.none
 
     | ResetModel -> 
         { model with Symbols = Map.empty; Ports = Map.empty; }, Cmd.none

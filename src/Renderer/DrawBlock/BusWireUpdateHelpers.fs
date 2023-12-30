@@ -813,4 +813,39 @@ let resetWireSegmentJumps (wireList : list<ConnectionId>) (model : Model) : Mode
     resetJumps model
     |> TimeHelpers.instrumentInterval "ResetJumps" startT
 
+let deleteWiresWithPort (delPorts: Port option list) (model: Model) =
+        match delPorts with
+        |[] ->
+            model
+        |_ -> 
+            let wires = model.Wires |> Map.toList
+            let ports, symbols, connIds = 
+                ((model.Symbol.Ports, model.Symbol.Symbols,[]), delPorts)
+                ||> List.fold (fun (ports,symbols,conns) p ->
+                    match p with
+                    |Some port ->
+                        let localConns = 
+                            wires
+                            |> List.filter (fun (connId,wire) -> ((wire.InputPort.ToString() = port.Id) || (wire.OutputPort.ToString() = port.Id)))
+                            |> List.map fst
+                        let symbols =
+                            Map.tryFind (ComponentId port.HostId) symbols 
+                            |> Option.map (fun sym ->
+                                let sym' = {sym with PortMaps = Symbol.deletePortFromMaps port.HostId sym.PortMaps}
+                                Map.add (ComponentId port.HostId) sym' symbols)
+                            |> Option.defaultValue symbols
+                        let ports = Map.remove port.Id ports
+                        ports, symbols, conns@localConns
+                    |None -> ports, symbols,conns                    
+                )
+            model
+            |> Optic.set (DrawModelType.BusWireT.symbol_  >-> symbols_) symbols
+            |> Optic.set (DrawModelType.BusWireT.symbol_  >-> ports_) ports
+            |> Optic.map DrawModelType.BusWireT.wires_ (fun wires ->
+                    printf $"{wires.Count} wires before deletion"
+                    (wires, connIds)
+                    ||> List.fold (fun wires connId -> Map.remove connId wires)
+                    |> (fun wires -> printf $"{wires.Count} wires after deletion"; wires))
+       
+
 

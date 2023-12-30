@@ -651,8 +651,8 @@ let private changeSplitN model (comp:Component) dispatch =
         )
         div [Style [Display DisplayOptions.Flex; MarginLeft "180px"]] [
         // Add headers for the "Width" and "LSB" columns
-            Label.label [Label.Props [Style[TextAlign TextAlignOptions.Center; MarginRight "20px"]]] [str "Width"]
-            Label.label [Label.Props [Style[TextAlign TextAlignOptions.Center; MarginLeft "20px"]]] [str "LSB"]
+            Label.label [Label.Props [Style [TextAlign TextAlignOptions.Center; MarginRight "20px"]]] [str "Width"]
+            Label.label [Label.Props [Style [TextAlign TextAlignOptions.Center; MarginLeft "20px"]]] [str "LSB"]
         ]
         List.mapi2 (fun index defaultWidth defaultLsb ->
             let portTitle = 

@@ -472,12 +472,12 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs di
             str $"What is the width and least significant bit (LSB) number of each output?"
             br []; br [];
             div [Style [Display DisplayOptions.Flex;]] [
-                Label.label [Label.Props [Style[MarginLeft "120px"; MarginRight "15px"]]] [str "Width"]
-                Label.label [Label.Props [Style[MarginLeft "15px"]]] [str "LSB"]
+                Label.label [Label.Props [Style [MarginLeft "120px"; MarginRight "15px"]]] [str "Width"]
+                Label.label [Label.Props [Style [MarginLeft "15px"]]] [str "LSB"]
             ]
             List.mapi2 (fun index (defaultWidthValue : int) (defaultLSBValue : int) ->
                 div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]] [
-                    label [Style[Width "105px"; MarginRight "10px";]] [str (sprintf "Output Port %d:" index)] 
+                    label [Style [Width "105px"; MarginRight "10px";]] [str (sprintf "Output Port %d:" index)] 
                     Input.number [
                         Input.Props [OnPaste preventDefault; Style [Width "60px"]; ]
                         Input.DefaultValue <| sprintf "%d" defaultWidthValue

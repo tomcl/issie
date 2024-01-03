@@ -77,14 +77,14 @@ type CodeEditorReactStatefulComponent (props) =
     override this.componentDidUpdate (prevProps,prevState) =
         match (props.ReplaceCode <> None && prevProps.ReplaceCode = None) with
         |true -> 
-            this.setState(fun s _-> {s with code = Option.get props.ReplaceCode} )
+            this.setState(fun s _-> {code = Option.get props.ReplaceCode} )
             props.Dispatch <| SetPopupDialogCode (props.ReplaceCode)
             props.Compile {props.DialogData with VerilogCode=props.ReplaceCode}
         |false -> ()
 
     override this.componentDidMount () =
         match props.ReplaceCode <> None with
-        |true -> this.setState(fun s _-> {s with code = Option.get props.ReplaceCode} )
+        |true -> this.setState(fun s _-> {code = Option.get props.ReplaceCode} )
         |false -> ()
 
     override this.render () =
@@ -95,7 +95,7 @@ type CodeEditorReactStatefulComponent (props) =
                         CodeEditorProps.Value ((sprintf "%s" this.state.code)); 
                         CodeEditorProps.Padding 5
                         OnValueChange (fun txt -> 
-                            (this.setState (fun s p -> {s with code=txt}))
+                            (this.setState (fun s p -> {code=txt}))
                             props.Dispatch <| SetPopupDialogCode (Some txt)
                             props.Compile {props.DialogData with VerilogCode=Some txt}
                         )             

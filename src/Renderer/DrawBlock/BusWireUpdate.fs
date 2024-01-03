@@ -58,20 +58,22 @@ let dragSegment wire index (mMsg: MouseT) model =
             printfn "Can't move undraggable"
             model
 
-let newWire inputId outputId model =
+let makeNewWire inputId outputId model =
     let wireId = ConnectionId(JSHelpers.uuid())
-    let nWire =
-        {
-            WId = wireId
-            InputPort = inputId
-            OutputPort = outputId
-            Color = HighLightColor.DarkSlateGrey
-            Width = 1
-            Segments = []
-            StartPos = { X = 0; Y = 0 }
-            InitialOrientation = Horizontal
-        }
-        |> smartAutoroute model
+    {
+        WId = wireId
+        InputPort = inputId
+        OutputPort = outputId
+        Color = HighLightColor.DarkSlateGrey
+        Width = 1
+        Segments = []
+        StartPos = { X = 0; Y = 0 }
+        InitialOrientation = Horizontal
+    }
+    |> smartAutoroute model
+
+let newWire inputId outputId model =
+    let nWire = makeNewWire inputId outputId model
 
     if Map.exists (fun wid wire -> wire.InputPort=nWire.InputPort && wire.OutputPort = nWire.OutputPort) model.Wires then
             // wire already exists

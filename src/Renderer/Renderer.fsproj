@@ -113,6 +113,10 @@
     <Compile Include="UI\Update.fs" />
 
     <Compile Include="VerilogComponent\TestParser.fs" />
+
+    <Compile Include="GenerateData.fs" />
+
+    <Compile Include="TestDrawBlock.fs" />
     <Compile Include="TestWorker.fs" />
     <Compile Include="Playground.fs" />
 

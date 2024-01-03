@@ -24,6 +24,11 @@ module node = Node.Api
 
 importReadUart
 
+let updateBoundingBoxes (model: Model) =
+    model
+    |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes model.Wire.Symbol)
+    |> Optic.map symbols_ (Map.map (fun _ sym -> Symbol.calcLabelBoundingBox sym))
+
 /// Update Function
 let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<ModelType.Msg> =
     /// In this module model = Sheet model
@@ -189,12 +194,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | Move -> mMoveUpdate model mMsg
 
     | UpdateBoundingBoxes ->
-        let model =
-            model
-            |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes model.Wire.Symbol)
-            |> Optic.map symbols_ (Map.map (fun sId sym -> Symbol.calcLabelBoundingBox sym))
-
-        model, Cmd.none
+        updateBoundingBoxes model, Cmd.none
 
     | UpdateSingleBoundingBox compId ->
         match Map.containsKey compId model.BoundingBoxes with

@@ -68,7 +68,7 @@ let workOutArrangement (arrange: Arrange) (syms: Symbol list) =
         match syms, bbData, arrange with
         | [], _, _-> 
             [], Error "No alignable symbols found"
-        | syms, Some(orient,_), DistributeSymbols _ when syms.Length < 3 ->
+        | syms, Some(orient,_), DistributeSymbols when syms.Length < 3 ->
             syms, Error "3 or more symbols of the same type are needed to distribute"
         | syms, Some(orient,_), _ ->
             syms, Ok orient
@@ -465,8 +465,8 @@ let mDragUpdate
     let setDragCursor (model:Model, cmd: Cmd<ModelType.Msg>) : Model*Cmd<ModelType.Msg> =
         let dragCursor = 
             match model.Action with
-            | MovingLabel _ -> Grabbing
-            | MovingSymbols _ -> ClickablePort
+            | MovingLabel -> Grabbing
+            | MovingSymbols -> ClickablePort
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
     match model.Action with

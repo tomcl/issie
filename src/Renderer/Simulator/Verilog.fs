@@ -412,7 +412,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | Viewer _
     | Output _
     | Viewer _
-    | IOLabel _
+    | IOLabel
     | Input1 _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
 
     | NotConnected -> ""

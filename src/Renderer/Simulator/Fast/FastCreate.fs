@@ -84,11 +84,11 @@ let getPortNumbers (sc: SimulationComponent) =
         | DFFE
         | CounterNoEnable _ -> 2, 1
         | SplitWire _ -> 1, 2
-        | Mux2 _
+        | Mux2
         | NbitsAdderNoCout _
         | Counter _ -> 3, 1
-        | Mux4 _ -> 5, 1
-        | Mux8 _ -> 9, 1
+        | Mux4 -> 5, 1
+        | Mux8 -> 9, 1
         | NbitsAdder _ -> 3, 2
         | NbitsAdderNoCin _ -> 2, 2
         | NbitsAdderNoCinCout _
@@ -302,7 +302,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
       VerilogComponentName = ""
       Active =
         match sComp.Type with
-        | IOLabel _ -> false
+        | IOLabel -> false
         | _ -> true }
 
 /// Create an initial flattened and expanded version of the simulation graph with inputs, non-ordered components, simulationgraph, etc

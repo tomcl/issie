@@ -599,7 +599,7 @@ let isCustom =
 
 let isIOLabel =
     function
-    | IOLabel _ -> true
+    | IOLabel -> true
     | _ -> false
 
 let getCustomName =

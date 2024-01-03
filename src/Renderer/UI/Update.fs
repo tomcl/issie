@@ -78,7 +78,7 @@ let update (msg : Msg) oldModel =
                 {model with UIState = Some uiCmd}
                 |> withMsg (Sheet (SheetT.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
-    | FinishUICmd _->
+    | FinishUICmd ->
         //printfn $"ending UI command '{model.UIState}"
         //printf $"***UI Command: %.2f{TimeHelpers.getTimeMs() - uiStartTime} ***"
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
@@ -583,7 +583,7 @@ let update (msg : Msg) oldModel =
     // should be sorted out
     | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 
     | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
-    | ShowExitDialog _ -> model, Cmd.none
+    | ShowExitDialog -> model, Cmd.none
     | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
         model, cmd
 

@@ -34,7 +34,7 @@
 
 
 //-----------------------------------------------------------------------------------------//  
-//------------------------RANDOM DATA GENERATORS AND COBINATORS----------------------------//
+//------------------------RANDOM DATA GENERATORS AND COMBINATORS---------------------------//
 //-----------------------------------------------------------------------------------------//  
 
     /// (Data i) is an infinite sequence of test values indexed by non-negative i, repeating after Size

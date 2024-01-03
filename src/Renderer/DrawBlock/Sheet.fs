@@ -533,7 +533,7 @@ let fitCircuitToWindowParas (model:Model) =
         |> max Constants.defaultCanvasSize
     let offsetToCentreCircuit =
         {X=newCanvasSize / 2.; Y = newCanvasSize/2.} - sBox.Centre()
-    printfn $"CanvasSize=%.2f{model.CanvasSize}->%.2f{newCanvasSize}, Circuit move offset = (%.2f{offsetToCentreCircuit.X},%.2f{offsetToCentreCircuit.Y})"
+    //printfn $"CanvasSize=%.2f{model.CanvasSize}->%.2f{newCanvasSize}, Circuit move offset = (%.2f{offsetToCentreCircuit.X},%.2f{offsetToCentreCircuit.Y})"
     let modelWithMovedCircuit =
         {model with CanvasSize = newCanvasSize}
         |> moveCircuit offsetToCentreCircuit

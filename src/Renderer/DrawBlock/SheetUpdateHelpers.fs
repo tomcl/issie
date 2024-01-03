@@ -18,7 +18,7 @@ open Operators
 
 let fitCircuitToScreenUpdate (model: Model) =
     let model', paras = fitCircuitToWindowParas model
-    printf "CtrlW Calculated Scroll = %A" paras.Scroll
+    //printf "CtrlW Calculated Scroll = %A" paras.Scroll
     model', 
     Cmd.batch 
         [

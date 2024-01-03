@@ -140,6 +140,10 @@ let reRouteWires dispatch =
 //-----------------------------------------------------------------------------------------------------------//
 
 let fileMenu (dispatch) =
+    /// generate a menu item from a (name, function) list. See testDrawBlock.testsToRunFromSheetMenu
+    let makeTestItem (name:string) (accelNumber:int) (test: Dispatch<Msg> -> 'a) =
+        // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
+        makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ -> test dispatch |> ignore)
     makeMenu false "Sheet" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
@@ -149,6 +153,10 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
+        makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
+            TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
+            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
+            |> List.mapi (fun n (name,test) -> (makeTestItem name n test)))
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
         makeWinDebugItem "Trace View function" None (fun _ ->

@@ -229,9 +229,9 @@ let getWiresInBox (box: BoundingBox) (model: Model) : (Wire * int) list =
     let wires = (List.ofSeq (Seq.cast model.Wires.Values))
 
     let bottomRight =
-        { box.TopLeft with
-            X = box.TopLeft.X + box.W
-            Y = box.TopLeft.Y + box.H }
+        {   X = box.TopLeft.X + box.W
+            Y = box.TopLeft.Y + box.H
+        }
 
     // State Tuple - (overlapping: bool, overlapping_wire_index: int)
     let checkOverlapFolder (startPos: XYPos) (endPos: XYPos) (state: bool * int) (segment: Segment) : bool * int =

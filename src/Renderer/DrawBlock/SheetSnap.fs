@@ -15,7 +15,7 @@ open BlockHelpers
 //----------------------------------------------------------------------------------------//
 
 let snapIndicatorLine = 
-    { defaultLine with Stroke = "Red"; StrokeWidth = "1px"; StrokeDashArray = "5, 5" }   
+    {Stroke = "Red"; StrokeWidth = "1px"; StrokeDashArray = "5, 5" }   
 
 let snapLineHorizontal wholeCanvas y = makeLine 0. y wholeCanvas y  snapIndicatorLine
 let snapLineVertical wholeCanvas x = makeLine x 0. x wholeCanvas snapIndicatorLine

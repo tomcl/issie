@@ -573,7 +573,7 @@ let private checkIOLabels (canvasState: CanvasState) : SimulationError option =
         components
         |> List.filter (fun comp ->
             match comp.Type with
-            | IOLabel _ -> true
+            | IOLabel -> true
             | _ -> false)
 
     match checkDuplicate inputs (toMap inputs) "Input", checkDuplicate outputs (toMap outputs) "Output" with
@@ -722,7 +722,7 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
     let badNameErrors =
         comps
         |> List.filter (function
-            | { Type = MergeWires _ }
+            | { Type = MergeWires }
             | { Type = SplitWire _ }
             | { Type = BusSelection _ }
             | { Type = NotConnected } -> false
@@ -746,8 +746,8 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
     let duplicateNameErrors =
         comps
         |> List.filter (function
-            | { Type = IOLabel _ }
-            | { Type = MergeWires _ }
+            | { Type = IOLabel }
+            | { Type = MergeWires }
             | { Type = SplitWire _ }
             | { Type = BusSelection _ }
             | { Type = NotConnected } -> false

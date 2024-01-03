@@ -172,7 +172,7 @@ let view
     let dragToSelectBox =
         let {BoundingBox.TopLeft = {X=fX; Y=fY}; H=fH; W=fW} = model.DragToSelectBox
         let polygonPoints = $"{fX},{fY} {fX+fW},{fY} {fX+fW},{fY+fH} {fX},{fY+fH}"
-        let selectionBox = { defaultPolygon with Stroke = "Black"; StrokeWidth = "0.1px"; Fill = "Blue"; FillOpacity = 0.05 }
+        let selectionBox = {Stroke = "Black"; StrokeWidth = "0.1px"; Fill = "Blue"; FillOpacity = 0.05 }
 
         makePolygon polygonPoints selectionBox
     
@@ -263,7 +263,7 @@ let view
 
 
     let connectingPortsWire =
-        let connectPortsLine = { defaultLine with Stroke = "Green"; StrokeWidth = "2.0px"; StrokeDashArray = "5, 5" }
+        let connectPortsLine = {Stroke = "Green"; StrokeWidth = "2.0px"; StrokeDashArray = "5, 5" }
         let {XYPos.X = x1; Y = y1}, {XYPos.X = x2; Y = y2} = model.ConnectPortsLine
         [ makeLine x1 y1 x2 y2 connectPortsLine
           makeCircle x2 y2 { portCircle with Fill = "Green" }

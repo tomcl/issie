@@ -324,7 +324,7 @@ let getCompDetails fs wave =
         | Output _ -> "Output", true
         | Constant1 _ -> "What? can't happen", true
         | Viewer _ -> "Viewer", true
-        | IOLabel _-> "Wire Label", true
+        | IOLabel-> "Wire Label", true
         | NotConnected -> "What? can't happen", true
         | Not ->
             let gateType = $"{fc.FType}".ToUpper()
@@ -375,7 +375,7 @@ let getCompDetails fs wave =
 /// Which group (for selector classification) is a component in?
 let getCompGroup fs wave =
     match fs.WaveComps[wave.WaveId.Id].FType with
-    | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel _ | NotConnected ->
+    | Input1 _ | Output _ | Constant1 _ | Viewer _ | IOLabel | NotConnected ->
         InputOutput
     | Not | GateN _ ->
         Gates

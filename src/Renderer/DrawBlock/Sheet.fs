@@ -455,8 +455,7 @@ let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingB
         (max box.W box.H) * fractionalMargin
         |> max absoluteMargin 
        
-    {box with
-        TopLeft = box.TopLeft - {X = boxMargin; Y = boxMargin}
+    {   TopLeft = box.TopLeft - {X = boxMargin; Y = boxMargin}
         W = box.W + boxMargin*2.
         H = box.H + boxMargin*2.
      }

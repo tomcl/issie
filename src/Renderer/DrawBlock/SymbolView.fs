@@ -123,8 +123,8 @@ let drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints =
     |None -> []
     |Some (targetPos,mousePos) -> 
         (portCircles targetPos ShowTarget) 
-        |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {defaultLine with Stroke="DodgerBlue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
-        |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
+        |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {Stroke="DodgerBlue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
+        |> List.append [makePolygon outlinePoints {Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
 
 
 /// HLP23 AUTHOR: BRYAN TAN
@@ -154,7 +154,7 @@ let createPath (startingPoint: XYPos) (startingControlPoint: XYPos) (endingContr
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth (comp:Component)= 
     if strokeColor <> "black" then 
-        [makePolygon points {defaultPolygon with Fill = colour; Stroke = strokeColor; FillOpacity = opacity; StrokeWidth=strokeWidth}]
+        [makePolygon points {Fill = colour; Stroke = strokeColor; FillOpacity = opacity; StrokeWidth=strokeWidth}]
     else   
         [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity; StrokeWidth = strokeWidth}]
 
@@ -175,7 +175,7 @@ let outlineColor (color:string) =
 let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Line instead of polygon?
     let points = sprintf $"{posX1},{posY} {posX2},{posY}"
     let outlineColor = outlineColor color
-    [makePolygon points {defaultPolygon with Fill = "olcolor"; Stroke=outlineColor; StrokeWidth = "2.0"; FillOpacity = opacity}]
+    [makePolygon points {Fill = "olcolor"; Stroke=outlineColor; StrokeWidth = "2.0"; FillOpacity = opacity}]
 
 /// Takes points, height and width of original shape and returns the points for it given a rotation / flipped status.
 /// Degree0 rotation has TopLeft = top left coordinate of the outline, which is a box of dimensions W X H.

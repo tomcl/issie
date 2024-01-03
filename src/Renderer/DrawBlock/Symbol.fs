@@ -193,7 +193,7 @@ let getSymbolColour compType clocked (theme:ThemeType) =
             -> "lightblue"  //for clocked components
         |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
             -> "#E8D0A9"  //dark orange: for IO
-        | SplitWire _ | MergeWires _ | BusSelection _ | NbitSpreader _ | IOLabel | NotConnected ->
+        | SplitWire _ | MergeWires | BusSelection _ | NbitSpreader _ | IOLabel | NotConnected ->
             "rgb(120,120,120)"
         | MergeN _| SplitN _ -> 
             "lightgray"

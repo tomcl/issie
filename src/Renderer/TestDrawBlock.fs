@@ -23,6 +23,7 @@ module TestLib =
     type Test<'a> = {
         Name: string
         Samples: Gen<'a>
+        StartFrom: int
         /// The 1st argument is the test number: allows assertions that fail on a specific sample
         /// to display just one sample.
         /// The return value is None if test passes, or Some message if it fails.
@@ -32,6 +33,7 @@ module TestLib =
     type TestResult<'a> = {
         TestName: string
         TestData: Gen<'a>
+        FirstSampleTested: int
         TestErrors: (int * TestStatus) list
     }
 
@@ -46,7 +48,7 @@ module TestLib =
     /// The return list contains all failures or exceptions: empty list => everything has passed.
     /// This will always run to completion: use truncate if text.Samples.Size is too large.
     let runTests (test: Test<'a>) : TestResult<'a>  =
-        [0..test.Samples.Size - 1]
+        [test.StartFrom..test.Samples.Size - 1]
         |> List.map (fun n ->
                 catchException $"generating test {n} from {test.Name}" test.Samples.Data n
                 |> (fun res -> n,res)
@@ -61,6 +63,7 @@ module TestLib =
         |> (fun resL ->                
                 {
                     TestName = test.Name
+                    FirstSampleTested = test.StartFrom
                     TestData = test.Samples
                     TestErrors =  resL
                 })
@@ -243,6 +246,7 @@ module HLPTick3 =
         /// sheetChecker n model: n is sample number, model is the genrated model. Return false if test fails.
         let runTestOnSheets
             (name: string)
+            (sampleToStartFrom: int)
             (samples : Gen<'a>)
             (sheetMaker: 'a -> SheetT.Model)
             (sheetChecker: int -> SheetT.Model -> string option)
@@ -253,6 +257,7 @@ module HLPTick3 =
                 {
                     Name=name;
                     Samples=samples;
+                    StartFrom = sampleToStartFrom
                     Assertion = generateAndCheckSheet
                 }
                 |> runTests
@@ -268,6 +273,7 @@ module HLPTick3 =
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
 //--------------------------------------------------------------------------------------------------//
+
     open Builder
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
@@ -296,12 +302,17 @@ module HLPTick3 =
            It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
            easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
 
-        /// Ignore sheet and fail on specific sample, useful for displaying a given sample
+        /// Ignore sheet and fail on the specified sample, useful for displaying a given sample
         let failOnSampleNumber (sampleToFail :int) (sample: int) _sheet =
             if sampleToFail = sample then
                 Some $"Failing forced on Sample {sampleToFail}."
             else
                 None
+
+        /// Fails all tests: useful to show in sequence all the sheets generated in a test
+        let failOnAllTests (sample: int) _ =
+            Some <| $"Sample {sample}"
+
         /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
         let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
             let wireModel = sheet.Wire
@@ -330,66 +341,101 @@ module HLPTick3 =
 
     module Tests =
 
-        let test1 n dispatch =
+        /// Allow test errors to be viewed in sequence by recording the current error
+        /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
+        let recordPositionInTest (testNumber: int) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
+            dispatch <| UpdateDrawBlockTestState(fun _ ->
+                match result.TestErrors with
+                | [] ->
+                    printf "Test finished"
+                    None
+                | (numb, _) :: _ ->
+                    printf $"Sample {numb}"
+                    Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
+            
+        /// Example test: Horizontally positioned AND + DFF: fail on sample 0
+        let test1 testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 0"
+                firstSample
                 horizLinePositions
                 makeTest1Circuit
                 (Asserts.failOnSampleNumber 0)
                 dispatch
-            |> ignore
+            |> recordPositionInTest testNum dispatch
 
-        let test2 n dispatch =
+        /// Example test: Horizontally positioned AND + DFF: fail on sample 10
+        let test2 testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 10"
+                firstSample
                 horizLinePositions
                 makeTest1Circuit
                 (Asserts.failOnSampleNumber 10)
                 dispatch
-            |> ignore
+            |> recordPositionInTest testNum dispatch
 
-        let test3 n dispatch =
+        /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
+        let test3 testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on symbols intersect"
+                firstSample
                 horizLinePositions
                 makeTest1Circuit
                 Asserts.failOnSymbolIntersectsSymbol
                 dispatch
-            |> ignore
+            |> recordPositionInTest testNum dispatch
 
-        let nextError testFunc lastSampleNum dispatch =
-            failwithf "Not implemented"
+        /// Example test: Horizontally positioned AND + DFF: fail all tests
+        let test4 testNum firstSample dispatch =
+            runTestOnSheets
+                "Horizontally positioned AND + DFF: fail all tests"
+                firstSample
+                horizLinePositions
+                makeTest1Circuit
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
 
-        /// List of up to 9 tests available which can be run
-        /// from Issie upper Sheet menu or via Ctrl-n 'accelerator' key where n = 1 - 9
-        let testsToRunFromSheetMenu : (string * (int -> Dispatch<Msg> -> Unit)) list =
+        /// List of tests available which can be run ftom Issie File Menu.
+        /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
+        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
-            // NB more than 9 elements will result in truncation because we use only 9 accelerator keys.
             [
-                "Test1", test1
-                "Test2", test2
-                "Test3", test3 
-                "Test4", fun _ _ -> printf "Test4" // dummy test - delete line or replace by real test as needed
-                "Test5", fun _ _ -> printf "Test5"
-                "Test6", fun _ _ -> printf "Test6"
-                "Test7", fun _ _ -> printf "Test7"
-                "Test8", fun _ _ -> printf "Test8"
-                "Next Test Error", fun _ _ -> failwithf "What? Never executed"
+                "Test1", test1 // example
+                "Test2", test2 // example
+                "Test3", test3 // example
+                "Test4", test4 
+                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
+                "Test6", fun _ _ _ -> printf "Test6"
+                "Test7", fun _ _ _ -> printf "Test7"
+                "Test8", fun _ _ _ -> printf "Test8"
+                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]
 
-        let testMenuFunc (n:int) (dispatch:Dispatch<Msg>) (model:Model) =
-            let name,func = testsToRunFromSheetMenu[n]
-            let testState = model.DrawBlockTestState
+        /// Display the next error in a previously started test
+        let nextError (testName, testFunc) firstSampleToTest dispatch =
+            let testNum =
+                testsToRunFromSheetMenu
+                |> List.tryFindIndex (fun (name,_) -> name = testName)
+                |> Option.defaultValue 0
+            testFunc testNum firstSampleToTest dispatch
+
+        /// common function to execute any test.
+        /// testIndex: index of test in testsToRunFromSheetMenu
+        let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
+            let name,func = testsToRunFromSheetMenu[testIndex] 
             printf "%s" name
-            match name, testState with
-            | "NextTestError", Some state -> nextError state.LastTestSampleIndex testsToRunFromSheetMenu[state.LastTestNumber] dispatch
-            | "NextTestError", None -> ()
+            match name, model.DrawBlockTestState with
+            | "Next Test Error", Some state ->
+                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
+            | "Next Test Error", None ->
+                printf "Test Finished"
+                ()
             | _ ->
-                let update = Optic.set drawBlockTestState_ (Some {LastTestNumber=n; LastTestSampleIndex = -1})
-                dispatch (UpdateModel update)
-                func n dispatch
+                func testIndex 0 dispatch
         
 
 

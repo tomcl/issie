@@ -375,7 +375,7 @@ module HLPTick3 =
                 "Test6", fun _ _ -> printf "Test6"
                 "Test7", fun _ _ -> printf "Test7"
                 "Test8", fun _ _ -> printf "Test8"
-                "NextTestError", failwithf "What? Never executed"
+                "Next Test Error", fun _ _ -> failwithf "What? Never executed"
 
             ]
 

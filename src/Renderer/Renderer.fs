@@ -141,10 +141,11 @@ let reRouteWires dispatch =
 
 let fileMenu (dispatch) =
     /// generate a menu item from a (name, function) list. See testDrawBlock.testsToRunFromSheetMenu
-    let makeTestItem (name:string) (accelNumber:int) (test: Dispatch<Msg> -> 'a) =
+    let makeTestItem (name:string) (accelNumber:int)  =
         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
-        makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ -> test dispatch |> ignore)
-    makeMenu false "Sheet" [
+        makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
+    makeMenu false "File" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Save Project in New Format" None (fun ev -> dispatch (MenuAction(MenuSaveProjectInNewFormat,dispatch)))
@@ -156,7 +157,7 @@ let fileMenu (dispatch) =
         makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
             TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
-            |> List.mapi (fun n (name,test) -> (makeTestItem name n test)))
+            |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
         makeWinDebugItem "Trace View function" None (fun _ ->

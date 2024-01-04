@@ -533,6 +533,9 @@ let update (msg : Msg) oldModel =
         match act with 
         | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | MenuSaveProjectInNewFormat -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
+        | MenuDrawBlockTest(testFunc,testNum) ->
+            testFunc testNum dispatch model
+            model, Cmd.none
         | _ -> getMenuView act model dispatch, Cmd.none
 
     | ContextMenuAction e ->
@@ -572,6 +575,11 @@ let update (msg : Msg) oldModel =
             {model with UserData = {model.UserData with Theme=theme}}
             |> userDataToDrawBlockModel
         model, Cmd.none
+
+    | UpdateDrawBlockTestState func ->
+        model
+        |> Optic.map ModelType.drawBlockTestState_ func
+        |> withNoMsg
 
     | ExecutePendingMessages n ->
         executePendingMessagesF n model

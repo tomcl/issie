@@ -289,7 +289,13 @@ module HLPTick3 =
 //-------------------------Example assertions used to test sheets---------------------------------//
 //------------------------------------------------------------------------------------------------//
 
+
     module Asserts =
+
+        (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
+           It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
+           easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
+
         /// Ignore sheet and fail on specific sample, useful for displaying a given sample
         let failOnSampleNumber (sampleToFail :int) (sample: int) _sheet =
             if sampleToFail = sample then
@@ -324,7 +330,7 @@ module HLPTick3 =
 
     module Tests =
 
-        let test1 dispatch =
+        let test1 n dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 0"
                 horizLinePositions
@@ -333,7 +339,7 @@ module HLPTick3 =
                 dispatch
             |> ignore
 
-        let test2 dispatch =
+        let test2 n dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 10"
                 horizLinePositions
@@ -342,7 +348,7 @@ module HLPTick3 =
                 dispatch
             |> ignore
 
-        let test3 dispatch =
+        let test3 n dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on symbols intersect"
                 horizLinePositions
@@ -351,9 +357,12 @@ module HLPTick3 =
                 dispatch
             |> ignore
 
+        let nextError testFunc lastSampleNum dispatch =
+            failwithf "Not implemented"
+
         /// List of up to 9 tests available which can be run
         /// from Issie upper Sheet menu or via Ctrl-n 'accelerator' key where n = 1 - 9
-        let testsToRunFromSheetMenu : (string * (Dispatch<Msg> -> Unit)) list =
+        let testsToRunFromSheetMenu : (string * (int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             // NB more than 9 elements will result in truncation because we use only 9 accelerator keys.
@@ -361,14 +370,26 @@ module HLPTick3 =
                 "Test1", test1
                 "Test2", test2
                 "Test3", test3 
-                "Test4", fun _ -> printf "Test4" // dummy test - delete line or replace by real test as needed
-                "Test5", fun _ -> printf "Test5"
-                "Test6", fun _ -> printf "Test6"
-                "Test7", fun _ -> printf "Test7"
-                "Test8", fun _ -> printf "Test8"
-                "Test9", fun _ -> printf "Test9"
+                "Test4", fun _ _ -> printf "Test4" // dummy test - delete line or replace by real test as needed
+                "Test5", fun _ _ -> printf "Test5"
+                "Test6", fun _ _ -> printf "Test6"
+                "Test7", fun _ _ -> printf "Test7"
+                "Test8", fun _ _ -> printf "Test8"
+                "NextTestError", failwithf "What? Never executed"
 
             ]
+
+        let testMenuFunc (n:int) (dispatch:Dispatch<Msg>) (model:Model) =
+            let name,func = testsToRunFromSheetMenu[n]
+            let testState = model.DrawBlockTestState
+            printf "%s" name
+            match name, testState with
+            | "NextTestError", Some state -> nextError state.LastTestSampleIndex testsToRunFromSheetMenu[state.LastTestNumber] dispatch
+            | "NextTestError", None -> ()
+            | _ ->
+                let update = Optic.set drawBlockTestState_ (Some {LastTestNumber=n; LastTestSampleIndex = -1})
+                dispatch (UpdateModel update)
+                func n dispatch
         
 
 

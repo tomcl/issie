@@ -895,7 +895,8 @@ let removeModelSpikes (model: Model) =
 //-------------------------------------------------------------------------------------------------//
 
 /// Perform complete segment ordering and separation for segments of given orientation.
-/// wires: set of wires allowed to be moved.
+/// wiresToRoute: set of wires allowed to be moved.
+/// ori: orientation
 let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model) =
 
     (*
@@ -910,7 +911,7 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
 
     /// We do the line generation for ALL wires
     /// Then, after all  segments are clustered, we actually change segments only in clusters
-    /// that contains wiresToRoute. The other clusters should not need to be reseparated.
+    /// that contain wiresToRoute. The other clusters should not need to be reseparated.
     let excludeClustersWithoutWiresToRoute (lines: Line array) =
         let routedLines =
             lines
@@ -923,10 +924,17 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
 
     let lines = makeLines allWires ori model
 
+    // Procedural pipeline that divides line segments into clusters and then calculates new positions
+    // for segments within each cluster.
+    // Mutable data is used here as fields on each line record for performance reasons, because
+    // finding sets of same net lines which overlap can muhc more efficiently be done with mutable links.
+    // In spite of mutable data the code is functional in spirit.
     makeClusters lines
     |> excludeClustersWithoutWiresToRoute lines
     |> List.iter (calcSegPositions model lines)
 
+    // The pipeline here (no mutable data) takes the final line segment data and writes it back into Model
+    // changing wires according to the new segment positions.
     lines
     |> Array.toList
     |> adjustSegmentsInModel ori model
@@ -952,9 +960,9 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
 
             separate Horizontal model // separate all horizontal wire segments
             |> separate Vertical // separate all vertical wire segments
-            |> separate Horizontal // a final pair of checks allows ordering and "chunking" to work nicely in almost all cases
-            |> separate Vertical  //
-            |> separate Horizontal //
+            |> separate Horizontal // three more runs allows ordering and "chunking" to work nicely in almost all cases
+            |> separate Vertical  
+            |> separate Horizontal
 
             // after normal separation there may be "fixed" segments which should be separated because they overlap
             // one run for Vert and then Horiz segments is enough for this

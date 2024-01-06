@@ -138,7 +138,7 @@ module SheetInterface =
             this.DoBusWidthInference dispatch
 
         /// Given a compId and a width, update the width of the Component specified by compId
-        member this.ChangeScale (dispatch: Dispatch<Msg>) (compId: ComponentId) (newScale: float) (whichScale:ScaleAdjustment) =
+        member this.ChangeScale (dispatch: Dispatch<Msg>) (compId: ComponentId) (newScale: float) (whichScale:SymbolT.ScaleOrientation) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeScale (compId, newScale, whichScale) ) ) )
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
 

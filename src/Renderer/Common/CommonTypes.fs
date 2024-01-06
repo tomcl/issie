@@ -360,11 +360,6 @@ module CommonTypes
 
 
     let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> {a with TopLeft = s})
-
-    [<StringEnum>]
-    type ScaleAdjustment =
-        | Horizontal
-        | Vertical
     
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option
@@ -814,7 +809,7 @@ module CommonTypes
     /// Note that one output port can drive multiple NLTargets.
     type NLTarget = {
         TargetCompId: ComponentId
-        InputPort: InputPortNumber
+        TargetInputPort: InputPortNumber
         TargetConnId: ConnectionId
         }
 
@@ -822,7 +817,7 @@ module CommonTypes
     /// This is stored with a NLComponent input port number
     type NLSource = {
         SourceCompId: ComponentId
-        OutputPort: OutputPortNumber
+        TargetOutputPort: OutputPortNumber
         SourceConnId: ConnectionId
         }
 
@@ -830,14 +825,14 @@ module CommonTypes
     /// Output ports can connect to multiple components, or none.
     /// Input ports connect to a single driver, or nothing.
     type NetListComponent = {
-        Id : ComponentId
+        NLId : ComponentId
         Type : ComponentType
-        Label : string
+        NLLabel : string
         // List of input port numbers, and single mapped driving output port and component.
-        Inputs : Map<InputPortNumber, NLSource option>
+        NLInputs : Map<InputPortNumber, NLSource option>
         // Mapping from each output port number to all of the input ports and
         // Components connected to that port.
-        Outputs : Map<OutputPortNumber, NLTarget list>
+        NLOutputs : Map<OutputPortNumber, NLTarget list>
      }
 
     /// Circuit topology with connections abstracted away.

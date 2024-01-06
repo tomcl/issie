@@ -285,13 +285,13 @@ let getNetList ((comps,conns) : CanvasState) =
         comps
         |> List.map ( fun comp ->
             {
-                Id = ComponentId comp.Id
+                NLId = ComponentId comp.Id
                 Type = comp.Type
-                Label = comp.Label
-                Inputs =  getPortInts InputPortNumber None comp.InputPorts 
-                Outputs = getPortInts OutputPortNumber [] comp.OutputPorts
+                NLLabel = comp.Label
+                NLInputs =  getPortInts InputPortNumber None comp.InputPorts 
+                NLOutputs = getPortInts OutputPortNumber [] comp.OutputPorts
             })
-        |> List.map (fun comp -> comp.Id,comp)
+        |> List.map (fun comp -> comp.NLId,comp)
         |> Map.ofList
 
     let getOutputPortNumber (p:Port) = 
@@ -311,14 +311,14 @@ let getNetList ((comps,conns) : CanvasState) =
         Map.add compId (updateFn nets[compId]) nets
 
     let updateInputPorts pNum src (comp:NetListComponent) =
-        { comp with Inputs = Map.add pNum (Some src) comp.Inputs}
+        { comp with NLInputs = Map.add pNum (Some src) comp.NLInputs}
 
     let updateInputsComp compId pNum src nets =
         let uFn = updateInputPorts pNum src
         updateNComp compId uFn nets
 
     let updateOutputPorts pNum tgt (comp:NetListComponent) =
-        {comp with Outputs = Map.add pNum (tgt :: comp.Outputs[pNum]) comp.Outputs}
+        {comp with NLOutputs = Map.add pNum (tgt :: comp.NLOutputs[pNum]) comp.NLOutputs}
 
     let updateOutputsComp compId pNum tgt nets =
         let uFn = updateOutputPorts pNum tgt
@@ -327,13 +327,13 @@ let getNetList ((comps,conns) : CanvasState) =
     let target (conn:Connection) =
         {
             TargetCompId = ComponentId conn.Target.HostId
-            InputPort = getInputPortNumber conn.Target
+            TargetInputPort = getInputPortNumber conn.Target
             TargetConnId = ConnectionId conn.Id
         }
     let source (conn:Connection) =
         {
             SourceCompId = ComponentId conn.Source.HostId
-            OutputPort = getOutputPortNumber conn.Source
+            TargetOutputPort = getOutputPortNumber conn.Source
             SourceConnId = ConnectionId conn.Id
         }
 
@@ -343,8 +343,8 @@ let getNetList ((comps,conns) : CanvasState) =
         let tComp = id2Comp[tgt.TargetCompId]
         let sComp = id2Comp[src.SourceCompId]
         nets
-        |> updateOutputsComp (ComponentId sComp.Id) src.OutputPort tgt
-        |> updateInputsComp (ComponentId tComp.Id)tgt.InputPort src
+        |> updateOutputsComp (ComponentId sComp.Id) src.TargetOutputPort tgt
+        |> updateInputsComp (ComponentId tComp.Id)tgt.TargetInputPort src
 
     (initNets, conns) ||> List.fold addConnectionsToNets
 

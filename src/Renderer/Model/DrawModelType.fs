@@ -5,6 +5,7 @@ open CommonTypes
 open DrawHelpers
 open Fable.React
 open Optics
+open Operators
 open Node.ChildProcess
 
 //--------------------------COMMON TYPES------------------------------//
@@ -56,11 +57,15 @@ module SymbolT =
     /// Represents the orientation of a wire segment or symbol flip
     [<StringEnum>]
     type FlipType =  FlipHorizontal | FlipVertical
+
     [<StringEnum>]
     //Used in scaling in SmartRotate
     //HLP23: AUTHOR Ismagilov
     type ScaleType = ScaleUp | ScaleDown
     /// Wraps around the input and output port id types
+
+    [<StringEnum>]
+    type ScaleOrientation = ScaleHorizontal | ScaleVertical
 
     type PortId = | InputId of InputPortId | OutputId of OutputPortId
 
@@ -257,7 +262,7 @@ module SymbolT =
         | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
         | ChangeLsb of compId: ComponentId * NewBits:int64 
         | ChangeInputValue of compId: ComponentId * newVal: int
-        | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
+        | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleOrientation
         | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
         | ChangeBusCompare of compId: ComponentId * NewBits:uint32 * NewText:string
         | ChangeReversedInputs of compId: ComponentId
@@ -408,8 +413,7 @@ module BusWireT =
         | RerouteWire of string
         | ToggleSnapToNet
 
-    open Optics
-    open Operators
+
     let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
     let wires_ = Lens.create (fun m -> m.Wires) (fun w m -> {m with Wires = w})
     let wireOf_ k = wires_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
@@ -669,7 +673,6 @@ module SheetT =
         DebugDevice: string option
         }
     
-    open Operators
     let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})
     let selectedComponents_ = Lens.create (fun m -> m.SelectedComponents) (fun sc m -> {m with SelectedComponents = sc})
     let selectedWires_ = Lens.create (fun m -> m.SelectedWires) (fun sw m -> {m with SelectedWires = sw})

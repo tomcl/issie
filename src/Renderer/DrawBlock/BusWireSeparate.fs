@@ -905,12 +905,12 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
         To go back to this - remove excludeClustersWithoutWiresToRoute.
     *)
     /// Add linked line changes before movement changes. Movement changes will override
-    /// linked line chnages if need be.
+    /// linked line changes if need be.
 
     let allWires = model.Wires |> Map.keys |> Seq.toList
 
-    /// We do the line generation for ALL wires
-    /// Then, after all  segments are clustered, we actually change segments only in clusters
+    /// We do the line generation for ALL wire segments
+    /// Then, after all segments are clustered, we actually change segments only in clusters
     /// that contain wiresToRoute. The other clusters should not need to be reseparated.
     let excludeClustersWithoutWiresToRoute (lines: Line array) =
         let routedLines =
@@ -921,7 +921,6 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
             cluster.Segments
             |> List.exists (fun seg -> (Array.exists (fun line -> line.Lid.Index = seg) routedLines)))
        
-
     let lines = makeLines allWires ori model
 
     // Procedural pipeline that divides line segments into clusters and then calculates new positions

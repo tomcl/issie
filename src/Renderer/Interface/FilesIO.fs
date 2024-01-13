@@ -192,9 +192,12 @@ let readFilesFromDirectory (path:string) : string list =
         try 
             readdir path
             |> Seq.toList
-        with 
-            | _ -> []
+        with
+            | e ->
+                printf $"Warning: readFilesFromDirectory has used readdir on 'path'='{path}' with an exception {e.Message}"
+                []
     else
+        printf $"Warning: readFilesFromDirectory has 'path'='{path}' and this directory does not exist."
         []
 
 let hasExtn extn fName =

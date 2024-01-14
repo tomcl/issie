@@ -44,11 +44,10 @@ let staticDir() =
     /// we hope staticDir will give this?
     printf $"Static = {staticDirFromStatic()}, productionBuild={productionBuild}, isMac={isMac}"
     printf $"CWD={getCWD()}"
-    printf $"""'.' dir contents={Node.Api.fs.readdirSync(U2.Case1 ".")})"""
     if productionBuild  && not isMac then
         "./resources/static"
     elif productionBuild && isMac then
-        "./Resources/static"
+        "/Resources/static"
     else
         staticDirFromStatic()
 

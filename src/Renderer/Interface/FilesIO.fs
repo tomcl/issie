@@ -45,7 +45,7 @@ let staticDir() =
     if productionBuild  && not isMac then
         "./resources/static"
     elif productionBuild && isMac then
-        "../Resources/static"
+        "./Resources/static"
     else
         staticDirFromStatic()
 

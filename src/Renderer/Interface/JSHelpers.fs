@@ -113,7 +113,7 @@ let getTextFocusEventValue (event: FocusEvent) =
 #if (ASSERTS || DEBUG)
 let mutable debugLevel = 1
 #else
-let mutable debugLevel = 1
+let mutable debugLevel = 0
 #endif
 
 #if PRODUCTION

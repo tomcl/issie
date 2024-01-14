@@ -44,6 +44,8 @@ let staticDir() =
     let isMac = Node.Api.``process``.platform = Node.Base.Darwin
     if productionBuild  && not isMac then
         "./resources/static"
+    elif productionBuild && isMac then
+        "../Resources/static"
     else
         staticDirFromStatic()
 

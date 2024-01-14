@@ -42,8 +42,9 @@ let staticDir() =
     /// This identifies macos builds (arm64 too I hope!)
     /// on MacOs we think it should be ../Resources/static
     /// we hope staticDir will give this?
-    printf $"Static = {staticDirFromStatic}, productionBuild={productionBuild}, isMac={isMac}"
+    printf $"Static = {staticDirFromStatic()}, productionBuild={productionBuild}, isMac={isMac}"
     printf $"CWD={getCWD()}"
+    printf $"""'.' dir contents={Node.Api.fs.readdirSync(U2.Case1 ".")})"""
     if productionBuild  && not isMac then
         "./resources/static"
     elif productionBuild && isMac then

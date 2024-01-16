@@ -38,12 +38,15 @@ let staticDirFromStatic() :string = jsNative
 /// it is dependent on the electron build which positions static assets there.
 /// productionbuild is defined in JSHelpers to be true for production (binary) builds only
 let staticDir() =
-    let isMac = Node.Api.``process``.platform = Node.Base.Darwin
-    /// This identifies macos builds (arm64 too I hope!)
-    /// on MacOs we think it should be /Resources/static
-    /// we hope staticDir will give this?
-    printf $"Static = {staticDirFromStatic()}, productionBuild={productionBuild}, isMac={isMac}"
-    //printf $"CWD={getCWD()}"
+    let isMac =
+        try
+            Node.Api.``process``.platform = Node.Base.Darwin
+        with
+            | e -> printfn $"isMac exception: {e.Message}"; true
+    // This identifies macos builds (arm64 too I hope!)
+    // on MacOs we think it should be /Resources/static
+    // we hope staticDir will give this?
+    printfn $"Static = {staticDirFromStatic()}, productionBuild={productionBuild}, isMac={isMac}"
     if productionBuild  && not isMac then
         "./resources/static"
     elif productionBuild && isMac then

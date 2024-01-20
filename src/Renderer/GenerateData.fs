@@ -8,6 +8,11 @@
 //------------------------UTILITY FUNCTIONS FOR DATA GENERATION------------------  --------//
 //-----------------------------------------------------------------------------------------//  
 
+    module Constants =
+        /// Warn user when product test data takes longer than this to change
+        /// its second data value. That is when the 1st value size is too large.
+        /// Value is a bit arbitrary.
+        let maxFirstProductArgSize = 1000
 
         /// source of random numbers
     let random = System.Random()
@@ -74,8 +79,15 @@
         {Data = (fun i -> f (g1.Data i) (g2.Data i) (g3.Data i)); Size = g1.Size}
 
     /// Cartesian product: output sequence cycles through all combinations of the two inputs, combined by f
+    /// All elements in g1 are used in order combined with the first element of g2, then the 2nd, etc.
+    /// Therefore this will not work well if g1.Size is too large!
     let product (f: 'a1 -> 'a2 -> 'b) (g1: Gen<'a1>) (g2: Gen<'a2>) : Gen<'b> =
-        {Data = (fun i -> f (g1.Data i) (g2.Data i)); Size = satTimes g1.Size g2.Size}
+        let n1 = g1.Size
+        let n2 = g2.Size
+        if g1.Size > Constants.maxFirstProductArgSize then
+            printfn $"Warning: product of sequence sizes: {g1.Size} X {g2.Size}. {g1.Size} \
+                will take a like time to cycle through {g1.Size} values of g1 before advancing g2"
+        {Data = (fun i -> f (g1.Data <| i % n1) (g2.Data <| (i / n1) % n2)); Size = satTimes n1 n2}
 
     /// Output sequence cycles through the two input sequences appended together
     let sum (g1: Gen<'a>) (g2: Gen<'a>) : Gen<'a> =
@@ -101,7 +113,7 @@
 
         // Use this implementation in case g is so long that turning it into a list would be problematic
         // In that case, after filtering, it may still be much smaller.
-        // if output length is very long thsi implementation is not efficient and a proper "on demand"
+        // if output length is very long this implementation is not efficient and a proper "on demand"
         // version should be considered.
         let mutable filteredL = []
         // this loop is more scalable than using List.Filter since it does not require the input list

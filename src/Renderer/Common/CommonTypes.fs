@@ -393,13 +393,20 @@ module CommonTypes
     type Component = {
         Id : string
         Type : ComponentType
-        Label : string // All components have a label that may be empty.
-        InputPorts : Port list // position on this list determines inputPortNumber
-        OutputPorts : Port list // position in this lits determines OutputPortNumber
+        /// All components have a label that may be empty: label is not unique
+        Label : string 
+        // position on this list determines inputPortNumber
+        InputPorts : Port list 
+        /// position in this list determines OutputPortNumber
+        OutputPorts : Port list 
         X : float
         Y : float
+        /// Height
         H : float
+        /// Width
         W : float
+        /// Field used only when sheet is saved from Draw Block: Symbol info is copied here
+        /// This field is not uptodate when symbol is being edited in Draw Block
         SymbolInfo : SymbolInfo option
     }
 

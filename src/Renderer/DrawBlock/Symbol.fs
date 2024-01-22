@@ -408,7 +408,7 @@ let movePortsToCorrectEdgeForComponentType (ct: ComponentType) (portMaps: PortMa
     | _ -> portMaps
 
 
-/// Genererates a list of ports:
+/// Generates a new list of ports of specified type
 let portLists numOfPorts hostID portType =
     if numOfPorts < 1 
     then []

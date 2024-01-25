@@ -11,13 +11,9 @@ open BlockHelpers
 open SymbolResizeHelpers
 
 (* 
-    HLP23: This module will normally be used exclusively by team member doing the "smart resize symbol" 
-    part of the individual coding. During group phase work how it is used is up to the
-    group. Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
-
-    Normally it will update multiple wires and one symbols in the BusWire model so could use the SmartHelper 
-    function for the wires.
+    This module contains the code that rotates and scales blocks of components.
+    It was collected from HLP work in 2023 and has some technical debt and also unused functions.
+    It requires better documentation of teh pasrts now used.
 *)
 
 /// Record containing all the information required to calculate the position of a port on the sheet.
@@ -32,6 +28,12 @@ type PortInfo =
       h: float
       w: float
       portGap: float }
+
+/// Type used to record a wire between two symbols.
+type WireSymbols =
+    { SymA: Symbol
+      SymB: Symbol
+      Wire: Wire }
 
 /// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
 /// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
@@ -61,15 +63,10 @@ let makePortInfo (sym: Symbol) (port: Port) =
       w = w
       portGap = portGap }
 
-type wireSymbols =
-    { symA: Symbol
-      symB: Symbol
-      wire: Wire }
-
 let getPortAB wModel wireSyms =
-    let ports = portsOfWires wModel [ wireSyms.wire ]
-    let portA = filterPortBySym ports wireSyms.symA |> List.head
-    let portB = filterPortBySym ports wireSyms.symB |> List.head
+    let ports = portsOfWires wModel [ wireSyms.Wire ]
+    let portA = filterPortBySym ports wireSyms.SymA |> List.head
+    let portB = filterPortBySym ports wireSyms.SymB |> List.head
     portA, portB
 
 /// Try to get two ports that are on opposite edges.
@@ -82,19 +79,19 @@ let getOppEdgePortInfo
 
     let tryGetOppEdgePorts wireSyms =
         let portA, portB = getPortAB wModel wireSyms
-        let edgeA = getSymbolPortOrientation wireSyms.symA portA
-        let edgeB = getSymbolPortOrientation wireSyms.symB portB
+        let edgeA = getSymbolPortOrientation wireSyms.SymA portA
+        let edgeB = getSymbolPortOrientation wireSyms.SymB portB
 
         match edgeA = edgeB.Opposite with
-        | true -> Some(makePortInfo wireSyms.symA portA, makePortInfo wireSyms.symB portB)
+        | true -> Some(makePortInfo wireSyms.SymA portA, makePortInfo wireSyms.SymB portB)
         | _ -> None
 
     wires
     |> List.tryPick (fun w ->
         tryGetOppEdgePorts
-            { symA = symbolToSize
-              symB = otherSymbol
-              wire = w })
+            { SymA = symbolToSize
+              SymB = otherSymbol
+              Wire = w })
 
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let getPortRealPos pInfo =
@@ -137,7 +134,7 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
     let resizePortInfo, otherPortInfo =
         match getOppEdgePortInfo wModel symbolToSize otherSymbol with
         | None ->
-            let pA, pB = getPortAB wModel { symA = symbolToSize; symB = otherSymbol; wire = wires[0] }
+            let pA, pB = getPortAB wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires[0] }
             makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
         | Some(pIA, pIB) -> (pIA, pIB)
 
@@ -260,51 +257,6 @@ let optimiseSymbol
 
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
-
-
-(*
-    HLP23: this is a placeholder module for some work that can be done in the individual or team phase
-    but has not been given a "starter" by me. however it is pretty easy to get started on it.
-
-    This code would be HIGHLY USEFUL (especially the "scaling" option).
-
-    Currently if multiple symbols are selected and rotated, each symbol will rotate, but the positions
-    of teh symbols will stay fixed. The desired function for the entire block of symbols to rotate,
-    applying 2-D rotation 90 degree rotation and flipping to the symbol positions about the centre of 
-    the block of selected symbols.
-
-    This operation has "simple" and "better" implementations, like all the initial tasks:
-    1. Rotate all symbols and wires exact - do not allow custom components
-    2. Rotate all symbols, allow custom components, CC wires will change due to CC shape changes,
-      and must be partial autorouted.
-    3. Allow scaling as well as rotation (autoroute wires since components will not scale and therefore
-      exact wire shape will change). This operation can include Custom components since all wires are
-      autorouted anyway.
-    Driver test code can easily be adapted from existing Smart module Test menu items. Menu commands 
-    which operate on selected symbols - the tests will be more or less how this operation is actually used).
-
-    One key UI challenge for SmartRotate is that when a block of symbols is rotated it may overlap other
-    symbols. To allow valid placement it should be possible to move the block on the sheet until a place
-    to drop it is found, using an interface identical to the "copy" and "paste" interface - which works 
-    fine with multiple symbols (try it). It should be possible to use that exact same interface by placing
-    the rotated blokc into the copy buffer (not sure - maybe the copy buffer will need to be modified a bit).
-
-    This could be ignored initially writing code, but muts be addressed somehow for teh operation to be usable.
-
-    Those interested can ask me for details.
-*)
-
-(*HLP23: AUTHOR Ismagilov
-  SheetUpdate.fs: 'Rotate' and 'Flip' msg in update function is replaced with this Smart implentation of rotate and flip.
-  DrawModelType.fs: Added type ScaleType in SymbolT Module, which Distinguishes the type of scaling the user does.
-
-  Added 2 keyboard messages in Renderer (CrtlU & CrtrlI) to scale the block of symbols up and down respectively.
-  Invalid placement handled by giving model action drag and drop, therefore requiring user to place down/continue changing until valid
-
-  SmartHelpers.fs contains all helper functions, e.g Rotating/Flipping symbols or points in general about any center point,
-  as opposed to original rotate/flip functions.
-*)
-
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
@@ -583,7 +535,8 @@ let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (ma
         if scaleFact = 1. then 0.
         else (matchMin - min * scaleFact) / (1.-scaleFact)
     (scaleFact, offsetC)
- 
+
+/// Return set of floats that define how a group of components is scaled
 let getScalingFactorAndOffsetCentreGroup
     (matchBBMin:XYPos)
     (matchBBMax:XYPos)
@@ -623,29 +576,13 @@ let getScalingFactorAndOffsetCentreGroup
     
     let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
     let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
-    // printfn "oneCompBoundsBothEdges:%A" oneCompBoundsBothEdges
-    // printfn "Max: OriginalX: %A" oldMaxX
-    // printfn "Max: XMatch: %A" newMaxX
-    // printfn "Min: OriginalX: %A" oldMinX
-    // printfn "Min: XMatch: %A" newMinX
-    // printfn "scaleFact: %A" (fst xSC)
-    // printfn "scaleC: %A" (snd xSC)
-    // printfn "Max: GotX: %A" (((oldMaxX- (snd xSC)) * (fst xSC)) + (snd xSC))
-    // printfn "Min: GotX: %A" (((oldMinX - (snd xSC)) * (fst xSC)) + (snd xSC))
-    // printfn "Max: OriginalY: %A" oldMaxY
-    // printfn "Max: YMatch: %A" newMaxY
-    // printfn "Min: OriginalY: %A" oldMinY
-    // printfn "Min: YMatch: %A" newMinY
-    // printfn "scaleFact: %A" (fst ySC)
-    // printfn "scaleC: %A" (snd ySC)
-    // printfn "Max: GotY: %A" (((oldMaxY- (snd ySC)) * (fst ySC)) + (snd ySC))
-    // printfn "Min: GotY: %A" (((oldMinY - (snd ySC)) * (fst ySC)) + (snd ySC))
     (xSC, ySC)
 
+/// Alter position of one symbol as needed in a scaling operation
 let scaleSymbol
-    xYSC
-    sym = 
-
+        (xYSC: (float * float) * (float * float))
+        (sym: Symbol)
+        : Symbol = 
     let symCentre =  getRotatedSymbolCentre sym
     let translateFunc scaleFact offsetC coordinate = (coordinate - offsetC) * scaleFact + offsetC
     let xSC = fst xYSC
@@ -658,7 +595,8 @@ let scaleSymbol
     let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
 
     {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
-        
+
+/// Part of the rotate and scale code       
 let groupNewSelectedSymsModel
     (compList:ComponentId list) 
     (model:SymbolT.Model) 
@@ -700,6 +638,9 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+/// After every model update this updates the "scaling box" part of the model to be correctly
+/// displayed based on whetehr multiple components are selected and if so what is their "box"
+/// In addition to changing the model directly, cmd may contain messages that make further changes.
 let postUpdateScalingBox (model:SheetT.Model, cmd) = 
     
     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))

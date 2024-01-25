@@ -457,11 +457,13 @@ let mDownUpdate
                         {model with Action = DragAndDrop}, 
                         Cmd.batch [sheetCmd DoNothing]
 
-/// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
+/// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports, scaling blocks of symbols.
 let mDragUpdate 
         (model: Model) 
         (mMsg: MouseT) 
             : Model * Cmd<ModelType.Msg> =
+
+    /// chnage cursor according to what type of drag operation it is
     let setDragCursor (model:Model, cmd: Cmd<ModelType.Msg>) : Model*Cmd<ModelType.Msg> =
         let dragCursor = 
             match model.Action with
@@ -469,12 +471,14 @@ let mDragUpdate
             | MovingSymbols -> ClickablePort
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
+    // model.Action will be set previously, typically by mouse-down, indicating what type of
+    // drag operation to do.
     match model.Action with
-    | MovingWire segIdL -> 
+    | MovingWire segIdL -> // move one segment of a wire manually
         snapWire model mMsg segIdL
     // HLP 23: AUTHOR Khoury & Ismagilov
     // New Action, when we click on scaling button and drag the components and box should scale with mouse
-    | Scaling ->
+    | Scaling -> // scale a box of multiple components
         let modelBeforeUpdate = model
         let scalingBoxCentre:XYPos = model.ScalingBoxCentrePos
         let newScalingBoxOppositeMouse = 
@@ -544,7 +548,7 @@ let mDragUpdate
             wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
             sheetCmd UpdateBoundingBoxes
         ]
-    | Selecting ->
+    | Selecting -> // drag to select a rectangular area of components
         let initialX = model.DragToSelectBox.TopLeft.X
         let initialY = model.DragToSelectBox.TopLeft.Y
         let newDragToSelectBox = {model.DragToSelectBox with W = (mMsg.Pos.X - initialX); H = (mMsg.Pos.Y - initialY)}
@@ -552,7 +556,7 @@ let mDragUpdate
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                     LastMousePos = mMsg.Pos
          }, sheetCmd CheckAutomaticScrolling
-    | InitialiseMovingLabel compId->
+    | InitialiseMovingLabel compId-> // set up state needed for moving a label
         {model with
                 Action = MovingLabel
                 LastMousePos = mMsg.Pos
@@ -560,14 +564,14 @@ let mDragUpdate
                 SelectedLabel = Some compId
                 TmpModel = Some model
             }, sheetCmd DoNothing
-    | InitialiseMoving _ ->
+    | InitialiseMoving _ -> // set up state needed for moving a selected set of symbols
         let newModel, cmd = moveSymbols model mMsg
         {newModel with TmpModel = Some newModel}, Cmd.batch [cmd]
 
 
-    | MovingSymbols | DragAndDrop ->
+    | MovingSymbols | DragAndDrop -> // move symbols
         moveSymbols model mMsg
-    | MovingLabel ->
+    | MovingLabel -> // move label
         let movingCompId =
             match model.SelectedLabel with
             | Some compid -> compid
@@ -581,7 +585,7 @@ let mDragUpdate
         },
         symbolCmd (SymbolT.MoveLabel (movingCompId, mMsg.Pos - model.LastMousePos))
 
-    | ConnectingInput _ ->
+    | ConnectingInput _ -> // drag from an input port to connect it to and output
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 
         let _, nearbyOutputPorts = findNearbyPorts model
 

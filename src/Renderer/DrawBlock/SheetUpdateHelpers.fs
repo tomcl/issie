@@ -905,3 +905,8 @@ let rec getChannel (bb1:BoundingBox) (bb2:BoundingBox) : (BoundingBox * Orientat
                 let y1, y2 = bb1.TopLeft.Y, bb2.TopLeft.Y + bb2.H
                 let topLeft = { X = union.TopLeft.X; Y = bb2.TopLeft.Y + bb2.H }
                 Some ( { TopLeft = topLeft; H = y1 - y2; W = union.W }, Horizontal )
+
+let updateBoundingBoxes (model: Model) =
+    model
+    |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes model.Wire.Symbol)
+    |> Optic.map symbols_ (Map.map (fun _ sym -> Symbol.calcLabelBoundingBox sym))

@@ -197,7 +197,7 @@ module HLPTick3 =
             | _ ->
                 model
                 |> Optic.set symbolModel_ symModel
-                |> SheetUpdate.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
+                |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
                 |> Ok
         
 

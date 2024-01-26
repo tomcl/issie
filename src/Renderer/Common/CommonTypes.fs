@@ -351,7 +351,14 @@ module CommonTypes
         /// Height
         H: float
     }
-        with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
+        // Maybe these should all be properties, not sure what is more efficient given they are seldom used
+        // Are member functions put into records? I hope not!
+        // They would be easier to use if made properties (no () after name). They are fixed
+        // because records in F# are immutable.
+        with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.} 
+             member this.BottomRight() = this.TopLeft + {X=this.W; Y=this.H}
+             member this.RightEdge() = this.TopLeft.X + this.W
+             member this.BottomEdge() = this.TopLeft.Y + this.H
 
 
     let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> {a with TopLeft = s})

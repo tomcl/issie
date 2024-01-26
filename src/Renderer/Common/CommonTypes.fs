@@ -338,18 +338,11 @@ module CommonTypes
             | Left -> Right
             | Right -> Left
 
-    /// Holds possible directions to sort ports.
-    /// HLP23: AUTHOR dgs119
-    
-    type Direction =
-        | Clockwise
-        | AntiClockwise
-
-        member this.Opposite =
-            match this with
-            | Clockwise -> AntiClockwise
-            | _ -> Clockwise
-
+    /// Represents a rectangle on SVG as used in
+    /// Component and Symbol types.
+    /// NB equivalent representation would be two XYPos for
+    /// TopLeft and BottomRight corners.
+    /// W & H should always be positive: this is true for Components.
     type BoundingBox = {
         /// Top left corner of the bounding box
         TopLeft: XYPos
@@ -362,7 +355,10 @@ module CommonTypes
 
 
     let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> {a with TopLeft = s})
-    
+
+    /// All the info needed to display a symbol not provided by otehr fields in its Component.
+    /// This is used only to save geometric info from schematic with component when sheet is
+    /// saved from schemetic editor. Otherwise the same info comes from fields in Symbol record.
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option
         LabelRotation: Rotation option

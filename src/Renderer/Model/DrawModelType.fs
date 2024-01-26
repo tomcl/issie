@@ -37,7 +37,7 @@ let snapIndicatorPos_ = Lens.create (fun s -> s.SnapIndicatorPos) (fun u s -> {s
 type SnapInfo = {
     /// static data - set of "snap" positions
     SnapData: SnapData array 
-    /// dynamic data - present if symbol is currently snapped
+    /// dynamic data - present if symbol is currently snapped (e.g. close to a snap position)
     SnapOpt: Snap option 
     }
 
@@ -45,7 +45,14 @@ type SnapInfo = {
 let snapData_ = Lens.create (fun inf -> inf.SnapData) (fun s inf -> {inf with SnapData = s})
 let snapOpt_ = Lens.create (fun inf -> inf.SnapOpt) (fun s inf -> {inf with SnapOpt = s})
 
-type SnapXY = {SnapX: SnapInfo; SnapY: SnapInfo}
+type SnapXY = {
+    /// information to handle X coordinate snaps: where snap line is vertical
+    SnapX: SnapInfo;
+    /// Information to handle Y coordinate snaps: where snap line is horizontal
+    SnapY: SnapInfo
+    }
+
+// lenses to access fileds of SnapXY
 let snapX_ = Lens.create (fun xy -> xy.SnapX) (fun s xy -> {xy with SnapX = s})
 let snapY_ = Lens.create (fun xy -> xy.SnapY) (fun s xy -> {xy with SnapY = s})
 

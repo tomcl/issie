@@ -9,6 +9,18 @@ open Operators
 open Sheet
 open BlockHelpers
 
+(*
+    Code to implement "snapping" of a symbol or segment to other symbols and segments during a
+    move operation. When the symbol or segment is snapped a red dotted line indicates this and
+    the symbol or segment does not move, even though the mouse moves.
+    When the symbol "unsnaps" it jumps to the position it would have been moved to if no snap
+    had occured. Snapping therefore make sit easy manually to align objects that have a snap
+    function.
+
+    The places where a symbol or segment can snap are determined when the move operation starts
+    on mouse-down based on the position of other objects on the canvas, these remain fixed
+    throughout the move (drag) operation.
+*)
 
 //----------------------------------------------------------------------------------------//
 //-----------------------------------SNAP helper functions--------------------------------//
@@ -123,24 +135,6 @@ let symbolMatch (symbol: SymbolT.Symbol) =
 //--------------------------MAIN SNAP DATA DEFINITIONS------------------------------------//
 //----------------------------------------------------------------------------------------//
 
-(*
-    HLP23 - this module is assumed controlled by the SmartSnap team student: 
-    functions from other members MUST be documented by "HLP23: AUTHOR" XML 
-    comment as in SmartHelpers.
-
-    HLP23 - the Smart Snap part of the individual work should update these definitions and
-    (if needed, advanced) also update the functions in the next section taht implement snaps.
-    Helper functions can be added to the snap helper section above, or to SmartHelpers if they
-    might be of use to others.
-
-    HLP23 - Much of the challenge here is understanding the (well written) existing code. 
-    One way to make progress is to leave this code as-is and pipeline its result into your 
-    own function which modifies the calculated snap data - adding or deleting snaps.
-
-    HLP23 - optionally you could go through all the snap code and and improve it - e.g.
-    rewrite using optics.
-*)
-
 /// Extracts static snap data used to control a symbol snapping when being moved.
 /// Called at start of a symbol drag.
 /// model: schematic positions are extracted from here.
@@ -171,7 +165,7 @@ let getNewSymbolSnapInfo
         let wires = model.Wire.Wires
         let portMap = model.Wire.Symbol.Ports
         let symbolMap = model.Wire.Symbol.Symbols
-                    
+        /// Return array of all ports connected to pId - not including pId.           
         let getAllConnectedPorts (pId:string) =
             wires
             |> Map.toArray 
@@ -215,16 +209,12 @@ let getNewSymbolSnapInfo
                         |> makeSnapBounds Constants.symbolSnapLimit
                     SnapOpt = None}
     }
-   
-
-
     
 
 /// Extracts static snap data used to control a segment snapping when being dragged.
 /// Called at start of a segment drag.
-/// xOrY: which coordinate is processed.
 /// model: segment positions are extracted from here.
-/// movingSegment: the segment which moved.
+/// movingSegmentL: the segment which moved, or empty list.
 /// See SnapXY definition for output.
 let getNewSegmentSnapInfo  
         (model: Model) 
@@ -272,7 +262,7 @@ let getNewSegmentSnapInfo
 //-----------------------------------------------------------------------------------------------//
 
 /// The main snap function which is called every update that drags a symbol or segment.
-/// This function porocesses one coordinate (X or Y) and therefore is called twice.
+/// This function processes one coordinate (X or Y) and therefore is called twice.
 /// autoscrolling: if true switch off snapping (and unsnap if needed).
 /// pos.ActualPosition: input the actual position on schematic of the thing being dragged.
 /// pos.MouseDelta: mouse position change between this update and the last one.

@@ -80,7 +80,7 @@ let rotateSymbol (rotation: Rotation) (sym: Symbol) : Symbol =
         let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
 
         let newSTransform = 
-            match sym.STransform.flipped with
+            match sym.STransform.Flipped with
             | true -> 
                 {sym.STransform with Rotation = combineRotation (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
             | false -> 
@@ -127,7 +127,7 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
         |> Map.map (fun edge order -> List.rev order)       
 
     let newSTransform = 
-        {flipped= not sym.STransform.flipped;
+        {Flipped= not sym.STransform.Flipped;
         Rotation= sym.STransform.Rotation} 
 
     { sym with

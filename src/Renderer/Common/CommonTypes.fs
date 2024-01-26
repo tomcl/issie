@@ -317,24 +317,26 @@ module CommonTypes
    
     type Rotation = | Degree0 | Degree90 | Degree180 | Degree270
     
-    /// Stores the rotation and the flip of the symbol, flipped false by default
-    type STransform = {Rotation: Rotation; flipped: bool}
+    /// Stores the rotation and the flip of the symbol.
+    /// Normal state is Flipped=false, Rotation = Degrees0.
+    type STransform = {Rotation: Rotation; Flipped: bool}
     
-    /// Represents the sides of a component
-
+    /// Represents the sides of a symbol.
+    /// Used by PortMaps to document Port position and therefore
+    /// also wire initial direction.
     type Edge =
         | Top
         | Bottom
         | Left
         | Right
         
-        /// HLP23: AUTHOR dgs119
+        /// Opposite edge
         member this.Opposite =
             match this with
             | Top -> Bottom
             | Bottom -> Top
             | Left -> Right
-            | _ -> Left
+            | Right -> Left
 
     /// Holds possible directions to sort ports.
     /// HLP23: AUTHOR dgs119
@@ -378,7 +380,7 @@ module CommonTypes
 
     let getSTransformWithDefault (infoOpt: SymbolInfo option) =
         match infoOpt with
-        | None ->{Rotation=Degree0; flipped=false}
+        | None ->{Rotation=Degree0; Flipped=false}
         | Some inf -> inf.STransform
 
 

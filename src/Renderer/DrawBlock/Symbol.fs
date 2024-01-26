@@ -226,7 +226,7 @@ let calcLabelBoundingBox (sym: Symbol) =
     let transform = sym.STransform
     let comp = sym.Component
     let labelRotation = 
-        match transform.flipped with
+        match transform.Flipped with
         | true -> match transform.Rotation with
                      | Degree90 -> Degree270
                      | Degree270 -> Degree90
@@ -640,7 +640,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
 
 /// make a completely new component
 let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:string) : Component =
-    let defaultSTransform = {Rotation = Degree0; flipped = false}
+    let defaultSTransform = {Rotation = Degree0; Flipped = false}
     // function that helps avoid dublicate code by initialising parameters that are the same for all component types and takes as argument the others
     let makeComponent' (n, nout, h, w) label : Component=
         let inputPorts = portLists n id PortType.Input
@@ -678,7 +678,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
-    let transform = {Rotation= Degree0; flipped= false}
+    let transform = {Rotation= Degree0; Flipped= false}
     let symbolIsClocked = isClocked [] ldcs comp
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }

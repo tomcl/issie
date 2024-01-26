@@ -376,7 +376,7 @@ let rotateSymbolInBlock
     let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
     
     let newSTransform = 
-        match sym.STransform.flipped with
+        match sym.STransform.Flipped with
         | true -> 
             {sym.STransform with Rotation = combineRotation (invertRotation rotation) sym.STransform.Rotation}  
         | _-> 
@@ -418,7 +418,7 @@ let flipSymbolInBlock
         |> Map.map (fun edge order -> List.rev order)       
 
     let newSTransform = 
-        {flipped= not sym.STransform.flipped;
+        {Flipped= not sym.STransform.Flipped;
         Rotation= sym.STransform.Rotation} 
 
     let newcomponent = {sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
@@ -676,7 +676,7 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
                 |> makeRotateSym
             let rotateDeg270Sym = 
                 {makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet) 
-                    with SymbolT.STransform = {Rotation=Degree90 ; flipped=false}}
+                    with SymbolT.STransform = {Rotation=Degree90 ; Flipped=false}}
                 |> makeRotateSym
 
             let newSymbolMap = model.Wire.Symbol.Symbols 

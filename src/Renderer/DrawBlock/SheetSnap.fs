@@ -11,10 +11,10 @@ open BlockHelpers
 
 (*
     Code to implement "snapping" of a symbol or segment to other symbols and segments during a
-    move operation. When the symbol or segment is snapped a red dotted line indicates this and
-    the symbol or segment does not move, even though the mouse moves.
-    When the symbol "unsnaps" it jumps to the position it would have been moved to if no snap
-    had occured. Snapping therefore make sit easy manually to align objects that have a snap
+    mouse drag move operation. When the symbol or segment is snapped a red dotted line indicates 
+    this and the symbol or segment does not move, even though the mouse moves.
+    When the symbol "unsnaps" it jumps to the position it would have been in if no snap
+    had occured. Snapping makes it easy manually to align objects that have a snap
     function.
 
     The places where a symbol or segment can snap are determined when the move operation starts

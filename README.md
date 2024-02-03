@@ -83,12 +83,10 @@ Download and install (if you already have these tools installed just check the v
 2. Check you have , .Net 7 (2024: .Net 8 will be OK too, I think), Node v18, VS 2022 (or latest VS Code + ionide or Rider) installed.
    * In a terminal window: `node -v` shows Node version. `dotnet --version` shows Dotnet version.
 
-4. Navigate to the project root directory from the master-before-new-simulation branch (which contains this README) in a command-line interpreter, or start one from directory context menu.
+4. Navigate to the project root directory from the master branch (which contains this README) in a command-line interpreter, or start one from directory context menu.
 
 5. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download and install all dependencies then launch the application in dev mode with HMR.
-   
-6. Once Issie has loaded, stop the master-before-new-simulation Issie with `Ctrl+C` and switch to the master branch and run `npm install`.
-  
+     
   * HMR: the application will automatically recompile and update while running if you save updated source files
   * To initialise and reload: `File -> reload page`
   * To exit: after you exit the application the auto-compile script will terminate after about 15s

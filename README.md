@@ -1,3 +1,79 @@
+# HLP Team 8
+
+
+## Project Partitioning
+Note: There are 6 members, so 3 students doing 3 distinct deliverables, and 3 students working on testing (1-2 testers per deliverable)
+
+
+### Individual work
+- Overview
+  - Divide work into 6 parts for individual coding
+  - Expectation to swap between testing and beautify coding
+- Individual assessment has three parts:
+  1. Team code part assessed based on code quality and usefulness in solving team phase problems
+  2. Helper function writing part assessed based on code quality and appropriate documentation
+  3. Rotatescale improvement part based on how well functions allocated have been rewritten
+    - Teams must divide up functions between students
+    - Potential for rewrite varies among functions
+- Deliverables for individual work 
+- Functions:
+- ![](specFunctionsIndividual.png)
+ 
+
+  - 40%: Write required set of build and testing functions useful for Team Phase work
+  - 30%: Improve RotateScale to comply with Issie Coding Guidelines [here](https://github.com/tomcl/issie/wiki/1---Coding-guidelines-for-ISSIE)
+  - 30%: Using functions above, make a coding contribution to your deliverables of the team phase work, e.g. tests, helper functions, a partly working beautify function. Functionality provided for team deliverables must be reported in code comments
+  
+
+### Team Work
+- Notes
+  - Teams should consider the balance between beautification and potential visual degradation when applying transforms.
+  - Testers are responsible for creating tests that identify cases where aggressive transforms may result in visually worse outcomes.
+  - The analysis of how D1-D3 fit together and the writing of the analysis should be done well and may be a collaborative effort.
+  - Implementers should develop heuristics that solve as many problems as possible without causing undesirable effects.
+  - Testing for D1 and D2 may involve similar work, potentially requiring fewer testers and allowing more focus on implementation.
+  - Teams have the flexibility to divide work and collaborate as they see fit, with teamwork being a significant factor in evaluation.
+  - D3 deliverable is diverse, with the first part involving automatic wire label addition based on a metric. Later, one of the students working on D3 can focus on improving symbol rendering if they enjoy coding.
+- Team deliverables (Asterisk * denotes ambitious deliverables, extension work for students who finish D1-D3)
+    - D1. `sheetAlignScale`
+    - D2. `sheetOrderFlip`
+    - D3. `sheetWireLabelSymbol`
+    - X1*. `sheetRouteSeparate`
+    - X2*. `sheetReplace`
+    - D4. Integrate all deliverables into a single working function, with tests to prove functionality
+  - 30%: Beautify code for D4, improve code in `RotateScale.fs`
+  - 30%: Test code showing D4 working in edge cases
+  - 20%: Analysis on a single Wiki page in repo on D4 tests, and how useful the tests are
+    - What are achievements (how do tests prove these)?
+    - What are additional problems (X1,X2) addressed and diagnosed, and what tests show proof?
+    - What artifacts and other issues remain (show tests that fail)?
+  - 20%: Teamwork and integration, communication, adapting teams to optimise deliverables, smooth completion of D4. Makrs will be awarded based on team contribution
+  - 
+
+
+## Repo Management
+- [x] Appoint a git master to make a private fork of issie and give all students + Prof read/write access
+- [ ] On each repo each student must create own branch called `indiv-<login>` where `<login>` is the student's Imperial login
+- Each student clones team repo locally, owrk on their own branch
+- At marking deadline, create a new branch called `mark-<login>` that is a copy of `indiv-<login>`. Keep the new `mark-<login>` untouched after deadline
+- [ ] At start of team work, create a new branch `team`
+  - Can rename individual deliverable modules so each student has work in a separate module on their own branch
+  - Merge rotateScale work, either cut and paste or merge
+  - Make decisions for which teammate's helper function to use
+- [ ] All team members create a branch `team-dev-<login>` which is a copy of `team`, develop their branch, **rebase PR** periodically back into `team` 
+- [ ] At the end of the project, merge all branches into `team` and submit for marking
+- [ ] Make new branch for `team` called `team-mark` and submit
+`
+
+## Links
+[Ed main link](https://edstem.org/us/courses/51379/discussion/4299584)
+[Repo Management](https://edstem.org/us/courses/51379/discussion/4307114)
+[Project Spec (requires login)](https://intranet.ee.ic.ac.uk/t.clarke/hlp/images/project2024%20specification.pdf)
+
+*Below is the past readme from the repo*
+
+---
+
 # Issie - an Interactive Schematic Simulator with Integrated Editor
 
 Issie (Interactive Schematic Simulator with Integrated Editor) is an application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues. Issie is developed and actively used in teaching at Imperial College London.

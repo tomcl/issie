@@ -48,7 +48,7 @@ Note: There are 6 members, so 3 students doing 3 distinct deliverables, and 3 st
     - What are additional problems (X1,X2) addressed and diagnosed, and what tests show proof?
     - What artifacts and other issues remain (show tests that fail)?
   - 20%: Teamwork and integration, communication, adapting teams to optimise deliverables, smooth completion of D4. Makrs will be awarded based on team contribution
-  - 
+  - ![](spec_figure2.png)
 
 
 ## Repo Management

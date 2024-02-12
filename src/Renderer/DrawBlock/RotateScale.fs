@@ -35,7 +35,7 @@ type WireSymbols =
       SymB: Symbol
       Wire: Wire }
 
-/// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
+/// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo. TODO: Martin
 /// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
 let makePortInfo (sym: Symbol) (port: Port) =
     let side = getSymbolPortOrientation sym port

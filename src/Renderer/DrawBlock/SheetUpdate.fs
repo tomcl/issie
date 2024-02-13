@@ -573,25 +573,25 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             
             printfn "include_path: %s" include_path
 
-            let pcf,deviceType,devicePackage =
+            let pcf,deviceType,devicePackage,USBdevice =
                 match model.DebugDevice, profile with
                 |Some "IceStick",Verilog.Release -> 
-                    $"{include_path}/icestick.pcf", "--hx1k", "tq144"
+                    $"{include_path}/icestick.pcf", "--hx1k", "tq144", "i:0x0403:0x6010"
                 
                 |Some "IceStick",Verilog.Debug -> 
-                    $"{include_path}/icestick_debug.pcf", "--hx1k", "tq144"
+                    $"{include_path}/icestick_debug.pcf", "--hx1k", "tq144", "i:0x0403:0x6010"
                 
                 |Some "IssieStick-v0.1", Verilog.Release -> 
-                    $"{include_path}/issiestick-0.1.pcf", "--hx4k", "tq144"
+                    $"{include_path}/issiestick-0.1.pcf", "--hx4k", "tq144", "i:0x0403:0xed1c"
                 
                 |Some "IssieStick-v0.1", Verilog.Debug -> 
-                    $"{include_path}/issiestick-0.1_debug.pcf", "--hx4k", "tq144"
+                    $"{include_path}/issiestick-0.1_debug.pcf", "--hx4k", "tq144", "i:0x0403:0xed1c"
                 
                 |Some "IssieStick-v1.0", Verilog.Release -> 
-                    $"{include_path}/issiestick-1.0.pcf", "--hx8k", "bg121"
+                    $"{include_path}/issiestick-1.0.pcf", "--hx8k", "bg121", "i:0x0403:0xed1c"
                 
                 |Some "IssieStick-v1.0", Verilog.Debug -> 
-                    $"{include_path}/issiestick-1.0_debug.pcf", "--hx8k", "bg121"
+                    $"{include_path}/issiestick-1.0_debug.pcf", "--hx8k", "bg121", "i:0x0403:0xed1c"
                 
                 |_,_ -> failwithf "Undefined device used in compilation!"
             
@@ -601,7 +601,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 | Synthesis     -> "yosys", ["-p"; $"read_verilog -I{include_path} {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
                 | PlaceAndRoute -> "nextpnr-ice40", ["--package"; $"{devicePackage}"; $"{deviceType}"; "--pcf"; $"{pcf}"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
                 | Generate      -> "icepack", [$"{path}/build/{name}.asc"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
-                | Upload        -> "iceprog", [$"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
+                | Upload        -> "iceprog", ["-d"; $"{USBdevice}"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
 
             let options = {| shell = false |} |> toPlainJsObj
             let child = node.childProcess.spawn (prog, args |> ResizeArray, options);

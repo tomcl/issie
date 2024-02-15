@@ -701,4 +701,5 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
             |> Optic.set SheetT.scalingBox_ (Some initScalingBox)
             |> Optic.set SheetT.symbols_ newSymbolMap, 
             newCmd
+//
 

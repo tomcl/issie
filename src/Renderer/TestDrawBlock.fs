@@ -356,7 +356,21 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
-    let makeTest2Circuit (andPos: XYPos) (andRotation: Rotation) (andFlip: SymbolT.FlipType) (dffRotation: Rotation) (dffFlip: SymbolT.FlipType) =
+    let makeTest2Circuit (andPos: XYPos) (*(andRotation: Rotation) (andFlip: SymbolT.FlipType) (dffRotation: Rotation) (dffFlip: SymbolT.FlipType)*) =
+        let randomSelection arr = 
+            let shuffledArray = shuffleA arr
+            shuffledArray.[0] // Take the first element from the shuffled array
+
+        // Define the arrays of all possible rotations and flips
+        let allRotations = [|Degree0;Degree90; Degree180; Degree270|]
+        let allFlips = [|SymbolT.FlipHorizontal; SymbolT.FlipVertical|]
+
+        // Use shuffleA to randomly select a rotation and flip
+        let andRotation = randomSelection allRotations
+        let dffRotation = randomSelection allRotations
+        let andFlip = randomSelection allFlips
+        let dffFlip = randomSelection allFlips
+
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (rotateSymbol "G1" andRotation)
@@ -367,24 +381,6 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
         |> getOkOrFail
-
-    let makeRandomTestCircuit (sample: XYPos) : SheetT.Model =
-        let randomSelection arr = 
-            let shuffledArray = shuffleA arr
-            shuffledArray.[0] // Take the first element from the shuffled array
-
-        // Define the arrays of all possible rotations and flips
-        let allRotations = [|Degree0; Degree90; Degree180; Degree270|]
-        let allFlips = [|SymbolT.FlipHorizontal; SymbolT.FlipVertical|]
-
-        // Use shuffleA to randomly select a rotation and flip
-        let andRotation = randomSelection allRotations
-        let dffRotation = randomSelection allRotations
-        let andFlip = randomSelection allFlips
-        let dffFlip = randomSelection allFlips
-
-        // Now call the function that places and configures symbols on the sheet
-        makeTest2Circuit sample andRotation andFlip dffRotation dffFlip
 
     let doesModelHaveOverlaps (sheet: SheetT.Model) : bool =
         let boxes =
@@ -492,7 +488,7 @@ module HLPTick3 =
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
+                (Asserts.failOnAllTests)
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -557,7 +553,7 @@ module HLPTick3 =
                 "Grid positioned AND + DFF: fail on wire intersect symbol"
                 firstSample
                 filteredGridGenerator // Directly use the Gen<XYPos> grid generator
-                makeRandomTestCircuit 
+                makeTest2Circuit 
                 Asserts.failOnWireIntersectsSymbol  
                 dispatch
             |> recordPositionInTest testNum dispatch

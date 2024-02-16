@@ -233,15 +233,29 @@ module HLPTick3 =
                     }
                 placeSymbol symLabel (Custom ccType) position model
             
-        
-
-        // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+        // Rotate a symbol     
+        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : SheetT.Model =
+            let symLabel = String.toUpper symLabel
+            let symbols = model.Wire.Symbol.Symbols
+            match mapValues symbols |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+            | Some sym ->
+                let rotatedSymbol = SymbolResizeHelpers.rotateSymbol rotate sym
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) rotatedSymbol
+                |> SheetUpdate.updateBoundingBoxes
+            | None -> model
 
         // Flip a symbol
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+            let symLabel = String.toUpper symLabel
+            let symbols = model.Wire.Symbol.Symbols
+            match mapValues symbols |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+            | Some sym ->
+                let flippedSymbol = SymbolResizeHelpers.flipSymbol flip sym
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) flippedSymbol
+                |> SheetUpdate.updateBoundingBoxes
+            | None -> model
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -340,6 +354,7 @@ module HLPTick3 =
 
     let doesModelHaveOverlaps (sheet: SheetT.Model) : bool =
         let boxes =
+            (*Symbol.getBoundingBox(GateN(And, 2))*)
             mapValues sheet.BoundingBoxes
             |> Array.toList
             |> List.mapi (fun n box -> n, box)
@@ -350,11 +365,13 @@ module HLPTick3 =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
         
     let gridGenerator =
-        let genX = GenerateData.fromList [-100..20..100] |> GenerateData.map float
-        let genY = GenerateData.fromList [-100..20..100] |> GenerateData.map float
+        let genX = GenerateData.fromList [-100..10..100] |> GenerateData.map float
+        let genY = GenerateData.fromList [-100..10..100] |> GenerateData.map float
 
         // Adjust the product function to add the middleOfSheet position to each combination of x and y
         GenerateData.product (fun x y -> {X = middleOfSheet.X + x; Y = middleOfSheet.Y + y}) genX genY
@@ -366,13 +383,52 @@ module HLPTick3 =
         // Check if the temporary sheet has any overlapping symbols.
         not (doesModelHaveOverlaps tempSheet)
         ) gridGenerator
-       
 
+    let randomRotationGenerator = 
+        let allRotations = [|Degree0; Degree90; Degree180; Degree270|] 
+        allRotations |> shuffleA |> fromArray
 
-
-
-
-
+    let randomFlipGenerator = 
+        // Assuming FlipType is an enum with values like NoFlip, HorizontalFlip, VerticalFlip
+        // Replace `allFlips` with actual values from your SymbolT.FlipType.
+        let allFlips = [|SymbolT.FlipHorizontal; SymbolT.FlipVertical|]
+        allFlips |> shuffleA |> fromArray
+    
+    // Modify this function to accept rotation and flip parameters
+    let makeTest1Circuit (andPos: XYPos) (andRotation: Rotation) (andFlip: SymbolT.FlipType) (dffRotation: Rotation) (dffFlip: SymbolT.FlipType) =
+        initSheetModel
+        |> placeSymbolWithTransform "G1" (GateN(And,2)) andPos andRotation andFlip
+        |> Result.bind (placeSymbolWithTransform "FF1" DFF middleOfSheet dffRotation dffFlip)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
+        |> getOkOrFail
+    
+    // Define a function that wraps the rotation and flipping of symbols before placement
+    let placeSymbolWithTransform symLabel symType pos rotation flip model =
+        model
+        |> rotateSymbol symLabel rotation
+        |> flipSymbol symLabel flip
+        |> placeSymbol symLabel symType pos
+    
+    // Use product to combine position, rotation, and flip generators to create test cases
+    let testCasesGenerator = 
+        GenerateData.product (fun pos (andRotation, andFlip) (dffRotation, dffFlip) -> 
+            (pos, andRotation, andFlip, dffRotation, dffFlip))
+            filteredGridGenerator
+            (GenerateData.product (fun rotation flip -> (rotation, flip)) randomRotationGenerator randomFlipGenerator)
+            (GenerateData.product (fun rotation flip -> (rotation, flip)) randomRotationGenerator randomFlipGenerator)
+  
+    let makeTest2Circuit (andPos: XYPos) (andRotation: Rotation) (andFlip: SymbolT.FlipType) (dffRotation: Rotation) (dffFlip: SymbolT.FlipType) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (rotateSymbol "G1" andRotation)
+        |> Result.bind (flipSymbol "G1" andFlip)
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (rotateSymbol "FF1" dffRotation)
+        |> Result.bind (flipSymbol "FF1" dffFlip)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
+        |> getOkOrFail
 
 
 

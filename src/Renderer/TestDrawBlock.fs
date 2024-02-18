@@ -151,9 +151,9 @@ module HLPTick3 =
 
         /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
         /// if this is possible, otherwise return segVecs unchanged.
-        /// Index must be in range 1..segVecs
+        /// Index must be in range >= 1
         let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-            if segVecs[index] =~ XYPos.zero
+            if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
             then
                 segVecs[0..index-2] @
                 [segVecs[index-1] + segVecs[index+1]] @
@@ -339,6 +339,16 @@ module HLPTick3 =
         |> getOkOrFail
 
 
+    let simpleInputsMUX (inputPos: XYPos) =
+        initSheetModel
+        |> placeSymbol "I1" (Input1(1, None)) {X = inputPos.X; Y = inputPos.Y - 40.0}
+        |> Result.bind (placeSymbol "I2" (Input1(1, None)) {X = inputPos.X; Y = inputPos.Y + 40.0}) // swap the order for wire crossing?
+        |> Result.bind (placeSymbol "MUX" (Mux2) middleOfSheet)
+        |> Result.bind (placeWire (portOf "I1" 0) (portOf "MUX" 0))
+        |> Result.bind (placeWire (portOf "I2" 0) (portOf "MUX" 1))
+        |> getOkOrFail
+
+
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -441,7 +451,7 @@ module HLPTick3 =
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
                 horizLinePositions
-                makeTest1Circuit
+                simpleInputsMUX
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch

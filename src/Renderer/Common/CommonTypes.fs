@@ -359,9 +359,10 @@ module CommonTypes
              member this.BottomRight() = this.TopLeft + {X=this.W; Y=this.H}
              member this.RightEdge() = this.TopLeft.X + this.W
              member this.BottomEdge() = this.TopLeft.Y + this.H
-
+             member this.BBSize() = {X=this.W;Y=this.H}
 
     let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> {a with TopLeft = s})
+    let size_ = Lens.create (fun (a:BoundingBox) -> a.BBSize()) (fun s a -> {a with W = s.X; H = s.Y})
 
     /// All the info needed to display a symbol not provided by otehr fields in its Component.
     /// This is used only to save geometric info from schematic with component when sheet is

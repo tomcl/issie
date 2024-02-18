@@ -281,6 +281,141 @@ module Misc =
         Extractor.debugChangedConnections <- []
 
 
+module TestDraw =
+    open TestDrawBlock
+    open EEExtensions
+    open Optics
+    open Optics.Operators
+    open DrawHelpers
+    open Helpers
+    open CommonTypes
+    open ModelType
+    open DrawModelType
+    open Sheet.SheetInterface
+    open GenerateData
+    open TestLib
+    open TestDrawBlock.HLPTick3.Builder
+    open TestDrawBlock.HLPTick3
+
+    /// create an initial empty Sheet Model 
+    let initSheetModel = DiagramMainView.init().Sheet
+
+
+
+    /// demo test circuit consisting of a DFF & And gate
+    /// andPos - controls posn of AND gate
+    /// TODO - this function is unsafe - it should return a result
+    let makeTest1Circuit (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+
+    /// Demo circuit with flips and rotations of DFF and AND gate.
+    /// Parameters control flip and rotation of DFF and AND gate.
+    /// andPos controls position of AND gate.
+    /// TODO - this function is unsafe - it should return a result
+    let makeAdvTestCircuit sample =
+        let (flipDFF, (flipAnd, (rotateDFF, (rotateAnd, andPos)))) = sample
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.map (rotateSymbol "G1" rotateAnd)
+        |> match flipAnd with
+            | Some f -> Result.map (flipSymbol "G1" f)
+            | None -> id
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.map (rotateSymbol "FF1" rotateDFF)
+        |> match flipDFF with
+            | Some f -> Result.map (flipSymbol "FF1" f)
+            | None -> id
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+
+    /// Same as makeAdvtestCircuit but uses anonymous record for sample.
+    /// not clear whetehr this is a good idea in this case.
+    /// Demo circuit with flips and rotations of DFF and AND gate.
+    /// Parameters control flip and rotation of DFF and AND gate.
+    /// andPos controls position of AND gate.
+    /// TODO - this function is unsafe - it should return a result
+    let makeAdvTestCircuit1 (
+                sample: {|
+                    FlipDFF: SymbolT.FlipType option;
+                    FlipAnd: SymbolT.FlipType option;
+                    RotateDFF: Rotation;
+                    RotateAnd: Rotation;
+                    AndPos: XYPos
+                |}) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) sample.AndPos
+        |> Result.map (rotateSymbol "G1" sample.RotateAnd)
+        |> match sample.FlipAnd with
+            | Some f -> Result.map (flipSymbol "G1" f)
+            | None -> id
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.map (rotateSymbol "FF1" sample.RotateDFF)
+        |> match sample.FlipDFF with
+            | Some f -> Result.map (flipSymbol "FF1" f)
+            | None -> id
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+
+    /// Generates a Gen<> of XYPos samples on a XY grid.
+    /// m: number of grid points on each side.
+    /// grid pitch is 5 pixels (fixed).
+    /// Generated samples are filtered so that makeTest1Circuit does not
+    /// have overlapping (illegal) symbols.
+    /// TODO - make this a Constant in TestDrawblokc.Constants
+    /// TODO - makeTest1circuit should be a parameter so this can be generalised.
+    /// TODO makeTest1Circuit should return a result with error returns filtered
+    /// out from the grid.
+    let gridMaker m =
+        let coords =
+            fromList [-m..5..m]
+            |> map (fun n -> float n)
+        product (fun x y -> middleOfSheet + {X=x; Y=y}) coords coords
+        |> filter (fun pos ->
+            let sheet = makeTest1Circuit pos
+            let boxes =
+                mapValues sheet.BoundingBoxes
+                |> Array.toList
+                |> List.mapi (fun n box -> n,box)
+            List.allPairs boxes boxes 
+            |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
+            |> not
+        )
+
+    /// Sample data based on a grid of points around the sheet center,
+    /// filtered to remove samples which cause symbol-symbol intersections.
+    /// (for this test, we are only interested in symbol-segment intersections).
+    let grid70 = gridMaker 70
+    let grid100 = gridMaker 100
+
+    let makeTuple a b = (a, b)
+
+    /// Gen samples incorporating two sets of rotations, and two of flips
+    let advSamples =
+        let rots = fromList [Rotation.Degree0; Rotation.Degree90; Rotation.Degree180; Rotation.Degree270]
+        let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
+        product makeTuple rots grid100
+        |> product makeTuple rots
+        |> product makeTuple flips
+        |> product makeTuple flips
+        // This final stage makes the output more readable in an anonymous record
+        |> map (fun (flipDFF, (flipAnd, (rotateDFF, (rotateAnd, andPos)))) ->
+            {|
+                FlipDFF=flipDFF;
+                FlipAnd=flipAnd;
+                RotateDFF= rotateDFF;
+                RotateAnd=rotateAnd;
+                AndPos=andPos
+             |})
+ 
+
+
 
 
 

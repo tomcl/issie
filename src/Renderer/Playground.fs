@@ -298,7 +298,7 @@ module TestDraw =
     open TestDrawBlock.HLPTick3
 
     /// create an initial empty Sheet Model 
-    let initSheetModel = DiagramMainView.init().Sheet
+    //let initSheetModel = DiagramMainView.init().Sheet
 
 
 
@@ -404,7 +404,12 @@ module TestDraw =
         |> product makeTuple rots
         |> product makeTuple flips
         |> product makeTuple flips
-        // This final stage makes the output more readable in an anonymous record
+
+    /// as advSamples but uses an anonymous record. That should be
+    /// better but as you can see if used only once it is not obviously better!
+    let advSamples1 =
+        advSamples // convert to anonymous record using Gen.map
+                   // to map over the samples
         |> map (fun (flipDFF, (flipAnd, (rotateDFF, (rotateAnd, andPos)))) ->
             {|
                 FlipDFF=flipDFF;

@@ -418,7 +418,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | NotConnected -> ""
 
     | Not -> sprintf "assign %s = ! %s;\n" (outs 0) (ins 0)
-    | GateN (gateType, n) -> sprintf "assign %s = %s" (outs 0) (getVerilogNInputBinaryOp fc.FType ins)
+    | GateN (gateType, n) -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogNInputBinaryOp fc.FType ins)
     | DFFE
     | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
     | Counter _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 2} ? (%s{ins 1} ? %s{ins 0} : (%s{outs 0}+1'b1)) : %s{outs 0};\n"

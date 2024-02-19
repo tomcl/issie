@@ -4,16 +4,23 @@ open CommonTypes
 open DrawModelType
 
 /// key: B1R Type: R Descrip: The dimensions of a custom component symbol
-let getCustomSymbolDimensions (model:SheetT.Model) :  XYPos =
-    failwith "Not Implemented"
+let getCustomSymbolDimensions (sym: SymbolT.Symbol) :  float * float =
+    match sym.HScale with
+    | Some hScale -> 
+        match sym.VScale with
+        | Some vScale -> (hScale, vScale)
+        | None -> (hScale, 0.0)
+    | None -> failwith "cannot get dimensions of a non-custom symbol"
 
 /// key: B1W Type: W Descrip: The dimensions of a custom component symbol
-let writeCustomSymbolDimensions (model:SheetT.Model) :  XYPos =
-    failwith "Not Implemented"
+let writeCustomSymbolDimensions (sym: SymbolT.Symbol)(dimensions: float * float) :  SymbolT.Symbol =
+    {sym with HScale = Some (fst dimensions); VScale = Some (snd dimensions)}
 
 /// key: B2W Type: W Descrip: The position of a symbol on the sheet
-let writeSymbolPositionOnSheet (model:SheetT.Model) :  XYPos =
-    failwith "Not Implemented"
+let writeSymbolPositionOnSheet (pos: XYPos) (symId: ComponentId) (sheetModel: SheetT.Model) : SheetT.Model  =
+    let symModel = sheetModel.Wire.Symbol.Symbols[symId]
+    let newSymModel = {symModel with Pos = pos}
+    {sheetModel with Wire.Symbol.Symbols = sheetModel.Wire.Symbol.Symbols.Add(symId, newSymModel)}
 
 /// key: B3R Type: R Descrip: Read the order of ports on a specified side of a symbol
 let getPortOrder (model:SheetT.Model) :  XYPos =
@@ -32,7 +39,7 @@ let writeReverseStateOfInputsMux2 (model:SheetT.Model) :  XYPos=
     failwith "Not Implemented"
 
 /// key: B5R type: R Descrip: The position of a port on the sheet. It cannot directly be written
-let getPortPositionOnSheet (portID:PortId) (model:SheetT.Model) :  XYPos=
+let getPortPositionOnSheet (connectionId: ConnectionId) (portId:PortId) (model:SheetT.Model) :  XYPos =
     failwith "Not Implemented"
 
 /// key: B6R Type: R Descrip: The Bounding box of a symbol outline (position is contained in this)
@@ -40,21 +47,20 @@ let getSymbolBoudingboxOutline (model:SheetT.Model) :  XYPos=
     failwith "Not Implemented"
 
 /// key: B7R Type: R Descrip: The rotation state of a symbol
-let getSymbolRotateState (model:SheetT.Model) :  XYPos=
-    failwith "Not Implemented"
+let getSymbolRotateState (sym: SymbolT.Symbol) : Rotation=
+    sym.STransform.Rotation
 
 /// key: B7W Type: W Descrip: The rotation state of a symbol
-let writeSymbolRotateState (model:SheetT.Model) :  XYPos=
-    failwith "Not Implemented"
+let writeSymbolRotateState (rotation: Rotation) (sym: SymbolT.Symbol) : SymbolT.Symbol=
+    {sym with STransform = {sym.STransform with Rotation = rotation}}
 
 /// key: B8R Type: R Descrip: The flip state of a symbol
-let getSymbolFlipState (model:SheetT.Model) :  XYPos=
-    failwith "Not Implemented"
+let getSymbolFlipState (sym: SymbolT.Symbol) : bool =
+    sym.STransform.Flipped
 
 /// key: B8W Type: W Descrip: The flip state of a symbol
-let writeSymbolFlipState (model:SheetT.Model) :  XYPos=
-    failwith "Not Implemented"
-
+let writeSymbolFlipState (sym: SymbolT.Symbol) (filp: bool) :  SymbolT.Symbol=
+    {sym with STransform = {sym.STransform with Flipped = filp}}
 
 /// key: T1R Type: R Descrip: The number of pairs of symbols that intersect each other. See Tick3 for a related function.
 /// Count over all pairs of symbols.

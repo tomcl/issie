@@ -759,7 +759,7 @@ let importSheet model dispatch =
                     renameSheetBeforeImportPopup path model dispatch
 
                 | false -> 
-                
+                    saveOpenFileActionWithModelUpdate model dis
                     importSheetPopup projectDir paths sourceProjectDir dispatch
         )
 

@@ -881,6 +881,10 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             Some (newLdc,newState)
 
 /// Save the sheet currently open, return updated model
+/// dispatch not needed.
+/// currently errors in saving are not processed: because
+/// without dispatch we cannot add an alert.
+/// this could be changed by using the Notification field in the returned model
 let saveOpenFileToModel model =
     match model.Sheet.GetCanvasState (), model.CurrentProj with
     | _, None -> None
@@ -956,29 +960,6 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     |> dispatch
     dispatch FinishUICmd
     opt
-
-/// save current open file, returning the updated model
-let saveOpenFileModelUpdate (model: Model) =
-    let opt = saveOpenFileAction false model dispatch
-    let ldcOpt = Option.map fst opt
-    let state = Option.map snd opt |> Option.defaultValue ([],[])
-    match model.CurrentProj with
-    | None -> failwithf "What? Should never be able to save sheet when project=None"
-    | Some p -> 
-        // update loaded components for saved file
-        updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
-        |> (fun lc -> {p with LoadedComponents=lc})
-        |> SetProject
-        |> dispatch
-
-    SetHasUnsavedChanges false
-    |> JSDiagramMsg
-    |> dispatch
-    dispatch FinishUICmd
-    opt
-
-
-
 
 
 /// Open the specified file, saving the current file if needed.

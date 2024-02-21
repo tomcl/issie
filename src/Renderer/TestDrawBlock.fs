@@ -1,7 +1,7 @@
 ﻿module TestDrawBlock
 open GenerateData
 open Elmish
-
+open SheetBeautifyHelpers
 
 //-------------------------------------------------------------------------------------------//
 //--------Types to represent tests with (possibly) random data, and results from tests-------//
@@ -233,10 +233,17 @@ module HLPTick3 =
                     }
                 placeSymbol symLabel (Custom ccType) position model
             
+        let getSymId (symLabel: string) (symModel: SymbolT.Model) =
+            mapValues symModel.Symbols
+            |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+            |> function | Some x -> x.Id | None -> failwith "Can't find symbol with label '{symPort.Label}'"
         
-
+        let getSym (symLabel: string) (model: SheetT.Model)  =
+            let symId = getSymId symLabel model.Wire.Symbol
+            Map.tryFind symId model.Wire.Symbol.Symbols
         // Rotate a symbol
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+            let symId = getSymId symLabel model.Wire.Symbol
             failwithf "Not Implemented"
 
         // Flip a symbol
@@ -328,6 +335,12 @@ module HLPTick3 =
     let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
+
+    let AroundPositions = 
+        let xrange = fromList [-100..40..100]
+        let yrange = fromList [-100..40..100]
+        GenerateData.product (fun x y -> x,y) xrange yrange
+        |> map (fun n -> middleOfSheet + {X=float (fst n); Y=float (snd n)})
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -445,6 +458,76 @@ module HLPTick3 =
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
+        
+        let test5 testNum firstSample dispatch =
+            let testsym = getSym "G1" (makeTest1Circuit {X=0.;Y=0.})
+            
+            let rot = 
+                match testsym with
+                | Some testsym -> Some (getSymbolRotation testsym)
+                | _ -> None
+            
+            match rot with 
+                | Some rot -> 
+                    match rot with
+                    | Degree0 -> printf "Degree0"
+                    | Degree90 -> printf "Degree90"
+                    | Degree180 -> printf "Degree180"
+                    | Degree270 -> printf "Degree270"
+                | None -> printf "None"
+            ()
+        
+        let test6 testNum firstSample dispatch =
+            let testsym = getSym "G1" (makeTest1Circuit {X=0.;Y=0.})
+            
+            let rot = 
+                match testsym with
+                | Some testsym -> Some (getSymbolFlipped testsym)
+                | _ -> None
+            
+            match rot with 
+                | Some rot -> 
+                    match rot with
+                    | true -> printf "Flipped"
+                    | false -> printf "Not Flipped"
+                | None -> printf "None"
+            ()
+        
+        let test7 testNum firstSample dispatch =
+            let testsym = getSym "G1" (makeTest1Circuit {X=0.;Y=0.}) // Hypothetical function and symbol for demonstration
+            
+            // Using pattern matching to handle an optional testsym
+            match testsym with
+            | Some testsym -> 
+                let (width, height) = getSymbolDimensions testsym
+                printfn "Width: %f, Height: %f" width height
+            | None -> 
+                printfn "Symbol not found"
+            ()
+        
+        let test8 testNum firstSample dispatch =
+            let countPairTest (sample: int) (sheet: SheetT.Model) = 
+                let length = countSymbolIntersectingWire sheet
+                // printfn "Number of intersecting pairs: %d" length
+                if (length > 0) then
+                    Some $"Wire intersects a symbol on {sample} with number {length}"
+                else
+                    None
+
+            runTestOnSheets
+                "Wire intersects symbol test"
+                firstSample
+                AroundPositions
+                makeTest1Circuit
+                countPairTest
+                dispatch
+            |> recordPositionInTest testNum dispatch
+        
+            // let testmodel = makeTest1Circuit {X=60.;Y=60.} // Hypothetical function and symbol for demonstration
+            // let length = countIntersectingPairs testmodel
+            // // Using pattern matching to handle an optional testsym
+            // printfn "Number of intersecting pairs: %d" length
+            // ()
 
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
@@ -456,12 +539,11 @@ module HLPTick3 =
                 "Test2", test2 // example
                 "Test3", test3 // example
                 "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
+                "Test5", test5
+                "Test6", test6
+                "Test7", test7
+                "Test8", test8
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
             ]
 
         /// Display the next error in a previously started test

@@ -480,6 +480,63 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
                 ()
         | _ -> ()
 
+/// Write Loadedcomponent comp to a backup file if there has been any change.
+/// Overwrite the existing backup file only if it is a small, and recent, change.
+/// Parameters determine thresholds of smallness and recency
+/// return () - ignore errors
+let writeComponentToBackupFileNow (numCircuitChanges: int) (numHours:float) comp = 
+    let nSeq, backupFileName, backFilePath =
+        match readLastBackup comp with
+        | Some( n, fp, path) -> n+1,fp, path
+        | None -> 0, "", pathJoin [|comp.FilePath; "backup"|]
+    //printfn "seq=%d,name=%s,path=%s" nSeq backupFileName backFilePath
+    let wantToWrite, oldFile =
+        if backupFileName = "" then
+            true, None
+        else
+            let oldBackupFile = pathJoin [|backFilePath ; backupFileName|]
+            match tryLoadComponentFromPath (oldBackupFile) with
+            | Ok comp' ->
+                if not (compareIOs comp comp') then
+                    true, None // need to save, to a new backup file
+                elif compareCanvas 10000. comp.CanvasState comp'.CanvasState then
+                    false, None // no need for a new backup
+                else
+                    let nComps,nConns = quantifyChanges comp' comp
+                    let interval = comp.TimeStamp - comp'.TimeStamp
+                    if interval.TotalHours > numHours || nComps + nConns  > numCircuitChanges then
+                        true, None
+                    else
+                        true, Some oldBackupFile
+                        
+            | err -> 
+                printfn "Error: writeComponentToBackup\n%A" err
+                true, None
+    if wantToWrite then
+        let timestamp = System.DateTime.Now
+        let backupPath =
+                // work out new path to write based on time.
+                let path = pathWithoutExtension comp.FilePath
+                let baseN = baseName path
+                let ds = EEExtensions.String.replaceChar '/' '-' (timestamp.ToShortDateString())
+                let suffix = EEExtensions.String.replaceChar ' ' '-' (sprintf "%s-%02dh-%02dm" ds timestamp.Hour timestamp.Minute)
+                let backupDir = pathJoin [| dirName path ; "backup" |]
+                ensureDirectory <| pathJoin [| dirName path ; "backup" |]
+                pathJoin [| dirName path ; "backup" ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
+        // write the new backup file
+        {comp with 
+            TimeStamp = timestamp
+            FilePath = backupPath}
+        |> writeComponentToFile
+        |> ignore
+        // if necessary delete the old backup file
+        match oldFile with
+        | Some oldPath when oldPath <> backupPath ->
+            if Node.Api.fs.existsSync (Fable.Core.U2.Case1 oldPath) then
+                Node.Api.fs.unlink (Fable.Core.U2.Case1 oldPath, ignore) // Asynchronous.
+            else
+                ()
+        | _ -> ()
 
 //-------------------------------------------------------------------------------------------------//
 //-----------------------------------------FILE MENU HELPERS---------------------------------------//
@@ -823,6 +880,50 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             writeComponentToBackupFile 4 1. newLdc dispatch
             Some (newLdc,newState)
 
+/// Save the sheet currently open, return updated model
+let saveOpenFileToModel model =
+    match model.Sheet.GetCanvasState (), model.CurrentProj with
+    | _, None -> None
+    | canvasState, Some project ->
+        // "DEBUG: Saving Sheet"
+        // printfn "DEBUG: %A" project.ProjectPath
+        // printfn "DEBUG: %A" project.OpenFileName
+        let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
+        let sheetInfo = {Form = ldc.Form; Description = ldc.Description} //only user defined sheets are editable and thus saveable
+        let savedState = canvasState, getSavedWave model,(Some sheetInfo)
+        saveStateToFile project.ProjectPath project.OpenFileName savedState |> ignore
+        removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
+        let origLdComp =
+            project.LoadedComponents
+            |> List.find (fun lc -> lc.Name = project.OpenFileName)
+        let savedWaveSim =
+            Map.tryFind project.OpenFileName model.WaveSim
+            |> Option.map getSavedWaveInfo
+        let (SheetInfo:SheetInfo option) = match origLdComp.Form with |None -> None |Some form -> Some {Form=Some form;Description=origLdComp.Description}
+        let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
+        let sModel, newState =
+            canvasState
+            |> (fun (comps, conns) ->
+                let sModel, comps = 
+                    ((model.Sheet.Wire.Symbol,[]), comps)
+                    ||> List.fold (fun (sModel, newComps) comp -> 
+                        match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
+                        | Some newRam -> 
+                            // TODO: create consistent helpers for messages
+                            SymbolUpdate.writeMemoryType sModel (ComponentId comp.Id) (newRam.Type), (newRam :: newComps)                            
+                        | _ -> sModel, comp :: newComps)
+                sModel, (comps,conns))
+        writeComponentToBackupFileNow 4 1. newLdc
+        let newLdc' = {newLdc with CanvasState=newState}
+        let project' =
+            project
+            |> Optic.set (loadedComponentOf_ project.OpenFileName) newLdc'
+        model
+        |> Optic.set (sheet_ >-> SheetT.symbol_) sModel
+        |> Optic.set currentProj_ (Some project')
+        |> Some
+        
+
 let saveOpenProjectInNewFormat (model: Model) =
     match model.CurrentProj with
     | None -> failwith "No opened project"
@@ -856,7 +957,25 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     dispatch FinishUICmd
     opt
 
+/// save current open file, returning the updated model
+let saveOpenFileModelUpdate (model: Model) =
+    let opt = saveOpenFileAction false model dispatch
+    let ldcOpt = Option.map fst opt
+    let state = Option.map snd opt |> Option.defaultValue ([],[])
+    match model.CurrentProj with
+    | None -> failwithf "What? Should never be able to save sheet when project=None"
+    | Some p -> 
+        // update loaded components for saved file
+        updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
+        |> (fun lc -> {p with LoadedComponents=lc})
+        |> SetProject
+        |> dispatch
 
+    SetHasUnsavedChanges false
+    |> JSDiagramMsg
+    |> dispatch
+    dispatch FinishUICmd
+    opt
 
 
 

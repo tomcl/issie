@@ -601,7 +601,8 @@ let pathsWithDependencies destProjectDir paths sourceProjectDir =
         (path, dependencies)
     )
 
-/// when sheet selected for import is from current directory, show popup asking user to rename the file 
+/// When sheet selected for import is from current directory,
+/// show popup asking user to rename the file 
 let renameSheetBeforeImportPopup oldPath model dispatch =
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: renameSheetBeforeImport called when no project is currently open"
@@ -757,9 +758,11 @@ let importSheet model dispatch =
                 match projectDir = sourceProjectDir with
                 | true ->
                     renameSheetBeforeImportPopup path model dispatch
-
                 | false -> 
-                    saveOpenFileActionWithModelUpdate model dis
+                    match saveOpenFileToModel model with
+                      | Some {CurrentProj = Some p} ->
+                        dispatch <| SetProject p
+                      | _ -> ()
                     importSheetPopup projectDir paths sourceProjectDir dispatch
         )
 

@@ -47,9 +47,9 @@ let writeReverseStateOfInputsMux2 (sym: Symbol) (reverseStateOfInput: bool optio
     {sym with ReversedInputPorts = reverseStateOfInput}
 
 /// key: B5R type: R Descrip: The position of a port on the sheet. It cannot directly be written
-let getPortPositionOnSheet (portId: PortId) (model:SheetT.Model) :  XYPos =
+let getPortPositionOnSheet (portId: PortId) (sheetModel:SheetT.Model) :  XYPos =
     getPortIdStr portId
-    |> getPortLocation None model.Wire.Symbol
+    |> getPortLocation None sheetModel.Wire.Symbol
 
 
 
@@ -75,28 +75,38 @@ let writeSymbolFlipState (sym: SymbolT.Symbol) (filp: bool) :  SymbolT.Symbol=
 
 /// key: T1R Type: R Descrip: The number of pairs of symbols that intersect each other. See Tick3 for a related function.
 /// Count over all pairs of symbols.
-let getIntersectingSymbolsCount (model:SheetT.Model) : int =
-    failwith "Not Implemented"
+let getIntersectingSymbolsCount (sheetModel:SheetT.Model) : int =
+    let boxes =
+        Helpers.mapValues sheetModel.BoundingBoxes
+        |> Array.toList
+        |> List.mapi (fun n box -> n,box)
+    List.allPairs boxes boxes
+    |> List.filter (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
+    |> List.length
+
 
 /// key: T2R Type: R Descrip: The number of distinct wire visible segments that intersect with one or more symbols.
 /// See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments.
-let getIntersectingWireSegmentsCount (model:SheetT.Model) : int =
+let getIntersectingWireSegmentsCount (sheetModel:SheetT.Model) : int =
     failwith "Not Implemented"
 
 /// key: T3R Type: R Descrip: The number of distinct pairs of segments that cross each other at right angles. 
 /// Does not include 0 length segments or segments on same net intersecting at one end, 
 /// or segments on same net on top of each other. Count over whole sheet.
-let getRightAngleCrossingSegmentsCount (model:SheetT.Model) : int =
+let getRightAngleCrossingSegmentsCount (sheetModel:SheetT.Model) : int =
+    // BusWire.getASegmentFromId
+    // BusWire.getSegmentOrientation
+    
     failwith "Not Implemented"
 
 /// key: T4R Type: R Sum of wiring segment length, counting only one when there are N same-net 
 /// segments overlapping (this is the visible wire length on the sheet). 
 /// Count over whole sheet.
-let getVisibleWireLength (model:SheetT.Model) : float =
+let getVisibleWireLength (sheetModel:SheetT.Model) : float =
     failwith "Not Implemented"
 
 /// key: T5R Type: R Descrip: Number of visible wire right-angles. Count over whole sheet.
-let getVisibleWireRightAnglesCount (model:SheetT.Model) : int =
+let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
     failwith "Not Implemented"
 
 /// key: T6R Type: R Descrip: The zero-length segments in a wire with non-zero segments on either side that have 
@@ -106,5 +116,5 @@ let getVisibleWireRightAnglesCount (model:SheetT.Model) : int =
 /// cause it. Count over the whole sheet. Return from one function a list of all the 
 /// segments that retrace, and also a list of all the end of wire segments that retrace so 
 /// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
-let getRetracingSegmentsCount (model:SheetT.Model) : int =
+let getRetracingSegmentsCount (sheetModel:SheetT.Model) : int =
     failwith "Not Implemented"

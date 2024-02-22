@@ -137,3 +137,61 @@ let symbolFlipLens : Lens<Symbol, bool> =
     (get, set)
 
 
+// T5R - Number of visible wire right-angles. Count over whole sheet.
+let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
+
+    let wire = model.Wire.Wires[wId] // get wire from model
+
+    /// helper to match even and off integers in patterns (active pattern)
+    let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
+
+    /// Convert seg into its XY Vector (from start to end of segment).
+    /// index must be the index of seg in its containing wire.
+    let getSegmentVector (index:int) (seg: BusWireT.Segment) =
+        // The implicit horizontal or vertical direction  of a segment is determined by 
+        // its index in the list of wire segments and the wire initial direction
+        match index, wire.InitialOrientation with
+        | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
+        | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
+
+    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
+    /// if this is possible, otherwise return segVecs unchanged.
+    /// Index must be in range 1..segVecs
+    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int) =
+        if index > 0 && index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero then
+            let before = segVecs.[0..index-2]
+            let coalesced = segVecs.[index-1] + segVecs.[index+1]
+            let after = segVecs.[index+2..]
+            before @ [coalesced] @ after
+        else
+            segVecs
+
+
+    wire.Segments
+    |> List.mapi getSegmentVector
+    |> (fun segVecs ->
+            (segVecs,[1..segVecs.Length-2])
+            ||> List.fold tryCoalesceAboutIndex)
+
+
+let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
+    // printfn "countWireRightAngles: wId: %A" wId
+    let segments = visibleSegments wId model
+    // printfn "segments:" 
+    let numSegments = List.length segments
+    // printfn "numSegments: %A" numSegments
+    if numSegments > 0 then numSegments - 1 else 0
+    // The check `if numSegments > 0 then ... else 0` ensures that wires with no visible segments
+    // do not contribute to the right angle count negatively or incorrectly.
+
+/// Sums up the right angles from all wires in the model.
+let countTotalRightAngles (model: SheetT.Model) =
+    // printfn "countTotalRightAngles"
+    model.Wire.Wires
+    |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
+    // |> Map.fold (fun acc key _ -> 
+    //     let newAcc = acc + countWireRightAngles key model
+    //     // Print the updated accumulator value
+    //     printfn "Current total right angles: %d" newAcc
+    //     newAcc
+    // ) 0

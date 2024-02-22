@@ -50,15 +50,59 @@ let setSymPortOrder (sym : SymbolT.Symbol) (side : Edge) (orderedPorts : string 
 
 // B4R, B4W RW Low 
 // The reverses state of the inputs of a MUX2
+let getMux2IsReversed (sym : SymbolT.Symbol) : bool option =
+    sym.ReversedInputPorts
+
+let setMux2IsReversed (sym : SymbolT.Symbol) (reverseState : bool option) : SymbolT.Symbol =
+    { sym with ReversedInputPorts = reverseState }
 
 // B5R R Low 
 // The position of a port on the sheet. It cannot directly be written.
-
+let getPortPosOnSheet (sym : SymbolT.Symbol) (portId : string) : XYPos =
+    let port = sym.Component.getPort(PortId portId)
+    match port with
+    | Some port -> getPortPos sym port
+    | None -> failwithf "Port with id %s not found in symbol" portId
+    
 // B6R R Low 
 // The Bounding box of a symbol outline (position is contained in this)
+let getSymOutlineBoundingBox (sym : SymbolT.Symbol) : BoundingBox =
+    getSymbolBoundingBox sym
 
 // B7R, B7W RW Low 
 // The rotation state of a symbol
+let getSymRotation (sym : SymbolT.Symbol) : Rotation =
+    sym.STransform.Rotation
+
+let setSymRotation (sym : SymbolT.Symbol) (rotation : Rotation) : SymbolT.Symbol =
+    { sym with STransform = { sym.STransform with Rotation = rotation } }
 
 // B8R, B8W RW Low 
 // The flip state of a symbol
+let isSymFlip (sym : SymbolT.Symbol) : bool =
+    sym.STransform.Flipped
+
+let setSymFlip (sym : SymbolT.Symbol) (isFlipped : bool) : SymbolT.Symbol =
+    { sym with STransform = { sym.STransform with Flipped = isFlipped } }
+
+// T1R R Low 
+// The number of pairs of symbols that intersect each other. See Tick3 for a related
+// function. Count over all pairs of symbols.
+
+
+// T2R R Low 
+// The number of distinct wire visible segments that intersect with one or more
+// symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire
+// segments.
+
+
+// T3R R Low 
+// The number of distinct pairs of segments that cross each other at right angles. Does
+// not include 0 length segments or segments on same net intersecting at one end, or
+// segments on same net on top of each other. Count over whole sheet.
+
+
+// T4R R Medium 
+// Sum of wiring segment length, counting only one when there are N same-net
+// segments overlapping (this is the visible wire length on the sheet). Count over whole
+// sheet.

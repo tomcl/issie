@@ -417,12 +417,19 @@ module HLPTick3 =
             
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
+            let testTotalWireLength (sample: int) (model: SheetT.Model) = 
+                let length = totalVisibleWiringLength model
+                if (length <> 0) then
+                    Some $"Wire length is {length}"
+                else
+                    None
+
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 0"
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
+                testTotalWireLength
                 dispatch
             |> recordPositionInTest testNum dispatch
 

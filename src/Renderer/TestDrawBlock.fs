@@ -328,6 +328,13 @@ module HLPTick3 =
     let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
+    
+    let twoDPositions =
+        let range = [-100..40..100]
+        let positions = 
+            range
+            |> List.collect (fun x -> range |> List.map (fun y -> middleOfSheet + {X = float x; Y = float y}))
+        fromList positions
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -346,6 +353,7 @@ module HLPTick3 =
 
 
     module Asserts =
+        open SheetBeautifyHelpers
 
         (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
            It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
@@ -359,8 +367,10 @@ module HLPTick3 =
                 None
 
         /// Fails all tests: useful to show in sequence all the sheets generated in a test
-        let failOnAllTests (sample: int) _ =
-            Some <| $"Sample {sample}"
+        let failOnAllTests (sample: int) (sheet: SheetT.Model) =
+            let number = countTotalRightAngles sheet
+            printfn "Number of right angles: %d" number
+            Some <| $"Sample {sample}"  
 
         /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
         let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
@@ -401,6 +411,7 @@ module HLPTick3 =
                 | (numb, _) :: _ ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
+
             
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
@@ -445,6 +456,21 @@ module HLPTick3 =
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
+        let test5 testNum firstSample dispatch =
+            runTestOnSheets
+                "Wire intersects symbol test"
+                firstSample
+                twoDPositions
+                makeTest1Circuit
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+            // let testmodel = makeTest1Circuit {X=60.;Y=60.} // Hypothetical function and symbol for demonstration
+            // let length = countIntersectingPairs testmodel
+            // // Using pattern matching to handle an optional testsym
+            // printfn "Number of intersecting pairs: %d" length
+            // ()
 
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
@@ -455,8 +481,8 @@ module HLPTick3 =
                 "Test1", test1 // example
                 "Test2", test2 // example
                 "Test3", test3 // example
-                "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
+                "Test4", test4 //
+                "Test5", test5 // dummy test - delete line or replace by real test as needed
                 "Test6", fun _ _ _ -> printf "Test6"
                 "Test7", fun _ _ _ -> printf "Test7"
                 "Test8", fun _ _ _ -> printf "Test8"

@@ -437,7 +437,7 @@ module HLPTick3 =
         let test2 testNum firstSample dispatch =
             let testTotalRightAngleIntersect (sample: int) (model: SheetT.Model) = 
                 let length = totalRightAngleIntersect model
-                if (length <> 0) then
+                if (length <> -1) then
                     Some $"Right Angle number {length}"
                 else
                     None
@@ -445,7 +445,7 @@ module HLPTick3 =
             runTestOnSheets
                 "totalRightAngleIntersect"
                 firstSample
-                horizLinePositions
+                AroundPositions
                 makeTest1Circuit
                 testTotalRightAngleIntersect
                 dispatch

@@ -166,7 +166,7 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
 let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
     let segmentsXYPos = visibleSegments wId model
-
+    let wireStart = model.Wire.Wires.[wId].StartPos
     let addXYPos (p1: XYPos) (p2: XYPos) = 
         { X = p1.X + p2.X; Y = p1.Y + p2.Y }
 
@@ -175,7 +175,7 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
         match acc with
         | [] -> ([{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
         | _ -> (acc @ [{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
-    ) ([], { X = 0.0; Y = 0.0 })
+    ) ([], wireStart)
     |> fst
     
 
@@ -242,26 +242,46 @@ let totalVisibleWiringLength (model: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 // T3R - Number of visible wire right-angles
 let isCrossingAtRightAngle seg1 seg2 =
-    let det a b c d = a * d - b * c
+    // Determine the end points of each segment
     let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
     let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
 
-    let denominator = det (seg1.Dir.X) (-seg2.Dir.X) (seg1.Dir.Y) (-seg2.Dir.Y)
-    
-    if denominator = 0.0 then
+    // Check if both segments are vertical or horizontal
+    if (seg1.Dir.X = 0.0 && seg2.Dir.X = 0.0) || (seg1.Dir.Y = 0.0 && seg2.Dir.Y = 0.0) then
         false
     else
-        let numerator1 = det (end2.X - seg1.Start.X) (-seg2.Dir.X) (end2.Y - seg1.Start.Y) (-seg2.Dir.Y)
-        let numerator2 = det (end1.X - seg1.Start.X) (seg1.Dir.X) (end1.Y - seg1.Start.Y) (seg1.Dir.Y)
+        // Check for vertical seg1 intersecting with horizontal seg2 or vice versa
+        let isSeg1Vertical = seg1.Dir.X = 0.0
+        let seg1Range = 
+            if isSeg1Vertical then 
+                (min seg1.Start.Y end1.Y, max seg1.Start.Y end1.Y) 
+            else (min seg1.Start.X end1.X, max seg1.Start.X end1.X)
 
-        let r = numerator1 / denominator
-        let s = numerator2 / denominator
+        let seg2Range = 
+            if isSeg1Vertical then 
+                (min seg2.Start.X end2.X, max seg2.Start.X end2.X) 
+            else (min seg2.Start.Y end2.Y, max seg2.Start.Y end2.Y)
+        let seg1Pos = if isSeg1Vertical then seg1.Start.X else seg1.Start.Y
+        let seg2Pos = if isSeg1Vertical then seg2.Start.Y else seg2.Start.X
 
-        r >= 0.0 && r <= 1.0 && s >= 0.0 && s <= 1.0
+        // Check if the static position of one segment falls within the range of the other segment's start and end
+        seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
+        seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
+
+
 
 let countRightAngleIntersections segments =
     let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
     let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
+
+    // printSegVectorList verticals
+    // printfn "-----------------------------------------------------"
+    // printSegVectorList horizontals
+    // printfn "-----------------------------------------------------"
+    // printfn "-----------------------------------------------------"
+    // printfn "-----------------------------------------------------"
+    // printfn "-----------------------------------------------------"
+    // printfn "-----------------------------------------------------"
 
     let mutable count = 0
     for vSeg in verticals do
@@ -282,6 +302,14 @@ let totalRightAngleIntersect (model: SheetT.Model) =
 
     allSegments
     |> countRightAngleIntersections
+
+    // let test1 = {Start = {X=1892.500000; Y=1850.000000}; Dir = {X=0.000000; Y = -50.000000}}
+    // let test2 = {Start = {X=1892.500000; Y=1800.000000}; Dir = {X = -190.000000; Y = 0.000000}}
+
+    // if isCrossingAtRightAngle test1 test2 then
+    //     1
+    // else
+    //     0
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

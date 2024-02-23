@@ -123,8 +123,6 @@
     <Compile Include="Playground.fs" />
 
     <Compile Include="Renderer.fs" />
-
-    <Compile Include="SheetBeautifyHelpers.fs" />
   </ItemGroup>
   
   <!-- Dependencies -->

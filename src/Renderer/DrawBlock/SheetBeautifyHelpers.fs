@@ -179,7 +179,6 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
     |> fst
     
 
-
 // Step 2: Detect and remove overlapping segments
 
 // Function to determine if two segments overlap
@@ -206,6 +205,9 @@ let mergeOverlappingSegments segList =
             let mergedSegment = List.fold mergeSegments hd overlaps
             mergeRecursive (mergedSegment :: acc) nonOverlaps
     mergeRecursive [] segList |> List.rev
+
+
+
 
 // Step 3: Calculate sum of segment lengths
 
@@ -235,7 +237,51 @@ let totalVisibleWiringLength (model: SheetT.Model) =
 
 
 
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// T3R - Number of visible wire right-angles
+let isCrossingAtRightAngle seg1 seg2 =
+    let det a b c d = a * d - b * c
+    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
+    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
 
+    let denominator = det (seg1.Dir.X) (-seg2.Dir.X) (seg1.Dir.Y) (-seg2.Dir.Y)
+    
+    if denominator = 0.0 then
+        false
+    else
+        let numerator1 = det (end2.X - seg1.Start.X) (-seg2.Dir.X) (end2.Y - seg1.Start.Y) (-seg2.Dir.Y)
+        let numerator2 = det (end1.X - seg1.Start.X) (seg1.Dir.X) (end1.Y - seg1.Start.Y) (seg1.Dir.Y)
+
+        let r = numerator1 / denominator
+        let s = numerator2 / denominator
+
+        r >= 0.0 && r <= 1.0 && s >= 0.0 && s <= 1.0
+
+let countRightAngleIntersections segments =
+    let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
+    let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
+
+    let mutable count = 0
+    for vSeg in verticals do
+        for hSeg in horizontals do
+            if isCrossingAtRightAngle vSeg hSeg then
+                count <- count + 1
+    count
+
+let totalRightAngleIntersect (model: SheetT.Model) =
+    // Step 1: Extract and process segments for each wire
+    let allSegments =
+        model.Wire.Wires
+        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
+        |> List.collect (fun (wId, _) -> wireToSegments wId model) // Use 'List.collect' to flatten the lists of segments
+
+    // Step 2: Merge overlapping segments for the entire list of segments
+    // Step 3: Calculate the total length
+
+    allSegments
+    |> countRightAngleIntersections
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

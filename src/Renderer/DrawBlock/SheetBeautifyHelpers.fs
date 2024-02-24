@@ -17,7 +17,6 @@ open Sheet.SheetInterface
 open Fable.React
 open Fable.React.Props
 open Elmish
-// open HLPTick3
 
 //-----------------Module for beautify Helper functions--------------------------//
 // Typical candidates: all individual code library functions.
@@ -77,13 +76,22 @@ let portOrderLens (side: Edge) : Lens<PortMaps, string list option> =
 
 
 // B4RW - The reverses state of the inputs of a MUX2
-let mux2ReverseLens : Lens<Symbol, bool> =
-    // Getter function: gets the reverse state of the inputs of a MUX2
-    let get (sym: Symbol) = sym.Mux2.Reverse
-    // Setter function: returns a new Symbol with updated reverse state
-    let set (newReverse: bool) (sym: Symbol) = { sym with Mux2 = { sym.Mux2 with Reverse = newReverse } }
-
-    (get, set)
+// let mux2Lens: Lens<Symbol, (bool * bool) option> =
+//     (
+//         // The read function
+//         (fun symbol ->
+//             match symbol.Component.Type with
+//             | Mux2(input1, input2) -> Some(input1, input2)
+//             | _ -> None
+//         ),
+//         // The write function
+//         (fun inputsOpt symbol ->
+//             match inputsOpt, symbol.Component.Type with
+//             | Some(newInput1, newInput2), Mux2(_, _) ->
+//                 { symbol with Component = { symbol.Component with Type = Mux2(newInput1, newInput2) } }
+//             | _ -> symbol // Return the symbol unchanged if inputsOpt is None or component is not a MUX2
+//         )
+//     )
 
 
 
@@ -119,25 +127,23 @@ let readBoundingBox (symbol: Symbol) : BoundingBox =
     }
 
 // B7RW - The rotation of a symbol
-let symbolRotationLens : Lens<Symbol, float> =
-    // Getter function: gets the rotation of a symbol
-    let get (sym: Symbol) = sym.Rotation
-    // Setter function: returns a new Symbol with updated rotation
-    let set (newRotation: float) (sym: Symbol) = { sym with Rotation = newRotation }
+// let symbolRotationLens : Lens<Symbol, float> =
+//     // Getter function: gets the rotation of a symbol
+//     let get (sym: Symbol) = sym.Rotation
+//     // Setter function: returns a new Symbol with updated rotation
+//     let set (newRotation: float) (sym: Symbol) = { sym with Rotation = newRotation }
 
-    (get, set)
+//     (get, set)
 
 // B8RW - The flip state of a symbol
-let symbolFlipLens : Lens<Symbol, bool> =
-    // Getter function: gets the flip state of a symbol
-    let get (sym: Symbol) = sym.Flip
-    // Setter function: returns a new Symbol with updated flip state
-    let set (newFlip: bool) (sym: Symbol) = { sym with Flip = newFlip }
+// let symbolFlipLens : Lens<Symbol, bool> =
+//     // Getter function: gets the flip state of a symbol
+//     let get (sym: Symbol) = sym.Flip
+//     // Setter function: returns a new Symbol with updated flip state
+//     let set (newFlip: bool) (sym: Symbol) = { sym with Flip = newFlip }
 
-    (get, set)
+//     (get, set)
 
-
-// T5R - Number of visible wire right-angles. Count over whole sheet.
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
     let wire = model.Wire.Wires[wId] // get wire from model
@@ -173,11 +179,99 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
 
+// module T3R =
+//     /// Helper function transforms a list of relative vectors into a list of segments with absolute coordinates.
+//     let transformVectorsToCoordinates (startCoord: XYPos) (vectors: XYPos list) =
+//         // Auxiliary function to recursively compute the coordinates
+//         let rec computeCoords acc currentCoord vectors =
+//             match vectors with
+//             | [] -> List.rev acc // Reverse to maintain the original order
+//             | hd :: tl ->
+//                 // Calculate new coordinate by adding the vector to the current coordinate
+//                 let newCoord = currentCoord + hd
+//                 computeCoords (newCoord :: acc) newCoord tl
+//         computeCoords [startCoord] startCoord vectors
 
+//     /// Transforms a list of relative vectors into a list of segments with absolute coordinates.
+//     let transformWireSegmentsToAbsoluteMap (model: SheetT.Model) =
+//         model.Wire.Wires
+//         |> Map.fold (fun accMap (wId: ConnectionId) (wire: Wire) ->
+//             let origin = wire.StartPos
+//             let vectors = visibleSegments wId model // Assuming this returns the relative vectors
+//             let absoluteSegments = transformVectorsToCoordinates origin vectors
+//             // Add the wire ID and its segments to the map
+//             Map.add wId absoluteSegments accMap
+//         ) Map.empty
+
+open DrawModelType.BusWireT
+type SegVector = {Start: XYPos; Dir: XYPos}
+let isCrossingAtRightAngle seg1 seg2 =
+    // Determine the end points of each segment
+    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
+    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
+
+    // Check if both segments are vertical or horizontal
+    if (seg1.Dir.X = 0.0 && seg2.Dir.X = 0.0) || (seg1.Dir.Y = 0.0 && seg2.Dir.Y = 0.0) then
+        false
+    else
+        // Check for vertical seg1 intersecting with horizontal seg2 or vice versa
+        let isSeg1Vertical = seg1.Dir.X = 0.0
+        let seg1Range = 
+            if isSeg1Vertical then 
+                (min seg1.Start.Y end1.Y, max seg1.Start.Y end1.Y) 
+            else (min seg1.Start.X end1.X, max seg1.Start.X end1.X)
+
+        let seg2Range = 
+            if isSeg1Vertical then 
+                (min seg2.Start.X end2.X, max seg2.Start.X end2.X) 
+            else (min seg2.Start.Y end2.Y, max seg2.Start.Y end2.Y)
+        let seg1Pos = if isSeg1Vertical then seg1.Start.X else seg1.Start.Y
+        let seg2Pos = if isSeg1Vertical then seg2.Start.Y else seg2.Start.X
+
+        // Check if the static position of one segment falls within the range of the other segment's start and end
+        seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
+        seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
+
+let countRightAngleIntersections segments =
+    let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
+    let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
+    let mutable count = 0
+    for vSeg in verticals do
+        for hSeg in horizontals do
+            if isCrossingAtRightAngle vSeg hSeg then
+                count <- count + 1
+    count
+
+let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
+    let segmentsXYPos = visibleSegments wId model
+    let wireStart = model.Wire.Wires.[wId].StartPos
+    let addXYPos (p1: XYPos) (p2: XYPos) = 
+        { X = p1.X + p2.X; Y = p1.Y + p2.Y }
+
+    segmentsXYPos
+    |> List.fold (fun (acc: SegVector list, lastPos: XYPos) pos -> 
+        match acc with
+        | [] -> ([{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
+        | _ -> (acc @ [{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
+    ) ([], wireStart)
+    |> fst
+
+let totalRightAngleIntersect (model: SheetT.Model) =
+    // Step 1: Extract and process segments for each wire
+    let allSegments =
+        model.Wire.Wires
+        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
+        |> List.collect (fun (wId, _) -> wireToSegments wId model)
+
+
+    allSegments
+    |> countRightAngleIntersections
+
+// T5R - Number of visible wire right-angles. Count over whole sheet.
 let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
     // printfn "countWireRightAngles: wId: %A" wId
     let segments = visibleSegments wId model
-    // printfn "segments:" 
+    // printfn "segments: %A" segments
     let numSegments = List.length segments
     // printfn "numSegments: %A" numSegments
     if numSegments > 0 then numSegments - 1 else 0
@@ -195,3 +289,4 @@ let countTotalRightAngles (model: SheetT.Model) =
     //     printfn "Current total right angles: %d" newAcc
     //     newAcc
     // ) 0
+

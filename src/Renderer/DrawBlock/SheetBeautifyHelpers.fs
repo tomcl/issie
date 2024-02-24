@@ -104,27 +104,89 @@ let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, 
         (get, set)
 
 
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B2 W
+let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT.Model): SheetT.Model=
 
+    let updatedSymbol = { symbol with Pos = newPos }
+    let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+    let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+
+    updatedSheetModel
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B4 RW
+let MuxReverseLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
+    let get (model: SheetT.Model) = 
+        
+        let inputPortOption = symbol.ReversedInputPorts
+        match inputPortOption with
+        | Some state -> state
+        | None -> false
+        
+    let set (newState: bool) (model: SheetT.Model) =
+
+        let updatedSymbol = changeReversedInputs model.Wire.Symbol symbol.Id
+        let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+        let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+        updatedSheetModel
+
+    (get, set)
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B5R - Read the position of a port on the sheet
-let readPortPosition (sym: SymbolT.Symbol) (port: Port) : XYPos =
-    let scale = SymbolT.getScaleF
-    let symbolWidth = scale sym.HScale * sym.Component.W
-    let symbolHeight = scale sym.VScale * sym.Component.H
+// let readPortPosition (sym: SymbolT.Symbol) (port: Port) : XYPos =
+//     let scale = SymbolT.getScaleF
+//     let symbolWidth = scale sym.HScale * sym.Component.W
+//     let symbolHeight = scale sym.VScale * sym.Component.H
 
-    match Map.tryFind port.Id sym.PortMaps.Orientation with
-    | Some edge ->
-        let portOffset = DrawHelpers.calculatePortOffset edge sym.PortMaps sym.Component port.Id
-        match edge with
-        | Edge.Top -> { X = sym.Pos.X + portOffset; Y = sym.Pos.Y }
-        | Edge.Bottom -> { X = sym.Pos.X + portOffset; Y = sym.Pos.Y + symbolHeight }
-        | Edge.Left -> { X = sym.Pos.X; Y = sym.Pos.Y + portOffset }
-        | Edge.Right -> { X = sym.Pos.X + symbolWidth; Y = sym.Pos.Y + portOffset }
-        | _ -> sym.Pos // Fallback to symbol's position if the edge is not recognized
-    | None -> sym.Pos // If the port is not found in the orientation map, fallback to the symbol's position
+//     match Map.tryFind port.Id sym.PortMaps.Orientation with
+//     | Some edge ->
+//         let portOffset = DrawHelpers.calculatePortOffset edge sym.PortMaps sym.Component port.Id
+//         match edge with
+//         | Edge.Top -> { X = sym.Pos.X + portOffset; Y = sym.Pos.Y }
+//         | Edge.Bottom -> { X = sym.Pos.X + portOffset; Y = sym.Pos.Y + symbolHeight }
+//         | Edge.Left -> { X = sym.Pos.X; Y = sym.Pos.Y + portOffset }
+//         | Edge.Right -> { X = sym.Pos.X + symbolWidth; Y = sym.Pos.Y + portOffset }
+//         | _ -> sym.Pos // Fallback to symbol's position if the edge is not recognized
+//     | None -> sym.Pos // If the port is not found in the orientation map, fallback to the symbol's position
+
+// B5R - Read the position of a port on the sheet
+let readPortPosition (sym: Symbol) (port: Port) : XYPos =
+    let addXYPos (pos1: XYPos) (pos2: XYPos) : XYPos =
+        { X = pos1.X + pos2.X; Y = pos1.Y - pos2.Y }
+    let TopLeft = sym.Pos
+    let offset = getPortPos sym port
+    addXYPos TopLeft offset
+
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B6R - Read the Bounding box of a symbol outline
+let readBoundingBox (symbol: Symbol) : BoundingBox =
+    let applyScaling (width: float) (height: float) (hScale: float option) (vScale: float option) =
+        let w = match hScale with
+                | Some(scale) -> width * scale
+                | None -> width
+        let h = match vScale with
+                | Some(scale) -> height * scale
+                | None -> height
+        (w, h)
+    let (scaledWidth, scaledHeight) = applyScaling symbol.Component.W symbol.Component.H symbol.HScale symbol.VScale
+    {
+        TopLeft = symbol.Pos
+        W = scaledWidth
+        H = scaledHeight
+    }
 
 
 //-------------------------------------------------------------------------------------------------//
@@ -393,3 +455,65 @@ let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
 let countTotalRightAngles (model: SheetT.Model) =
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
+
+
+
+
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// T6R R High 
+
+// The zero-length segments in a wire with non-zero segments on either side that have 
+// Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply 
+// at the end of a wire (where the zero-length segment is one from the end). This is a 
+// wiring artifact that should never happen but errors in routing or separation can 
+// cause it. Count over the whole sheet. Return from one function a list of all the 
+// segments that retrace, and also a list of all the end of wire segments that retrace so 
+// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol. 
+
+let findRetracingSegments (model: SheetT.Model) : XYPos list * XYPos list =
+    let segmentsXYPos =
+        model.Wire.Wires
+        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
+        |> List.collect (fun (wId, _) -> visibleSegments wId model)
+    
+    let segments =
+        model.Wire.Wires
+        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
+        |> List.collect (fun (wId, _) -> model.Wire.Wires[wId].Segments)
+
+    // let segments = model.Wire.Wires[wId].Segments
+    // let segmentsXYPos = visibleSegments wId model
+    // Detect retracing segments
+    // let detectRetracingSegments (segmentsXYPos: list<XYPos>) =
+    
+    let detectRetracingSegments (segmentsXYPos: list<XYPos>): list<int> =
+        let hasOppositeDirection (v1:XYPos) (v2:XYPos) = (v1.X * v2.X < 0.0) || (v1.Y * v2.Y < 0.0)
+        let isZeroVector (v:XYPos) = (v.X = 0.0) && (v.Y = 0.0)
+
+        let rec iter index acc =
+            if index + 2 < List.length segmentsXYPos then
+                let v1 = segmentsXYPos.[index]
+                let vZero = segmentsXYPos.[index + 1]
+                let v2 = segmentsXYPos.[index + 2]
+                if isZeroVector vZero && hasOppositeDirection v1 v2 then
+                    iter (index + 1) (acc @ [index + 1])
+                else
+                    iter (index + 1) acc
+            else
+                acc
+
+        iter 0 []
+    
+    // let retracingSegmentsIndices = detectRetracingSegments segmentsXYPos
+    // let retracingSegments = List.choose (fun i -> List.tryItem i segments) retracingSegmentsIndices
+    let retraceSegmentList = 
+        segmentsXYPos
+        |> detectRetracingSegments
+        |> List.choose (fun i -> List.tryItem i segmentsXYPos)
+        // |> List.choose (fun i -> List.tryItem i segments)
+
+    (retraceSegmentList,segmentsXYPos)

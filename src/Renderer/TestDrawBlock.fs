@@ -473,49 +473,60 @@ module HLPTick3 =
             |> recordPositionInTest testNum dispatch
         
         let test5 testNum firstSample dispatch =
-            let testsym = getSym "G1" (makeTest1Circuit {X=0.;Y=0.})
-            
-            let rot = 
-                match testsym with
-                | Some testsym -> Some (getSymbolRotation testsym)
-                | _ -> None
-            
-            match rot with 
-                | Some rot -> 
-                    match rot with
-                    | Degree0 -> printf "Degree0"
-                    | Degree90 -> printf "Degree90"
-                    | Degree180 -> printf "Degree180"
-                    | Degree270 -> printf "Degree270"
-                | None -> printf "None"
-            ()
+            let printXYPosList (xyPosList: list<XYPos>) =
+                xyPosList |> List.iter (fun xy -> printfn "X: %f, Y: %f" xy.X xy.Y)
+
+            let testTotalRetrace (sample: int) (model: SheetT.Model) = 
+                let resultList = findRetracingSegments model
+                printfn "choosen---------------------------------"
+                printXYPosList (fst resultList)
+                printfn "all segments---------------------------------"
+                printXYPosList (snd resultList)
+                printfn "------------------------------------------------------------------"
+                printfn "------------------------------------------------------------------"
+                printfn "------------------------------------------------------------------"
+                
+                if (true) then
+                    Some $"{sample}"
+                else
+                    None
+
+            runTestOnSheets
+                "Horizontally positioned AND + DFF: fail on sample 0"
+                firstSample
+                horizLinePositions
+                makeTest1Circuit
+                testTotalRetrace
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
         
         let test6 testNum firstSample dispatch =
-            let testsym = getSym "G1" (makeTest1Circuit {X=0.;Y=0.})
+            // let testsym = getSym "G1" (makeTest1Circuit {X=0.;Y=0.})
             
-            let rot = 
-                match testsym with
-                | Some testsym -> Some (getSymbolFlipped testsym)
-                | _ -> None
+            // let rot = 
+            //     match testsym with
+            //     | Some testsym -> Some (getSymbolFlipped testsym)
+            //     | _ -> None
             
-            match rot with 
-                | Some rot -> 
-                    match rot with
-                    | true -> printf "Flipped"
-                    | false -> printf "Not Flipped"
-                | None -> printf "None"
+            // match rot with 
+            //     | Some rot -> 
+            //         match rot with
+            //         | true -> printf "Flipped"
+            //         | false -> printf "Not Flipped"
+            //     | None -> printf "None"
+            // ()
             ()
-        
         let test7 testNum firstSample dispatch =
-            let testsym = getSym "G1" (makeTest1Circuit {X=0.;Y=0.}) // Hypothetical function and symbol for demonstration
+            // let testsym = getSym "G1" (makeTest1Circuit {X=0.;Y=0.}) // Hypothetical function and symbol for demonstration
             
-            // Using pattern matching to handle an optional testsym
-            match testsym with
-            | Some testsym -> 
-                let (width, height) = getSymbolDimensions testsym
-                printfn "Width: %f, Height: %f" width height
-            | None -> 
-                printfn "Symbol not found"
+            // // Using pattern matching to handle an optional testsym
+            // match testsym with
+            // | Some testsym -> 
+            //     let (width, height) = getSymbolDimensions testsym
+            //     printfn "Width: %f, Height: %f" width height
+            // | None -> 
+            //     printfn "Symbol not found"
             ()
         
         let test8 testNum firstSample dispatch =

@@ -18,7 +18,6 @@ open BlockHelpers
 open Browser
 open Optics
 open Operators
-open TestDrawBlock.HLPTick3
 
 //-----------------Module for beautify Helper functions--------------------------//
 // Typical candidates: all individual code library functions.
@@ -167,6 +166,8 @@ let updateSymFlipState (flipState: bool) (sym: Symbol) =
 let _symFlipState = Lens.create getSymFlipState updateSymFlipState
 
 
+// -------------------------------------------------------------------------------------------------------
+
 
 // T1R
 // See Tick3 for a related function. 
@@ -181,8 +182,46 @@ let countSymIntersectSym (sheet: SheetT.Model)  =
     |> List.length     
 
 
+// (Copied from TestDrawBlock.HLPTick3.visibleSegments as a helper.)
+/// The visible segments of a wire, as a list of vectors, from source end to target end.
+/// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
+/// which if present causes the two segments on either side of it to coalesce into a single visible segment.
+/// A wire can have any number of visible segments - even 1.
+let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
+
+    let wire = model.Wire.Wires[wId] // get wire from model
+
+    /// helper to match even and off integers in patterns (active pattern)
+    let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
+
+    /// Convert seg into its XY Vector (from start to end of segment).
+    /// index must be the index of seg in its containing wire.
+    let getSegmentVector (index:int) (seg: BusWireT.Segment) =
+        // The implicit horizontal or vertical direction  of a segment is determined by 
+        // its index in the list of wire segments and the wire initial direction
+        match index, wire.InitialOrientation with
+        | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
+        | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
+
+    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
+    /// if this is possible, otherwise return segVecs unchanged.
+    /// Index must be in range 1..segVecs
+    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
+        if segVecs[index] =~ XYPos.zero
+        then
+            segVecs[0..index-2] @
+            [segVecs[index-1] + segVecs[index+1]] @
+            segVecs[index+2..segVecs.Length - 1]
+        else
+            segVecs
+
+    wire.Segments
+    |> List.mapi getSegmentVector
+    |> (fun segVecs ->
+            (segVecs,[1..segVecs.Length-2])
+            ||> List.fold tryCoalesceAboutIndex)
+
 // T2R
-// See Tick3.HLPTick3.visibleSegments for a helper. 
 /// Count the number of distinct wire visible segments that intersect with one or more symbols. Count over all visible wire segments.
 let countWireSegIntersectSym (sheet: SheetT.Model) = 
     let getSegStartEndPos (wire: Wire) (segXYPosList: list<XYPos>) = 
@@ -316,6 +355,7 @@ let countWireSegRightAngleIntersect (sheet: SheetT.Model) =
     |> Array.filter (fun (seg1,seg2) -> differentNetWires seg1.Wire seg2.Wire && segsOverlay seg1.Pos seg2.Pos)
     // filter out segments on same net intersecting at one end
     |> Array.filter (fun (seg1,seg2) -> differentNetWires seg1.Wire seg2.Wire && segsIntersectOneEnd seg1.Pos seg2.Pos)
+    // find segments that cross each other at right angles
     |> Array.filter (fun (seg1,seg2) -> segsCrossRightAngle seg1.Pos seg2.Pos)
     |> Array.distinct  // should already be distinct but just to guarantee it
     |> Array.length
@@ -348,8 +388,8 @@ let countVisibleWireRightAngles (sheet:SheetT.Model) =
         | n when n>1 -> n-1
         | _ -> 0
 
-    mapKeys sheet.Wire.Wires
-    |> Array.fold (fun (sum: int) wId -> sum + (numRightAnglesPerWire wId)) 0
+    (0, mapKeys sheet.Wire.Wires)
+    ||> Array.fold (fun (sum: int) wId -> sum + (numRightAnglesPerWire wId)) 
 
 
 // T6R
@@ -383,8 +423,8 @@ let getRetracingSegs (sheet:SheetT.Model) =
                         | false -> (retraceList, endOfWireList) // same direction: lists unchanged
                 )
             | _ -> (retraceList, endOfWireList)
-        [1..segList.Length-1]
-        |> List.fold checkRetraceAtIndex ([],[])
+        (([],[]),[1..segList.Length-1])
+        ||> List.fold checkRetraceAtIndex
 
     mapValues sheet.Wire.Wires
     |> Array.map getRetracingSegsOfWire

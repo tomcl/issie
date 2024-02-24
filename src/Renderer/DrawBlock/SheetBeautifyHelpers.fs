@@ -26,78 +26,133 @@ open BusWire
 open BusWireUpdateHelpers
 open BusWireRoutingHelpers
 
-
-//-----------------Module for beautify Helper functions--------------------------//
-// Typical candidates: all individual code library functions.
-// Other helpers identified by Team
-
-
-// Key Type Difficulty Value read or written 
-// B1R, B1W RW 
-//  Value read or written: The dimensions of a custom component symbol
-
-
-/// Calculates the final dimensions of a symbol, considering potential scaling.
-let getSymbolDimensions (symbol: SymbolT.Symbol) : float * float = 
-    let baseWidth = symbol.Component.W
-    let baseHeight = symbol.Component.H
-    let scaledWidth = 
-        match symbol.HScale with
-        | Some(scale) -> baseWidth * scale
-        | None -> baseWidth
-    let scaledHeight = 
-        match symbol.VScale with
-        | Some(scale) -> baseHeight * scale
-        | None -> baseHeight
-    (scaledWidth, scaledHeight)
-
-
 let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
 let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option = 
         model.Wire.Symbol.Symbols
         |> Map.values
         |> Seq.tryFind (fun sym -> caseInvariantEqual label sym.Component.Label)
-let updateCustomComponentDimensions (symLabel: string) (desiredWidth: float) (desiredHeight: float) (model: SheetT.Model): Result<SheetT.Model, string> =
-    match getlabel model symLabel with
-    | Some symbol ->
+
+//-----------------Module for beautify Helper functions--------------------------//
+// Typical candidates: all individual code library functions.
+// Other helpers identified by Team
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B1 The dimensions of a custom component symbol
+
+// let getCustomComponentDimensions (symbol: SymbolT.Symbol) : float * float = 
+//     let baseWidth = symbol.Component.W
+//     let baseHeight = symbol.Component.H
+//     let scaledWidth = 
+//         match symbol.HScale with
+//         | Some(scale) -> baseWidth * scale
+//         | None -> baseWidth
+//     let scaledHeight = 
+//         match symbol.VScale with
+//         | Some(scale) -> baseHeight * scale
+//         | None -> baseHeight
+//     (scaledWidth, scaledHeight)
+
+// let updateCustomComponentDimensions (symLabel: string) (model: SheetT.Model) (desiredDimensions: float * float): Result<SheetT.Model, string> =
+//     let desiredWidth, desiredHeight = desiredDimensions
+//     match getlabel model symLabel with
+//     | Some symbol ->
+//         let originalWidth = symbol.Component.W
+//         let originalHeight = symbol.Component.H
+//         let hScale = desiredWidth / originalWidth
+//         let vScale = desiredHeight / originalHeight
+//         let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
+        
+//         let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+
+//         let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+        
+//         Ok updatedSheetModel
+//     | None -> Error (sprintf "Symbol with label '%s' not found." symLabel)
+
+
+let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, (float * float)> =
+
         let originalWidth = symbol.Component.W
         let originalHeight = symbol.Component.H
-        let hScale = desiredWidth / originalWidth
-        let vScale = desiredHeight / originalHeight
-        let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
-        
-        // Assuming `replaceSymbol` updates and returns a modified Symbol.Model, which is part of SheetT.Model
+
+
+        let get (model: SheetT.Model) =
+            let width = match symbol.HScale with
+                            | Some scale -> originalWidth * scale
+                            | None -> originalWidth
+            let height = match symbol.VScale with
+                            | Some scale -> originalHeight * scale
+                            | None -> originalHeight
+            (width, height)
+
+
+        let set (newDimensions: (float * float)) (model: SheetT.Model) =
+            let (width, height) = newDimensions
+
+            let hScale = width / originalWidth
+            let vScale = height / originalHeight
+            let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
+            let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+            let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+            
+            updatedSheetModel
+        (get, set)
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B7 RW  Low The rotation state of a symbol
+// B8 RW  Low The Flipped state of a symbol 
+
+// let getSymbolRotation (symbol: SymbolT.Symbol) : Rotation =
+//     symbol.STransform.Rotation
+
+// let updateSymbolRotation (symLabel: string) (desiredRotation: Rotation) (model: SheetT.Model): Result<SheetT.Model, string> =
+//     Error "Not implemented yet"
+
+// let getSymbolFlipped (symbol: SymbolT.Symbol) : bool =
+//     symbol.STransform.Flipped
+
+// let updateSymbolFlipped (symLabel: string) (model: SheetT.Model) (desiredFlipped: bool) : Result<SheetT.Model, string> =
+//     Error "Not implemented yet"
+
+let SymbolRotationLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, Rotation> =
+    let get (model: SheetT.Model) : Rotation = symbol.STransform.Rotation
+
+    //Rotation -> SheetT.Model -> SheetT.Model
+    let set (desiredRotation: Rotation) (model: SheetT.Model) : SheetT.Model =
+        let updatedSymbol = { symbol with STransform = { symbol.STransform with Rotation = desiredRotation}}
         let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-        
-        // Here, ensure that SheetT.symbol_ correctly targets where the Symbol.Model lives within SheetT.Model
-        // and replaces it with the updated one
         let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
         
-        Ok updatedSheetModel
-    | None -> Error (sprintf "Symbol with label '%s' not found." symLabel)
+        updatedSheetModel
+
+    (get, set)
+
+let SymbolFlippedLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
+    let get (model: SheetT.Model) : bool = symbol.STransform.Flipped
+
+    //Rotation -> SheetT.Model -> SheetT.Model
+    let set (desiredFlipped: bool) (model: SheetT.Model) : SheetT.Model =
+        let updatedSymbol = { symbol with STransform = { symbol.STransform with Flipped = desiredFlipped}}
+        let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+        let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+        
+        updatedSheetModel
+
+    (get, set)
+
+
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// B7R, B7W RW Low The rotation state of a symbol 
-let getSymbolById (model: SheetT.Model) (id: ComponentId) : Option<SymbolT.Symbol> =
-    let symbols = model.Wire.Symbol.Symbols
-    symbols |> Map.tryFind id
 
-let getSymbolRotation (symbol: SymbolT.Symbol) : Rotation =
-    symbol.STransform.Rotation
-
-let getSymbolFlipped (symbol: SymbolT.Symbol) : bool =
-    symbol.STransform.Flipped
-
-
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-
-// T1R R Low
-// The number of pairs of symbols that intersect each other. See Tick3 for a related function.
+// T1R 
+// The number of pairs of symbols that intersect each other.
 // Count over all pairs of symbols.
 let countIntersectingPairs (sheet: SheetT.Model) =
     let wireModel = sheet.Wire
@@ -109,8 +164,13 @@ let countIntersectingPairs (sheet: SheetT.Model) =
     |> List.filter (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
 
-// T2R R Low 
-// The number of distinct wire visible segments that intersect with one or more symbols. See Tic
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// T2R
+// The number of distinct wire visible segments that intersect with one or more symbols.
 let countSymbolIntersectingWire (sheet: SheetT.Model) =
     let wireModel = sheet.Wire
     wireModel.Wires
@@ -122,13 +182,8 @@ let countSymbolIntersectingWire (sheet: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// T4 Sum of wiring segment length, counting only one when there are N same-net 
-// segments overlapping (this is the visible wire length on the sheet). Count over whole 
-// sheet. 
-
-// Step 1: Convert wire to segments (similar to visibleSegments but simplified for this context)
+// Function to convert a wire into a list of segments, useful for T3-6
 type SegVector = {Start: XYPos; Dir: XYPos}
-
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
     let wire = model.Wire.Wires[wId] // get wire from model
@@ -164,9 +219,10 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
 
+
 let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
     let segmentsXYPos = visibleSegments wId model
-    let wireStart = model.Wire.Wires.[wId].StartPos
+
     let addXYPos (p1: XYPos) (p2: XYPos) = 
         { X = p1.X + p2.X; Y = p1.Y + p2.Y }
 
@@ -175,122 +231,52 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
         match acc with
         | [] -> ([{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
         | _ -> (acc @ [{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
-    ) ([], wireStart)
+    ) ([], { X = 0.0; Y = 0.0 })
     |> fst
-    
-
-// Step 2: Detect and remove overlapping segments
-
-// Function to determine if two segments overlap
-let isOverlapping seg1 seg2 =
-    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
-    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
-    seg1.Start.X = seg2.Start.X && seg1.Start.Y = seg2.Start.Y ||
-    (seg1.Start.X <= end2.X && end1.X >= seg2.Start.X) ||
-    (seg1.Start.Y <= end2.Y && end1.Y >= seg2.Start.Y)
-
-// Function to merge two overlapping segments
-let mergeSegments seg1 seg2 =
-    let endX = max (seg1.Start.X + seg1.Dir.X) (seg2.Start.X + seg2.Dir.X)
-    let endY = max (seg1.Start.Y + seg1.Dir.Y) (seg2.Start.Y + seg2.Dir.Y)
-    { Start = seg1.Start; Dir = { X = endX - seg1.Start.X; Y = endY - seg1.Start.Y } }
-
-// Function to merge all overlapping segments in a list
-let mergeOverlappingSegments segList =
-    let rec mergeRecursive acc remaining =
-        match remaining with
-        | [] -> acc
-        | hd :: tl ->
-            let overlaps, nonOverlaps = List.partition (isOverlapping hd) tl
-            let mergedSegment = List.fold mergeSegments hd overlaps
-            mergeRecursive (mergedSegment :: acc) nonOverlaps
-    mergeRecursive [] segList |> List.rev
-
-
-
-
-// Step 3: Calculate sum of segment lengths
-
-let printSegVectorList segList =
-    segList
-    |> List.iter (fun seg ->
-        printfn "Start: (X=%f, Y=%f), Dir: (X=%f, Y=%f)" seg.Start.X seg.Start.Y seg.Dir.X seg.Dir.Y
-    )
-
-let totalVisibleWiringLength (model: SheetT.Model) =
-    // Step 1: Extract and process segments for each wire
-    let allSegments =
-        model.Wire.Wires
-        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
-        |> List.collect (fun (wId, _) -> wireToSegments wId model) // Use 'List.collect' to flatten the lists of segments
-
-    // Step 2: Merge overlapping segments for the entire list of segments
-    // Step 3: Calculate the total length
-    let totalLength =
-        allSegments
-        |> mergeOverlappingSegments
-        |> List.sumBy (fun seg -> abs seg.Dir.X + abs seg.Dir.Y) // Sum the lengths of all segments (X + Y components
-
-    // printSegVectorList allSegments
-    totalLength
-
-
-
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// T3R - Number of visible wire right-angles
-let isCrossingAtRightAngle seg1 seg2 =
-    // Determine the end points of each segment
-    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
-    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
-
-    // Check if both segments are vertical or horizontal
-    if (seg1.Dir.X = 0.0 && seg2.Dir.X = 0.0) || (seg1.Dir.Y = 0.0 && seg2.Dir.Y = 0.0) then
-        false
-    else
-        // Check for vertical seg1 intersecting with horizontal seg2 or vice versa
-        let isSeg1Vertical = seg1.Dir.X = 0.0
-        let seg1Range = 
-            if isSeg1Vertical then 
-                (min seg1.Start.Y end1.Y, max seg1.Start.Y end1.Y) 
-            else (min seg1.Start.X end1.X, max seg1.Start.X end1.X)
-
-        let seg2Range = 
-            if isSeg1Vertical then 
-                (min seg2.Start.X end2.X, max seg2.Start.X end2.X) 
-            else (min seg2.Start.Y end2.Y, max seg2.Start.Y end2.Y)
-        let seg1Pos = if isSeg1Vertical then seg1.Start.X else seg1.Start.Y
-        let seg2Pos = if isSeg1Vertical then seg2.Start.Y else seg2.Start.X
-
-        // Check if the static position of one segment falls within the range of the other segment's start and end
-        seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
-        seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
-
-
-
-let countRightAngleIntersections segments =
-    let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
-    let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
-
-    // printSegVectorList verticals
-    // printfn "-----------------------------------------------------"
-    // printSegVectorList horizontals
-    // printfn "-----------------------------------------------------"
-    // printfn "-----------------------------------------------------"
-    // printfn "-----------------------------------------------------"
-    // printfn "-----------------------------------------------------"
-    // printfn "-----------------------------------------------------"
-
-    let mutable count = 0
-    for vSeg in verticals do
-        for hSeg in horizontals do
-            if isCrossingAtRightAngle vSeg hSeg then
-                count <- count + 1
-    count
-
+// T3R - Number of visible wire Intersecting at right-angles
 let totalRightAngleIntersect (model: SheetT.Model) =
+    let isCrossingAtRightAngle seg1 seg2 =
+        // Determine the end points of each segment
+        let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
+        let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
+
+        // Check if both segments are vertical or horizontal
+        if (seg1.Dir.X = 0.0 && seg2.Dir.X = 0.0) || (seg1.Dir.Y = 0.0 && seg2.Dir.Y = 0.0) then
+            false
+        else
+            // Check for vertical seg1 intersecting with horizontal seg2 or vice versa
+            let isSeg1Vertical = seg1.Dir.X = 0.0
+            let seg1Range = 
+                if isSeg1Vertical then 
+                    (min seg1.Start.Y end1.Y, max seg1.Start.Y end1.Y) 
+                else (min seg1.Start.X end1.X, max seg1.Start.X end1.X)
+
+            let seg2Range = 
+                if isSeg1Vertical then 
+                    (min seg2.Start.X end2.X, max seg2.Start.X end2.X) 
+                else (min seg2.Start.Y end2.Y, max seg2.Start.Y end2.Y)
+            let seg1Pos = if isSeg1Vertical then seg1.Start.X else seg1.Start.Y
+            let seg2Pos = if isSeg1Vertical then seg2.Start.Y else seg2.Start.X
+
+            // Check if the static position of one segment falls within the range of the other segment's start and end
+            seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
+            seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
+
+    let countRightAngleIntersections segments =
+        let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
+        let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
+
+        let mutable count = 0
+        verticals
+        |> List.collect (fun vSeg -> horizontals |> List.filter (isCrossingAtRightAngle vSeg))
+        |> List.length
+
+
+
     // Step 1: Extract and process segments for each wire
     let allSegments =
         model.Wire.Wires
@@ -311,29 +297,71 @@ let totalRightAngleIntersect (model: SheetT.Model) =
     // else
     //     0
 
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// T4 Sum of wiring segment length, counting only one when there are N same-net 
+// segments overlapping (this is the visible wire length on the sheet). Count over whole 
+// sheet. 
+
+// Check if two segments are overlapping
+let isOverlapping seg1 seg2 =
+    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
+    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
+    seg1.Start.X = seg2.Start.X && seg1.Start.Y = seg2.Start.Y ||
+    (seg1.Start.X <= end2.X && end1.X >= seg2.Start.X) ||
+    (seg1.Start.Y <= end2.Y && end1.Y >= seg2.Start.Y)
+
+// Merge two overlapping segments if they are parallel and overlapping
+let mergeSegments seg1 seg2 =
+    let endX = max (seg1.Start.X + seg1.Dir.X) (seg2.Start.X + seg2.Dir.X)
+    let endY = max (seg1.Start.Y + seg1.Dir.Y) (seg2.Start.Y + seg2.Dir.Y)
+    { Start = seg1.Start; Dir = { X = endX - seg1.Start.X; Y = endY - seg1.Start.Y } }
+
+// Merge all parallel overlapping segments in a list
+let mergeOverlappingSegments segList =
+    let rec mergeRecursive acc remaining =
+        match remaining with
+        | [] -> acc
+        | hd :: tl ->
+            let overlaps, nonOverlaps = List.partition (isOverlapping hd) tl
+            let mergedSegment = List.fold mergeSegments hd overlaps
+            mergeRecursive (mergedSegment :: acc) nonOverlaps
+    mergeRecursive [] segList |> List.rev
+
+// Calculate sum of segment lengths
+let totalVisibleWiringLength (model: SheetT.Model) =
+
+    model.Wire.Wires
+    |> Map.toList // Convert the map of wires to a list<SegVector>
+    |> List.collect (fun (wId, _) -> wireToSegments wId model) // flatten the lists of segments
+    |> mergeOverlappingSegments // Merge overlapping segments
+    |> List.sumBy (fun seg -> abs seg.Dir.X + abs seg.Dir.Y) // Sum length
+    // Step 2: Merge overlapping segments for the entire list of segments and Calculate the total length
+    // let totalLength =
+    //     allSegments
+        // |> mergeOverlappingSegments
+        // |> List.sumBy (fun seg -> abs seg.Dir.X + abs seg.Dir.Y)
+
+    // totalLength
+
+
+
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // T5R - Number of visible wire right-angles. Count over whole sheet.
 
-
 let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
     let segments = visibleSegments wId model
-    // printfn "segments:" 
-    let numSegments = List.length segments
-    // printfn "numSegments: %A" numSegments
-    if numSegments > 0 then numSegments - 1 else 0
-    // The check `if numSegments > 0 then ... else 0` ensures that wires with no visible segments
-    // do not contribute to the right angle count negatively or incorrectly.
+
+    segments
+    |> List.length
+    |> (fun numSegments -> if numSegments = 0 then 0 else numSegments - 1)
 
 /// Sums up the right angles from all wires in the model.
 let countTotalRightAngles (model: SheetT.Model) =
-    // printfn "countTotalRightAngles"
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
-    // |> Map.fold (fun acc key _ -> 
-    //     let newAcc = acc + countWireRightAngles key model
-    //     // Print the updated accumulator value
-    //     printfn "Current total right angles: %d" newAcc
-    //     newAcc
-    // ) 0

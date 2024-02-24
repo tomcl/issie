@@ -25,6 +25,7 @@ open DrawModelType.SymbolT
 open BusWire
 open BusWireUpdateHelpers
 open BusWireRoutingHelpers
+open SymbolReplaceHelpers
 
 let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
@@ -101,6 +102,31 @@ let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, 
             
             updatedSheetModel
         (get, set)
+
+
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B5R - Read the position of a port on the sheet
+let readPortPosition (sym: SymbolT.Symbol) (port: Port) : XYPos =
+    let scale = SymbolT.getScaleF
+    let symbolWidth = scale sym.HScale * sym.Component.W
+    let symbolHeight = scale sym.VScale * sym.Component.H
+
+    match Map.tryFind port.Id sym.PortMaps.Orientation with
+    | Some edge ->
+        let portOffset = DrawHelpers.calculatePortOffset edge sym.PortMaps sym.Component port.Id
+        match edge with
+        | Edge.Top -> { X = sym.Pos.X + portOffset; Y = sym.Pos.Y }
+        | Edge.Bottom -> { X = sym.Pos.X + portOffset; Y = sym.Pos.Y + symbolHeight }
+        | Edge.Left -> { X = sym.Pos.X; Y = sym.Pos.Y + portOffset }
+        | Edge.Right -> { X = sym.Pos.X + symbolWidth; Y = sym.Pos.Y + portOffset }
+        | _ -> sym.Pos // Fallback to symbol's position if the edge is not recognized
+    | None -> sym.Pos // If the port is not found in the orientation map, fallback to the symbol's position
+
+
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -233,6 +259,8 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
         | _ -> (acc @ [{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
     ) ([], { X = 0.0; Y = 0.0 })
     |> fst
+
+
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

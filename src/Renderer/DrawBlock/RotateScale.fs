@@ -481,6 +481,8 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
     
 
 //------------------------------------------------------------------------------------------------------------------------------
+//                                      Code Improvement by dy321 Starts
+//------------------------------------------------------------------------------------------------------------------------------
 
 //*dy321: improved namings (to represent meanings);
 //        simplified and compressed some functions and expressions, removed unnecessary ones;
@@ -512,14 +514,17 @@ let rotateBlock (compIdList:ComponentId list) (model:SymbolT.Model) (rotation:Ro
                 ||> List.fold (fun prevMap (compId,sym) -> Map.add compId sym prevMap)
     }
 
-//*dy321: reduced repetition (but perhaps less readable?)
-let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
-    let getSymBounds (dirIsX:bool) (isMax:float) (sym: Symbol) = 
+//*dy321: add a helper function to be used in oneCompBoundsBothEdges and getScalingFactorAndOffsetCentreGroup.
+let getSymBounds (dirIsX:bool) (wHOffset:float) (sym: Symbol) = 
         let height,width = getRotatedHAndW sym
         match dirIsX with
-        | true -> sym.Pos.X + isMax*width
-        | false -> sym.Pos.Y + isMax*height
-    let equateMaxMinCentres (dirIsX:bool) =
+        | true -> sym.Pos.X + wHOffset*width
+        | false -> sym.Pos.Y + wHOffset*height
+
+//*dy321: reduced repetition using "function wrapping". (but perhaps less readable?)
+/// Check whether there exists a single component that is on the boundaries of two opposite edges of selected area.
+let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
+    let checkIfTwoBoundsSameComp (dirIsX:bool) =
         let maxCentre =
             selectedSymbols
             |> List.maxBy (getSymBounds dirIsX 1.) 
@@ -531,66 +536,66 @@ let oneCompBoundsBothEdges (selectedSymbols: Symbol list) =
         match dirIsX with
         | true -> maxCentre.X = minCentre.X
         | false -> maxCentre.Y = minCentre.Y
-    (equateMaxMinCentres true) || (equateMaxMinCentres false)
-    
+    (checkIfTwoBoundsSameComp true) || (checkIfTwoBoundsSameComp false)
 
+//*dy321: improved namings (to represent meanings);
+//        simplified expressions;
+//        more readable formatting (with pipelines).
+/// Return symbols corresponding to the input ComponentId list
 let findSelectedSymbols (compList: ComponentId list) (model: SymbolT.Model) = 
-    List.map (fun x -> model.Symbols |> Map.find x) compList
+    compList
+    |> List.map (fun compId -> model.Symbols[compId])
 
+//*dy321: changed if-then-else to match to represent different cases clearer.
+/// Calculate scaling factor and offset centre using provided float values
 let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
     let scaleFact = 
-        if min = max || matchMax <= matchMin then 1. 
-        else (matchMin - matchMax) / (min - max)
+        match min = max || matchMax <= matchMin with
+        | true -> 1. 
+        | false -> (matchMin - matchMax) / (min - max)
     let offsetC = 
-        if scaleFact = 1. then 0.
-        else (matchMin - min * scaleFact) / (1.-scaleFact)
+        match scaleFact with 
+        | 1. -> 0.
+        | _  -> (matchMin - min * scaleFact) / (1.-scaleFact)
     (scaleFact, offsetC)
 
+//*dy321: reduced repetition using "function wrapping";
+//        improved namings (to represent meanings).
 /// Return set of floats that define how a group of components is scaled
 let getScalingFactorAndOffsetCentreGroup
     (matchBBMin:XYPos)
     (matchBBMax:XYPos)
     (selectedSymbols: Symbol list) : ((float * float) * (float * float)) = 
-    //(compList: ComponentId list)
-    //(model: SymbolT.Model)
 
-    //let selectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let getScaleAndOffsetInDir dirIsX =
+        let hOrW =
+            match dirIsX with
+            | true -> snd
+            | false -> fst
+        let xOrY (xYPos:XYPos) =
+            match dirIsX with
+            | true -> xYPos.X
+            | false -> xYPos.Y
 
-    let maxXSym = 
+        let maxSym = 
             selectedSymbols
-            |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
+            |> List.maxBy (getSymBounds dirIsX 1.) 
+        let oldMax = xOrY (getRotatedSymbolCentre maxSym)
+        let newMax = xOrY matchBBMax - (hOrW (getRotatedHAndW maxSym))/2.
 
-    let oldMaxX = (maxXSym |> getRotatedSymbolCentre).X
-    let newMaxX = matchBBMax.X - (snd (getRotatedHAndW maxXSym))/2.
-
-    let minXSym =
+        let minSym =
             selectedSymbols
-            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
+            |> List.minBy (getSymBounds dirIsX 0.)
+        let oldMin = xOrY (getRotatedSymbolCentre minSym)
+        let newMin = xOrY matchBBMin + (hOrW (getRotatedHAndW minSym))/2.
 
-    let oldMinX = (minXSym |> getRotatedSymbolCentre).X
-    let newMinX = matchBBMin.X + (snd (getRotatedHAndW minXSym))/2.
+        getScalingFactorAndOffsetCentre oldMin  newMin oldMax newMax
     
-    let maxYSym = 
-            selectedSymbols
-            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
+    (getScaleAndOffsetInDir true, getScaleAndOffsetInDir false)
 
-    let oldMaxY = (maxYSym |> getRotatedSymbolCentre).Y
-    let newMaxY = matchBBMax.Y - (fst (getRotatedHAndW maxYSym))/2.
-
-    let minYSym =
-            selectedSymbols
-            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
-
-    let oldMinY = (minYSym |>  getRotatedSymbolCentre).Y
-    let newMinY = matchBBMin.Y + (fst (getRotatedHAndW minYSym))/2.
-    
-    let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
-    let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
-    (xSC, ySC)
-
-/// Alter position of one symbol as needed in a scaling operation
 //*dy321: improved namings (to represent meanings); 
 //        simplified some variable expressions.
+/// Alter position of one symbol as needed in a scaling operation
 let scaleSymbol
         (xYScaleOffset: (float * float) * (float * float))
         (sym: Symbol)
@@ -606,6 +611,25 @@ let scaleSymbol
 
     {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
 
+// ---------------------------------- Code Improvement Summary: ----------------------------------------
+(* 
+    Most significant changes:
+        1. reduced code repetitions using "function wrapping"
+        2. removed unnecessary expressions with sematics unchanged
+        3. changed meaningless namings to something that better represent meanings
+
+    Transform 1: Functional Abstraction
+        used in oneCompBoundsBothEdges, getScalingFactorAndOffsetCentreGroup.
+    Transform 2: Parametrization (especially "grouping" and "static parameter elimination")
+        used in rotateBlock, oneCompBoundsBothEdges, getScalingFactorAndOffsetCentreGroup.
+    Transform 3: Pipelines
+        used in rotateBlock, findSelectedSymbols.
+    Transform 5: Match
+        used in getSymBounds, getScalingFactorAndOffsetCentre.
+*)
+
+//------------------------------------------------------------------------------------------------------------------------------
+//                                      Code Improvement by dy321 Ends
 //------------------------------------------------------------------------------------------------------------------------------
 
 /// Part of the rotate and scale code       

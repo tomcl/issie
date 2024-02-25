@@ -268,27 +268,25 @@ let isCrossingAtRightAngle seg1 seg2 =
         seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
         seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
 
+// printSegVectorList verticals
+// printfn "-----------------------------------------------------"
+// printSegVectorList horizontals
+// printfn "-----------------------------------------------------"
+// printfn "-----------------------------------------------------"
+// printfn "-----------------------------------------------------"
+// printfn "-----------------------------------------------------"
+// printfn "-----------------------------------------------------"
 
 
 let countRightAngleIntersections segments =
     let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
     let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
 
-    // printSegVectorList verticals
-    // printfn "-----------------------------------------------------"
-    // printSegVectorList horizontals
-    // printfn "-----------------------------------------------------"
-    // printfn "-----------------------------------------------------"
-    // printfn "-----------------------------------------------------"
-    // printfn "-----------------------------------------------------"
-    // printfn "-----------------------------------------------------"
-
     let mutable count = 0
-    for vSeg in verticals do
-        for hSeg in horizontals do
-            if isCrossingAtRightAngle vSeg hSeg then
-                count <- count + 1
-    count
+    verticals
+    |> List.collect (fun vSeg -> horizontals |> List.filter (isCrossingAtRightAngle vSeg))
+    |> List.length
+
 
 let totalRightAngleIntersect (model: SheetT.Model) =
     // Step 1: Extract and process segments for each wire

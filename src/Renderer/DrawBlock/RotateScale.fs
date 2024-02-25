@@ -275,7 +275,39 @@ let getBlock
     let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
+//****************************************************************************************start
+let getBlock2 (symbols: Symbol list) : BoundingBox = 
 
+    let maxXsym = 
+        symbols 
+        |> List.maxBy (fun symbol -> symbol.Pos.X + snd (getRotatedHAndW symbol)) 
+    let maxX = 
+        maxXsym.Pos.X + snd (getRotatedHAndW maxXsym)   
+                              
+    let minXsym = 
+        symbols 
+        |> List.minBy (fun symbol -> symbol.Pos.X)                                 
+    let minX = minXsym.Pos.X  
+                                                                  
+    let maxYsym = 
+        symbols 
+        |> List.maxBy (fun symbol -> symbol.Pos.Y + fst (getRotatedHAndW symbol))
+    let maxY = maxYsym.Pos.Y + fst (getRotatedHAndW maxYsym)
+
+    let minYsym = 
+        symbols 
+        |> List.minBy (fun symbol -> symbol.Pos.Y)
+    let minY = minYsym.Pos.Y
+
+    { TopLeft = { X = minX; Y = minY }; W = maxX - minX; H = maxY - minY }
+
+    //Used pipelining operator |> to make the code more readable.
+    //Chaged the name of x to symbol for easy reading.
+    //Removed unnecessary parentheses.
+    //Removed repeated calculations by storing minXsym and minYsym.
+    //Made the structure of the code more consistent.
+
+//****************************************************************************************end
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>
@@ -469,6 +501,14 @@ let scaleSymbolInBlock
     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+//****************************************************************************************start
+//vertical alignment
+    //let xProp = (symCenter.X - block.TopLeft.X) / block.W
+    //let yProp = (symCenter.Y - block.TopLeft.Y) / block.H
+    //| ScaleUp ->
+    //        { X = (block.TopLeft.X - 5.0) + ((block.W + 10.0) * xProp);
+    //          Y = (block.TopLeft.Y - 5.0) + ((block.H + 10.0) * yProp) }
+//****************************************************************************************start
 
 
 /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.

@@ -590,8 +590,8 @@ let flipSymbolInBlock
 /// <param name="block"> Bounding box of selected components</param>
 /// <param name="sym"> Symbol to be rotated</param>
 /// <returns>New symbol after scaled about block centre.</returns>
-/// 
-// 1. Use pipelines for readability.
+
+// 1. define variables on different line for readability
 let scaleSymbolInBlock
     //(Mag: float)
     (scaleType: ScaleType)
@@ -623,25 +623,16 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
     | Degree0 -> sym
     | _ ->  rotateSymbolInBlock degree pos sym
 
-//--------------state how the improve function is improved------
+//--------------improve summary------
 
-
-
-// // flipSymbol improvements:
-// 1. Removed unnecessary local declarations, making the function more concise.
-// 2. Clarified the flipping logic, aligning with guidelines on meaningful names and concise code.
-
-// // scaleSymbol improvements:
-// 1. Streamlined scaling logic, improving clarity and conciseness.
-// 2. Adjusted positioning calculation to directly update symbol position, reducing redundancy.
-
-// // rotateSymbolByDegree improvements:
-// 1. Eliminated unnecessary match case by using an early return for Degree0, simplifying the function.
-// 2. Directly used rotateSymbol function for rotation, ensuring consistency and reusability.
+// 1. Pipelining for Clarity: 
+//      Utilized pipelines in rotateSymbolInBlock and flipSymbolInBlock for clearer data transformations.
+// 2. Function Decomposition: 
+//      In flipSymbolInBlock, Extracted complex logic into applyFlip for better modularity.
+// 3. Variable Declaration Clarity: 
+//      Split combined variable declarations in scaleSymbolInBlock for enhanced readability.
 
 //_________________improve description end-------------
-
-
 /// --------------------------------------improve code end------------------------------------------
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>

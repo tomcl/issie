@@ -242,12 +242,15 @@ let SymbolFlippedLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
 // T1R 
 // The number of pairs of symbols that intersect each other.
 // Count over all pairs of symbols.
-let countIntersectingPairs (sheet: SheetT.Model) =
+let countIntersectingSymbolPairs (sheet: SheetT.Model) =
+
     let wireModel = sheet.Wire
+
     let boxes =
         mapValues sheet.BoundingBoxes
         |> Array.toList
         |> List.mapi (fun n box -> n,box)
+    
     List.allPairs boxes boxes 
     |> List.filter (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
@@ -260,7 +263,9 @@ let countIntersectingPairs (sheet: SheetT.Model) =
 // T2R
 // The number of distinct wire visible segments that intersect with one or more symbols.
 let countSymbolIntersectingWire (sheet: SheetT.Model) =
+
     let wireModel = sheet.Wire
+
     wireModel.Wires
     |> Map.fold (fun acc _ wire -> 
         if BusWireRoute.findWireSymbolIntersections wireModel wire <> [] then acc + 1 else acc

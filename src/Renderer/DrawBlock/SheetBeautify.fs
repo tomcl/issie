@@ -29,8 +29,67 @@ open Optics
 
 /// constants used by SheetBeautify
 module Constants =
-    () // dummy to make skeleton type check - remove when other content exists
-
-
-
     
+
+    // D2. sheetOrderFlip 
+    // Adjust on sheet: Port order on custom components, flip components, flip MUX input order
+    // Primary Optimisation: Reduce wire crossings 
+    // Test using random sample inputsReduction in wire crossings, other quality measures
+    
+
+
+    /// Attempts to optimize the port order for custom components to reduce wire crossings.
+    let optimizeFlipForComponents (model: SheetT.Model) =
+        // Convert symbol map to list
+        let symList = 
+            model.Wire.Symbol.Symbols
+            |> Map.toList
+            |> List.map snd
+
+        // Generate all possible flip combinations
+        let rec generateCombinations symbols =
+            match symbols with
+            | [] -> [[]]
+            | x::xs ->
+                let recs = generateCombinations xs
+                List.collect (fun recComb -> [true::recComb; false::recComb]) recs
+
+        let flipCombinations = generateCombinations symList
+
+        // Function to apply a flip combination to the model and return a new model
+        let applyFlipCombination (combination: bool list) (model: SheetT.Model) =
+
+            let symbols = 
+                model.Wire.Symbol.Symbols
+                |> Map.toList
+                |> List.map snd
+
+            // Ensure the combination list matches the number of symbols
+            if List.length combination <> List.length symbols then
+                failwith "Combination length does not match the number of symbols."
+
+            // Pair each symbol with its intended flip status
+            let symbolsWithFlipStatus = List.zip symbols combination
+
+            // Apply each flip status to its corresponding symbol, updating the model iteratively
+            let updatedModel =
+                symbolsWithFlipStatus
+                |> List.fold (fun accModel (symbol, flipStatus) ->
+                    let setFlip = snd (SymbolFlippedLens symbol)
+                    setFlip flipStatus accModel
+                ) model
+
+            updatedModel
+
+        // Iterate over all combinations, apply them, and find the one with the least intersections
+        let bestCombination, minIntersections =
+            flipCombinations
+            |> List.map (fun comb -> 
+                let newModel = applyFlipCombination comb model
+                (comb, totalRightAngleIntersect newModel))
+            |> List.minBy snd
+
+        // Apply the best combination to the model
+        let optimizedModel = applyFlipCombination bestCombination model
+        // Return the optimized model
+        optimizedModel

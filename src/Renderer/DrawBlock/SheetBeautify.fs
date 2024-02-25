@@ -29,7 +29,6 @@ open Optics
 
 /// constants used by SheetBeautify
 module Constants =
-    
 
     // D2. sheetOrderFlip 
     // Adjust on sheet: Port order on custom components, flip components, flip MUX input order
@@ -38,7 +37,14 @@ module Constants =
     
 
 
-    /// Attempts to optimize the port order for custom components to reduce wire crossings.
+    // Test Function: 
+    //      - try through all possible combinations of flipping components
+    //      - find the one with the least wire crossings
+    //      - apply that combination to the model and return the new model
+
+    //  this can be used in the team deliverable to find the best combination of flipping components
+    //  to reduce wire crossings
+    //  Test on Port order of custom components, MUX input order were not tested in this function, and is needed to be implemented in the future
     let optimizeFlipForComponents (model: SheetT.Model) =
         // Convert symbol map to list
         let symList = 

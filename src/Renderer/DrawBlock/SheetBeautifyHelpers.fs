@@ -12,8 +12,8 @@ open DrawModelType.SymbolT
 open DrawModelType
 open DrawModelType.SheetT
 open BlockHelpers
-open BusWireRoute
-open DrawModelType
+open DrawModelType.BusWireT
+
 
 
 
@@ -221,8 +221,29 @@ let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
     
     //Kept the wId name for consistency with the other modules
     ///Creates list of tuples where fst is the segStart and snd is the segEnd for all visible Segments
-    let SegStartAndEnd (wId: ConnectionId) (sheet: SheetT.Model) = 
-        visibleSegments wId sheet |> List.windowed 2
+    let SegStartAndEnd (wId: ConnectionId) (sheet: SheetT.Model) =
+        //Gets the wire from the ConnectionId
+        let wire = sheet.Wire.Wires[wId]
+        //Gets the start position of the wire
+        let wireStart = wire.StartPos
+        //helper function needed for the mapFold, adds the start position of the wire to the relative position 
+        //of the segment nodes in order to get the position of the node on the sheet
+        let addWirePos (stateWirePos:XYPos) (segNode: XYPos) =
+            let transformedElement = 
+                { 
+                X =  segNode.X + stateWirePos.X;
+                Y = segNode.Y + stateWirePos.Y 
+                }
+            let stateWirePos = transformedElement
+            (transformedElement, stateWirePos)
+        //get the list of segment nodes  
+        let segNodes, firstSegNode = 
+            visibleSegments wId sheet 
+            |> List.mapFold addWirePos wireStart 
+        //prepends the node that is skiped by visibleSegments 
+        let allSegNodes = wireStart::segNodes        
+        allSegNodes   
+        |> List.windowed 2
         |> List.map (fun arr -> (arr.[0], arr.[1]))
 
     ///Creates lists for all connectionIDs, with their segments start and end XYPos
@@ -251,4 +272,98 @@ let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
 
 //T3R
 
-  
+//T5R
+//Number of visible wire right-angles. Count over whole sheet.
+let countWireRightAngles (sheet: SheetT.Model) =
+    let connectionIDsL = Map.fold (fun keys key _ -> key::keys) [] sheet.Wire.Wires
+    let rightAngleNumber(wId: ConnectionId) (sheet: SheetT.Model) = 
+        (visibleSegments wId sheet |> List.length) - 1
+    connectionIDsL |> List.map (fun wId -> rightAngleNumber wId sheet) |> List.reduce (fun fst snd -> fst + snd)
+
+
+//________________________________________________________________________________________________________________________
+//TEAM  DELIVERABLES
+//D1. sheetAlignScale ASB
+//________________________________________________________________________________________________________________________
+
+// Align all singly-connected components to eliminate wire bends in parallel wires
+
+//----> helper functions for the algorithm
+
+//I am using parallel as "wire that is straight, or a candidate for straightening".
+//Wires, for example, with 4 visual segments, are not parallel, and  are more complex. You could ignore them.
+
+//A component is single-connected (in a given direction) when it has a single straightenable 3-visual-segment 
+//wire connecting it to another component in that direction. In that case you can be sure that moving the component 
+//can straighten that connection without unstraightening any other connections.
+//Straightening: turn 3 visual segments into one
+//Unstraightening: turning one visual segment into 3
+
+//A *single-constrained wire* is one which can be straightened without unstraightening any other wires: in other 
+//words one of its ends is a single-connected component. - 
+
+
+
+
+
+
+
+///Returns True if a wire is streightened.
+let streightenedWire (wId: ConnectionId) (sheet: SheetT.Model) = 
+    (visibleSegments wId sheet |> List.length) = 1
+///Returns True if a wire has potential to be streightened.
+let straighteningPotentialWire (wId: ConnectionId) (sheet: SheetT.Model) =
+    (visibleSegments wId sheet |> List.length) = 3
+
+
+let checkIfSinglePortComponent (sym: Symbol) =
+    let numInputPorts= sym.Component.InputPorts |> List.length 
+    let numOutputPorts= sym.Component.OutputPorts |> List.length
+    (numInputPorts + numOutputPorts) = 1
+
+
+
+
+//BlockHelpers.getSourcePort
+    //let inline getSourcePort (model:Model) (wire:Wire)
+//BlockHelpers.moveSymbol
+    //moveSymbol (offset:XYPos) (sym:Symbol)
+//BusWireRoute.updateWires
+    //let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) = 
+    // list opf moved componnts
+
+//symbol.getPortLocation
+    //getPortLocation (defPos: XYPos option) (model: Model) (portId : string) : XYPos=
+
+
+
+//Should be used just for wires with 3 visible segments
+// Calculates the offSet based on the middle segmant of a potential wire 
+let calculateOffset (wId: ConnectionId) (sheet: SheetT.Model) =
+    let nodeslist = visibleSegments wId sheet
+    let firstNode = List.item 0 nodeslist
+    let secondNode = List.item 1 nodeslist
+    {
+        X = firstNode.X - secondNode.X
+        Y = firstNode.Y - secondNode.Y
+    }
+
+let getWireFromPort (model: SheetT.Model) (port: Port) =
+            model.Wire.Wires
+            |> Map.toList
+            |> List.map snd
+            |> List.tryFind (fun wire -> match wire.InputPort with
+                                            | InputPortId portId when portId = port.Id -> true
+                                            | _ -> false)
+
+
+//let firstPhaseStraightening (sheet: SheetT.Model) =
+    
+
+
+
+// To do:
+//checkIfthereIsOverlap 
+
+let firstPhaseStraightening (sheet: SheetT.Model) =
+    sheet

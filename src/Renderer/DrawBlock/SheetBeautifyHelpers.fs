@@ -175,14 +175,11 @@ let countCrossingSegments (sheetModel : SheetT.Model) : int =
         List.collect BlockHelpers.getNonZeroAbsSegments wires
 
     let filter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
-        match (seg1.Orientation, seg2.Orientation) with
-        | (Horizontal, Horizontal) -> false
-        | (Vertical, Vertical) -> false
-        | _ -> BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
+        (seg1.GetId <> seg2.GetId) && (seg1.Orientation <> seg2.Orientation) && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
     
     sheetSegments
     |> List.allPairs sheetSegments
-    |> List.filter (fun (seg1, seg2) -> if seg1.GetId <> seg2.GetId then filter seg1 seg2 else false)
+    |> List.filter (fun (seg1, seg2) -> filter seg1 seg2)
     |> List.length
     
 

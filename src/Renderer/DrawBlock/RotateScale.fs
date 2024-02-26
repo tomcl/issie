@@ -100,7 +100,7 @@ let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let movePortPos = getPortRealPos movePInfo
     let otherPortPos = getPortRealPos otherPInfo
     let posDiff = otherPortPos - movePortPos
-
+     
     match movePInfo.side with
     | Top
     | Bottom -> { X = posDiff.X; Y = 0.0 }

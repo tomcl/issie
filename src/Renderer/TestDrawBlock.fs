@@ -382,6 +382,22 @@ module HLPTick3 =
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
 
+        let failOnAllTestsPrintWireSeg (sample: int) (sheet: SheetT.Model) =
+            let wireModel: BusWireT.Model = sheet.Wire
+            let listOfWires = wireModel.Wires |> Map.toList |> List.map (fun (wid: ConnectionId,wire) -> wire.InitialOrientation,wire.StartPos)
+            let listOfSegments = 
+                wireModel.Wires 
+                |> Map.toList 
+                |> List.collect (fun (wid,wire) -> wire.Segments)
+                |> List.map (fun seg -> seg.Index, seg.Length)
+
+            let wireLengths = 
+                wireModel.Wires 
+                |> Map.toList 
+                |> List.map (fun elm -> snd elm |> SheetBeautifyHelpers.getWireLength) 
+
+            Some $"======== Wires: {listOfWires} ========= Segments: {listOfSegments} ======= {wireLengths} ========="
+
 
 
 //---------------------------------------------------------------------------------------//
@@ -446,6 +462,17 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Example test: Horizontally positioned AND + DFF: fail all tests
+        let test5 testNum firstSample dispatch =
+            runTestOnSheets
+                "Fail all and printing wire, segments"
+                firstSample
+                horizLinePositions
+                makeTest1Circuit
+                Asserts.failOnAllTestsPrintWireSeg 
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
@@ -456,7 +483,7 @@ module HLPTick3 =
                 "Test2", test2 // example
                 "Test3", test3 // example
                 "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
+                "Print Wire", test5 // dummy test - delete line or replace by real test as needed
                 "Test6", fun _ _ _ -> printf "Test6"
                 "Test7", fun _ _ _ -> printf "Test7"
                 "Test8", fun _ _ _ -> printf "Test8"

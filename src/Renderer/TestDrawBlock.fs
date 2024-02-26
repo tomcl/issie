@@ -151,9 +151,9 @@ module HLPTick3 =
 
         /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
         /// if this is possible, otherwise return segVecs unchanged.
-        /// Index must be in range 1..segVecs
+        /// Index must be in range >= 1
         let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-            if segVecs[index] =~ XYPos.zero
+            if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
             then
                 segVecs[0..index-2] @
                 [segVecs[index-1] + segVecs[index+1]] @

@@ -436,7 +436,7 @@ module HLPTick3 =
         /// Example test: Horizontally positioned AND + DFF: fail on sample 10
         let test2 testNum firstSample dispatch =
             let testTotalRightAngleIntersect (sample: int) (model: SheetT.Model) = 
-                let length = totalRightAngleIntersect model
+                let length = countTotalRightAngleIntersect model
                 if (length <> -1) then
                     Some $"Right Angle number {length}"
                 else

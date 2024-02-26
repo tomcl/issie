@@ -92,7 +92,7 @@ module Constants =
             flipCombinations
             |> List.map (fun comb -> 
                 let newModel = applyFlipCombination comb model
-                (comb, totalRightAngleIntersect newModel))
+                (comb, countTotalRightAngleIntersect newModel))
             |> List.minBy snd
 
         // Apply the best combination to the model

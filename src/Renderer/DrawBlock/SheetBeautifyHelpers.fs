@@ -27,6 +27,11 @@ open BusWireUpdateHelpers
 open BusWireRoutingHelpers
 open SymbolReplaceHelpers
 
+
+//-----------------Module for beautify Helper functions--------------------------//
+// Typical candidates: all individual code library functions.
+// Other helpers identified by Team
+
 let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
 let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option = 
@@ -34,46 +39,12 @@ let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option =
         |> Map.values
         |> Seq.tryFind (fun sym -> caseInvariantEqual label sym.Component.Label)
 
-//-----------------Module for beautify Helper functions--------------------------//
-// Typical candidates: all individual code library functions.
-// Other helpers identified by Team
-
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
+
 // B1 The dimensions of a custom component symbol
-
-// let getCustomComponentDimensions (symbol: SymbolT.Symbol) : float * float = 
-//     let baseWidth = symbol.Component.W
-//     let baseHeight = symbol.Component.H
-//     let scaledWidth = 
-//         match symbol.HScale with
-//         | Some(scale) -> baseWidth * scale
-//         | None -> baseWidth
-//     let scaledHeight = 
-//         match symbol.VScale with
-//         | Some(scale) -> baseHeight * scale
-//         | None -> baseHeight
-//     (scaledWidth, scaledHeight)
-
-// let updateCustomComponentDimensions (symLabel: string) (model: SheetT.Model) (desiredDimensions: float * float): Result<SheetT.Model, string> =
-//     let desiredWidth, desiredHeight = desiredDimensions
-//     match getlabel model symLabel with
-//     | Some symbol ->
-//         let originalWidth = symbol.Component.W
-//         let originalHeight = symbol.Component.H
-//         let hScale = desiredWidth / originalWidth
-//         let vScale = desiredHeight / originalHeight
-//         let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
-        
-//         let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-
-//         let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
-        
-//         Ok updatedSheetModel
-//     | None -> Error (sprintf "Symbol with label '%s' not found." symLabel)
-
 
 let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, (float * float)> =
 
@@ -107,7 +78,7 @@ let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// B2 W
+// B2 The position of a symbol on the sheet 
 let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT.Model): SheetT.Model=
 
     let updatedSymbol = { symbol with Pos = newPos }
@@ -116,11 +87,28 @@ let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT
 
     updatedSheetModel
 
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B3 Read/write the order of ports on a specified side of a symbol
+let portOrderLens (side: Edge) : Lens<PortMaps, string list option> =
+    // Getter function: gets the list of port IDs for a specified side
+    let get (portMaps: PortMaps) =
+        Map.tryFind side portMaps.Order
+    // Setter function: returns a new PortMaps with updated port order for the specified side
+    let set (newOrderOpt: string list option) (portMaps: PortMaps) =
+        match newOrderOpt with
+        | Some newOrder ->
+            let updatedOrder = Map.add side newOrder portMaps.Order
+            { portMaps with Order = updatedOrder }
+        | None -> portMaps  // If None, don't modify the portMaps
+
+    (get, set)
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// B4 RW
+// B4 The reverses state of the inputs of a MUX2 
 let MuxReverseLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
     let get (model: SheetT.Model) = 
         
@@ -141,22 +129,6 @@ let MuxReverseLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// B5R - Read the position of a port on the sheet
-// let readPortPosition (sym: SymbolT.Symbol) (port: Port) : XYPos =
-//     let scale = SymbolT.getScaleF
-//     let symbolWidth = scale sym.HScale * sym.Component.W
-//     let symbolHeight = scale sym.VScale * sym.Component.H
-
-//     match Map.tryFind port.Id sym.PortMaps.Orientation with
-//     | Some edge ->
-//         let portOffset = DrawHelpers.calculatePortOffset edge sym.PortMaps sym.Component port.Id
-//         match edge with
-//         | Edge.Top -> { X = sym.Pos.X + portOffset; Y = sym.Pos.Y }
-//         | Edge.Bottom -> { X = sym.Pos.X + portOffset; Y = sym.Pos.Y + symbolHeight }
-//         | Edge.Left -> { X = sym.Pos.X; Y = sym.Pos.Y + portOffset }
-//         | Edge.Right -> { X = sym.Pos.X + symbolWidth; Y = sym.Pos.Y + portOffset }
-//         | _ -> sym.Pos // Fallback to symbol's position if the edge is not recognized
-//     | None -> sym.Pos // If the port is not found in the orientation map, fallback to the symbol's position
 
 // B5R - Read the position of a port on the sheet
 let readPortPosition (sym: Symbol) (port: Port) : XYPos =
@@ -181,7 +153,9 @@ let readBoundingBox (symbol: Symbol) : BoundingBox =
                 | Some(scale) -> height * scale
                 | None -> height
         (w, h)
+    
     let (scaledWidth, scaledHeight) = applyScaling symbol.Component.W symbol.Component.H symbol.HScale symbol.VScale
+    
     {
         TopLeft = symbol.Pos
         W = scaledWidth
@@ -192,21 +166,8 @@ let readBoundingBox (symbol: Symbol) : BoundingBox =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
+
 // B7 RW  Low The rotation state of a symbol
-// B8 RW  Low The Flipped state of a symbol 
-
-// let getSymbolRotation (symbol: SymbolT.Symbol) : Rotation =
-//     symbol.STransform.Rotation
-
-// let updateSymbolRotation (symLabel: string) (desiredRotation: Rotation) (model: SheetT.Model): Result<SheetT.Model, string> =
-//     Error "Not implemented yet"
-
-// let getSymbolFlipped (symbol: SymbolT.Symbol) : bool =
-//     symbol.STransform.Flipped
-
-// let updateSymbolFlipped (symLabel: string) (model: SheetT.Model) (desiredFlipped: bool) : Result<SheetT.Model, string> =
-//     Error "Not implemented yet"
-
 let SymbolRotationLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, Rotation> =
     let get (model: SheetT.Model) : Rotation = symbol.STransform.Rotation
 
@@ -220,6 +181,7 @@ let SymbolRotationLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, Rotation> =
 
     (get, set)
 
+// B8 RW  Low The Flipped state of a symbol 
 let SymbolFlippedLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
     let get (model: SheetT.Model) : bool = symbol.STransform.Flipped
 
@@ -246,11 +208,13 @@ let countIntersectingSymbolPairs (sheet: SheetT.Model) =
 
     let wireModel = sheet.Wire
 
+    // Get Bounding boxes of all symbols into a list
     let boxes =
         mapValues sheet.BoundingBoxes
         |> Array.toList
         |> List.mapi (fun n box -> n,box)
     
+    // Iterate through all symbol pairs and count the number of intersecting pairs
     List.allPairs boxes boxes 
     |> List.filter (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
@@ -267,8 +231,11 @@ let countSymbolIntersectingWire (sheet: SheetT.Model) =
     let wireModel = sheet.Wire
 
     wireModel.Wires
-    |> Map.fold (fun acc _ wire -> 
-        if BusWireRoute.findWireSymbolIntersections wireModel wire <> [] then acc + 1 else acc
+    |> Map.fold (
+        fun acc _ wire -> 
+            if BusWireRoute.findWireSymbolIntersections wireModel wire <> [] 
+            then acc + 1 
+            else acc
     ) 0
 
 
@@ -276,7 +243,13 @@ let countSymbolIntersectingWire (sheet: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // Function to convert a wire into a list of segments, useful for T3-6
-type SegVector = {Start: XYPos; Dir: XYPos}
+
+type SegVector = {Start: XYPos; Direction: XYPos}
+
+let getEndPoint (seg: SegVector) = 
+    { X = seg.Start.X + seg.Direction.X; Y = seg.Start.Y + seg.Direction.Y }
+
+
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
     let wire = model.Wire.Wires[wId] // get wire from model
@@ -312,8 +285,10 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
 
-
+// Take in a wire, and return a list of SegVector
+// Each SegVector represents a segment of the wire, with Starting position and Direction Vector
 let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
+
     let segmentsXYPos = visibleSegments wId model
 
     let addXYPos (p1: XYPos) (p2: XYPos) = 
@@ -322,8 +297,8 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
     segmentsXYPos
     |> List.fold (fun (acc: SegVector list, lastPos: XYPos) pos -> 
         match acc with
-        | [] -> ([{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
-        | _ -> (acc @ [{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
+        | [] -> ([{ Start = lastPos; Direction = pos }], addXYPos lastPos pos)
+        | _ -> (acc @ [{ Start = lastPos; Direction = pos }], addXYPos lastPos pos)
     ) ([], { X = 0.0; Y = 0.0 })
     |> fst
 
@@ -333,64 +308,51 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // T3R - Number of visible wire Intersecting at right-angles
-let totalRightAngleIntersect (model: SheetT.Model) =
-    let isCrossingAtRightAngle seg1 seg2 =
-        // Determine the end points of each segment
-        let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
-        let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
 
-        // Check if both segments are vertical or horizontal
-        if (seg1.Dir.X = 0.0 && seg2.Dir.X = 0.0) || (seg1.Dir.Y = 0.0 && seg2.Dir.Y = 0.0) then
-            false
-        else
-            // Check for vertical seg1 intersecting with horizontal seg2 or vice versa
-            let isSeg1Vertical = seg1.Dir.X = 0.0
-            let seg1Range = 
-                if isSeg1Vertical then 
-                    (min seg1.Start.Y end1.Y, max seg1.Start.Y end1.Y) 
-                else (min seg1.Start.X end1.X, max seg1.Start.X end1.X)
+let isVertical (direction: XYPos) = direction.X = 0.0
 
-            let seg2Range = 
-                if isSeg1Vertical then 
-                    (min seg2.Start.X end2.X, max seg2.Start.X end2.X) 
-                else (min seg2.Start.Y end2.Y, max seg2.Start.Y end2.Y)
-            let seg1Pos = if isSeg1Vertical then seg1.Start.X else seg1.Start.Y
-            let seg2Pos = if isSeg1Vertical then seg2.Start.Y else seg2.Start.X
+let calculateRange (startPos: XYPos) (endPos: XYPos) (isVertical: bool) =
+    if isVertical then
+        (min startPos.Y endPos.Y, max startPos.Y endPos.Y)
+    else
+        (min startPos.X endPos.X, max startPos.X endPos.X)
 
-            // Check if the static position of one segment falls within the range of the other segment's start and end
-            seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
-            seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
+// Check if two segments are crossing at right angle
+let isCrossingAtRightAngle (seg1: SegVector) (seg2: SegVector) =
+    let end1 = getEndPoint seg1
+    let end2 = getEndPoint seg2
 
-    let countRightAngleIntersections segments =
-        let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
-        let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
+    // if two segments are parallel, they cannot intersect at right angle
+    match (isVertical seg1.Direction, isVertical seg2.Direction) with
+    | (true, true) | (false, false) -> false
+    | _ ->
+        // check if segments intersect
+        let seg1Range = calculateRange seg1.Start end1 (isVertical seg1.Direction)
+        let seg2Range = calculateRange seg2.Start end2 (isVertical seg2.Direction)
 
-        let mutable count = 0
-        verticals
-        |> List.collect (fun vSeg -> horizontals |> List.filter (isCrossingAtRightAngle vSeg))
-        |> List.length
+        let seg1Pos = if isVertical seg1.Direction then seg1.Start.X else seg1.Start.Y
+        let seg2Pos = if isVertical seg1.Direction then seg2.Start.Y else seg2.Start.X
+
+        seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
+        seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
+
+// Count the number of right angle intersections
+let countRightAngleIntersect (segVectorList: list<SegVector>) =
+    let verticals = segVectorList |> List.filter (fun seg -> seg.Direction.X = 0.0)
+    let horizontals = segVectorList |> List.filter (fun seg -> seg.Direction.Y = 0.0)
+
+    let mutable count = 0
+
+    verticals
+    |> List.collect (fun vSeg -> horizontals |> List.filter (isCrossingAtRightAngle vSeg))
+    |> List.length
 
 
-
-    // Step 1: Extract and process segments for each wire
-    let allSegments =
-        model.Wire.Wires
-        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
-        |> List.collect (fun (wId, _) -> wireToSegments wId model) // Use 'List.collect' to flatten the lists of segments
-
-    // Step 2: Merge overlapping segments for the entire list of segments
-    // Step 3: Calculate the total length
-
-    allSegments
-    |> countRightAngleIntersections
-
-    // let test1 = {Start = {X=1892.500000; Y=1850.000000}; Dir = {X=0.000000; Y = -50.000000}}
-    // let test2 = {Start = {X=1892.500000; Y=1800.000000}; Dir = {X = -190.000000; Y = 0.000000}}
-
-    // if isCrossingAtRightAngle test1 test2 then
-    //     1
-    // else
-    //     0
+let countTotalRightAngleIntersect (model: SheetT.Model) =
+    model.Wire.Wires
+    |> Map.toList // Convert the map of wires to a list of (key, value) pairs
+    |> List.collect (fun (wId, _) -> wireToSegments wId model) // flatten the lists of segments
+    |> countRightAngleIntersect
 
 
 
@@ -402,46 +364,56 @@ let totalRightAngleIntersect (model: SheetT.Model) =
 // sheet. 
 
 // Check if two segments are overlapping
-let isOverlapping seg1 seg2 =
-    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
-    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
-    seg1.Start.X = seg2.Start.X && seg1.Start.Y = seg2.Start.Y ||
-    (seg1.Start.X <= end2.X && end1.X >= seg2.Start.X) ||
-    (seg1.Start.Y <= end2.Y && end1.Y >= seg2.Start.Y)
+let isOverlapping (seg1: SegVector) (seg2: SegVector) =
+
+    let end1 = getEndPoint seg1
+    let end2 = getEndPoint seg2
+
+    (seg1.Start.X = seg2.Start.X || seg1.Start.Y = seg2.Start.Y) &&
+    ((seg1.Start.X <= end2.X && end1.X >= seg2.Start.X) ||
+    (seg1.Start.Y <= end2.Y && end1.Y >= seg2.Start.Y))
 
 // Merge two overlapping segments if they are parallel and overlapping
-let mergeSegments seg1 seg2 =
-    let endX = max (seg1.Start.X + seg1.Dir.X) (seg2.Start.X + seg2.Dir.X)
-    let endY = max (seg1.Start.Y + seg1.Dir.Y) (seg2.Start.Y + seg2.Dir.Y)
-    { Start = seg1.Start; Dir = { X = endX - seg1.Start.X; Y = endY - seg1.Start.Y } }
+let mergeTwoSegments seg1 seg2 =
+    
+    let start1, start2 = seg1.Start, seg2.Start
+    let end1, end2 = getEndPoint seg1, getEndPoint seg2
+
+    // start and end of the merged segment
+    let startX = min start1.X start2.X
+    let startY = min start1.Y start2.Y
+    let endX = max end1.X end2.X
+    let endY = max end1.Y end2.Y
+
+    { 
+        Start = { X = startX; Y = startY }; 
+        Direction = { X = endX - startX; Y = startY - endY } 
+    }
 
 // Merge all parallel overlapping segments in a list
-let mergeOverlappingSegments segList =
+let mergeAllOverlapSegments segList =
     let rec mergeRecursive acc remaining =
         match remaining with
         | [] -> acc
         | hd :: tl ->
             let overlaps, nonOverlaps = List.partition (isOverlapping hd) tl
-            let mergedSegment = List.fold mergeSegments hd overlaps
+            let mergedSegment = List.fold mergeTwoSegments hd overlaps
             mergeRecursive (mergedSegment :: acc) nonOverlaps
     mergeRecursive [] segList |> List.rev
 
 // Calculate sum of segment lengths
 let totalVisibleWiringLength (model: SheetT.Model) =
 
-    model.Wire.Wires
-    |> Map.toList // Convert the map of wires to a list<SegVector>
-    |> List.collect (fun (wId, _) -> wireToSegments wId model) // flatten the lists of segments
-    |> mergeOverlappingSegments // Merge overlapping segments
-    |> List.sumBy (fun seg -> abs seg.Dir.X + abs seg.Dir.Y) // Sum length
-    // Step 2: Merge overlapping segments for the entire list of segments and Calculate the total length
-    // let totalLength =
-    //     allSegments
-        // |> mergeOverlappingSegments
-        // |> List.sumBy (fun seg -> abs seg.Dir.X + abs seg.Dir.Y)
+    // list of segments without overlapping
+    let segWithoutOverlap = 
+        model.Wire.Wires
+        |> Map.toList // Convert the map of wires to a list<SegVector>
+        |> List.collect (fun (wId, _) -> wireToSegments wId model) // flatten the lists of segments
 
-    // totalLength
-
+    segWithoutOverlap
+    |> mergeAllOverlapSegments // Merge overlapping segments
+    |> List.sumBy (fun seg -> abs seg.Direction.X + abs seg.Direction.Y) // Sum length
+    
 
 
 //-------------------------------------------------------------------------------------------------//
@@ -449,7 +421,9 @@ let totalVisibleWiringLength (model: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 // T5R - Number of visible wire right-angles. Count over whole sheet.
 
+// Count the number of right angles in a wire
 let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
+
     let segments = visibleSegments wId model
 
     segments
@@ -460,10 +434,6 @@ let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
 let countTotalRightAngles (model: SheetT.Model) =
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
-
-
-
-
 
 
 //-------------------------------------------------------------------------------------------------//

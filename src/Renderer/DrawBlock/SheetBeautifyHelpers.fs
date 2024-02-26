@@ -167,35 +167,109 @@ let getIntersectingWireSegmentsCount (sheetModel:SheetT.Model) : int =
 /// Does not include 0 length segments or segments on same net intersecting at one end, 
 /// or segments on same net on top of each other. Count over whole sheet.
 let getRightAngleCrossingSegmentsCount (sheetModel:SheetT.Model) : int =    
-    failwith "Not Implemented"
+    let segLst = 
+        sheetModel.Wire.Wires
+        |> Helpers.mapValues
+        |> Array.toList
+        |> List.collect (fun wire -> getNonZeroAbsSegments wire)
+        
+    let segPairs =
+        List.allPairs segLst segLst
+        |> List.filter (fun (seg1, seg2) -> not (seg1 = seg2))
+    
+    let segPairNotTIntersect (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) =
+        if seg1.Start = seg2.Start || seg1.Start = seg2.End || seg1.End = seg2.Start || seg1.End = seg2.End then false
+        else true
+
+    let segPairCrossIntersect (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) =
+        if overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
+            && segPairNotTIntersect seg1 seg2 then true
+        else false
+        
+    segPairs
+    |> List.filter (fun (seg1, seg2) -> segPairCrossIntersect seg1 seg2)
+    |> List.length
+
+
 
 /// key: T4R Type: R Sum of wiring segment length, counting only one when there are N same-net 
 /// segments overlapping (this is the visible wire length on the sheet). 
 /// Count over whole sheet.
-let getVisibleWireLength (sheetModel:SheetT.Model) : float =
-    failwith "Not Implemented"
+let getVisibleWireLength (sheetModel:SheetT.Model) : float =    
+    let isOverlap (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) =
+        let seg1Box = (seg1.Start, seg1.End)
+        let seg2Box = (seg2.Start, seg2.End)
+        overlap2D seg1Box seg2Box
+
+    // gouping wires by source port
+    let sameNetSegments =
+        sheetModel.Wire.Wires
+        |> Helpers.mapValues
+        |> Array.toList
+        |> List.groupBy (fun wire -> wire.InputPort)
+        |> List.map (fun (port, wires) -> wires |> List.collect (fun wire -> getNonZeroAbsSegments wire))
+    
+    // gouping segments by orientation fst: horizontal, snd: vertical
+    let sameOrientationSegments (segLst: BusWireT.ASegment list) =
+        segLst
+        |> List.partition (fun seg -> seg.Start.X = seg.End.X)
+
+    let horizontalSegments, verticalSegments = 
+        sameNetSegments
+        |> List.map sameOrientationSegments
+        |> List.unzip
+
+    // given a list of segments in same orientation, group them by overlapping
+    let groupOverlapSegments (segmentsList: BusWireT.ASegment list) =
+        let rec groupHelper (segGroups: BusWireT.ASegment list list) (remainingSegments: BusWireT.ASegment list) =
+                match remainingSegments with
+                | [] -> segGroups
+                | segment :: rest ->
+                    //should have only one group that overlaps with the current segment
+                    let overlappingGroup, nonOverlappingGroups =
+                        segGroups
+                        |> List.partition (fun group ->
+                            group |> List.exists (fun s -> isOverlap s segment))
+
+                    match overlappingGroup with
+                    | [] ->
+                        // no overlap: create a new group for the current segment
+                        groupHelper  ([segment] :: nonOverlappingGroups) rest
+                    | group :: _ ->
+                        // overlap: add the current segment to the first overlapping group found
+                        groupHelper  ((segment :: group) :: nonOverlappingGroups) rest
+
+        groupHelper [] segmentsList 
+        
+    // given segLst whose element overlaps with each other, get the visible length
+    let getLongestLength (segLst: BusWireT.ASegment list) =
+        let minStartSeg = segLst |> List.minBy (fun seg -> seg.Start.X + seg.Start.Y)
+        let maxEndSeg = segLst |> List.maxBy (fun seg -> seg.End.X + seg.End.Y)
+        let lengthXY =  maxEndSeg.End - minStartSeg.Start
+        abs(lengthXY.X + lengthXY.Y)
+
+    let segmengtsOverlappingGroups = 
+        horizontalSegments |> List.collect groupOverlapSegments
+        |> List.append (verticalSegments |> List.collect groupOverlapSegments)
+        
+    segmengtsOverlappingGroups |> List.map getLongestLength |> List.sum
+    
 
 /// key: T5R Type: R Descrip: Number of visible wire right-angles. Count over whole sheet.
 let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
-    let segmentPairsList (wire: BusWireT.Wire) = 
-        let segmentsList=
-            wire.Segments
-            |> List.mapi (fun i seg -> i, seg.WireId)
-        List.map2 (fun segmentId1 segmentId2 -> segmentId1, segmentId2) segmentsList (List.tail segmentsList)
-    
-    let segmentStartAndEndPos (segmentId : SegmentId): (XYPos * XYPos) = 
-        let ASegment = BusWire.getASegmentFromId sheetModel.Wire segmentId
-        ASegment.Start, ASegment.End
+    let ASegmentPairsList (wire: BusWireT.Wire) = 
+        let ASegLst = getNonZeroAbsSegments wire
+        List.map2 (fun aSeg1 aSeg2 -> aSeg1, aSeg2) ASegLst (List.tail ASegLst)
 
-    let segmentsRightAngle (seg1: SegmentId) (seg2: SegmentId) = 
-        let seg1Orientation = BusWire.getSegmentOrientation <|| (segmentStartAndEndPos seg1)
-        let seg2Orientation = BusWire.getSegmentOrientation <|| (segmentStartAndEndPos seg2)
+    let segmentsHaveRightAngle (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) = 
+        let seg1Orientation = BusWire.getSegmentOrientation seg1.Start seg1.End
+        let seg2Orientation = BusWire.getSegmentOrientation seg1.Start seg1.End
         if seg1Orientation = seg2Orientation then false
         else true
 
     let countRightAnglePairs (wire: BusWireT.Wire) =
-        segmentPairsList wire
-        |> List.filter (fun (segmentId1 , segmentId2) -> segmentsRightAngle segmentId1 segmentId2)
+        ASegmentPairsList wire
+        |> List.filter (fun (aSeg1 , aSeg2) -> segmentsHaveRightAngle aSeg1 aSeg2)
         |> List.length
 
     sheetModel.Wire.Wires
@@ -203,8 +277,6 @@ let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
     |> Array.toList
     |> List.map countRightAnglePairs
     |> List.sum
-
-
 
 
 /// key: T6R Type: R Descrip: The zero-length segments in a wire with non-zero segments on either side that have 

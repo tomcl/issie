@@ -165,21 +165,24 @@ let countWireIntersectSym (sheetModel : SheetT.Model) : int =
 // not include 0 length segments or segments on same net intersecting at one end, or
 // segments on same net on top of each other. Count over whole sheet.
 let countCrossingSegments (sheetModel : SheetT.Model) : int =
-    let wires = 
-        sheetModel.Wire.Wires 
-        |> Map.toList
-        |> List.map (fun (id, wire) -> wire)
+    let wires: Map<ConnectionId,Wire> = sheetModel.Wire.Wires 
     // first convert to ASegments
     // check for overlap for Horizontal and Vertical segments
-    let sheetSegments = 
-        List.collect BlockHelpers.getNonZeroAbsSegments wires
 
-    let filter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
-        (seg1.GetId <> seg2.GetId) && (seg1.Orientation <> seg2.Orientation) && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
+    let sheetSegments = 
+        wires
+        |> Map.toList
+        |> List.map (fun (id, wire) -> wire)
+        |> List.collect BlockHelpers.getNonZeroAbsSegments
+
+    let filter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) (wireMap : Map<ConnectionId,Wire>) =
+        let wire1, wire2 = wireMap[snd seg1.GetId], wireMap[snd seg2.GetId]
+        // we require segments to be on different nets, be orthogonal to each other and overlap
+        (wire1.InputPort <> wire2.InputPort) && (seg1.Orientation <> seg2.Orientation) && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
     
     sheetSegments
     |> List.allPairs sheetSegments
-    |> List.filter (fun (seg1, seg2) -> filter seg1 seg2)
+    |> List.filter (fun (seg1, seg2) -> filter seg1 seg2 wires)
     |> List.length
     
 
@@ -187,7 +190,7 @@ let countCrossingSegments (sheetModel : SheetT.Model) : int =
 // Sum of wiring segment length, counting only one when there are N same-net
 // segments overlapping (this is the visible wire length on the sheet). Count over whole
 // sheet.
-let getWireLength (wire : BusWireT.Wire) = 
+let getWireLength (wire : BusWireT.Wire) : float = 
     wire.Segments
     |> List.fold (fun (len: float) (seg: BusWireT.Segment) -> len+seg.Length) 0.0
 
@@ -199,3 +202,21 @@ let sumWireLength (sheetModel : SheetT.Model) : float =
     |> Map.toList
     |> List.fold folder 0.0
 
+// T5R R Low 
+// Number of visible wire right-angles. Count over whole sheet.
+let countWireRightAngles (sheetModel : SheetT.Model) : int =
+    let wireModel = sheetModel.Wire
+
+    wireModel.Wires
+    |> Map.fold (fun _ wire acc -> acc + BlockHelpers.countRightAngles wire) 0
+    0
+
+
+// T6R R High 
+// The zero-length segments in a wire with non-zero segments on either side that have
+// Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply
+// at the end of a wire (where the zero-length segment is one from the end). This is a
+// wiring artifact that should never happen but errors in routing or separation can
+// cause it. Count over the whole sheet. Return from one function a list of all the
+// segments that retrace, and also a list of all the end of wire segments that retrace so
+// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.

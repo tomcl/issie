@@ -242,5 +242,53 @@ let getVisibleWireRightAngles (sheet: SheetT.Model) : int =
 // cause it. Count over the whole sheet. Return from one function a list of all the 
 // segments that retrace, and also a list of all the end of wire segments that retrace so 
 // far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
+let getRetracingSegments (sheet: SheetT.Model) : (Segment list * Segment list) =
+
+    // regarding the return, I would return the last segment of the wire if it retraces
+    // e.g. for [5, 0, -10], the list would only inlcude the -10 segment
+
+    let allWires = sheet.Wire.Wires.Values |> Seq.toList
+
+    // helper function that extracts the two neighboring values of 0
+    let rec splitIntoPairs list =
+        let rec aux acc current = function
+            | a :: 0. :: b :: tail -> aux (([a; b] :: acc)) [] tail
+            | _ :: tail -> aux acc current tail // Skip elements until a 0 is encountered
+            | [] -> List.rev acc // Return the accumulated list of pairs
+        aux [] [] list
 
 
+    let getRetracingSegmentsForWire (wire: Wire) : (Segment list) =
+        // flatten the wire segments in to a list of their lengths
+        let segLengths = wire.Segments |> List.map (fun seg -> seg.Length)
+        let zeroPairs = splitIntoPairs segLengths
+
+        // check if the pairs have opposite signs, and return the latter segment into a list if they do
+        let retracingSegments =
+            zeroPairs
+            |> List.filter (fun pair -> (List.head pair) * (List.last pair) < 0)
+            |> List.map (fun pair -> wire.Segments.[(List.length pair) - 1])
+
+        retracingSegments
+
+    // once we have done the most difficult part, the rest is easy - we apply a special case for the segment at index 3 and Segments.Length - 4
+    let getRetracingEndSegmentsForWire (wire: Wire) : (Segment list) =
+        // check if the segment at index 2 and Segments.Length - 2 are zero, and if so check if the two neighboring segments have opposite signs
+        if wire.Segments.Length < 3 then
+            []
+        else
+
+            if wire.Segments.Length > 3 && wire.Segments.Length < 5 then
+                [wire.Segments.[0..2]]
+            else
+                [wire.Segments.[0..2]; wire.Segments.[wire.Segments.Length - 3..wire.Segments.Length - 1]]
+
+            // check if the middle element is zero and if the two neighboring segments have opposite signs
+            |> List.filter (fun segs -> segs[1].Length = 0 && segs[0].Length * segs[2].Length < 0)
+            |> List.map (fun segs -> segs[2])
+
+
+    let retracingSegments = allWires |> List.map getRetracingSegmentsForWire |> List.concat
+    let retracingEndSegments = allWires |> List.map getRetracingEndSegmentsForWire |> List.concat
+
+    (retracingSegments, retracingEndSegments)

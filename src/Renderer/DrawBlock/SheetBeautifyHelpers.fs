@@ -54,8 +54,8 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
 
-// B1R, B1W RW Low
-// returns the lens of dimensions of a custom component symbol
+/// B1R, B1W RW Low
+/// returns the lens of dimensions of a custom component symbol
 let getCCSymbolDimension (sym : SymbolT.Symbol) =
     match (sym.HScale, sym.VScale) with
     | (None, None) -> { W = sym.Component.W ; H = sym.Component.H }
@@ -70,8 +70,8 @@ let setCCSymbolDimension (dim : Dimension) (sym : SymbolT.Symbol) =
 
 let CCSymbolDimensions_ = Lens.create getCCSymbolDimension setCCSymbolDimension
 
-// B2W Med
-// The position of a symbol on the sheet
+/// B2W Med
+/// The position of a symbol on the sheet
 let setSymbolPosOnSheet (sheetModel : SheetT.Model) (symId : ComponentId) (pos : XYPos) : SheetT.Model = 
     let updateSymPos (sym : SymbolT.Symbol) : SymbolT.Symbol = { sym with Pos = pos }
     let newSymModel: SymbolT.Model = SymbolUpdate.updateSymbol updateSymPos symId sheetModel.Wire.Symbol
@@ -79,9 +79,9 @@ let setSymbolPosOnSheet (sheetModel : SheetT.Model) (symId : ComponentId) (pos :
     sheetModel
     |> Optic.set SheetT.symbol_ newSymModel
 
-// B3R, B3W RW Med
-// Read/write the order of ports on a specified side of a symbol
-// used Symbols.fs
+/// B3R, B3W RW Med
+/// Read/write the order of ports on a specified side of a symbol
+/// used Symbols.fs
 let getSymPortOrder (sym : SymbolT.Symbol) (side : Edge) : string list =
     sym.PortMaps.Order[side]
 
@@ -93,29 +93,29 @@ let setSymPortOrder (orderedPorts : string list) (side : Edge) (sym : SymbolT.Sy
 // A lens is not directly possible as we also need to specify the specific side
 // let symPortOrder_ = Lens.create getSymPortOrder setSymPortOrder
 
-// B4R, B4W RW Low 
-// The reverses state of the inputs of a MUX2
+/// B4R, B4W RW Low 
+/// The reverses state of the inputs of a MUX2
 let getMux2IsReversed (sym : SymbolT.Symbol) : bool option =
     sym.ReversedInputPorts
 
 let setMux2IsReversed (sym : SymbolT.Symbol) (reverseState : bool option) : SymbolT.Symbol =
     { sym with ReversedInputPorts = reverseState }
 
-// B5R R Low 
-// The position of a port on the sheet. It cannot directly be written.
+/// B5R R Low 
+/// The position of a port on the sheet. It cannot directly be written.
 let getPortPosOnSheet (sym : SymbolT.Symbol) (portId : string) : XYPos =
     let port = sym.Component.getPort(PortId portId)
     match port with
     | Some port -> getPortPos sym port
     | None -> failwithf "Port with id %s not found in symbol" portId
     
-// B6R R Low 
-// The Bounding box of a symbol outline (position is contained in this)
+/// B6R R Low 
+/// The Bounding box of a symbol outline (position is contained in this)
 let getSymOutlineBoundingBox (sym : SymbolT.Symbol) : BoundingBox =
     getSymbolBoundingBox sym
 
-// B7R, B7W RW Low 
-// The rotation state of a symbol
+/// B7R, B7W RW Low 
+/// The rotation state of a symbol
 let getSymRotation (sym : SymbolT.Symbol) : Rotation =
     sym.STransform.Rotation
 
@@ -124,8 +124,8 @@ let setSymRotation (rotation : Rotation) (sym : SymbolT.Symbol) : SymbolT.Symbol
 
 let symRotation_ = Lens.create getSymRotation setSymRotation
 
-// B8R, B8W RW Low 
-// The flip state of a symbol
+/// B8R, B8W RW Low 
+/// The flip state of a symbol
 let isSymFlip (sym : SymbolT.Symbol) : bool =
     sym.STransform.Flipped
 
@@ -134,9 +134,9 @@ let setSymFlip (isFlipped : bool) (sym : SymbolT.Symbol) : SymbolT.Symbol =
 
 let symFlip_ = Lens.create isSymFlip setSymFlip
 
-// T1R R Low 
-// The number of pairs of symbols that intersect each other. See Tick3 for a related
-// function. Count over all pairs of symbols.
+/// T1R R Low 
+/// The number of pairs of symbols that intersect each other. See Tick3 for a related
+/// function. Count over all pairs of symbols.
 let countSymIntersectSym (sheetModel : SheetT.Model) : int =
     let wireModel = sheetModel.Wire
     let boxes =
@@ -148,10 +148,10 @@ let countSymIntersectSym (sheetModel : SheetT.Model) : int =
     |> List.length
     
 
-// T2R R Low 
-// The number of distinct wire visible segments that intersect with one or more
-// symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire
-// segments.
+/// T2R R Low 
+/// The number of distinct wire visible segments that intersect with one or more
+/// symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire
+/// segments.
 let countWireIntersectSym (sheetModel : SheetT.Model) : int =
     let wireModel = sheetModel.Wire
 
@@ -159,31 +159,38 @@ let countWireIntersectSym (sheetModel : SheetT.Model) : int =
     |> Map.filter (fun _ wire -> BusWireRoute.findWireSymbolIntersections wireModel wire <> [])
     |> Map.count
 
+// ------------ Some Extra Helpers ------------
 
-// T3R R Low 
-// The number of distinct pairs of segments that cross each other at right angles. Does
-// not include 0 length segments or segments on same net intersecting at one end, or
-// segments on same net on top of each other. Count over whole sheet.
+/// helper to get all pairs of elements from a list without repeats
 let rec allPairsWithoutRepeats list =
     match list with
     | [] -> []
     | hd::tl -> (List.map (fun elm -> (hd, elm)) tl) @ allPairsWithoutRepeats tl
 
+/// helper to get the input port of a segment from the sheet model
 let getInputPortOfSeg (seg : BusWireT.Segment) (sheetModel : SheetT.Model) =
     let wireMap : Map<ConnectionId,Wire> = sheetModel.Wire.Wires
     wireMap[snd seg.GetId].InputPort
 
+/// helper to check if two segments are from the same net in the sheet model
 let isSegFromSameNet (seg1 : BusWireT.Segment) (seg2 : BusWireT.Segment) (sheetModel : SheetT.Model) =
     getInputPortOfSeg seg1 sheetModel = getInputPortOfSeg seg2 sheetModel
 
+/// helper to calculate the overlap length of two segments
 let calcASegOverlapLength (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) = 
     let min1, min2 = min seg1.Start seg1.End, min seg2.Start seg2.End
     let max1, max2 = max seg1.Start seg1.End, max seg2.Start seg2.End
     
     let vector = min max1 max2 - max min1 min2
-    max vector.X vector.Y
+    max vector.X vector.Y // assume that the segments are parallel, either X or Y will be cancelled out
+    
+// --------------------------------------------
 
-let countCrossingSegments (sheetModel : SheetT.Model) : int =
+/// T3R R Low 
+/// The number of distinct pairs of segments that cross each other at right angles. Does
+/// not include 0 length segments or segments on same net intersecting at one end, or
+/// segments on same net on top of each other. Count over whole sheet.
+let countSegmentIntersect (sheetModel : SheetT.Model) : int =
     let wires: Map<ConnectionId,Wire> = sheetModel.Wire.Wires 
     let ASegments = 
         wires
@@ -191,20 +198,22 @@ let countCrossingSegments (sheetModel : SheetT.Model) : int =
         |> List.map (fun (id, wire) -> wire)
         |> List.collect BlockHelpers.getNonZeroAbsSegments
 
-    let filter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) (wireMap : Map<ConnectionId,Wire>) =
+    let intersectFilter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
         // we require segments to be on different nets, be orthogonal to each other and overlap
-        (isSegFromSameNet seg1.Segment seg2.Segment sheetModel) && (seg1.Orientation <> seg2.Orientation) && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
+        (isSegFromSameNet seg1.Segment seg2.Segment sheetModel) 
+        && (seg1.Orientation <> seg2.Orientation) 
+        && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
     
     ASegments
     |> allPairsWithoutRepeats
-    |> List.filter (fun (seg1, seg2) -> filter seg1 seg2 wires)
+    |> List.filter (fun (seg1, seg2) -> intersectFilter seg1 seg2)
     |> List.length
 
-// T4R R Medium 
-// Sum of wiring segment length, counting only one when there are N same-net
-// segments overlapping (this is the visible wire length on the sheet). Count over whole
-// sheet.
-let getOverlapSegmentLength (sheetModel : SheetT.Model) : float =
+/// T4R R Medium 
+/// Sum of wiring segment length, counting only one when there are N same-net
+/// segments overlapping (this is the visible wire length on the sheet). Count over whole
+/// sheet.
+let calcOverlapSegmentLength (sheetModel : SheetT.Model) : float =
     let wires: Map<ConnectionId,Wire> = sheetModel.Wire.Wires 
     let ASegments = 
         wires
@@ -212,23 +221,23 @@ let getOverlapSegmentLength (sheetModel : SheetT.Model) : float =
         |> List.map (fun (id, wire) -> wire)
         |> List.collect BlockHelpers.getNonZeroAbsSegments
 
-    let filter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) (wireMap : Map<ConnectionId,Wire>) =
+    // we require segments to be parallel to each other and overlap 
+    // (treating orthogonal overlap length as 0!)
+    let overlapFilter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
         (seg1.Orientation = seg2.Orientation) && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
-        // we require segments to be parallel to each other and overlap 
-        // (treating orthogonal overlap length as 0!)
     
     let overlapPairs = 
         ASegments
         |> allPairsWithoutRepeats
-        |> List.filter (fun (seg1, seg2) -> filter seg1 seg2 wires)
+        |> List.filter (fun (seg1, seg2) -> overlapFilter seg1 seg2)
     
-    let nOverlapOtherNet = 
+    let overlapOtherNet = 
         overlapPairs
         |> List.filter (fun (seg1, seg2) -> not (isSegFromSameNet seg1.Segment seg2.Segment sheetModel))
         |> List.fold (fun acc (seg1, seg2) -> acc + calcASegOverlapLength seg1 seg2) 0.
 
     // same net segment overlaps are counted only once
-    let nOverlapSameNet =
+    let overlapSameNet =
         overlapPairs
         |> List.filter (fun (seg1, seg2) -> isSegFromSameNet seg1.Segment seg2.Segment sheetModel)
         |> List.unzip
@@ -238,13 +247,13 @@ let getOverlapSegmentLength (sheetModel : SheetT.Model) : float =
             segs 
             |> allPairsWithoutRepeats
             |> List.fold (fun acc (seg1, seg2) -> max acc (calcASegOverlapLength seg1 seg2)) 0.
-            ) // calculate max overlap length for each net group
+            ) // calculate max overlap length for each group of segments that belong to the same net
         |> List.sum
     
-    nOverlapOtherNet + nOverlapSameNet
+    overlapOtherNet + overlapSameNet
 
-// T5R R Low 
-// Number of visible wire right-angles. Count over whole sheet.
+/// T5R R Low 
+/// Number of visible wire right-angles. Count over whole sheet.
 let countWireRightAngles (sheetModel : SheetT.Model) : int =
     let wireModel = sheetModel.Wire
     failwithf "Not implemented"

@@ -105,7 +105,17 @@ let reversedInputsMux2_ = Lens.create getReversedInputsMux2 updateReversedInputs
 
 // B5R
 /// Get the position of a port on the sheet.
+/// (Changed from returning Result into returning XYPos, for more convenient usage in SheetBeautify.fs)
 let getPortPosOnSheet (portId: string) (model: SheetT.Model) = 
+// code adapted from Symbol.getPortLocation
+    // get Port from portId
+    let port = Map.find portId model.Wire.Symbol.Ports
+    // get Symbol from portId
+    let sym = Map.find (ComponentId port.HostId) model.Wire.Symbol.Symbols
+    (getPortPos sym port) + sym.Pos
+
+// the original version that returns a Result (considers exceptions):
+let getPortPosOnSheetResult (portId: string) (model: SheetT.Model) = 
 // code adapted from Symbol.getPortLocation
     // get Port from portId
     let portOpt = Map.tryFind portId model.Wire.Symbol.Ports
@@ -429,9 +439,4 @@ let getRetracingSegs (sheet:SheetT.Model) =
     mapValues sheet.Wire.Wires
     |> Array.map getRetracingSegsOfWire
     |> Array.fold (fun (li1,li2) (segLi1,segLi2) -> (List.append li1 segLi1, List.append li2 segLi2)) ([],[])
-    
-    // p.s. What if there are two adjacent 0s in the Segment list?
-    //      sign of 0 is 0 (neither 1 or -1) => not considered as retracing
-    //      What if there are three adjacent 0s in the Segment list?
-    //      not able to identified it as retracing when it should've been
 

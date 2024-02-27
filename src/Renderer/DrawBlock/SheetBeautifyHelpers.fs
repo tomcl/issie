@@ -25,13 +25,29 @@ open DrawModelType.SymbolT
 open BusWire
 open BusWireUpdateHelpers
 open BusWireRoutingHelpers
-open SymbolReplaceHelpers
+open EEExtensions
+open Optics
+open Optics.Operators
+open DrawHelpers
+open Helpers
+open CommonTypes
+open ModelType
+open DrawModelType
+open Sheet.SheetInterface
+
 
 
 //-----------------Module for beautify Helper functions--------------------------//
 // Typical candidates: all individual code library functions.
 // Other helpers identified by Team
 
+
+// Key Type Difficulty Value read or written 
+// B1R, B1W RW 
+//  Value read or written: The dimensions of a custom component symbol
+
+
+/// Calculates the final dimensions of a symbol, considering potential scaling.
 let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
 let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option = 
@@ -39,13 +55,10 @@ let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option =
         |> Map.values
         |> Seq.tryFind (fun sym -> caseInvariantEqual label sym.Component.Label)
 
-
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-
 // B1 The dimensions of a custom component symbol
-
 let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, (float * float)> =
 
         let originalWidth = symbol.Component.W
@@ -74,70 +87,102 @@ let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, 
             updatedSheetModel
         (get, set)
 
-
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B2 The position of a symbol on the sheet 
+let symbolModel_ = SheetT.symbol_
 let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT.Model): SheetT.Model=
 
-    let updatedSymbol = { symbol with Pos = newPos }
-    let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-    let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+    let updateSymPos (symbol: SymbolT.Symbol) = { symbol with Pos = newPos }
+    let symModel: SymbolT.Model = 
+                    SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
 
-    updatedSheetModel
-
+    model
+    |> Optic.set symbolModel_ symModel
+    
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B3 Read/write the order of ports on a specified side of a symbol
-let portOrderLens (side: Edge) : Lens<PortMaps, string list option> =
-    // Getter function: gets the list of port IDs for a specified side
-    let get (portMaps: PortMaps) =
-        Map.tryFind side portMaps.Order
-    // Setter function: returns a new PortMaps with updated port order for the specified side
-    let set (newOrderOpt: string list option) (portMaps: PortMaps) =
-        match newOrderOpt with
-        | Some newOrder ->
-            let updatedOrder = Map.add side newOrder portMaps.Order
-            { portMaps with Order = updatedOrder }
-        | None -> portMaps  // If None, don't modify the portMaps
+let portOrderLens (side: Edge) : Lens<SymbolT.Symbol, string list option> =
+
+    let get (symbol: SymbolT.Symbol) =
+        Map.tryFind side symbol.PortMaps.Order
+
+    let set (newPortOrder: string list option) (symbol: SymbolT.Symbol) =
+        match newPortOrder with
+        | Some (newOrder: string list) ->
+            let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
+            { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
+        | None -> symbol
 
     (get, set)
+
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B4 The reverses state of the inputs of a MUX2 
-let MuxReverseLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
-    let get (model: SheetT.Model) = 
+let reverseMuxInputLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
+
+    let get (model: SheetT.Model): bool = 
         
-        let inputPortOption = symbol.ReversedInputPorts
-        match inputPortOption with
+        let InputPort: option<bool> = symbol.ReversedInputPorts
+        
+        match InputPort with
         | Some state -> state
         | None -> false
         
-    let set (newState: bool) (model: SheetT.Model) =
+    let set (newState: bool) (model: SheetT.Model): SheetT.Model =
 
-        let updatedSymbol = changeReversedInputs model.Wire.Symbol symbol.Id
-        let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-        let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
-        updatedSheetModel
+        let updateSymbol (symbol: SymbolT.Symbol) = 
+            { symbol with ReversedInputPorts = Some newState }
+            
+        let updatedModel = SymbolUpdate.updateSymbol updateSymbol symbol.Id model.Wire.Symbol
+
+        Optic.set SheetT.symbol_ updatedModel model
+
 
     (get, set)
 
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
+// let a, b = MuxReverseLens (SymbolT.Symbol.Create (ComponentId.Create "1"))
 
-// B5R - Read the position of a port on the sheet
-let readPortPosition (sym: Symbol) (port: Port) : XYPos =
-    let addXYPos (pos1: XYPos) (pos2: XYPos) : XYPos =
-        { X = pos1.X + pos2.X; Y = pos1.Y - pos2.Y }
-    let TopLeft = sym.Pos
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B5 R - The position of a port on the sheet. It cannot directly be written.
+let getPortPosition (sym: Symbol) (port: Port) : XYPos =
+    let TopLeftPos = sym.Pos
     let offset = getPortPos sym port
-    addXYPos TopLeft offset
+    { X = TopLeftPos.X + offset.X; Y = TopLeftPos.Y - offset.Y }
 
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B6 R - The Bounding box of a symbol outline (position is contained in this)
+
+let getBoundingBox (symbol: Symbol) : BoundingBox =
+
+    // extract height and width from symbol, scale it using HScale and VScale if they exist
+    let scaledW, scaledH = 
+        (
+            (match symbol.HScale with 
+                | Some(scale) -> symbol.Component.W * scale 
+                | None -> symbol.Component.W),
+            
+            (match symbol.VScale with 
+                | Some(scale) -> symbol.Component.H * scale 
+                | None -> symbol.Component.H)
+        )
+
+    // Constructing and returning the BoundingBox with scaled dimensions.
+    { 
+        TopLeft = symbol.Pos; 
+        W = scaledW; 
+        H = scaledH 
+    }
 
 
 //-------------------------------------------------------------------------------------------------//
@@ -224,8 +269,8 @@ let countIntersectingSymbolPairs (sheet: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// T2R
-// The number of distinct wire visible segments that intersect with one or more symbols.
+// T2R R Low 
+// The number of distinct wire visible segments that intersect with one or more symbols. See Tic
 let countSymbolIntersectingWire (sheet: SheetT.Model) =
 
     let wireModel = sheet.Wire
@@ -414,21 +459,22 @@ let totalVisibleWiringLength (model: SheetT.Model) =
     |> mergeAllOverlapSegments // Merge overlapping segments
     |> List.sumBy (fun seg -> abs seg.Direction.X + abs seg.Direction.Y) // Sum length
     
-
-
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // T5R - Number of visible wire right-angles. Count over whole sheet.
-
 // Count the number of right angles in a wire
 let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
 
-    let segments = visibleSegments wId model
+    let segmentsPos = visibleSegments wId model
 
-    segments
+    segmentsPos
     |> List.length
-    |> (fun numSegments -> if numSegments = 0 then 0 else numSegments - 1)
+    |> (fun numSegments -> 
+        if numSegments <> 0 
+        then numSegments - 1 
+        else 0)
+    
 
 /// Sums up the right angles from all wires in the model.
 let countTotalRightAngles (model: SheetT.Model) =

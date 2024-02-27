@@ -119,6 +119,8 @@
     <Compile Include="GenerateData.fs" />
 
     <Compile Include="TestDrawBlock.fs" />
+
+    <Compile Include="TestDrawBlockT1.fs" />
     <Compile Include="TestWorker.fs" />
     <Compile Include="Playground.fs" />
 

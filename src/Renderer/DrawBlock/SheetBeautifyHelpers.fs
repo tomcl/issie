@@ -119,13 +119,42 @@ let numberWireSegementsIntersectingAtRightAngle (sheetModel: SheetT.Model): int 
 
 ///T4R
 let sumWireSegmentLengh (sheetModel: SheetT.Model): float =
-    let wireToPointList (wire: BusWireT.Wire): XYPos list =
-        
-    sheetModel.Wire.Wires
-    |> Map.toList
-    |> List.collect (fun (id, wire) -> getWireSegmentsXY wire)
-    |> List.length
-    |> float
+    let wireSegments =
+        sheetModel.Wire.Wires
+        |> Map.toList
+        |> List.map (fun (id, wire) -> (getNonZeroAbsSegments wire, wire.InitialOrientation))
+        |> List.collect (fun (segs, orientation) -> segs |> List.map (fun seg -> (seg, orientation)))
+    let calculateSegmentOverlapLength (seg1: BusWireT.ASegment * BusWireT.Orientation) (seg2: BusWireT.ASegment * BusWireT.Orientation): float =
+        if (snd seg1) <> (snd seg2) then
+            0.
+        else
+            let overlap = overlap2D ((fst seg1).Start,(fst seg1).End) ((fst seg2).Start,(fst seg2).End)
+            if overlap then
+                let seg1Length = max (fst seg1).Start (fst seg1).End - min (fst seg1).Start (fst seg1).End
+                let seg2Length = max (fst seg2).Start (fst seg2).End - min (fst seg2).Start (fst seg2).End
+
+                let maxStart = max (fst seg2).Start (fst seg1).Start
+                let maxEnd = max (fst seg2).End (fst seg1).End
+                let maxPosition = max maxStart maxEnd
+                let minStart = min (fst seg2).Start (fst seg1).Start
+                let minEnd = min (fst seg2).End (fst seg1).End
+                let minPosition = min minStart minEnd
+
+                let overlapLength = (maxPosition - minPosition)
+
+                let overlapSegment = seg1Length + seg2Length - overlapLength
+                overlapSegment.X + overlapSegment.Y
+            else
+                0.
+    let totalSegemntOverlapLength =
+        List.allPairs wireSegments wireSegments
+        |> List.map (fun (seg1, seg2) -> calculateSegmentOverlapLength seg1 seg2)
+        |> List.sum
+        |> (fun x -> x / 2.)
+    wireSegments
+    |> List.map (fun (seg, _) -> seg.Segment.Length)
+    |> List.sum
+    |> (fun x -> x - totalSegemntOverlapLength)
 
 ///T5R
 let numberWireRightAngles (sheetModel: SheetT.Model): int =
@@ -169,3 +198,54 @@ let numberWireRightAngles (sheetModel: SheetT.Model): int =
     |> List.sum
 
 ///T6R
+let retracingSegements (sheetModel: SheetT.Model) : (BusWireT.Segment list * BusWireT.Segment list) =
+    let allWires = 
+        sheetModel.Wire.Wires 
+        |> Map.toList
+        |> List.map (fun (id, wire) -> wire)
+    
+    let getAllRetracingSegments (wire: BusWireT.Wire) : (BusWireT.Segment list) =
+        let isRetracing (startSeg : BusWireT.Segment) (midSeg: BusWireT.Segment) (endSeg: BusWireT.Segment) : bool =
+            if midSeg.Length <> 0. then
+                false
+            else
+                (startSeg.Length >0. && endSeg.Length < 0.) || (startSeg.Length < 0. && endSeg.Length > 0.) 
+        wire.Segments
+            |> List.windowed 3
+            |> List.map (fun segs -> segs.[0], segs.[1], segs.[2])
+            |> List.filter (fun (startSeg, midSeg, endSeg) -> isRetracing startSeg midSeg endSeg)
+            |> List.map (fun (startSeg, midSeg, endSeg) -> endSeg )
+    
+    let getEndRetracingSegments (wire: BusWireT.Wire) : (BusWireT.Segment list) =
+        let isRetracing (index0Seg : BusWireT.Segment) (index1Seg: BusWireT.Segment) (index2Seg: BusWireT.Segment) : bool =
+            if index1Seg.Length <> 0. then
+                false
+            else
+                (index0Seg.Length >0. && index2Seg.Length < 0. && index0Seg.Length + index2Seg.Length <0.) || (index0Seg.Length < 0. && index2Seg.Length > 0. && index0Seg.Length + index2Seg.Length >0.) 
+        let startingTriple = 
+            wire.Segments
+                |> List.windowed 3
+                |> List.head
+        let endingTriple =
+            wire.Segments
+                |> List.windowed 3
+                |> List.last
+                |> List.rev
+        [startingTriple; endingTriple]
+            |> List.map (fun segs -> segs.[0], segs.[1], segs.[2])
+            |> List.filter (fun (startSeg, midSeg, endSeg) -> isRetracing startSeg midSeg endSeg)
+            |> List.map (fun (startSeg, midSeg, endSeg) -> endSeg )
+
+    let allRetracingSegments = 
+        allWires 
+        |> List.map getAllRetracingSegments 
+        |> List.concat
+    let allEndRetracingSegments = 
+        allWires 
+        |> List.map getEndRetracingSegments 
+        |> List.concat
+    (allRetracingSegments, allEndRetracingSegments)
+    
+        
+
+

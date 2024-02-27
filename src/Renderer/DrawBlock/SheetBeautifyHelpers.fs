@@ -177,39 +177,43 @@ let countIntersectedSymbols (sheet: SheetT.Model) =
 
 //T2R
 //helper function copied from TestDrawBlock
+/// The visible segments of a wire, as a list of vectors, from source end to target end.
+/// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
+/// which if present causes the two segments on either side of it to coalesce into a single visible segment.
+/// A wire can have any number of visible segments - even 1.
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
-        let wire = model.Wire.Wires[wId] // get wire from model
+    let wire = model.Wire.Wires[wId] // get wire from model
 
-        /// helper to match even and off integers in patterns (active pattern)
-        let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
+    /// helper to match even and off integers in patterns (active pattern)
+    let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
 
-        /// Convert seg into its XY Vector (from start to end of segment).
-        /// index must be the index of seg in its containing wire.
-        let getSegmentVector (index:int) (seg: BusWireT.Segment) =
-            // The implicit horizontal or vertical direction  of a segment is determined by 
-            // its index in the list of wire segments and the wire initial direction
-            match index, wire.InitialOrientation with
-            | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
-            | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
+    /// Convert seg into its XY Vector (from start to end of segment).
+    /// index must be the index of seg in its containing wire.
+    let getSegmentVector (index:int) (seg: BusWireT.Segment) =
+        // The implicit horizontal or vertical direction  of a segment is determined by 
+        // its index in the list of wire segments and the wire initial direction
+        match index, wire.InitialOrientation with
+        | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
+        | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
 
-        /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-        /// if this is possible, otherwise return segVecs unchanged.
-        /// Index must be in range 1..segVecs
-        let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-            if segVecs[index] =~ XYPos.zero
-            then
-                segVecs[0..index-2] @
-                [segVecs[index-1] + segVecs[index+1]] @
-                segVecs[index+2..segVecs.Length - 1]
-            else
-                segVecs
+    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
+    /// if this is possible, otherwise return segVecs unchanged.
+    /// Index must be in range >= 1
+    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
+        if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
+        then
+            segVecs[0..index-2] @
+            [segVecs[index-1] + segVecs[index+1]] @
+            segVecs[index+2..segVecs.Length - 1]
+        else
+            segVecs
 
-        wire.Segments
-        |> List.mapi getSegmentVector
-        |> (fun segVecs ->
-                (segVecs,[1..segVecs.Length-2])
-                ||> List.fold tryCoalesceAboutIndex)
+    wire.Segments
+    |> List.mapi getSegmentVector
+    |> (fun segVecs ->
+            (segVecs,[1..segVecs.Length-2])
+            ||> List.fold tryCoalesceAboutIndex)
 
 ///The number of distinct wire visible segments that intersect with one or more symbols. Count over all visible wire segments.
 let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
@@ -274,6 +278,16 @@ let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
 
 //T3R
 
+// Function that finds the orientation of a segment (so whether it is vertical or horizontal) 
+// SegStartAndEnd gives you start and end coordinates of a segment - if x coordinate is the same => vertical segment, else horiz segment
+// Now check for two segments : 
+// 1. They have opposite orientation (so vert/horiz or horiz/vert)
+// 2. For the horiz seg, check if the unchanging coordinate (y coordinate is same at start and end) => should be between the start and end y coordinates of the vertical wire
+// 3. For the vert seg, check if the unchanging coordinate (x coordinate is same at start and end) => should be between the start and end x coodrinates of the horizontal wire
+// If all conditions hold, then return 1 otherwise return 0
+// Then need to check this condition for all pairs of segments on the sheet => Can use allPairs but try not to - try find better solutions using ChatGPT
+// You need to List.fold () and add all of the 1s and 0s
+
 //T5R
 //Number of visible wire right-angles. Count over whole sheet.
 let countWireRightAngles (sheet: SheetT.Model) =
@@ -320,11 +334,22 @@ let straighteningPotentialWire (wire: Wire) (sheet: SheetT.Model) =
     (visibleSegments wId sheet |> List.length) = 3
 
 
+// Need to calculate the sign of the offset and return it as the second element of the tuple with this function
+// Can use PortMaps.Orientation - This is in the Symbol Record
 let checkIfSinglePortComponent (sym: Symbol) =
     let numInputPorts= sym.Component.InputPorts |> List.length 
     let numOutputPorts= sym.Component.OutputPorts |> List.length
     (numInputPorts + numOutputPorts) = 1
 
+
+let endOfWire (wire: BusWireT.Wire) (sheet: SheetT.Model) = 
+    visibleSegments wire.WId sheet
+    |> List.fold (fun start segEnd -> start + segEnd) wire.StartPos
+
+let changeOffsetSign (sym: Symbol) (portId: string) =
+    match Map.tryFind portId sym.PortMaps.Orientation with
+    | Some Left -> -1.0
+    | _ -> 1.0
 
 
 
@@ -347,6 +372,7 @@ let calculateOffset (wire: Wire) (sheet: SheetT.Model) =
     wire.WId
     |> (fun wId -> visibleSegments wId sheet)
     |> (fun visSegs -> if List.length visSegs = 3 then visSegs[1] else XYPos.zero)
+
 //let calculateOffset_old (wire: Wire) (sheet: SheetT.Model) =
 //    let wId = wire.WId
 //    let nodeslist = visibleSegments wId sheet
@@ -359,7 +385,7 @@ let calculateOffset (wire: Wire) (sheet: SheetT.Model) =
 
 
 ///Returns a list of the potential wire if there are no straight wires already.
-let ListPotentialWires (wires: list<Wire> ) (sheet: SheetT.Model) =
+let listPotentialWires (wires: list<Wire> ) (sheet: SheetT.Model) =
     let streightWires = wires |> List.exists (fun wire -> streightenedWire wire sheet)
     if streightWires = false
     then wires |> List.filter (fun wire -> straighteningPotentialWire wire sheet)
@@ -367,9 +393,12 @@ let ListPotentialWires (wires: list<Wire> ) (sheet: SheetT.Model) =
 
 
 //Write a  function that changes the position of the symbol according rhe first potential wire
-let GetPotentialWireOffset (sheet: SheetT.Model) (wires: list<Wire> ) =
-    let firstWire = List.item 0 wires
-    calculateOffset firstWire sheet
+let getPotentialWireOffset (sheet: SheetT.Model) (wires: list<Wire> ) =
+    if wires = []
+    then XYPos.zero
+    else
+        let firstWire = List.item 0 wires
+        calculateOffset firstWire sheet
     
 
 
@@ -396,26 +425,30 @@ let getWiresFromPort (sheet: SheetT.Model) (port: Port) (wireInputPort: bool) =
 
 ///Get all the wires from a Symbol that has strictly just one Port
 let allWires1PortSym (sym: Symbol) (sheet: SheetT.Model)=
-        let i = List.item 0 sym.Component.InputPorts 
-        let o = List.item 0  sym.Component.OutputPorts
+        //let i = List.item 0 sym.Component.InputPorts 
+        // let o = List.item 0  sym.Component.OutputPorts
         if sym.Component.OutputPorts = []
         then
+            let i = List.item 0 sym.Component.InputPorts
             let wires = getWiresFromPort sheet i true
             wires
         else
+            let o = List.item 0  sym.Component.OutputPorts
             let wires = getWiresFromPort sheet o false
             wires
         
-    
-let align1PortSymbol (onePortSym: Symbol) (sheet: SheetT.Model)=
+/// VERY IMPORTANT THAT YOU CHECK THAT THE SYMBOL HAS ONLY ONE PORT
+let align1PortSymbol (onePortSym: Symbol) (sheet: SheetT.Model)= // (offsetSign: +/-)
+    let portId = Map.toList onePortSym.PortMaps.Orientation |> List.item 0 |> fst
+    let offsetSign = changeOffsetSign onePortSym portId
     let potentialList = 
         sheet
         |> allWires1PortSym onePortSym
-        |> ListPotentialWires 
+        |> listPotentialWires 
     sheet
     |> potentialList 
-    |> GetPotentialWireOffset sheet
-    |> (fun offset -> BlockHelpers.moveSymbol offset onePortSym)
+    |> getPotentialWireOffset sheet
+    |> (fun offset -> BlockHelpers.moveSymbol {X = offset.X * offsetSign; Y = offset.Y * offsetSign} onePortSym)
     // |> (fun newSym -> Optic.set (SheetT.symbolOf_ onePortSym.Id) newSym sheet)
     // |> SheetUpdateHelpers.updateBoundingBoxes
 
@@ -436,6 +469,7 @@ let update1PortWires (newcIdList: List<ComponentId>) (symbolMovedBy: XYPos) (she
 //checkIfthereIsOverlap 
 
 let firstPhaseStraightening (sheet: SheetT.Model) =
+    let initialOverlap = countIntersectedSymbols sheet
     let singlePortComponents = 
         sheet.Wire.Symbol.Symbols
         |> Map.toList 
@@ -446,11 +480,15 @@ let firstPhaseStraightening (sheet: SheetT.Model) =
         singlePortComponents
         |> List.map (fun (_, sym) -> align1PortSymbol sym sheet)
     changedSymbolList
-    |> List.fold (fun sheet newSym -> Optic.set (SheetT.symbolOf_ newSym.Id) newSym sheet) sheet
+    |> List.fold (fun sheet newSym -> 
+                        let newSheet = Optic.set (SheetT.symbolOf_ newSym.Id) newSym sheet
+                        if countIntersectedSymbols newSheet > initialOverlap
+                        then sheet
+                        else newSheet) sheet
     |> SheetUpdateHelpers.updateBoundingBoxes
     |> update1PortWires (List.map (fun sym -> sym.Id) changedSymbolList) XYPos.zero
     
 
-        
+
     
     

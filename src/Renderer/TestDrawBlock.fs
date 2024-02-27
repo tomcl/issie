@@ -394,7 +394,7 @@ module HLPTick3 =
             let wireLengths = 
                 wireModel.Wires 
                 |> Map.toList 
-                |> List.map (fun elm -> snd elm |> SheetBeautifyHelpers.getWireLength) 
+                |> List.map (fun elm -> snd elm |> BlockHelpers.getWireLength) 
 
             Some $"======== Wires: {listOfWires} ========= Segments: {listOfSegments} ======= {wireLengths} ========="
 

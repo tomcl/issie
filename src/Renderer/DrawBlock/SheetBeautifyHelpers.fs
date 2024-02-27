@@ -6,10 +6,12 @@ open CommonTypes
 open DrawModelType
 open BlockHelpers
 
-(* -------------------------------------------------------------------------- *)
-(*                                  B1R, B1W                                  *)
-(* -------------------------------------------------------------------------- *)
 
+(* ---------------------------------------------------------------------------------------------- *)
+(*                                           B-Functions                                          *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+// B1R
 /// <summary>Get dimensions of a component symbol.</summary>
 /// <param name="sym">Target  symbol.</param>
 /// <returns>Tuple of floats: (dimension of x, dimension of y).</returns>
@@ -23,6 +25,7 @@ let getCustomSymDim (sym: SymbolT.Symbol): float*float =
     | Degree0 | Degree180 -> xDim, yDim
     | Degree90 | Degree270 -> yDim, xDim
 
+// B1W
 /// <summary>Set dimensions of a component symbol.</summary>
 /// <param name="dim">New dimension to set to symbol.</param>
 /// <param name="sym">Target symbol.</param>
@@ -38,14 +41,13 @@ let setCustomSymDim (dim: float * float) (sym: SymbolT.Symbol): SymbolT.Symbol =
     
     { sym with Component = { comp with W = xDim'; H = yDim' }}
 
+// B1
 /// <summary>Lens to read and write the dimension of a symbol.</summary>
 let customSymDim_ =
     Lens.create getCustomSymDim setCustomSymDim
 
-(* -------------------------------------------------------------------------- *)
-(*                                     B2W                                    *)
-(* -------------------------------------------------------------------------- *)
 
+// B2W
 /// <summary>Set position of a symbol.</summary>
 /// <param name="pos">Position to set symbol to.</param>
 /// <param name="sym">Target symbol.</param>
@@ -53,10 +55,8 @@ let customSymDim_ =
 let setSymPos (pos: XYPos) (sym: SymbolT.Symbol): SymbolT.Symbol = 
     Optic.set SymbolT.posOfSym_ pos sym
 
-(* -------------------------------------------------------------------------- *)
-(*                                  B3R, B3W                                  *)
-(* -------------------------------------------------------------------------- *)
 
+// B3R
 /// <summary>Get port order on a specified side of a symbol.</summary>
 /// <param name="edge">Side of a symbol, of type Edge.</param>
 /// <param name="sym">Target symbol.</param>
@@ -71,6 +71,7 @@ let getSymPortOrder (edge: Edge) (sym: SymbolT.Symbol): List<string> =
         | Some list -> list
         | None -> List.empty
 
+// B3W
 /// <summary>Set port order on a specified side of a symbol.</summary>
 /// <param name="order">List of ports to update side of symbol to.</param>
 /// <param name="edge">Side of a symbol, of type Edge.</param>
@@ -84,6 +85,7 @@ let setSymPortOrder (order: List<string>) (edge: Edge) (sym: SymbolT.Symbol) =
 
     Optic.set SymbolT.portMaps_ { (Optic.get SymbolT.portMaps_ sym) with Order = portMapOrder' } sym
 
+// B3
 /// <summary>Function to create lens to read and write port order on a specified side of a symbol</summary>
 /// <param name="edge">Side of a symbol, of type Edge.</param>
 /// <remarks>Not sure if this is useful. 
@@ -91,10 +93,8 @@ let setSymPortOrder (order: List<string>) (edge: Edge) (sym: SymbolT.Symbol) =
 let portMaps_Order_ (edge: Edge) =
     Lens.create (getSymPortOrder edge) (fun order sym -> setSymPortOrder order edge sym)
 
-(* -------------------------------------------------------------------------- *)
-(*                                  B4R, B4W                                  *)
-(* -------------------------------------------------------------------------- *)
 
+// B4R
 /// <summary>Get input reverse state of a Mux or Demux symbol.</summary>
 /// <param name="sym">Target Mux or Demux symbol.</param>
 /// <returns>Boolean of reverse state of Mux or Demux symbol. 
@@ -107,6 +107,7 @@ let getMuxReverseState (sym: SymbolT.Symbol): bool =
     | _ ->
         false
 
+// B4W
 /// <summary>Set input reverse state of a Mux or Demux symbol.</summary>
 /// <param name="state">Reverse state to set symbol to.</param>
 /// <param name="sym">Target Mux or Demux symbol.</param>
@@ -119,14 +120,13 @@ let setMuxReverseState (state: bool) (sym: SymbolT.Symbol): SymbolT.Symbol =
     | _ ->
         sym
 
+// B4
 /// <summary>Lens to read and write the input reverse state of a Mux or Demux symbol.</summary>
 let reversedInputPorts_ =
     Lens.create getMuxReverseState setMuxReverseState
 
-(* -------------------------------------------------------------------------- *)
-(*                                     B5R                                    *)
-(* -------------------------------------------------------------------------- *)
 
+// B5R
 /// <summary>Get position of a port on the sheet.</summary>
 /// <param name="port">Port to locate, of type Port.</param>
 /// <param name="sheet">Model of the whole sheet.</param>
@@ -136,10 +136,8 @@ let getPortPosOnSheet (port: Port) (sheet: SheetT.Model): XYPos =
     let sym = sheet.Wire.Symbol.Symbols[ComponentId symId]
     sym.Pos + getPortPos sym port
 
-(* -------------------------------------------------------------------------- *)
-(*                                     B6R                                    *)
-(* -------------------------------------------------------------------------- *)
 
+// B6R
 /// <summary>Get bounding box information of a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <param name="sheet">Model of the whole sheet, of type SheetT.Model.</param>
@@ -154,16 +152,15 @@ let getSymBoundingBox (sym: SymbolT.Symbol) (sheet: SheetT.Model): BoundingBox =
 
     (Optic.get SheetT.boundingBoxes_ sheet)[symbolId]
 
-(* -------------------------------------------------------------------------- *)
-(*                                  B7R, B7W                                  *)
-(* -------------------------------------------------------------------------- *)
 
+// B7R
 /// <summary>Get rotation state of a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Rotation state, of type Rotation.</returns>
 let getSymRotation (sym: SymbolT.Symbol): Rotation =
     sym.STransform.Rotation
 
+// B7W
 /// <summary>Set rotation state of a symbol.</summary>
 /// <param name="rotate">Rotation state to set to, of type Rotation.</param>
 /// <param name="sym">Target symbol.</param>
@@ -171,20 +168,20 @@ let getSymRotation (sym: SymbolT.Symbol): Rotation =
 let setSymRotation (rotate: Rotation) (sym: SymbolT.Symbol) =
     { sym with STransform = { sym.STransform with Rotation = rotate } }
 
+// B7
 /// <summary>Lens to read and write the rotation state of a symbol.</summary>
 let stransform_rotation_ =
     Lens.create getSymRotation setSymRotation
 
-(* -------------------------------------------------------------------------- *)
-(*                                  B8R, B8W                                  *)
-(* -------------------------------------------------------------------------- *)
 
+// B8R
 /// <summary>Get flipped state of a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Flipped state, of bool type.</returns>
 let getSymFlipped (sym: SymbolT.Symbol): bool =
     sym.STransform.Flipped
 
+// B8W
 /// <summary>Set flipped state of a symbol.</summary>
 /// <param name="flip">Flipped state to set to.</param>
 /// <param name="sym">Target symbol.</param>
@@ -192,16 +189,15 @@ let getSymFlipped (sym: SymbolT.Symbol): bool =
 let setSymFlipped (flip: bool) (sym: SymbolT.Symbol) =
     { sym with STransform = { sym.STransform with Flipped = flip } }
 
+// B8
 /// <summary>Lens to read and write the flipped state of a symbol.</summary>
 let stransform_flipped_ =
     Lens.create getSymFlipped setSymFlipped
 
 
-(* -------------------------------------------------------------------------- *)
-(*                             T-Function Helpers                             *)
-(* -------------------------------------------------------------------------- *)
-
-(* ----------------------------- Symbol Related ----------------------------- *)
+(* ---------------------------------------------------------------------------------------------- *)
+(*                                       T-Function Helpers                                       *)
+(* ---------------------------------------------------------------------------------------------- *)
 
 /// <summary>Get all symbol IDs within a sheet.</summary>
 /// <param name="sheet">Model of the whole sheet.</param>
@@ -218,8 +214,6 @@ let getAllSymBoundingBoxes (sheet: SheetT.Model): List<ComponentId*BoundingBox> 
     Optic.get SheetT.boundingBoxes_ sheet 
     |> Map.filter (fun k v -> List.exists (fun id -> k = id) (getAllSymIds sheet))
     |> Map.toList
-
-(* ----------------------------- Segment Related ---------------------------- *)
 
 /// <summary>D.U. to describe orientation of a segment.</summary>
 /// <remarks>Noted that BusWireT.Orientation is similar, but wanted to represent Other and Zero type, 
@@ -249,8 +243,6 @@ let segLength (segStart: XYPos) (segEnd: XYPos): float =
     | Vertical -> abs (segEnd.Y - segStart.Y)
     | Zero -> 0.0
     | Other -> ((segEnd.X - segStart.X) ** 2 + (segEnd.Y - segStart.Y) ** 2) ** 0.5
-
-(* ------------------------------ Wire Related ------------------------------ *)
 
 /// <summary>Get segment vectors of a wire.</summary>
 /// <param name="wire">Target wire, of type Wire.</param>
@@ -327,10 +319,12 @@ let getAllWireVisibleSegs (sheet: SheetT.Model): List<InputPortId*XYPos*XYPos> =
     |> List.map makeSegData
     |> List.collect (fun item -> item)
 
-(* -------------------------------------------------------------------------- *)
-(*                                     T1R                                    *)
-(* -------------------------------------------------------------------------- *)
 
+(* ---------------------------------------------------------------------------------------------- *)
+(*                                           T-Functions                                          *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+// T1R
 /// <summary>Count of all intersecting pairs of symbols on a sheet.</summary>
 /// <param name="sheet">Target sheet to check, of type SheetT.Model.</param>
 /// <returns>Total count of intersecting symbol pairs.</returns>
@@ -343,10 +337,8 @@ let findSymIntersectsSymCount (sheet: SheetT.Model): int =
             (id1 <> id2) && (overlap2DBox box1 box2))
     |> List.length
 
-(* -------------------------------------------------------------------------- *)
-(*                                     T2R                                    *)
-(* -------------------------------------------------------------------------- *)
 
+// T2R
 /// <summary>Get count of all visible wire segments that intersects any symbols on a sheet.</summary>
 /// <param name="sheet">Target sheet to check, of type SheetT.Model.</param>
 /// <returns>Total count of symbol-intersecting visible wire segments.</returns>
@@ -360,10 +352,8 @@ let findVisibleSegIntersectsSymCount (sheet: SheetT.Model): int =
             Option.isSome (segmentIntersectsBoundingBox boundingBox segStart segEnd))
     |> List.length
 
-(* -------------------------------------------------------------------------- *)
-(*                                     T3R                                    *)
-(* -------------------------------------------------------------------------- *)
 
+// T3R
 /// <summary>Get count of visible, perpendicular, non-zero-length, non-same-net, 
 /// and non-consecutive segments pairs, that intersects each other.</summary>
 /// <param name="sheet">Target sheet to check, of type SheetT.Model.</param>
@@ -390,10 +380,8 @@ let findSegIntersectsSegCount (sheet: SheetT.Model): int =
             overlap2D (segStart1, segEnd1) (segStart2, segEnd2)) // remove non-overlapping pairs
     |> List.length
 
-(* -------------------------------------------------------------------------- *)
-(*                                     T4R                                    *)
-(* -------------------------------------------------------------------------- *)
 
+// T4R
 /// <summary>Get total length of visible wire segments on a sheet.
 /// Overlapping segments are only counted once.</summary>
 /// <param name="sheet">Target sheet to check, of type SheetT.Model.</param>
@@ -445,10 +433,8 @@ let findVisibleSegLength (sheet: SheetT.Model): float =
     |> List.fold segUnionFolder List.empty // find union of all segments
     |> List.fold (fun length (_, segStart, segEnd) -> length + segLength segStart segEnd) 0.0 // sum length
 
-(* -------------------------------------------------------------------------- *)
-(*                                     T5R                                    *)
-(* -------------------------------------------------------------------------- *)
 
+// T5R
 /// <summary>Get count of visible right angles on a sheet by counting coalesced segments.</summary>
 /// <param name="sheet">Target sheet to check, of type SheetT.Model.</param>
 /// <returns>Total count of right angles.</returns>
@@ -462,10 +448,8 @@ let findRightAngleCount (sheet: SheetT.Model): int =
     |> List.map (fun count -> if count < 0 then 0 else count) // remove cases where there is no segment
     |> List.fold (+) 0
 
-(* -------------------------------------------------------------------------- *)
-(*                                     T6R                                    *)
-(* -------------------------------------------------------------------------- *)
 
+// T6R
 /// <summary>Get a list of retracing segments and a subset list of segments which retraces inside a symbol.</summary>
 /// <param name="sheet">Target sheet to check, of type SheetT.Model.</param>
 /// <returns>A tuple of two segment lists. First item is all the retracing segments.

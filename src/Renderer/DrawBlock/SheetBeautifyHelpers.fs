@@ -19,42 +19,42 @@ open BlockHelpers
 /// A wire can have any number of visible segments - even 1.
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
-    let wire = model.Wire.Wires[wId] // get wire from model
+        let wire = model.Wire.Wires[wId] // get wire from model
 
-    /// helper to match even and off integers in patterns (active pattern)
-    let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
+        /// helper to match even and off integers in patterns (active pattern)
+        let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
 
-    /// Convert seg into its XY Vector (from start to end of segment).
-    /// index must be the index of seg in its containing wire.
-    let getSegmentVector (index:int) (seg: BusWireT.Segment) =
-        // The implicit horizontal or vertical direction  of a segment is determined by 
-        // its index in the list of wire segments and the wire initial direction
-        match index, wire.InitialOrientation with
-        | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
-        | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
+        /// Convert seg into its XY Vector (from start to end of segment).
+        /// index must be the index of seg in its containing wire.
+        let getSegmentVector (index:int) (seg: BusWireT.Segment) =
+            // The implicit horizontal or vertical direction  of a segment is determined by 
+            // its index in the list of wire segments and the wire initial direction
+            match index, wire.InitialOrientation with
+            | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
+            | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
 
-    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-    /// if this is possible, otherwise return segVecs unchanged.
-    /// Index must be in range 1..segVecs
-    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-        if segVecs[index] =~ XYPos.zero
-        then
-            segVecs[0..index-2] @
-            [segVecs[index-1] + segVecs[index+1]] @
-            segVecs[index+2..segVecs.Length - 1]
-        else
-            segVecs
+        /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
+        /// if this is possible, otherwise return segVecs unchanged.
+        /// Index must be in range >= 1
+        let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
+            if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
+            then
+                segVecs[0..index-2] @
+                [segVecs[index-1] + segVecs[index+1]] @
+                segVecs[index+2..segVecs.Length - 1]
+            else
+                segVecs
 
-    wire.Segments
-    |> List.mapi getSegmentVector
-    |> (fun segVecs ->
-            (segVecs,[1..segVecs.Length-2])
-            ||> List.fold tryCoalesceAboutIndex)
+        wire.Segments
+        |> List.mapi getSegmentVector
+        |> (fun segVecs ->
+                (segVecs,[1..segVecs.Length-2])
+                ||> List.fold tryCoalesceAboutIndex)
 
 
 
 /// key: B1R Type: R Descrip: The dimensions of a custom component symbol
-let getCustomSymbolDimensions (sym: SymbolT.Symbol) :  float * float =
+let getCustomSymbolDimensions (sym: SymbolT.Symbol) : float * float =
     let height = sym.Component.H
     let width = sym.Component.W
     match sym.HScale with
@@ -65,7 +65,7 @@ let getCustomSymbolDimensions (sym: SymbolT.Symbol) :  float * float =
     | None -> failwith "cannot get dimensions of a non-custom symbol"
 
 /// key: B1W Type: W Descrip: The dimensions of a custom component symbol
-let writeCustomSymbolDimensions (sym: SymbolT.Symbol)(dimensions: float * float) :  SymbolT.Symbol =
+let writeCustomSymbolDimensions (sym: SymbolT.Symbol) (dimensions: float * float) : SymbolT.Symbol =
     let height = sym.Component.H
     let width = sym.Component.W
     {sym with HScale = Some ((fst dimensions) / width) ; VScale = Some ((snd dimensions) / height)}
@@ -96,8 +96,6 @@ let writeReverseStateOfInputsMux2 (sym: Symbol) (reverseStateOfInput: bool optio
 let getPortPositionOnSheet (portId: PortId) (sheetModel:SheetT.Model) :  XYPos =
     getPortIdStr portId
     |> getPortLocation None sheetModel.Wire.Symbol
-
-
 
 /// key: B6R Type: R Descrip: The Bounding box of a symbol outline (position is contained in this)
 let getSymbolBoudingboxOutline (sym: Symbol) :  BoundingBox=
@@ -219,27 +217,23 @@ let getVisibleWireLength (sheetModel:SheetT.Model) : float =
         |> List.map sameOrientationSegments
         |> List.unzip
 
-    // given a list of segments in same orientation, group them by overlapping
     let groupOverlapSegments (segmentsList: BusWireT.ASegment list) =
-        let rec groupHelper (segGroups: BusWireT.ASegment list list) (remainingSegments: BusWireT.ASegment list) =
-                match remainingSegments with
-                | [] -> segGroups
-                | segment :: rest ->
-                    //should have only one group that overlaps with the current segment
-                    let overlappingGroup, nonOverlappingGroups =
-                        segGroups
-                        |> List.partition (fun group ->
-                            group |> List.exists (fun s -> isOverlap s segment))
+        segmentsList 
+        |> List.fold (fun (segGroups, remainingSegments) segment ->
+            let overlappingGroup, nonOverlappingGroups =
+                segGroups
+                |> List.partition (fun group ->
+                    group |> List.exists (fun s -> isOverlap s segment))
 
-                    match overlappingGroup with
-                    | [] ->
-                        // no overlap: create a new group for the current segment
-                        groupHelper  ([segment] :: nonOverlappingGroups) rest
-                    | group :: _ ->
-                        // overlap: add the current segment to the first overlapping group found
-                        groupHelper  ((segment :: group) :: nonOverlappingGroups) rest
-
-        groupHelper [] segmentsList 
+            match overlappingGroup with
+            | [] ->
+                // no overlap: create a new group for the current segment
+                ([segment] :: nonOverlappingGroups, remainingSegments)
+            | group :: _ ->
+                // overlap: add the current segment to the first overlapping group found
+                ((segment :: group) :: nonOverlappingGroups, remainingSegments)
+        ) ([], segmentsList)
+        |> fst
         
     // given segLst whose element overlaps with each other, get the visible length
     let getLongestLength (segLst: BusWireT.ASegment list) =
@@ -258,8 +252,9 @@ let getVisibleWireLength (sheetModel:SheetT.Model) : float =
 /// key: T5R Type: R Descrip: Number of visible wire right-angles. Count over whole sheet.
 let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
     let ASegmentPairsList (wire: BusWireT.Wire) = 
-        let ASegLst = getNonZeroAbsSegments wire
-        List.map2 (fun aSeg1 aSeg2 -> aSeg1, aSeg2) ASegLst (List.tail ASegLst)
+        // let ASegLst = getNonZeroAbsSegments wire
+        // List.map2 (fun aSeg1 aSeg2 -> aSeg1, aSeg2) ASegLst (List.tail ASegLst)
+        List.windowed 2 (getNonZeroAbsSegments wire)
 
     let segmentsHaveRightAngle (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) = 
         let seg1Orientation = BusWire.getSegmentOrientation seg1.Start seg1.End
@@ -269,7 +264,7 @@ let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
 
     let countRightAnglePairs (wire: BusWireT.Wire) =
         ASegmentPairsList wire
-        |> List.filter (fun (aSeg1 , aSeg2) -> segmentsHaveRightAngle aSeg1 aSeg2)
+        |> List.filter (fun aSeg12 -> segmentsHaveRightAngle aSeg12[1] aSeg12[2])
         |> List.length
 
     sheetModel.Wire.Wires
@@ -287,4 +282,20 @@ let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
 /// segments that retrace, and also a list of all the end of wire segments that retrace so 
 /// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
 let getRetracingSegmentsCount (sheetModel:SheetT.Model) : int =
+    let isRetracing (seg1: BusWireT.Segment) (seg2: BusWireT.Segment) =
+        seg1.Length * seg2.Length < 0
+
+    let findRetracingEndSegments (segments: BusWireT.Segment list) : BusWireT.Segment list=
+        segments
+        |> List.windowed 3
+        |> List.filter (fun [ seg1; seg2; seg3 ] -> isRetracing seg1 seg3 && seg2.IsZero)
+        |> List.collect (fun segs -> [segs[1]; segs[3]])
+
     failwith "Not Implemented"
+    // let findEndSegmentsInsideSymbol (segments: WireSegment list) =
+    //     segments
+    //     |> List.windowed 4
+    //     |> List.filter (fun [| seg1; seg2; seg3; seg4 |] ->
+    //         isRetracing seg1 seg2 && isRetracing seg3 seg4)
+
+    // findRetracingEndSegments segments, findEndSegmentsInsideSymbol segments

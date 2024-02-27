@@ -38,44 +38,39 @@ open BusWireRoutingHelpers
 
 
 /// Calculates the final dimensions of a symbol, considering potential scaling.
-let getSymbolDimensions (symbol: SymbolT.Symbol) : float * float = 
-    let baseWidth = symbol.Component.W
-    let baseHeight = symbol.Component.H
-    let scaledWidth = 
-        match symbol.HScale with
-        | Some(scale) -> baseWidth * scale
-        | None -> baseWidth
-    let scaledHeight = 
-        match symbol.VScale with
-        | Some(scale) -> baseHeight * scale
-        | None -> baseHeight
-    (scaledWidth, scaledHeight)
-
-
 let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
 let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option = 
         model.Wire.Symbol.Symbols
         |> Map.values
         |> Seq.tryFind (fun sym -> caseInvariantEqual label sym.Component.Label)
-let updateCustomComponentDimensions (symLabel: string) (desiredWidth: float) (desiredHeight: float) (model: SheetT.Model): Result<SheetT.Model, string> =
-    match getlabel model symLabel with
-    | Some symbol ->
+let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, (float * float)> =
+
         let originalWidth = symbol.Component.W
         let originalHeight = symbol.Component.H
-        let hScale = desiredWidth / originalWidth
-        let vScale = desiredHeight / originalHeight
-        let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
-        
-        // Assuming `replaceSymbol` updates and returns a modified Symbol.Model, which is part of SheetT.Model
-        let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-        
-        // Here, ensure that SheetT.symbol_ correctly targets where the Symbol.Model lives within SheetT.Model
-        // and replaces it with the updated one
-        let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
-        
-        Ok updatedSheetModel
-    | None -> Error (sprintf "Symbol with label '%s' not found." symLabel)
+
+
+        let get (model: SheetT.Model) =
+            let width = match symbol.HScale with
+                            | Some scale -> originalWidth * scale
+                            | None -> originalWidth
+            let height = match symbol.VScale with
+                            | Some scale -> originalHeight * scale
+                            | None -> originalHeight
+            (width, height)
+
+
+        let set (newDimensions: (float * float)) (model: SheetT.Model) =
+            let (width, height) = newDimensions
+
+            let hScale = width / originalWidth
+            let vScale = height / originalHeight
+            let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
+            let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+            let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+            
+            updatedSheetModel
+        (get, set)
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

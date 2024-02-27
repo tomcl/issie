@@ -101,7 +101,24 @@ let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT
     model
     |> Optic.set symbolModel_ symModel
     
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B3 Read/write the order of ports on a specified side of a symbol
+let portOrderLens (side: Edge) : Lens<SymbolT.Symbol, string list option> =
 
+    let get (symbol: SymbolT.Symbol) =
+        Map.tryFind side symbol.PortMaps.Order
+
+    let set (newPortOrder: string list option) (symbol: SymbolT.Symbol) =
+        match newPortOrder with
+        | Some (newOrder: string list) ->
+            let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
+            { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
+        | None -> symbol  // If None, don't modify the portMaps
+
+    (get, set)
+    
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

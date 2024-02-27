@@ -16,7 +16,9 @@ open ModelType
 open Sheet.SheetInterface
 open Fable.React
 open Fable.React.Props
-open Elmish
+open DrawModelType.SheetT
+open Helpers
+
 
 //-----------------Module for beautify Helper functions--------------------------//
 // Typical candidates: all individual code library functions.
@@ -156,7 +158,12 @@ let symbolFlipLens : Lens<Symbol, bool> =
         { sym with STransform = { sym.STransform with Flipped = newFlipState } }
 
     (get, set)
+//-----------------------------T-Functions----------------------------------------//
+//--------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------//
 
+// function from Tick3.HLPTick3.visibleSegments
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
     let wire = model.Wire.Wires[wId] // get wire from model
@@ -177,6 +184,7 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
     /// if this is possible, otherwise return segVecs unchanged.
     /// Index must be in range 1..segVecs
     let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int) =
+        // Check if the segment at index is zero length and has non-zero length segments on either side, changed based on given function
         if index > 0 && index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero then
             let before = segVecs.[0..index-2]
             let coalesced = segVecs.[index-1] + segVecs.[index+1]
@@ -191,6 +199,34 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
     |> (fun segVecs ->
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
+
+
+// T1R - The number of pairs of symbols that intersect each other. Count over all pairs of symbols.
+let countSymIntersectSym (sheet: SheetT.Model) =
+    let boxes = mapValues sheet.BoundingBoxes |> Array.toList |> List.indexed
+    let countOverlaps (acc: int) ((i, box1): int * BoundingBox) =
+        boxes
+        |> List.filter (fun (j, _) -> j > i) // Only consider boxes after the current one to avoid duplicate checks
+        |> List.fold (fun innerAcc (_, box2) ->
+            if overlap2DBox box1 box2 then innerAcc + 1 else innerAcc
+        ) acc
+    boxes |> List.fold countOverlaps 0
+
+
+// T2R - The number of distinct wire visible segments that intersect with one or moresymbols. Count over all visible wire segments.
+let countSymbolIntersectingWire (sheet: SheetT.Model) =
+    let wireModel = sheet.Wire
+    wireModel.Wires
+    |> Map.values
+    |> Seq.fold (fun acc wire -> 
+    // Check if the wire intersects with any symbols
+        if BusWireRoute.findWireSymbolIntersections wireModel wire <> [] 
+        // if it does, add one to the accumulator
+        then acc + 1 
+        else acc
+    ) 0
+
+
 
 // module T3R =
 //     /// Helper function transforms a list of relative vectors into a list of segments with absolute coordinates.
@@ -216,65 +252,6 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 //             Map.add wId absoluteSegments accMap
 //         ) Map.empty
 
-type SegVector = {Start: XYPos; Dir: XYPos}
-let isCrossingAtRightAngle seg1 seg2 =
-    // Determine the end points of each segment
-    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
-    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
-
-    // Check if both segments are vertical or horizontal
-    if (seg1.Dir.X = 0.0 && seg2.Dir.X = 0.0) || (seg1.Dir.Y = 0.0 && seg2.Dir.Y = 0.0) then
-        false
-    else
-        // Check for vertical seg1 intersecting with horizontal seg2 or vice versa
-        let isSeg1Vertical = seg1.Dir.X = 0.0
-        let seg1Range = 
-            if isSeg1Vertical then 
-                (min seg1.Start.Y end1.Y, max seg1.Start.Y end1.Y) 
-            else (min seg1.Start.X end1.X, max seg1.Start.X end1.X)
-
-        let seg2Range = 
-            if isSeg1Vertical then 
-                (min seg2.Start.X end2.X, max seg2.Start.X end2.X) 
-            else (min seg2.Start.Y end2.Y, max seg2.Start.Y end2.Y)
-        let seg1Pos = if isSeg1Vertical then seg1.Start.X else seg1.Start.Y
-        let seg2Pos = if isSeg1Vertical then seg2.Start.Y else seg2.Start.X
-
-        // Check if the static position of one segment falls within the range of the other segment's start and end
-        seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
-        seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
-
-let countRightAngleIntersections segments =
-    let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
-    let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
-    let mutable count = 0
-    for vSeg in verticals do
-        for hSeg in horizontals do
-            if isCrossingAtRightAngle vSeg hSeg then
-                count <- count + 1
-    count
-
-let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
-    let segmentsXYPos = visibleSegments wId model
-    let wireStart = model.Wire.Wires.[wId].StartPos
-
-    segmentsXYPos
-    |> List.fold (fun (acc: SegVector list, lastPos: XYPos) pos -> 
-        match acc with
-        | [] -> ([{ Start = lastPos; Dir = pos }], (+) lastPos pos)
-        | _ -> (acc @ [{ Start = lastPos; Dir = pos }], (+) lastPos pos)
-    ) ([], wireStart)
-    |> fst
-
-let totalRightAngleIntersect (model: SheetT.Model) =
-    let allSegments =
-        model.Wire.Wires
-        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
-        |> List.collect (fun (wId, _) -> wireToSegments wId model)
-
-
-    allSegments
-    |> countRightAngleIntersections
 
 // T5R - Number of visible wire right-angles. Count over whole sheet.
 let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
@@ -298,4 +275,7 @@ let countTotalRightAngles (model: SheetT.Model) =
     //     printfn "Current total right angles: %d" newAcc
     //     newAcc
     // ) 0
+
+
+// T6R - The zero-length segments in a wire with non-zero segments on either side that have Lengths of opposite signs lead to a wire retracing itself
 

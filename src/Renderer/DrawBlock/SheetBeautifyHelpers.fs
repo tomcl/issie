@@ -145,7 +145,7 @@ let getPortPosOnSheet (port: Port) (sheet: SheetT.Model): XYPos =
 let getSymBoundingBox (sym: SymbolT.Symbol) (sheet: SheetT.Model): BoundingBox =
     let symbolId =
         sheet.Wire.Symbol.Symbols
-        |> Map.tryFindKey (fun k v -> v = sym)
+        |> Map.tryFindKey (fun _ value -> value = sym)
         |> function
             | Some id -> id
             | None -> failwith "getSymBoundingBox: given symbol is not in sheet"
@@ -205,14 +205,14 @@ let stransform_flipped_ =
 let getAllSymIds (sheet: SheetT.Model): List<ComponentId> = 
     sheet.Wire.Symbol.Symbols 
     |> Map.toList 
-    |> List.map (fun (k,v) -> k)
+    |> List.map (fun (key, _) -> key)
 
 /// <summary>Get all symbol bounding boxes within a sheet.</summary>
 /// <param name="sheet">Model of the whole sheet.</param>
 /// <returns>List of symbol component IDs with their bounding boxes of all the symbols on the sheet.</returns>
 let getAllSymBoundingBoxes (sheet: SheetT.Model): List<ComponentId*BoundingBox> = 
     Optic.get SheetT.boundingBoxes_ sheet 
-    |> Map.filter (fun k v -> List.exists (fun id -> k = id) (getAllSymIds sheet))
+    |> Map.filter (fun key _ -> List.exists (fun symId -> key = symId) (getAllSymIds sheet))
     |> Map.toList
 
 /// <summary>D.U. to describe orientation of a segment.</summary>
@@ -294,13 +294,13 @@ let getWireVisibleSegVertices (wire: BusWireT.Wire): List<XYPos> =
 /// <param name="sheet">Model of the whole sheet.</param>
 /// <returns>List of connection IDs of all the wires on the sheet.</returns>
 let getAllWireIds (sheet: SheetT.Model): List<ConnectionId> =
-    sheet.Wire.Wires |> Map.toList |> List.map (fun (k,v) -> k)
+    sheet.Wire.Wires |> Map.toList |> List.map (fun (key, _) -> key)
 
 /// <summary>Get all wires within a sheet.</summary>
 /// <param name="sheet">Model of the whole sheet.</param>
 /// <returns>List of all wires on the sheet.</returns>
 let getAllWires (sheet: SheetT.Model): List<BusWireT.Wire> =
-    sheet.Wire.Wires |> Map.toList |> List.map (fun (k,v) -> v)
+    sheet.Wire.Wires |> Map.toList |> List.map (fun (_, value) -> value)
 
 /// <summary>Get all visible segments of all wires within a sheet.</summary>
 /// <param name="sheet">Model of the whole sheet.</param>

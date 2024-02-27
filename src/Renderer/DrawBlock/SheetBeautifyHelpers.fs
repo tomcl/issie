@@ -25,6 +25,16 @@ open DrawModelType.SymbolT
 open BusWire
 open BusWireUpdateHelpers
 open BusWireRoutingHelpers
+open EEExtensions
+open Optics
+open Optics.Operators
+open DrawHelpers
+open Helpers
+open CommonTypes
+open ModelType
+open DrawModelType
+open Sheet.SheetInterface
+
 
 
 //-----------------Module for beautify Helper functions--------------------------//
@@ -44,6 +54,11 @@ let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option =
         model.Wire.Symbol.Symbols
         |> Map.values
         |> Seq.tryFind (fun sym -> caseInvariantEqual label sym.Component.Label)
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B1 The dimensions of a custom component symbol
 let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, (float * float)> =
 
         let originalWidth = symbol.Component.W
@@ -71,6 +86,21 @@ let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, 
             
             updatedSheetModel
         (get, set)
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B2 The position of a symbol on the sheet 
+let symbolModel_ = SheetT.symbol_
+let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT.Model): SheetT.Model=
+
+    let updateSymPos (symbol: SymbolT.Symbol) = { symbol with Pos = newPos }
+    let symModel: SymbolT.Model = 
+                    SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
+
+    model
+    |> Optic.set symbolModel_ symModel
+    
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

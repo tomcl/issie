@@ -74,9 +74,11 @@ let writeSymPosition (compID: ComponentId) (pos: XYPos) (model: SheetT.Model) : 
                                  }
                    }
         }
+    rotModel
+    |> SheetUpdateHelpers.updateBoundingBoxes
     //newModel is the model with updated BoundingBoxes field and it is used as final model
-    let newModel = {rotModel with BoundingBoxes = Symbol.getBoundingBoxes rotModel.Wire.Symbol}
-    newModel
+    //**** let newModel = {rotModel with BoundingBoxes = Symbol.getBoundingBoxes rotModel.Wire.Symbol}
+    //**** newModel
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //ADDITIONAL COMMENTS FOR MARKING - these will be deleted after the individual project marking is done
 // For this function I decided to update the position on the sheet insted of just the Symbol becuse the sheet is mentioned in the instuctions 'The position of a symbol on the sheet'
@@ -309,10 +311,12 @@ let countWireRightAngles (sheet: SheetT.Model) =
 
 
 ///Returns True if a wire is streightened.
-let streightenedWire (wId: ConnectionId) (sheet: SheetT.Model) = 
+let streightenedWire (wire: Wire) (sheet: SheetT.Model) = 
+    let wId = wire.WId
     (visibleSegments wId sheet |> List.length) = 1
 ///Returns True if a wire has potential to be streightened.
-let straighteningPotentialWire (wId: ConnectionId) (sheet: SheetT.Model) =
+let straighteningPotentialWire (wire: Wire) (sheet: SheetT.Model) =
+    let wId = wire.WId
     (visibleSegments wId sheet |> List.length) = 3
 
 
@@ -339,31 +343,114 @@ let checkIfSinglePortComponent (sym: Symbol) =
 
 //Should be used just for wires with 3 visible segments
 // Calculates the offSet based on the middle segmant of a potential wire 
-let calculateOffset (wId: ConnectionId) (sheet: SheetT.Model) =
-    let nodeslist = visibleSegments wId sheet
-    let firstNode = List.item 0 nodeslist
-    let secondNode = List.item 1 nodeslist
-    {
-        X = firstNode.X - secondNode.X
-        Y = firstNode.Y - secondNode.Y
-    }
-
-let getWireFromPort (model: SheetT.Model) (port: Port) =
-            model.Wire.Wires
-            |> Map.toList
-            |> List.map snd
-            |> List.tryFind (fun wire -> match wire.InputPort with
-                                            | InputPortId portId when portId = port.Id -> true
-                                            | _ -> false)
+let calculateOffset (wire: Wire) (sheet: SheetT.Model) =
+    wire.WId
+    |> (fun wId -> visibleSegments wId sheet)
+    |> (fun visSegs -> if List.length visSegs = 3 then visSegs[1] else XYPos.zero)
+//let calculateOffset_old (wire: Wire) (sheet: SheetT.Model) =
+//    let wId = wire.WId
+//    let nodeslist = visibleSegments wId sheet
+//    let firstNode = List.item 0 nodeslist
+//    let secondNode = List.item 1 nodeslist
+//    {
+//        X = firstNode.X - secondNode.X
+//        Y = firstNode.Y - secondNode.Y
+//    }
 
 
-//let firstPhaseStraightening (sheet: SheetT.Model) =
+///Returns a list of the potential wire if there are no straight wires already.
+let ListPotentialWires (wires: list<Wire> ) (sheet: SheetT.Model) =
+    let streightWires = wires |> List.exists (fun wire -> streightenedWire wire sheet)
+    if streightWires = false
+    then wires |> List.filter (fun wire -> straighteningPotentialWire wire sheet)
+    else []
+
+
+//Write a  function that changes the position of the symbol according rhe first potential wire
+let GetPotentialWireOffset (sheet: SheetT.Model) (wires: list<Wire> ) =
+    let firstWire = List.item 0 wires
+    calculateOffset firstWire sheet
     
 
 
+
+
+
+
+    
+        
+
+
+let getWiresFromPort (sheet: SheetT.Model) (port: Port) (wireInputPort: bool) =
+            sheet.Wire.Wires
+            |> Map.toList
+            |> List.map snd
+            |> List.filter (fun wire -> if wireInputPort = true
+                                        then match wire.InputPort with
+                                                | InputPortId id when id = port.Id -> true
+                                                | _ -> false
+                                        else match wire.OutputPort with
+                                                | OutputPortId id when id = port.Id -> true
+                                                | _ -> false)
+
+
+///Get all the wires from a Symbol that has strictly just one Port
+let allWires1PortSym (sym: Symbol) (sheet: SheetT.Model)=
+        let i = List.item 0 sym.Component.InputPorts 
+        let o = List.item 0  sym.Component.OutputPorts
+        if sym.Component.OutputPorts = []
+        then
+            let wires = getWiresFromPort sheet i true
+            wires
+        else
+            let wires = getWiresFromPort sheet o false
+            wires
+        
+    
+let align1PortSymbol (onePortSym: Symbol) (sheet: SheetT.Model)=
+    let potentialList = 
+        sheet
+        |> allWires1PortSym onePortSym
+        |> ListPotentialWires 
+    sheet
+    |> potentialList 
+    |> GetPotentialWireOffset sheet
+    |> (fun offset -> BlockHelpers.moveSymbol offset onePortSym)
+    // |> (fun newSym -> Optic.set (SheetT.symbolOf_ onePortSym.Id) newSym sheet)
+    // |> SheetUpdateHelpers.updateBoundingBoxes
+
+/// After all the symbols have been moved, update the wiring on the entire sheet.
+/// 
+/// newcIdList -> List of cIds of all symbols that have moved
+/// 
+/// sheet -> The sheet to be changed
+/// 
+/// symbolMovedBy -> Take as 0 for now, not sure what this does, needed in updateWires
+let update1PortWires (newcIdList: List<ComponentId>) (symbolMovedBy: XYPos) (sheet: SheetT.Model) = 
+    BusWireRoute.updateWires sheet.Wire newcIdList symbolMovedBy
+    |> (fun newWireModel -> Optic.set SheetT.wire_ newWireModel sheet)
+
+//et updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos)
 
 // To do:
 //checkIfthereIsOverlap 
 
 let firstPhaseStraightening (sheet: SheetT.Model) =
-    sheet
+    let singlePortComponents = 
+        sheet.Wire.Symbol.Symbols
+        |> Map.toList 
+        |> List.filter (fun (_, sym) -> checkIfSinglePortComponent sym)
+
+
+    let changedSymbolList = 
+        singlePortComponents
+        |> List.map (fun (_, sym) -> align1PortSymbol sym sheet)
+    changedSymbolList
+    |> List.fold (fun sheet newSym -> Optic.set (SheetT.symbolOf_ newSym.Id) newSym sheet) sheet
+    |> SheetUpdateHelpers.updateBoundingBoxes
+    |> update1PortWires (List.map (fun sym -> sym.Id) changedSymbolList) XYPos.zero
+    
+
+        
+    
+    

@@ -76,33 +76,38 @@ let portOrderLens (side: Edge) : Lens<PortMaps, string list option> =
 
 
 // B4RW - The reverses state of the inputs of a MUX2
-// let mux2Lens: Lens<Symbol, (bool * bool) option> =
-//     (
-//         // The read function
-//         (fun symbol ->
-//             match symbol.Component.Type with
-//             | Mux2(input1, input2) -> Some(input1, input2)
-//             | _ -> None
-//         ),
-//         // The write function
-//         (fun inputsOpt symbol ->
-//             match inputsOpt, symbol.Component.Type with
-//             | Some(newInput1, newInput2), Mux2(_, _) ->
-//                 { symbol with Component = { symbol.Component with Type = Mux2(newInput1, newInput2) } }
-//             | _ -> symbol // Return the symbol unchanged if inputsOpt is None or component is not a MUX2
-//         )
-//     )
+let reversedInputPortsLens : Lens<Component, bool option> =
+    // Getter function: gets the reverse state of the input ports if available
+    let get (comp: Component) =
+        match comp.SymbolInfo with
+        | Some symInfo -> symInfo.ReversedInputPorts
+        | None -> None
+    // Setter function: returns a new Component with updated reverse state for the input ports of a MUX2
+    let set (newReversedState: bool option) (comp: Component) =
+        match comp.Type with
+        | Mux2 -> // Only proceed if the component is a Mux2
+            let updatedSymbolInfo = 
+                match comp.SymbolInfo with
+                | Some symInfo -> 
+                    Some { symInfo with ReversedInputPorts = newReversedState }
+                | None -> 
+                    // If there's no SymbolInfo, create it with the new reversed state; adjust according to your model's requirements
+                    Some { LabelBoundingBox = None; LabelRotation = None; STransform = { Rotation = Degree0; Flipped = false }; ReversedInputPorts = newReversedState; PortOrientation = Map.empty; PortOrder = Map.empty; HScale = None; VScale = None }
+            { comp with SymbolInfo = updatedSymbolInfo }
+        | _ -> comp // If not a Mux2, return the component unchanged
+
+    (get, set)
 
 
 
 // B5R - Read the position of a port on the sheet
 let readPortPosition (sym: Symbol) (port: Port) : XYPos =
     let addXYPos (pos1: XYPos) (pos2: XYPos) : XYPos =
+    // relative to the top left corner of the symbol
         { X = pos1.X + pos2.X; Y = pos1.Y - pos2.Y }
     let TopLeft = sym.Pos
     let offset = getPortPos sym port
     addXYPos TopLeft offset
-
 
 
 
@@ -127,22 +132,30 @@ let readBoundingBox (symbol: Symbol) : BoundingBox =
     }
 
 // B7RW - The rotation of a symbol
-// let symbolRotationLens : Lens<Symbol, float> =
-//     // Getter function: gets the rotation of a symbol
-//     let get (sym: Symbol) = sym.Rotation
-//     // Setter function: returns a new Symbol with updated rotation
-//     let set (newRotation: float) (sym: Symbol) = { sym with Rotation = newRotation }
+let symbolRotationLens : Lens<Symbol, Rotation> =
+    // Getter function: gets the rotation of a symbol
+    let get (sym: Symbol) = sym.STransform.Rotation
+    // Setter function: returns a new Symbol with updated rotation, aiming for a different structure than updateSymRotationState
+    let set (newRotation: Rotation) (sym: Symbol) = 
+        // Update SymbolInfo's STransform rotation if it exists, in a more compact form
+        let updatedSymbolInfo = sym.Component.SymbolInfo |> Option.map (fun symInfo ->
+            { symInfo with STransform = { symInfo.STransform with Rotation = newRotation } })
+        // Prepare the updated component with the potentially updated SymbolInfo
+        let updatedComponent = { sym.Component with SymbolInfo = updatedSymbolInfo }
+        // Update the symbol's STransform rotation directly, using the updated component
+        { sym with Component = updatedComponent; STransform = { sym.STransform with Rotation = newRotation } }
 
-//     (get, set)
+    (get, set)
 
 // B8RW - The flip state of a symbol
-// let symbolFlipLens : Lens<Symbol, bool> =
-//     // Getter function: gets the flip state of a symbol
-//     let get (sym: Symbol) = sym.Flip
-//     // Setter function: returns a new Symbol with updated flip state
-//     let set (newFlip: bool) (sym: Symbol) = { sym with Flip = newFlip }
+let symbolFlipLens : Lens<Symbol, bool> =
+    // Getter function: gets the flip state of a symbol
+    let get (sym: Symbol) = sym.STransform.Flipped
+    // Setter function: returns a new Symbol with updated flip state
+    let set (newFlipState: bool) (sym: Symbol) = 
+        { sym with STransform = { sym.STransform with Flipped = newFlipState } }
 
-//     (get, set)
+    (get, set)
 
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
@@ -203,7 +216,6 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 //             Map.add wId absoluteSegments accMap
 //         ) Map.empty
 
-open DrawModelType.BusWireT
 type SegVector = {Start: XYPos; Dir: XYPos}
 let isCrossingAtRightAngle seg1 seg2 =
     // Determine the end points of each segment
@@ -245,19 +257,16 @@ let countRightAngleIntersections segments =
 let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
     let segmentsXYPos = visibleSegments wId model
     let wireStart = model.Wire.Wires.[wId].StartPos
-    let addXYPos (p1: XYPos) (p2: XYPos) = 
-        { X = p1.X + p2.X; Y = p1.Y + p2.Y }
 
     segmentsXYPos
     |> List.fold (fun (acc: SegVector list, lastPos: XYPos) pos -> 
         match acc with
-        | [] -> ([{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
-        | _ -> (acc @ [{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
+        | [] -> ([{ Start = lastPos; Dir = pos }], (+) lastPos pos)
+        | _ -> (acc @ [{ Start = lastPos; Dir = pos }], (+) lastPos pos)
     ) ([], wireStart)
     |> fst
 
 let totalRightAngleIntersect (model: SheetT.Model) =
-    // Step 1: Extract and process segments for each wire
     let allSegments =
         model.Wire.Wires
         |> Map.toList // Convert the map of wires to a list of (key, value) pairs

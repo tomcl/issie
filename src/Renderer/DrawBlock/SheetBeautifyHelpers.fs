@@ -115,10 +115,39 @@ let portOrderLens (side: Edge) : Lens<SymbolT.Symbol, string list option> =
         | Some (newOrder: string list) ->
             let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
             { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
-        | None -> symbol  // If None, don't modify the portMaps
+        | None -> symbol
 
     (get, set)
-    
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B4 The reverses state of the inputs of a MUX2 
+let reverseMuxInputLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
+
+    let get (model: SheetT.Model): bool = 
+        
+        let InputPort: option<bool> = symbol.ReversedInputPorts
+        
+        match InputPort with
+        | Some state -> state
+        | None -> false
+        
+    let set (newState: bool) (model: SheetT.Model): SheetT.Model =
+
+        let updateSymbol (symbol: SymbolT.Symbol) = 
+            { symbol with ReversedInputPorts = Some newState }
+            
+        let updatedModel = SymbolUpdate.updateSymbol updateSymbol symbol.Id model.Wire.Symbol
+
+        Optic.set SheetT.symbol_ updatedModel model
+
+
+    (get, set)
+
+// let a, b = MuxReverseLens (SymbolT.Symbol.Create (ComponentId.Create "1"))
+
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

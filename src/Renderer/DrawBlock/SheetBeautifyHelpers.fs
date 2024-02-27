@@ -207,35 +207,51 @@ let getSymbolFlipped (symbol: SymbolT.Symbol) : bool =
 // T1R R Low
 // The number of pairs of symbols that intersect each other. See Tick3 for a related function.
 // Count over all pairs of symbols.
-let countIntersectingPairs (sheet: SheetT.Model) =
+let countIntersectingSymbolPairs (sheet: SheetT.Model) =
+
     let wireModel = sheet.Wire
+
+    // Get Bounding boxes of all symbols into a list
     let boxes =
         mapValues sheet.BoundingBoxes
         |> Array.toList
         |> List.mapi (fun n box -> n,box)
+    
+    // Iterate through all symbol pairs and count the number of intersecting pairs
     List.allPairs boxes boxes 
     |> List.filter (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
 
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
 // T2R R Low 
 // The number of distinct wire visible segments that intersect with one or more symbols. See Tic
 let countSymbolIntersectingWire (sheet: SheetT.Model) =
+
     let wireModel = sheet.Wire
+
     wireModel.Wires
-    |> Map.fold (fun acc _ wire -> 
-        if BusWireRoute.findWireSymbolIntersections wireModel wire <> [] then acc + 1 else acc
+    |> Map.fold (
+        fun acc _ wire -> 
+            if BusWireRoute.findWireSymbolIntersections wireModel wire <> [] 
+            then acc + 1 
+            else acc
     ) 0
 
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// T4 Sum of wiring segment length, counting only one when there are N same-net 
-// segments overlapping (this is the visible wire length on the sheet). Count over whole 
-// sheet. 
+// Function to convert a wire into a list of segments, useful for T3-6
 
-// Step 1: Convert wire to segments (similar to visibleSegments but simplified for this context)
-type SegVector = {Start: XYPos; Dir: XYPos}
+type SegVector = {Start: XYPos; Direction: XYPos}
+
+let getEndPoint (seg: SegVector) = 
+    { X = seg.Start.X + seg.Direction.X; Y = seg.Start.Y + seg.Direction.Y }
+
 
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
@@ -272,174 +288,211 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
 
+// Take in a wire, and return a list of SegVector
+// Each SegVector represents a segment of the wire, with Starting position and Direction Vector
 let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
+
     let segmentsXYPos = visibleSegments wId model
-    let wireStart = model.Wire.Wires.[wId].StartPos
+
     let addXYPos (p1: XYPos) (p2: XYPos) = 
         { X = p1.X + p2.X; Y = p1.Y + p2.Y }
 
     segmentsXYPos
     |> List.fold (fun (acc: SegVector list, lastPos: XYPos) pos -> 
         match acc with
-        | [] -> ([{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
-        | _ -> (acc @ [{ Start = lastPos; Dir = pos }], addXYPos lastPos pos)
-    ) ([], wireStart)
+        | [] -> ([{ Start = lastPos; Direction = pos }], addXYPos lastPos pos)
+        | _ -> (acc @ [{ Start = lastPos; Direction = pos }], addXYPos lastPos pos)
+    ) ([], { X = 0.0; Y = 0.0 })
     |> fst
-    
-
-// Step 2: Detect and remove overlapping segments
-
-// Function to determine if two segments overlap
-let isOverlapping seg1 seg2 =
-    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
-    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
-    seg1.Start.X = seg2.Start.X && seg1.Start.Y = seg2.Start.Y ||
-    (seg1.Start.X <= end2.X && end1.X >= seg2.Start.X) ||
-    (seg1.Start.Y <= end2.Y && end1.Y >= seg2.Start.Y)
-
-// Function to merge two overlapping segments
-let mergeSegments seg1 seg2 =
-    let endX = max (seg1.Start.X + seg1.Dir.X) (seg2.Start.X + seg2.Dir.X)
-    let endY = max (seg1.Start.Y + seg1.Dir.Y) (seg2.Start.Y + seg2.Dir.Y)
-    { Start = seg1.Start; Dir = { X = endX - seg1.Start.X; Y = endY - seg1.Start.Y } }
-
-// Function to merge all overlapping segments in a list
-let mergeOverlappingSegments segList =
-    let rec mergeRecursive acc remaining =
-        match remaining with
-        | [] -> acc
-        | hd :: tl ->
-            let overlaps, nonOverlaps = List.partition (isOverlapping hd) tl
-            let mergedSegment = List.fold mergeSegments hd overlaps
-            mergeRecursive (mergedSegment :: acc) nonOverlaps
-    mergeRecursive [] segList |> List.rev
-
-
-
-
-// Step 3: Calculate sum of segment lengths
-
-let printSegVectorList segList =
-    segList
-    |> List.iter (fun seg ->
-        printfn "Start: (X=%f, Y=%f), Dir: (X=%f, Y=%f)" seg.Start.X seg.Start.Y seg.Dir.X seg.Dir.Y
-    )
-
-let totalVisibleWiringLength (model: SheetT.Model) =
-    // Step 1: Extract and process segments for each wire
-    let allSegments =
-        model.Wire.Wires
-        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
-        |> List.collect (fun (wId, _) -> wireToSegments wId model) // Use 'List.collect' to flatten the lists of segments
-
-    // Step 2: Merge overlapping segments for the entire list of segments
-    // Step 3: Calculate the total length
-    let totalLength =
-        allSegments
-        |> mergeOverlappingSegments
-        |> List.sumBy (fun seg -> abs seg.Dir.X + abs seg.Dir.Y) // Sum the lengths of all segments (X + Y components
-
-    // printSegVectorList allSegments
-    totalLength
-
 
 
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// T3R - Number of visible wire right-angles
-let isCrossingAtRightAngle seg1 seg2 =
-    // Determine the end points of each segment
-    let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
-    let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
+// T3R - Number of visible wire Intersecting at right-angles
 
-    // Check if both segments are vertical or horizontal
-    if (seg1.Dir.X = 0.0 && seg2.Dir.X = 0.0) || (seg1.Dir.Y = 0.0 && seg2.Dir.Y = 0.0) then
-        false
+let isVertical (direction: XYPos) = direction.X = 0.0
+
+let calculateRange (startPos: XYPos) (endPos: XYPos) (isVertical: bool) =
+    if isVertical then
+        (min startPos.Y endPos.Y, max startPos.Y endPos.Y)
     else
-        // Check for vertical seg1 intersecting with horizontal seg2 or vice versa
-        let isSeg1Vertical = seg1.Dir.X = 0.0
-        let seg1Range = 
-            if isSeg1Vertical then 
-                (min seg1.Start.Y end1.Y, max seg1.Start.Y end1.Y) 
-            else (min seg1.Start.X end1.X, max seg1.Start.X end1.X)
+        (min startPos.X endPos.X, max startPos.X endPos.X)
 
-        let seg2Range = 
-            if isSeg1Vertical then 
-                (min seg2.Start.X end2.X, max seg2.Start.X end2.X) 
-            else (min seg2.Start.Y end2.Y, max seg2.Start.Y end2.Y)
-        let seg1Pos = if isSeg1Vertical then seg1.Start.X else seg1.Start.Y
-        let seg2Pos = if isSeg1Vertical then seg2.Start.Y else seg2.Start.X
+// Check if two segments are crossing at right angle
+let isCrossingAtRightAngle (seg1: SegVector) (seg2: SegVector) =
+    let end1 = getEndPoint seg1
+    let end2 = getEndPoint seg2
 
-        // Check if the static position of one segment falls within the range of the other segment's start and end
+    // if two segments are parallel, they cannot intersect at right angle
+    match (isVertical seg1.Direction, isVertical seg2.Direction) with
+    | (true, true) | (false, false) -> false
+    | _ ->
+        // check if segments intersect
+        let seg1Range = calculateRange seg1.Start end1 (isVertical seg1.Direction)
+        let seg2Range = calculateRange seg2.Start end2 (isVertical seg2.Direction)
+
+        let seg1Pos = if isVertical seg1.Direction then seg1.Start.X else seg1.Start.Y
+        let seg2Pos = if isVertical seg1.Direction then seg2.Start.Y else seg2.Start.X
+
         seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
         seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
 
-// printSegVectorList verticals
-// printfn "-----------------------------------------------------"
-// printSegVectorList horizontals
-// printfn "-----------------------------------------------------"
-// printfn "-----------------------------------------------------"
-// printfn "-----------------------------------------------------"
-// printfn "-----------------------------------------------------"
-// printfn "-----------------------------------------------------"
-
-
-let countRightAngleIntersections segments =
-    let verticals = segments |> List.filter (fun seg -> seg.Dir.X = 0.0)
-    let horizontals = segments |> List.filter (fun seg -> seg.Dir.Y = 0.0)
+// Count the number of right angle intersections
+let countRightAngleIntersect (segVectorList: list<SegVector>) =
+    let verticals = segVectorList |> List.filter (fun seg -> seg.Direction.X = 0.0)
+    let horizontals = segVectorList |> List.filter (fun seg -> seg.Direction.Y = 0.0)
 
     let mutable count = 0
+
     verticals
     |> List.collect (fun vSeg -> horizontals |> List.filter (isCrossingAtRightAngle vSeg))
     |> List.length
 
 
-let totalRightAngleIntersect (model: SheetT.Model) =
-    // Step 1: Extract and process segments for each wire
-    let allSegments =
+let countTotalRightAngleIntersect (model: SheetT.Model) =
+    model.Wire.Wires
+    |> Map.toList // Convert the map of wires to a list of (key, value) pairs
+    |> List.collect (fun (wId, _) -> wireToSegments wId model) // flatten the lists of segments
+    |> countRightAngleIntersect
+
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// T4 Sum of wiring segment length, counting only one when there are N same-net 
+// segments overlapping (this is the visible wire length on the sheet). Count over whole 
+// sheet. 
+
+// Check if two segments are overlapping
+let isOverlapping (seg1: SegVector) (seg2: SegVector) =
+
+    let end1 = getEndPoint seg1
+    let end2 = getEndPoint seg2
+
+    (seg1.Start.X = seg2.Start.X || seg1.Start.Y = seg2.Start.Y) &&
+    ((seg1.Start.X <= end2.X && end1.X >= seg2.Start.X) ||
+    (seg1.Start.Y <= end2.Y && end1.Y >= seg2.Start.Y))
+
+// Merge two overlapping segments if they are parallel and overlapping
+let mergeTwoSegments seg1 seg2 =
+    
+    let start1, start2 = seg1.Start, seg2.Start
+    let end1, end2 = getEndPoint seg1, getEndPoint seg2
+
+    // start and end of the merged segment
+    let startX = min start1.X start2.X
+    let startY = min start1.Y start2.Y
+    let endX = max end1.X end2.X
+    let endY = max end1.Y end2.Y
+
+    { 
+        Start = { X = startX; Y = startY }; 
+        Direction = { X = endX - startX; Y = startY - endY } 
+    }
+
+// Merge all parallel overlapping segments in a list
+let mergeAllOverlapSegments segList =
+    let rec mergeRecursive acc remaining =
+        match remaining with
+        | [] -> acc
+        | hd :: tl ->
+            let overlaps, nonOverlaps = List.partition (isOverlapping hd) tl
+            let mergedSegment = List.fold mergeTwoSegments hd overlaps
+            mergeRecursive (mergedSegment :: acc) nonOverlaps
+    mergeRecursive [] segList |> List.rev
+
+// Calculate sum of segment lengths
+let totalVisibleWiringLength (model: SheetT.Model) =
+
+    // list of segments without overlapping
+    let segWithoutOverlap = 
         model.Wire.Wires
-        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
-        |> List.collect (fun (wId, _) -> wireToSegments wId model) // Use 'List.collect' to flatten the lists of segments
+        |> Map.toList // Convert the map of wires to a list<SegVector>
+        |> List.collect (fun (wId, _) -> wireToSegments wId model) // flatten the lists of segments
 
-    // Step 2: Merge overlapping segments for the entire list of segments
-    // Step 3: Calculate the total length
-
-    allSegments
-    |> countRightAngleIntersections
-
-    // let test1 = {Start = {X=1892.500000; Y=1850.000000}; Dir = {X=0.000000; Y = -50.000000}}
-    // let test2 = {Start = {X=1892.500000; Y=1800.000000}; Dir = {X = -190.000000; Y = 0.000000}}
-
-    // if isCrossingAtRightAngle test1 test2 then
-    //     1
-    // else
-    //     0
-
+    segWithoutOverlap
+    |> mergeAllOverlapSegments // Merge overlapping segments
+    |> List.sumBy (fun seg -> abs seg.Direction.X + abs seg.Direction.Y) // Sum length
+    
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // T5R - Number of visible wire right-angles. Count over whole sheet.
-
-
+// Count the number of right angles in a wire
 let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
-    let segments = visibleSegments wId model
-    // printfn "segments:" 
-    let numSegments = List.length segments
-    // printfn "numSegments: %A" numSegments
-    if numSegments > 0 then numSegments - 1 else 0
-    // The check `if numSegments > 0 then ... else 0` ensures that wires with no visible segments
-    // do not contribute to the right angle count negatively or incorrectly.
+
+    let segmentsPos = visibleSegments wId model
+
+    segmentsPos
+    |> List.length
+    |> (fun numSegments -> 
+        if numSegments <> 0 
+        then numSegments - 1 
+        else 0)
+    
 
 /// Sums up the right angles from all wires in the model.
 let countTotalRightAngles (model: SheetT.Model) =
-    // printfn "countTotalRightAngles"
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
-    // |> Map.fold (fun acc key _ -> 
-    //     let newAcc = acc + countWireRightAngles key model
-    //     // Print the updated accumulator value
-    //     printfn "Current total right angles: %d" newAcc
-    //     newAcc
-    // ) 0
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// T6R R High 
+
+// The zero-length segments in a wire with non-zero segments on either side that have 
+// Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply 
+// at the end of a wire (where the zero-length segment is one from the end). This is a 
+// wiring artifact that should never happen but errors in routing or separation can 
+// cause it. Count over the whole sheet. Return from one function a list of all the 
+// segments that retrace, and also a list of all the end of wire segments that retrace so 
+// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol. 
+
+let findRetracingSegments (model: SheetT.Model) : XYPos list * XYPos list =
+    let segmentsXYPos =
+        model.Wire.Wires
+        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
+        |> List.collect (fun (wId, _) -> visibleSegments wId model)
+    
+    let segments =
+        model.Wire.Wires
+        |> Map.toList // Convert the map of wires to a list of (key, value) pairs
+        |> List.collect (fun (wId, _) -> model.Wire.Wires[wId].Segments)
+
+    // let segments = model.Wire.Wires[wId].Segments
+    // let segmentsXYPos = visibleSegments wId model
+    // Detect retracing segments
+    // let detectRetracingSegments (segmentsXYPos: list<XYPos>) =
+    
+    let detectRetracingSegments (segmentsXYPos: list<XYPos>): list<int> =
+        let hasOppositeDirection (v1:XYPos) (v2:XYPos) = (v1.X * v2.X < 0.0) || (v1.Y * v2.Y < 0.0)
+        let isZeroVector (v:XYPos) = (v.X = 0.0) && (v.Y = 0.0)
+
+        let rec iter index acc =
+            if index + 2 < List.length segmentsXYPos then
+                let v1 = segmentsXYPos.[index]
+                let vZero = segmentsXYPos.[index + 1]
+                let v2 = segmentsXYPos.[index + 2]
+                if isZeroVector vZero && hasOppositeDirection v1 v2 then
+                    iter (index + 1) (acc @ [index + 1])
+                else
+                    iter (index + 1) acc
+            else
+                acc
+
+        iter 0 []
+    
+    // let retracingSegmentsIndices = detectRetracingSegments segmentsXYPos
+    // let retracingSegments = List.choose (fun i -> List.tryItem i segments) retracingSegmentsIndices
+    let retraceSegmentList = 
+        segmentsXYPos
+        |> detectRetracingSegments
+        |> List.choose (fun i -> List.tryItem i segmentsXYPos)
+        // |> List.choose (fun i -> List.tryItem i segments)
+
+    (retraceSegmentList,segmentsXYPos)

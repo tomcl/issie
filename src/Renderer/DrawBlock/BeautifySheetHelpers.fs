@@ -6,10 +6,11 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open Optics
 open Optics.Operators
+open Helpers
 open SymbolHelpers
 open BlockHelpers
 open Symbol
-
+open BusWireRoute
 let symbolMap_: Lens<SheetT.Model, Map<ComponentId, Symbol>> =
     Lens.create (fun m -> m.Wire.Symbol.Symbols) (fun v m ->
         { m with Wire.Symbol = { m.Wire.Symbol with Symbols = v } })
@@ -120,6 +121,16 @@ let setSymbolFlip (sym: Symbol) (newFlip: bool) : Symbol =
     let sTransform = sym.STransform
     let newSTransform = { sTransform with flipped = newFlip }
     { sym with STransform = newSTransform }
+
+/// T1R: The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols.
+let getIntersectingSymbolPairsCount (model: SheetT.Model) =
+    let boxes =
+        mapValues model.BoundingBoxes
+        |> Array.toList
+        |> List.mapi (fun n box -> n, box)
+    List.allPairs boxes boxes
+    |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
+    |> List.length
 
 (*
 

@@ -148,6 +148,43 @@ let reverseMuxInputLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
 
 // let a, b = MuxReverseLens (SymbolT.Symbol.Create (ComponentId.Create "1"))
 
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B5 R - The position of a port on the sheet. It cannot directly be written.
+let getPortPosition (sym: Symbol) (port: Port) : XYPos =
+    let TopLeftPos = sym.Pos
+    let offset = getPortPos sym port
+    { X = TopLeftPos.X + offset.X; Y = TopLeftPos.Y - offset.Y }
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B6 R - The Bounding box of a symbol outline (position is contained in this)
+
+let getBoundingBox (symbol: Symbol) : BoundingBox =
+
+    // extract height and width from symbol, scale it using HScale and VScale if they exist
+    let scaledW, scaledH = 
+        (
+            (match symbol.HScale with 
+                | Some(scale) -> symbol.Component.W * scale 
+                | None -> symbol.Component.W),
+            
+            (match symbol.VScale with 
+                | Some(scale) -> symbol.Component.H * scale 
+                | None -> symbol.Component.H)
+        )
+
+    // Constructing and returning the BoundingBox with scaled dimensions.
+    { 
+        TopLeft = symbol.Pos; 
+        W = scaledW; 
+        H = scaledH 
+    }
+
+
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

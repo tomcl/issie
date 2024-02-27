@@ -214,14 +214,17 @@ let countSegmentIntersect (sheetModel : SheetT.Model) : int =
 /// segments overlapping (this is the visible wire length on the sheet). Count over whole
 /// sheet.
 let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
+    // Summary:
+    // Visible Length = (1) + (2)
+    // (1) Sum of segment length without any overlap
+    // (2) Sum of the maximum overlap length of segments in the N same net
+    // Approach for getting (2):
+    // Find all segment pairs that overlap
+    // They MUST have either start or end points at the same position
+    // Group the pairs by their shared point (start/end) => same N net pairs
+    // Calculate the max overlap length for all the pairs in each group
+    // Sum the above
     let wires: Map<ConnectionId,Wire> = sheetModel.Wire.Wires 
-
-    let totalSegmentLength = 
-        wires
-        |> Map.toList
-        |> List.map (fun (id, wire) -> BlockHelpers.getWireLength wire)
-        |> List.sum
-
     let ASegments = 
         wires
         |> Map.toList
@@ -229,7 +232,6 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
         |> List.collect BlockHelpers.getNonZeroAbsSegments
 
     // we require segments to be parallel to each other and overlap 
-    // (treating orthogonal overlap length as 0!)
     let overlapPairs = 
         let overlapFilter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
             (seg1.Orientation = seg2.Orientation) && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
@@ -238,44 +240,43 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
         |> allPairsWithoutRepeats
         |> List.filter (fun (seg1, seg2) -> overlapFilter seg1 seg2)
 
-    // identify all segments that overlap
-    let allSegsWithOverlap =
-        overlapPairs
-        |> List.unzip
-        |> (fun (seg1, seg2) -> seg1 @ seg2)
-        |> List.distinct
-
     // identify all loose segments without overlap
-    let segWithoutOverlap =
+    let segWithoutOverlapLength =
+        // identify all segments that overlap
+        let allSegsWithOverlap =
+            overlapPairs
+            |> List.unzip
+            |> (fun (seg1, seg2) -> seg1 @ seg2)
+            |> List.distinct
+
         ASegments
         |> List.except allSegsWithOverlap
+        |> List.map (fun seg -> seg.Segment.Length)
+        |> List.sum
     
     // same net segments overlap length to be subtracted
-    let sameNetOverlapToSubtract =
+    let segInSameNetOverlapLength =
+        let findSharedPoint (seg1: BusWireT.ASegment, seg2: BusWireT.ASegment) = 
+            seg1.Start // NB: assume start and end points of ASegments are guaranteed to be in order
+            // NB: However, use this if the start and end points are not guaranteed to be in order
+            // if seg1.Start = seg2.Start then seg1.Start 
+            // elif seg1.Start = seg2.End then seg1.Start
+            // elif seg1.End = seg2.Start then seg1.End
+            // elif seg1.End = seg2.End then seg1.End
+            // else failwithf "No shared overlap starting point found."
         overlapPairs
         |> List.filter (fun (seg1, seg2) -> isSegFromSameNet seg1.Segment seg2.Segment sheetModel)
-        |> List.unzip
-        |> (fun (seg1, seg2) -> seg1 @ seg2)
-        |> List.distinct
-        |> List.groupBy (fun elm -> getInputPortOfSeg elm.Segment sheetModel) // group by the input port
+        |> List.groupBy findSharedPoint // group by the shared point of segments
         |> List.map (fun (netId, segs) -> 
-            segs 
-            |> allPairsWithoutRepeats
+            segs
             |> List.map (fun (seg1, seg2) -> calcASegOverlapLength seg1 seg2)
-            |> List.sum
+            |> List.max
             ) 
-            // calculate sum of overlap lengths
+            // calculate the maximum overlap length 
             // this is calculated separately for each group of segments that belong to the same net
         |> List.sum
 
-    let diffNetOverlapToSubtract = 
-        overlapPairs
-        |> List.filter (fun (seg1, seg2) -> not (isSegFromSameNet seg1.Segment seg2.Segment sheetModel))
-        |> List.map (fun (seg1, seg2) -> calcASegOverlapLength seg1 seg2)
-        |> List.sum
-
-    totalSegmentLength - sameNetOverlapToSubtract - diffNetOverlapToSubtract
-
+    segWithoutOverlapLength + segInSameNetOverlapLength
 
 let calcOverlapSegmentLength (sheetModel : SheetT.Model) : float =
     let wires: Map<ConnectionId,Wire> = sheetModel.Wire.Wires 

@@ -60,9 +60,9 @@
     <!-- Draw Block -->
     <Compile Include="DrawBlock\BlockHelpers.fs" />
     <Compile Include="DrawBlock\SymbolHelpers.fs" />
-    <Compile Include="DrawBlock\BeautifySheetHelpers.fs" />
     <Compile Include="DrawBlock\PopupHelpers.fs" />
     <Compile Include="DrawBlock\Symbol.fs" />
+    <Compile Include="DrawBlock\BeautifySheetHelpers.fs" />
     <Compile Include="DrawBlock\SymbolView.fs" />
     <Compile Include="DrawBlock\SymbolPortHelpers.fs" />
     <Compile Include="DrawBlock\SymbolResizeHelpers.fs" />

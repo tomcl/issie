@@ -10,7 +10,7 @@ open DrawHelpers
 open DrawModelType.SymbolT
 
 
-
+ 
 
 /// Returns the XYPos of custom component symbol corners relative to Pos (= LH corner)
 let getCustomSymCorners (sym: Symbol) =

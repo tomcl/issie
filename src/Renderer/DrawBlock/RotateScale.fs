@@ -430,8 +430,7 @@ let adjustPosForBlockFlip
 let getSymsFromIds (compIds: List<ComponentId>) (model: SymbolT.Model): List<Symbol> =
     compIds 
     |> List.map (fun compId -> Map.tryFind compId model.Symbols)
-    |> List.filter Option.isSome
-    |> List.map Option.get
+    |> List.choose id
 
 /// <summary>Apply mapping to some symbols, specified by compIds, within a symbol model.</summary>
 /// <param name="mapping">Mapping function to transform symbol.</param>

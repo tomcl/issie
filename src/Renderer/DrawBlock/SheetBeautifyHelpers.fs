@@ -132,7 +132,7 @@ let getIntersectingSymbols (sheet: SheetT.Model) : int =
 // T2R
 // The number of distinct wire visible segments that intersect with one or more 
 // symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments.
-let getIntersectingWireSegments (sheet: SheetT.Model) : int =
+let getWireSymbolIntersectionCount (sheet: SheetT.Model) : int =
     let wireModel = sheet.Wire
 
     wireModel.Wires

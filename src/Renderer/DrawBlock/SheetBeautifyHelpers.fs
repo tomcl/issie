@@ -18,7 +18,7 @@ let writeCustomSymbolDimension(dimension:float option*float option) (symbol: Sym
     {symbol with HScale = fst dimension; VScale = snd dimension}
 
 ///B1R B1W, lens for custom symbol dimension
-let lensCustomeSymbolDimension = Lens.create getCustomSymbolDimension writeCustomSymbolDimension
+let CustomeSymbolDimension_ = Lens.create getCustomSymbolDimension writeCustomSymbolDimension
 
 /// B2W
 let writeSymbolPosition (position: XYPos) (symbolID: ComponentId) (sheetModel: SheetT.Model): SheetT.Model =
@@ -28,12 +28,12 @@ let writeSymbolPosition (position: XYPos) (symbolID: ComponentId) (sheetModel: S
 
 
 ///B3R 
-let readPortsOrder (symbol: SymbolT.Symbol) (edge: Edge): string list =
+let readPortsOrder (symbol: SymbolT.Symbol) (edge: Edge)  : string list =
     symbol.PortMaps.Order[edge] 
 ///B3W
 let writePortsOrder (edge: Edge) (order: string list) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with PortMaps = {symbol.PortMaps with Order = symbol.PortMaps.Order.Add(edge, order)}}
-//let lensPortsOrder = Lens.create readPortsOrder writePortsOrder
+//let PortsOrder_ = Lens.create readPortsOrder writePortsOrder
 
 /// B4R
 let getReversedInputPortsMUX2 (symbol: SymbolT.Symbol): bool option =
@@ -41,7 +41,7 @@ let getReversedInputPortsMUX2 (symbol: SymbolT.Symbol): bool option =
 /// B4W
 let writeReversedInputPortsMUX2 (reversed: bool option) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with ReversedInputPorts = reversed}
-let lensReversedInputPortsMUX2 = Lens.create getReversedInputPortsMUX2 writeReversedInputPortsMUX2
+let ReversedInputPortsMUX2_ = Lens.create getReversedInputPortsMUX2 writeReversedInputPortsMUX2
 
 /// B5R
 let getPortPositionOnSheet (portId: PortId) (sheetModel: SheetT.Model): XYPos =
@@ -58,7 +58,7 @@ let getSymbolRotationState (symbol: SymbolT.Symbol): Rotation =
 /// B7W
 let writeSymbolRotationState (rotation: Rotation) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with STransform = {symbol.STransform with Rotation = rotation}}
-let lensSymbolRotationState = Lens.create getSymbolRotationState writeSymbolRotationState
+let SymbolRotationState_ = Lens.create getSymbolRotationState writeSymbolRotationState
 
 /// B8R
 let getSymbolFlipState (symbol: SymbolT.Symbol): bool =
@@ -66,7 +66,7 @@ let getSymbolFlipState (symbol: SymbolT.Symbol): bool =
 /// B8W
 let writeSymbolFlipState (flipped: bool) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with STransform = {symbol.STransform with Flipped = flipped}}
-let lensSymbolFlipState = Lens.create getSymbolFlipState writeSymbolFlipState
+let SymbolFlipState_ = Lens.create getSymbolFlipState writeSymbolFlipState
 
 
 ///T1R

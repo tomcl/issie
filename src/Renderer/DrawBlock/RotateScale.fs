@@ -1,7 +1,6 @@
 ﻿module RotateScale
 
 (*
-
     Contribution Statement - Samuel Wang - sw2521
 
     Three team members were assigned to the same section. I was assigned the later section of the file, from lines 370 
@@ -11,11 +10,13 @@
     
     Major Improvements - 
 
-    1.  Reordered and sectioned top-level function by subject. 
-        The following categories were created: Helpers, Rotate, Flip, Scaling, Update Scaling Box, and Misc. This was 
-        done to allow helper functions to be more easily extracted (easier to see duplicate code in similar functinos) 
-        and to allow library functions to be more easily found.
-    
+    1.  Removed unsafe and unnecessary code in rotateBlock and flipBlock. 
+        The original code first obtains a list of selected symbols and a map of unselected symbols, then updates the 
+        selected symbol by adding back to the map of unselected symbols. The first operation was unsafe as it uses 
+        Map.find, a implementation with Map.tryFind is better. The second operation was unnecessary as Map.add updates 
+        a map's value if a key was present, a simpler implementation to just add in the updated symbols in the symbol 
+        map was given in the mapSelectedSymsInModel helper.
+
     2.  Extracted duplicate code into helper functions. See extracted function and uses below:
         a.  getSymsFromIds, mapSelectedSymsInModel: 
             extracted from rotateBlock and flipBlock, which is of same functionality of findSelectedSymbols and 
@@ -25,6 +26,7 @@
             code across x- and y-dimensions.
         c. getRotatedSymDim: 
             function to map symbol's true height and width to a XYPos vector. Used across scaling functions.
+            
     
     3.  Renamed top-level functions and updated its signal. 
         Renaming was done for function names to be shorter and representative of what they do. Signals were updated for 
@@ -33,18 +35,16 @@
         flipSymInBlock, and scaleSymInBlock, allowing easier use. Interface functions were created when functions were 
         used by external code, where parameter names were kept the same but docs updated.
 
-    4.  Removed unsafe and unnecessary code in rotateBlock and flipBlock. 
-        The original code first obtains a list of selected symbols and a map of unselected symbols, then updates the 
-        selected symbol by adding back to the map of unselected symbols. The first operation was unsafe as it uses 
-        Map.find, a implementation with Map.tryFind is better. The second operation was unnecessary as Map.add updates 
-        a map's value if a key was present, a simpler implementation to just add in the updated symbols in the symbol 
-        map was given in the mapSelectedSymsInModel helper.
-
-    5.  Used XYPos to represent vector data. 
+    4.  Used XYPos to represent vector data. 
         This was done as the ".X" and ".W" accesses can be parameterized (with just ".X"), which allowed for reduction 
         of repeated code. This was also done so that the XYPos overloaded operator can be used to simplify operations. 
         E.g. scaleSymbolPos.
     
+    5.  Reordered and sectioned top-level function by subject. 
+        The following categories were created: Helpers, Rotate, Flip, Scaling, Update Scaling Box, and Misc. This was 
+        done to allow helper functions to be more easily extracted (easier to see duplicate code in similar functinos) 
+        and to allow library functions to be more easily found.
+
     Minor Fixes -
 
     6.  Added comprehensive XML documentation to all functions refactored. 
@@ -420,8 +420,6 @@ let adjustPosForBlockFlip
 (* ---------------------------------------------------------------------------------------------- *)
 (*                                             Helpers                                            *)
 (* ---------------------------------------------------------------------------------------------- *)
-
-(* ------------------------------------ Refactor-ed Functions ----------------------------------- *)
 
 /// <summary>Get list of symbols from list of component IDs.</summary>
 /// <param name="compIds">List of component IDs to fetch.</param>

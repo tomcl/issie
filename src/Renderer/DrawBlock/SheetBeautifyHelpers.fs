@@ -55,6 +55,14 @@ let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option =
         |> Map.values
         |> Seq.tryFind (fun sym -> caseInvariantEqual label sym.Component.Label)
 
+// Update a Model with a new symbol
+let symbolModel_ = SheetT.symbol_
+let updateSymbolinSheet (model: SheetT.Model) (symbol: SymbolT.Symbol) (updateSymPos: (Symbol -> Symbol)) = 
+    let symModel: SymbolT.Model = 
+                    SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
+
+    model
+    |> Optic.set symbolModel_ symModel
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -91,34 +99,38 @@ let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B2 The position of a symbol on the sheet 
-let symbolModel_ = SheetT.symbol_
+
 let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT.Model): SheetT.Model=
 
     let updateSymPos (symbol: SymbolT.Symbol) = { symbol with Pos = newPos }
-    let symModel: SymbolT.Model = 
-                    SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
+    updateSymbolinSheet model symbol updateSymPos
+    // let symModel: SymbolT.Model = 
+    //                 SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
 
-    model
-    |> Optic.set symbolModel_ symModel
+    // model
+    // |> Optic.set symbolModel_ symModel
     
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B3 Read/write the order of ports on a specified side of a symbol
-let portOrderLens (side: Edge) : Lens<SymbolT.Symbol, string list option> =
+let portOrderLens (symbol: SymbolT.Symbol) (side: Edge) : Lens<SheetT.Model, string list option> =
 
-    let get (symbol: SymbolT.Symbol) =
+    let get (model: SheetT.Model) =
         Map.tryFind side symbol.PortMaps.Order
 
-    let set (newPortOrder: string list option) (symbol: SymbolT.Symbol) =
+    let set (newPortOrder: string list option) (model: SheetT.Model) =
         match newPortOrder with
         | Some (newOrder: string list) ->
-            let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
-            { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
-        | None -> symbol
+            let updater (symbol: SymbolT.Symbol) = 
+                { symbol with PortMaps = { symbol.PortMaps with Order = Map.add side newOrder symbol.PortMaps.Order } }
+            updateSymbolinSheet model symbol updater
+        
+        | None -> model
 
     (get, set)
 
+// let a, b = portOrderLens symbol Edge
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -212,7 +224,7 @@ let readBoundingBox (symbol: Symbol) : BoundingBox =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 
-// B7 RW  Low The rotation state of a symbol
+// B7 RW  The rotation state of a symbol
 let SymbolRotationLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, Rotation> =
     let get (model: SheetT.Model) : Rotation = symbol.STransform.Rotation
 
@@ -501,7 +513,7 @@ let findRetracingSegments (model: SheetT.Model) : XYPos list * XYPos list =
         |> Map.toList // Convert the map of wires to a list of (key, value) pairs
         |> List.collect (fun (wId, _) -> visibleSegments wId model)
     
-    let segments =
+    let (segments: list<Segment>) =
         model.Wire.Wires
         |> Map.toList // Convert the map of wires to a list of (key, value) pairs
         |> List.collect (fun (wId, _) -> model.Wire.Wires[wId].Segments)

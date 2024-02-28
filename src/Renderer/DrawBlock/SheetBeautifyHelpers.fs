@@ -336,6 +336,7 @@ let findSymIntersectsSymCount (sheet: SheetT.Model): int =
         (fun ((id1, box1), (id2, box2)) -> 
             (id1 <> id2) && (overlap2DBox box1 box2))
     |> List.length
+    |> fun count -> count/2 // if using allPairs on same list, will create duplicates
 
 
 // T2R
@@ -379,6 +380,7 @@ let findSegIntersectsSegCount (sheet: SheetT.Model): int =
         (fun ((_, segStart1, segEnd1), (_, segStart2, segEnd2)) -> 
             overlap2D (segStart1, segEnd1) (segStart2, segEnd2)) // remove non-overlapping pairs
     |> List.length
+    |> fun count -> count/2 // if using allPairs on same list, will create duplicates
 
 
 // T4R

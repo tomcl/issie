@@ -189,7 +189,7 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             let before = segVecs.[0..index-2]
             let coalesced = segVecs.[index-1] + segVecs.[index+1]
             let after = segVecs.[index+2..]
-            before @ [coalesced] @ after
+            before @ [coalesced] @ after  // if not changed it will show index out of range error
         else
             segVecs
 
@@ -317,7 +317,6 @@ let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
 
 /// Sums up the right angles from all wires in the model.
 let countTotalRightAngles (model: SheetT.Model) =
-    // printfn "countTotalRightAngles"
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
     // |> Map.fold (fun acc key _ -> 
@@ -330,3 +329,27 @@ let countTotalRightAngles (model: SheetT.Model) =
 
 // T6R - The zero-length segments in a wire with non-zero segments on either side that have Lengths of opposite signs lead to a wire retracing itself
 // Count over the whole sheet. Return from one function a list of all the segments that retrace, and also a list of all the end of wire segments that retrace so far
+let countRetraceSegments (model: SheetT.Model) : BusWireT.Segment list * BusWireT.Segment list =
+    let wireModel = model.Wire
+    wireModel.Wires
+    |> Map.fold (fun (accSegs, accEnds) _ wire ->
+        let segments = wire.Segments
+        let numSegments = List.length segments
+        segments
+        |> List.indexed
+        |> List.fold (fun (accSegs, accEnds) (i, seg) ->
+            match i, seg.Length = 0.0 with
+            // Check if the segment is a zero-length segment with opposite non-zero segments on either side
+            | i, true when i > 0 && i < numSegments - 1 ->
+                let prevSeg = segments.[i - 1]
+                let nextSeg = segments.[i + 1]
+                if prevSeg.Length <> 0.0 && nextSeg.Length <> 0.0 && sign prevSeg.Length = -(sign nextSeg.Length) then
+                    (accSegs @ [seg], accEnds)
+                else
+                    (accSegs, accEnds)
+            // Check if the segment is the last segment and the wire has more than one segment
+            | i, true when i = numSegments - 1 && numSegments > 1 && segments.[i - 1].Length <> 0.0 -> (accSegs, accEnds @ [seg])
+            | _ -> (accSegs, accEnds)
+        ) ([], []) // Initial accumulator values
+    ) ([], []) // Accumulates across all wires
+

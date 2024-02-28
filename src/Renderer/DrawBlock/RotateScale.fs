@@ -166,7 +166,9 @@ let reSizeSymbolTopLevel
 
     let model' = Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
-
+///---------------------------------------------------------------------------------------------------------------------///
+/// --------------------------------------------------------------------------------------------------------------------///
+/// --------------------------------------------------------------------------------------------------------------------///
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =
     { ConnMap: Map<ComponentId * Edge, int> }

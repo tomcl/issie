@@ -393,10 +393,10 @@ module HLPTick3 =
             printfn "Number of right angles: %d" number
             Some <| $"Sample {sample}"  
 
-        // let failOnAllTestsT6 (sample: int) (sheet: SheetT.Model) =
-        //     let length = countWireIntersectSymbol sheet
-        //     printfn "Number of intersecting pairs: %d" length
-        //     Some <| $"Sample {sample}"
+        let failOnAllTestsT6 (sample: int) (sheet: SheetT.Model) =
+            let lst = countRetraceSegments sheet
+            printfn "Number of retracing segments: %A" lst
+            Some <| $"Sample {sample}"
 
         let failOnAllTests (sample: int) (sheet: SheetT.Model) =
             Some <| $"Sample {sample}"  
@@ -526,7 +526,7 @@ module HLPTick3 =
                 firstSample
                 twoDPositions
                 makeTest1Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                Asserts.failOnAllTestsT6
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -549,7 +549,7 @@ module HLPTick3 =
                 "Test5", test5 // dummy test - delete line or replace by real test as needed
                 "Test6", test6
                 "Test7", test7
-                "Test8", fun _ _ _ -> printf "Test8"
+                "Test8", test8
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]

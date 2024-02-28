@@ -205,7 +205,7 @@ let stransform_flipped_ =
 let getAllSymIds (sheet: SheetT.Model): List<ComponentId> = 
     sheet.Wire.Symbol.Symbols 
     |> Map.toList 
-    |> List.map (fun (key, _) -> key)
+    |> List.map fst
 
 /// <summary>Get all symbol bounding boxes within a sheet.</summary>
 /// <param name="sheet">Model of the whole sheet.</param>
@@ -294,13 +294,13 @@ let getWireVisibleSegVertices (wire: BusWireT.Wire): List<XYPos> =
 /// <param name="sheet">Model of the whole sheet.</param>
 /// <returns>List of connection IDs of all the wires on the sheet.</returns>
 let getAllWireIds (sheet: SheetT.Model): List<ConnectionId> =
-    sheet.Wire.Wires |> Map.toList |> List.map (fun (key, _) -> key)
+    sheet.Wire.Wires |> Map.toList |> List.map fst
 
 /// <summary>Get all wires within a sheet.</summary>
 /// <param name="sheet">Model of the whole sheet.</param>
 /// <returns>List of all wires on the sheet.</returns>
 let getAllWires (sheet: SheetT.Model): List<BusWireT.Wire> =
-    sheet.Wire.Wires |> Map.toList |> List.map (fun (_, value) -> value)
+    sheet.Wire.Wires |> Map.toList |> List.map snd
 
 /// <summary>Get all visible segments of all wires within a sheet.</summary>
 /// <param name="sheet">Model of the whole sheet.</param>

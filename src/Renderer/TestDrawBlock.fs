@@ -354,6 +354,7 @@ module HLPTick3 =
 
     module Asserts =
         open SheetBeautifyHelpers
+        open BlockHelpers
 
         (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
            It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
@@ -367,6 +368,59 @@ module HLPTick3 =
                 None
 
         /// Fails all tests: useful to show in sequence all the sheets generated in a test
+
+        let failOnAllTestsBgetter (sample: int) (sheet: SheetT.Model) =
+
+            // test B1
+            sheet.Wire.Symbol.Symbols |> Map.iter (fun _ symbol -> 
+                let dimensions = fst customComponentDimensionsLens symbol
+                printfn "Width: %f, Height: %f" (fst dimensions) (snd dimensions)
+            )
+
+            // test B3 
+            sheet.Wire.Symbol.Symbols |> Map.iter (fun _ symbol -> 
+                let PortOrder = fst (portOrderLens Left) symbol
+                printfn "PortOrder, %A" PortOrder
+            )
+            // test B4
+            sheet.Wire.Symbol.Symbols |> Map.iter (fun _ symbol -> 
+                let ReverseState = fst reversedInputPortsLens symbol
+                printfn "Mux 2 Reverse State, %A" ReverseState
+            )
+            // test B5
+            sheet.Wire.Symbol.Symbols |> Map.iter (fun _ symbol -> 
+                symbol.PortMaps.Order |> Map.iter (fun edge portIds ->
+                portIds |> List.iter (fun portId ->
+                    let port = getPort sheet.Wire.Symbol portId
+                    let position = readPortPosition symbol port
+                    printfn "Port ID: %s, Position: (%f, %f)" portId position.X position.Y
+                    )
+                )
+            )
+            // test B6
+            sheet.Wire.Symbol.Symbols |> Map.iter (fun _ symbol -> 
+                let boundingbox = readBoundingBox symbol
+                printfn "boundingbox, %A" boundingbox
+            )
+            // test B7
+            sheet.Wire.Symbol.Symbols |> Map.iter (fun _ symbol -> 
+                let rotation = fst symbolRotationLens symbol
+                printfn "rotation, %A" rotation
+            )
+            // test B8
+            sheet.Wire.Symbol.Symbols |> Map.iter (fun _ symbol -> 
+                let flip = fst symbolFlipLens symbol
+                printfn "flip, %A" flip
+            )
+            Some <| $"Sample {sample}"
+        
+        let failOnAllTestsBsetter (sample: int) (sheet: SheetT.Model) =
+            // test B1 
+            // test B3 
+            // test B4 
+            // test B7 
+            // test B8 
+            Some <| $"Sample {sample}"
         
         let failOnAllTestsT1 (sample: int) (sheet: SheetT.Model) =
             let length = countSymbolIntersectSymbol sheet
@@ -442,21 +496,21 @@ module HLPTick3 =
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
 
             
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 0
+        /// test B function getter
         let test1 testNum firstSample dispatch =
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 0"
+                "getter functions test"
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
+                Asserts.failOnAllTestsBgetter
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 10
+        /// test B function setter
         let test2 testNum firstSample dispatch =
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 10"
+                "Setter functions test"
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
@@ -542,11 +596,11 @@ module HLPTick3 =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1", test1 // example
-                "Test2", test2 // example
-                "Test3", test3 // example
-                "Test4", test4 //
-                "Test5", test5 // dummy test - delete line or replace by real test as needed
+                "Test1", test1 
+                "Test2", test2 
+                "Test3", test3 
+                "Test4", test4 
+                "Test5", test5 
                 "Test6", test6
                 "Test7", test7
                 "Test8", test8

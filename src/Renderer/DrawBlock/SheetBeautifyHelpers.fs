@@ -62,43 +62,45 @@ let symbolPositionLens : Lens<Symbol, XYPos> =
 
 
 // B3R, B3W - Read and Write the order of ports on a specified side of a symbol
-let portOrderLens (side: Edge) : Lens<PortMaps, string list option> =
-    // Getter function: gets the list of port IDs for a specified side
-    let get (portMaps: PortMaps) =
-        Map.tryFind side portMaps.Order
-    // Setter function: returns a new PortMaps with updated port order for the specified side
-    let set (newOrderOpt: string list option) (portMaps: PortMaps) =
+let portOrderLens (side: Edge) : Lens<Symbol, string list option> =
+    // Getter function: gets the list of port IDs for a specified side from a Symbol
+    let get (symbol: Symbol) =
+        Map.tryFind side symbol.PortMaps.Order
+    // Setter function: returns a new Symbol with updated port order for the specified side
+    let set (newOrderOpt: string list option) (symbol: Symbol) =
         match newOrderOpt with
         | Some newOrder ->
-            let updatedOrder = Map.add side newOrder portMaps.Order
-            { portMaps with Order = updatedOrder }
-        | None -> portMaps  // If None, don't modify the portMaps
+            let updatedOrder = Map.add side newOrder symbol.PortMaps.Order
+            { symbol with PortMaps = { symbol.PortMaps with Order = updatedOrder } }
+        | None -> symbol  // If None, don't modify the symbol
 
     (get, set)
 
 
 // B4RW - The reverses state of the inputs of a MUX2
-let reversedInputPortsLens : Lens<Component, bool option> =
-    // Getter function: gets the reverse state of the input ports if available
-    let get (comp: Component) =
-        match comp.SymbolInfo with
+let reversedInputPortsLens : Lens<Symbol, bool option> =
+    // Getter function: gets the reverse state of the input ports if available from the Symbol's Component
+    let get (symbol: Symbol) =
+        match symbol.Component.SymbolInfo with
         | Some symInfo -> symInfo.ReversedInputPorts
         | None -> None
-    // Setter function: returns a new Component with updated reverse state for the input ports of a MUX2
-    let set (newReversedState: bool option) (comp: Component) =
-        match comp.Type with
+    // Setter function: returns a new Symbol with updated reverse state for the input ports of a MUX2
+    let set (newReversedState: bool option) (symbol: Symbol) =
+        match symbol.Component.Type with
         | Mux2 -> // Only proceed if the component is a Mux2
             let updatedSymbolInfo = 
-                match comp.SymbolInfo with
+                match symbol.Component.SymbolInfo with
                 | Some symInfo -> 
                     Some { symInfo with ReversedInputPorts = newReversedState }
                 | None -> 
                     // If there's no SymbolInfo, create it with the new reversed state; adjust according to your model's requirements
                     Some { LabelBoundingBox = None; LabelRotation = None; STransform = { Rotation = Degree0; Flipped = false }; ReversedInputPorts = newReversedState; PortOrientation = Map.empty; PortOrder = Map.empty; HScale = None; VScale = None }
-            { comp with SymbolInfo = updatedSymbolInfo }
-        | _ -> comp // If not a Mux2, return the component unchanged
+            let updatedComponent = { symbol.Component with SymbolInfo = updatedSymbolInfo }
+            { symbol with Component = updatedComponent }
+        | _ -> symbol // If not a Mux2, return the symbol unchanged
 
     (get, set)
+
 
 
 
@@ -298,7 +300,8 @@ let sumWireLength (model: SheetT.Model) =
         let segments = visibleSegments wId model
         segments
         |> List.fold (fun acc seg -> 
-            acc + (if seg.X = 0.0 then abs seg.Y else abs seg.X)
+        // Add the length of the segment to the accumulator, but only if the segment is not a zero-length segment
+            acc + (if seg.X = 0.0 then abs seg.Y else abs seg.X) // Knowing that visible segments are either horizontal or vertical
         ) 0.0
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countSegmentLength wId model) 0.0

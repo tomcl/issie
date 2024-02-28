@@ -202,7 +202,7 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
 
 // T1R - The number of pairs of symbols that intersect each other. Count over all pairs of symbols.
-let countSymIntersectSym (sheet: SheetT.Model) =
+let countSymbolIntersectSymbol (sheet: SheetT.Model) =
     let boxes = mapValues sheet.BoundingBoxes |> Array.toList |> List.indexed
     let countOverlaps (acc: int) ((i, box1): int * BoundingBox) =
         boxes
@@ -214,7 +214,7 @@ let countSymIntersectSym (sheet: SheetT.Model) =
 
 
 // T2R - The number of distinct wire visible segments that intersect with one or moresymbols. Count over all visible wire segments.
-let countSymbolIntersectingWire (sheet: SheetT.Model) =
+let countSymbolIntersectWire (sheet: SheetT.Model) =
     let wireModel = sheet.Wire
     wireModel.Wires
     |> Map.values
@@ -227,30 +227,81 @@ let countSymbolIntersectingWire (sheet: SheetT.Model) =
     ) 0
 
 
+// T3R - The number of distinct pairs of segments that cross each other at right angles on the whole sheet
+type SegVector = {Start: XYPos; Dir: XYPos} // A segment vector with absolute start and direction
 
-// module T3R =
-//     /// Helper function transforms a list of relative vectors into a list of segments with absolute coordinates.
-//     let transformVectorsToCoordinates (startCoord: XYPos) (vectors: XYPos list) =
-//         // Auxiliary function to recursively compute the coordinates
-//         let rec computeCoords acc currentCoord vectors =
-//             match vectors with
-//             | [] -> List.rev acc // Reverse to maintain the original order
-//             | hd :: tl ->
-//                 // Calculate new coordinate by adding the vector to the current coordinate
-//                 let newCoord = currentCoord + hd
-//                 computeCoords (newCoord :: acc) newCoord tl
-//         computeCoords [startCoord] startCoord vectors
+// Function to transform wire segments into a map of wire ID to a list of segments with absolute start and direction
+let transformWireSegmentsToAbsoluteMap (model: SheetT.Model) =
+    model.Wire.Wires
+    |> Map.fold (fun accMap wId wire ->
+        let origin = wire.StartPos
+        let vectors = visibleSegments wId model
 
-//     /// Transforms a list of relative vectors into a list of segments with absolute coordinates.
-//     let transformWireSegmentsToAbsoluteMap (model: SheetT.Model) =
-//         model.Wire.Wires
-//         |> Map.fold (fun accMap (wId: ConnectionId) (wire: Wire) ->
-//             let origin = wire.StartPos
-//             let vectors = visibleSegments wId model // Assuming this returns the relative vectors
-//             let absoluteSegments = transformVectorsToCoordinates origin vectors
-//             // Add the wire ID and its segments to the map
-//             Map.add wId absoluteSegments accMap
-//         ) Map.empty
+        // Transform the list of vectors into a list of segments with absolute start and direction
+        let segments, _ = 
+            vectors
+            |> List.fold (fun (acc: SegVector list, lastPos: XYPos) vector -> 
+                let newPos = lastPos + vector
+                let segment = { Start = lastPos; Dir = vector }
+                (acc @ [segment], newPos)
+            ) ([], origin)
+
+        // Add the wire ID and its segments to the map
+        Map.add wId segments accMap
+    ) Map.empty
+
+// Function to count the number of right angle intersections between all segments
+let countRightAngleIntersectionsAll (segments: SegVector list) =
+    // Split segments into vertical and horizontal lists based on direction
+    let (verticals, horizontals) = 
+        List.fold (fun (v, h) seg -> 
+            if seg.Dir.X = 0.0 then (seg :: v, h)
+            else if seg.Dir.Y = 0.0 then (v, seg :: h)
+            else (v, h)
+        ) ([], []) segments
+
+    // Function to check if two segments intersect at a right angle
+    let segmentsIntersectRightAngle (seg1, seg2) =
+        let end1 = { X = seg1.Start.X + seg1.Dir.X; Y = seg1.Start.Y + seg1.Dir.Y }
+        let end2 = { X = seg2.Start.X + seg2.Dir.X; Y = seg2.Start.Y + seg2.Dir.Y }
+        let isSeg1Vertical = seg1.Dir.X = 0.0
+        let seg1Range, seg2Range, seg1Pos, seg2Pos =
+            if isSeg1Vertical then 
+                ((min seg1.Start.Y end1.Y, max seg1.Start.Y end1.Y), (min seg2.Start.X end2.X, max seg2.Start.X end2.X), seg1.Start.X, seg2.Start.Y)
+            else
+                ((min seg1.Start.X end1.X, max seg1.Start.X end1.X), (min seg2.Start.Y end2.Y, max seg2.Start.Y end2.Y), seg1.Start.Y, seg2.Start.X)
+        seg1Pos > fst seg2Range && seg1Pos < snd seg2Range && seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
+
+    // Calculate the count of right angle intersections
+    List.fold (fun acc vSeg ->
+        List.fold (fun innerAcc hSeg ->
+            if segmentsIntersectRightAngle (vSeg, hSeg) then innerAcc + 1 else innerAcc
+        ) acc horizontals
+    ) 0 verticals
+
+
+// Function to count the total number of right angle intersections on the whole sheet
+let totalRightAngleIntersect (model: SheetT.Model) =
+    let segmentsMap = transformWireSegmentsToAbsoluteMap model
+    let allSegments =
+        segmentsMap
+        |> Map.toList // Convert the map to a list of (key, value) pairs
+        |> List.collect snd // Collect all SegVector lists into a single list of segments
+
+    allSegments
+    |> countRightAngleIntersectionsAll
+
+
+// T4R - Sum of wiring segment length, counting only one when there are N same-net segments overlapping on the whole sheet
+let sumWireLength (model: SheetT.Model) =
+    let countSegmentLength (wId: ConnectionId) (model: SheetT.Model) =
+        let segments = visibleSegments wId model
+        segments
+        |> List.fold (fun acc seg -> 
+            acc + (if seg.X = 0.0 then abs seg.Y else abs seg.X)
+        ) 0.0
+    model.Wire.Wires
+    |> Map.fold (fun acc wId _ -> acc + countSegmentLength wId model) 0.0
 
 
 // T5R - Number of visible wire right-angles. Count over whole sheet.
@@ -278,4 +329,4 @@ let countTotalRightAngles (model: SheetT.Model) =
 
 
 // T6R - The zero-length segments in a wire with non-zero segments on either side that have Lengths of opposite signs lead to a wire retracing itself
-
+// Count over the whole sheet. Return from one function a list of all the segments that retrace, and also a list of all the end of wire segments that retrace so far

@@ -367,9 +367,38 @@ module HLPTick3 =
                 None
 
         /// Fails all tests: useful to show in sequence all the sheets generated in a test
-        let failOnAllTests (sample: int) (sheet: SheetT.Model) =
+        
+        let failOnAllTestsT1 (sample: int) (sheet: SheetT.Model) =
+            let length = countSymbolIntersectSymbol sheet
+            printfn "Number of intersecting pairs: %d" length
+            Some <| $"Sample {sample}"
+
+        let failOnAllTestsT2 (sample: int) (sheet: SheetT.Model) =
+            let length = countSymbolIntersectWire sheet
+            printfn "Number of intersecting pairs: %d" length
+            Some <| $"Sample {sample}"
+
+        let failOnAllTestsT3 (sample: int) (sheet: SheetT.Model) =
+            let length = totalRightAngleIntersect sheet
+            printfn "Number of intersecting pairs: %d" length
+            Some <| $"Sample {sample}"
+
+        let failOnAllTestsT4 (sample: int) (sheet: SheetT.Model) =
+            let length = sumWireLength sheet
+            printfn "Number of intersecting pairs: %f" length
+            Some <| $"Sample {sample}"
+
+        let failOnAllTestsT5 (sample: int) (sheet: SheetT.Model) =
             let number = countTotalRightAngles sheet
             printfn "Number of right angles: %d" number
+            Some <| $"Sample {sample}"  
+
+        // let failOnAllTestsT6 (sample: int) (sheet: SheetT.Model) =
+        //     let length = countWireIntersectSymbol sheet
+        //     printfn "Number of intersecting pairs: %d" length
+        //     Some <| $"Sample {sample}"
+
+        let failOnAllTests (sample: int) (sheet: SheetT.Model) =
             Some <| $"Sample {sample}"  
 
         /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
@@ -434,35 +463,70 @@ module HLPTick3 =
                 (Asserts.failOnSampleNumber 10)
                 dispatch
             |> recordPositionInTest testNum dispatch
-
-        /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
+        
+        // testT1: The number of pairs of symbols that intersect each other.
         let test3 testNum firstSample dispatch =
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on symbols intersect"
+                "Symbol intersects symbol test"
                 firstSample
-                horizLinePositions
+                twoDPositions
                 makeTest1Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                Asserts.failOnAllTestsT1
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail all tests
+        // testT2: The number of distinct wire visible segments that intersect.
         let test4 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail all tests"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
-        let test5 testNum firstSample dispatch =
             runTestOnSheets
                 "Wire intersects symbol test"
                 firstSample
                 twoDPositions
                 makeTest1Circuit
-                Asserts.failOnAllTests
+                Asserts.failOnAllTestsT2
+                dispatch
+            |> recordPositionInTest testNum dispatch
+        
+        // testT3: The number of distinct pairs of segments that cross each other at right angles
+        let test5 testNum firstSample dispatch =
+            runTestOnSheets
+                "crossing segments test"
+                firstSample
+                twoDPositions
+                makeTest1Circuit
+                Asserts.failOnAllTestsT3
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        // testT4: Sum of wiring segment length, counting only one when there are N same-net segments overlapping
+        let test6 testNum firstSample dispatch =
+            runTestOnSheets
+                "Symbol intersects wire test"
+                firstSample
+                twoDPositions
+                makeTest1Circuit
+                Asserts.failOnAllTestsT4
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        // testT5: right angle wire number test
+        let test7 testNum firstSample dispatch =
+            runTestOnSheets
+                "right-angle wire number test"
+                firstSample
+                twoDPositions
+                makeTest1Circuit
+                Asserts.failOnAllTestsT5
+                dispatch
+            |> recordPositionInTest testNum dispatch
+    
+        // testT6: a list of all the segments that retrace, and also a list of all the end of wire segments that retrace so far
+        let test8 testNum firstSample dispatch =
+            runTestOnSheets
+                "Symbol intersects symbol test"
+                firstSample
+                twoDPositions
+                makeTest1Circuit
+                Asserts.failOnSymbolIntersectsSymbol
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -483,8 +547,8 @@ module HLPTick3 =
                 "Test3", test3 // example
                 "Test4", test4 //
                 "Test5", test5 // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
-                "Test7", fun _ _ _ -> printf "Test7"
+                "Test6", test6
+                "Test7", test7
                 "Test8", fun _ _ _ -> printf "Test8"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 

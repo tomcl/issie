@@ -251,10 +251,6 @@ let getVisibleWireLength (sheetModel:SheetT.Model) : float =
 
 /// key: T5R Type: R Descrip: Number of visible wire right-angles. Count over whole sheet.
 let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
-    let ASegmentPairsList (wire: BusWireT.Wire) = 
-        // let ASegLst = getNonZeroAbsSegments wire
-        // List.map2 (fun aSeg1 aSeg2 -> aSeg1, aSeg2) ASegLst (List.tail ASegLst)
-        List.windowed 2 (getNonZeroAbsSegments wire)
 
     let segmentsHaveRightAngle (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) = 
         let seg1Orientation = BusWire.getSegmentOrientation seg1.Start seg1.End
@@ -263,7 +259,8 @@ let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
         else true
 
     let countRightAnglePairs (wire: BusWireT.Wire) =
-        ASegmentPairsList wire
+        getNonZeroAbsSegments wire
+        |> List.windowed 2 //pair two successive segmnts
         |> List.filter (fun aSeg12 -> segmentsHaveRightAngle aSeg12[1] aSeg12[2])
         |> List.length
 
@@ -281,21 +278,51 @@ let getVisibleWireRightAnglesCount (sheetModel:SheetT.Model) : int =
 /// cause it. Count over the whole sheet. Return from one function a list of all the 
 /// segments that retrace, and also a list of all the end of wire segments that retrace so 
 /// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
-let getRetracingSegmentsCount (sheetModel:SheetT.Model) : int =
-    let isRetracing (seg1: BusWireT.Segment) (seg2: BusWireT.Segment) =
-        seg1.Length * seg2.Length < 0
+let getRetracingSegmentsLsts (sheetModel:SheetT.Model) : BusWireT.ASegment list * BusWireT.ASegment list=
+    
+    let wiresLst = 
+        sheetModel.Wire.Wires
 
-    let findRetracingEndSegments (segments: BusWireT.Segment list) : BusWireT.Segment list=
-        segments
+    let segsLst :  BusWireT.ASegment list= 
+        sheetModel.Wire.Wires
+            |> Helpers.mapValues
+            |> Array.toList
+            |> List.collect (fun wire ->  getAbsSegments wire)
+
+    let isRetracing (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) : bool=
+        seg1.Segment.Length * seg2.Segment.Length < 0 && 
+        BusWire.getSegmentOrientation seg1.Start seg1.End = BusWire.getSegmentOrientation seg2.Start seg2.End
+
+    let endZeroSegment = 
+        let lastSeg = List.last segsLst
+        if lastSeg.Segment.IsZero
+        then [lastSeg]
+        else []
+    
+    let segIntersectSym (seg: BusWireT.ASegment) : bool=
+        let wire = wiresLst[seg.Segment.WireId]
+        let sourceSym = getSourceSymbol sheetModel.Wire wire
+        let targetSym = getTargetSymbol sheetModel.Wire wire
+        (segmentIntersectsBoundingBox (getSymbolBoundingBox sourceSym) seg.Start seg.End).IsSome && 
+        (segmentIntersectsBoundingBox (getSymbolBoundingBox targetSym) seg.Start seg.End).IsSome
+
+    let findRetracingEndSegments : BusWireT.ASegment list * BusWireT.ASegment list=
+        segsLst
         |> List.windowed 3
-        |> List.filter (fun [ seg1; seg2; seg3 ] -> isRetracing seg1 seg3 && seg2.IsZero)
-        |> List.collect (fun segs -> [segs[1]; segs[3]])
+        |> List.fold (fun (retracingSegs, retracingIntersectSymSegs) segs ->
+            //if is retracing
+            if isRetracing segs.[0] segs.[2] then
+                let newretracingIntersectSymSegs = 
+                    //if the third segment is retracing and intersect with either source or target symbol
+                    if segIntersectSym segs[2] 
+                    then segs[1] :: retracingIntersectSymSegs
+                    else retracingIntersectSymSegs
+                (segs[1] :: retracingSegs, newretracingIntersectSymSegs)
+            else //if no retracing, return previous state
+                (retracingSegs, retracingIntersectSymSegs)
+        ) ([], [])
 
-    failwith "Not Implemented"
-    // let findEndSegmentsInsideSymbol (segments: WireSegment list) =
-    //     segments
-    //     |> List.windowed 4
-    //     |> List.filter (fun [| seg1; seg2; seg3; seg4 |] ->
-    //         isRetracing seg1 seg2 && isRetracing seg3 seg4)
-
-    // findRetracingEndSegments segments, findEndSegmentsInsideSymbol segments
+    let (retracingSegs, retracingIntersectSymSegs) = findRetracingEndSegments
+    
+    //add the end zero-length segment if exist
+    List.append retracingSegs endZeroSegment, retracingIntersectSymSegs

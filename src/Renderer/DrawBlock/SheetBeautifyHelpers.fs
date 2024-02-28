@@ -210,9 +210,8 @@ let countSegmentIntersect (sheetModel : SheetT.Model) : int =
     |> List.length
 
 /// T4R R Medium 
-/// Sum of wiring segment length, counting only one when there are N same-net
-/// segments overlapping (this is the visible wire length on the sheet). Count over whole
-/// sheet.
+/// Sum of visible wiring segment length. When there are N same-net
+/// segments overlapping this is counted once. Count over whole sheet.
 let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
     // Summary:
     // Visible Length = (1) + (2)
@@ -240,7 +239,6 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
         |> allPairsWithoutRepeats
         |> List.filter (fun (seg1, seg2) -> overlapFilter seg1 seg2)
 
-    // identify all loose segments without overlap
     let segWithoutOverlapLength =
         // identify all segments that overlap
         let allSegsWithOverlap =
@@ -254,7 +252,6 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
         |> List.map (fun seg -> seg.Segment.Length)
         |> List.sum
     
-    // same net segments overlap length to be subtracted
     let segInSameNetOverlapLength =
         let findSharedPoint (seg1: BusWireT.ASegment, seg2: BusWireT.ASegment) = 
             seg1.Start // NB: assume start and end points of ASegments are guaranteed to be in order
@@ -278,47 +275,8 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
 
     segWithoutOverlapLength + segInSameNetOverlapLength
 
-let calcOverlapSegmentLength (sheetModel : SheetT.Model) : float =
-    let wires: Map<ConnectionId,Wire> = sheetModel.Wire.Wires 
-    let ASegments = 
-        wires
-        |> Map.toList
-        |> List.map (fun (id, wire) -> wire)
-        |> List.collect BlockHelpers.getNonZeroAbsSegments
-
-    // we require segments to be parallel to each other and overlap 
-    // (treating orthogonal overlap length as 0!)
-    let overlapFilter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
-        (seg1.Orientation = seg2.Orientation) && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
-    
-    let overlapPairs = 
-        ASegments
-        |> allPairsWithoutRepeats
-        |> List.filter (fun (seg1, seg2) -> overlapFilter seg1 seg2)
-    
-    let overlapOtherNet = 
-        overlapPairs
-        |> List.filter (fun (seg1, seg2) -> not (isSegFromSameNet seg1.Segment seg2.Segment sheetModel))
-        |> List.fold (fun acc (seg1, seg2) -> acc + calcASegOverlapLength seg1 seg2) 0.
-
-    // same net segment overlaps are counted only once
-    let overlapSameNet =
-        overlapPairs
-        |> List.filter (fun (seg1, seg2) -> isSegFromSameNet seg1.Segment seg2.Segment sheetModel)
-        |> List.unzip
-        |> (fun (seg1, seg2) -> seg1 @ seg2)
-        |> List.groupBy (fun elm -> getInputPortOfSeg elm.Segment sheetModel) // group by the input port
-        |> List.map (fun (netId, segs) -> 
-            segs 
-            |> allPairsWithoutRepeats
-            |> List.fold (fun acc (seg1, seg2) -> max acc (calcASegOverlapLength seg1 seg2)) 0.
-            ) // calculate max overlap length for each group of segments that belong to the same net
-        |> List.sum
-    
-    overlapOtherNet + overlapSameNet
-
 /// T5R R Low 
-/// Number of visible wire right-angles. Count over whole sheet.
+/// Number of visible wire right-angles counted over whole sheet.
 let countWireRightAngles (sheetModel : SheetT.Model) : int =
     let wireModel = sheetModel.Wire
     failwithf "Not implemented"

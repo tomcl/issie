@@ -121,6 +121,7 @@ let alignSymbols
         let symbol' = moveSymbol offset symbolToSize
         let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
         BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
+/// ========== Above is SPLIT 1
 
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
@@ -167,6 +168,7 @@ let reSizeSymbolTopLevel
     let model' = Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
 
+/// ========== Above is SPLIT 2
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =
     { ConnMap: Map<ComponentId * Edge, int> }
@@ -257,7 +259,9 @@ let optimiseSymbol
 
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
+/// ========== Above is SPLIT 3
 
+/// ========== My SPLIT 4
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
 /// <returns>Bounding Box</returns>
@@ -469,7 +473,7 @@ let scaleSymbolInBlock
     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
-
+/// ========== Above is SPLIT 4
 
 /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
 
@@ -617,6 +621,7 @@ let groupNewSelectedSymsModel
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+/// ========== Above is SPLIT 5
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>

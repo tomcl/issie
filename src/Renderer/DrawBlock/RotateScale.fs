@@ -16,6 +16,27 @@ open SymbolResizeHelpers
     It requires better documentation of teh pasrts now used.
 *)
 
+
+// ---------------------------------- dy321 Code Improvement Summary: ----------------------------------------
+(* 
+    Lines 504-638
+    Most significant changes:
+        1. reduced code repetitions using "function wrapping"
+        2. replaced unnecessary/clumsy expressions with more concise ones, keeping sematics unchanged
+        3. changed meaningless namings to something that better represent meanings
+
+    Transform 1: Functional Abstraction
+        used in oneCompBoundsBothEdges, getScalingFactorAndOffsetCentreGroup.
+    Transform 2: Parametrization (especially "grouping" and "static parameter elimination")
+        used in rotateBlock, oneCompBoundsBothEdges, getScalingFactorAndOffsetCentreGroup.
+    Transform 3: Pipelines
+        used in rotateBlock, findSelectedSymbols.
+    Transform 5: Match
+        used in getSymBounds, getScalingFactorAndOffsetCentre.
+*)
+// -----------------------------------------------------------------------------------------------------------
+
+
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
@@ -515,6 +536,7 @@ let rotateBlock (compIdList:ComponentId list) (model:SymbolT.Model) (rotation:Ro
     }
 
 //*dy321: add a helper function to be used in oneCompBoundsBothEdges and getScalingFactorAndOffsetCentreGroup.
+/// Return the requested symbol boundary (4 cases: left-x, right-x, top-y, bottom-y)
 let getSymBounds (dirIsX:bool) (wHOffset:float) (sym: Symbol) = 
         let height,width = getRotatedHAndW sym
         match dirIsX with
@@ -611,22 +633,6 @@ let scaleSymbol
 
     {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
 
-// ---------------------------------- Code Improvement Summary: ----------------------------------------
-(* 
-    Most significant changes:
-        1. reduced code repetitions using "function wrapping"
-        2. removed unnecessary expressions with sematics unchanged
-        3. changed meaningless namings to something that better represent meanings
-
-    Transform 1: Functional Abstraction
-        used in oneCompBoundsBothEdges, getScalingFactorAndOffsetCentreGroup.
-    Transform 2: Parametrization (especially "grouping" and "static parameter elimination")
-        used in rotateBlock, oneCompBoundsBothEdges, getScalingFactorAndOffsetCentreGroup.
-    Transform 3: Pipelines
-        used in rotateBlock, findSelectedSymbols.
-    Transform 5: Match
-        used in getSymBounds, getScalingFactorAndOffsetCentre.
-*)
 
 //------------------------------------------------------------------------------------------------------------------------------
 //                                      Code Improvement by dy321 Ends

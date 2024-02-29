@@ -23,12 +23,14 @@ open Operators
 // Typical candidates: all individual code library functions.
 // Other helpers identified by Team
 
+/// Return whether a symbol is on the sheet, useful when checking for exceptions
 let checkSymOnSheet (symId: ComponentId) (model: SheetT.Model) : bool =
     let symOpt = Map.tryFind symId model.Wire.Symbol.Symbols
     match symOpt with
     | Some _ -> true
     | None -> false
 
+/// Update a symbol on the sheet, return the updated model
 let updateSymOnSheet (symId: ComponentId) (newSym: Symbol) (model: SheetT.Model) : SheetT.Model =
     let newSymbolsMap = Map.add symId newSym model.Wire.Symbol.Symbols
     set symbols_ newSymbolsMap model
@@ -52,6 +54,7 @@ let updateCustomSymWH ((w,h): float*float) (sym: Symbol) =
     | Degree90 | Degree270 -> setCustomCompHW w h sym
     
 // B1RW
+/// Lens to operate on the dimensions of a custom component symbol
 let customSymWH_ = Lens.create getCustomSymWH updateCustomSymWH
 
 
@@ -77,6 +80,7 @@ let updatePortOrderOnSide (side: Edge) (newPortOrder: list<string>) (sym: Symbol
     {sym with PortMaps = {sym.PortMaps with Order = newPortMapsOrder}}
 
 // B3RW (not sure if this is a correct way of combining them in a Lens)
+/// Lens to operate on the order of ports on a specified side of a symbol
 let portOrderOnSide_ side = Lens.create (getPortOrderOnSide side) (updatePortOrderOnSide side)
 
 
@@ -100,12 +104,13 @@ let updateReversedInputsMux2 (reversedState: Option<bool>) (sym: Symbol) =
     {sym with Component = {sym.Component with SymbolInfo = newSymbolInfo}; ReversedInputPorts = newReversedState} 
 
 // B4RW
+/// Lens to operate on the reverses state of the inputs of a MUX2
 let reversedInputsMux2_ = Lens.create getReversedInputsMux2 updateReversedInputsMux2
 
 
 // B5R
 /// Get the position of a port on the sheet.
-/// (Changed from returning Result into returning XYPos, for more convenient usage in SheetBeautify.fs)
+/// (Changed from returning Result into returning XYPos, for more convenient usage in SheetBeautifyB3.fs)
 let getPortPosOnSheet (portId: string) (model: SheetT.Model) = 
 // code adapted from Symbol.getPortLocation
     // get Port from portId
@@ -153,7 +158,8 @@ let updateSymRotationState (rotationState: Rotation) (sym: Symbol) =
     {sym with Component=newComp; STransform=newSTransform}
 
 // B7RW
-let _symRotationState = Lens.create getSymRotationState updateSymRotationState
+/// Lens to operate on the rotation state of a symbol
+let symRotationState_ = Lens.create getSymRotationState updateSymRotationState
 
 
 // B8R
@@ -173,14 +179,14 @@ let updateSymFlipState (flipState: bool) (sym: Symbol) =
     {sym with Component=newComp; STransform=newSTransform}
 
 // B8RW
-let _symFlipState = Lens.create getSymFlipState updateSymFlipState
+/// Lens to operate on the flip state of a symbol
+let symFlipState_ = Lens.create getSymFlipState updateSymFlipState
 
 
 // -------------------------------------------------------------------------------------------------------
 
 
 // T1R
-// See Tick3 for a related function. 
 /// Count the number of pairs of symbols that intersect each other. Count over all pairs of symbols.
 let countSymIntersectSym (sheet: SheetT.Model)  =
     let boxes =
@@ -215,9 +221,9 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
     /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
     /// if this is possible, otherwise return segVecs unchanged.
-    /// Index must be in range 1..segVecs
+    /// Index must be in range >= 1
     let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-        if segVecs[index] =~ XYPos.zero
+        if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
         then
             segVecs[0..index-2] @
             [segVecs[index-1] + segVecs[index+1]] @
@@ -243,11 +249,11 @@ let countWireSegIntersectSym (sheet: SheetT.Model) =
             let lstStartPos = 
                 match (List.rev segVertices) with
                 | [] -> []
-                | hd::tl -> List.rev tl
+                | _hd::tl -> List.rev tl
             let lstEndPos = 
                 match segVertices with
                 | [] -> []
-                | hd::tl -> tl
+                | _hd::tl -> tl
             List.zip lstStartPos lstEndPos
         segStartEndPosList
 
@@ -285,7 +291,7 @@ let countWireSegIntersectSym (sheet: SheetT.Model) =
     |> Array.length
 
 
-// T3R (definitely NOT low difficulty)
+// T3R
 /// Count the number of distinct pairs of segments that cross each other at right angles.
 /// Does not include 0 length segments or segments on same net intersecting at one end,
 /// or segments on same net on top of each other. Count over whole sheet.
@@ -303,11 +309,11 @@ let countWireSegRightAngleIntersect (sheet: SheetT.Model) =
             let lstStartPos = 
                 match (List.rev segVertices) with
                 | [] -> []
-                | hd::tl -> List.rev tl
+                | _hd::tl -> List.rev tl
             let lstEndPos = 
                 match segVertices with
                 | [] -> []
-                | hd::tl -> tl
+                | _hd::tl -> tl
             List.zip lstStartPos lstEndPos
         wire, segStartEndPosList
 
@@ -328,6 +334,7 @@ let countWireSegRightAngleIntersect (sheet: SheetT.Model) =
         List.allPairs [start1;end1] [start2;end2]
         |> List.exists (fun (pos1,pos2) -> overlap1D (XYPosToFloat pos1) (XYPosToFloat pos2))
 
+    /// Return the orientation of a segment from the positions of its two ends
     let getOrientFromSegPos (segPos:XYPos*XYPos) =
         match segPos with
         | (startPos,endPos) when startPos.Y=endPos.Y -> Horizontal
@@ -373,7 +380,7 @@ let countWireSegRightAngleIntersect (sheet: SheetT.Model) =
 
 // T4R
 /// Sum of wiring segment length, counting only one when there are N same-net segments overlapping 
-/// (this is the visible wire length on the sheet). Count over whole sheet.
+/// (the visible wire length on the sheet). Count over whole sheet.
 let totalWireSegmentLength (sheet:SheetT.Model) = 
     let segXYPosToLength (segXYPos: XYPos) =
         match segXYPos with
@@ -407,10 +414,11 @@ let countVisibleWireRightAngles (sheet:SheetT.Model) =
 // lengths of opposite signs (directions) lead to a wire retracing itself. 
 // Note that this can also apply at the end of a wire (where the zero-length segment is one from the end). 
 // This is a wiring artifact that should never happen but errors in routing or separation can cause it.
-// Count over the whole sheet.
+
 /// Returns a list of all the segments that retrace,
 /// and also a list of all the end of wire segments that retrace so far
 /// that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
+/// Count over the whole sheet.
 let getRetracingSegs (sheet:SheetT.Model) = 
     let getRetracingSegsOfWire (wire:Wire) =
         let segList = wire.Segments

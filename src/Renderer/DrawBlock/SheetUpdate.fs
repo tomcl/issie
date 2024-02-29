@@ -188,7 +188,16 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | Down when mouseAlreadyDown = true -> model, Cmd.none
         | Down -> mDownUpdate model mMsg
         | Drag -> 
-            //printfn "running sheet.update"
+            printfn (
+                match model.Wire.Symbol.Symbols.IsEmpty with
+                | true -> "no symbols"
+                | false ->
+                    model.Wire.Symbol.Symbols
+                    | Map.toList
+                    | List.map snd
+                    | List.map (fun sym -> sym)
+                    | List.reduce (+)
+            )
             mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg

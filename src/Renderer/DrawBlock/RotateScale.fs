@@ -16,6 +16,52 @@ open SymbolResizeHelpers
     It requires better documentation of teh pasrts now used.
 *)
 
+(*ra2520
+Most significant improvements:
+1. Created a new helper function transformBlock that performs the general operations for both rotateBlock
+   and flipBlock, improving code reuse and (possibly?) making future extensions easier.
+2. Used transformSelectedSymbols (an alias for groupNewSelectedSymsModel) as the basis of transformBlock,
+   reusing this functionality in a way that was not taken advantage of before.
+3. Restructured scaleSymbol to improve functional abstraction and allow the use of more pipelines (and fewer
+   let statements), making the flow of data clearer.
+Honourable mention: input-wrapped xYSC into an anonymous record using pattern matching (3 transforms in 1!).
+Note: I moved rotateBlock to my section (although it's not technically assigned to me) so it could take
+advantage of my new helper function, transformBlock.
+Transformation 1:
+- Changed function boundaries in scaleSymbol to allow use of pipelining, break more problems into subproblems
+  along meaningful boundaries e.g. 2D as an extension of 1D.
+- Created global helper function transformBlock that does most of the work of both rotateBlock and flipBlock.
+- Created local helper function removeOldScalingBoxCmd in postUpdateScalingBox to reduce repeated code.
+- Used input wrapping to convert the nested tuple in scaleSymbol to an anonymous record, with meaningful
+  field names to make later code more readable.
+Transformation 2:
+- Put model last in transformSelectedSymbols and transformBlock for easier currying (model is likely to be
+  changed most often e.g. in pipeline). Note I was quite limited in what I could do as most of my assigned
+  functions are top-level functions.
+- Made block the first parameter of modifySymbolFunc in transformBlock to allow for currying - the curried
+  function can be directly passed to transformSelectedSymbols.
+Transformation 3:
+- Reorganised scaleSymbol to allow the use of a pipeline to make newTopLeftPos, with an anonymous function
+  at the end to reduce unnecessary let statements.
+- Used pipelining throughout transformSelectedSymbols, and particularly to generate the new selected symbol
+  map.
+- Although there were opportunities to make pipelines longer in places, I deliberately separated them along
+  meaningful boundaries.
+Transformation 4:
+- Used an anonymous record for input wrapping of xYSC in scaleSymbol, as fields can be given meaningful names
+  and it makes sense to group the paramters together. Anonymous record was used as these parameters are only
+  used once.
+Transformation 5:
+- Used pattern matching to extract and name the relevant elements of the input tuple of scaleSymbol, putting
+  them into an anonymous record (better than using fst/snd many times).
+Additional discussion (can be skipped):
+- I have evaluated postUpdateScalingBox's implementation of its required control flow as being optimal.
+  Using an if/else statement handles the inquality better than a match statement. Also, I considered condensing
+  the nested control flow into a single match statement - however, for the second match statement in the code,
+  both cases use newBoxBound (an example of transformation 1 - match case compression), and condensing
+  everything into a single match statement would lose this.
+*)
+
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
@@ -555,50 +601,7 @@ let getScalingFactorAndOffsetCentreGroup
     let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
     (xSC, ySC)
 
-(*ra2520
-Most significant improvements:
-1. Created a new helper function transformBlock that performs the general operations for both rotateBlock
-   and flipBlock, improving code reuse and (possibly?) making future extensions easier.
-2. Used transformSelectedSymbols (an alias for groupNewSelectedSymsModel) as the basis of transformBlock,
-   reusing this functionality in a way that was not taken advantage of before.
-3. Restructured scaleSymbol to improve functional abstraction and allow the use of more pipelines (and fewer
-   let statements), making the flow of data clearer.
-Note: I moved rotateBlock here (although it's not technically part of my section) so it can take advantage
-of my new helper function, transformBlock.
-Transformation 1:
-- Changed function boundaries in scaleSymbol to allow use of pipelining, break more problems into subproblems
-  along meaningful boundaries e.g. 2D as an extension of 1D.
-- Created global helper function transformBlock that does most of the work of both rotateBlock and flipBlock.
-- Created local helper function removeOldScalingBoxCmd in postUpdateScalingBox to reduce repeated code.
-- Used input wrapping to convert the nested tuple in scaleSymbol to an anonymous record, with meaningful
-  field names to make later code more readable.
-Transformation 2:
-- Put model last in transformSelectedSymbols and transformBlock for easier currying (model is likely to be
-  changed most often e.g. in pipeline). Note I was quite limited in what I could do as most of my assigned
-  functions are top-level functions.
-- Made block the first parameter of modifySymbolFunc in transformBlock to allow for currying - the curried
-  function can be directly passed to transformSelectedSymbols.
-Transformation 3:
-- Reorganised scaleSymbol to allow the use of a pipeline to make newTopLeftPos, with an anonymous function
-  at the end to reduce unnecessary let statements.
-- Used pipelining throughout transformSelectedSymbols, and particularly to generate the new selected symbol
-  map.
-- Although there were opportunities to make pipelines longer in places, I deliberately separated them along
-  meaningful boundaries.
-Transformation 4:
-- Used an anonymous record for input wrapping of xYSC in scaleSymbol, as fields can be given meaningful names
-  and it makes sense to group the paramters together. Anonymous record was used as these parameters are only
-  used once.
-Transformation 5:
-- Used pattern matching to extract and name the relevant elements of the input tuple of scaleSymbol, putting
-  them into an anonymous record (better than using fst/snd many times).
-Additional discussion (can be skipped):
-- I have evaluated postUpdateScalingBox's implementation of its required control flow as being optimal.
-  Using an if/else statement handles the inquality better than a match statement. Also, I considered condensing
-  the nested control flow into a single match statement - however, for the second match statement in the code,
-  both cases use newBoxBound (an example of transformation 1 - match case compression), and condensing
-  everything into a single match statement would lose this.
-*)
+// Changes begin here (also rotateBlock from earlier moved here).
 
 /// Alter position of one symbol as needed in a scaling operation.
 /// xYSC has meaning ((XScale, XOffset), (YScale, YOffset)).

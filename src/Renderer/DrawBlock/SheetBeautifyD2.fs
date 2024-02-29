@@ -162,7 +162,7 @@ let getSymPortIds (sym: SymbolT.Symbol): List<string> =
 let getSymBottomRightAng (sym: SymbolT.Symbol) (sheet: SheetT.Model): float =
     sheet.BoundingBoxes
     |> Map.tryFind sym.Id
-    |> Option.bind (fun bbox -> Some (System.Math.Atan (bbox.H/bbox.W)))
+    |> Option.bind (fun bbox -> Some (Math.Atan (bbox.H/bbox.W)))
     |> Option.defaultValue 0.
 
 
@@ -172,11 +172,11 @@ let getSymBottomRightAng (sym: SymbolT.Symbol) (sheet: SheetT.Model): float =
 /// <param name="vec">Target vector.</param>
 /// <returns>Angle of range [0, 2 * PI).</returns>
 let vecToAng (vec: XYPos): float =
-    match vec.X >= 0., System.Math.Atan (vec.Y/vec.X) with
+    match vec.X >= 0., Math.Atan (vec.Y/vec.X) with
     | true, rad when rad >= 0. -> rad
-    | true, rad when rad < 0. -> 2. * System.Math.PI + rad
-    | false, rad when rad >= 0. -> 1. * System.Math.PI + rad
-    | false, rad when rad < 0. -> 1. * System.Math.PI + rad
+    | true, rad when rad < 0. -> 2. * Math.PI + rad
+    | false, rad when rad >= 0. -> 1. * Math.PI + rad
+    | false, rad when rad < 0. -> 1. * Math.PI + rad
     | _ -> 0. // impossible case, but give typecheck warnings if not included
 
 /// <summary>Shift angle anti-clockwise by a degree and normalize to [0, 2 * PI).</summary>
@@ -185,8 +185,8 @@ let vecToAng (vec: XYPos): float =
 /// <returns>Shifted angle.</returns>
 let shiftAng (ang: float) (shift: float) = 
     let result = ang + shift
-    if result > 2. * System.Math.PI
-    then result - 2. * System.Math.PI
+    if result > 2. * Math.PI
+    then result - 2. * Math.PI
     else result
 
 (* --------------------------------------- Implementation --------------------------------------- *)

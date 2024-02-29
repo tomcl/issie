@@ -68,7 +68,7 @@ let readPortOrder (side : Edge) (sym : Symbol) =
 let writePortOrder (side : Edge) (newPortOrder : list<string> option) (sym : Symbol) =
     match newPortOrder with
     | Some newPortOrder ->
-        let newPorts = side |> Map.add newPortOrder sym.PortMaps.Order
+        let newPorts =  Map.add side newPortOrder sym.PortMaps.Order
         { sym with PortMaps = { sym.PortMaps with Order = newPorts } }
     | _ -> sym 
 let portOrderLens (side : Edge) : Lens<Symbol, list<string> option> =
@@ -124,7 +124,7 @@ let readSymBoundingBox (sym: Symbol) : BoundingBox =
 /// input - rotation
 /// output - new rotated symbol
 let readSymRotationState (sym: Symbol) =
-    sym.Component.SymbolInfo.Rotation
+    sym.STransform.Rotation
 let writeSymRotationState (rotate : Rotation) (sym: Symbol) = 
     {sym with STransform = {sym.STransform with Rotation = rotate}}
 let symRotation : Lens<Symbol, Rotation> = 
@@ -135,7 +135,7 @@ let symRotation : Lens<Symbol, Rotation> =
 /// input - flip
 /// output - new flipped symbol
 let readSymFlipState (sym : Symbol) = 
-    sym.Component.SymbolInfo.Flipped
+    sym.STransform.Flipped
 let writeSymFlipState (flip : bool) (sym: Symbol) = 
     {sym with STransform = {sym.STransform with Flipped = flip}}
 let symFlip : Lens<Symbol, bool> = 

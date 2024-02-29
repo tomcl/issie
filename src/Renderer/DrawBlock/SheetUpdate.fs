@@ -19,6 +19,7 @@ open FSharp.Core
 open Fable.Core.JsInterop
 open BuildUartHelpers
 open Node
+open BeautifySheetHelpers
 
 module node = Node.Api
 
@@ -81,6 +82,29 @@ let update (msg: Msg) (issieModel: ModelType.Model) : ModelType.Model * Cmd<Mode
             innerList
             |> List.iter (fun xy -> printfn "X = %.2f, Y = %.2f" xy.X xy.Y))
     // prettyPrint testVisibleSegments
+    // printf "%A" testVisibleSegments
+    printf "%A" (model.LastMousePos)
+    // printf "getSharedNetOverlaplength %A" (getSharedNetOverlapLength model)
+
+    let what = (model.Wire.Wires)
+    let what2 = (Map.toList model.Wire.Wires)
+    let what3 = (List.map snd (Map.toList model.Wire.Wires))
+
+    // printf "HEY"
+    // printf "%A" what2[0]
+
+    let wireModel = model.Wire
+
+    let findWireSymbolIntersections (sheet: SheetT.Model) =
+        let wireModel = sheet.Wire
+        wireModel.Wires
+        |> Map.toList
+        |> List.collect (fun (_, wire) -> BusWireRoute.findWireSymbolIntersections wireModel wire)
+
+    // printf "%A" (findWireSymbolIntersections model)
+    // printf "countVisibleSegsIntersectingSymbols %A" (countVisibleSegsIntersectingSymbols model)
+    // printf "countVisibleSegsPerpendicularCrossings %A" (countVisibleSegsPerpendicularCrossings model)
+    // printf "getSharedNetOverlaplength %A" (getSharedNetOverlapLength model)
 
     /// check things that might not have been correctly completed in the last update and if so do them
     /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than

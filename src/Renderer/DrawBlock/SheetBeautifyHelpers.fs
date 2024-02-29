@@ -1,6 +1,4 @@
-﻿
-
-module SheetBeautifyHelpers
+﻿module SheetBeautifyHelpers
 
 //-----------------Module for beautify Helper functions--------------------------//
 // Typical candidates: all individual code library functions.
@@ -299,38 +297,37 @@ let readVisibleRightAngleNum (sheet:SheetT.Model)=
 
 //T6R
 
-
-let floatEqual (x:float) y=
-    let epsilon = 1e-6
-    Math.Abs(x - y) < epsilon
 let readRetracedWire(sheet:SheetT.Model)=
     let wiresMap= sheet.Wire.Wires
     // let w= sheet.Wire
-    let symbols=wiresMap|> Map.toList |>List.map snd |> List.map(fun (wire:Wire)->getSourceSymbol sheet.Wire wire)
-    let asegmentsList= wiresMap|> Map.toList |>List.map snd |> List.map(fun (wire:Wire)->getAbsSegments wire)
-    let symbolsAndasegments= List.zip symbols asegmentsList
+    let wires=wiresMap|> Map.toList |>List.map snd
+    // let symbols=wiresMap|> Map.toList |>List.map snd |> List.map(fun (wire:Wire)->getSourceSymbol sheet.Wire wire)
+    // let asegmentsList= wiresMap|> Map.toList |>List.map snd |> List.map(fun (wire:Wire)->getAbsSegments wire)
+    // let symbolsAndasegments= List.zip symbols asegmentsList
     // let emptyRetraceList:Segment list= [] 
 
     let differentSigns x y = x * y < 0.0
 
+    let segmentsRetraceInWire (wire:Wire)= // this function finds all retracing segments in the wire
 
-
-    
-    let segmentsRetraceInWire (symbolAseg:(Symbol*List<ASegment>))= // this function finds all retracing segments in the wire
-        let asegments= snd symbolAseg
+        let asegments= getAbsSegments wire
+        let sourceSymbol= getSourceSymbol sheet.Wire wire
+        let targetSymbol= getTargetSymbol sheet.Wire wire
         let segments= List.map (fun asegment -> asegment.Segment) asegments
         
-        let symbolBoundingBox= getSymbolBoundingBox (fst symbolAseg )
-        let symbolXYPosCords= symbolBoundingBox.TopLeft, symbolBoundingBox.BottomRight()
-        let startPos=asegments[0].Start
-        let calcEndPos (startPos:XYPos) (asegment:ASegment) :XYPos=
-            match asegment.Orientation with
-            | Vertical -> {X=startPos.X ;Y= startPos.Y+asegment.Segment.Length}
-            | Horizontal -> {X=startPos.X+asegment.Segment.Length; Y=startPos.Y}
+        let sourceSymbolBoundingBox= getSymbolBoundingBox sourceSymbol
+        let targetSymbolBoundingBox= getSymbolBoundingBox targetSymbol
+        let sourceSymbolXYPosCords= sourceSymbolBoundingBox.TopLeft, sourceSymbolBoundingBox.BottomRight()
+        let targetSymbolXYPosCords= targetSymbolBoundingBox.TopLeft, targetSymbolBoundingBox.BottomRight()
+        // let startPos=asegments[0].Start
+        // let calcEndPos (startPos:XYPos) (asegment:ASegment) :XYPos=
+        //     match asegment.Orientation with
+        //     | Vertical -> {X=startPos.X ;Y= startPos.Y+asegment.Segment.Length}
+        //     | Horizontal -> {X=startPos.X+asegment.Segment.Length; Y=startPos.Y}
         
 
         segments
-        |> List.fold (fun (retraceList,startpos,reTraceTooFarList, lastIndexRetraced) segment ->
+        |> List.fold (fun (retraceList,reTraceTooFarList, lastIndexRetraced) segment ->
             
             // go through all the elements in the list to get the lists
             let newRetraceList, newRetracedIndex= //this function finds the segments that retrace and puts them into a list
@@ -343,21 +340,20 @@ let readRetracedWire(sheet:SheetT.Model)=
                         
                 else retraceList,lastIndexRetraced
             let newReTraceTooFarList= // this function finds the segments that retracted too far that they intersect with their original symbol
-                if  (segment.Index = lastIndexRetraced+2) then 
-                    if (not segment.IsZero ) && (overlap2D symbolXYPosCords (startpos,startpos) ) 
-                        then segments[segment.Index-1]::reTraceTooFarList // if this segment starts inside the wire, then the segment retraced too far is the one before
+                if  (segment.Index = lastIndexRetraced+1) then 
+                    if (not segment.IsZero ) && ((overlap2D sourceSymbolXYPosCords (asegments[segment.Index].End,asegments[segment.Index].End) ||(overlap2D targetSymbolXYPosCords (asegments[segment.Index].End,asegments[segment.Index].End))) ) 
+                        then segment::reTraceTooFarList // if this segment ends inside the source symbol or target symbol, then the segment has retraced too far that the next segment will start inside it
                         else reTraceTooFarList
                 else reTraceTooFarList
 
-            let endpos= calcEndPos startpos asegments[segment.Index] //update the end position after retracing, which is the next segment's starting position
-            (newRetraceList, endpos, newReTraceTooFarList, newRetracedIndex)
-            )  ([], startPos,[],0)
+            // let endpos= calcEndPos startpos asegments[segment.Index] //update the end position after retracing, which is the next segment's starting position
+            (newRetraceList,  newReTraceTooFarList, newRetracedIndex)
+            )  ([],[],0)
+        |> (fun (a,b,c) -> a,b)
            
-    symbolsAndasegments
+    wires
     |> List.fold (fun (retracedSegList:Segment list,retracedTooFarSegList: Segment list) symbolAsegments-> 
         let res= (segmentsRetraceInWire symbolAsegments) 
-        // let wireRetracedSegList=   res
-        let (a,b,c,d)=res
-        (a @ retracedSegList), (c @ retracedTooFarSegList)
+        ((fst res) @ retracedSegList), ((snd res) @ retracedTooFarSegList)
         ) ([],[])
 

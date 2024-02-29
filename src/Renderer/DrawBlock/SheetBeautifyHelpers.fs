@@ -7,19 +7,10 @@ open DrawModelType
 open BusWireT
 
 open Symbol
-type Dimension = {
-    W: float
-    H: float
-}
 
 //-----------------------------------------------------------------------------------------------
 // visibleSegments is included here as ahelper for info, and because it is needed in project work
 //-----------------------------------------------------------------------------------------------
-
-/// The visible segments of a wire, as a list of vectors, from source end to target end.
-/// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
-/// which if present causes the two segments on either side of it to coalesce into a single visible segment.
-/// A wire can have any number of visible segments - even 1.
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
     let wire = model.Wire.Wires[wId] // get wire from model
@@ -54,8 +45,15 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
 
+// Could use XYPos instead of a new type
+// However it wouldn't be as clear which is the width or height
+type Dimension = {
+    W: float
+    H: float
+}
+
 // B1R, B1W RW Low
-/// <summary>Return the dimensions of a custom component symbol</summary>
+/// <summary>Return the dimensions of a custom component symbol after applying scaling</summary>
 let getCCSymbolDimension (sym : SymbolT.Symbol) =
     match (sym.HScale, sym.VScale) with
     | (None, None) -> { W = sym.Component.W ; H = sym.Component.H }
@@ -63,10 +61,10 @@ let getCCSymbolDimension (sym : SymbolT.Symbol) =
     | (Some hScale, None) -> { W = sym.Component.W * hScale ; H = sym.Component.H }
     | (None, Some vScale) -> { W = sym.Component.W ; H = sym.Component.H * vScale }
 
-/// <summary>returns a custom component symbol with updated dimensions</summary>
+/// <summary>Return a custom component symbol with updated scaled dimensions</summary>
 let setCCSymbolDimension (dim : Dimension) (sym : SymbolT.Symbol) =
     { sym with HScale = Some (dim.W/sym.Component.W); VScale = Some (dim.H/sym.Component.H) }
-    // keep the W and H of the component the same, as this is calculated when creating the custom component
+    // NB: keep the W and H of the component the same, as this is calculated when creating the custom component
     // if the user performs an illegal sizing, we can revert back to this original size
 
 let CCSymbolDimensions_ = Lens.create getCCSymbolDimension setCCSymbolDimension
@@ -172,7 +170,7 @@ let rec allPairsWithoutRepeats list =
 /// helper to get the input port of a segment from the sheet model
 let getInputPortOfSeg (seg : BusWireT.Segment) (sheetModel : SheetT.Model) =
     let wireMap : Map<ConnectionId,Wire> = sheetModel.Wire.Wires
-    wireMap[snd seg.GetId].InputPort
+    wireMap[seg.WireId].OutputPort
 
 /// helper to check if two segments are from the same net in the sheet model
 let isSegFromSameNet (seg1 : BusWireT.Segment) (seg2 : BusWireT.Segment) (sheetModel : SheetT.Model) =
@@ -186,7 +184,7 @@ let calcASegOverlapLength (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) =
     let vector = min max1 max2 - max min1 min2
     max (abs vector.X) (abs vector.Y) // assume that the segments are parallel, either X or Y will be cancelled out
 
-/// <summary>Number of visible wire segments counted over whole sheet.</summary>
+/// number of visible wire segments counted over whole sheet
 let countVisibleSegments (sheetModel : SheetT.Model) : int =
     let wireModel = sheetModel.Wire
 
@@ -201,7 +199,7 @@ let countVisibleSegments (sheetModel : SheetT.Model) : int =
 // T3R R Low 
 /// <summary>The number of distinct pairs of segments that cross each other at right angles. Does
 /// not include 0 length segments or segments on same net intersecting at one end.</summary>
-let countSegmentIntersections (sheetModel : SheetT.Model) : int =
+let countSegmentIntersections (sheetModel : SheetT.Model) =
     let wires: Map<ConnectionId,Wire> = sheetModel.Wire.Wires 
     let ASegments = 
         wires
@@ -211,7 +209,7 @@ let countSegmentIntersections (sheetModel : SheetT.Model) : int =
 
     let intersectFilter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
         // we require segments to be on different nets, be orthogonal to each other and overlap
-        not (isSegFromSameNet seg1.Segment seg2.Segment sheetModel) 
+        not (isSegFromSameNet seg1.Segment seg2.Segment sheetModel)
         && (seg1.Orientation <> seg2.Orientation) 
         && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
     

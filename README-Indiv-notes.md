@@ -12,13 +12,13 @@ Write a required set of build and testing functions (Figure 1) that will be usef
 |x| B4R, B4W | RW | Low | The reverses state of the inputs of a `MUX2` |
 |?| B5R | R | Low | The position of a port on the sheet. It cannot directly be written. |
 |x| B6R | R | Low | The Bounding box of a symbol outline (position is contained in this) |
-|x| B7R, B7W | RW | Low | The rotation state of a symbol |
+|?| B7R, B7W | RW | Low | The rotation state of a symbol |
 |x| B8R, B8W | RW | Low | The flip state of a symbol |
-|o| T1R | R | Low | The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols. |
-|o| T2R | R | Low | The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments. |
+|x| T1R | R | Low | The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols. |
+|x| T2R | R | Low | The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments. |
 |o| T3R | R | Low | The number of distinct pairs of segments that cross each other at right angles. Does not include 0 length segments or segments on same net intersecting at one end, or segments on same net on top of each other. Count over whole sheet. |
-|o| T4R | R | Medium | Sum of wiring segment length, counting only one when there are N same-net segments overlapping (this is the visible wire length on the sheet). Count over whole sheet. |
-|o| T5R | R | Low | Number of visible wire right-angles. Count over whole sheet. |
+|x| T4R | R | Medium | Sum of wiring segment length, counting only one when there are N same-net segments overlapping (this is the visible wire length on the sheet). Count over whole sheet. |
+|x| T5R | R | Low | Number of visible wire right-angles. Count over whole sheet. |
 |?| T6R | R | High | The zero-length segments in a wire with non-zero segments on either side that have Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply at the end of a wire (where the zero-length segment is one from the end). This is a wiring artifact that should never happen but errors in routing or separation can cause it. Count over the whole sheet. Return from one function a list of all the segments that retrace, and also a list of all the end of wire segments that retrace so far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol. |
 
 One helper function has been written in TestDrawBlock.HLPTick3 for you to use.
@@ -29,9 +29,8 @@ One helper function has been written in TestDrawBlock.HLPTick3 for you to use.
 
 A short dive into the provided helper function `TestDrawBlock.HLPTick3.visibleSegments`: 
 
-TODO: paraphrase 
-
-<!-- The `visibleSegments` function calculates the visible segments of a wire within a sheet model. Given the ID of a wire and the model containing it, the function retrieves the wire's segments and determines their visibility. Each segment is represented as an XY vector indicating its direction and length. The function then examines adjacent segments to determine if they can be coalesced into a single visible segment. If an invisible segment is detected (e.g., a segment with zero length), the function merges the vectors of the surrounding segments, effectively coalescing them into a single visible segment. This process ensures that the resulting list contains only visible segments, optimizing the representation of the wire's path for further processing or visualization. Overall, the visibleSegments function encapsulates the logic for deriving the visible segments of a wire, crucial for various tasks such as rendering diagrams or performing analysis on the wire's layout. -->
+The function calculates the visible segments of a wire within a sheet model.
+Give the ID of the wire and the model, a list of XY vectors representing the visible segments of the wire would be returned. Each vector indicates the direction and length of a segment. Invisible segments are merged with adjacent segments to ensure that the resulting list contains only visible segments.
 
 ---
 

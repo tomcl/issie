@@ -31,6 +31,10 @@ open Optics
 module Constants =
     () // dummy to make skeleton type check - remove when other content exists
 
-
-
+// ------------------------------------ Team work ------------------------------------------
+(* 
+    This part of the code aims to use the Figure 1 functions to contribute to the Team phase work. 
+    See https://github.com/dyu18/hlp24-project-issie-team7/tree/indiv-az1821/README-Indiv-notes.md for more documentation. 
+*)
     
+

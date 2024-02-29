@@ -578,21 +578,28 @@ let getScalingFactorAndOffsetCentreGroup
     let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
     (xSC, ySC)
 
+// ---------------------------- improvement part 6 ----------------------------
+(* 
+    This part of the code is analysed and mainly improved on layout & pipelines. 
+    Further improvements could be done by changing data type but would have to modify the code structure a lot. 
+    See https://github.com/dyu18/hlp24-project-issie-team7/tree/indiv-az1821/README-Indiv-notes.md for more detailed documentation. 
+*)
+
 /// Alter position of one symbol as needed in a scaling operation
 let scaleSymbol
         (xYSC: (float * float) * (float * float))
         (sym: Symbol)
         : Symbol = 
-    let symCentre =  getRotatedSymbolCentre sym
+    let symCentre = sym |> getRotatedSymbolCentre    // improved readability
     let translateFunc scaleFact offsetC coordinate = (coordinate - offsetC) * scaleFact + offsetC
-    let xSC = fst xYSC
-    let ySC = snd xYSC
-    let newX = translateFunc (fst xSC) (snd xSC) symCentre.X
-    let newY = translateFunc (fst ySC) (snd ySC) symCentre.Y
+    let xSC, ySC = xYSC
+    let newX = symCentre.X |> translateFunc (fst xSC) (snd xSC)
+    let newY = symCentre.Y |> translateFunc (fst ySC) (snd ySC)
 
-    let symCentreOffsetFromTopLeft = {X = (snd (getRotatedHAndW sym))/2.; Y = (fst (getRotatedHAndW sym))/2.}
+    let symCentreOffsetFromTopLeft = { X = (snd (getRotatedHAndW sym))/2.; 
+                                                Y = (fst (getRotatedHAndW sym))/2.}
     let newTopLeftPos = {X = newX; Y = newY} - symCentreOffsetFromTopLeft
-    let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
+    let newComp = {sym.Component with X = newTopLeftPos.X;  Y = newTopLeftPos.Y}
 
     {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
 
@@ -603,20 +610,12 @@ let groupNewSelectedSymsModel
     (selectedSymbols: Symbol list)
     (modifySymbolFunc) = 
 
-    //let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
-
-    // let block = getBlock SelectedSymbols
-    // printfn "bbCentreX:%A" (block.Centre()).X
-
-    // let newSymbols = List.map (modifySymbolFunc (block.Centre())) SelectedSymbols
     let newSymbols = List.map (modifySymbolFunc) selectedSymbols
-
     {model with Symbols = 
                 ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
-
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
@@ -641,64 +640,148 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
 /// After every model update this updates the "scaling box" part of the model to be correctly
 /// displayed based on whetehr multiple components are selected and if so what is their "box"
 /// In addition to changing the model directly, cmd may contain messages that make further changes.
-let postUpdateScalingBox (model:SheetT.Model, cmd) = 
-    
+/// 
+/// 1. Used pattern matching for clarity and readability where applicable.
+/// 2. Simplified variable naming for better readability.
+let postUpdateScalingBox (model: SheetT.Model, cmd) = 
+
     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
     let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
 
-    if (model.SelectedComponents.Length < 2) then 
+    match model.SelectedComponents.Length with
+    | length when length < 2 ->
         match model.ScalingBox with 
-        | None ->  model, cmd
-        | _ -> {model with ScalingBox = None}, 
-                [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                 sheetCmd SheetT.UpdateBoundingBoxes]
+        | None -> model, cmd
+        | _ -> 
+            let deleteSymbolsCmd = 
+                model.ScalingBox.Value.ButtonList 
+                |> SymbolT.DeleteSymbols 
+                |> symbolCmd 
+            let cmds =
+                [ deleteSymbolsCmd
+                  sheetCmd SheetT.UpdateBoundingBoxes
+                ]
                 |> List.append [cmd]
                 |> Elmish.Cmd.batch
-    else 
+            { model with ScalingBox = None }, cmds
+    | _ ->
         let newBoxBound = 
             model.SelectedComponents
-            |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+            |> List.map (fun id -> model.Wire.Symbol.Symbols |> Map.find id)
             |> getBlock
+
         match model.ScalingBox with 
         | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
         | _ -> 
             let topleft = newBoxBound.TopLeft
-            let rotateDeg90OffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
-            let rotateDeg270OffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
-            let buttonOffSet: XYPos = {X = newBoxBound.W + 47.5; Y = -47.5}
-            let dummyPos = (topleft + buttonOffSet)
+            let rotateDeg90OffSet: XYPos = { X = newBoxBound.W + 57.0; Y = (newBoxBound.H / 2.0) - 12.5 }
+            let rotateDeg270OffSet: XYPos = { X = -69.5; Y = (newBoxBound.H / 2.0) - 12.5 }
+            let buttonOffSet: XYPos = { X = newBoxBound.W + 47.5; Y = -47.5 }
+            let dummyPos = topleft + buttonOffSet
 
             let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
-            let buttonSym = {makeButton ScaleButton dummyPos with Pos = (topleft + buttonOffSet)}
-            let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
+            let buttonSym = 
+                makeButton ScaleButton dummyPos
+                |> fun sym -> { sym with Pos = dummyPos }
+            let makeRotateSym sym = 
+                { sym with Component = { sym.Component with H = 25.0; W = 25.0 } }
             let rotateDeg90Sym = 
                 makeButton (RotateButton Degree90) (topleft + rotateDeg90OffSet)
                 |> makeRotateSym
             let rotateDeg270Sym = 
-                {makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet) 
-                    with SymbolT.STransform = {Rotation=Degree90 ; Flipped=false}}
+                makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet) 
+                |> fun sym -> 
+                    { sym with 
+                        STransform = { Rotation = Degree90; Flipped = false } 
+                    }
                 |> makeRotateSym
 
-            let newSymbolMap = model.Wire.Symbol.Symbols 
-                                                        |> Map.add buttonSym.Id buttonSym 
-                                                        |> Map.add rotateDeg270Sym.Id rotateDeg270Sym 
-                                                        |> Map.add rotateDeg90Sym.Id rotateDeg90Sym
-            let initScalingBox: SheetT.ScalingBox = {
-                ScalingBoxBound = newBoxBound;
-                ScaleButton = buttonSym;
-                RotateDeg90Button = rotateDeg90Sym;
-                RotateDeg270Button = rotateDeg270Sym;
-                ButtonList = [buttonSym.Id; rotateDeg270Sym.Id; rotateDeg90Sym.Id];
-            }
+            let newSymbolMap = 
+                model.Wire.Symbol.Symbols 
+                |> Map.add buttonSym.Id buttonSym 
+                |> Map.add rotateDeg270Sym.Id rotateDeg270Sym 
+                |> Map.add rotateDeg90Sym.Id rotateDeg90Sym
+
+            let initScalingBox: SheetT.ScalingBox = 
+                { ScalingBoxBound = newBoxBound
+                  ScaleButton = buttonSym
+                  RotateDeg90Button = rotateDeg90Sym
+                  RotateDeg270Button = rotateDeg270Sym
+                  ButtonList = [ buttonSym.Id; rotateDeg270Sym.Id; rotateDeg90Sym.Id ]
+                }
+
             let newCmd =
                 match model.ScalingBox with
-                | Some _ -> [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                             sheetCmd SheetT.UpdateBoundingBoxes]
-                            |> List.append [cmd]
-                            |> Elmish.Cmd.batch
+                | Some _ -> 
+                    [ symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value.ButtonList))
+                      sheetCmd SheetT.UpdateBoundingBoxes
+                    ]
+                    |> List.append [cmd]
+                    |> Elmish.Cmd.batch
                 | None -> cmd
             model
             |> Optic.set SheetT.scalingBox_ (Some initScalingBox)
             |> Optic.set SheetT.symbols_ newSymbolMap, 
             newCmd
+
+// let postUpdateScalingBox (model:SheetT.Model, cmd) = 
+    
+//     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
+//     let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
+
+//     if (model.SelectedComponents.Length < 2) then 
+//         match model.ScalingBox with 
+//         | None ->  model, cmd
+//         | _ -> {model with ScalingBox = None}, 
+//                 [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+//                  sheetCmd SheetT.UpdateBoundingBoxes]
+//                 |> List.append [cmd]
+//                 |> Elmish.Cmd.batch
+//     else 
+//         let newBoxBound = 
+//             model.SelectedComponents
+//             |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+//             |> getBlock
+//         match model.ScalingBox with 
+//         | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
+//         | _ -> 
+//             let topleft = newBoxBound.TopLeft
+//             let rotateDeg90OffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
+//             let rotateDeg270OffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
+//             let buttonOffSet: XYPos = {X = newBoxBound.W + 47.5; Y = -47.5}
+//             let dummyPos = (topleft + buttonOffSet)
+
+//             let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
+//             let buttonSym = {makeButton ScaleButton dummyPos with Pos = (topleft + buttonOffSet)}
+//             let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
+//             let rotateDeg90Sym = 
+//                 makeButton (RotateButton Degree90) (topleft + rotateDeg90OffSet)
+//                 |> makeRotateSym
+//             let rotateDeg270Sym = 
+//                 {makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet) 
+//                     with SymbolT.STransform = {Rotation=Degree90 ; Flipped=false}}
+//                 |> makeRotateSym
+
+//             let newSymbolMap = model.Wire.Symbol.Symbols 
+//                                                         |> Map.add buttonSym.Id buttonSym 
+//                                                         |> Map.add rotateDeg270Sym.Id rotateDeg270Sym 
+//                                                         |> Map.add rotateDeg90Sym.Id rotateDeg90Sym
+//             let initScalingBox: SheetT.ScalingBox = {
+//                 ScalingBoxBound = newBoxBound;
+//                 ScaleButton = buttonSym;
+//                 RotateDeg90Button = rotateDeg90Sym;
+//                 RotateDeg270Button = rotateDeg270Sym;
+//                 ButtonList = [buttonSym.Id; rotateDeg270Sym.Id; rotateDeg90Sym.Id];
+//             }
+//             let newCmd =
+//                 match model.ScalingBox with
+//                 | Some _ -> [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+//                              sheetCmd SheetT.UpdateBoundingBoxes]
+//                             |> List.append [cmd]
+//                             |> Elmish.Cmd.batch
+//                 | None -> cmd
+//             model
+//             |> Optic.set SheetT.scalingBox_ (Some initScalingBox)
+//             |> Optic.set SheetT.symbols_ newSymbolMap, 
+//             newCmd
 

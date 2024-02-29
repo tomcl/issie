@@ -40,7 +40,7 @@ module Constants =
     let longSingleWireLength = 100.
 
     // minimum distance between two adjacent symbols
-    let minCompDistance = 7.
+    let minCompDistance = 14.
     let numInputsIOLabel, numOutputsIOLabel, heightIOLabel, widthIOLabel = getComponentProperties IOLabel "I"
 
 
@@ -73,24 +73,20 @@ let generateWireLabel (model: SheetT.Model) (defaultName:string) : string =
                 else []
             | _ -> []
         )
-    match existingNumbers with
-    | [] -> defaultName
-    | [-1] ->
-        match newCompNo with
-        | -1 -> defaultName+"1"
-        | _  -> defaultName
-    | lst -> 
-        let maxNo = List.max existingNumbers
-        match List.exists (fun x -> x=newCompNo) lst with
-        | true -> newCompBaseName + (string (maxNo+1)) 
-        | false -> defaultName
+    match newCompNo with
+    | -1 -> match existingNumbers with
+            | [] -> defaultName+"0"
+            | lst ->
+                let maxNo = List.max lst
+                newCompBaseName + (string (maxNo+1))
+    | _ -> defaultName
 
 
 /// Add a IOLabel (wire label) component to the sheet, return the updated model
 let addIOLabelComp (pos:XYPos) (defaultLabel:string) (model:SheetT.Model) = 
     let labelName = generateWireLabel model defaultLabel
     let newSymbolModel, compId = addSymbol [] model.Wire.Symbol pos IOLabel labelName
-    {model with Wire={model.Wire with Symbol = newSymbolModel}},compId
+    {model with Wire={model.Wire with Symbol = newSymbolModel}},compId,labelName
 
 
 /// Remove the given wire from the sheet
@@ -130,12 +126,12 @@ let wireToWireLabels (targetWire:Wire) (model:SheetT.Model) =
     let endPos = getPortPosOnSheet endPort model
     
     // create IOLabel components for each port
-    let startIOPos: XYPos = startPos+{X=startPos.X+Constants.minCompDistance; Y=startPos.Y-Constants.heightIOLabel/2.} // not taking flips/rotations into account
-    let model,startIOLabelId =  addIOLabelComp startIOPos label model
+    let startIOPos: XYPos = {X=startPos.X+3.*Constants.minCompDistance; Y=startPos.Y} // not taking flips/rotations into account
+    let model,startIOLabelId, newLabel =  addIOLabelComp startIOPos label model
     let startIOLabelLeftPortId = InputPortId (model.Wire.Symbol.Symbols[startIOLabelId].PortMaps.Order[Left][0])
 
-    let endIOPos: XYPos = endPos+{X=endPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=endPos.Y-Constants.heightIOLabel/2.} // not taking flips/rotations into account
-    let model,endIOLabelId =  addIOLabelComp endIOPos label model
+    let endIOPos: XYPos = {X=endPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=endPos.Y} // not taking flips/rotations into account
+    let model,endIOLabelId,_ =  addIOLabelComp endIOPos newLabel model
     let endIOLabelRightPortId = OutputPortId (model.Wire.Symbol.Symbols[endIOLabelId].PortMaps.Order[Right][0])
 
     // remove original wire, then add new wirings

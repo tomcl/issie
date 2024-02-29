@@ -37,8 +37,8 @@ let updateSymOnSheet (symId: ComponentId) (newSym: Symbol) (model: SheetT.Model)
 
 
 // B1R
-/// Get the dimensions of a custom component symbol
-let getCustomSymWH (sym: Symbol) =      // output: (Width, Height)
+/// Get the dimensions of a custom component symbol, return (Width, Height)
+let getCustomSymWH (sym: Symbol) = 
     let comp = sym.Component
     let getScale = Option.defaultValue 1.0
     let xDim, yDim =  getScale sym.HScale*comp.W, getScale sym.VScale*comp.H
@@ -47,7 +47,7 @@ let getCustomSymWH (sym: Symbol) =      // output: (Width, Height)
         | Degree90 | Degree270 -> yDim, xDim
 
 // B1W
-/// Set the dimensions of a custom component symbol
+/// Set the dimensions (Width, Height) of a custom component symbol
 let updateCustomSymWH ((w,h): float*float) (sym: Symbol) =
     match sym.STransform.Rotation with
     | Degree0 | Degree180 -> setCustomCompHW h w sym

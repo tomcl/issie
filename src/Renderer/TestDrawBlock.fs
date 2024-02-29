@@ -172,7 +172,8 @@ module HLPTick3 =
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
-
+        open SheetBeautifyHelpers
+        open SheetBeautifyD3
 
                 
 
@@ -242,6 +243,17 @@ module HLPTick3 =
         // Flip a symbol
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
             failwithf "Not Implemented"
+        
+        let setHAndW (model: SheetT.Model) =
+            let newSymbolsMap =
+                model.Wire.Symbol.Symbols 
+                |> Map.map (fun compId sym -> 
+                    let newW,newH = getCustomSymWH sym
+                    updateCustomSymWH (newW/2.,newH/2.) sym)
+            Ok {model with Wire={model.Wire with Symbol={model.Wire.Symbol with Symbols=newSymbolsMap}}}
+        
+        let testAutoWiresToWireLabels (model: SheetT.Model) =
+            Ok (autoWiresToWireLabels model)
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -338,7 +350,23 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
+    let makeTest5Circuit (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind setHAndW
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
 
+    let makeTest6Circuit (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> Result.bind testAutoWiresToWireLabels
+        |> getOkOrFail
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -346,6 +374,9 @@ module HLPTick3 =
 
 
     module Asserts =
+        open SheetBeautifyHelpers
+        open SheetBeautifyD3
+        open BlockHelpers
 
         (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
            It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
@@ -360,6 +391,16 @@ module HLPTick3 =
 
         /// Fails all tests: useful to show in sequence all the sheets generated in a test
         let failOnAllTests (sample: int) _ =
+            Some <| $"Sample {sample}"
+
+        /// B1
+        let failOnAllTestsB1 (sample: int) (sheet: SheetT.Model) = 
+        // test B1
+            sheet.Wire.Symbol.Symbols 
+            |> Map.iter (fun _ symbol -> 
+                let width,height = getCustomSymWH symbol
+                printfn "Width: %f, Height: %f" width height
+            )
             Some <| $"Sample {sample}"
 
         /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
@@ -446,6 +487,26 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        let test5 testNum firstSample dispatch =
+            runTestOnSheets
+                "SheetBeautifyHelpers B1RW: fail all tests"
+                firstSample
+                horizLinePositions
+                makeTest5Circuit
+                Asserts.failOnAllTestsB1
+                dispatch
+            |> recordPositionInTest testNum dispatch 
+
+        let test6 testNum firstSample dispatch =
+            runTestOnSheets
+                "SheetBeautifyD3: fail all tests"
+                firstSample
+                horizLinePositions
+                makeTest6Circuit
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch 
+
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
@@ -456,8 +517,8 @@ module HLPTick3 =
                 "Test2", test2 // example
                 "Test3", test3 // example
                 "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
+                "Test5", test5  // test SheetBeautifyHelpers
+                "Test6", test6  // test SheetBeautifyD3
                 "Test7", fun _ _ _ -> printf "Test7"
                 "Test8", fun _ _ _ -> printf "Test8"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test

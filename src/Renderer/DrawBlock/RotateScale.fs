@@ -10,6 +10,34 @@ open Operators
 open BlockHelpers
 open SymbolResizeHelpers
 
+//------------------------------------------------------start-of-my-improvement-yc3521-----------------------------------------------------------------//
+// ----------------------------------------------------------------------------------------------------------------------------------------------------//
+// ----------------------------------------------------------------------------------------------------------------------------------------------------//
+// ------------------------------------------------------- Code Improvement Summary: ------------------------------------------------------------------//
+(* 
+    Most significant changes:
+        1. introduced a helper function updateModel to encapsulate updating the model avoiding repetition
+        2. abstracted the calculation logic for horizontal and vertical position
+        3. changed meaningless namings to names that indicate their actual purpose such as model' to updatedModel
+        4. break down the logic of a long function into parts and pipeline them to increase abstraction
+    
+    Reason:
+        The original code writes function with a lot of "let" statements combined with long unstoped match expressions, making the code hard to read and understand.
+        Breaking down the logic into parts of expression and indicating the flow using pipeline at the end can clearly show the steps fucntionally.
+        The original code also has a lot of repetition of updating the model, so I introduced a helper function to encapsulate the logic and avoid repetition.
+        Matching with sides repeated in multiple places, so I abstracted the logic into a helper function so that horizontal vertical position can be calculated in a more readable way.
+
+    Transform 1: Functional Abstraction
+        used in udateModel, calculateBasedOnSide.
+    Transform 2: Parametrization (especially "grouping")
+        used in getOppEdgePortInfo
+    Transform 3: Pipelines
+        used in getOppEdgePortInfo, alignSymbols,reSizeSymbol.
+    Transform 5: Match
+        used in calculateBasedOnSide.
+
+*)
+
 (* 
     This module contains the code that rotates and scales blocks of components.
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.
@@ -35,8 +63,21 @@ type WireSymbols =
       SymB: Symbol
       Wire: Wire }
 
+
+//*yc3521: Improved by functional abstraction 
+//         introduced a hypothetical calculatePortGap function
+//         increased readability and reuse of code
+
 /// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
 /// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
+
+//*yc3521: Helper function to abstract the match side expressions
+let calculateBasedOnSide side calculateForHorizontal calculateForVertical =
+    match side with
+    | Left | Right -> calculateForHorizontal()
+    | Top | Bottom -> calculateForVertical()
+
+    
 let makePortInfo (sym: Symbol) (port: Port) =
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
@@ -44,13 +85,9 @@ let makePortInfo (sym: Symbol) (port: Port) =
     let topBottomGap = gap + 0.3 // extra space for clk symbol
     let portDimension = float ports.Length - 1.0
     let h, w = getRotatedHAndW sym
-
-    let portGap =
-        match side with
-        | Left
-        | Right -> float h / (portDimension + 2.0 * gap)
-        | Bottom
-        | Top -> float w / (portDimension + 2.0 * topBottomGap)
+    let portGap = calculateBasedOnSide side
+                    (fun () -> float h / (portDimension + 2.0 * gap))       // For Left or Right
+                    (fun () -> float w / (portDimension + 2.0 * topBottomGap)) // For Top or Bottom
 
     { port = port
       sym = sym
@@ -69,15 +106,23 @@ let getPortAB wModel wireSyms =
     let portB = filterPortBySym ports wireSyms.SymB |> List.head
     portA, portB
 
+//*yc3521: inline wireSyms record Construction
+//         defined a helper function to get the edge of a wire connected to a symbol
+//         making pipelline more clear and readable
 /// Try to get two ports that are on opposite edges.
 let getOppEdgePortInfo
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
     (otherSymbol: Symbol)
     : (PortInfo * PortInfo) option =
-    let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
+    let wire = wiresBtwnSyms wModel symbolToSize otherSymbol
 
-    let tryGetOppEdgePorts wireSyms =
+    let tryGetOppEdgePorts (wire: Wire) =
+        let wireSyms = {
+            SymA = symbolToSize;
+            SymB = otherSymbol;
+            Wire = wire 
+            }
         let portA, portB = getPortAB wModel wireSyms
         let edgeA = getSymbolPortOrientation wireSyms.SymA portA
         let edgeB = getSymbolPortOrientation wireSyms.SymB portB
@@ -86,12 +131,8 @@ let getOppEdgePortInfo
         | true -> Some(makePortInfo wireSyms.SymA portA, makePortInfo wireSyms.SymB portB)
         | _ -> None
 
-    wires
-    |> List.tryPick (fun w ->
-        tryGetOppEdgePorts
-            { SymA = symbolToSize
-              SymB = otherSymbol
-              Wire = w })
+    wire
+    |> List.tryPick tryGetOppEdgePorts //*yc3521: making the pipeline more succinct
 
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let getPortRealPos pInfo =
@@ -101,59 +142,78 @@ let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let otherPortPos = getPortRealPos otherPInfo
     let posDiff = otherPortPos - movePortPos
 
-    match movePInfo.side with
-    | Top
-    | Bottom -> { X = posDiff.X; Y = 0.0 }
-    | Left
-    | Right -> { X = 0.0; Y = posDiff.Y }
+    calculateBasedOnSide movePInfo.side
+        (fun () -> { X = posDiff.X; Y = 0.0 })  // For Top or Bottom
+        (fun () -> { X = 0.0; Y = posDiff.Y })  // For Left or Right
 
+//*yc3521: break down the logic of alignSymbols and encapsulate in attemptAlighSymbols
+//         Seperate Handling logic from the calculation logic, abstracting two logics
+//         renameing: movedSymbol and updatedModel to indicate their actual purpose
+//         Define a helper function to encapsulate updating the model and it can be used in following functions to avoid repetition
+let updateModel (model: BusWireT.Model) (symbolId: ComponentId) (movedSymbol: Symbol) : BusWireT.Model =
+    let updatedModel = Optic.set (symbolOf_ symbolId) movedSymbol model
+    BusWireSeparate.routeAndSeparateSymbolWires updatedModel symbolId
 let alignSymbols
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
     (otherSymbol: Symbol)
     : BusWireT.Model =
 
-    // Only attempt to align symbols if they are connected by ports on parallel edges.
-    match getOppEdgePortInfo (wModel:BusWireT.Model) symbolToSize otherSymbol with
-    | None -> wModel
-    | Some(movePortInfo, otherPortInfo) ->
+    let AlignAndRouteSymbols movePortInfo otherPortInfo =
         let offset = alignPortsOffset movePortInfo otherPortInfo
-        let symbol' = moveSymbol offset symbolToSize
-        let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
-        BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
+        let movedSymbol = moveSymbol offset symbolToSize
+        updateModel wModel symbolToSize.Id movedSymbol
+
+    let handleAlignmentResult = function
+        | None -> wModel //*yc3521: No alignment needed, return original model
+        | Some(portInfoPair) -> AlignAndRouteSymbols (fst portInfoPair) (snd portInfoPair)
+
+    //*yc3521: Retrieve port information and handle the alignment result
+    getOppEdgePortInfo wModel symbolToSize otherSymbol
+    |> handleAlignmentResult
+
+
 
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
 /// HLP23: It should work out the interconnecting wires (wires) from
 /// the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
+
+// *yc3521: seperate the calculation logic(get port and move symbol) from the main logic
+
 let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
     // Try to get two ports that are on opposite edges, if none found just use any two ports.
-    let resizePortInfo, otherPortInfo =
+    // *yc3521: Function to extract port information based on availability of opposite edges
+    let getResizeAndOtherPortInfo () =
         match getOppEdgePortInfo wModel symbolToSize otherSymbol with
         | None ->
-            let pA, pB = getPortAB wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires[0] }
-            makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
+            let pA, pB = getPortAB wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires.Head }
+            (makePortInfo symbolToSize pA, makePortInfo otherSymbol pB)
         | Some(pIA, pIB) -> (pIA, pIB)
 
-    let h, w =
-        match resizePortInfo.side with
-        | Left | Right ->
-            otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.gap), resizePortInfo.w
-        | Top | Bottom ->
-            resizePortInfo.h, otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.topBottomGap)
+    //*yc3521: Function to resize and potentially move the symbol based on its type
+    let resizeAndMoveSymbol (resizePortInfo, otherPortInfo) =
 
-    match symbolToSize.Component.Type with
-    | Custom _ ->
-        let scaledSymbol = setCustomCompHW h w symbolToSize
-        let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
-        let offset = alignPortsOffset scaledInfo otherPortInfo
-        moveSymbol offset scaledSymbol
-    | _ ->
-        symbolToSize
+        let h, w = calculateBasedOnSide resizePortInfo.side
+                    (fun () -> otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.gap), resizePortInfo.w)
+                    (fun () -> resizePortInfo.h, otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.topBottomGap))
 
+        match symbolToSize.Component.Type with
+        | Custom _ ->
+            let scaledSymbol = setCustomCompHW h w symbolToSize
+            let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
+            let offset = alignPortsOffset scaledInfo otherPortInfo
+            moveSymbol offset scaledSymbol
+        | _ -> symbolToSize
+
+    //*yc3521: Main logic flow
+    getResizeAndOtherPortInfo ()
+    |> resizeAndMoveSymbol
+
+//*yc3521: use of updateModel function accroding to DRY Principle
 /// For UI to call ResizeSymbol.
 let reSizeSymbolTopLevel
     (wModel: BusWireT.Model)
@@ -164,12 +224,13 @@ let reSizeSymbolTopLevel
 
     let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
 
-    let model' = Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
-    BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
+    updateModel wModel symbolToSize.Id scaledSymbol
 
-///--------------------------------------------end-of-my-part-----------------------------------------------------------///
-/// --------------------------------------------------------------------------------------------------------------------///
-/// --------------------------------------------------------------------------------------------------------------------///
+///------------------------------------------------------------end-of-my-part-yc3521--------------------------------------------------------------------///
+/// ----------------------------------------------------------------------------------------------------------------------------------------------------///
+/// ----------------------------------------------------------------------------------------------------------------------------------------------------///
+/// ----------------------------------------------------------------------------------------------------------------------------------------------------///
+/// ----------------------------------------------------------------------------------------------------------------------------------------------------///
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =
     { ConnMap: Map<ComponentId * Edge, int> }
@@ -257,9 +318,8 @@ let optimiseSymbol
             |> Array.sortByDescending snd
 
         tryResize symCount symbol
-
-    let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
-    BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
+    // use of updateModel function defined in the previous part
+    updateModel wModel symbol.Id scaledSymbol
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>

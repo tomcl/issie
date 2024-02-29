@@ -49,7 +49,8 @@ let customComponentDimensionsLens : Lens<Symbol, (float * float)> =
     let set (newDims: (float * float)) (sym: Symbol) =
         { sym with Component = { sym.Component with W = fst newDims; H = snd newDims } }
 
-    (get, set)
+    Lens.create get set
+
 
 // B2W - The position of a symbol on the sheet
 let symbolPositionLens : Lens<Symbol, XYPos> =
@@ -58,7 +59,7 @@ let symbolPositionLens : Lens<Symbol, XYPos> =
     // Setter function: returns a new Symbol with updated position
     let set (newPos: XYPos) (sym: Symbol) = { sym with Pos = newPos }
 
-    (get, set)
+    Lens.create get set
 
 
 // B3R, B3W - Read and Write the order of ports on a specified side of a symbol
@@ -74,7 +75,7 @@ let portOrderLens (side: Edge) : Lens<Symbol, string list option> =
             { symbol with PortMaps = { symbol.PortMaps with Order = updatedOrder } }
         | None -> symbol  // If None, don't modify the symbol
 
-    (get, set)
+    Lens.create get set
 
 
 // B4RW - The reverses state of the inputs of a MUX2
@@ -99,7 +100,7 @@ let reversedInputPortsLens : Lens<Symbol, bool option> =
             { symbol with Component = updatedComponent }
         | _ -> symbol // If not a Mux2, return the symbol unchanged
 
-    (get, set)
+    Lens.create get set
 
 
 
@@ -149,7 +150,7 @@ let symbolRotationLens : Lens<Symbol, Rotation> =
         // Update the symbol's STransform rotation directly, using the updated component
         { sym with Component = updatedComponent; STransform = { sym.STransform with Rotation = newRotation } }
 
-    (get, set)
+    Lens.create get set
 
 // B8RW - The flip state of a symbol
 let symbolFlipLens : Lens<Symbol, bool> =
@@ -159,7 +160,7 @@ let symbolFlipLens : Lens<Symbol, bool> =
     let set (newFlipState: bool) (sym: Symbol) = 
         { sym with STransform = { sym.STransform with Flipped = newFlipState } }
 
-    (get, set)
+    Lens.create get set
 //-----------------------------T-Functions----------------------------------------//
 //--------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------//

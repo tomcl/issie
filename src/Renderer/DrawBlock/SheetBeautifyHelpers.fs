@@ -40,6 +40,7 @@ module B1 =
     let private dimsHWTup_ (symId: ComponentId) = symbolSheet_ symId >-> dimsSymbol_
 
 
+    // B1R
     /// Get dimensions in the form of an anonymous record (containing height and width information)
     /// from a symbol.
     ///
@@ -48,7 +49,7 @@ module B1 =
     /// symbol - The symbol whose dimensions are to be read.
     ///
     /// returns: Record containing H and W. H is the height, W is the width.
-    let readDimsCustomComp (model: SheetT.Model) (symbol: Symbol) =
+    let getDimsCustomComp (model: SheetT.Model) (symbol: Symbol) =
         match symbol.Component.Type with
         | Custom _ ->
             let height, width = Optic.get (dimsHWTup_ symbol.Id) model
@@ -58,6 +59,7 @@ module B1 =
             {|H = 0.0; W = 0.0|}
 
 
+    // B1W
     /// Set dimensions in the form of an anonymous record (so that arguments are not swapped while setting)
     /// to the sheet and updates all bounding boxes after the change.
     ///
@@ -66,7 +68,7 @@ module B1 =
     /// model - The sheet model which takes the updated symbol and updates its own symbol map through a lens.
     ///
     /// symbol - Symbol to be updated.
-    let writeDimsCustomComp (dims: {|H: float; W: float|}) (model: SheetT.Model) (symbol: Symbol) =
+    let setDimsCustomComp (dims: {|H: float; W: float|}) (model: SheetT.Model) (symbol: Symbol) =
         match symbol.Component.Type with
         | Custom _ ->
             Optic.set (dimsHWTup_ symbol.Id) (dims.H, dims.W) model
@@ -76,11 +78,12 @@ module B1 =
             model
 
 
+    // B1RW lens
     /// Creates a lens getting and setting dimensions (height and width anonymous record) from/to the sheet.
     /// The record takes the form {|H: height, W: width|}.
     ///
     /// symId - The ID of the symbol that needs it's lens to/from the sheet model extracted.
-    let dimsHW_ (symbol: Symbol) = Lens.create (fun model -> readDimsCustomComp model symbol) (fun dims model -> writeDimsCustomComp dims model symbol)
+    let dimsHW_ (symbol: Symbol) = Lens.create (fun model -> getDimsCustomComp model symbol) (fun dims model -> setDimsCustomComp dims model symbol)
 
 
     /// Extract scaled heights and widths from the symbol, returned as an anonymous record.
@@ -91,7 +94,7 @@ module B1 =
     let scaledDimsCustomComp (symbol: Symbol) (model: SheetT.Model) =
         let dims =
             symbol
-            |> readDimsCustomComp model
+            |> getDimsCustomComp model
 
         match symbol.HScale, symbol.VScale with
         | Some hScale, Some vScale -> {| scaledH = dims.H * vScale; scaledW = dims.W * hScale |}
@@ -116,6 +119,7 @@ module B2 =
     let pos_ (symId: ComponentId) = symbolSheet_ symId >-> posSymbol_
 
 
+    // B2W
     /// Updates a symbol's location on the sheet.
     ///
     /// symbol - The symbol whose position needs to be changed.
@@ -123,7 +127,7 @@ module B2 =
     /// newPos - The new position of the symbol.
     ///
     /// model - The sheet model which takes the updated symbol and updates its own symbol map through a lens.
-    let writeSymbolPosition (symbol: Symbol) (newPos: XYPos) (model: SheetT.Model) =
+    let setSymbolPosition (symbol: Symbol) (newPos: XYPos) (model: SheetT.Model) =
         let updateFunc = Optic.set posSymbol_ newPos
         let symModel = Optic.get SheetT.symbol_ model
 
@@ -151,6 +155,7 @@ module B3 =
     let private portOrderSymbol_ = portMapsSymbol_ >-> orderPortMaps_
 
 
+    // B3R
     /// Based on the side, returns the port order from the port
     /// order map of a symbol. If there are no ports, returns an
     /// empty list.
@@ -158,12 +163,13 @@ module B3 =
     /// side - The side on which to read ports.
     ///
     /// symbol - Symbol whose ports need to be read.
-    let readPortOrder (side: Edge) (symbol: Symbol) =
+    let getPortOrder (side: Edge) (symbol: Symbol) =
         Optic.get portOrderSymbol_ symbol
         |> Map.tryFind side
         |> Option.defaultValue []
 
 
+    // B3W
     /// Given a new port order, changes the existing order of a particular side
     /// on the symbol specified.
     ///
@@ -172,7 +178,7 @@ module B3 =
     /// newOrder - The new order of ports specified.
     ///
     /// symbol - Symbol on which this update is to be made.
-    let writePortOrder (side: Edge) (newOrder: string list) (symbol: Symbol) =
+    let setPortOrder (side: Edge) (newOrder: string list) (symbol: Symbol) =
         let newOrder =
             Optic.get portOrderSymbol_ symbol
             |> Map.add side newOrder
@@ -180,13 +186,14 @@ module B3 =
         Optic.set portOrderSymbol_ newOrder symbol
 
 
+    // B3RW lens
     /// Creates a lens getting/setting the Port Order map for a particular specified side based on symbol Id from/to
     /// the sheet directly. Utilizes the functions above.
     ///
     /// side - The edge at which said read/write operation needs to be performed.
     ///
     /// symId - The ID of the symbol that needs it's lens to/from the sheet model extracted.
-    let sidePortOrder_ (side: Edge) (symId: ComponentId) = symbolSheet_ symId >-> Lens.create (readPortOrder side) (writePortOrder side)
+    let sidePortOrder_ (side: Edge) (symId: ComponentId) = symbolSheet_ symId >-> Lens.create (getPortOrder side) (setPortOrder side)
 
 
 
@@ -196,12 +203,13 @@ module B4 =
     let private reversedInputPortsSymbol_ = Lens.create (fun sym -> sym.ReversedInputPorts) (fun toggledPorts sym -> {sym with ReversedInputPorts = toggledPorts})
 
 
+    // B4R
     /// Reads the reversed input port state only for a Mux/Demux component.
     /// None values are for legacy component and are treated as false to comply
     /// with the rest of the codebase.
     ///
     /// symbol - Mux/Demux symbol whose state is to be checked.
-    let readReversedMUX (symbol: Symbol) =
+    let getReversedInputsMUX (symbol: Symbol) =
         match symbol.Component.Type with
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 ->
             Optic.get reversedInputPortsSymbol_ symbol
@@ -211,12 +219,13 @@ module B4 =
             false
 
 
+    // B4W
     /// Toggles the reversed input port state for a Mux2 component.
     ///
     /// toggle - Toggles the reversed state if true.
     ///
     /// symbol - Symbol whose reversed state needs to be updated.
-    let writeReversedMUX (toggle: bool) (symbol: Symbol) =
+    let setReversedInputsMUX (toggle: bool) (symbol: Symbol) =
         let inputPortsState = Optic.get reversedInputPortsSymbol_ symbol
 
         let newInputPortsState =
@@ -231,17 +240,20 @@ module B4 =
             printf $"Given symbol: {symbol.Component.Label} is not of type Mux2."
             symbol
 
+
+    // B4RW lens
     /// Creates a lens getting/setting the reversed input state for a Mux2 directly from the sheet
     /// based on the symbol Id.
     ///
     /// symId - The ID of the symbol that needs it's lens to/from the sheet model extracted.
-    let reversedInputPortsMux2_ (symId: ComponentId) = symbolSheet_ symId >-> Lens.create readReversedMUX writeReversedMUX 
+    let reversedInputPortsMux2_ (symId: ComponentId) = symbolSheet_ symId >-> Lens.create getReversedInputsMUX setReversedInputsMUX 
 
 
 
 /// B5 contains B5R, which reads the position of a port on the sheet. 
 module B5 =
 
+    // B5R
     /// Gets position of a port on the sheet.
     ///
     /// port - Port whose position needs to be fetched.
@@ -255,6 +267,7 @@ module B5 =
 /// B6 contains B6R, getter for bounding boxes of a symbol.
 module B6 =
 
+    // B6R
     /// Gets the bounding boxes for a given symbol from the sheet model
     ///
     /// model - The sheet model. Used to verify symbol is on the sheet.
@@ -280,28 +293,32 @@ module B7 =
     let private rotationSymbol_ = STransformSymbol_ >-> rotationSTransform_
 
 
+    // B7R
     /// Given a symbol, reads its rotation state
     ///
     /// symbol - Symbol whose rotation state needs to be read.
-    let readRotationState (symbol: Symbol) =
+    let getRotationState (symbol: Symbol) =
         Optic.get rotationSymbol_ symbol
 
 
+    // B7W
     /// Given a rotation type and a symbol writes the rotation state to the symbol
     ///
     /// rotation - The rotation state to be written to the symbol
     ///
     /// symbol - The symbol whose rotation state needs to be changed.
-    let writeRotationState (rotation: Rotation) (symbol: Symbol) =
+    let setRotationState (rotation: Rotation) (symbol: Symbol) =
         Optic.set rotationSymbol_ rotation symbol
-        // For the actual rotate function, look at TestDrawBlockT1
+
+    // For the actual rotate function, look at TestDrawBlockT1
 
 
+    // B7RW lens
     /// Given a symbol ID, outputs a lens directly able to get and set rotation state
     /// from the sheet.
     ///
     /// symID - ID of the symbol
-    let rotation_ (symId: ComponentId) = symbolSheet_ symId >-> Lens.create readRotationState writeRotationState
+    let rotation_ (symId: ComponentId) = symbolSheet_ symId >-> Lens.create getRotationState setRotationState
 
 
 
@@ -315,27 +332,32 @@ module B8 =
     let private flipSymbol_ = STransformSymbol_ >-> flipSTransform_
 
 
+    // B8R
     /// Given a symbol, reads its flip state
     ///
     /// symbol - Symbol whose flip state needs to be identified.
-    let readFlipState (symbol: Symbol) =
+    let getFlipState (symbol: Symbol) =
         Optic.get flipSymbol_ symbol
 
+
+    // B8W
     /// Given a flip state, and a symbol writes the new flip state to the symbol
     ///
     /// flip - The new flip state
     ///
     /// symbol - The symbol whose flip state needs to be changed.
-    let writeFlipState (flip: bool) (symbol: Symbol) =
+    let setFlipState (flip: bool) (symbol: Symbol) =
         Optic.set flipSymbol_ flip symbol
-        // For the actual flip function, look at TestDrawBlockT1.
+
+    // For the actual flip function, look at TestDrawBlockT1.
 
 
+    // B8RW lens
     /// Function returning a lens getting/setting flip state of a given symbol ID
     /// directly from/to the sheet.
     ///
     /// symId - The symbol ID whose flip state needs to be changed.
-    let flip_ (symId: ComponentId) = symbolSheet_ symId >-> Lens.create readFlipState writeFlipState
+    let flip_ (symId: ComponentId) = symbolSheet_ symId >-> Lens.create getFlipState setFlipState
 
 
 //*------------------------------------------------------ TESTING HELPERS ------------------------------------------------------------ *//
@@ -424,6 +446,8 @@ let private globalWireVisSegments (model: SheetT.Model) =
 
 /// T1 contains T1R, which returns the number of pairs of symbols that intersect each other. 
 module T1 =
+
+    // T1R
     /// Returns the number of pairs of symbols on a sheet that intersect.
     ///
     /// model - The sheet model that is to be checked.
@@ -446,6 +470,7 @@ module T2 =
     // segmentIntersectsBoundingBox from BlockHelpers, but this would leave the mux2 bug that's pointed out in that file.
     // Not sure how relevant it is, but this function adapts the working function from Tick 3 and changes it to its use case.
 
+    // T2R
     /// Given a sheet, returns the number of visible segments of wires that intersect with at least one
     /// symbol.
     let visSegsIntersectSymbol (model: SheetT.Model) =
@@ -524,6 +549,7 @@ module T2 =
 
 /// T3 contains T3R, the number of distinct pairs of segments that cross each other at right angles.
 module T3 =
+
     /// For a given pair of segments, returns a boolean indicating whether they are perpendicular or not.
     let checkPerpendicularCondition (firstSegment: XYPos * XYPos) (secondSegment: XYPos * XYPos) =
         let firstStart, firstEnd = firstSegment
@@ -544,6 +570,8 @@ module T3 =
             (xCoord < firstEnd.X && xCoord > firstStart.X) && (yCoord < secondEnd.Y && yCoord > secondStart.Y)
         | _ -> false
 
+
+    // T3R
     /// Given the sheet, returns all pairs of perpendicular visible segments.
     ///
     /// model - The sheet to be checked.
@@ -635,6 +663,7 @@ module T4 =
         | _ -> [firstSegment; secondSegment]
 
 
+    // T4R
     /// Returns the total visible wire length in the model.
     ///
     /// model - The sheet to be checked.
@@ -657,6 +686,7 @@ module T4 =
 /// T5 contains T5R, the number of visible right angles on the whole sheet.
 module T5 =
 
+    // T5R
     /// Given a sheet, returns the number of visible wire right angles on the sheet.
     ///
     /// model - The sheet to be checked on.
@@ -684,6 +714,7 @@ module T5 =
         |> List.fold (fun count wId -> count + (getStartFinishVisSeg model >> wireVisibleRightAngles) wId) 0
 
 
+    // T5R
     // It was noted on ed stem that visibleSegments was not correct yet, but the old
     // (should be correct if visibleSegments is fixed) simpler implementation has been left in below:
 
@@ -706,6 +737,8 @@ module T5 =
 
 
 module T6 =
+
+    // T6R
     /// Returns from one list, the segments that retrace each other, and the ends of a wire
     /// such that the next segment would start inside a symbol (could be from the beginning or the end).
     ///

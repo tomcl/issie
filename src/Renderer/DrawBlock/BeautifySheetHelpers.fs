@@ -288,7 +288,7 @@ Example 4: [(0,0 to 0,3), (0,3 to 1,3)], [(0,0 to 0,3), (0,3 to 5,3)], [(0,0 to 
 Shared overlap length is 3 + 1 = 4.
 
 Algorithm: find the diverging index, or dth index, where segments of all wires up to index d are identical, i.e. have the same start and end points.
-Calculate the distance travelled by the kth segments for all wires (they are all the same so use the first wire).
+Calculate the distance travelled by the kth segments for all wires (they will be the same for all, so use the first wire).
 
 The (k+1)th segment of each wires will have a same starting point and same travel direction, but different end points.
 The shared overlap length is the minimum of the end points of the (k+1)th segments of all wires.
@@ -381,11 +381,10 @@ let getSharedNetOverlapLength (model: SheetT.Model) =
                     |> List.fold (fun acc segment -> acc + euclideanDistance segment.Start segment.End) 0.0
 
             let partialOverlapDistance (absSegments: ASegment list) : float =
-                // take in a list of absolute segments that all share the same start position.
+                // take in a list of absolute segments that all share the same start or end position.
                 // check if all the segments are moving horizontally or vertically, by checking ASegment.orientation
                 // check if every Asegment.Segment.Length is the same sign, then return the minimum absolute value
                 // if not, return 0.0
-                printf "absSegments: %A" absSegments
                 let (allAligned: bool) =
                     absSegments
                     |> List.map (fun absSegment -> absSegment.Orientation)
@@ -433,6 +432,8 @@ let getSharedNetOverlapLength (model: SheetT.Model) =
         inputOverlaps @ outputOverlaps |> List.sum
 
     outputOverlapLengths
+
+///T5R:  Number of visible wire right-angles. Count over whole sheet
 
 (*
 

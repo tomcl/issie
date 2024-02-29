@@ -22,10 +22,15 @@ type Dimensions2D =
         W : float
         H : float
     }
+type segPair =
+    {
+        firstSeg : XYPos*XYPos
+        secSeg : XYPos*XYPos
+    }
 
 //B1Lens
 ///Read or write dimensions of a custom component symbol
-let CustomSymDimoensions_ = 
+let customSymDimoensions_ = 
     Lens.create 
         (fun (sym:Symbol) -> { W = sym.Component.W; H = sym.Component.H }) 
         (fun (dimensions: Dimensions2D) (sym:Symbol) -> { sym with Component = { sym.Component with W = dimensions.W; H = dimensions.H }})
@@ -76,12 +81,12 @@ let writeSymPosition (compID: ComponentId) (pos: XYPos) (model: SheetT.Model) : 
         }
     rotModel
     |> SheetUpdateHelpers.updateBoundingBoxes
-    //newModel is the model with updated BoundingBoxes field and it is used as final model
-    //**** let newModel = {rotModel with BoundingBoxes = Symbol.getBoundingBoxes rotModel.Wire.Symbol}
-    //**** newModel
+
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //ADDITIONAL COMMENTS FOR MARKING - these will be deleted after the individual project marking is done
 // For this function I decided to update the position on the sheet insted of just the Symbol becuse the sheet is mentioned in the instuctions 'The position of a symbol on the sheet'
+//The input related to the Symbol is of type ComponentID because sometimes we represent the Symbols by 
+//their ID or we can get easily the componentId of the Symbol just by Symbol.Id
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
  
@@ -111,8 +116,8 @@ let writePortOrderOfSide (side: Edge) (order:string list) (sym: Symbol) =
 
 //B4
 //B4Lens
-///The reverses state of the inputs of a MUX2
-let InputsState_ = Lens.create (fun (sym:Symbol) -> sym.ReversedInputPorts) (fun (inputStates: option<bool>) (sym:Symbol) -> { sym with ReversedInputPorts = inputStates})
+///Lens for the reverses state of the inputs of a MUX2
+let inputsState_ = Lens.create (fun (sym:Symbol) -> sym.ReversedInputPorts) (fun (inputStates: option<bool>) (sym:Symbol) -> { sym with ReversedInputPorts = inputStates})
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //ADDITIONAL COMMENTS FOR MARKING - these will be deleted after the individual project marking is done
 //I don't check if the symbol is of type MUX2 because it is impossible to check that without throwing an error or fail the function which can cause a lot of issues later (as we were advised).
@@ -139,30 +144,39 @@ let InputsState_ = Lens.create (fun (sym:Symbol) -> sym.ReversedInputPorts) (fun
 //--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 //B5R
-//The position of a port on the sheet.
-let readPosOfPortOnSheet  (model: SheetT.Model) (port: Port): XYPos = 
+///Reads the position of a port on the sheet.
+let readPortPosOnSheet  (model: SheetT.Model) (port: Port): XYPos = 
     let sym = model.Wire.Symbol.Symbols[ComponentId port.HostId]
     getPortPos sym port + sym.Pos 
     
 
 
 //B6R
-//The Bounding box of a symbol outline (position is contained in this)
+///Reads the Bounding box of a symbol outline (position is contained in this),
 ///where ComponentId is the Symbol's ID
 let getBoundingboxOfSym (compID: ComponentId) (model: SheetT.Model) : (BoundingBox) = 
     model.BoundingBoxes[compID]
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//ADDITIONAL COMMENTS FOR MARKING - these will be deleted after the individual project marking is done
+//The input related to the Symbol is of type ComponentID because sometimes we represent the Symbols by 
+//their ID or we can get easily the componentId of the Symbol just by Symbol.Id
+//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         
 
 //B7
 //B7Lens
-let SymRotationState_ =  Lens.create (fun (sym:Symbol) -> sym.STransform.Rotation) (fun (r:Rotation) (sym:Symbol) -> { sym with STransform = { sym.STransform with Rotation = r }})
+///Lens that raads or writes the rotation state of a symbol
+let symRotationState_ =  Lens.create (fun (sym:Symbol) -> sym.STransform.Rotation) (fun (r:Rotation) (sym:Symbol) -> { sym with STransform = { sym.STransform with Rotation = r }})
 
 //B8
 //B8Lens
-let SymFlipState_ =  Lens.create (fun (sym:Symbol) -> sym.STransform.Flipped) (fun (f:bool) (sym:Symbol) -> { sym with STransform = { sym.STransform with Flipped = f }})
-// ask if the bool type is fine *****************************
+///Lens that reads or writes the flip state of a symbol
+let symFlipState_ =  Lens.create (fun (sym:Symbol) -> sym.STransform.Flipped) (fun (f:bool) (sym:Symbol) -> { sym with STransform = { sym.STransform with Flipped = f }})
+
 
 //T1R
+///The number of pairs of symbols that intersect each other. Counted over all pairs of symbols on the sheet.
 let countIntersectedSymbols (sheet: SheetT.Model) =
     let boxes =
         mapValues sheet.BoundingBoxes
@@ -175,7 +189,7 @@ let countIntersectedSymbols (sheet: SheetT.Model) =
     countPairs
 
 
-//T2R
+
 //helper function copied from TestDrawBlock
 /// The visible segments of a wire, as a list of vectors, from source end to target end.
 /// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
@@ -214,20 +228,10 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
     |> (fun segVecs ->
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
-
-///The number of distinct wire visible segments that intersect with one or more symbols. Count over all visible wire segments.
-let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
-    ///Creates a list of all the BoundingBoxes on the sheet
-    let boxes =
-        mapValues sheet.BoundingBoxes
-        |> Array.toList
-
-    ///Creates a list of all the ConnectionIDs on the sheet
-    let connectionIDsL = Map.fold (fun keys key _ -> key::keys) [] sheet.Wire.Wires
-    
-    //Kept the wId name for consistency with the other modules
-    ///Creates list of tuples where fst is the segStart and snd is the segEnd for all visible Segments
-    let SegStartAndEnd (wId: ConnectionId) (sheet: SheetT.Model) =
+//helper function
+//Kept the wId name for consistency with the other modules
+///Creates list of tuples where fst is the segStart and snd is the segEnd for all visible Segments
+let SegStartAndEnd (wId: ConnectionId) (sheet: SheetT.Model) =
         //Gets the wire from the ConnectionId
         let wire = sheet.Wire.Wires[wId]
         //Gets the start position of the wire
@@ -252,6 +256,17 @@ let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
         |> List.windowed 2
         |> List.map (fun arr -> (arr.[0], arr.[1]))
 
+//T2R
+///Calculates the number of distinct wire visible segments that intersect with one or more symbols. Counts over all visible wire segments on a sheet.
+let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
+    ///Creates a list of all the BoundingBoxes on the sheet
+    let boxes =
+        mapValues sheet.BoundingBoxes
+        |> Array.toList
+
+    ///Creates a list of all the ConnectionIDs on the sheet
+    let connectionIDsL = Map.fold (fun keys key _ -> key::keys) [] sheet.Wire.Wires
+
     ///Creates lists for all connectionIDs, with their segments start and end XYPos
     let segLists = connectionIDsL |> List.map (fun wId -> SegStartAndEnd wId sheet)
 
@@ -275,10 +290,48 @@ let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
         countTrueValues results
 
     countIntersectioningSeg segLists boxes
+// NOTE added later: I could have used List.collect in order to avoid the type of segLists: list<list<XYPos*XYPos>> and instead have a better, easier to manipulate type list<XYPos*XYPos>.
+
+
 
 //T3R
 
 // Function that finds the orientation of a segment (so whether it is vertical or horizontal) 
+let segOrientation (startPos : XYPos , endPos : XYPos) =
+    if abs(startPos.X - endPos.X) <= XYPos.epsilon
+    then  Vertical
+    else Horizontal
+let normalPairs  (firstSeg:XYPos*XYPos) (secSeg:XYPos*XYPos)=
+            match segOrientation firstSeg, segOrientation secSeg with
+            | ( Vertical), ( Horizontal) -> true                
+            | ( Horizontal), (Vertical) -> true      
+            | _ -> false
+
+
+let intersectNormalPairs (seggPair:(XYPos*XYPos)*(XYPos*XYPos)) = 
+    let pair  = 
+        {
+        firstSeg = fst seggPair;
+        secSeg = snd seggPair
+        }
+    ()//---------> continue here **************************
+    
+    
+
+let countSegCrosses (sheet: SheetT.Model) =
+    let connectionIDsL = Map.fold (fun keys key _ -> key::keys) [] sheet.Wire.Wires
+    let segLists = connectionIDsL |> List.collect (fun wId -> SegStartAndEnd wId sheet)
+    let allSegPairs (segLists:List<XYPos*XYPos>) =  List.collect (fun x -> List.map (fun y -> (x,y)) segLists) segLists
+    let normalSegPairs = allSegPairs segLists |> List.filter (fun pair -> normalPairs (fst pair) (snd pair))
+    normalSegPairs
+    
+
+
+
+
+
+
+
 // SegStartAndEnd gives you start and end coordinates of a segment - if x coordinate is the same => vertical segment, else horiz segment
 // Now check for two segments : 
 // 1. They have opposite orientation (so vert/horiz or horiz/vert)
@@ -289,9 +342,11 @@ let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
 // You need to List.fold () and add all of the 1s and 0s
 
 //T5R
-//Number of visible wire right-angles. Count over whole sheet.
+/// Calculates the number of visible wire right-angles. Counts over whole sheet.
 let countWireRightAngles (sheet: SheetT.Model) =
+    // List of all connectionIds on the sheet
     let connectionIDsL = Map.fold (fun keys key _ -> key::keys) [] sheet.Wire.Wires
+    //every visible segmet creates a right-angle with the following visible segment. -1 is for the last segment that is not followed by another segment
     let rightAngleNumber(wId: ConnectionId) (sheet: SheetT.Model) = 
         (visibleSegments wId sheet |> List.length) - 1
     connectionIDsL |> List.map (fun wId -> rightAngleNumber wId sheet) |> List.reduce (fun fst snd -> fst + snd)

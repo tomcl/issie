@@ -95,6 +95,32 @@ let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, 
             updatedSheetModel
         (get, set)
 
+
+let CustomComponentDimensionsLens2 (symbol: SymbolT.Symbol) : Lens<SymbolT.Symbol, (float * float)> =
+
+        let originalWidth = symbol.Component.W
+        let originalHeight = symbol.Component.H
+
+
+        let get (symbol: SymbolT.Symbol) =
+            let width = match symbol.HScale with
+                            | Some scale -> originalWidth * scale
+                            | None -> originalWidth
+            let height = match symbol.VScale with
+                            | Some scale -> originalHeight * scale
+                            | None -> originalHeight
+            (width, height)
+
+
+        let set (newDimensions: (float * float)) (symbol: SymbolT.Symbol) =
+            let (width, height) = newDimensions
+
+            let hScale = width / originalWidth
+            let vScale = height / originalHeight
+            { symbol with HScale = Some hScale; VScale = Some vScale }
+
+        (get, set)
+
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -130,6 +156,20 @@ let portOrderLens (symbol: SymbolT.Symbol) (side: Edge) : Lens<SheetT.Model, str
 
     (get, set)
 
+let portOrderLens2 (side: Edge) : Lens<SymbolT.Symbol, string list option> =
+
+    let get (symbol: SymbolT.Symbol) =
+        Map.tryFind side symbol.PortMaps.Order
+
+    let set (newPortOrder: string list option)(symbol: SymbolT.Symbol): SymbolT.Symbol =
+        match newPortOrder with
+        | Some (newOrder: string list) -> 
+            { symbol with PortMaps = { symbol.PortMaps with Order = Map.add side newOrder symbol.PortMaps.Order } }
+        
+        | None -> symbol
+
+    (get, set)
+
 // let a, b = portOrderLens symbol Edge
 
 //-------------------------------------------------------------------------------------------------//
@@ -148,16 +188,28 @@ let reverseMuxInputLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
         
     let set (newState: bool) (model: SheetT.Model): SheetT.Model =
 
-        let updateSymbol (symbol: SymbolT.Symbol) = 
+        let updater (symbol: SymbolT.Symbol) = 
             { symbol with ReversedInputPorts = Some newState }
-            
-        let updatedModel = SymbolUpdate.updateSymbol updateSymbol symbol.Id model.Wire.Symbol
 
-        Optic.set SheetT.symbol_ updatedModel model
-
+        updateSymbolinSheet model symbol updater
 
     (get, set)
 
+
+let reverseMuxInputLens2: Lens<SymbolT.Symbol, bool> =
+
+    let get (symbol: SymbolT.Symbol): bool = 
+
+        let InputPort: option<bool> = symbol.ReversedInputPorts
+        
+        match InputPort with
+        | Some state -> state
+        | None -> false
+        
+    let set (newState: bool) (symbol: SymbolT.Symbol): SymbolT.Symbol =
+        { symbol with ReversedInputPorts = Some newState }
+
+    (get, set)
 // let a, b = MuxReverseLens (SymbolT.Symbol.Create (ComponentId.Create "1"))
 
 
@@ -238,6 +290,17 @@ let SymbolRotationLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, Rotation> =
 
     (get, set)
 
+let SymbolRotationLens2: Lens<SymbolT.Symbol, Rotation> =
+
+    let get (symbol: SymbolT.Symbol) : Rotation = 
+        symbol.STransform.Rotation
+
+    //Rotation -> SheetT.Model -> SheetT.Model
+    let set (desiredRotation: Rotation) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
+        { symbol with STransform = { symbol.STransform with Rotation = desiredRotation}}
+
+    (get, set)
+
 // B8 RW  Low The Flipped state of a symbol 
 let SymbolFlippedLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
     let get (model: SheetT.Model) : bool = symbol.STransform.Flipped
@@ -249,6 +312,17 @@ let SymbolFlippedLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
         let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
         
         updatedSheetModel
+
+    (get, set)
+
+
+let SymbolFlippedLens2: Lens<SymbolT.Symbol, bool> =
+    let get (symbol: SymbolT.Symbol) : bool = 
+        symbol.STransform.Flipped
+
+    //Rotation -> SheetT.Model -> SheetT.Model
+    let set (desiredFlipped: bool) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
+        { symbol with STransform = { symbol.STransform with Flipped = desiredFlipped}}
 
     (get, set)
 
@@ -550,3 +624,33 @@ let findRetracingSegments (model: SheetT.Model) : XYPos list * XYPos list =
         // |> List.choose (fun i -> List.tryItem i segments)
 
     (retraceSegmentList,segmentsXYPos)
+
+
+let getRetracingSegs (sheet:SheetT.Model) = 
+    let getRetracingSegsOfWire (wire:Wire) =
+        let segList = wire.Segments
+        let checkRetraceAtIndex (retraceList, endOfWireList) (idx:int) =
+            match segList[idx].Length with
+            | 0. -> (
+                    let currSeg = segList[idx]
+                    match idx with
+                    | nextIdx when nextIdx = segList.Length-1 -> // the zero-segment is already end-of-wire
+                        (currSeg::retraceList, endOfWireList)
+                    | _ ->                                            // the zero-segment is not end-of-wire
+                        let prevSeg = segList[idx-1]
+                        let nextSeg = segList[idx+1]
+                        match (sign prevSeg.Length = -(sign nextSeg.Length)) with     // check directions of neighbour segments
+                        | true ->  // opposite direction: add segments into lists
+                            match idx+1 with
+                            | nextIdx when nextIdx = segList.Length-1 -> // the next segment is end-of-wire
+                                (nextSeg::retraceList, nextSeg::endOfWireList)
+                            | _ -> (nextSeg::retraceList, endOfWireList)       // the next segment is not end-of-wire
+                        | false -> (retraceList, endOfWireList) // same direction: lists unchanged
+                )
+            | _ -> (retraceList, endOfWireList)
+        (([],[]),[1..segList.Length-1])
+        ||> List.fold checkRetraceAtIndex
+
+    mapValues sheet.Wire.Wires
+    |> Array.map getRetracingSegsOfWire
+    |> Array.fold (fun (li1,li2) (segLi1,segLi2) -> (List.append li1 segLi1, List.append li2 segLi2)) ([],[])

@@ -85,9 +85,6 @@ module Constants =
             sides |> List.map generatePermutationsForSide
         )
 
-
-
-
     let optimizeFlipForComponents (model: SheetT.Model) =
         // Convert symbol map to list
         let symList = 

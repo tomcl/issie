@@ -135,22 +135,198 @@ let getSymbolOverlapCount (sym: Symbol) (sheet: SheetT.Model): int =
     List.length overlappingPairs
 
 //T2R
-let getWireOveerlapCount (sheet: SheetT.Model): int =
+let getSegmentOverlapCount (sheet: SheetT.Model): int =
     let allWires = sheet.Wire.Wires
+    let allSymbolsBoundingBox =
+        sheet.Wire.Symbol.Symbols
+        |> Map.values
+        |> Seq.toList
+        |> List.filter (fun s -> s.Annotation = None)
+        |> List.map (fun s -> (Symbol.getSymbolBoundingBox s))
 
-    let countIntersectingSegments wireCount wire =
-        let segments = visibleSegments wireCount sheet
-        let symbolBoundingBoxes = BusWireRoute.findWireSymbolIntersections sheet.Wire wire
-        let isSegmentIntersectingSymbol (segment: XYPos) =
-            symbolBoundingBoxes |> List.exists (fun symbolBox -> BlockHelpers.overlap2DBox symbolBox segment)
-        segments |> List.filter isSegmentIntersectingSymbol |> List.length
-
-    Map.fold (fun acc wireCount wire ->
-        acc + countIntersectingSegments wireCount wire) 0 allWires
+    allWires
+    |> Map.fold (fun count _ wire ->
+        // Start with the initial position of the wire
+        let mutable segStart = wire.StartPos
+        // Get the visible segments for the wire
+        let visibleSegs = visibleSegments wire.WId sheet
+        // Check for intersections with each segment
+        let intersects =
+            visibleSegs
+            |> List.exists (fun seg ->
+                // Calculate the end position of the current segment
+                let segEnd = segStart + seg
+                // Check if the current segment intersects with any bounding box
+                let result = allSymbolsBoundingBox
+                             |> List.exists (fun box -> 
+                                 match segmentIntersectsBoundingBox box segStart segEnd with
+                                 | Some _ -> true 
+                                 | None -> false 
+                             )
+                segStart <- segEnd
+                result
+            )
+        if intersects then count + 1 else count) 0
 
 //T3R
+let countPerpendicularSegments (sheet: SheetT.Model): int =
+    let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
 
-//T4R   
+    // Convert a wire and its segment displacement into actual segment start and end positions
+    let getSegmentPositions wire =
+        let startPos = wire.StartPos
+        visibleSegments wire.WId sheet
+        |> List.fold (fun (acc, lastPos) seg ->
+            let newPos = lastPos + seg
+            ((lastPos, newPos) :: acc, newPos) // Prepend to list for efficiency
+        ) ([], startPos)
+        |> fst
+        |> List.rev // Reverse the list to maintain original order
+
+    // Helper to check if segments intersect perpendicularly
+    let doSegmentsIntersect ((startPos1, endPos1): XYPos * XYPos) ((startPos2, endPos2): XYPos * XYPos) : bool =
+        // Use the epsilon for direct float comparisons
+        let epsilon = XYPos.epsilon
+
+        // Determine if segment 1 is vertical or horizontal by comparing X or Y values with epsilon
+        let vertical1 = abs(startPos1.X - endPos1.X) <= epsilon
+        let horizontal1 = abs(startPos1.Y - endPos1.Y) <= epsilon
+
+        // Determine if segment 2 is vertical or horizontal
+        let vertical2 = abs(startPos2.X - endPos2.X) <= epsilon
+        let horizontal2 = abs(startPos2.Y - endPos2.Y) <= epsilon
+
+        match vertical1, horizontal1, vertical2, horizontal2 with
+        | true, false, false, true -> // Segment 1 is vertical, Segment 2 is horizontal
+            (startPos1.X >= min startPos2.X endPos2.X && startPos1.X <= max startPos2.X endPos2.X) &&
+            (startPos2.Y >= min startPos1.Y endPos1.Y && startPos2.Y <= max startPos1.Y endPos1.Y)
+        | false, true, true, false -> // Segment 1 is horizontal, Segment 2 is vertical
+            (startPos2.X >= min startPos1.X endPos1.X && startPos2.X <= max startPos1.X endPos1.X) &&
+            (startPos1.Y >= min startPos2.Y endPos2.Y && startPos1.Y <= max startPos2.Y endPos2.Y)
+        | _ -> false // Other combinations imply parallel or non-perpendicular segments
+
+
+    // Helper to check if two wires are from the same net
+    let areFromSameNet (wire1: Wire) (wire2: Wire) =
+        wire1.OutputPort = wire2.OutputPort
+
+    // Compare segments from different wires to count intersections
+    let countIntersections wire1 wire2 =
+        let segments1 = getSegmentPositions wire1
+        let segments2 = getSegmentPositions wire2
+        List.fold (fun acc (startPos1, endPos1) ->
+            acc + (segments2 |> List.fold (fun acc' (startPos2, endPos2) ->
+                if doSegmentsIntersect (startPos1, endPos1) (startPos2, endPos2) then acc' + 1 else acc'
+            ) 0)
+        ) 0 segments1
+
+    // Main logic for counting perpendicular intersections
+    allWires
+    |> List.collect (fun wire1 -> 
+        allWires
+        |> List.filter (fun wire2 -> not (areFromSameNet wire1 wire2))
+        |> List.map (fun wire2 -> countIntersections wire1 wire2)
+    )
+    |> List.sum
+
+//T4
+let countTotalWireLength (sheet: SheetT.Model): float =
+    let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
+
+    //helper: Get list of XY coords of all segments from a wire
+    let getSegmentPositions wire =
+        let startPos = wire.StartPos
+        visibleSegments wire.WId sheet
+        |> List.fold (fun (acc, lastPos) seg ->
+            let newPos = lastPos + seg
+            ((lastPos, newPos) :: acc, newPos) // Prepend to list for efficiency
+        ) ([], startPos)
+        |> fst
+        |> List.rev // Reverse the list to maintain original order
+
+    let overlapLength ((startPos1, endPos1): XYPos * XYPos)  ((startPos2, endPos2): XYPos * XYPos) =
+        let epsilon = XYPos.epsilon
+        // Determine if segments are vertical or horizontal using epsilon
+        let vertical1 = abs(startPos1.X - endPos1.X) <= epsilon
+        let horizontal1 = abs(startPos1.Y - endPos1.Y) <= epsilon
+        let vertical2 = abs(startPos2.X - endPos2.X) <= epsilon
+        let horizontal2 = abs(startPos2.Y - endPos2.Y) <= epsilon
+        // Check for parallel and overlapping segments
+        if vertical1 && vertical2 && abs(startPos1.X - startPos2.X) <= epsilon then
+            // Vertical segments
+            let yMin1, yMax1 = min startPos1.Y endPos1.Y, max startPos1.Y endPos1.Y
+            let yMin2, yMax2 = min startPos2.Y endPos2.Y, max startPos2.Y endPos2.Y
+            if yMax1 >= yMin2 && yMax2 >= yMin1 then
+                min yMax1 yMax2 - max yMin1 yMin2  // Overlap length
+            else
+                0.0  // No overlap
+        elif horizontal1 && horizontal2 && abs(startPos1.Y - startPos2.Y) <= epsilon then
+            // Horizontal segments
+            let xMin1, xMax1 = min startPos1.X endPos1.X, max startPos1.X endPos1.X
+            let xMin2, xMax2 = min startPos2.X endPos2.X, max startPos2.X endPos2.X
+            if xMax1 >= xMin2 && xMax2 >= xMin1 then
+                min xMax1 xMax2 - max xMin1 xMin2  // Overlap length
+            else
+                0.0  // No overlap
+        else
+            0.0  // Segments are not parallel or not aligned
+
+    let totalLength =
+        allWires
+        |> List.collect (fun wire -> getSegmentPositions wire)
+        |> List.map (fun (startPos, endPos) -> 
+            sqrt (((endPos.X - startPos.X) ** 2.0) + ((endPos.Y - startPos.Y) ** 2.0)))
+        |> List.sum
+
+    let totalOverlapLength =
+        allWires
+        |> List.groupBy (fun wire -> wire.OutputPort)
+        |> List.collect (fun (_, wiresInNet) ->
+            let segments = wiresInNet |> List.collect getSegmentPositions
+            let overlaps = 
+                List.collect (fun seg1 -> 
+                    segments 
+                    |> List.map (fun seg2 -> overlapLength seg1 seg2)
+                ) segments
+            overlaps
+        )
+        |> List.sum
+
+    totalLength - totalOverlapLength
+
+//T5
+let countWireRightAngles (sheet: SheetT.Model): int =
+    let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
+    allWires
+    |> List.map (fun wire ->
+        let segments = visibleSegments wire.WId sheet
+        let numberOfSegments = List.length segments
+        // Each wire with at least 2 segments forms a right angle between each consecutive pair of segments
+        if numberOfSegments > 1 then numberOfSegments - 1 else 0
+    )
+    |> List.sum
+
+//T6
+let countRetraceSegments (sheet: SheetT.Model): int =
+    let allWires = sheet.Wire.Wires |> Map.toList
+
+
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     

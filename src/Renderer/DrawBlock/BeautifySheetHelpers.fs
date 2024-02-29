@@ -274,7 +274,7 @@ let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
 /// segments overlapping (this is the visible wire length on the sheet). Count over whole
 /// sheet.
 (*
-Examples with 3 wires
+Examples with 3 wires sharing an output oirt
 Example 1:  [(0,0, 0,1)], [(0,0 to 0,3)], [(0,0 to 0,5)],
 Shared overlap length is 1.
 
@@ -287,24 +287,60 @@ Shared overlap length is 2.
 Example 4: [(0,0 to 0,3), (0,3 to 1,3)], [(0,0 to 0,3), (0,3 to 5,3)], [(0,0 to 0,3), (0,3 to 7,3)],
 Shared overlap length is 3 + 1 = 4.
 
-Algorithm: find the diverging index, or dth index, where segments of all wires up to index d are identical, i.e. have the same start and end points.
+Example 5 consists of 2 wires sharing an input port (and share the end point)
+Don't get confused! Input points share the same end
+[(4,5 to 4,3), (4,3 to 9,3), (9,3 to 9,5)],
+              [(4,3 to 9,3), (9,3 to 9,5)]
+Starting from the end, shared overlap length is 2 + 5 = 7
+
+Algorithm: find the diverging index, or dth index, where segments of all wires up to index d-1th are identical, i.e. have the same start and end points.
+The dth segments are when the wires start to diverge.
+If wires net is at the input ports, the wires share a same end point,
+the dth segment starting from the end, is the first instance of the segments not sharing a start point
+
+If wires net is at the output ports, the wires share a same start point,
+the dth segment from the start, the first instance of the segments not sharing an end point
 Calculate the distance travelled by the kth segments for all wires (they will be the same for all, so use the first wire).
 
 The (k+1)th segment of each wires will have a same starting point and same travel direction, but different end points.
 The shared overlap length is the minimum of the end points of the (k+1)th segments of all wires.
 *)
 let getSharedNetOverlapLength (model: SheetT.Model) =
-    let wires = Map.toList (removeWireInvisibleSegments (model.Wire.Wires))
-    let wiresWithAbsSegments =
-        wires
-        |> List.map (fun (_, wire) -> (wire, getAbsSegments wire))
+    //#######################
+    //   HELPERS
+    //#######################
+    // Helper that takes in a group of wires and returns the length of the wire with the least number of segments
     let getMinSegments (wireGroup: (Wire * ASegment list) list) =
         wireGroup
         |> List.minBy (fun (_, absSegments) -> List.length absSegments)
         |> snd
         |> List.length
 
-    // find the diverging index of a group of wires, d, of a list of (Wire * ASegment List),
+    // Helper that takes in a list of absolute segments that all share the same start or end position.
+    // check if all the segments are moving horizontally or vertically, by checking ASegment.orientation
+    // check if every Asegment.Segment.Length is the same sign, then return the minimum absolute value
+    // if not, return 0.0
+    let partialOverlapDistance (absSegments: ASegment list) : float =
+        let (allAligned: bool) =
+            absSegments
+            |> List.map (fun absSegment -> absSegment.Orientation)
+            |> List.distinct
+            |> List.length = 1
+        let (allSameSign: bool) =
+            absSegments
+            |> List.map (fun absSegment -> absSegment.Segment.Length >= 0.0)
+            |> List.distinct
+            |> List.length = 1
+        if allAligned && allSameSign then
+            // get minimum absolute value of all the segment lengths
+            absSegments
+            |> List.map (fun absSegment -> absSegment.Segment.Length)
+            |> List.map abs
+            |> List.min
+        else
+            0.0
+
+    // Helper that find the diverging index of a group of wires, d, of a list of (Wire * ASegment List),
     // when the dth segment of the wires begin to have different endpoints
     // the segments of all wires up to index d-1 are identical, i.e. have the same start and end points.
     // this function also determines if d exists in the shortest wire, as we will need to check the
@@ -337,6 +373,15 @@ let getSharedNetOverlapLength (model: SheetT.Model) =
         match d with
         | Some d -> (d, (d <= minSegments - 1))
         | None -> minSegments - 1, true
+
+    //#######################
+    //   START OF FUNCTION
+    //#######################
+
+    let wires = Map.toList (removeWireInvisibleSegments (model.Wire.Wires))
+    let wiresWithAbsSegments =
+        wires
+        |> List.map (fun (_, wire) -> (wire, getAbsSegments wire))
 
     let outputGroupedWires =
         wiresWithAbsSegments
@@ -380,30 +425,6 @@ let getSharedNetOverlapLength (model: SheetT.Model) =
                     |> List.skip ((snd wireGroups[0]).Length - d)
                     |> List.fold (fun acc segment -> acc + euclideanDistance segment.Start segment.End) 0.0
 
-            let partialOverlapDistance (absSegments: ASegment list) : float =
-                // take in a list of absolute segments that all share the same start or end position.
-                // check if all the segments are moving horizontally or vertically, by checking ASegment.orientation
-                // check if every Asegment.Segment.Length is the same sign, then return the minimum absolute value
-                // if not, return 0.0
-                let (allAligned: bool) =
-                    absSegments
-                    |> List.map (fun absSegment -> absSegment.Orientation)
-                    |> List.distinct
-                    |> List.length = 1
-                let (allSameSign: bool) =
-                    absSegments
-                    |> List.map (fun absSegment -> absSegment.Segment.Length >= 0.0)
-                    |> List.distinct
-                    |> List.length = 1
-                if allAligned && allSameSign then
-                    // get minimum absolute value of all the segment lengths
-                    absSegments
-                    |> List.map (fun absSegment -> absSegment.Segment.Length)
-                    |> List.map abs
-                    |> List.min
-                else
-                    0.0
-
             let distanceTravelledByDthSegs =
                 // get all wires' (dth)th segments
                 if dExists then
@@ -433,8 +454,27 @@ let getSharedNetOverlapLength (model: SheetT.Model) =
 
     outputOverlapLengths
 
-///T5R:  Number of visible wire right-angles. Count over whole sheet
+///T5R:  Number of visible wire right-angles. Count over whole sheet. Note that this also counts wires that overlap
+let countVisibleRAngles (model: SheetT.Model) =
+    let wireModel = model.Wire
+    wireModel.Wires
+    |> removeWireInvisibleSegments
+    // for each wire, get its wire.Segments, list, find its length minus 1
+    |> Map.fold
+        (fun acc _ wire ->
+            wire.Segments.Length - 1
+            // add the length of the segments list minus 1 to the accumulator
+            + acc)
+        // initialise the accumulator to 0
+        0
 
+/// T6R: The zero-length segments in a wire with non-zero segments on either side that have
+/// Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply
+/// at the end of a wire (where the zero-length segment is one from the end). This is a
+/// wiring artifact that should never happen but errors in routing or separation can
+/// cause it. Count over the whole sheet. Return from one function a list of all the
+/// segments that retrace, and also a list of all the end of wire segments that retrace so
+/// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
 (*
 
 // let getEdgeOnSymbolFromPortID (sym: Symbol) (portID: string) : Edge =

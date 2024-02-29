@@ -104,7 +104,8 @@ let update (msg: Msg) (issieModel: ModelType.Model) : ModelType.Model * Cmd<Mode
     // printf "%A" (findWireSymbolIntersections model)
     // printf "countVisibleSegsIntersectingSymbols %A" (countVisibleSegsIntersectingSymbols model)
     // printf "countVisibleSegsPerpendicularCrossings %A" (countVisibleSegsPerpendicularCrossings model)
-    // printf "getSharedNetOverlaplength %A" (getSharedNetOverlapLength model)
+    printf "getSharedNetOverlaplength %A" (getSharedNetOverlapLength model)
+    printf "countVisibleRAngles %A" (countVisibleRAngles model)
 
     /// check things that might not have been correctly completed in the last update and if so do them
     /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than

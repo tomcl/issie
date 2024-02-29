@@ -99,6 +99,8 @@ let getOppEdgePortInfo
               SymB = otherSymbol
               Wire = w })
 
+
+/// Calculate the position offset needed to align potrs
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let getPortRealPos pInfo =
         getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos

@@ -33,7 +33,7 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
     /// if this is possible, otherwise return segVecs unchanged.
     /// Index must be in range 1..segVecs
     let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-        if segVecs[index] =~ XYPos.zero
+        if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
         then
             segVecs[0..index-2] @
             [segVecs[index-1] + segVecs[index+1]] @
@@ -61,7 +61,7 @@ let setSymbolDimensions (symbol: Symbol) (width, height) =
 
 // B2W
 // The position of a symbol on the sheet
-// TODO: Is this too simple? What are the other things to take into consideration?
+// NOTE: Is this too simple? What are the other things to take into consideration?
 let setSymbolPosition (symbol: Symbol) (pos : XYPos) =
     symbol |> set posOfSym_ pos
 
@@ -151,19 +151,18 @@ let getWireSymbolIntersectionCount (sheet: SheetT.Model) : int =
 let getRightAngleCrossings (sheet: SheetT.Model) : int =
     let allWires = List.collect getNonZeroAbsSegments (Seq.toList sheet.Wire.Wires.Values)
 
-    let horizontalSegments = allWires |> List.filter (fun aSeg -> aSeg.Orientation = Horizontal)
-    let verticalSegments = allWires |> List.filter (fun aSeg -> aSeg.Orientation = Vertical)
-
     let getRightAngles (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) =
-        if seg1.Orientation = Horizontal && seg2.Orientation = Vertical then
-            if seg1.Start.X < seg2.Start.X && seg1.End.X > seg2.Start.X && seg2.Start.Y < seg1.Start.Y && seg2.End.Y > seg1.Start.Y then 1
+        // just to double check
+        if seg1.Segment.Length = 0. || seg2.Segment.Length = 0. then 0
+        else
+            if seg1.Orientation = Horizontal && seg2.Orientation = Vertical then
+                if seg1.Start.X < seg2.Start.X && seg1.End.X > seg2.Start.X && seg2.Start.Y < seg1.Start.Y && seg2.End.Y > seg1.Start.Y then
+                    printfn "*1* seg1: %A, seg2: %A" seg1 seg2
+                    1
+                else 0
             else 0
-        else if seg1.Orientation = Vertical && seg2.Orientation = Horizontal then
-            if seg2.Start.X < seg1.Start.X && seg2.End.X > seg1.Start.X && seg1.Start.Y < seg2.Start.Y && seg1.End.Y > seg2.Start.Y then 1
-            else 0
-        else 0
 
-    let rightAngles = List.allPairs horizontalSegments verticalSegments |> List.sumBy (fun (seg1, seg2) -> getRightAngles seg1 seg2)
+    let rightAngles = List.allPairs allWires allWires |> List.sumBy (fun (seg1, seg2) -> getRightAngles seg1 seg2)
 
     rightAngles
 
@@ -178,38 +177,41 @@ let getVisibleWireLength (sheet: SheetT.Model) : float =
     let horizontalSegments = allWires |> List.filter (fun aSeg -> aSeg.Orientation = Horizontal)
     let verticalSegments = allWires |> List.filter (fun aSeg -> aSeg.Orientation = Vertical)
 
-    let horizontalLength = horizontalSegments |> List.sumBy (fun seg -> seg.Segment.Length)
-    let verticalLength = verticalSegments |> List.sumBy (fun seg -> seg.Segment.Length)
-
+    let horizontalLength = horizontalSegments |> List.sumBy (fun seg -> abs seg.Segment.Length) // note: use absolute value when dealing with length
+    let verticalLength = verticalSegments |> List.sumBy (fun seg -> abs seg.Segment.Length)
 
     let getOverlapLength (start1, end1) (start2, end2) =
         if start1 < start2 then
             if end1 < start2 then 0.
             else if end1 < end2 then end1 - start2
             else end2 - start2
+
         else
             if end2 < start1 then 0.
             else if end2 < end1 then end2 - start1
             else end1 - start1
 
     let getOverlapXLength (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) =
-        getOverlapLength (seg1.Start.X, seg1.End.X) (seg2.Start.X, seg2.End.X)
+        let overlapLength = (getOverlapLength (seg1.Start.X, seg1.End.X) (seg2.Start.X, seg2.End.X))
+        // can do debugging here if needed
+        overlapLength
 
     let getOverlapYLength (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) =
-        getOverlapLength (seg1.Start.Y, seg1.End.Y) (seg2.Start.Y, seg2.End.Y)
+        let overlapLength = (getOverlapLength (seg1.Start.Y, seg1.End.Y) (seg2.Start.Y, seg2.End.Y))
+        overlapLength
 
     // for horizontal segments, we need to remove the overlap
     // we check if two segments have the same y position. If they do, we subtract horizontalLength from the overlapped x length
     let finalhorizontalLength = (List.fold (fun acc seg -> 
         let overlap = horizontalSegments |> List.filter (fun aSeg -> aSeg.Start.Y = seg.Start.Y)
-        let overlapLength = overlap |> List.sumBy (fun aSeg -> getOverlapXLength aSeg seg)
+        let overlapLength = overlap |> List.sumBy (fun aSeg -> if aSeg <> seg then (getOverlapXLength aSeg seg) else 0)
         acc - overlapLength
     ) horizontalLength horizontalSegments)
 
     // similar to horizontal segments
     let finalVerticalLength = (List.fold (fun acc seg -> 
         let overlap = verticalSegments |> List.filter (fun aSeg -> aSeg.Start.X = seg.Start.X)
-        let overlapLength = overlap |> List.sumBy (fun aSeg -> getOverlapYLength aSeg seg)
+        let overlapLength = overlap |> List.sumBy (fun aSeg -> if aSeg <> seg then (getOverlapYLength aSeg seg) else 0)
         acc - overlapLength
     ) verticalLength verticalSegments)
 
@@ -292,3 +294,12 @@ let getRetracingSegments (sheet: SheetT.Model) : (Segment list * Segment list) =
     let retracingEndSegments = allWires |> List.map getRetracingEndSegmentsForWire |> List.concat
 
     (retracingSegments, retracingEndSegments)
+
+
+// custom helper functions
+// get the number of visible segments in a sheet
+let getVisibleSegments (sheet: SheetT.Model) : int =
+    sheet.Wire.Wires.Keys
+    |> Seq.toList
+    |> List.collect (fun wId -> visibleSegments wId sheet)
+    |> List.length

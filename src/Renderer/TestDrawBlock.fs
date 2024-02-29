@@ -4,35 +4,24 @@ open Elmish
 
 
 //-------------------------------------------------------------------------------------------//
+// yc3821:
+//
 // I added some helper functions regarding the team phase at Testing for D1.
 //
-// Summary of what is added:
-// - [line x - y] - Function that calls both the current and D1 algorithm to compare them
-// - [line x - y] - Assertion on if the D1 algorithm performs worse than the current one
-// - [line x - y] - Info logging about how much improvement the D1 algorithm has over the current one
+// Summary of what is done in this script:
+// 1. deleted unnecessary code to make it cleaner
+// 2. built a test metrics to access the performance of the D1 algorithm and current version
+// 3. when performing Ctrl-1, the test metrics will be printed in developer console
 //
-// With these helper functions, it will be a good starting point to tell
-// if the D1 algorithm is doing the job.
+// These codes will serve as a good starting point for T1.
+//
+// The reason that I did not use the sheet builder approach is that, I wanted to build some testing
+// circuits in Issie first that is targeted to test certain features of the D1 algorithm, and test
+// the performance of the D1 algorithm on those circuits.
 //-------------------------------------------------------------------------------------------//
 
 
-//-------------------------------------------------------------------------------------------//
-//--------Types to represent tests with (possibly) random data, and results from tests-------//
-//-------------------------------------------------------------------------------------------//
 module TestLib =
-
-    /// convenience unsafe function to extract Ok part of Result or fail if value is Error
-    let getOkOrFail (res: Result<'a,string>) =
-        match res with
-        | Ok x -> x
-        | Error mess ->
-            failwithf "%s" mess
-
-
-    type TestStatus =
-            | Fail of string
-            | Exception of string
-
     type Test<'a> = {
         Name: string
         Samples: Gen<'a>
@@ -43,19 +32,6 @@ module TestLib =
         Assertion: int -> 'a -> string option
         }
 
-    type TestResult<'a> = {
-        TestName: string
-        TestData: Gen<'a>
-        FirstSampleTested: int
-        TestErrors: (int * TestStatus) list
-    }
-
-    let catchException name func arg =
-        try
-            Ok (func arg)
-        with
-            | e ->
-                Error ($"Exception when running {name}\n" + e.StackTrace)
 
  
             
@@ -75,39 +51,6 @@ module HLPTick3 =
     open SheetBeautify
 
 
-    /// create an initial empty Sheet Model 
-    let initSheetModel = DiagramMainView.init().Sheet
-
-    /// Optic to access SheetT.Model from Issie Model
-    let sheetModel_ = sheet_
-
-    /// Optic to access BusWireT.Model from SheetT.Model
-    let busWireModel_ = SheetT.wire_
-
-    /// Optic to access SymbolT.Model from SheetT.Model
-    let symbolModel_ = SheetT.symbol_
-
-    /// allowed max X or y coord of svg canvas
-    let maxSheetCoord = Sheet.Constants.defaultCanvasSize
-    let middleOfSheet = {X=maxSheetCoord/2.;Y=maxSheetCoord/2.}
-
-    /// Used throughout to compare labels since these are case invariant "g1" = "G1"
-    let caseInvariantEqual str1 str2 =
-        String.toUpper str1 = String.toUpper str2
- 
-
-    /// Identify a port from its component label and number.
-    /// Usually both an input and output port will mathc this, so
-    /// the port is only unique if it is known to be input or output.
-    /// used to specify the ends of wires, since tehee are known to be
-    /// connected to outputs (source) or inputs (target).
-    type SymbolPort = { Label: string; PortNumber: int }
-
-    /// convenience function to make SymbolPorts
-    let portOf (label:string) (number: int) =
-        {Label=label; PortNumber = number}
-
-
     /// Test Metrics for Sheet
     type TestMetrics = {
         /// number of segments in total
@@ -116,6 +59,8 @@ module HLPTick3 =
         numVisibleSegments: int
         /// visible length of all segments
         visibleLength: float
+        /// number of right angle segments
+        rightAngleCount: int
         /// right angle crossings
         rightAngleCrossings: int
         /// intersections of wire and symbols
@@ -129,20 +74,20 @@ module HLPTick3 =
     }
 
 
+
     let getTestMetrics (sheet : SheetT.Model) : TestMetrics =
         {
             numSegments = sheet.Wire.Wires.Values
                           |> Seq.toList
                           |> List.sumBy (fun wire -> List.length wire.Segments)
 
-            // not implemented for now
-            numVisibleSegments = sheet.Wire.Wires.Values
-                          |> Seq.toList
-                          |> List.sumBy (fun wire -> List.length wire.Segments)
+            numVisibleSegments = getVisibleSegments sheet
 
             visibleLength = getVisibleWireLength sheet
 
-            rightAngleCrossings = getVisibleWireRightAngles sheet
+            rightAngleCount = getVisibleWireRightAngles sheet
+
+            rightAngleCrossings = getRightAngleCrossings sheet
 
             wireSymbolIntersections = getWireSymbolIntersectionCount sheet
 
@@ -154,19 +99,7 @@ module HLPTick3 =
         }
 
 
-    let TestD1Metrics (sheet : SheetT.Model) =
-        // get test metrics for the un-optimized version
-        let originalMetrics = getTestMetrics sheet
-
-        // call the D1 algorithm, dummy for now
-        let optimizedSheet = sheet
-
-        // get test metrics for the optimized version
-        let optimizedMetrics = getTestMetrics optimizedSheet
-
-        // compare the two metrics, we simply log them for now
-        printfn "Original Metrics: %A" originalMetrics
-        printfn "Optimized Metrics: %A" optimizedMetrics
+   
 
 
 
@@ -176,41 +109,37 @@ module HLPTick3 =
 
     module Tests =
 
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 0
-        let testD1Metrics testNum firstSample dispatch =
-            // TestD1Metircs
+        let TestD1Metrics (sheet : SheetT.Model) =
+            // get test metrics for the un-optimized version
+            let originalMetrics = getTestMetrics sheet
+
+            // TODO: call the D1 algorithm (yet to be done by partner), dummy for now
+            let optimizedSheet = sheet
+
+            // get test metrics for the optimized version
+            let optimizedMetrics = getTestMetrics optimizedSheet
+
+            // compare the two metrics, we simply log them for now
+            printfn "Original Metrics: %A" originalMetrics
+            printfn "Optimized Metrics: %A" optimizedMetrics
 
 
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
-            // Change names and test functions as required
-            // delete unused tests from list
+        let testsToRunFromSheetMenu =
             [
-                "D1 Test", testD1Metrics;
+                "D1 Test", TestD1Metrics;   // prints metrics of the current and D1 algorithm
             ]
 
-        /// Display the next error in a previously started test
-        let nextError (testName, testFunc) firstSampleToTest dispatch =
-            let testNum =
-                testsToRunFromSheetMenu
-                |> List.tryFindIndex (fun (name,_) -> name = testName)
-                |> Option.defaultValue 0
-            testFunc testNum firstSampleToTest dispatch
 
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
         let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
             let name,func = testsToRunFromSheetMenu[testIndex] 
             printf "%s" name
-            match name, model.DrawBlockTestState with
-            | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
-            | "Next Test Error", None ->
-                printf "Test Finished"
-                ()
-            | _ ->
-                func testIndex 0 dispatch
+
+            // execute the test on current sheet
+            func model.Sheet
         
 
 

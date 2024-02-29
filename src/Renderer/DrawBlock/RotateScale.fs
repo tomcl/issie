@@ -16,6 +16,12 @@ open SymbolResizeHelpers
     It requires better documentation of teh pasrts now used.
 *)
 
+
+(* 
+
+*)
+
+//--------------------------------------start of hj1021 section ----------------------------------------//
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
@@ -153,6 +159,8 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
         moveSymbol offset scaledSymbol
     | _ ->
         symbolToSize
+
+//--------------------------------------end of hj1021 section ----------------------------------------//
 
 /// For UI to call ResizeSymbol.
 let reSizeSymbolTopLevel

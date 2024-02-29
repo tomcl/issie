@@ -4,18 +4,12 @@ open CommonTypes
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
-open SymbolUpdate
 open Symbol
 open Optics
 open Operators
 open BlockHelpers
-open SymbolResizeHelpers
 open EEExtensions
-open DrawHelpers
-open ModelType
-open Sheet.SheetInterface
 open Fable.React
-open Fable.React.Props
 open DrawModelType.SheetT
 open Helpers
 

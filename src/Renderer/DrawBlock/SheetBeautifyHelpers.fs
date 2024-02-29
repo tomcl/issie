@@ -17,22 +17,24 @@ let getCustomSymbolDimension (symbol: SymbolT.Symbol): (float option*float optio
 let writeCustomSymbolDimension(dimension:float option*float option) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with HScale = fst dimension; VScale = snd dimension}
 
-///B1R B1W, lens for custom symbol dimension
+///B1R B1W, The dimensions of a custom component symbol
 let CustomeSymbolDimension_ = Lens.create getCustomSymbolDimension writeCustomSymbolDimension
 
-/// B2W
+/// B2W: The position of a symbol on the sheet
 let writeSymbolPosition (position: XYPos) (symbolID: ComponentId) (sheetModel: SheetT.Model): SheetT.Model =
     let symbol = sheetModel.Wire.Symbol.Symbols[symbolID]
     let newSymbol = {symbol with Pos = position}
     {sheetModel with Wire = {sheetModel.Wire with Symbol = {sheetModel.Wire.Symbol with Symbols = sheetModel.Wire.Symbol.Symbols.Add(symbolID, newSymbol)}}}
 
 
-///B3R 
+///B3R: Read the order of ports on a specified side of a symbol
 let readPortsOrder (symbol: SymbolT.Symbol) (edge: Edge)  : string list =
     symbol.PortMaps.Order[edge] 
-///B3W
+
+///B3W: write the order of ports on a specified side of a symbol
 let writePortsOrder (edge: Edge) (order: string list) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with PortMaps = {symbol.PortMaps with Order = symbol.PortMaps.Order.Add(edge, order)}}
+
 //let PortsOrder_ = Lens.create readPortsOrder writePortsOrder
 
 /// B4R
@@ -41,14 +43,15 @@ let getReversedInputPortsMUX2 (symbol: SymbolT.Symbol): bool option =
 /// B4W
 let writeReversedInputPortsMUX2 (reversed: bool option) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with ReversedInputPorts = reversed}
+/// B4R B4W: The reverses state of the inputs of a MUX2
 let ReversedInputPortsMUX2_ = Lens.create getReversedInputPortsMUX2 writeReversedInputPortsMUX2
 
-/// B5R
+/// B5R: The position of a port on the sheet. It cannot directly be written.
 let getPortPositionOnSheet (portId: PortId) (sheetModel: SheetT.Model): XYPos =
     getPortIdStr portId|>
     getPortLocation None sheetModel.Wire.Symbol
 
-/// B6R
+/// B6R: The Bounding box of a symbol outline (position is contained in this)
 let getSymbolBoundingBoxOutline (symbol: SymbolT.Symbol): BoundingBox =
     getSymbolBoundingBox symbol
 
@@ -58,6 +61,7 @@ let getSymbolRotationState (symbol: SymbolT.Symbol): Rotation =
 /// B7W
 let writeSymbolRotationState (rotation: Rotation) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with STransform = {symbol.STransform with Rotation = rotation}}
+///B7R B7W: The rotation state of a symbol
 let SymbolRotationState_ = Lens.create getSymbolRotationState writeSymbolRotationState
 
 /// B8R
@@ -66,10 +70,12 @@ let getSymbolFlipState (symbol: SymbolT.Symbol): bool =
 /// B8W
 let writeSymbolFlipState (flipped: bool) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     {symbol with STransform = {symbol.STransform with Flipped = flipped}}
+///B8R B8W: The flip state of a symbol
 let SymbolFlipState_ = Lens.create getSymbolFlipState writeSymbolFlipState
 
 
-///T1R
+///T1R: The number of pairs of symbols that intersect each other. See Tick3 for a related
+///function. Count over all pairs of symbols
 let numberSymbolIntersection (sheetModel: SheetT.Model): int =
     let SymbolBoundingBoxs: BoundingBox list = 
         sheetModel.Wire.Symbol.Symbols 
@@ -80,7 +86,9 @@ let numberSymbolIntersection (sheetModel: SheetT.Model): int =
     |> List.filter (fun (bb1, bb2) -> (bb1 <> bb2) && (overlap2DBox bb1 bb2))
     |> List.length
 
-///T2R
+///T2R: The number of distinct wire visible segments that intersect with one or more
+///symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire
+///segments.
 let numberWireSegmentsIntersectSymbol (sheetModel: SheetT.Model):int =
     let wireSegments =
         sheetModel.Wire.Wires
@@ -101,7 +109,9 @@ let numberWireSegmentsIntersectSymbol (sheetModel: SheetT.Model):int =
     |> List.filter (fun seg -> whetherIntersectSymbol seg)
     |> List.length
 
-///T3R
+///T3R: The number of distinct pairs of segments that cross each other at right angles. Does
+///not include 0 length segments or segments on same net intersecting at one end, or
+///segments on same net on top of each other. Count over whole sheet.
 let numberWireSegementsIntersectingAtRightAngle (sheetModel: SheetT.Model): int =
     let wireSegments =
         sheetModel.Wire.Wires
@@ -117,7 +127,9 @@ let numberWireSegementsIntersectingAtRightAngle (sheetModel: SheetT.Model): int 
     |> List.filter (fun (seg1, seg2) -> rightAngleIntersect seg1 seg2)
     |> List.length
 
-///T4R
+///Sum of wiring segment length, counting only one when there are N same-net
+///segments overlapping (this is the visible wire length on the sheet). Count over whole
+///sheet.
 let sumWireSegmentLengh (sheetModel: SheetT.Model): float =
     let wireSegments =
         sheetModel.Wire.Wires
@@ -156,7 +168,7 @@ let sumWireSegmentLengh (sheetModel: SheetT.Model): float =
     |> List.sum
     |> (fun x -> x - totalSegemntOverlapLength)
 
-///T5R
+///T5R: Number of visible wire right-angles. Count over whole sheet.
 let numberWireRightAngles (sheetModel: SheetT.Model): int =
     let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
@@ -197,7 +209,13 @@ let numberWireRightAngles (sheetModel: SheetT.Model): int =
     |> List.map (fun segs -> (List.length segs) - 1 )
     |> List.sum
 
-///T6R
+///T6R: The zero-length segments in a wire with non-zero segments on either side that have
+///Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply
+///at the end of a wire (where the zero-length segment is one from the end). This is a
+///wiring artifact that should never happen but errors in routing or separation can
+///cause it. Count over the whole sheet. Return from one function a list of all the
+///segments that retrace, and also a list of all the end of wire segments that retrace so
+///far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
 let retracingSegements (sheetModel: SheetT.Model) : (BusWireT.Segment list * BusWireT.Segment list) =
     let allWires = 
         sheetModel.Wire.Wires 
@@ -245,7 +263,3 @@ let retracingSegements (sheetModel: SheetT.Model) : (BusWireT.Segment list * Bus
         |> List.map getEndRetracingSegments 
         |> List.concat
     (allRetracingSegments, allEndRetracingSegments)
-    
-        
-
-

@@ -648,7 +648,7 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
                         | Some compId -> Component compId
                         | None -> Canvas
 
-
+// ec1221 - remove code duplication
 let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
     RotateScale.noSymbolOverlap model.BoundingBoxes box1 inputId
 

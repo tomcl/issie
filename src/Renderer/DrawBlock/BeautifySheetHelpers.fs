@@ -85,15 +85,18 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model) : XYPos list =
 /// <param name="sym">The symbol to get the dimensions of.</param>
 /// <returns>The dimensions of the custom component symbol.</returns>
 let getCustomComponentSymbolDims (sym: Symbol) : XYPos =
-    // directly return the third element from the result of getCustomSymCorners
-    // format: [|{X=0.0;Y=0.0}; {X=0.0;Y=yDim'}; {X=xDim';Y=yDim'}; {X=xDim';Y=0.0}|]
-    (getCustomSymCorners sym).[2]
+    match sym.Component.Type with
+    | Custom _ ->
+        // directly return the third element from the result of getCustomSymCorners
+        // format: [|{X=0.0;Y=0.0}; {X=0.0;Y=yDim'}; {X=xDim';Y=yDim'}; {X=xDim';Y=0.0}|]
+        (getCustomSymCorners sym).[2]
+    | _ -> failwithf "Symbol is not a custom component"
 
 /// <summary> B1W: Set the dimensions of a custom component symbol </summary>
 /// <param name="sym">The symbol to set the dimensions of.</param>
 /// <param name="dimensions">The new dimensions of the symbol.</param>
 let setCustomComponentSymbolDims (sym: Symbol) (dimensions: XYPos) : Symbol =
-    // Note: do not modify h and w as they are the default dimensions of the symbol.
+    // Note: do not modify h and w as they are the default dimensions of the component.
     // We only scale them as needed
     let hScale = dimensions.X / sym.Component.H
     let vScale = dimensions.Y / sym.Component.W

@@ -1,4 +1,8 @@
 ﻿module SheetBeautifyD1
+//-----------------Module for D1 beautify Helper functions--------------------------//
+// I try to section the helpers out handling symbol/custom components
+// next are wire helpers
+
 
 open Optics
 open CommonTypes
@@ -11,47 +15,21 @@ open BlockHelpers
 open SheetBeautifyHelpers
 
 module Helpers =
-    let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
-            let wire = model.Wire.Wires[wId] // get wire from model 
-            /// helper to match even and off integers in patterns (active pattern)
-            let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
-            /// Convert seg into its XY Vector (from start to end of segment).
-            /// index must be the index of seg in its containing wire.
-            let getSegmentVector (index:int) (seg: BusWireT.Segment) =
-                // The implicit horizontal or vertical direction  of a segment is determined by 
-                // its index in the list of wire segments and the wire initial direction
-                match index, wire.InitialOrientation with
-                | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
-                | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
-    
-            /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-            /// if this is possible, otherwise return segVecs unchanged.
-            /// Index must be in range 1..segVecs
-            let rec coalesce (segVecs: XYPos list)  =
-                match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with          
-                | Some zeroVecIndex ->
-                    let index = zeroVecIndex + 1 // base index as it should be on full segVecs
-                    segVecs[0..index-2] @
-                    [segVecs[index-1] + segVecs[index+1]] @
-                    segVecs[index+2..segVecs.Length - 1]
-                    |> coalesce
-                | None -> segVecs
-         
-            wire.Segments
-            |> List.mapi getSegmentVector
-            |> coalesce
-
-    /// SYMBOL/CUSTOM COMPONENT HELPER FUNCTIONS
+    // SYMBOL/CUSTOM COMPONENT HELPER FUNCTIONS ----------------------------------------------------------------------
 
     // Given D1 we are scaling custom components, we must have r/w to the dimensions
-    /// get the Height and Width of Custom Cmponent
-    let getCustomDimensions (sym: Symbol) : float*float =
-        (sym.Component.H, sym.Component.W)
-    
-    /// update Height and Width of Custom Component
-    let updateCustomDimensions (h: float) (w:float) (sym: Symbol) : Symbol =
-        let updatedComponent = {sym.Component with H = h; W = w}
-        {sym with Component = updatedComponent}
+
+    type CustomComponentLens = {
+        Get: Symbol -> (float * float)
+        Set: float -> float -> Symbol -> Symbol
+    }
+    /// Getter and Setter function to retrive/update Custom Component Height and Width
+    let dimensionsLens = {
+        Get = fun sym -> (sym.Component.H, sym.Component.W)
+        Set = fun h w sym ->
+            let updatedComponent = { sym.Component with H = h; W = w }
+            { sym with Component = updatedComponent }
+    }
 
     /// get list of all Port Positions - This can help in testing with 
     let getAllPortPos (model: SymbolT.Model) =
@@ -70,7 +48,8 @@ module Helpers =
         compGroups
 
 
-    // WIRE HELPER FUNCTIONS
+    // WIRE HELPER FUNCTIONS ------------------------------------------------------------------------------------------------
+
     // from Derek Lai's code. These helpers will be used to detect segment crossings
     /// Returns true if two 1D line segments intersect
     let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
@@ -81,14 +60,13 @@ module Helpers =
     let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
         (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
 
-    /// Returns a list of all the wires in the given model - May be useful when handingling wire/segment intersections
+    // May be useful when handingling wire/segment intersections
+    /// Returns a list of all the wires in the given model 
     let getWireList (model: Model) =
         model.Wires
         |> Map.toList
         |> List.map snd
 
-    
-    
     // The XYPos of segments will be a useful helper for tracking segment locations on the sheet 
     /// Convert a wire and its segment displacement into actual segment start and end positions
     let getSegmentPositions (sheet:SheetT.Model) wire =
@@ -111,7 +89,8 @@ module Helpers =
     
 
 module Beautify =
-    /// Attempts to align two symbols together - this will be exremely useful in aligning same-type components. This function may need some editing 
+    // this will be exremely useful in aligning same-type components. This function may need some editing
+    /// Attempts to align two symbols together  
     let alignSymbols
         (wModel: BusWireT.Model)
         (symbolToSize: Symbol)

@@ -26,6 +26,7 @@ open DrawModelType.SheetT
 open SheetUpdateHelpers
 open Symbol
 open SymbolUpdate
+open SymbolResizeHelpers
 open SheetBeautifyHelpers
 open Optics
 open Optics.Operators
@@ -84,15 +85,61 @@ let generateWireLabel (model: SheetT.Model) (defaultName:string) : string =
     | _ -> defaultName
 
 
-/// Add a IOLabel (wire label) component to the sheet, return the updated model
-let addIOLabelComp (pos:XYPos) (defaultLabel:string) (model:SheetT.Model) = 
+// function below copied from SimulationView.getPosRotNextToPort (due to compile order restriction)
+/// get the position and rotation for inserting a new component next to the given port
+/// at a given distance
+/// the rotation is such that the original left side of the component (input side)
+/// faces the given port
+/// returns None if another symbol is in the way
+let getPosRotNextToPort (port: Port) (model: SymbolT.Model) (dist: float) =
+    let isPosInBoundingBox  (pos: XYPos) (boundingBox: BoundingBox) =
+        (pos.X > boundingBox.TopLeft.X && pos.X < boundingBox.TopLeft.X + boundingBox.W &&
+        pos.Y > boundingBox.TopLeft.Y && pos.Y < boundingBox.TopLeft.Y + boundingBox.H)
+    
+    let sym =
+        model.Symbols
+        |> Map.toList
+        |> List.tryFind (fun (_, sym) -> sym.Component.Id = port.HostId)
+        |> function
+            | Some (_, sym) -> sym
+            | None -> failwithf "The given component should be in the list of symbols"
+
+    let edge = sym.PortMaps.Orientation[port.Id]
+    let portPos = Symbol.getPortPos sym port
+    let pos, rot =
+        match edge with
+        | Right ->
+            {X = sym.Pos.X + portPos.X + dist; Y = sym.Pos.Y + portPos.Y},
+            Degree0
+        | Top ->
+            {X = sym.Pos.X + portPos.X; Y = sym.Pos.Y + portPos.Y - dist},
+            Degree90
+        | Left ->
+            {X = sym.Pos.X + portPos.X - dist; Y = sym.Pos.Y + portPos.Y},
+            Degree180
+        | Bottom ->
+            {X = sym.Pos.X + portPos.X; Y = sym.Pos.Y + portPos.Y + dist},
+            Degree270
+
+    model.Symbols
+    |> Map.toList
+    |> List.map (fun (_, sym) -> Symbol.getSymbolBoundingBox sym)
+    |> List.exists (isPosInBoundingBox pos)
+    |> function
+        | true -> None
+        | false -> Some (pos, rot)
+
+
+/// Add a IOLabel (wire label) component to the sheet, return the updated model, the added symbol, and its label name
+let addIOLabelComp (pos:XYPos) (rot:Rotation) (defaultLabel:string) (model:SheetT.Model) = 
     let labelName = generateWireLabel model defaultLabel
     let newSymbolModel, compId = addSymbol [] model.Wire.Symbol pos IOLabel labelName
+    let newSymbolModelWithRot = rotateBlock [compId] newSymbolModel rot
     let newModel = 
         model
-        |> Optic.set symbol_ newSymbolModel
+        |> Optic.set symbol_ newSymbolModelWithRot
         |> updateBoundingBoxes
-    newModel,compId,labelName
+    newModel, newSymbolModelWithRot.Symbols[compId], labelName
 
 
 /// Remove the given wire from the sheet
@@ -161,6 +208,8 @@ let moveSymToNonOverlap (sym: Symbol) (model:SheetT.Model) =
     // maybe consider applying this function multiple times to reach an effect of recursion.
     // or, change this function to a recursive one: stop until no overlapping exists.
 
+let updateWiring (sym:Symbol) (model:SheetT.Model) = 
+    Optic.set wire_ (routeAndSeparateSymbolWires model.Wire sym.Id) model
 
 /// Replace a given wire with wire labels, return the updated model
 let wireToWireLabels (targetWire:Wire) (model:SheetT.Model) = 
@@ -175,14 +224,24 @@ let wireToWireLabels (targetWire:Wire) (model:SheetT.Model) =
     let endPos = getPortPosOnSheet endPort model
     
     // create and place IOLabel components for each port
-    let startIOPos: XYPos = {X=startPos.X+3.*Constants.minCompDistance; Y=startPos.Y} // not taking flips/rotations into account
-    let model,startIOLabelId, newLabel =  addIOLabelComp startIOPos label model
-    let startIOLabelSym = model.Wire.Symbol.Symbols[startIOLabelId]
+    let startIOPos, startRot = 
+        let posRotOption = getPosRotNextToPort model.Wire.Symbol.Ports[startPort] model.Wire.Symbol (3.*Constants.minCompDistance)
+        match posRotOption with
+        | Some (pos,rot) -> pos,rot
+        | None -> 
+            printf "no good start pos, using default pos"    // debug
+            {X=startPos.X+3.*Constants.minCompDistance; Y=startPos.Y},Degree0
+    let model,startIOLabelSym, newLabel =  addIOLabelComp startIOPos startRot label model
     let startIOLabelLeftPortId = InputPortId (startIOLabelSym.PortMaps.Order[Left][0])
 
-    let endIOPos: XYPos = {X=endPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=endPos.Y} // not taking flips/rotations into account
-    let model,endIOLabelId,_ =  addIOLabelComp endIOPos newLabel model
-    let endIOLabelSym = model.Wire.Symbol.Symbols[endIOLabelId]
+    let endIOPos, endRot = 
+        let posRotOption = getPosRotNextToPort model.Wire.Symbol.Ports[endPort] model.Wire.Symbol (3.*Constants.minCompDistance)
+        match posRotOption with
+        | Some (pos,rot) -> pos,rot
+        | None -> 
+            printf "no good end pos, using default pos" // debug
+            {X=endPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=endPos.Y},Degree0
+    let model,endIOLabelSym,_ =  addIOLabelComp endIOPos endRot newLabel model
     let endIOLabelRightPortId = OutputPortId (endIOLabelSym.PortMaps.Order[Right][0])
 
     // remove original wire, then add new wirings
@@ -195,6 +254,8 @@ let wireToWireLabels (targetWire:Wire) (model:SheetT.Model) =
     // TODO: reduce overlap with wire
     |> placeSingleWire (OutputPortId startPort) startIOLabelLeftPortId
     |> placeSingleWire endIOLabelRightPortId (InputPortId endPort)
+    |> updateWiring startIOLabelSym
+    |> updateWiring endIOLabelSym
     
 
 /// Automatically identify long wires and transform them into wire labels

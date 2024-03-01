@@ -1,7 +1,7 @@
 ## Team-phase work by dy321
 D3 build: in SheetBeautifyB3.fs (module SheetBeautifyB3)
 
-Contribution to team-phase work: implemented some fundamental functionalities required for D3.
+Contribution to team-phase work: implemented and (roughly) tested some fundamental functionalities required for D3.
 
 ### Implemented functionalities useful in D3 Build:
 1. Replace a single given wire with wire labels.
@@ -15,7 +15,8 @@ Contribution to team-phase work: implemented some fundamental functionalities re
 3. Try adjusting the positions of new wire labels so that they don't overlap with other symbols.
 
 ### Remaining work in D3 to be done:
-1. Refine the position-adjusting function, change to recursive if possible.
+1. Refine the position-adjusting function, (e.g. reduce overlap with wires; change to recursive if possible).
 2. Remove wire labels and change into single wires (reverse operation) when under threshold.
-3. Improve symbol rendering.
+3. Refine wire label naming: set a unique common wire label name for each net; derive wire label names from names of driving components and/or ports.
+4. Improve symbol rendering.
 

@@ -51,7 +51,7 @@ open Sheet.SheetInterface
 /// lens for getting and setting the scaled dimensions of a custom component symbol
 /// </summary>
 
-let getCustomSymDim (symbol: SymbolT.Symbol) =
+let getCustomSymDim (symbol: SymbolT.Symbol): float*float =
         let originalWidth = symbol.Component.W
         let originalHeight = symbol.Component.H
 
@@ -64,7 +64,7 @@ let getCustomSymDim (symbol: SymbolT.Symbol) =
         (width, height)
 
 
-let setCustomSymDim ((width, height): (float * float)) (symbol: SymbolT.Symbol) =
+let setCustomSymDim ((width, height): (float * float)) (symbol: SymbolT.Symbol): SymbolT.Symbol =
     let originalWidth = symbol.Component.W
     let originalHeight = symbol.Component.H
 

@@ -303,7 +303,7 @@ let segOrientation (startPos : XYPos , endPos : XYPos) =
     else Horizontal
 
 
-///Returns true if the input segments are nor 
+///Returns true if the input segments are orthogonal and intersect
 let orthogonalyIntersectedPairs  (firstSeg:XYPos*XYPos) (secSeg:XYPos*XYPos)=
             let fstSeg={
                 Start = fst firstSeg;
@@ -389,7 +389,10 @@ let overlapLenthSegPairs  (firstSeg:XYPos*XYPos) (secSeg:XYPos*XYPos)=
 let visibleLengthOfWires (sheet: SheetT.Model) =
     let nets = groupWiresByNet sheet.Wire.Wires
     let totalLengthOfAllWires = totalLengthOfWires sheet.Wire.Wires
+    //totalLengthOverlap calculates the total length of overlaps on the sheet (by using the helper function I wrote above -> overlapLenthSegPairs) and in the next step subtracts that from the total lenght of wires on the sheet
     let visibleTotalLengthOfWires = totalLengthOfAllWires - totalLengthOverlap
+    visibleTotalLengthOfWires
+    
 
 
 

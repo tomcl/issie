@@ -17,10 +17,15 @@ open SymbolResizeHelpers
 *)
 
 (*
-    List of Improvements (line 266-492):
-    - Renamed "getBlock" function into "getSymbolBlockBoundingBox", the notion of block is not clear and it isn't used widely in the code
-    - Changed parameter name in annonymous function to be more meaningful, e.g. (fun x:Symbol -> ...) , changed to (fun sym:Symbol -> ...)
+    List of Improvements (partition lines 266-524):
+    - 275: Renamed "getBlock" function into "getSymbolBlockBoundingBox", the notion of block's type is not clear
+    - 275-294: Applied transformation 1 (functional abstraction) to the "getSymbolBlockBoundingBox" function, reduced the repeated use of List.maxBy and List.minBy and made the code more readable
+    - 506-523: in "rotateBlock", removed the redundant calculation of unselected symbols
+    - 518: changed "newSymbols" to output Map<cid,sym> type (as this is the type of model.Symbols), initially was List<Symbol> which can cause confusion
+    - 522: by doing the above, also simplified the record update line making it much more readable
+    - Changed parameter name in annonymous function to be more meaningful, e.g. (fun x:Symbol -> ...) , changed to (fun sym:Symbol -> ...), Examples in line 509, 517
     - Changed the documentation of rotation functions: the documentation of rotation states direction can be CW or AntiCW, but the code only supports CW.
+    - Added parameter isClockwise in the "rotatePointAboutBlockCentre", so that the function can support both CW and AntiCW rotation as specified
 *)
 
 /// Record containing all the information required to calculate the position of a port on the sheet.
@@ -289,21 +294,6 @@ let getSymbolBlockBoundingBox (symbols:Symbol List) :BoundingBox =
     let minY = getMinPosByAxis selectY symbols
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
-// let getBlock 
-//         (symbols:Symbol List) :BoundingBox = 
-
-//     let maxXsym = (List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) symbols)
-//     let maxX = maxXsym.Pos.X + (snd (getRotatedHAndW maxXsym))
-
-//     let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
-
-//     let maxYsym = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) symbols
-//     let maxY = maxYsym.Pos.Y + (fst (getRotatedHAndW maxYsym))
-
-//     let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
-
-//     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
-
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>
@@ -326,7 +316,7 @@ let rotatePointAboutBlockCentre
             {X = -pointIn.X ; Y = - pointIn.Y}
         | Degree270 ->
             {X = -pointIn.Y ; Y = pointIn.X}
-           
+        
     let relativeToTopLeft = (fun x-> centre - x)
 
     point
@@ -434,7 +424,7 @@ let flipSymbolInBlock
     (sym: Symbol) : Symbol =
 
     let h,w = getRotatedHAndW sym
-    //Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
+    //Needed as new symbols need their Pos and components updated (not done in regular flip symbol)
     let newTopLeft = 
         flipPointAboutBlockCentre sym.Pos blockCentre flip
         |> adjustPosForBlockFlip flip h w
@@ -454,7 +444,7 @@ let flipSymbolInBlock
         Rotation= sym.STransform.Rotation} 
 
     { sym with
-        Component = sym.Component // MOD: should only update when saving
+        Component = {sym.Component with X=newTopLeft.X; Y=newTopLeft.Y}
         PortMaps = {Order=portOrder;Orientation=portOrientation}
         STransform = newSTransform
         LabelHasDefaultPos = true
@@ -499,7 +489,6 @@ let scaleSymbolInBlock
     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
-/// ========== Above is SPLIT 4
 
 /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
 
@@ -516,24 +505,23 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
 /// <param name="rotation"> Type of rotation to do</param>
 /// <returns>New rotated symbol model</returns>
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
-
     printfn "running rotateBlock"
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+    let SelectedSymbols = List.map (fun cid -> model.Symbols |> Map.find cid) compList
 
     //Get block properties of selected symbols
     let block = getSymbolBlockBoundingBox SelectedSymbols
 
     //Rotated symbols about the center
     let newSymbols = 
-        List.map (fun x -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) x) SelectedSymbols 
+        List.map (fun sym -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) sym) SelectedSymbols 
+        |> List.map (fun sym -> rotateSymbolByDegree rotation sym)
+        |> List.fold (fun (acc: Map<ComponentId,Symbol>) (sym: Symbol) -> Map.add sym.Id sym acc) model.Symbols 
+        // MOD: changed the type of "newSymbols" to be Map<cid,sym> (as this is the type of model.Symbols)
+        // get the updated Map by using Map.add, instead of creating a new one from selected and unselected
 
     //return model with block of rotated selected symbols, and unselected symbols
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
-
+    {model with Symbols = newSymbols}
+/// ========== Above is SPLIT 4
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
     let maxXSymCentre = 
             selectedSymbols

@@ -18,7 +18,7 @@ open SymbolResizeHelpers
     - Changed layout of function to group functions and main body
     - Changed function parameters to allow better pipeline of functions
     - refactoring of code to remove code duplication (noSymbolOverlap and Sheet.notIntersectingComponents)
-
+    - comments
 
     This module contains the code that rotates and scales blocks of components.
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.

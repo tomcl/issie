@@ -359,7 +359,7 @@ let adjustPosForBlockFlip
 
 //-------------------------------------------------------------------------------------------------
 // Code Improved by Johnny Line 360 - 480
-//--------------improve summary------
+//---------------------------------improve summary-------------------------------------------------
 
 // 1. Pipelining for Clarity: 
 //      Utilized pipelines in rotateSymbolInBlock and flipSymbolInBlock for clearer data transformations.
@@ -368,7 +368,7 @@ let adjustPosForBlockFlip
 // 3. Variable Declaration Clarity: 
 //      Split combined variable declarations in scaleSymbolInBlock for enhanced readability.
 
-//_________________improve description end-------------
+//-----------------------------improve description end---------------------------------------------
 
 /// <summary>Rotate a symbol around the block centre.</summary>
 /// <param name="rotation">Clockwise or Anticlockwise rotation</param>

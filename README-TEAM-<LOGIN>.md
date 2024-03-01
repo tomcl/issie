@@ -1,11 +1,13 @@
 # Team-Phase Work JW3621 
 
-## D2 sheetOrderFlip Build
-helper datatypes and functions to perform Exhaustive Search Algorithm mentioned in the project requirement
+### **D2 sheetOrderFlip Build**
+  
+Helper datatypes and functions are created to perform Exhaustive Search Algorithm mentioned in the project requirement
 
 ## 1. **Exhaustive Search Algorithm**
 
-This approach utilizes two new data types, `symbolScript` and `modelScript`, to describe the configuration of a `SheetT.Model`:
+
+Two new data types, `symbolScript` and `modelScript`, are created, to describe the configuration of a `SheetT.Model`:
 
 - A `symbolScript` contains all parameters that can be changed for a single symbol.
 - A `modelScript` is a list of `symbolScript`, with each entry corresponding to one symbol in the model.

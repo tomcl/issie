@@ -42,23 +42,10 @@ open Sheet.SheetInterface
 // Other helpers identified by Team
 
 
-// Key Type Difficulty Value read or written 
-// B1R, B1W RW 
-//  Value read or written: The dimensions of a custom component symbol
-
-
-/// Calculates the final dimensions of a symbol, considering potential scaling.
-let caseInvariantEqual str1 str2 =
-        String.toUpper str1 = String.toUpper str2
-let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option = 
-        model.Wire.Symbol.Symbols
-        |> Map.values
-        |> Seq.tryFind (fun sym -> caseInvariantEqual label sym.Component.Label)
-
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// get and set dimensions of a custom component symbol
+// B1 get and set dimensions of a custom component symbol
 
 /// <summary>
 /// lens for getting and setting the scaled dimensions of a custom component symbol
@@ -247,16 +234,16 @@ let symbolFlipped_ = Lens.create getSymbolFlipped setSymbolFlipped
 /// <summary>
 /// The number of pairs of symbols that intersect each other
 /// </summary>
-/// <param name="sheet">The sheet.</param>
+/// <param name="model">The model to analy.</param>
 /// <returns>a interger, representing number of pairs of symbols that intersect.</returns>
 
-let countIntersectingSymbolPairs (sheet: SheetT.Model) =
+let countIntersectingSymbolPairs (model: SheetT.Model) =
 
-    let wireModel = sheet.Wire
+    let wireModel = model.Wire
 
     // Get Bounding boxes of all symbols into a list
     let boxes =
-        mapValues sheet.BoundingBoxes
+        mapValues model.BoundingBoxes
         |> Array.toList
         |> List.mapi (fun n box -> n,box)
     
@@ -275,12 +262,12 @@ let countIntersectingSymbolPairs (sheet: SheetT.Model) =
 /// <summary>
 /// The number of distinct wire visible segments that intersect with one or more symbols.
 /// </summary>
-/// <param name="sheet">The sheet.</param>
+/// <param name="model">The sheet.</param>
 /// <returns>a interger, representing number of pairs of symbols that intersect.</returns>
 
-let countSymbolIntersectingWire (sheet: SheetT.Model) =
+let countSymbolIntersectingWire (model: SheetT.Model) =
 
-    let wireModel = sheet.Wire
+    let wireModel = model.Wire
 
     wireModel.Wires
     |> Map.fold (
@@ -339,7 +326,7 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
 
 /// <summary>
-/// convert a wire into a list of segments represented by SegVector
+/// convert a wire into a list of segments, each represented by a SegVector
 /// </summary>
 /// <param name="wId">The Id of the wire needs to be converted.</param>
 /// <param name="model">The model containing that wire.</param>
@@ -367,7 +354,12 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 // T3R - Number of visible wire Intersecting at right-angles
 
+// to aviod adjacent segments of the same wires and same-net segments being counted as right angle, 
+// two segments does not count to have right angle if their end point overlap
+
+
 /// <summary>Check if a segment is vertical</summary>
+
 let isVertical (direction: XYPos) = direction.X = 0.0
 
 /// <summary>Calculate the range of a segment</summary>
@@ -376,6 +368,7 @@ let calculateRange (startPos: XYPos) (endPos: XYPos) (isVertical: bool) =
         (min startPos.Y endPos.Y, max startPos.Y endPos.Y)
     else
         (min startPos.X endPos.X, max startPos.X endPos.X)
+
 
 /// <summary>
 /// Check if two segments are crossing at right angle
@@ -417,8 +410,8 @@ let countRightAngleIntersect (segVectorList: list<SegVector>) =
 /// <summary>
 /// Count the total number of right angle intersections of two differet wires
 /// </summary>
-/// <param name="model">the model</param>
-/// <returns>integer indicate number of Intersect.</returns>
+/// <param name="model">the model to analyze</param>
+/// <returns>integer indicating the number of Intersections.</returns>
 let countTotalRightAngleIntersect (model: SheetT.Model) =
     model.Wire.Wires
     |> Map.toList // Convert the map of wires to a list of (key, value) pairs
@@ -474,9 +467,9 @@ let mergeAllOverlapSegments segList =
             mergeRecursive (mergedSegment :: acc) nonOverlaps
     mergeRecursive [] segList |> List.rev
 
-/// <summary> Calculate sum of segment lengths N same-net segments overlapping count once only</summary>
-/// <param name="model">the model the algo is applying to</param>
-/// <returns>float indicate the length of visible wire length.</returns>
+/// <summary> Calculate sum of segment lengths, N same-net segments overlapping count once only</summary>
+/// <param name="model">the model to analyze</param>
+/// <returns>float number indicating the length of visible wire length.</returns>
 let totalVisibleWiringLength (model: SheetT.Model) =
 
     // list of segments without overlapping
@@ -489,11 +482,11 @@ let totalVisibleWiringLength (model: SheetT.Model) =
     |> mergeAllOverlapSegments // Merge overlapping segments
     |> List.sumBy (fun seg -> abs seg.Direction.X + abs seg.Direction.Y) // Sum length
     
+
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // T5R - Number of visible wire right-angles. Count over whole sheet.
-// Count the number of right angles in a wire
 
 /// <summary>Sums up the right angles of one wire</summary>
 /// <param name="wId">the Id of the wire</param>
@@ -512,7 +505,7 @@ let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
     
 
 /// <summary>Sums up the right angles from all wires in the model.</summary>
-/// <param name="model">the model the algo is applying to</param>
+/// <param name="model">the model to analyze</param>
 /// <returns>int indicate the number of right angle.</returns>
 let countTotalRightAngles (model: SheetT.Model) =
     model.Wire.Wires
@@ -524,13 +517,6 @@ let countTotalRightAngles (model: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 // T6R R High 
 
-// The zero-length segments in a wire with non-zero segments on either side that have 
-// Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply 
-// at the end of a wire (where the zero-length segment is one from the end). This is a 
-// wiring artifact that should never happen but errors in routing or separation can 
-// cause it. Count over the whole sheet. Return from one function a list of all the 
-// segments that retrace, and also a list of all the end of wire segments that retrace so 
-// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol. 
 
 /// <summary>
 /// Finds retracing segments within wires of a model, returning retracing segments and end-of-wire retracing segments.

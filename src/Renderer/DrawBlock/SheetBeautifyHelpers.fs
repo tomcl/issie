@@ -129,6 +129,7 @@ let countSymbolIntersectSymbols (sheet: SheetT.Model) : int =
                 Helpers.mapValues sheet.BoundingBoxes
                 |> Array.toList
                 |> List.mapi (fun n box -> n,box)
+
             List.allPairs boxes boxes 
             |> List.filter (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && overlap2DBox box1 box2)
             |> List.length
@@ -137,17 +138,13 @@ let countSymbolIntersectSymbols (sheet: SheetT.Model) : int =
 /// The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper.
 /// Count over all visible wire segments. 
 let countWireIntersectSymbols (model: SheetT.Model) : int =
-    let boxes =
-        Helpers.mapValues model.BoundingBoxes
-        |> Array.toList
-
-    let setMinSize length =
-        if length = 0.0 then 0.5 else length
+    let boxes = Helpers.mapValues model.BoundingBoxes |> Array.toList
         
     /// treat wires segments as very thin boxes
     let WireIntersectSymbol ((box,seg): BoundingBox*ASegment) =
         let dim = seg.Start - seg.End
 
+        let setMinSize length = if length = 0.0 then 0.5 else length
 
         let segAsBox = {TopLeft = seg.Start; W = setMinSize dim.X; H = setMinSize dim.Y}
         overlap2DBox segAsBox box
@@ -202,17 +199,14 @@ let visibleWireLength (model: SheetT.Model) : float =
     /// split into a two lists based on whether a segment overlaps another in the list
     let splitByOverlaps segList =
         let comparingList = segList
-        segList
-        |> List.partition (fun seg -> List.exists (hasOverlap seg) comparingList)
+        segList |> List.partition (fun seg -> List.exists (hasOverlap seg) comparingList)
 
     /// finds the total length of a list of overlap wires
     let getOverlapLength (segList: ASegment list)=
         let minStartSeg =
-            segList
-            |> List.minBy (fun seg -> seg.Start.X + seg.Start.Y)
+            segList |> List.minBy (fun seg -> seg.Start.X + seg.Start.Y)
         let maxEndSeg =
-            segList
-            |> List.maxBy (fun seg -> seg.End.X + seg.End.Y)
+            segList |> List.maxBy (fun seg -> seg.End.X + seg.End.Y)
         let lengthXY =  maxEndSeg.End - minStartSeg.Start
         abs(lengthXY.X + lengthXY.Y)
 

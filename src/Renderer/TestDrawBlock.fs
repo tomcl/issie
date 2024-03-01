@@ -338,6 +338,14 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
+    let makeTest5Circuit (andPos: XYPos) =
+        initSheetModel
+        |> placeSymbol "Component1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "Component2" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "Component1" 0) (portOf "Component2" 0))
+        |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
+        |> getOkOrFail
+
 
 
 //------------------------------------------------------------------------------------------------//

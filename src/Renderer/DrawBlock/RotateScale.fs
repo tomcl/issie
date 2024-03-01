@@ -39,6 +39,7 @@ open SymbolResizeHelpers
         Functional Abstraction
         Match Case Compression
 //FUNCTION NAME CHANGES:
+    - getBlock -> calcSymbolBoundingBox // felt that previous name not apt for a function that returns a bounding box
     - getScalingFactorAndOffsetCentre -> getScaleFactorAndOffsetCentre // consistency with scaleFact variable within the function
     - getScalingFactorAndOffsetCentreGroup -> getScaleFactorAndOffsetCentreGroup //consistency with above
     - oneCompBoundsBothEdges -> selectedSymbolsBoundedByBothEdges (suggested, not actually implemeted in the code as it is referenced multiple times in other files)

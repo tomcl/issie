@@ -10,11 +10,20 @@ open Operators
 open BlockHelpers
 open SymbolResizeHelpers
 
-(* 
-    This module contains the code that rotates and scales blocks of components.
-    It was collected from HLP work in 2023 and has some technical debt and also unused functions.
-    It requires better documentation of teh pasrts now used.
+(*
+    LL3621 improvement summary: My part goes from line 474 to 686
+    Main changes made by ll3621:
+    Improve readability by seprating complex nested functions into a pipeline
+    Reduce the complexity of the functions by using more suitable functions/types
+    Function and variable renaming to make more sense and stick with their type
+    Some changes to function signatures to make sure they are consistant with other functions and easier to use
+    changes to each line are commented after the line changed and stated the reason
+    good functions are remained unchanged with a comment saying why I havent changed it.
+
 *)
+
+
+
 
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
@@ -499,7 +508,7 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
 /// <returns>New rotated symbol model</returns>
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
 
-    printfn "running rotateBlock"
+    // printfn "running rotateBlock"
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
@@ -532,6 +541,7 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
 
 
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
+    (*comment: this function is well written, clear and pipelined with good naems, no change*)
     let maxXSymCentre = 
             selectedSymbols
             |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
@@ -638,7 +648,7 @@ let getScalingFactorAndOffsetCentreGroup
 (*new implementation: *)
 let scaleSymbol 
         ((xSC,ySC): (float * float) * (float * float)) 
-        // changed xySC to xSC,ySC tuple to save the need of giving them a value, less lines
+        // changed xySC to xSC,ySC tuple to save the need of giving them a value, less lines, also does better with the function above
         (sym: Symbol)
         : Symbol =
     let symCentre =  getRotatedSymbolCentre sym

@@ -17,11 +17,28 @@ open SymbolResizeHelpers
 *)
 
 
-(* hj1021 improvement summary
-    -rename several variables
-    -rename several functions
-    -add XML to each function
-    -extract getSourceTargetPorts out 
+(* hj1021 
+
+    <improvement summary>
+    Changes are made to to WireSymbols, getOppEdgePortInfo, alignPortsOffset, alignSymbols and reSizeSymbol
+    And add XML comments to each function
+
+    WireSymbols:
+    - Changed the names of the fields to sourceSym and targetSym to make it more readable.
+    - And change all its references to the new names.
+
+    alignPortsOffset:
+    -Extracted the getPortRealPos function from alignPortsOffset and used it as a helper function.
+    -Shortened match cases and increased readability.
+
+    alignSymbols:
+    -No changes made, as it is already well structured and readable.
+    -Add some comments describ how well it is structured and readable.
+
+    reSizeSymbol:
+    -No changes made, as it is already well structured and readable.
+    -Add some comments describ how well it is structured and readable. 
+
 *)
 
 //--------------------------------------start of hj1021 section ----------------------------------------//
@@ -106,7 +123,7 @@ let getOppEdgePortInfo
               targetSym = otherSymbol
               Wire = w })
 
-//hj1021 Functional (and let value definition) abstraction: 
+// hj1021 Functional (and let value definition) abstraction: 
 // Extract this function from the alignPortsOffset as it seems like a useful helper function
 // that has the potential to be used several times. (DRY)
 let getPortRealPos pInfo =
@@ -116,7 +133,6 @@ let getPortRealPos pInfo =
 /// Calculate the position offset needed to align potrs
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
 
-    //hj1021 this function uses Input Warpping well
     let movePortPos = getPortRealPos movePInfo
     let otherPortPos = getPortRealPos otherPInfo
     let posDiff = otherPortPos - movePortPos
@@ -126,6 +142,7 @@ let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     | Top  | Bottom -> { X = posDiff.X; Y = 0.0 }
     | Left | Right  -> { X = 0.0; Y = posDiff.Y }
 
+/// Align symbols by moving it by an offset
 let alignSymbols
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
@@ -136,7 +153,7 @@ let alignSymbols
     match getOppEdgePortInfo (wModel:BusWireT.Model) symbolToSize otherSymbol with
     | None -> wModel
     | Some(movePortInfo, otherPortInfo) ->
-        //also good illustration of input wrapping
+        //hj1021 Good illustration of input wrapping
         let offset = alignPortsOffset movePortInfo otherPortInfo
         let symbol' = moveSymbol offset symbolToSize
         let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
@@ -158,6 +175,7 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
             makePortInfo symbolToSize pS, makePortInfo symbolToSize pT
         | Some(pIS, pIT) -> (pIS, pIT)
 
+    //hj1021 input wrapping
     let h, w =
         match resizePortInfo.side with
         | Left | Right ->
@@ -167,6 +185,7 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
 
     match symbolToSize.Component.Type with
     | Custom _ ->
+        //hj1021 input wrapping
         let scaledSymbol = setCustomCompHW h w symbolToSize
         let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
         let offset = alignPortsOffset scaledInfo otherPortInfo

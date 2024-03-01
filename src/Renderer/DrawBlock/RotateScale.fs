@@ -3,51 +3,50 @@
 (*
     Contribution Statement - Samuel Wang - sw2521
 
-    Three team members were assigned to the same section. I was assigned the later section of the file, from lines 370 
+    Three team members were assigned to the same section. I was assigned the later section of the file, from lines 370
     to the end of the file. The whole section was improved and refactored, with the exception of the postUpdateScalingBox
-    function, with the majority of the work being: a) reordering functions, b) extracting helper functions, and c) 
+    function, with the majority of the work being: a) reordering functions, b) extracting helper functions, and c)
     updating function signals. See below for a comprehensive list of improvements.
-    
-    Major Improvements - 
 
-    1.  Removed unsafe and unnecessary code in rotateBlock and flipBlock. 
-        The original code first obtains a list of selected symbols and a map of unselected symbols, then updates the 
-        selected symbol by adding back to the map of unselected symbols. The first operation was unsafe as it uses 
-        Map.find, a implementation with Map.tryFind is better. The second operation was unnecessary as Map.add updates 
-        a map's value if a key was present, a simpler implementation to just add in the updated symbols in the symbol 
+    Major Improvements -
+
+    1.  Removed unsafe and unnecessary code in rotateBlock and flipBlock.
+        The original code first obtains a list of selected symbols and a map of unselected symbols, then updates the
+        selected symbol by adding back to the map of unselected symbols. The first operation was unsafe as it uses
+        Map.find, a implementation with Map.tryFind is better. The second operation was unnecessary as Map.add updates
+        a map's value if a key was present, a simpler implementation to just add in the updated symbols in the symbol
         map was given in the mapSelectedSymsInModel helper.
 
     2.  Extracted duplicate code into helper functions. See extracted function and uses below:
-        a.  getSymsFromIds, mapSelectedSymsInModel: 
-            extracted from rotateBlock and flipBlock, which is of same functionality of findSelectedSymbols and 
+        a.  getSymsFromIds, mapSelectedSymsInModel:
+            extracted from rotateBlock and flipBlock, which is of same functionality of findSelectedSymbols and
             groupNewSelectedSymsModel.
-        b.  getMaxMinSymInBlock2D, mapMaxMinSyms2D: 
-            extracted from getScalingFactorAndOffsetCentreGroup and oneCompBoundsBothEdges, which also reduces duplicate 
-            code across x- and y-dimensions.
-        c. getRotatedSymDim: 
+        b.  getMaxMinSymInBlock2D, mapMaxMinSyms2D:
+            extracted from getScalingFactorAndOffsetCentreGroup and oneCompBoundsBothEdges, which also reduces duplicate
+            code across x- and y-dimensions. Used also in getBlock, but not within range of Ln 370+.
+        c.  getRotatedSymDim:
             function to map symbol's true height and width to a XYPos vector. Used across scaling functions.
-            
-    
-    3.  Renamed top-level functions and updated its signal. 
-        Renaming was done for function names to be shorter and representative of what they do. Signals were updated for 
-        the function to be curried more easily, usually in the form of putting the Symbol or the SymbolT.Model it is 
-        operating on last, e.g. rotateBlock. Signals were also unified across similar functions, e.g. rotateSymInBlock, 
-        flipSymInBlock, and scaleSymInBlock, allowing easier use. Interface functions were created when functions were 
+
+    3.  Renamed top-level functions and updated its signal.
+        Renaming was done for function names to be shorter and representative of what they do. Signals were updated for
+        the function to be curried more easily, usually in the form of putting the Symbol or the SymbolT.Model it is
+        operating on last, e.g. rotateBlock. Signals were also unified across similar functions, e.g. rotateSymInBlock,
+        flipSymInBlock, and scaleSymInBlock, allowing easier use. Interface functions were created when functions were
         used by external code, where parameter names were kept the same but docs updated.
 
-    4.  Used XYPos to represent vector data. 
-        This was done as the ".X" and ".W" accesses can be parameterized (with just ".X"), which allowed for reduction 
-        of repeated code. This was also done so that the XYPos overloaded operator can be used to simplify operations. 
+    4.  Used XYPos to represent vector data.
+        This was done as the ".X" and ".W" accesses can be parameterized (with just ".X"), which allowed for reduction
+        of repeated code. This was also done so that the XYPos overloaded operator can be used to simplify operations.
         E.g. scaleSymbolPos.
-    
-    5.  Reordered and sectioned top-level function by subject. 
-        The following categories were created: Helpers, Rotate, Flip, Scaling, Update Scaling Box, and Misc. This was 
-        done to allow helper functions to be more easily extracted (easier to see duplicate code in similar functinos) 
-        and to allow library functions to be more easily found.
+
+    5.  Reordered and sectioned top-level function by subject.
+        The following categories were created: Helpers, Rotate, Flip, Scaling, Update Scaling Box, and Misc. This was
+        done to allow helper functions to be more easily extracted (e.g. getSymsFromIds, mapSelectedSymsInModel, and
+        getMaxMinSymInBlock2D) and to allow library functions to be more easily found.
 
     Minor Fixes -
 
-    6.  Added comprehensive XML documentation to all functions refactored. 
+    6.  Added comprehensive XML documentation to all functions refactored.
         This included summary, parameters, and its returns. Some complicated local helpers have doc-strings as well.
 
     7.  Renamed function, variable, and parameter names for them to be more succinct or obvious. See below:
@@ -426,11 +425,11 @@ let adjustPosForBlockFlip
 /// <param name="model">Symbol model.</param>
 /// <returns>List of symbols. If ComponentId is not present in symbol model, it will be omitted from output.</returns>
 let getSymsFromIds (compIds: List<ComponentId>) (model: SymbolT.Model): List<Symbol> =
-    compIds 
+    compIds
     |> List.map (fun compId -> Map.tryFind compId model.Symbols)
     |> List.choose id
 
-/// <summary>Apply mapping to some symbols, specified by compIds, within a symbol model.</summary>
+/// <summary>Apply mapping to some symbols, specified by <c>compIds</c>, within a symbol model.</summary>
 /// <param name="mapping">Mapping function to transform symbol.</param>
 /// <param name="compIds">List of specified symbol's component IDs to map over.</param>
 /// <param name="model">Symbol model.</param>
@@ -443,7 +442,7 @@ let mapSelectedSymsInModel (mapping: Symbol->Symbol) (compIds: List<ComponentId>
 
 /// <summary>Get a symbol's true dimension in vector format.</summary>
 /// <param name="sym">Target symbol.</param>
-/// <returns>Symbol dimension in XYPos vector format.</returns>
+/// <returns>Symbol dimension in <c>XYPos</c> vector format.</returns>
 let getRotatedSymDim (sym: Symbol): XYPos =
     let h, w = getRotatedHAndW sym
     { X = w; Y = h }
@@ -453,7 +452,7 @@ let getRotatedSymDim (sym: Symbol): XYPos =
 /// <returns>Tuple of symbols, in the order of: max x, min x, max y, min y.</returns>
 let getMaxMinSymInBlock2D (syms: List<Symbol>): Symbol*Symbol*Symbol*Symbol =
     /// <summary>Helper to get the outermost symbols by centre of a selected list in 1 direction.</summary>
-    /// <param name="dimSel">Dimension selector, either do ".X" or ".Y".</param>
+    /// <param name="dimSel">Dimension selector, either do <c>.X</c> or <c>.Y</c>.</param>
     /// <param name="syms">List of symbols to check.</param>
     /// <returns>Tuple of symbols: in the order of: max, min.</returns>
     let getMaxMinSymInBlock1D (dimSel: XYPos->float) (syms: List<Symbol>): Symbol*Symbol =
@@ -461,50 +460,50 @@ let getMaxMinSymInBlock2D (syms: List<Symbol>): Symbol*Symbol*Symbol*Symbol =
         let minSym = syms |> List.minBy (fun sym -> dimSel sym.Pos)
 
         maxSym, minSym
-    
+
     let maxXSym, minXSym = getMaxMinSymInBlock1D (fun vec -> vec.X) syms
     let maxYSym, minYSym = getMaxMinSymInBlock1D (fun vec -> vec.Y) syms
-    
+
     maxXSym, minXSym, maxYSym, minYSym
 
 /// <summary>Apply x- and y-mappings separately to tuple of x-y-max-min-symbols.
 /// Used to obtain float values from the symbols.</summary>
 /// <param name="xMapping">Mapping function for max and min in x-direction symbols.</param>
 /// <param name="yMapping">Mapping function for max and min in y-direction symbols.</param>
-/// <remarks>To be used in conjunction with getMaxMinSymInBlock2D.</remarks>
+/// <remarks>To be used in conjunction with <c>getMaxMinSymInBlock2D</c>.</remarks>
 let mapMaxMinSyms2D
-        (xMapping: Symbol->float) 
+        (xMapping: Symbol->float)
         (yMapping: Symbol->float)
         (maxMinSyms: Symbol*Symbol*Symbol*Symbol)
             : float*float*float*float =
     let maxXSym, minXSym, maxYSym, minYSym = maxMinSyms
-    
+
     xMapping maxXSym, xMapping minXSym, yMapping maxYSym, yMapping minYSym
-    
+
 
 (* ------------------------------------------ Interface ----------------------------------------- *)
 
-/// <summary>[Deprecated] Get list of symbols from list of ComponentIds.</summary>
+/// <summary>[Deprecated] Get list of symbols from list of ComponentIds. Use <c>getSymsFromIds</c> instead.</summary>
 /// <param name="compList">List of component IDs to fetch.</param>
 /// <param name="model">Symbol model.</param>
 /// <returns>List of symbols.</returns>
-/// <remarks>Interface layer for external codebase. Use getSymsFromIds instead.</remarks>
+/// <remarks>Interface to external codebase.</remarks>
 let findSelectedSymbols (compList: List<ComponentId>) (model: SymbolT.Model): List<Symbol> =
     getSymsFromIds compList model
 
-/// <summary>[Deprecated] Apply function to selected symbols within a symbol model.</summary>
+/// <summary>[Deprecated] Apply function to selected symbols within a symbol model. Use <c>mapSelectedSymsInModel</c> instead.</summary>
 /// <param name="compList">List of selected component IDs to apply function to.</param>
 /// <param name="model">Symbol model.</param>
 /// <param name="selectedSymbols">[NOT USED] List of symbols to apply function to.</param>
 /// <param name="modifySymbolFunc">Mapping function to transform symbol.</param>
 /// <returns>Updated symbol models with mapping applied to selected symbols.</returns>
-/// <remarks>Interface layer for external codebase. Use mapSelectedSymsInModel instead.</remarks>
-let groupNewSelectedSymsModel 
-        (compList: List<ComponentId>) 
-        (model: SymbolT.Model) 
-        (selectedSymbols: List<Symbol>) 
+/// <remarks>Interface to external codebase.</remarks>
+let groupNewSelectedSymsModel
+        (compList: List<ComponentId>)
+        (model: SymbolT.Model)
+        (selectedSymbols: List<Symbol>)
         (modifySymbolFunc: Symbol->Symbol)
-            : SymbolT.Model = 
+            : SymbolT.Model =
     mapSelectedSymsInModel modifySymbolFunc compList model
 
 
@@ -519,34 +518,34 @@ let groupNewSelectedSymsModel
 /// <returns>Updated symbol after rotated about block centre.</returns>
 /// <remarks>Author: Ismagilov, HLP23.</remarks>
 let rotateSymInBlock (degree: Rotation) (blockBBox: BoundingBox) (sym: Symbol): Symbol =
-    let rotatedH, rotatedW = 
+    let rotatedH, rotatedW =
         getRotatedHAndW sym
 
-    let newTopLeft = 
+    let newTopLeft =
         rotatePointAboutBlockCentre sym.Pos (blockBBox.Centre()) (invertRotation degree)
         |> adjustPosForBlockRotation (invertRotation degree) rotatedH rotatedW
 
-    let newComponent = 
+    let newComponent =
         { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y }
-    
-    let newSTransform = 
+
+    let newSTransform =
         match sym.STransform.Flipped with
-        | true -> 
-            { sym.STransform with Rotation = combineRotation (invertRotation degree) sym.STransform.Rotation }  
-        | _-> 
+        | true ->
+            { sym.STransform with Rotation = combineRotation (invertRotation degree) sym.STransform.Rotation }
+        | _->
             { sym.STransform with Rotation = combineRotation degree sym.STransform.Rotation }
-    
-    let newPortMaps = 
+
+    let newPortMaps =
         rotatePortInfo degree sym.PortMaps
-    
-    { sym with 
+
+    { sym with
         Pos = newTopLeft
         Component = newComponent
-        STransform = newSTransform 
+        STransform = newSTransform
         PortMaps = newPortMaps
         LabelHasDefaultPos = true
-    } 
-    |> calcLabelBoundingBox 
+    }
+    |> calcLabelBoundingBox
 
 /// <summary>Rotates a symbol on its own.</summary>
 /// <param name="degree">Degree to rotate symbol by.</param>
@@ -559,22 +558,22 @@ let rotateSym (degree: Rotation) (sym: Symbol): Symbol =
 /// <param name="degree">Degree to rotate block by.</param>
 /// <param name="compIds">List of ComponentIds of block components.</param>
 /// <param name="model">Target symbol model.</param>
-/// <returns>Returns updated symbol model, of type SymbolT.Model.</returns>
+/// <returns>Returns updated symbol model, of type <c>SymbolT.Model</c>.</returns>
 /// <remarks>Refactored top-level function. Apostrophe to be removed after codebase is refactored.</remarks>
 let rotateBlock' (degree: Rotation) (compIds: List<ComponentId>) (model: SymbolT.Model): SymbolT.Model =
     let selectedSymsBBox = getSymsFromIds compIds model |> getBlock
-    
+
     mapSelectedSymsInModel (rotateSymInBlock (invertRotation degree) selectedSymsBBox) compIds model
 
 
 (* ------------------------------------------ Interface ----------------------------------------- *)
 
-/// <summary>[Deprecated] Rotates a block of symbols.</summary>
-/// <param name="compList">List of ComponentId's of selected components.</param>
+/// <summary>[Deprecated] Rotates a block of symbols. Use <c>rotateBlock'</c> instead.</summary>
+/// <param name="compList">List of <c>ComponentId</c>'s of selected components.</param>
 /// <param name="model">Current symbol model.</param>
 /// <param name="rotation">Type of rotation to do.</param>
-/// <returns>Returns updated symbol model, of type SymbolT.Model.</returns>
-/// <remarks>Interface layer for existing codebase. Use rotateBlock' instead.</remarks>
+/// <returns>Returns updated symbol model, of type <c>SymbolT.Model</c>.</returns>
+/// <remarks>Interface to existing codebase.</remarks>
 let rotateBlock (compList: List<ComponentId>) (model: SymbolT.Model) (rotation:Rotation): SymbolT.Model =
     rotateBlock' (rotation) (compList) (model)
 
@@ -584,7 +583,7 @@ let rotateBlock (compList: List<ComponentId>) (model: SymbolT.Model) (rotation:R
 (* ---------------------------------------------------------------------------------------------- *)
 
 /// <summary>Flip a symbol in a selection block.</summary>
-/// <param name="flip">Direction to flip, either FlipHorizontal or FlipVertical.</param>
+/// <param name="flip">Direction to flip, either <c>FlipHorizontal</c> or <c>FlipVertical</c>.</param>
 /// <param name="blockBBox">Bounding box of selection block.</param>
 /// <param name="sym">Symbol to be flipped.</param>
 /// <returns>Updated symbol after flipped about block centre.</returns>
@@ -594,47 +593,47 @@ let flipSymInBlock (flip: FlipType) (blockBBox: BoundingBox) (sym: Symbol): Symb
         getRotatedHAndW sym
 
     let newTopLeft = // update pos of block
-        flipPointAboutBlockCentre sym.Pos (blockBBox.Centre()) flip 
+        flipPointAboutBlockCentre sym.Pos (blockBBox.Centre()) flip
         |> adjustPosForBlockFlip flip rotatedH rotatedW
 
     let newPortOrientation =
-        sym.PortMaps.Orientation 
+        sym.PortMaps.Orientation
         |> Map.map (fun _ side -> flipSideHorizontal side)
 
-    let newPortOrder = 
+    let newPortOrder =
         sym.PortMaps.Order
         |> Map.toList
         |> List.map (fun (side, _) -> side) // get all sides
-        |> List.fold 
-            (fun currPortOrder side -> Map.add (flipSideHorizontal side) sym.PortMaps.Order[side] currPortOrder) 
+        |> List.fold
+            (fun currPortOrder side -> Map.add (flipSideHorizontal side) sym.PortMaps.Order[side] currPortOrder)
             Map.empty
         |> Map.map (fun _ order -> List.rev order)
 
     { sym with
         Component = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y }
         PortMaps = { Order = newPortOrder; Orientation = newPortOrientation }
-        STransform = { sym.STransform with Flipped = not sym.STransform.Flipped } 
+        STransform = { sym.STransform with Flipped = not sym.STransform.Flipped }
         LabelHasDefaultPos = true
         Pos = newTopLeft
     }
     |> calcLabelBoundingBox
     |> (fun sym ->
         match flip with
-        | FlipHorizontal -> 
+        | FlipHorizontal ->
             sym
-        | FlipVertical -> 
+        | FlipVertical ->
             let symBBox = getBlock [ sym ]
-            sym 
-            |> rotateSymInBlock Degree270 symBBox 
+            sym
+            |> rotateSymInBlock Degree270 symBBox
             |> rotateSymInBlock Degree270 symBBox)
 
 /// <summary>Flips a block of symbols.</summary>
 /// <param name="flip">Type of flip to do.</param>
-/// <param name="compIds">List of ComponentIds of block components.</param>
+/// <param name="compIds">List of <c>ComponentId</c>s of block components.</param>
 /// <param name="model">Target symbol model.</param>
-/// <returns>Returns updated symbol model, of type SymbolT.Model.</returns>
+/// <returns>Returns updated symbol model, of type <c>SymbolT.Model</c>.</returns>
 /// <remarks>Refactored top-level function. Apostrophe to be removed after codebase is refactored.</remarks>
-let flipBlock' (flip: FlipType) (compIds :ComponentId list) (model:SymbolT.Model): SymbolT.Model = 
+let flipBlock' (flip: FlipType) (compIds :ComponentId list) (model:SymbolT.Model): SymbolT.Model =
     let selectedSymsBBox = getSymsFromIds compIds model |> getBlock
 
     mapSelectedSymsInModel (flipSymInBlock flip selectedSymsBBox) compIds model
@@ -642,13 +641,13 @@ let flipBlock' (flip: FlipType) (compIds :ComponentId list) (model:SymbolT.Model
 
 (* ------------------------------------------ Interface ----------------------------------------- *)
 
-/// <summary>[Deprecated] Flips a block of symbols.</summary>
-/// <param name="compList">List of ComponentIds of block components.</param>
+/// <summary>[Deprecated] Flips a block of symbols. Use <c>flipBlock'</c> instead.</summary>
+/// <param name="compList">List of <c>ComponentId</c>s of block components.</param>
 /// <param name="model">Target symbol model.</param>
 /// <param name="flip">Type of flip to do.</param>
-/// <returns>Returns updated symbol model, of type SymbolT.Model.</returns>
-/// <remarks>Interface layer for existing codebase. Use flipBlock' instead. Author: Ismagilov, HLP23.</remarks>
-let flipBlock (compList: ComponentId list) (model: SymbolT.Model) (flip: FlipType) = 
+/// <returns>Returns updated symbol model, of type <c>SymbolT.Model</c>.</returns>
+/// <remarks>Interface to existing codebase. Author: Ismagilov, HLP23.</remarks>
+let flipBlock (compList: ComponentId list) (model: SymbolT.Model) (flip: FlipType) =
     flipBlock' flip compList model
 
 
@@ -657,7 +656,7 @@ let flipBlock (compList: ComponentId list) (model: SymbolT.Model) (flip: FlipTyp
 (* ---------------------------------------------------------------------------------------------- *)
 
 /// <summary>Scales a symbol up or down in a selection box.</summary>
-/// <param name="scale">ScaleUp or ScaleDown.</param>
+/// <param name="scale"><c>ScaleUp</c> or <c>ScaleDown</c>.</param>
 /// <param name="blockBBox">Bounding box of selected components.</param>
 /// <param name="sym">Symbol to be scaled.</param>
 /// <returns>Updated symbol after scaled about block centre.</returns>
@@ -673,10 +672,10 @@ let scaleSymInBlock (scale: ScaleType) (blockBBox: BoundingBox) (sym: Symbol): S
     let blockPos = blockBBox.TopLeft
     let blockHW = { X = blockBBox.W; Y = blockBBox.H }
 
-    /// <summary>Helper to find new top-left position of a symbol of 1 dimension.</summary>   
-    /// <param name="dim">Function to access 1 dimension of XYPos.</param>
+    /// <summary>Helper to find new top-left position of a symbol of 1 dimension.</summary>
+    /// <param name="dim">Function to access 1 dimension of <c>XYPos</c>.</param>
     let findNewPos1D (dim: XYPos->float): float =
-        let prop = // proportion of symbol to block 
+        let prop = // proportion of symbol to block
             (dim rotatedCentre) - (dim blockPos) / (dim blockHW)
         let centre = // centre of symbol
             match scale with
@@ -684,13 +683,13 @@ let scaleSymInBlock (scale: ScaleType) (blockBBox: BoundingBox) (sym: Symbol): S
             | ScaleDown -> (dim blockPos + blockPosDiff) + (dim blockHW - blockSideDiff) * prop
         let pos = // top-left pos of symbol
             centre - (dim rotatedHW)/2.
-        
+
         pos
 
     let newPosX = findNewPos1D (fun vec -> vec.X)
     let newPosY = findNewPos1D (fun vec -> vec.Y)
 
-    { sym with 
+    { sym with
         Pos = { X = newPosX; Y = newPosY }
         Component = { sym.Component with X = newPosX; Y = newPosY }
         LabelHasDefaultPos = true
@@ -702,36 +701,36 @@ let scaleSymInBlock (scale: ScaleType) (blockBBox: BoundingBox) (sym: Symbol): S
 /// <param name="max">Max of original range.</param>
 /// <param name="matchMax">Max of range to scale to.</param>
 /// <returns>Tuple of coefficients, in the order of: scaling factor and offset centre.</returns>
-/// <remarks>No original docstring. Educated guess used.</remarks>
-let getScalingCoeffs1D (min: float) (matchMin: float) (max: float) (matchMax: float): float*float = 
-    let scaleFact = 
-        if min = max || matchMax <= matchMin 
-        then 1. 
+/// <remarks>No original docstring, educated guess used.</remarks>
+let getScalingCoeffs1D (min: float) (matchMin: float) (max: float) (matchMax: float): float*float =
+    let scaleFact =
+        if min = max || matchMax <= matchMin
+        then 1.
         else (matchMin - matchMax) / (min - max)
 
-    let offsetCentre = 
+    let offsetCentre =
         if scaleFact = 1. then 0.
         else (matchMin - min * scaleFact) / (1.-scaleFact)
-    
+
     (scaleFact, offsetCentre)
 
 /// <summary>Return set of floats that define how a group of components is scaled.</summary>
 /// <param name="matchBBoxMin">Min corner of bounding box to scale to.</param>
 /// <param name="matchBBoxMax">Max corner of bounding box to scale to.</param>
-/// <returns>Tuple of tuple of scaling coefficients, in the order of x-dimension scaling factor and offset centre, 
+/// <returns>Tuple of tuple of scaling coefficients, in the order of x-dimension scaling factor and offset centre,
 /// and then the y-dimension.</returns>
-/// <remarks>Original docstring not complete. Educated guess used for params.</remarks>
-let getScalingCoeffsGroup 
-        (matchBBoxMin: XYPos) 
+/// <remarks>Original docstring not complete, educated guess used for params.</remarks>
+let getScalingCoeffsGroup
+        (matchBBoxMin: XYPos)
         (matchBBoxMax: XYPos)
         (selectedSyms: List<Symbol>)
-            : ((float*float)*(float*float)) = 
-    
-    let maxXSym, minXSym, maxYSym, minYSym = 
+            : ((float*float)*(float*float)) =
+
+    let maxXSym, minXSym, maxYSym, minYSym =
         getMaxMinSymInBlock2D selectedSyms
-    
-    let oldMaxX, oldMinX, oldMaxY, oldMinY = 
-        mapMaxMinSyms2D 
+
+    let oldMaxX, oldMinX, oldMaxY, oldMinY =
+        mapMaxMinSyms2D
             (fun xSym -> (getRotatedSymbolCentre xSym).X)
             (fun ySym -> (getRotatedSymbolCentre ySym).Y)
             (maxXSym, minXSym, maxYSym, minYSym)
@@ -740,23 +739,23 @@ let getScalingCoeffsGroup
     let newMinX = matchBBoxMin.X + (snd (getRotatedHAndW minXSym))/2.
     let newMaxY = matchBBoxMax.Y - (fst (getRotatedHAndW maxYSym))/2.
     let newMinY = matchBBoxMin.Y + (fst (getRotatedHAndW minYSym))/2.
-    
+
     let xScalingCoeffs = getScalingCoeffs1D oldMinX newMinX oldMaxX newMaxX
     let yScalingCoeffs = getScalingCoeffs1D oldMinY newMinY oldMaxY newMaxY
 
     (xScalingCoeffs, yScalingCoeffs)
 
 /// <summary>Alter the position of a symbol as needed in a scaling operation.</summary>
-/// <param name="xyScalingCoeffs">Scaling coefficients, in the form of the output of getScalingCoeffsGroup.</param>
+/// <param name="xyScalingCoeffs">Scaling coefficients, in the form of the output of <c>getScalingCoeffsGroup</c>.</param>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Updated symbol its position is updated.</returns>
-/// <remarks>Original docstring not complete. Educated guess used for params.</remarks>
-let scaleSymbolPos (xyScalingCoeffs: (float*float)*(float*float)) (sym: Symbol): Symbol = 
+/// <remarks>Original docstring not complete, educated guess used for params.</remarks>
+let scaleSymbolPos (xyScalingCoeffs: (float*float)*(float*float)) (sym: Symbol): Symbol =
     let symCentre = getRotatedSymbolCentre sym
     let xScalingCoeffs, yScalingCoeffs = xyScalingCoeffs
 
     /// <summary>Helper function to update coordinate based on scaling coefficients.</summary>
-    let translateFunc (scalingCoeff: float*float) (coordinate: float): float = 
+    let translateFunc (scalingCoeff: float*float) (coordinate: float): float =
         let scaleFact, offsetCentre = scalingCoeff
         (coordinate - offsetCentre) * scaleFact + offsetCentre
 
@@ -766,7 +765,7 @@ let scaleSymbolPos (xyScalingCoeffs: (float*float)*(float*float)) (sym: Symbol):
     let newPos = { X = newX; Y = newY } - (getRotatedSymDim sym) * (1./2.)
     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y }
 
-    { sym with 
+    { sym with
         Pos = newPos
         Component = newComponent
         LabelHasDefaultPos = true
@@ -775,61 +774,62 @@ let scaleSymbolPos (xyScalingCoeffs: (float*float)*(float*float)) (sym: Symbol):
 
 (* ------------------------------------------ Interface ----------------------------------------- *)
 
-/// <summary>[Deprecated] Return set of floats that define how a group of components is scaled.</summary>
+/// <summary>[Deprecated] Return set of floats that define how a group of components is scaled. 
+/// Use <c>getScalingCoeffsGroup</c> instead.</summary>
 /// <param name="matchBBMin">Min corner of bounding box to scale to.</param>
 /// <param name="matchBBMax">Max corner of bounding box to scale to.</param>
-/// <returns>Tuple of tuple of scaling coefficients, in the order of x-dimension scaling factor and offset centre, 
+/// <returns>Tuple of tuple of scaling coefficients, in the order of x-dimension scaling factor and offset centre,
 /// and then the y-dimension.</returns>
-/// <remarks>Interface layer for existing codebase. Use getScalingCoeffsGroup instead.
-/// Original docstring not complete. Educated guess used for params.</remarks>
-let getScalingFactorAndOffsetCentreGroup 
-        (matchBBMin: XYPos) 
-        (matchBBMax: XYPos) 
+/// <remarks>Interface to existing codebase. Original docstring not complete, educated guess used for params.</remarks>
+let getScalingFactorAndOffsetCentreGroup
+        (matchBBMin: XYPos)
+        (matchBBMax: XYPos)
         (selectedSyms: List<Symbol>)
-            : ((float*float)*(float*float)) =  
+            : ((float*float)*(float*float)) =
     getScalingCoeffsGroup matchBBMin matchBBMax selectedSyms
 
-/// <summary>[Deprecated] Alter the position of a symbol as needed in a scaling operation.</summary>
-/// <param name="xYSC">Scaling coefficients, in the form of the output of getScalingCoeffsGroup.</param>
+/// <summary>[Deprecated] Alter the position of a symbol as needed in a scaling operation.
+/// Use <c>scaleSymbolPos</c> instead.</summary>
+/// <param name="xYSC">Scaling coefficients, in the form of the output of <c>getScalingCoeffsGroup</c>.</param>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Updated symbol its position is updated.</returns>
-/// <remarks>Interface layer for existing codebase. Use scaleSymbolPos instead.
-/// Original docstring not complete. Educated guess used for params.</remarks>
-let scaleSymbol 
+/// <remarks>Interface to existing codebase. 
+/// Original docstring not complete, educated guess used for params.</remarks>
+let scaleSymbol
         (xYSC: ((float*float)*(float*float)))
         (sym: Symbol)
-            : Symbol = 
+            : Symbol =
     scaleSymbolPos xYSC sym
 
 
 (* ---------------------------------------------------------------------------------------------- *)
-(*                                       Update Scaling Box                                       *)
+(*                              Update Scaling Box (Not Refactor-ed)                              *)
 (* ---------------------------------------------------------------------------------------------- *)
 
 /// After every model update this updates the "scaling box" part of the model to be correctly
 /// displayed based on whetehr multiple components are selected and if so what is their "box"
 /// In addition to changing the model directly, cmd may contain messages that make further changes.
-let postUpdateScalingBox (model: SheetT.Model, cmd) = 
-    
+let postUpdateScalingBox (model: SheetT.Model, cmd) =
+
     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
     let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
 
-    if (model.SelectedComponents.Length < 2) then 
-        match model.ScalingBox with 
+    if (model.SelectedComponents.Length < 2) then
+        match model.ScalingBox with
         | None ->  model, cmd
-        | _ -> {model with ScalingBox = None}, 
+        | _ -> {model with ScalingBox = None},
                 [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
                  sheetCmd SheetT.UpdateBoundingBoxes]
                 |> List.append [cmd]
                 |> Elmish.Cmd.batch
-    else 
-        let newBoxBound = 
+    else
+        let newBoxBound =
             model.SelectedComponents
             |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
             |> getBlock
-        match model.ScalingBox with 
+        match model.ScalingBox with
         | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
-        | _ -> 
+        | _ ->
             let topleft = newBoxBound.TopLeft
             let rotateDeg90OffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
             let rotateDeg270OffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
@@ -839,17 +839,17 @@ let postUpdateScalingBox (model: SheetT.Model, cmd) =
             let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
             let buttonSym = {makeButton ScaleButton dummyPos with Pos = (topleft + buttonOffSet)}
             let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
-            let rotateDeg90Sym = 
+            let rotateDeg90Sym =
                 makeButton (RotateButton Degree90) (topleft + rotateDeg90OffSet)
                 |> makeRotateSym
-            let rotateDeg270Sym = 
-                {makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet) 
+            let rotateDeg270Sym =
+                {makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet)
                     with SymbolT.STransform = {Rotation=Degree90 ; Flipped=false}}
                 |> makeRotateSym
 
-            let newSymbolMap = model.Wire.Symbol.Symbols 
-                                                        |> Map.add buttonSym.Id buttonSym 
-                                                        |> Map.add rotateDeg270Sym.Id rotateDeg270Sym 
+            let newSymbolMap = model.Wire.Symbol.Symbols
+                                                        |> Map.add buttonSym.Id buttonSym
+                                                        |> Map.add rotateDeg270Sym.Id rotateDeg270Sym
                                                         |> Map.add rotateDeg90Sym.Id rotateDeg90Sym
             let initScalingBox: SheetT.ScalingBox = {
                 ScalingBoxBound = newBoxBound;
@@ -867,7 +867,7 @@ let postUpdateScalingBox (model: SheetT.Model, cmd) =
                 | None -> cmd
             model
             |> Optic.set SheetT.scalingBox_ (Some initScalingBox)
-            |> Optic.set SheetT.symbols_ newSymbolMap, 
+            |> Optic.set SheetT.symbols_ newSymbolMap,
             newCmd
 
 
@@ -877,12 +877,12 @@ let postUpdateScalingBox (model: SheetT.Model, cmd) =
 
 /// <summary>Checks whether a symbol spans across a list of selected symbols in either dimension.</summary>
 /// <param name="selectedSyms">List of symbols to check.</param>
-/// <returns>Boolean, whether a symbol bounds both edges.</returns>
+/// <returns>True if a symbol bounds both edges.</returns>
 let oneCompBoundsBothEdges (selectedSyms: List<Symbol>): bool =
-    let maxXCentreX, minXCentreX, maxYCentreY, minYCentreY = 
-        mapMaxMinSyms2D 
+    let maxXCentreX, minXCentreX, maxYCentreY, minYCentreY =
+        mapMaxMinSyms2D
             (fun xSym -> (getRotatedSymbolCentre xSym).X)
             (fun ySym -> (getRotatedSymbolCentre ySym).Y)
             (getMaxMinSymInBlock2D selectedSyms)
-    
+
     maxXCentreX = minXCentreX || maxYCentreY = minYCentreY

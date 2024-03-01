@@ -22,43 +22,39 @@ open Optics.Operators
 //---------------------------------- Update Model ---------------------------------------------//
 //---------------------------------------------------------------------------------------------//
 
-
 let mutable uiStartTime: float = 0.
-
-
-
 
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
 //----------------------------------------------------------------------------------------------------------------//
 
 /// Main MVU model update function
-let update (msg : Msg) oldModel =
+let update (msg: Msg) oldModel =
 
     let withNoMsg (model: Model) = model, Cmd.none
 
-    let withMsg (msg: Msg) (model : Model)  = model,Cmd.ofMsg msg
+    let withMsg (msg: Msg) (model: Model) = model, Cmd.ofMsg msg
 
-    let withMsgs (msgs: Msg list) (model : Model) = model, Cmd.batch (List.map Cmd.ofMsg msgs)
+    let withMsgs (msgs: Msg list) (model: Model) =
+        model, Cmd.batch (List.map Cmd.ofMsg msgs)
 
-    let startOfUpdateTime = TimeHelpers.getTimeMs()   
+    let startOfUpdateTime = TimeHelpers.getTimeMs ()
 
     //Add the message to the pending queue if it is a mouse drag message
     let model =
         if matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag) msg then
-            {oldModel with Pending = msg :: oldModel.Pending}
+            { oldModel with Pending = msg :: oldModel.Pending }
         else
             oldModel
-    
+
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
     let testMsg, cmd =
         List.tryFind (fun x -> isSameMsg x msg) model.Pending
         |> function
-        | Some _ ->
-            //Add any message recieved to the pending message queue
-            DoNothing, Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
-        | None ->
-            msg, Cmd.none
+            | Some _ ->
+                //Add any message recieved to the pending message queue
+                DoNothing, Cmd.ofMsg (ExecutePendingMessages(List.length model.Pending))
+            | None -> msg, Cmd.none
     let model = updateAllMemoryCompsIfNeeded model
     //-------------------------------------------------------------------------------//
     //------------------------------MAIN MESSAGE DISPATCH----------------------------//
@@ -67,23 +63,23 @@ let update (msg : Msg) oldModel =
     match testMsg with
     | StartUICmd uiCmd ->
         //printfn $"starting UI command '{uiCmd}"
-        uiStartTime <- TimeHelpers.getTimeMs()
+        uiStartTime <- TimeHelpers.getTimeMs ()
         match model.UIState with
         | None -> //if nothing is currently being processed, allow the ui command operation to take place
             match uiCmd with
             | CloseProject ->
-                {model with CurrentProj = None; UIState = Some uiCmd}
+                { model with CurrentProj = None; UIState = Some uiCmd }
                 |> withNoMsg
-            | _ -> 
-                {model with UIState = Some uiCmd}
-                |> withMsg (Sheet (SheetT.SetSpinner true))
+            | _ ->
+                { model with UIState = Some uiCmd }
+                |> withMsg (Sheet(SheetT.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd ->
         //printfn $"ending UI command '{model.UIState}"
         //printf $"***UI Command: %.2f{TimeHelpers.getTimeMs() - uiStartTime} ***"
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
-        {model with UIState = None; PopupViewFunc = popup}
-        |> withMsg (Sheet (SheetT.SetSpinner false))
+        { model with UIState = None; PopupViewFunc = popup }
+        |> withMsg (Sheet(SheetT.SetSpinner false))
 
     | CloseApp ->
         exitApp model
@@ -91,9 +87,8 @@ let update (msg : Msg) oldModel =
 
     | Sheet sMsg ->
         match sMsg, model.PopupViewFunc with
-        | SheetT.ToggleNet canvas, _ ->
-            model, Cmd.none
-        | SheetT.KeyPress _, Some _ -> 
+        | SheetT.ToggleNet canvas, _ -> model, Cmd.none
+        | SheetT.KeyPress _, Some _ ->
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none
         | _ -> sheetMsg sMsg model
@@ -103,25 +98,19 @@ let update (msg : Msg) oldModel =
         // This may be needed if Ctrl/w on load moves the whole draw block sheet circuit to centre it.
         // in this case we do not want the save button to be active, because moving the circuit is not a "real" change
         // updating loaded component CanvasState to equal draw bloack canvasstate will ensure the button stays inactive.
-        let canvas = model.Sheet.GetCanvasState ()
+        let canvas = model.Sheet.GetCanvasState()
         //printf "synchronising canvas..."
         // this should disable the saev button by making loadedcomponent and draw blokc canvas the same
         model
-        |> map openLoadedComponentOfModel_ (fun ldc -> {ldc with CanvasState = canvas})
+        |> map openLoadedComponentOfModel_ (fun ldc -> { ldc with CanvasState = canvas })
         |> withNoMsg
-        
+
     // special messages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
-    | SetDragMode mode ->
-        {model with DividerDragMode= mode}
-        |> withNoMsg
+    | SetDragMode mode -> { model with DividerDragMode = mode } |> withNoMsg
 
-    | SetViewerWidth w ->
-        {model with WaveSimViewerWidth = w}
-        |> withNoMsg
+    | SetViewerWidth w -> { model with WaveSimViewerWidth = w } |> withNoMsg
 
-    | SheetBackAction dispatch ->
-        processSheetBackAction dispatch model
-        |> withNoMsg        
+    | SheetBackAction dispatch -> processSheetBackAction dispatch model |> withNoMsg
 
     | UpdateUISheetTrail updateFun ->
         model
@@ -129,7 +118,7 @@ let update (msg : Msg) oldModel =
         |> withNoMsg
 
     | ReloadSelectedComponent width ->
-        {model with LastUsedDialogWidth=width}
+        { model with LastUsedDialogWidth = width }
         |> withNoMsg
 
     | Benchmark ->
@@ -138,21 +127,40 @@ let update (msg : Msg) oldModel =
         let simulationRound = 10
         let benchmarkRound = 20
 
-        let geometricMean (values: float list) = (values |> List.reduce (*)) ** (1.0 / (float values.Length))
+        let geometricMean (values: float list) =
+            (values |> List.reduce (*))
+            ** (1.0 / (float values.Length))
 
         let benchmark i =
             match model.CurrentProj with
             | Some p ->
-                printfn "Benchmarking on %20s, stepArraySize %8d, step %8d, warmup %3d, repeat %3d" (dirName p.ProjectPath) SimulationView.Constants.maxArraySize step warmup simulationRound
+                printfn
+                    "Benchmarking on %20s, stepArraySize %8d, step %8d, warmup %3d, repeat %3d"
+                    (dirName p.ProjectPath)
+                    SimulationView.Constants.maxArraySize
+                    step
+                    warmup
+                    simulationRound
 
                 p.LoadedComponents
                 |> List.map (fun c ->
-                    let simData = Simulator.startCircuitSimulation SimulationView.Constants.maxArraySize c.Name c.CanvasState p.LoadedComponents
+                    let simData =
+                        Simulator.startCircuitSimulation
+                            SimulationView.Constants.maxArraySize
+                            c.Name
+                            c.CanvasState
+                            p.LoadedComponents
 
                     match simData with
                     | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
                     | Ok simData ->
-                        let comps = simData.FastSim.FComps.Values |> Seq.filter (fun fc -> match fc.FType with | IOLabel -> false | _ -> true) |> Seq.length
+                        let comps =
+                            simData.FastSim.FComps.Values
+                            |> Seq.filter (fun fc ->
+                                match fc.FType with
+                                | IOLabel -> false
+                                | _ -> true)
+                            |> Seq.length
                         printfn "Benchmarking with component: %s" c.Name
 
                         [ 1 .. (warmup + simulationRound) ]
@@ -160,13 +168,20 @@ let update (msg : Msg) oldModel =
                             simData.FastSim.ClockTick <- 0
                             let start = TimeHelpers.getTimeMs ()
                             // for _ in 0..(step-1) do FastRun.stepSimulation simData.FastSim
-                            FastRun.runFastSimulation None step simData.FastSim |> ignore
+                            FastRun.runFastSimulation None step simData.FastSim
+                            |> ignore
                             TimeHelpers.getTimeMs () - start)
                         |> List.skip warmup
                         |> List.average
                         |> (fun time ->
                             let speed = float (comps * step) / time
-                            printfn "simulated %20s for %5d steps with %4d effective components, simulation finished in %8.3fms, average simulation speed: %10.3f (comp * step / ms)" c.Name step comps time speed
+                            printfn
+                                "simulated %20s for %5d steps with %4d effective components, simulation finished in %8.3fms, average simulation speed: %10.3f (comp * step / ms)"
+                                c.Name
+                                step
+                                comps
+                                time
+                                speed
                             speed))
                 |> geometricMean
 
@@ -178,39 +193,39 @@ let update (msg : Msg) oldModel =
 
         model, Cmd.none
 
-    | StartSimulation simData -> 
-        {model with CurrentStepSimulationStep = Some simData }
+    | StartSimulation simData ->
+        { model with CurrentStepSimulationStep = Some simData }
         |> withNoMsg
 
-    | SetWSModel wsModel ->
-        setWSModel wsModel model
-        |> withNoMsg
+    | SetWSModel wsModel -> setWSModel wsModel model |> withNoMsg
 
-    | UpdateWSModel updateFn ->
-        updateWSModel updateFn model
-        |> withNoMsg
+    | UpdateWSModel updateFn -> updateWSModel updateFn model |> withNoMsg
 
-    | SetWSModelAndSheet (wsModel, wsSheet) ->
+    | SetWSModelAndSheet(wsModel, wsSheet) ->
         model
-        |> set waveSimSheet_ (if wsSheet = "" then None else Some wsSheet)
+        |> set
+            waveSimSheet_
+            (if wsSheet = "" then
+                 None
+             else
+                 Some wsSheet)
         |> setWSModel wsModel
         |> withNoMsg
 
-    | UpdateModel( updateFn: Model -> Model) ->
-        updateFn model, Cmd.none
+    | UpdateModel(updateFn: Model -> Model) -> updateFn model, Cmd.none
 
     | UpdateImportDecisions importDecisions' ->
-        let updatedModel = 
+        let updatedModel =
             model
             |> set (popupDialogData_ >-> importDecisions_) importDecisions'
-       
+
         updatedModel, Cmd.none
 
     | RefreshWaveSim ws ->
         // restart the wave simulator after design change etc that invalidates all waves
         WaveSim.refreshWaveSim true ws model
 
-    | AddWSModel (sheet, wsModel) ->
+    | AddWSModel(sheet, wsModel) ->
         model
         |> map waveSim_ (Map.add sheet wsModel)
         |> withNoMsg
@@ -225,30 +240,29 @@ let update (msg : Msg) oldModel =
         let ws = getWSModel model
         WaveSim.refreshWaveSim false ws model
 
-    | SetWaveComponentSelectionOpen (fIdL, show) ->       
+    | SetWaveComponentSelectionOpen(fIdL, show) ->
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveComponentSelectionOpen ws fIdL show)
         |> withNoMsg
 
-    | SetWaveGroupSelectionOpen (fIdL, show) -> 
+    | SetWaveGroupSelectionOpen(fIdL, show) ->
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveGroupSelectionOpen ws fIdL show)
         |> withNoMsg
 
-        
-    | SetWaveSheetSelectionOpen (fIdL, show) ->       
+    | SetWaveSheetSelectionOpen(fIdL, show) ->
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveSheetSelectionOpen ws fIdL show)
-        |> withNoMsg    
+        |> withNoMsg
 
-    | TryStartSimulationAfterErrorFix simType ->
-        SimulationView.tryStartSimulationAfterErrorFix simType model
+    | TryStartSimulationAfterErrorFix simType -> SimulationView.tryStartSimulationAfterErrorFix simType model
 
-    | SetSimulationGraph (graph, fastSim) ->
+    | SetSimulationGraph(graph, fastSim) ->
         let simData =
             getSimulationDataOrFail model "SetSimulationGraph"
             |> (set graph_ graph >> set fastSim_ fastSim)
-            |> Ok |> Some
+            |> Ok
+            |> Some
         model
         |> set currentStepSimulationStep_ simData
         |> withNoMsg
@@ -264,9 +278,9 @@ let update (msg : Msg) oldModel =
     | IncrementSimulationClockTick n ->
         let simData =
             getSimulationDataOrFail model "IncrementSimulationClockTick"
-            |> map clockTickNumber_ (fun x -> x+n)
+            |> map clockTickNumber_ (fun x -> x + n)
         model
-        |> set currentStepSimulationStep_ (simData |> Ok |> Some )
+        |> set currentStepSimulationStep_ (simData |> Ok |> Some)
         |> withNoMsg
 
     | EndSimulation ->
@@ -274,67 +288,65 @@ let update (msg : Msg) oldModel =
         |> set currentStepSimulationStep_ None
         |> withNoMsg
 
-    | EndWaveSim -> 
+    | EndWaveSim ->
         let model =
             let model = removeAllSimulationsFromModel model
             match model.WaveSimSheet with
-            | None | Some "" -> 
+            | None
+            | Some "" ->
                 printfn "What? can't end WaveSim when it is already ended"
                 model
-            | Some sheet -> 
-                { model with 
-                    WaveSimSheet = None; 
-                    WaveSim = Map.change sheet (Option.map (fun ws -> 
-                        {ws with State = Ended ; WaveModalActive = false})) model.WaveSim
-                }
+            | Some sheet ->
+                { model with
+                    WaveSimSheet = None
+                    WaveSim =
+                        Map.change
+                            sheet
+                            (Option.map (fun ws -> { ws with State = Ended; WaveModalActive = false }))
+                            model.WaveSim }
         model, Cmd.none
 
-    | ChangeRightTab newTab -> 
+    | ChangeRightTab newTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
-        let editMsgs = [inferMsg; ClosePropertiesNotification]
+        let editMsgs = [ inferMsg; ClosePropertiesNotification ]
         firstTip <- true
 
         model
         |> set rightPaneTabVisible_ newTab
-        |> withMsgs
-                (match newTab with 
-                | Properties 
-                | Catalogue 
-                | Simulation 
-                | Build -> editMsgs
-                | Transition -> [])
+        |> withMsgs (
+            match newTab with
+            | Properties
+            | Catalogue
+            | Simulation
+            | Build -> editMsgs
+            | Transition -> []
+        )
 
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
-        let editMsgs = [inferMsg; ClosePropertiesNotification] 
+        let editMsgs = [ inferMsg; ClosePropertiesNotification ]
         model
         |> set simSubTabVisible_ subTab
         |> withMsgs editMsgs
 
+    | ChangeBuildTabVisibility -> model |> map buildVisible_ not |> withNoMsg
 
-    | ChangeBuildTabVisibility ->
-        model
-        |> map buildVisible_ not
-        |> withNoMsg
-
-    | SetHighlighted (componentIds, connectionIds) ->
-        SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model
+    | SetHighlighted(componentIds, connectionIds) ->
+        SheetUpdate.update (SheetT.ColourSelection(componentIds, connectionIds, HighLightColor.Red)) model
 
     | SetSelWavesHighlighted connIds ->
-        SheetUpdate.update (SheetT.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model
+        SheetUpdate.update (SheetT.ColourSelection([], Array.toList connIds, HighLightColor.Blue)) model
 
-    | SetClipboard components ->
-        { model with Clipboard = components }
-        |> withNoMsg
+    | SetClipboard components -> { model with Clipboard = components } |> withNoMsg
 
     | SetCreateComponent pos ->
-        { model with LastCreatedComponent = Some pos}
+        { model with LastCreatedComponent = Some pos }
         |> withNoMsg
 
     | SetProject project ->
         printf $"Setting project with component: '{project.OpenFileName}'"
         model
-        |> set currentProj_ (Some project) 
+        |> set currentProj_ (Some project)
         |> set (popupDialogData_ >-> projectPath_) project.ProjectPath
         |> withNoMsg
 
@@ -342,7 +354,7 @@ let update (msg : Msg) oldModel =
         CustomCompPorts.updateProjectFiles true update model
         |> withNoMsg
 
-    | UpdateProjectWithoutSyncing update -> 
+    | UpdateProjectWithoutSyncing update ->
         CustomCompPorts.updateProjectFiles false update model
         |> withNoMsg
 
@@ -353,24 +365,22 @@ let update (msg : Msg) oldModel =
 
     | ShowStaticInfoPopup(title, body, dispatch) ->
         let foot = div [] []
-        PopupHelpers.closablePopup title body foot [Width 800] dispatch
-        model
-        |> withNoMsg
+        PopupHelpers.closablePopup title body foot [ Width 800 ] dispatch
+        model |> withNoMsg
 
     | ClosePopup ->
         { model with
-            PopupViewFunc = None;
+            PopupViewFunc = None
             PopupDialogData =
-                    { model.PopupDialogData with
-                        Text = None;
-                        ImportDecisions = Map.empty;
-                        Int = None;
-                        Int2 = None;
-                        MemorySetup = None;
-                        MemoryEditorData = None;
-                        VerilogCode = None;
-                        VerilogErrors = [];
-                    }}
+                { model.PopupDialogData with
+                    Text = None
+                    ImportDecisions = Map.empty
+                    Int = None
+                    Int2 = None
+                    MemorySetup = None
+                    MemoryEditorData = None
+                    VerilogCode = None
+                    VerilogErrors = [] } }
         |> withNoMsg
 
     | SetPopupDialogText text ->
@@ -398,23 +408,23 @@ let update (msg : Msg) oldModel =
         |> set (popupDialogData_ >-> int_) int
         |> withNoMsg
 
-    | SetPopupDialogInt2 int ->
-        set (popupDialogData_ >-> int2_) int model, Cmd.none
+    | SetPopupDialogInt2 int -> set (popupDialogData_ >-> int2_) int model, Cmd.none
 
-    | SetPopupDialogTwoInts (n, select, optText)->
+    | SetPopupDialogTwoInts(n, select, optText) ->
         model
-        |> map popupDialogData_
-                    (match select with
-                     | FirstInt -> set int_ (Option.map int32 n)
-                     | SecondInt -> set int2_ n)
+        |> map
+            popupDialogData_
+            (match select with
+             | FirstInt -> set int_ (Option.map int32 n)
+             | SecondInt -> set int2_ n)
         |> withNoMsg
-    
-    | SetPopupDialogIntList intlist->
+
+    | SetPopupDialogIntList intlist ->
         model
         |> set (popupDialogData_ >-> intlist_) intlist
         |> withNoMsg
 
-    | SetPopupDialogIntList2 intlist2->
+    | SetPopupDialogIntList2 intlist2 ->
         model
         |> set (popupDialogData_ >-> intlist2_) intlist2
         |> withNoMsg
@@ -429,18 +439,16 @@ let update (msg : Msg) oldModel =
         |> set (popupDialogData_ >-> memoryEditorData_) m
         |> withNoMsg
 
-    | SetPopupProgress progOpt ->
-        set (popupDialogData_ >-> progress_) progOpt model, Cmd.none
+    | SetPopupProgress progOpt -> set (popupDialogData_ >-> progress_) progOpt model, Cmd.none
 
     | UpdatePopupProgress updateFn ->
         model
         |> map (popupDialogData_ >-> progress_) (Option.map updateFn)
         |> withNoMsg
 
-    | SimulateWithProgressBar simPars ->
-        SimulationView.simulateWithProgressBar simPars model
+    | SimulateWithProgressBar simPars -> SimulationView.simulateWithProgressBar simPars model
 
-    | SetSelectedComponentMemoryLocation (addr,data) ->
+    | SetSelectedComponentMemoryLocation(addr, data) ->
         model
         |> map selectedComponent_ (updateComponentMemory addr data)
         |> withNoMsg
@@ -492,102 +500,108 @@ let update (msg : Msg) oldModel =
     | ClosePropertiesNotification ->
         model
         |> set (notifications_ >-> fromProperties_) None
-        |> withNoMsg        
-
-    | SetTopMenu t ->
-        { model with TopMenuOpenState = t}
         |> withNoMsg
 
-    | ExecFuncInMessage (f,dispatch)->
-        (f model dispatch; model)
+    | SetTopMenu t -> { model with TopMenuOpenState = t } |> withNoMsg
+
+    | ExecFuncInMessage(f, dispatch) ->
+        (f model dispatch
+         model)
         |> withNoMsg
 
-    | ExecCmd cmd ->
-        model, cmd
+    | ExecCmd cmd -> model, cmd
 
     | ExecFuncAsynch func ->
-             let cmd' = 
-                Elmish.Cmd.OfAsyncImmediate.result (async { 
-                //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
-                //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
-                    do! (Async.Sleep 100) 
+        let cmd' =
+            Elmish.Cmd.OfAsyncImmediate.result (
+                async {
+                    //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
+                    //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
+                    do! (Async.Sleep 100)
                     if Set.contains "update" JSHelpers.debugTraceUI then
                         printfn "Starting ExecFuncAsynch payload"
-                    let cmd = func ()                    
-                    return (ExecCmd cmd)})
-             model, cmd'
-
-    | ExecCmdAsynch cmd ->
-        let cmd' = 
-            Elmish.Cmd.OfAsyncImmediate.result (async { 
-            //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
-            //this number only seems to affect the wavesim spinner cursor.
-                do! (Async.Sleep 300)
-                return (ExecCmd cmd)})
+                    let cmd = func ()
+                    return (ExecCmd cmd)
+                }
+            )
         model, cmd'
 
-    | SendSeqMsgAsynch msgs ->
-        model, SimulationView.doBatchOfMsgsAsynch msgs
+    | ExecCmdAsynch cmd ->
+        let cmd' =
+            Elmish.Cmd.OfAsyncImmediate.result (
+                async {
+                    //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
+                    //this number only seems to affect the wavesim spinner cursor.
+                    do! (Async.Sleep 300)
+                    return (ExecCmd cmd)
+                }
+            )
+        model, cmd'
 
-    | MenuAction(act,dispatch) ->
-        match act with 
+    | SendSeqMsgAsynch msgs -> model, SimulationView.doBatchOfMsgsAsynch msgs
+
+    | MenuAction(act, dispatch) ->
+        match act with
         | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | MenuSaveProjectInNewFormat -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | _ -> getMenuView act model dispatch, Cmd.none
 
     | ContextMenuAction e ->
         let menuType = getContextMenu e model
-        renderer.ipcRenderer.send("show-context-menu", [|unbox menuType|])
+        renderer.ipcRenderer.send ("show-context-menu", [| unbox menuType |])
         model, Cmd.none
 
-    | ContextMenuItemClick(menuType, item, dispatch) ->
-        processContextMenuClick menuType item dispatch model
+    | ContextMenuItemClick(menuType, item, dispatch) -> processContextMenuClick menuType item dispatch model
 
+    | DiagramMouseEvent -> model, Cmd.none // this now does nothing and should be removed
 
-    | DiagramMouseEvent ->
-        model, Cmd.none // this now does nothing and should be removed
-
-    | SelectionHasChanged -> 
+    | SelectionHasChanged ->
         { model with ConnsOfSelectedWavesAreHighlighted = true }
         |> withNoMsg
 
     | SetIsLoading b ->
-        let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
-        {model with IsLoading = b}, cmd
+        let cmd =
+            if b then
+                Cmd.none
+            else
+                Cmd.ofMsg (Sheet(SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
+        { model with IsLoading = b }, cmd
 
     | ReadUserData userAppDir ->
         printfn $"Got user app dir of {userAppDir}"
-        let model,cmd = readUserData userAppDir model        
-        model,cmd
+        let model, cmd = readUserData userAppDir model
+        model, cmd
 
-    | SetUserData (data: UserData) ->
+    | SetUserData(data: UserData) ->
         model
-        |> set userData_  data
+        |> set userData_ data
         |> userDataToDrawBlockModel
         |> writeUserData
         |> withNoMsg
 
-    | SetThemeUserData (theme: DrawModelType.SymbolT.ThemeType) ->
+    | SetThemeUserData(theme: DrawModelType.SymbolT.ThemeType) ->
         let model =
-            {model with UserData = {model.UserData with Theme=theme}}
+            { model with UserData = { model.UserData with Theme = theme } }
             |> userDataToDrawBlockModel
         model, Cmd.none
 
-    | ExecutePendingMessages n ->
-        executePendingMessagesF n model
+    | ExecutePendingMessages n -> executePendingMessagesF n model
 
-    | TruthTableMsg ttMsg ->
-        TruthTableUpdate.truthTableUpdate model ttMsg
+    | TruthTableMsg ttMsg -> TruthTableUpdate.truthTableUpdate model ttMsg
 
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out
-    | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 
-    | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
+    | LockTabsToWaveSim
+    | UnlockTabsFromWaveSim
+    | SetExitDialog _
+    | SetPropertiesExtraDialogText _
+    | SetRouterInteractive _
     | ShowExitDialog -> model, Cmd.none
     | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
         model, cmd
 
-    | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
+    | JSDiagramMsg _
+    | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
 
     // post-processing of update function (Model * Cmd<Msg>)

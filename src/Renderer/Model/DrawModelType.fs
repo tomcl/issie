@@ -11,43 +11,45 @@ open Node.ChildProcess
 
 /// Static 1D data defining position range within which the currently moved thing will "snap"
 /// to fixed point (Snap).
-type SnapData = {
-    UpperLimit: float
-    LowerLimit: float
-    Snap: float
-    /// DisplayLine may not be the same as Snap because when two symbols snap together the
-    /// displayed line must go through the centre of each symbol, whereas the TopLeft 
-    /// coordinate is the one which is snapped
-    IndicatorPos: float
+type SnapData =
+    {
+        UpperLimit: float
+        LowerLimit: float
+        Snap: float
+        /// DisplayLine may not be the same as Snap because when two symbols snap together the
+        /// displayed line must go through the centre of each symbol, whereas the TopLeft
+        /// coordinate is the one which is snapped
+        IndicatorPos: float
     }
 
 /// Dynamic data used when a symbol is being snapped
-type Snap = {
-    UnSnapPosition: float
-    SnapPosition: float
-    SnapIndicatorPos: float
-}
+type Snap = { UnSnapPosition: float; SnapPosition: float; SnapIndicatorPos: float }
 // lenses to access fields in above types
-let unSnapPositon_ = Lens.create (fun s -> s.UnSnapPosition) (fun u s -> {s with UnSnapPosition = u})
-let snapPosition_ = Lens.create (fun s -> s.SnapPosition) (fun u s -> {s with SnapPosition = u})
-let snapIndicatorPos_ = Lens.create (fun s -> s.SnapIndicatorPos) (fun u s -> {s with SnapIndicatorPos = u})
+let unSnapPositon_ =
+    Lens.create (fun s -> s.UnSnapPosition) (fun u s -> { s with UnSnapPosition = u })
+let snapPosition_ =
+    Lens.create (fun s -> s.SnapPosition) (fun u s -> { s with SnapPosition = u })
+let snapIndicatorPos_ =
+    Lens.create (fun s -> s.SnapIndicatorPos) (fun u s -> { s with SnapIndicatorPos = u })
 
 /// All the 1D data needed to manage snapping of a moving symbol
-type SnapInfo = {
-    /// static data - set of "snap" positions
-    SnapData: SnapData array 
-    /// dynamic data - present if symbol is currently snapped
-    SnapOpt: Snap option 
+type SnapInfo =
+    {
+        /// static data - set of "snap" positions
+        SnapData: SnapData array
+        /// dynamic data - present if symbol is currently snapped
+        SnapOpt: Snap option
     }
 
 // lenses to access fields in the above types
-let snapData_ = Lens.create (fun inf -> inf.SnapData) (fun s inf -> {inf with SnapData = s})
-let snapOpt_ = Lens.create (fun inf -> inf.SnapOpt) (fun s inf -> {inf with SnapOpt = s})
+let snapData_ =
+    Lens.create (fun inf -> inf.SnapData) (fun s inf -> { inf with SnapData = s })
+let snapOpt_ =
+    Lens.create (fun inf -> inf.SnapOpt) (fun s inf -> { inf with SnapOpt = s })
 
-type SnapXY = {SnapX: SnapInfo; SnapY: SnapInfo}
-let snapX_ = Lens.create (fun xy -> xy.SnapX) (fun s xy -> {xy with SnapX = s})
-let snapY_ = Lens.create (fun xy -> xy.SnapY) (fun s xy -> {xy with SnapY = s})
-
+type SnapXY = { SnapX: SnapInfo; SnapY: SnapInfo }
+let snapX_ = Lens.create (fun xy -> xy.SnapX) (fun s xy -> { xy with SnapX = s })
+let snapY_ = Lens.create (fun xy -> xy.SnapY) (fun s xy -> { xy with SnapY = s })
 
 /// ---------- SYMBOL TYPES ----------
 module SymbolT =
@@ -55,34 +57,53 @@ module SymbolT =
 
     /// Represents the orientation of a wire segment or symbol flip
     [<StringEnum>]
-    type FlipType =  FlipHorizontal | FlipVertical
+    type FlipType =
+        | FlipHorizontal
+        | FlipVertical
     [<StringEnum>]
     //Used in scaling in SmartRotate
     //HLP23: AUTHOR Ismagilov
-    type ScaleType = ScaleUp | ScaleDown
+    type ScaleType =
+        | ScaleUp
+        | ScaleDown
     /// Wraps around the input and output port id types
 
-    type PortId = | InputId of InputPortId | OutputId of OutputPortId
+    type PortId =
+        | InputId of InputPortId
+        | OutputId of OutputPortId
 
     /// data structures defining where ports are put on symbol boundary
     /// strings here are used for port ids
     type PortMaps =
-        {     
+        {
             /// Maps edge to list of ports on that edge, in correct order
             Order: Map<Edge, string list>
             /// Maps the port ids to which side of the component the port is on
             Orientation: Map<string, Edge>
         }
 
-    let order_ = Lens.create (fun a -> a.Order) (fun s a -> {a with Order = s})
-    let orientation_ = Lens.create (fun a -> a.Orientation) (fun s a -> {a with Orientation = s})
+    let order_ = Lens.create (fun a -> a.Order) (fun s a -> { a with Order = s })
+    let orientation_ =
+        Lens.create (fun a -> a.Orientation) (fun s a -> { a with Orientation = s })
 
     /// data here changes how the symbol looks but has no other effect
-    type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
-    
+    type ShowPorts =
+        | ShowInput
+        | ShowOutput
+        | ShowBoth
+        | ShowBothForPortMovement
+        | ShowNone
+        | ShowOneTouching of Port
+        | ShowOneNotTouching of Port
+        | ShowTarget
+
     // HLP23 AUTHOR: BRYAN TAN
-    type ShowCorners = | ShowAll | DontShow
-    type Annotation = ScaleButton | RotateButton of Rotation
+    type ShowCorners =
+        | ShowAll
+        | DontShow
+    type Annotation =
+        | ScaleButton
+        | RotateButton of Rotation
     type AppearanceT =
         {
             // During various operations the ports on a symbol (input, output, or both types)
@@ -94,22 +115,24 @@ module SymbolT =
             /// symbol color is determined by symbol selected / not selected, or if there are errors.
             Colour: string
             /// translucent symbols are used uring symbol copy operations.
-            Opacity: float  
+            Opacity: float
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
     type ThemeType =
-        |White
-        |Light
-        |Colourful
+        | White
+        | Light
+        | Colourful
 
-    let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
+    let showPorts_ =
+        Lens.create (fun a -> a.ShowPorts) (fun s a -> { a with ShowPorts = s })
     // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
-    let showCorners_ = Lens.create (fun a -> a.ShowCorners) (fun s a -> {a with ShowCorners = s})
-    let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
-    let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
-    let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
-
+    let showCorners_ =
+        Lens.create (fun a -> a.ShowCorners) (fun s a -> { a with ShowCorners = s })
+    let highlightLabel_ =
+        Lens.create (fun a -> a.HighlightLabel) (fun s a -> { a with HighlightLabel = s })
+    let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> { a with Colour = s })
+    let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> { a with Opacity = s })
 
     /// Represents a symbol, that contains a component and all the other information needed to render it
     type Symbol =
@@ -123,7 +146,7 @@ module SymbolT =
 
             /// symbol's centre to the selected components' boundingBox centre when ScaleButton is pressed
             OffsetFromBBCentre: XYPos
-        
+
             /// Width of the wires connected to input ports 0 & 1
             /// This is needed on the symbol only for  bus splitter and bus merge symbols
             /// These display the bit numbers of their connections.
@@ -141,14 +164,14 @@ module SymbolT =
             LabelBoundingBox: BoundingBox
             LabelHasDefaultPos: bool
             LabelRotation: Rotation option
-        
+
             /// this filed contains transient information that alters the appearance of the symbol
             Appearance: AppearanceT
 
             /// This, for convenience, is a copy of the component Id string, used as Id for symbol
             /// Thus symbol Id = component Id.
             /// It is unique within one design sheet.
-            Id : ComponentId  
+            Id: ComponentId
 
             /// This is the electrical component.
             /// When the component is loaded into draw block the position is kept as Pos field in symbol
@@ -156,12 +179,12 @@ module SymbolT =
             /// It would make sure sense for all geometric info to be in fields on the symbol.
             /// However X,Y,H,W are used (to some extent) in non-draw-block Issie code.
             /// NB HScale, VScale modify V, H
-            Component : Component
+            Component: Component
 
             /// Use Some Annotation for visible (and clickable) objects on screen
             /// In this case Component is a dummy used only to provide expected H & V
             Annotation: Annotation option
-            
+
             /// transient field to show if ports are being dragged in teh UI.
             Moving: bool
             /// determines whetehr the symbol or its contents (it it is a custom component) contain any clo9cked logic.
@@ -175,60 +198,66 @@ module SymbolT =
             /// Edge positions are known from the component XYPos and H (height), W (width).
             /// Ports are located as fixed equidistant positions along each component edge dependent on number of ports.
             /// Therefore port position can be calculated from these maps and XYPos, H, W.
-            PortMaps : PortMaps
+            PortMaps: PortMaps
 
             /// HScale & VScale modify default W (width)  and H (height) respectively if not None. They are changed by symbol property box.
             /// Horizontal symbol dimension = HScale*W etc
             /// They are currently used only on Custom Components and will not work on other omponents.
-            HScale : float option
+            HScale: float option
             /// HScale & VScale modify W and H respectively if not None.
             /// Vertical symbol dimension = VScale*H etc
             /// They are currently used only on Custom Components and will not work on other omponents.
 
-            VScale : float option
+            VScale: float option
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
             /// dynamic info used in port move operation.
-            MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
+            MovingPort: Option<{| PortId: string; CurrPos: XYPos |}>
             /// dynamic info used in port move operation
-            MovingPortTarget: (XYPos*XYPos) option
+            MovingPortTarget: (XYPos * XYPos) option
 
         }
 
-    let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
-    let moving_ = Lens.create (fun a -> a.Moving) (fun s a -> {a with Moving = s})
-    let labelBoundingBox_ = Lens.create (fun a -> a.LabelBoundingBox) (fun s a -> {a with LabelBoundingBox = s})
-    let portMaps_ = Lens.create (fun a -> a.PortMaps) (fun s a -> {a with PortMaps = s})
-    let movingPort_ = Lens.create (fun a -> a.MovingPort) (fun s a -> {a with MovingPort = s})
-    let movingPortTarget_ = Lens.create (fun a -> a.MovingPortTarget) (fun s a -> {a with MovingPortTarget = s})
-    let component_ = Lens.create (fun a -> a.Component) (fun s a -> {a with Component = s})
-    let posOfSym_ = Lens.create (fun a -> a.Pos) (fun s a -> {a with Pos = s})
+    let appearance_ =
+        Lens.create (fun a -> a.Appearance) (fun s a -> { a with Appearance = s })
+    let moving_ = Lens.create (fun a -> a.Moving) (fun s a -> { a with Moving = s })
+    let labelBoundingBox_ =
+        Lens.create (fun a -> a.LabelBoundingBox) (fun s a -> { a with LabelBoundingBox = s })
+    let portMaps_ =
+        Lens.create (fun a -> a.PortMaps) (fun s a -> { a with PortMaps = s })
+    let movingPort_ =
+        Lens.create (fun a -> a.MovingPort) (fun s a -> { a with MovingPort = s })
+    let movingPortTarget_ =
+        Lens.create (fun a -> a.MovingPortTarget) (fun s a -> { a with MovingPortTarget = s })
+    let component_ =
+        Lens.create (fun a -> a.Component) (fun s a -> { a with Component = s })
+    let posOfSym_ = Lens.create (fun a -> a.Pos) (fun s a -> { a with Pos = s })
     let getScaleF = Option.defaultValue 1.
-    let scaleF_ = Lens.create
-                    (fun sym -> {X= getScaleF sym.HScale; Y=getScaleF sym.VScale})
-                    (fun sf sym -> {sym with HScale = Some sf.X; VScale = Some sf.Y})
-
+    let scaleF_ =
+        Lens.create (fun sym -> { X = getScaleF sym.HScale; Y = getScaleF sym.VScale }) (fun sf sym ->
+            { sym with HScale = Some sf.X; VScale = Some sf.Y })
 
     /// Represents all the symbols and ports on the sheet
-    type Model = {
-        Symbols: Map<ComponentId, Symbol>
+    type Model =
+        {
+            Symbols: Map<ComponentId, Symbol>
 
-        /// All the symbols currently on the clipboard
-        CopiedSymbols: Map<ComponentId, Symbol>
+            /// All the symbols currently on the clipboard
+            CopiedSymbols: Map<ComponentId, Symbol>
 
-        /// Contains all the input and output ports in the model (currently rendered)
-        Ports: Map<string, Port>
+            /// Contains all the input and output ports in the model (currently rendered)
+            Ports: Map<string, Port>
 
-        /// Contains all the inputports that have a wire connected to them.
-        /// If a port is in the set, it is connected, otherwise it is not
-        InputPortsConnected:  Set<InputPortId>
+            /// Contains all the inputports that have a wire connected to them.
+            /// If a port is in the set, it is connected, otherwise it is not
+            InputPortsConnected: Set<InputPortId>
 
-        /// Represents the number of wires connected to each output port in the model
-        OutputPortsConnected: Map<OutputPortId, int>
+            /// Represents the number of wires connected to each output port in the model
+            OutputPortsConnected: Map<OutputPortId, int>
 
-        Theme: ThemeType
+            Theme: ThemeType
 
-        HintPane: ReactElement option
+            HintPane: ReactElement option
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -236,36 +265,38 @@ module SymbolT =
     /// The different messages coming from sheet, normally represent events
     type Msg =
         | MouseMsg of MouseT
-        | AddSymbol of (LoadedComponent list) * pos:XYPos * compType:ComponentType * lbl: string
+        | AddSymbol of (LoadedComponent list) * pos: XYPos * compType: ComponentType * lbl: string
         | CopySymbols of ComponentId list
-        | DeleteSymbols of sIds:ComponentId list
-        | ShowAllInputPorts | ShowAllOutputPorts | DeleteAllPorts
+        | DeleteSymbols of sIds: ComponentId list
+        | ShowAllInputPorts
+        | ShowAllOutputPorts
+        | DeleteAllPorts
         | MoveSymbols of compList: ComponentId list * move: XYPos
         | MoveLabel of compId: ComponentId * move: XYPos
         | ShowPorts of ComponentId list
         | ShowCustomOnlyPorts of ComponentId list
-        | SelectSymbols of ComponentId list// Issie interface
+        | SelectSymbols of ComponentId list // Issie interface
         | SymbolsHaveError of sIds: ComponentId list
-        | ChangeLabel of sId : ComponentId * newLabel : string
+        | ChangeLabel of sId: ComponentId * newLabel: string
         | PasteSymbols of sIds: ComponentId list
-        | ColorSymbols of compList : ComponentId list * colour : HighLightColor
+        | ColorSymbols of compList: ComponentId list * colour: HighLightColor
         | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
-        | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
-        | ChangeLsb of compId: ComponentId * NewBits:int64 
+        | ChangeNumberOfBits of compId: ComponentId * NewBits: int
+        | ChangeLsb of compId: ComponentId * NewBits: int64
         | ChangeInputValue of compId: ComponentId * newVal: int
-        | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
-        | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
-        | ChangeBusCompare of compId: ComponentId * NewBits:uint32 * NewText:string
+        | ChangeScale of compId: ComponentId * newScale: float * whichScale: ScaleAdjustment
+        | ChangeConstant of compId: ComponentId * NewBits: int64 * NewText: string
+        | ChangeBusCompare of compId: ComponentId * NewBits: uint32 * NewText: string
         | ChangeReversedInputs of compId: ComponentId
         | ChangeAdderComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ResetModel // For Issie Integration
-        | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
-        | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
+        | LoadComponents of LoadedComponent list * Component list // For Issie Integration
+        | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration
         | WriteMemoryType of ComponentId * ComponentType
         | UpdateMemory of ComponentId * (Memory1 -> Memory1)
-        | RotateLeft of compList : ComponentId list * Rotation
-        | RotateAntiClockAng of compList : ComponentId list * Rotation
+        | RotateLeft of compList: ComponentId list * Rotation
+        | RotateAntiClockAng of compList: ComponentId list * Rotation
         | Flip of compList: ComponentId list * orientation: FlipType
         /// Taking the input and..
         | MovePort of portId: string * move: XYPos
@@ -277,108 +308,114 @@ module SymbolT =
         | ResizeSymbolDone of compId: ComponentId * resetSymbol: Symbol option * corner: XYPos * move: XYPos
         | SaveSymbols
         | SetTheme of ThemeType
-             //------------------------Sheet interface message----------------------------//
+        //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
 
-    
-    let symbols_ = Lens.create (fun m -> m.Symbols) (fun s m -> {m with Symbols = s})
-    let ports_ = Lens.create (fun m -> m.Ports) (fun w m -> {m with Ports = w})
-    let symbolOf_ k = symbols_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
-    let hintPane_ = Lens.create (fun m -> m.HintPane) (fun s m -> {m with HintPane = s})
+    let symbols_ = Lens.create (fun m -> m.Symbols) (fun s m -> { m with Symbols = s })
+    let ports_ = Lens.create (fun m -> m.Ports) (fun w m -> { m with Ports = w })
+    let symbolOf_ k =
+        symbols_
+        >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
+    let hintPane_ =
+        Lens.create (fun m -> m.HintPane) (fun s m -> { m with HintPane = s })
 
+//------------------------------------------------------------------------//
+//------------------------------BusWire Types-----------------------------//
+//------------------------------------------------------------------------//
 
-    //------------------------------------------------------------------------//
-    //------------------------------BusWire Types-----------------------------//
-    //------------------------------------------------------------------------//
-    
 module BusWireT =
 
     [<StringEnum>]
-    type Orientation = | Vertical | Horizontal
-    
+    type Orientation =
+        | Vertical
+        | Horizontal
+
     ///
-    type SnapPosition = High | Mid | Low
-    
+    type SnapPosition =
+        | High
+        | Mid
+        | Low
+
     /// Represents how wires are rendered
-    type WireType = Radial | Modern | Jump
-    
+    type WireType =
+        | Radial
+        | Modern
+        | Jump
+
     /// Represents how a wire segment is currently being routed
 
     [<StringEnum>]
-    type RoutingMode = Manual | Auto
-    
+    type RoutingMode =
+        | Manual
+        | Auto
+
     /// Used to represent a segment in a wire
-    type Segment = 
+    type Segment =
         {
             Index: int
-            Length : float
+            Length: float
             WireId: ConnectionId
             /// List of offsets along a segment where jumps or intersects occur. Matches the sign of Length. Only used on horizontal segments.
             IntersectOrJumpList: float list
-            Draggable : bool
-            Mode : RoutingMode
+            Draggable: bool
+            Mode: RoutingMode
         }
-        with
-            /// get SegmentID id for segment
-            member inline this.GetId = this.Index,this.WireId
-            /// return true if segment length is 0 to within FP tolerance
-            member inline this.IsZero = abs this.Length < XYPos.epsilon
-    
+        /// get SegmentID id for segment
+        member inline this.GetId = this.Index, this.WireId
+        /// return true if segment length is 0 to within FP tolerance
+        member inline this.IsZero = abs this.Length < XYPos.epsilon
+
     /// Add absolute vertices to a segment
-    type ASegment = {
-            Start: XYPos
-            End: XYPos
-            Segment: Segment
-        }
-        with
-            /// get SegmentID id for segment
-            member inline this.GetId = this.Segment.Index,this.Segment.WireId
-            /// return true if segment length is 0 to within FP tolerance
-            member inline this.IsZero = abs this.Segment.Length < XYPos.epsilon
+    type ASegment =
+        { Start: XYPos
+          End: XYPos
+          Segment: Segment }
+        /// get SegmentID id for segment
+        member inline this.GetId = this.Segment.Index, this.Segment.WireId
+        /// return true if segment length is 0 to within FP tolerance
+        member inline this.IsZero = abs this.Segment.Length < XYPos.epsilon
 
-            member inline this.Orientation =
-                            let delta = this.Start - this.End
-                            if abs delta.X > abs delta.Y then Horizontal else Vertical
+        member inline this.Orientation =
+            let delta = this.Start - this.End
+            if abs delta.X > abs delta.Y then
+                Horizontal
+            else
+                Vertical
 
-    
     type Wire =
-        {
-            WId: ConnectionId 
-            InputPort: InputPortId
-            OutputPort: OutputPortId
-            Color: HighLightColor
-            Width: int
-            Segments: list<Segment>
-            StartPos : XYPos
-            InitialOrientation : Orientation
-        }
+        { WId: ConnectionId
+          InputPort: InputPortId
+          OutputPort: OutputPortId
+          Color: HighLightColor
+          Width: int
+          Segments: list<Segment>
+          StartPos: XYPos
+          InitialOrientation: Orientation }
 
-    let segments_ = Lens.create (fun m -> m.Segments) (fun s m -> {m with Segments = s})
-    let mode_ = Lens.create (fun m -> m.Mode) (fun s m -> {m with Mode = s})
-   
-    
+    let segments_ =
+        Lens.create (fun m -> m.Segments) (fun s m -> { m with Segments = s })
+    let mode_ = Lens.create (fun m -> m.Mode) (fun s m -> { m with Mode = s })
+
     /// Defines offsets used to render wire width text
     type TextOffset =
         static member yOffset = 7.
         static member xOffset = 1.
         static member xLeftOffset = 20.
-    
+
     type Model =
-        {
-            Symbol: SymbolT.Model
-            Wires: Map<ConnectionId, Wire>
-            CopiedWires: Map<ConnectionId, Wire> 
-            SelectedSegment: SegmentId list
-            LastMousePos: XYPos
-            ErrorWires: list<ConnectionId>
-            Notifications: Option<string>
-            Type : WireType
-            ArrowDisplay: bool
-            SnapToNet: bool
-        }
-    
+        { Symbol: SymbolT.Model
+          Wires: Map<ConnectionId, Wire>
+          CopiedWires: Map<ConnectionId, Wire>
+          SelectedSegment: SegmentId list
+          LastMousePos: XYPos
+          ErrorWires: list<ConnectionId>
+          Notifications: Option<string>
+          Type: WireType
+          ArrowDisplay: bool
+          SnapToNet: bool }
+
     //----------------------------Message Type-----------------------------------//
-    
+
     /// BusWire messages: see BusWire.update for more info
     type Msg =
         | Symbol of SymbolT.Msg // record containing messages from Symbol module
@@ -406,33 +443,29 @@ module BusWireT =
 
     open Optics
     open Operators
-    let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
-    let wires_ = Lens.create (fun m -> m.Wires) (fun w m -> {m with Wires = w})
-    let wireOf_ k = wires_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
+    let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> { m with Symbol = w })
+    let wires_ = Lens.create (fun m -> m.Wires) (fun w m -> { m with Wires = w })
+    let wireOf_ k =
+        wires_
+        >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
     let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
 
 module SheetT =
 
     // HLP 23: AUTHOR Khoury & Ismagilov
     // Types needed for scaling box
-    type ScalingBox = {
-        ScaleButton: SymbolT.Symbol 
-        RotateDeg90Button: SymbolT.Symbol 
-        RotateDeg270Button: SymbolT.Symbol 
-        ScalingBoxBound: BoundingBox
-        ButtonList: ComponentId list
-    }
-
-  
+    type ScalingBox =
+        { ScaleButton: SymbolT.Symbol
+          RotateDeg90Button: SymbolT.Symbol
+          RotateDeg270Button: SymbolT.Symbol
+          ScalingBoxBound: BoundingBox
+          ButtonList: ComponentId list }
 
     /// Used to keep mouse movement (AKA velocity) info as well as position
-    type XYPosMov = {
-        Pos: XYPos
-        Move: XYPos
-        }
+    type XYPosMov = { Pos: XYPos; Move: XYPos }
 
-    let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
-    let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
+    let move_ = Lens.create (fun m -> m.Move) (fun w m -> { m with Move = w })
+    let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> { m with Pos = w })
 
     /// Used to keep track of what the mouse is on
     type MouseOn =
@@ -461,14 +494,12 @@ module SheetT =
         | Scaling
         // ------------------------------ Issie Actions ---------------------------- //
         | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
-        | MovingPort of portId: string//?? should it have the port id?
+        | MovingPort of portId: string //?? should it have the port id?
         | ResizingSymbol of CommonTypes.ComponentId * XYPos
 
     type UndoAction =
         | MoveBackSymbol of CommonTypes.ComponentId List * XYPos
         | UndoPaste of CommonTypes.ComponentId list
-
-
 
     /// Keeps track of what cursor to show
     type CursorType =
@@ -480,10 +511,9 @@ module SheetT =
         | GrabLabel
         | GrabSymbol
         | Grabbing
-        | ResizeNESW // HLP23 AUTHOR: BRYAN TAN 
+        | ResizeNESW // HLP23 AUTHOR: BRYAN TAN
         | ResizeNWSE
-    with
-        member this.Text() = 
+        member this.Text() =
             match this with
             | Default -> "default"
             | ClickablePort -> "move"
@@ -493,46 +523,58 @@ module SheetT =
             | GrabSymbol -> "cell"
             | GrabLabel -> "grab"
             | Grabbing -> "grabbing"
-            | ResizeNESW -> "nesw-resize"   
+            | ResizeNESW -> "nesw-resize"
             | ResizeNWSE -> "nwse-resize"
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+        | CtrlS
+        | CtrlC
+        | CtrlV
+        | CtrlZ
+        | CtrlY
+        | CtrlA
+        | CtrlW
+        | AltC
+        | AltV
+        | AltZ
+        | AltShiftZ
+        | ZoomIn
+        | ZoomOut
+        | DEL
+        | ESC
 
     type WireTypeMsg =
-        | Jump | Radiussed | Modern
+        | Jump
+        | Radiussed
+        | Modern
 
-    type IssieInterfaceMsg =
-        | ToggleArrows
+    type IssieInterfaceMsg = | ToggleArrows
 
     /// Possible fields that may (or may not) be used in a dialog popup.
-    type PopupDialogData = {
-        Text : string option;
-        Int : int option;
-        Int2: int64 option
-    }
+    type PopupDialogData = { Text: string option; Int: int option; Int2: int64 option }
 
-    type Arrange = | AlignSymbols | DistributeSymbols
+    type Arrange =
+        | AlignSymbols
+        | DistributeSymbols
 
     type CompilationStage =
         | Completed of int
         | InProgress of int
         | Failed
         | Queued
-    
+
     type CompilationStageLabel =
         | Synthesis
         | PlaceAndRoute
         | Generate
         | Upload
 
-    type CompileStatus = {
-        Synthesis: CompilationStage;
-        PlaceAndRoute: CompilationStage;
-        Generate: CompilationStage;
-        Upload: CompilationStage;
-    }
+    type CompileStatus =
+        { Synthesis: CompilationStage
+          PlaceAndRoute: CompilationStage
+          Generate: CompilationStage
+          Upload: CompilationStage }
 
     type Msg =
         | Wire of BusWireT.Msg
@@ -544,8 +586,8 @@ module SheetT =
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
         | UpdateScrollPos of XYPos
-        | UpdateScrollPosFromCanvas of sequence: int * pos: XYPos * dispatch: ( Msg -> Unit)
-        | AddNotConnected of (LoadedComponent list) * port:Port * pos:XYPos * rotation:Rotation
+        | UpdateScrollPosFromCanvas of sequence: int * pos: XYPos * dispatch: (Msg -> Unit)
+        | AddNotConnected of (LoadedComponent list) * port: Port * pos: XYPos * rotation: Rotation
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling
@@ -560,7 +602,7 @@ module SheetT =
         | FlushCommandStack
         | ResetModel
         | UpdateSelectedWires of ConnectionId list * bool
-        | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
+        | ColourSelection of compIds: ComponentId list * connIds: ConnectionId list * colour: HighLightColor
         | PortMovementStart
         | PortMovementEnd
         | ResetSelection
@@ -577,13 +619,17 @@ module SheetT =
         | SaveSymbols
         // ------------------- Compilation and Debugging ----------------------
         | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
-        | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
+        | StartCompilationStage of
+            CompilationStageLabel *
+            path: string *
+            name: string *
+            profile: Verilog.CompilationProfile
         | StopCompilation
         | TickCompilation of float
         | FinishedCompilationStage
         | DebugSingleStep
-        | DebugStepAndRead of parts: int 
-        | DebugRead of parts: int 
+        | DebugStepAndRead of parts: int
+        | DebugRead of parts: int
         | OnDebugRead of data: int * viewer: int
         | DebugConnect
         | DebugDisconnect
@@ -598,92 +644,106 @@ module SheetT =
         | BeautifySheet
         | SheetBatch of Msg list
 
-    type ReadLog = | ReadLog of int
+    type ReadLog = ReadLog of int
 
     type DebugState =
         | NotDebugging
         | Paused
         | Running
-    
-    type ScalingDirection = ScaleUp | ScaleDown
 
-    type Model = {
-        Wire: BusWireT.Model
-        // function to create popup pane if present
-        PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
-        // data to populate popup (may not all be used)
-        PopupDialogData : PopupDialogData
-        BoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
-        LastValidBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
-        SelectedLabel: CommonTypes.ComponentId option
-        SelectedComponents: CommonTypes.ComponentId List
-        SelectedWires: CommonTypes.ConnectionId list
-        NearbyComponents: CommonTypes.ComponentId list
-        ErrorComponents: CommonTypes.ComponentId list
-        DragToSelectBox: BoundingBox
-        ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
-        TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
-        Action: CurrentAction
-        ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
-        //Theme: ThemeType
-        CursorType: CursorType
-        LastValidPos: XYPos
-        // HLP23 AUTHOR: BRYAN TAN
-        LastValidSymbol: SymbolT.Symbol option
-        SnapSymbols: SnapXY
-        SnapSegments: SnapXY
-        CurrentKeyPresses: (string*float) list // For manual key-press checking, e.g. CtrlC. The float is the key down time.
-        /// how X,Y coordinates throughout draw block are scaled into screen pixels.
-        /// All unscaled dimensions (screen pixels) have Screen prepended to name.
-        Zoom: float
-        /// the size of teh canvas in DrawBlock units
-        CanvasSize: float // how large is the circuit canvas - can be changed dynamically
-        TmpModel: Model Option // Stored for Redo/Undo
-        ScalingTmpModel: Model Option // Stored to save expandable scaling model
-        UndoList: Model List
-        RedoList: Model List
-        AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)
-        /// html scrolling position: this is in screen pixels, draw block X,Y values are 1/model.Zoom of this
-        ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
-        /// this is Drawblock X,Y values
-        LastMousePos: XYPos // For Symbol Movement
-        ScalingBoxCentrePos: XYPos
-        InitMouseToScalingBoxCentre: XYPos
-        ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
-        LastMousePosForSnap: XYPos
-        MouseCounter: int
-        CtrlKeyDown : bool
-        PrevWireSelection : ConnectionId list
-        ScalingBox: ScalingBox Option
-        Compiling: bool
-        CompilationStatus: CompileStatus
-        CompilationProcess: ChildProcess option
-        DebugState: DebugState
-        DebugData: int list
-        DebugMappings: string array
-        DebugIsConnected: bool
-        DebugDevice: string option
+    type ScalingDirection =
+        | ScaleUp
+        | ScaleDown
+
+    type Model =
+        {
+            Wire: BusWireT.Model
+            // function to create popup pane if present
+            PopupViewFunc: ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
+            // data to populate popup (may not all be used)
+            PopupDialogData: PopupDialogData
+            BoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
+            LastValidBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
+            SelectedLabel: CommonTypes.ComponentId option
+            SelectedComponents: CommonTypes.ComponentId List
+            SelectedWires: CommonTypes.ConnectionId list
+            NearbyComponents: CommonTypes.ComponentId list
+            ErrorComponents: CommonTypes.ComponentId list
+            DragToSelectBox: BoundingBox
+            ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
+            TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
+            Action: CurrentAction
+            ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
+            //Theme: ThemeType
+            CursorType: CursorType
+            LastValidPos: XYPos
+            // HLP23 AUTHOR: BRYAN TAN
+            LastValidSymbol: SymbolT.Symbol option
+            SnapSymbols: SnapXY
+            SnapSegments: SnapXY
+            CurrentKeyPresses: (string * float) list // For manual key-press checking, e.g. CtrlC. The float is the key down time.
+            /// how X,Y coordinates throughout draw block are scaled into screen pixels.
+            /// All unscaled dimensions (screen pixels) have Screen prepended to name.
+            Zoom: float
+            /// the size of teh canvas in DrawBlock units
+            CanvasSize: float // how large is the circuit canvas - can be changed dynamically
+            TmpModel: Model Option // Stored for Redo/Undo
+            ScalingTmpModel: Model Option // Stored to save expandable scaling model
+            UndoList: Model List
+            RedoList: Model List
+            AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)
+            /// html scrolling position: this is in screen pixels, draw block X,Y values are 1/model.Zoom of this
+            ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
+            /// this is Drawblock X,Y values
+            LastMousePos: XYPos // For Symbol Movement
+            ScalingBoxCentrePos: XYPos
+            InitMouseToScalingBoxCentre: XYPos
+            ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
+            LastMousePosForSnap: XYPos
+            MouseCounter: int
+            CtrlKeyDown: bool
+            PrevWireSelection: ConnectionId list
+            ScalingBox: ScalingBox Option
+            Compiling: bool
+            CompilationStatus: CompileStatus
+            CompilationProcess: ChildProcess option
+            DebugState: DebugState
+            DebugData: int list
+            DebugMappings: string array
+            DebugIsConnected: bool
+            DebugDevice: string option
         }
-    
+
     open Operators
-    let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})
-    let selectedComponents_ = Lens.create (fun m -> m.SelectedComponents) (fun sc m -> {m with SelectedComponents = sc})
-    let selectedWires_ = Lens.create (fun m -> m.SelectedWires) (fun sw m -> {m with SelectedWires = sw})
-    let boundingBoxes_ = Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> {m with BoundingBoxes = bb})
+    let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> { m with Wire = w })
+    let selectedComponents_ =
+        Lens.create (fun m -> m.SelectedComponents) (fun sc m -> { m with SelectedComponents = sc })
+    let selectedWires_ =
+        Lens.create (fun m -> m.SelectedWires) (fun sw m -> { m with SelectedWires = sw })
+    let boundingBoxes_ =
+        Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> { m with BoundingBoxes = bb })
     // let Action_ = Lens.create (fun m -> m.Action) (fun act m -> {m with Action = act})
     // let tmpModel_ = Lens.create (fun m -> m.TmpModel) (fun tmp m -> {m with TmpModel = tmp})
 
     let wires_ = wire_ >-> BusWireT.wires_
-    let wireOf_ k = wires_ >-> Map.valueForce_ "What? Wire id lookup in model failed" k
+    let wireOf_ k =
+        wires_
+        >-> Map.valueForce_ "What? Wire id lookup in model failed" k
     let symbol_ = wire_ >-> BusWireT.symbol_
     let symbols_ = wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
     let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
-    let scrollingLastMousePos_ = Lens.create (fun m -> m.ScrollingLastMousePos) (fun w m -> {m with ScrollingLastMousePos = w})
-    let lastMousePos_ = Lens.create (fun m -> m.LastMousePos) (fun w m -> {m with LastMousePos = w})
-    let screenScrollPos_ = Lens.create (fun m -> m.ScreenScrollPos) (fun w m -> {m with ScreenScrollPos = w})
-    let lastMousePosForSnap_ = Lens.create (fun m -> m.LastMousePosForSnap) (fun w m -> {m with LastMousePosForSnap = w})
-    let canvasSize_ = Lens.create (fun m -> m.CanvasSize) (fun w m -> {m with CanvasSize = w})
+    let scrollingLastMousePos_ =
+        Lens.create (fun m -> m.ScrollingLastMousePos) (fun w m -> { m with ScrollingLastMousePos = w })
+    let lastMousePos_ =
+        Lens.create (fun m -> m.LastMousePos) (fun w m -> { m with LastMousePos = w })
+    let screenScrollPos_ =
+        Lens.create (fun m -> m.ScreenScrollPos) (fun w m -> { m with ScreenScrollPos = w })
+    let lastMousePosForSnap_ =
+        Lens.create (fun m -> m.LastMousePosForSnap) (fun w m -> { m with LastMousePosForSnap = w })
+    let canvasSize_ =
+        Lens.create (fun m -> m.CanvasSize) (fun w m -> { m with CanvasSize = w })
 
-    let zoom_ = Lens.create (fun m -> m.Zoom) (fun w m -> {m with Zoom = w})
+    let zoom_ = Lens.create (fun m -> m.Zoom) (fun w m -> { m with Zoom = w })
 
-    let scalingBox_ = Lens.create (fun m -> m.ScalingBox) (fun w m -> {m with ScalingBox = w})
+    let scalingBox_ =
+        Lens.create (fun m -> m.ScalingBox) (fun w m -> { m with ScalingBox = w })

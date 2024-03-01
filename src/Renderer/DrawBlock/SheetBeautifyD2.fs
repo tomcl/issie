@@ -95,6 +95,13 @@ let allPairsNSameType<'T> (list: List<List<'T>>): List<List<Option<'T>>> =
 
 (* --------------------------------------- Implementation --------------------------------------- *)
 
+/// <summary>Get count of possible orientations from list of flip and rotation operations.</summary>
+/// <param name="flipOps">List of flip operations to try.</param>
+/// <param name="rotationOps">List of rotation operations to try.</param>
+/// <returns>Count of symbol's possible orientations.</returns>
+let getSymOrientCount (flipOps: List<SymbolT.FlipType>) (rotationOps: List<Rotation>): int =
+    (List.length flipOps + 1) * (List.length rotationOps)
+
 /// <summary>Get count of possible port configurations of a custom symbol.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Count of port orders possible.</returns>
@@ -110,8 +117,8 @@ let getSymPortPermCount (sym: SymbolT.Symbol): int =
 /// <param name="sym">Target symbol.</param>
 /// <returns>Count of symbol orientations times count of port orders possible.</returns>
 /// <remarks>Useful in determining which symbol to try to rotate on sheet.</remarks>
-let getSymOrientationAndPortPermCount (sym: SymbolT.Symbol): int =
-    (List.length Constants.FlipOps + 1) * (List.length Constants.RotationOps) * (getSymPortPermCount sym)
+let getSymOrientAndPortPermCount (sym: SymbolT.Symbol): int =
+    (getSymOrientCount Constants.FlipOps Constants.RotationOps) * (getSymPortPermCount sym)
 
 /// <summary>Get all possible PortMaps.Order on a symbol after reordering ports.</summary>
 /// <param name="sym">Target symbol.</param>
@@ -135,7 +142,7 @@ let getSymPortPermData
 /// <param name="sym">Target symbol.</param>
 /// <returns>List of tuples of flip operation, rotate operation, and PortMaps.Order.</returns>
 /// <remarks>Useful when trying different orientation of a symbol or when reordering its ports.</remarks>
-let getSymOrientationAndPortPermData
+let getSymOrientAndPortPermData
         (sym: SymbolT.Symbol)
             : List<SymbolT.FlipType*Rotation*Map<Edge,List<string>>> =
     allPairs3 Constants.FlipOps Constants.RotationOps (getSymPortPermData sym)

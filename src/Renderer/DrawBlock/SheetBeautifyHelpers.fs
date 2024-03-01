@@ -238,79 +238,74 @@ let countRightAngleSegPairs (model: SheetT.Model) : int =
     countRightAngleIntersections / 2    
 
 // T4 R
-/// Calculates the total length of visible wire segments on the sheet.
-/// Takes as input the sheet model containing the wires to be measured.
-/// Returns the total length of all visible wire segments.
-/// Segments are first merged to account for overlaps before calculating the total length.
+/// Calculates total length of all visible wire segments on a sheet.
+/// Input: Sheet model with wires.
+/// Output: Total length of visible wire segments.
+/// Before calculating total length, segments are merged to handle overlaps.
 let totalVisibleWireLength (model: SheetT.Model) : float =
-    // Determines which nets should be checked based on the model's wires.
-    let getNetsForChecking (model: SheetT.Model) =
+    // Pick out nets from model's wires to check.
+    let identifyNetsForInspection (model: SheetT.Model) =
         partitionWiresIntoNets model.Wire
-        |> List.map (fun (_, wires) -> 
-            match wires.Length with
-            | 1 -> []
-            | _ -> wires)
+        |> List.collect (fun (_, wires) -> if wires.Length > 1 then [wires] else [])
 
-    // Extracts the start positions of wires in a net.
-    let getWireStartPositions (netWires: (ConnectionId * BusWireT.Wire) list) = 
-        netWires
-        |> List.map (fun (_, wire) -> wire.StartPos)
+    // Fetch start points for wires in a net.
+    let fetchWireStarts (netWires: (ConnectionId * BusWireT.Wire) list) = 
+        netWires |> List.map (snd >> fun wire -> wire.StartPos)
 
-    // Calculates the start and end positions of visible segments for each wire in a net.
-    let getVisibleSegPositions (netWires: (ConnectionId * BusWireT.Wire) list) (model: SheetT.Model) : ((XYPos * XYPos) list) list =
+    // Identify start and end of visible wire segments.
+    let findVisibleSegments (netWires: (ConnectionId * BusWireT.Wire) list) (model: SheetT.Model) =
         netWires
-        |> List.map (fun (connectId, _) -> visibleSegments' connectId model)
-        |> List.zip (getWireStartPositions netWires) 
-        |> List.map (fun (startPos, segmentPositions) ->
-            segmentPositions
-            |> List.fold (fun (accumulatedPositions, lastPos) segment ->
-                let newAbsPos = lastPos + segment
-                (accumulatedPositions @ [(lastPos, newAbsPos)], newAbsPos)
-            ) ([], startPos)
+        |> List.map (fun (id, _) -> visibleSegments' id model)
+        |> List.zip (fetchWireStarts netWires) 
+        |> List.map (fun (start, segments) ->
+            segments
+            |> List.fold (fun (accum, lastPos) seg ->
+                let newPos = lastPos + seg
+                (accum @ [(lastPos, newPos)], newPos)
+            ) ([], start)
             |> fst)
 
-    // Merges two segments into one segment, covering the entire length.
-    let mergeSegments ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : (XYPos * XYPos) =
-        let newStartX = min (min a1.X a2.X) (min b1.X b2.X)
-        let newStartY = min (min a1.Y a2.Y) (min b1.Y b2.Y)
-        let newEndX = max (max a1.X a2.X) (max b1.X b2.X)
-        let newEndY = max (max a1.Y a2.Y) (max b1.Y b2.Y)
-        ({X = newStartX; Y = newStartY}, {X = newEndX; Y = newEndY})
+    // Combine two overlapping segments into one.
+    let unifySegments (seg1: XYPos * XYPos, seg2: XYPos * XYPos) =
+        let ((a1, a2), (b1, b2)) = seg1, seg2
+        let startX = min (min a1.X a2.X) (min b1.X b2.X)
+        let startY = min (min a1.Y a2.Y) (min b1.Y b2.Y)
+        let endX = max (max a1.X a2.X) (max b1.X b2.X)
+        let endY = max (max a1.Y a2.Y) (max b1.Y b2.Y)
+        ({X = startX; Y = startY}, {X = endX; Y = endY})
 
-    // Iterates through segments to merge overlapping ones.
-    let mergeOverlappingSegments (segmentLists: ((XYPos * XYPos) list) list) : (XYPos * XYPos) list =
-        let allSegments = List.concat segmentLists
+    // Merge segments that overlap.
+    let mergeSegments (segmentsLists: ((XYPos * XYPos) list) list) =
+        let allSegments = List.concat segmentsLists
 
-        let rec mergeSegmentIntoList segment unionList =
-            match unionList with
+        let rec integrateSegment segment integrated =
+            match integrated with
             | [] -> [segment]
             | head :: tail ->
                 if overlap2D segment head then
-                    let mergedSegment = mergeSegments segment head
-                    mergeSegmentIntoList mergedSegment tail
+                    integrateSegment (unifySegments (segment, head)) tail
                 else
-                    head :: (mergeSegmentIntoList segment tail)
-    
-        List.fold (fun acc segment -> mergeSegmentIntoList segment acc) [] allSegments
+                    head :: integrateSegment segment tail
 
-    // Calculates the total length of all segments.
-    let calculateTotalLength (segments: (XYPos * XYPos) list) : float =
+        List.fold integrateSegment [] allSegments
+
+    // Calculate total length of segments.
+    let totalLength (segments: (XYPos * XYPos) list) =
         segments
-        |> List.map (fun (startPos, endPos) ->
-            let diff = endPos - startPos
-            sqrt(diff.X ** 2.0 + diff.Y ** 2.0))
+        |> List.map (fun (start, endPos) ->
+            let delta = endPos - start
+            sqrt(delta.X ** 2.0 + delta.Y ** 2.0))
         |> List.sum
 
-    let allNets = getNetsForChecking model
-
-    allNets
+    model
+    |> identifyNetsForInspection
     |> List.map (fun net ->
-        let allVisibleSegments = getVisibleSegPositions net model
-        allVisibleSegments
-        |> mergeOverlappingSegments
-        |> calculateTotalLength
-    )
+        net
+        |> findVisibleSegments model
+        |> mergeSegments
+        |> totalLength)
     |> List.sum
+
 
 // T5 R
 /// Counts the number of visible wire segments forming right angles on the sheet.

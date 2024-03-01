@@ -1,7 +1,7 @@
 # Team-Phase Work JW3621 
 
 ## D2 sheetOrderFlip Build
-Effert in writing helper datatypes and functions to perform two algorithms mentioned in the project requirement
+helper datatypes and functions to perform Exhaustive Search Algorithm mentioned in the project requirement
 
 ## 1. **Exhaustive Search Algorithm**
 
@@ -19,4 +19,4 @@ This approach utilizes two new data types, `symbolScript` and `modelScript`, to 
 - **`optimizeFlipForComponents`**: Conducts an evaluation across all generated model configurations, selecting and returning the one with the lowest number of overlaps. This function is crucial for identifying the optimal model configuration with minimized component overlap.
 
 
-## 2. **Heuristic Approach**
+<!-- ## 2. **Heuristic Approach** -->

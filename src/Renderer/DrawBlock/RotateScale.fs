@@ -358,15 +358,25 @@ let adjustPosForBlockFlip
     pos - posOffset
 
 //-------------------------------------------------------------------------------------------------
-// Code Improved by Johnny Line 360 - 480
 //---------------------------------improve summary-------------------------------------------------
+// Code Improved by Johnny Line 360 - 480
+
+// Two Tansform used:
+    // Transform 1: Functional Abstraction
+    // Transform 2: Pipelines
+
 
 // 1. Pipelining for Clarity: 
-//      Utilized pipelines in rotateSymbolInBlock and flipSymbolInBlock for clearer data transformations.
-// 2. Function Decomposition: 
-//      In flipSymbolInBlock, Extracted complex logic into applyFlip for better modularity.
+//      Utilized pipelines in rotateSymbolInBlock and flipSymbolInBlock for clearer data transformations. 
+//      orgainze code nto more readable pipeline structure
+// 2. Functional Abstraction: 
+//      In flipSymbolInBlock, Extracted complex logic into applyFlip for better modularity, 
+//      Reduced code repetitions
 // 3. Variable Declaration Clarity: 
 //      Split combined variable declarations in scaleSymbolInBlock for enhanced readability.
+// 4. Renaming:
+//    Renamed variables for clarity and consistency is also attempted, but naming of variables are clear and consistent,
+//    so no significant renaming is done.
 
 //-----------------------------improve description end---------------------------------------------
 

@@ -122,7 +122,10 @@ let alignSymbols (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
 // the two symbols, wModel.Wires and sModel.Ports
 // It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
 
-/// HLP23: A helper function for reSizeSymbol that calculates the resizedDimensions for a CustomComponent to be resized, ensuring straight wires
+/// HLP23: A helper function for reSizeSymbol that calculates the h,w, the resizedDimensions for a CustomComponent to be resized, ensuring straight wires
+/// This was originally part of reSizeSymbol, but was separated to become more modular.
+/// The logic is also clearer, using inline functions to speed up and properly visualise the difference between
+/// resizing using the gap or topBottomGap.
 let calculateResizedDimensions (resizePortInfo: PortInfo) (otherPortInfo: PortInfo) =
     let inline resizedWithGap gapMultiplier =
         otherPortInfo.portGap
@@ -137,7 +140,11 @@ let calculateResizedDimensions (resizePortInfo: PortInfo) (otherPortInfo: PortIn
 
 /// HLP23: A helper function that takes in two symbols connected by wires, symbolToSize and otherSymbol.
 /// The first symbol must be a Custom component. The function adjusts the size of symbolToSize so that the wires
-/// connecting it with the otherSymbol become exactly straight
+/// connecting it with the otherSymbol become exactly straight/
+/// Comments here were improved, and the calculation logic for h and w was moved to calculateResizedDimensions.
+/// In the last part of matching with the Custom type, I removed the occurences of 'lets'
+/// and instead used a pipeline to make the code more readable. This also has the added benefit of showing the
+/// types of the variables at each stage of the pipeline, changing as it goes
 let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
@@ -162,6 +169,7 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
     | _ -> symbolToSize
 
 /// For UI to call ResizeSymbol.
+/// More pipelines were used here to improve readability
 let reSizeSymbolTopLevel (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 
@@ -315,6 +323,13 @@ let optimiseSymbol
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
 /// <returns>Bounding Box</returns>
+/// Modifications to this block: Added inline functions to abstract away the tuples accesses for getRotatedHAndW.
+/// Used inline functions to improve performance.
+/// Previously using MaxBy was used to obtain the maxXsym, but this involved another redundant calculation to find maxXsym.Pos.X + getRotatedWidth symbol.
+/// Changing to List.map means we keep only need to run symbols once to compute each symbol.Pos.X + getRotatedWidth symbol when finding the maxX
+/// Same goes for the maxY,
+/// Used List.Max instead of List.MaxBy to find min values, so we don't have to access symbol.Pos.(x or y) again
+/// Also, this would break other functionality, but I propose renaming getBlock as getBoundingBoxFromSyms, as 'block' is not a usual term
 let getBlock (symbols: Symbol list) : BoundingBox =
     // Define helper functions to get the rotated width and height of a symbol
     let inline getRotatedWidth symbol = snd (getRotatedHAndW symbol)
@@ -686,6 +701,11 @@ let scaleSymbol xYSC sym =
 /// <param name="selectedSymbols">A list of the symbols to be modified.</param>
 /// <param name="modifySymbolFunc">A function that takes a symbol and returns a modified symbol.</param>
 /// <returns>A new model with the selected symbols modified.</returns>
+/// CHANGES:
+/// Simplified to a single pipeline that checks if the component ID is in compList, then modifies accordingly
+/// Before this, two maps were created, one with selected symbols and one with unselected symbols,
+/// then folded together. This was quite cumbersome.
+/// XML comments were also added to this function.
 let groupNewSelectedSymsModel
     (compList: ComponentId list)
     (model: SymbolT.Model)
@@ -709,6 +729,9 @@ let groupNewSelectedSymsModel
 /// <param name="model"> Current symbol model</param>
 /// <param name="flip"> Type of flip to do</param>
 /// <returns>New flipped symbol model</returns>
+/// Simplified to a single pipeline that checks if the component ID is in compList, then modifies accordingly
+/// Before this, two maps were created, one with selected symbols and one with unselected symbols,
+/// then folded together. This was quite cumbersome.
 let flipBlock (compList: ComponentId list) (model: SymbolT.Model) (flip: FlipType) =
     // Get the block of the selected symbols.
     let block = getBlock (List.map (fun x -> model.Symbols |> Map.find x) compList)

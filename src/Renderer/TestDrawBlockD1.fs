@@ -1,4 +1,4 @@
-module TestDrawBlock
+module TestDrawBlockD1
 
 open GenerateData
 open Elmish

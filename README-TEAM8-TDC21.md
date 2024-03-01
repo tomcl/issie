@@ -1,4 +1,46 @@
-# HLP Team 8
+# HLP Team 8 Report: tdc21
+### Timothy Chung
+
+## Improving RotateScale
+Functions I worked on:
+1. `reSizeSymbol`
+2. `reSizeSymbolTopLevel`
+3. `getBlock`
+4. `groupNewSelectedModel`
+5. `flipBlock`
+
+Most functions needed better comments to describe what they did. I also ensured they were turned into XML comments.
+(1) was improved by splitting out some calculation functions in order to better modularise the logic for resizing with a gap, either horizontally or vertically. Pipelines were used in (1) to reduce unnecessary `let` statements in the code.
+
+All functions were made more readable with the use of pipelines. 
+For (3, 4, and 5), computations were sped up by combining several separate pipelines for different variables, into a single one. More information is in the comments of each function as to how processes were sped up.
+
+Most of the functions I did were not too complicated with their calculations and did not require splitting into other parts. If splitting was really necessary for readability and to help abstract away logic for maintainers, I would try to use inline functions if the splittings were short. This was for (3).
+
+I also proposed a change to `getblock` to be called `getBoundingBoxFromSyms` as 'block' is not a commonly used word in the desriptions. I did not modify this as the codebase relies on this function name.
+
+Other general changes:
+- Managing vertical spacing to build lines
+- Using short XML comments
+- No recursion
+- Ensured optics were in use or working correctly
+
+
+## Team Contributions
+- I wrote a `removeWireInvisibleSegments` used by quite some helpers in `beautifySheetHelpers` as well as to reduce invisible wire segments for Deliverable 1. This was used instead of `visibleSegments` because it respects the wire data structure in the sheet. 
+- I wrote `perpendicularOverlap2D`, a helper based on `overlap2D` in `BlockHelpers.fs` to only ensure perpendicular overlaps in wires.
+- I implemented the entire Tick3 as `TestDrawBlockD1` into the codebase and added it into the menu function
+- I also wrote a testing platform called `TestSheetFunctions` allowing the team to run heuristics and print to console with the shortcut cmd+shift+1.
+- I added a playground function to turn off trace logging
+- I also added a feature to right click on canvas and print the mouse position to console
+  
+
+
+
+
+
+
+---
 
 ## Project Partitioning
 Note: There are 6 members, so 3 students doing 3 distinct deliverables, and 3 students working on testing (1-2 testers per deliverable)

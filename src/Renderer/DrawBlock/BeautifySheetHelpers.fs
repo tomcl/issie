@@ -293,13 +293,13 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
 ///<summary>
 /// T2R, T3R Helper.
 /// Remove all invisible segments from wires on a sheet.Wire.Wires.
-/// visibleSegments would've worked, but outputs an XYPos list, which is a format that isn't well accepted by the other functions and types.
-/// This is achieved by utilising existing helper function segmentsToIssieVertices to convert all segments to a list of vertices.
-/// It is then very easy to remove duplicate vertices.
-/// We can utilise another helper function issieVerticesToSegments to convert vertices back to segments, and create new wires.
 /// </summary>
 /// <param name="wires">Map of wires indexed by ConnectionID to remove invisible segments from.</param>
 /// <returns>Map of wires indexed by ConnectionID with invisible segments removed.</returns>
+// visibleSegments would've worked, but outputs an XYPos list, which is a format that isn't well accepted by the other functions and types.
+// This is achieved by utilising existing helper function segmentsToIssieVertices to convert all segments to a list of vertices.
+// It is then very easy to remove duplicate vertices.
+// We can utilise another helper function issieVerticesToSegments to convert vertices back to segments, and create new wires.
 let removeWireInvisibleSegments (wires: Map<ConnectionId, Wire>) =
     wires
     |> Map.map (fun connId wire ->
@@ -357,6 +357,7 @@ let perpendicularOverlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) :
 /// </summary>
 /// <param name="model">The SheetT.Model to count the right angle crossings of.</param>
 /// <returns>The number of distinct pairs of segments that cross each other at right angles.</returns>
+// Corner cases where this won't work: any L shaped crossing that results in a  + style configuration, even though wires do not actually cross at right angles
 let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
     let wireModel = model.Wire // Get all the wires from the Wire model
     let wires = Map.toList wireModel.Wires

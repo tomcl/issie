@@ -153,6 +153,8 @@ type UICommandType =
     | ViewWaveSim
     | CloseWaveSim
 
+type TestState = { LastTestNumber: int; LastTestSampleIndex: int }
+
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
 //---------------------------------------------------------------
@@ -290,6 +292,7 @@ type MenuCommand =
     | MenuZoom of float
     | MenuVerilogOutput
     | MenuLostFocus
+    | MenuDrawBlockTest of (int -> Elmish.Dispatch<Msg> -> Model -> Unit) * int
 
 type SimulationProgress = { InitialClock: int; FinalClock: int; ClocksPerChunk: int }
 
@@ -438,6 +441,7 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType: string * item: string * dispatch: (Msg -> unit)
+    | UpdateDrawBlockTestState of ((TestState option) -> (TestState option))
 
 //================================//
 // Componenents loaded from files //
@@ -594,6 +598,9 @@ type Model =
         UIState: UICommandType Option
         /// if true the "build" tab appears on the RHS
         BuildVisible: bool
+        /// Used to allow a sequence of errors to be displayed from a test.
+        /// Has a value after a test has been run.
+        DrawBlockTestState: TestState option
     }
 
     member this.WaveSimOrCurrentSheet =
@@ -628,6 +635,8 @@ let userData_ =
     Lens.create (fun a -> a.UserData) (fun s a -> { a with UserData = s })
 let uISheetTrail_ =
     Lens.create (fun a -> a.UISheetTrail) (fun s a -> { a with UISheetTrail = s })
+let drawBlockTestState_ =
+    Lens.create (fun a -> a.DrawBlockTestState) (fun s a -> { a with DrawBlockTestState = s })
 
 let currentProj_ =
     Lens.create (fun a -> a.CurrentProj) (fun s a -> { a with CurrentProj = s })

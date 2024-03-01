@@ -217,6 +217,15 @@ module SymbolT =
             MovingPortTarget: (XYPos * XYPos) option
 
         }
+        // Return the symbol outline diagonal from sym.Pos to its opposite corner as an XYPos.
+        // Both coordinates of this vector are always positive.
+        member this.getScaledDiagonal: XYPos =
+            { X =
+                Option.defaultValue 1.0 this.HScale
+                * this.Component.W
+              Y =
+                Option.defaultValue 1.0 this.VScale
+                * this.Component.H }
 
     let appearance_ =
         Lens.create (fun a -> a.Appearance) (fun s a -> { a with Appearance = s })

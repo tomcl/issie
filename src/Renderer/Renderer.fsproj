@@ -80,6 +80,7 @@
     <Compile Include="DrawBlock\SheetDisplay.fs" />
     <Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
+
     <!-- UI -->
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI\Style.fs" />
@@ -108,10 +109,14 @@
     <Compile Include="UI\UpdateHelpers.fs" />
     <Compile Include="UI\Update.fs" />
     <Compile Include="VerilogComponent\TestParser.fs" />
+    
+    <Compile Include="GenerateData.fs" />
+    <Compile Include="TestDrawBlock.fs" />
+    
     <Compile Include="TestWorker.fs" />
     <Compile Include="Playground.fs" />
-    
     <Compile Include="Renderer.fs" />
+    
   </ItemGroup>
   <!-- Dependencies -->
   <Import Project="..\..\.paket\Paket.Restore.targets" />

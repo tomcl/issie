@@ -83,7 +83,7 @@ let update (msg: Msg) (issieModel: ModelType.Model) : ModelType.Model * Cmd<Mode
             |> List.iter (fun xy -> printfn "X = %.2f, Y = %.2f" xy.X xy.Y))
     // prettyPrint testVisibleSegments
     // printf "%A" testVisibleSegments
-    printf "%A" (model.LastMousePos)
+    // printf "%A" (model.LastMousePos)
     // printf "getSharedNetOverlaplength %A" (getSharedNetOverlapLength model)
 
     let what = (model.Wire.Wires)
@@ -95,18 +95,18 @@ let update (msg: Msg) (issieModel: ModelType.Model) : ModelType.Model * Cmd<Mode
 
     let wireModel = model.Wire
 
-    let findWireSymbolIntersections (sheet: SheetT.Model) =
-        let wireModel = sheet.Wire
-        wireModel.Wires
-        |> Map.toList
-        |> List.collect (fun (_, wire) -> BusWireRoute.findWireSymbolIntersections wireModel wire)
+    // let findWireSymbolIntersections (sheet: SheetT.Model) =
+    // let wireModel = sheet.Wire
+    // wireModel.Wires
+    // |> Map.toList
+    // |> List.collect (fun (_, wire) -> BusWireRoute.findWireSymbolIntersections wireModel wire)
 
     // printf "%A" (findWireSymbolIntersections model)
     // printf "countVisibleSegsIntersectingSymbols %A" (countVisibleSegsIntersectingSymbols model)
     // printf "countVisibleSegsPerpendicularCrossings %A" (countVisibleSegsPerpendicularCrossings model)
     // printf "getApproxVisibleSegmentsLength %A" (getApproxVisibleSegmentsLength model)
     // printf "countVisibleRAngles %A" (countVisibleRAngles model)
-    printf "countUniqRetracingSegmentsAndIntersects %A" (countUniqRetracingSegmentsAndIntersects model)
+    // printf "countUniqRetracingSegmentsAndIntersects %A" (countUniqRetracingSegmentsAndIntersects model)
 
     /// check things that might not have been correctly completed in the last update and if so do them
     /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than

@@ -192,6 +192,7 @@ let shortDisplayMsg (msg: Msg) =
     | ExecFuncAsynch _ -> Some "ExecFuncAsync"
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
+    | UpdateDrawBlockTestState _ -> None
 
 /// If debugTrace is on print out human readable info on message.
 /// Be careful not to do this on mouse moves (there are too many).

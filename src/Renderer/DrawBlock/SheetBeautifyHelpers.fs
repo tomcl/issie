@@ -73,7 +73,7 @@ let WritePortOrientation (newOrder:list<string>)  (edge:Edge) (sym:Symbol)=
     let order= portmap.Order
     let newOrderMap=Map.change edge (fun stringsOpt -> Some newOrder) order
     let newportmap= {portmap with Order = newOrderMap}
-    {sym with PortMaps = portmap}
+    {sym with PortMaps = newportmap}
 
 
 //B5R
@@ -148,15 +148,10 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
                 ||> List.fold tryCoalesceAboutIndex)
 
 
-// let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-//             let wireModel = sheet.Wire
-//             wireModel.Wires
-//             |> Map.exists (fun _ wire -> BusWireRoute.findWireSymbolIntersections wireModel wire <> [])
-//             |> (function | true -> Some $"Wire intersects a symbol outline in Sample {sample}"
-//                          | false -> None)
+
 let ReadSegmentIntersectSymbolNum ( sheet: SheetT.Model)=
     let wires= sheet.Wire.Wires
-    // let keysList= wires |> Map.toList  |> List.map fst
+
     let wiresList= wires |> Map.toList  |> List.map snd
     let absSegments=List.collect id (List.map (fun wire ->getNonZeroAbsSegments wire) wiresList )
     let boundingBoxes= sheet.BoundingBoxes |> Map.toList  |> List.map snd
@@ -171,7 +166,7 @@ let ReadSegmentIntersectSymbolNum ( sheet: SheetT.Model)=
 
 //T3R
 
-let readSegmentRightIntersectionPair(sheet: SheetT.Model)=
+let readSegRightIntersectPair(sheet: SheetT.Model)=
     let wires= sheet.Wire.Wires
     // let keysList= wires |> Map.toList  |> List.map fst
     let wiresList= wires |> Map.toList  |> List.map snd
@@ -204,7 +199,7 @@ type WirePosDict =
     } //the intermediate data store to store the wire positions
 //T4R
 
-let readTotalWireLengthsheet (sheet : SheetT.Model)=
+let readTotalWireLength (sheet : SheetT.Model)=
     
    
     let wirePosDict = {
@@ -299,12 +294,8 @@ let readVisibleRightAngleNum (sheet:SheetT.Model)=
 
 let readRetracedWire(sheet:SheetT.Model)=
     let wiresMap= sheet.Wire.Wires
-    // let w= sheet.Wire
+
     let wires=wiresMap|> Map.toList |>List.map snd
-    // let symbols=wiresMap|> Map.toList |>List.map snd |> List.map(fun (wire:Wire)->getSourceSymbol sheet.Wire wire)
-    // let asegmentsList= wiresMap|> Map.toList |>List.map snd |> List.map(fun (wire:Wire)->getAbsSegments wire)
-    // let symbolsAndasegments= List.zip symbols asegmentsList
-    // let emptyRetraceList:Segment list= [] 
 
     let differentSigns x y = x * y < 0.0
 
@@ -319,11 +310,6 @@ let readRetracedWire(sheet:SheetT.Model)=
         let targetSymbolBoundingBox= getSymbolBoundingBox targetSymbol
         let sourceSymbolXYPosCords= sourceSymbolBoundingBox.TopLeft, sourceSymbolBoundingBox.BottomRight()
         let targetSymbolXYPosCords= targetSymbolBoundingBox.TopLeft, targetSymbolBoundingBox.BottomRight()
-        // let startPos=asegments[0].Start
-        // let calcEndPos (startPos:XYPos) (asegment:ASegment) :XYPos=
-        //     match asegment.Orientation with
-        //     | Vertical -> {X=startPos.X ;Y= startPos.Y+asegment.Segment.Length}
-        //     | Horizontal -> {X=startPos.X+asegment.Segment.Length; Y=startPos.Y}
         
 
         segments
@@ -346,7 +332,6 @@ let readRetracedWire(sheet:SheetT.Model)=
                         else reTraceTooFarList
                 else reTraceTooFarList
 
-            // let endpos= calcEndPos startpos asegments[segment.Index] //update the end position after retracing, which is the next segment's starting position
             (newRetraceList,  newReTraceTooFarList, newRetracedIndex)
             )  ([],[],0)
         |> (fun (a,b,c) -> a,b)

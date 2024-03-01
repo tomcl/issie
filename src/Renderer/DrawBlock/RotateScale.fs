@@ -631,7 +631,7 @@ let oneCompBoundsBothEdges (selectedSymbols: Symbol list) =
 //added comments about what each indentifer represents
 
 
-//START 6 *****************************************************************************************************************************
+
 ///takes a list of ComponentIds and returns list of the corresponding Symbols
 let findSelectedSymbols (compList: ComponentId list) (model: SymbolT.Model) = 
     List.map (fun x -> model.Symbols |> Map.find x) compList
@@ -639,9 +639,7 @@ let getSymLFromCompIdL = findSelectedSymbols
 //CHANGES MADE:
 //renamed the function name because is very misleading
 //added XML comments
-//END 6 **************************************************************************************************************************
 
-//START 7 *****************************************************************************************************************************
 
 /// <summary>
 ///Calculates the scale factor and the offset of the centre needed for scaling operation.
@@ -662,7 +660,6 @@ let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (ma
 
 //CHANGES MADE:
 //added XML comments
-//END 7 *****************************************************************************************************************************
 
 
 /// <summary>
@@ -716,50 +713,7 @@ let getScalingFactorAndOffsetCentreGroup
     //CHANGES MADE:
     //added XML comments
     //fixed syntax
-    //END 8 **************************************************************************************************************************
-
-
-// Return set of floats that define how a group of components is scale
-let getScalingFactorAndOffsetCentreGroup_old
-    (matchBBMin:XYPos)
-    (matchBBMax:XYPos)
-    (selectedSymbols: Symbol list) : ((float * float) * (float * float)) = 
-    //(compList: ComponentId list)
-    //(model: SymbolT.Model)
-
-    //let selectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-
-    let maxXSym = 
-            selectedSymbols
-            |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
-
-    let oldMaxX = (maxXSym |> getRotatedSymbolCentre).X
-    let newMaxX = matchBBMax.X - (snd (getRotatedHAndW maxXSym))/2.
-
-    let minXSym =
-            selectedSymbols
-            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
-
-    let oldMinX = (minXSym |> getRotatedSymbolCentre).X
-    let newMinX = matchBBMin.X + (snd (getRotatedHAndW minXSym))/2.
     
-    let maxYSym = 
-            selectedSymbols
-            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
-
-    let oldMaxY = (maxYSym |> getRotatedSymbolCentre).Y
-    let newMaxY = matchBBMax.Y - (fst (getRotatedHAndW maxYSym))/2.
-
-    let minYSym =
-            selectedSymbols
-            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
-
-    let oldMinY = (minYSym |>  getRotatedSymbolCentre).Y
-    let newMinY = matchBBMin.Y + (fst (getRotatedHAndW minYSym))/2.
-    
-    let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
-    let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
-    (xSC, ySC)
 
 /// <summary>
 /// Alter position of one symbol as needed in a scaling operation
@@ -787,7 +741,6 @@ let scaleSymbol
 
     //CHANGES MADE:
     //improved XML comments   
- //END 10 **************************************************************************************************************************
  
 /// <summary>
 /// Selects the selectedSymbols modifies them and returns the updated model with the modified selected symbols.
@@ -817,7 +770,6 @@ let groupNewSelectedSymsModel
     //added XML comments
     //deleted unnecessary comments
     //changed names, newSymbols name was misleading.
- //END 9 **************************************************************************************************************************
 
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>

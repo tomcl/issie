@@ -1,29 +1,27 @@
 ﻿module SheetBeautifyD2
 
-open BlockHelpers
 open CommonTypes
-open SymbolHelpers
-open SymbolUpdate
 open DrawModelType
 open Optics
 open Operators
-open Symbol
 open RotateScale
-open Helpers
 open BusWireSeparate
 open SheetBeautifyHelpers
 open SheetUpdateHelpers
+open System
 
 
 
 ////////// Helper functions //////////
 
+// TODO consider moving these to SheetBeautifyHelpers (if useful to others?)
+
 /// Given a modified symbol and a sheet, find the original symbol in the sheet
 /// (by component id) and replace it with the new symbol, returning the new sheet.
 /// Does not update bounding boxes or wiring - symbol only!
 let replaceSymbol
-        (symbol: SymbolT.Symbol)
         (sheet: SheetT.Model)
+        (symbol: SymbolT.Symbol)
         : SheetT.Model =
     sheet.Wire.Symbol.Symbols
     |> Map.add symbol.Id symbol
@@ -37,6 +35,7 @@ let sheetScore
         : float =
 
     // Normalisation factors for each of the three components.
+    // TODO figure out what these should be - tester can help with this
     let numCrossingsNorm = 1.0
     let visibleLengthNorm = 1.0
     let numRightAnglesNorm = 1.0
@@ -45,25 +44,25 @@ let sheetScore
     let visibleLengthSq = float (visibleWireLength sheet) ** 2.0
     let numRightAnglesSq = float (numWireRightAngles sheet) ** 2.0
 
-    // Square and add metrics to encourage optimisation algorithms to make them all moderately small, as
-    // opposed to sacrificing one in order to make the others very small.
-    // Same concept as L1 vs L2 regularisation in neural networks.
+    // Square and add metrics to encourage optimisation algorithms to make them all moderately small,
+    // as opposed to sacrificing one in order to make the others very small.
+    // Same concept as L1 vs L2 regularisation in neural networks (?).
     numCrossingsSq*numCrossingsNorm + visibleLengthSq*visibleLengthNorm + numRightAnglesSq*numRightAnglesNorm
 
 
 
 ////////// Algorithm 1: Brute force //////////
 
-/// Takes a model and a list of symbols to manipulate (flip, reverse inputs and reorder ports),
-/// and returns a new model with the changed symbols (optimising for the beautify function),
+/// Takes a sheet and a list of symbols to manipulate (flip, reverse inputs and reorder ports),
+/// and returns a new sheet with the changed symbols (optimising for the beautify function),
 /// and the score of this sheet.
-/// compIds is a list of the component ids of all symbols under consideration.
+/// compIds acts as a reference and remains constant for each function call.
 /// Uses brute force - exponential time complexity. Only use for small groups of symbols.
 let rec bruteForceOptimise
         (symbols: SymbolT.Symbol list)
         (compIds: ComponentId list)
         (sheet: SheetT.Model)
-        : SheetT.Model*float =
+        : {|OptimisedSheet: SheetT.Model; Score: float|} =
 
     match symbols with
     | h::t ->
@@ -85,29 +84,94 @@ let rec bruteForceOptimise
             | _ -> [h]
 
         symbolChoices
-        |> List.map (fun sym -> replaceSymbol sym sheet)
+        |> List.map (fun sym -> replaceSymbol sheet sym)
         |> List.map (bruteForceOptimise t compIds)
-        |> List.minBy snd
+        |> List.minBy (fun result -> result.Score)
 
     | [] ->
         sheet.Wire
         |> reRouteWiresFrom compIds
         |> fun wire -> Optic.set SheetT.wire_ wire sheet
         |> updateBoundingBoxes
-        |> fun newSheet -> newSheet, sheetScore newSheet
+        |> fun newSheet -> {|OptimisedSheet = newSheet; Score = sheetScore newSheet|}
 
 
 
 ////////// Algorithm 2: Clock face //////////
 
-/// Reorder the ports (given as string ids) of a custom component along a single side
+/// Returns a list of ports connected to a given port.
+let getConnectedPorts
+        (model: BusWireT.Model)
+        (port: Port)
+        : Port list =
+    model.Wires
+    |> Map.toList
+    |> List.map snd
+    |> List.collect (fun wire ->
+        let (OutputPortId outId) = wire.OutputPort
+        let (InputPortId inId) = wire.InputPort
+        if port.Id = outId then [model.Symbol.Ports[inId]]
+        elif port.Id = inId then [model.Symbol.Ports[outId]]
+        else []
+    )
+
+/// Get the angle of a vector relative to the +x axis (anticlockwise).
+let getVectorAngle
+        (v: XYPos)
+        : float =
+    let delta = {v with Y = (-v.Y)} // Switch to +y = up coord system
+    let angle = Math.Atan2 (delta.Y, delta.X)
+    angle % (2.0 * Math.PI)
+
+/// Get the normalised vector difference in position between two ports.
+let getNormPortDiff
+        (model: SymbolT.Model)
+        (port1: Port)
+        (port2: Port)
+        : XYPos =
+    let pos1 = getPortSheetPos model port1
+    let pos2 = getPortSheetPos model port2
+    let delta = pos2 - pos1
+    let mag = sqrt ((delta.X**2) + (delta.Y**2))
+    {X = delta.X/mag; Y = delta.Y/mag}
+
+/// Returns the average angle between a port and a list of ports it's connected to,
+/// relative to the +x axis (anticlockwise).
+let getAveragePortAngle
+        (model: SymbolT.Model)
+        (sourcePort: Port)
+        (portList: Port list)
+        : float =
+    portList
+    |> List.map (getNormPortDiff model sourcePort)
+    |> List.fold (+) XYPos.zero
+    |> getVectorAngle
+
+/// Offsets a port angle depending on which edge it's on to allow the clock face algorithm
+/// to be applied.
+let offsetPortAngle
+        (edge: Edge)
+        (angle: float)
+        : float =
+    match edge with
+    | Top -> (angle + Math.PI/2.) % (2.*Math.PI)
+    | Left -> angle
+    | Bottom -> (angle - Math.PI/2.) % (2.*Math.PI)
+    | Right -> (angle + Math.PI) % (2.*Math.PI)
+
+/// Reorder the ports of a custom component along a single edge
 /// according to the clock face algorithm.
 let reorderCustomPorts
         (model: BusWireT.Model)
-        (ports: string list)
-        : string list =
+        (edge: Edge)
+        (ports: Port list)
+        : Port list =
     ports
-    // TODO
+    |> List.map (fun port -> port, getConnectedPorts model port)
+    |> List.map (fun (source, lst) -> source, getAveragePortAngle model.Symbol source lst)
+    |> List.map (fun (source, angle) -> source, offsetPortAngle edge angle)
+    |> List.sortBy snd
+    |> List.map fst
 
 /// Take a custom component symbol and reorder its ports along each edge
 /// according to the clock face algorithm.
@@ -116,10 +180,10 @@ let customCompClockFace
         (symbol: SymbolT.Symbol)
         : SymbolT.Symbol =
     let edges = [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
+    let ports = List.map (getOrderedPorts model.Symbol symbol) edges
     let reorderedPorts =
-        edges
-        |> List.map (getOrderedPorts symbol)
-        |> List.map (reorderCustomPorts model)
+        (edges, ports)
+        ||> List.map2 (reorderCustomPorts model)
     (symbol, edges, reorderedPorts)
     |||> List.fold2 setOrderedPorts
 
@@ -130,27 +194,29 @@ let customCompClockFace
 // This algorithm uses breadth first search to obtain partitions of no more than k
 // elements each from the circuit. We represent the circuit as a graph where each vertex
 // is a component, and each edge is a wire.
+// Using breadth-first search leads to some nice properties. For example, if a connected
+// component has fewer than k vertices, it is guaranteed to be returned in a single partition.
 
 // Store graph as an adjacency list, using component ids.
-type Graph = Map<string, string list>
+type Graph = Map<ComponentId, ComponentId list>
 
 /// Add a component to the visited set and the queue.
 let enqueueAndVisit
-        (visited: Set<string>)
-        (queue: string list)
-        (comp: string)
-        : Set<string>*(string list) =
+        (visited: Set<ComponentId>)
+        (queue: ComponentId list)
+        (comp: ComponentId)
+        : Set<ComponentId>*(ComponentId list) =
     match Set.contains comp visited with
     | true -> visited, queue
     | false -> Set.add comp visited, queue @ [comp]
 
-/// Runs breadth first search on the circuit, getting k (or fewer) connected components.
-let rec bfsCircuit
+/// Perform a single pass of BFS on the graph, returning the visited components (k or fewer).
+let rec bfsKComponents
         (graph: Graph)
         (k: int)
-        (visited: Set<string>)
-        (queue: string list)
-        : string list =
+        (visited: Set<ComponentId>)
+        (queue: ComponentId list)
+        : ComponentId list =
     match queue, Set.count visited < k with
     | [], _ | _, false ->
         Set.toList visited
@@ -158,21 +224,22 @@ let rec bfsCircuit
         let visited', queue' =
             ((visited, remQueue), graph[comp])
             ||> List.fold (fun (v, q) -> enqueueAndVisit v q)
-        bfsCircuit graph k visited' queue'
+        bfsKComponents graph k visited' queue'
 
-/// Partition a circuit given as a graph into clusters of no more than k components each.
+/// Partition a graph into subsets of no more than k components each using BFS.
+/// Passes of BFS proceed from left to right in the circuit.
 /// Clusters that are close together are prioritised (approximately) via DFS.
 /// TODO could improve distance prioritisation via a modification of Dijkstra's algorithm.
 let rec getGraphPartitions
         (symbolMap: Map<ComponentId, SymbolT.Symbol>)
         (graph: Graph)
         (k: int)
-        : string list list =
+        : ComponentId list list =
     let startNode =
         Map.toList graph
         |> List.map fst
-        |> List.minBy (fun compId -> symbolMap[(ComponentId compId)].Pos.X)
-    let cluster = bfsCircuit graph k Set.empty [startNode]
+        |> List.minBy (fun compId -> symbolMap[compId].Pos.X)
+    let cluster = bfsKComponents graph k Set.empty [startNode]
     let graph' =
         (graph, cluster)
         ||> List.fold (fun g node -> Map.remove node g)
@@ -180,17 +247,22 @@ let rec getGraphPartitions
     | true -> [cluster]
     | false -> getGraphPartitions symbolMap graph' k @ [cluster]
 
+/// A record to assist with the process of building a graph.
+type GraphBuilder = {CurrGraph: Graph; DiscoveredEdges: Set<ComponentId*ComponentId>}
+
 /// Returns the updated graph and list of discovered edges after considering a wire.
 let updateGraphWithWire
-        (graph: Graph)
-        (discoveredEdges: Set<string*string>)
+        (graphBuilder: GraphBuilder)
         (model: SymbolT.Model)
         (wire: BusWireT.Wire)
-        : Graph*Set<string*string> =
-    let outputComp = wire.OutputPort |> function
-                     | OutputPortId portId -> model.Ports[portId].HostId
-    let inputComp = wire.InputPort |> function
-                    | InputPortId portId -> model.Ports[portId].HostId
+        : GraphBuilder =
+    let {CurrGraph = graph; DiscoveredEdges = discoveredEdges} = graphBuilder
+    let outputComp =
+        let (OutputPortId portId) = wire.OutputPort
+        ComponentId model.Ports[portId].HostId
+    let inputComp =
+        let (InputPortId portId) = wire.InputPort
+        ComponentId model.Ports[portId].HostId
     let addEdge comp1 comp2 =
         let list1 = graph[comp1] @ [comp2]
         let list2 = graph[comp2] @ [comp1]
@@ -198,32 +270,73 @@ let updateGraphWithWire
         |> Map.add comp1 list1
         |> Map.add comp2 list2
     if outputComp = inputComp || Set.contains (outputComp, inputComp) discoveredEdges then
-        graph, discoveredEdges
+        {CurrGraph = graph; DiscoveredEdges = discoveredEdges}
     else
-        addEdge outputComp inputComp,
-        discoveredEdges
-        |> Set.add (outputComp, inputComp)
-        |> Set.add (inputComp, outputComp)
+        {CurrGraph = addEdge outputComp inputComp;
+         DiscoveredEdges =
+            discoveredEdges
+            |> Set.add (outputComp, inputComp)
+            |> Set.add (inputComp, outputComp)
+        }
 
 /// Returns partitions of circuit into clusters of no more than k components each.
-/// Partitions are given as list of component ids (strings).
+/// Partitions are given as list of component ids.
 let partitionCircuit
         (k: int)
         (sheet: SheetT.Model)
-        : string list list =
+        : ComponentId list list =
     let initGraph: Graph =
         sheet.Wire.Symbol.Symbols
         |> Map.toList
         |> List.filter (fun (_, sym) -> sym.Annotation = None)
         |> List.map fst
-        |> List.map (function | ComponentId compId -> compId, [])
+        |> List.map (fun compId -> compId, [])
         |> Map.ofList
     let wires =
         sheet.Wire.Wires
         |> Map.toList
         |> List.map snd
-    let graph, _ =
-        ((initGraph, Set.empty), wires)
-        ||> List.fold (fun (currGraph, discEdges) wire ->
-                        updateGraphWithWire currGraph discEdges sheet.Wire.Symbol wire)
+    let {CurrGraph = graph} =
+        ({CurrGraph = initGraph; DiscoveredEdges = Set.empty}, wires)
+        ||> List.fold (fun graphBuilder wire ->
+                        updateGraphWithWire graphBuilder sheet.Wire.Symbol wire)
     getGraphPartitions sheet.Wire.Symbol.Symbols graph k
+
+
+
+////////// Helpers for top level //////////
+
+let beautifyCluster
+        (sheet: SheetT.Model)
+        (compIds: ComponentId list)
+        : SheetT.Model =
+    let symbols =
+        compIds
+        |> List.map (fun compId -> sheet.Wire.Symbol.Symbols[compId])
+    // TODO think about the impact of the order (brute force, clock face).
+    let sheet' = (bruteForceOptimise symbols compIds sheet).OptimisedSheet
+    (sheet', symbols)
+    ||> List.fold (fun currSheet sym ->
+        match sym.Component.Type with
+        | Custom _ ->
+            customCompClockFace sheet.Wire sym
+            |> replaceSymbol sheet
+        | _ -> currSheet
+    )
+
+
+
+////////// TOP LEVEL //////////
+
+/// Beautify sheet by flipping components, swapping input order of MUX, and reordering ports
+/// on custom components.
+let sheetOrderFlip
+        (sheet: SheetT.Model)
+        : SheetT.Model =
+    // k is the number of components in each cluster; clusters are individually optimised.
+    // Since beautification has exponential time complexity (using brute force), clusters
+    // must be kept fairly small.
+    let k = 8
+    let partitions = partitionCircuit k sheet
+    (sheet, partitions)
+    ||> List.fold beautifyCluster

@@ -7,15 +7,17 @@
 open BlockHelpers
 open CommonTypes
 open SymbolHelpers
-open DrawModelType
 open Optics
 open Operators
 open Symbol
 open RotateScale
 open Helpers
 open BusWireRoutingHelpers
+open DrawModelType
 
-////// Helper functions //////
+
+
+////////// Helper functions //////////
 
 /// Copied from TestDrawBlock
 /// The visible segments of a wire, as a list of vectors, from source end to target end.
@@ -82,193 +84,10 @@ let rotationDiff
         : int =
     ((rotationToInt rotation2) - (rotationToInt rotation1)) % 4
 
-
-
-////// Requested functions begin here //////
-
-// IMPORTANT NOTE
-// Wherever possible, functions have been implemented to change a single symbol
-// rather than the entire sheet. This is because many of these functions will presumably
-// be used to test different configurations of circuits in the beautify functions.
-// Updating the model would entail recalculating all bounding boxes and rewiring after
-// every symbol change, which seems inefficient. Instead, we plan to transform all symbols
-// first, then recalculate bounding boxes and wiring on the sheet.
-
-/// B1RW A lens for the dimensions of a custom component symbol.
-let customComponentDims_ =
-
-    let get (symbol: SymbolT.Symbol) : XYPos =
-        match symbol.Component.Type with
-        | Custom _ -> (getCustomSymCorners symbol)[2]
-        | _ -> {X=0; Y=0} // Shouldn't match
-
-    let set (dims: XYPos) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
-        ///// Code adapted from manualSymbolResize, since we don't have access to sheet.
-        //let symPos = Optic.get SymbolT.posOfSym_ symbol
-        //let comp = symbol.Component 
-        //let scale = Optic.get SymbolT.scaleF_ symbol
-
-        ///// Componentwise multiply
-        //let outerProduct ({X=x;Y=y}:XYPos) ({X=x1;Y=y1}:XYPos) = {X=x*x1;Y=y*y1}
-
-        ///// True if symbol is rotated 90 or 270 degrees swapping X,Y box dimensions
-        //let symXyAreSwapped =
-        //    match symbol.STransform.Rotation with
-        //    | Degree0 | Degree180 -> false
-        //    | Degree90 | Degree270 -> true
-
-        ///// Does not include rotation or scaling
-        //let compBox = {X=comp.W; Y=comp.H}
-
-        ///// Function will return X,Y swapped iff symbols is rotated 90 or 270 degrees
-        //let swapXYByRot ({X=x;Y=y}:XYPos) =
-        //    if symXyAreSwapped then {X=y; Y=x} else {X=x; Y=y}
-
-        ///// Correct dimensions for scaled and unscaled component box
-        //let scaledSymBox, symBox =
-        //    outerProduct compBox scale |> swapXYByRot,
-        //    compBox |> swapXYByRot
-
-        ///// Vector outer product
-        //let outerProduct (a: XYPos) (b: XYPos) = {X=a.X*b.X; Y=a.Y*b.Y}
-
-        ///// apply function f to both the components of xy
-        //let xyApplyF (f: float -> float) (xy: XYPos) =
-        //    {X = f xy.X; Y = f xy.Y}
-
-        ///// Indicates for X & Y is the diagonal dimension negative
-        //let invert = xyApplyF (sign >> float) dims
-
-        ///// diagonal with abs value of each component
-        //let posDiag = outerProduct dims invert
-        ///// difference between current and required moving corner position.
-        ///// signs pos or neg.
-        //let deltaDiag = posDiag - scaledSymBox
-        //let scale' = {X=posDiag.X/symBox.X; Y = posDiag.Y/symBox.Y}
-
-        ///// Adjustment to top left corner symbol position
-        ///// to keep fixed point (which may not be top left) fixed
-        //let posDelta: XYPos =
-        //    match int invert.X, int invert.Y with
-        //    | 1, -1 ->     0.,          -deltaDiag.Y
-        //    | -1, 1 ->    -deltaDiag.X,  0.
-        //    | -1, -1 ->   -deltaDiag.X, -deltaDiag.Y
-        //    | 1, 1 | _ ->  0.,           0.
-        //    |> fun (x,y) -> {X=x; Y=y}
-
-        //let scale'' = swapXYByRot scale'
-        //match scale' with
-        //| {X=x;Y=y} when x <= 0.001 || y <= 0.001 -> symbol // hack to avoid divide by zero errors
-        //| _ ->
-        //    symbol 
-        //    |> Optic.set  SymbolT.scaleF_ scale'' // set symbol scaling
-        //    |> Optic.set SymbolT.posOfSym_ (posDelta + symPos) // set symbol position
-           
-        //|> Optic.set (SymbolT.appearance_ >-> SymbolT.showCorners_) SymbolT.ShowAll
-        //|> Optic.map (SymbolT.labelBoundingBox_ >-> topLeft_) (fun lPos -> lPos + posDelta) // set label position as symbol
-
-        // Two different ways of changing custom component dimensions -
-        // I think this one is better...
-        setCustomCompHW dims.Y dims.X symbol
-
-    Lens.create get set
-
-/// B2W Change the position of a symbol.
-let setSymbolPosition
-        (symbol: SymbolT.Symbol)
-        (newPos: XYPos)
-        : SymbolT.Symbol =
-    moveSymbol (newPos - symbol.Pos) symbol
-
-/// B3R Returns a list of ordered ports for a given side of a symbol.
-let getOrderedPorts
-        (symbol: SymbolT.Symbol)
-        (edge: Edge)
-        : string list =
-    symbol.PortMaps.Order[edge]
-
-/// B3W Sets the list of ordered ports for a given side of a symbol.
-/// The provided list of ports must be a reordering of the existing list of ports
-/// (i.e. this function can only change order).
-let setOrderedPorts
-        (symbol: SymbolT.Symbol)
-        (edge: Edge)
-        (ports: string list)
-        : SymbolT.Symbol =
-    symbol.PortMaps.Order
-    |> Map.add edge ports
-    |> fun map -> Optic.set (SymbolT.portMaps_ >-> SymbolT.order_) map symbol
-
-/// B4RW A lens for ReversedInputPorts in a symbol.
-let reversedInputPorts_ =
-
-    let get (symbol: SymbolT.Symbol) : bool option = symbol.ReversedInputPorts
-
-    let set (revInputPorts: bool option) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
-        {symbol with ReversedInputPorts=revInputPorts}
-
-    Lens.create get set
-
-/// B5R Returns the position of a port on the sheet, given the symbol it belongs to.
-let getPortSheetPos
-        (symbol: SymbolT.Symbol)
-        (port: Port)
-        : XYPos =
-    (getPortPos symbol port) + symbol.Pos
-
-/// B6R Returns the bounding box of a symbol.
-// TODO it is really this easy?
-let getSymbolBoundingBox
-        (symbol: SymbolT.Symbol)
-        : BoundingBox =
-    getSymbolBoundingBox symbol
-
-/// B7RW A lens for the rotation state of a symbol.
-let rotation_ =
-
-    let get (symbol: SymbolT.Symbol) : Rotation = symbol.STransform.Rotation
-
-    let set (rotation: Rotation) (symbol: SymbolT.Symbol) =
-        let requiredRotation =
-            match rotationDiff symbol.STransform.Rotation rotation with
-            | 0 -> Rotation.Degree0
-            | 1 -> Rotation.Degree90
-            | 2 -> Rotation.Degree180
-            | 3 -> Rotation.Degree270
-            | _ -> failwithf "Impossible - result is modulo division by 4"
-        rotateSymbolInBlock requiredRotation symbol.CentrePos symbol
-
-    Lens.create get set
-
-/// B8RW A lens for the flip state of a symbol.
-/// Note that toggling the flip state while keeping rotation constant
-/// implements horizontal flipping.
-let flipped_ =
-
-    let get (symbol: SymbolT.Symbol) : bool = symbol.STransform.Flipped
-
-    let set (flip: bool) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
-        match symbol.STransform.Flipped = flip with
-        | true -> symbol
-        | false -> flipSymbolInBlock SymbolT.FlipHorizontal symbol.CentrePos symbol
-
-    Lens.create get set
-
-/// T1R Returns the number of pairs of symbols that intersect each other.
-let numPairsIntersectingSymbols
-        (sheet: SheetT.Model)
-        : int =
-    let boxes =
-        mapValues sheet.BoundingBoxes
-        |> Array.toList
-    uniquePairs boxes
-    |> List.filter (fun (box1, box2) -> BlockHelpers.overlap2DBox box1 box2)
-    |> List.length
-
 /// Returns a list of pairs of vertices representing all visible segments in the sheet.
 let getVisibleSegs
         (sheet: SheetT.Model)
-        : (XYPos * XYPos) list =
+        : (XYPos*XYPos) list =
 
     // Extract wire vectors for each wire in sheet.
     let wireVectors =
@@ -292,6 +111,112 @@ let getVisibleSegs
     List.map2 wireVectorsToVertices wireVectors startPosList
     |> List.map List.pairwise
     |> List.collect id
+
+
+
+////////// Requested functions begin here //////////
+
+/// B1RW A lens for the dimensions of a custom component symbol.
+let customComponentDims_ =
+    let get (symbol: SymbolT.Symbol) : XYPos =
+        match symbol.Component.Type with
+        | Custom _ -> (getCustomSymCorners symbol)[2]
+        | _ -> {X=0; Y=0} // Shouldn't match
+    let set (dims: XYPos) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
+        setCustomCompHW dims.Y dims.X symbol
+        // Another way of doing this is using manualSymbolResize, but that's more complicated.
+    Lens.create get set
+
+/// B2W Change the position of a symbol.
+let setSymbolPosition
+        (symbol: SymbolT.Symbol)
+        (newPos: XYPos)
+        : SymbolT.Symbol =
+    moveSymbol (newPos - symbol.Pos) symbol
+
+/// B3R Returns a list of ordered ports for a given side of a symbol.
+let getOrderedPorts
+        (model: SymbolT.Model)
+        (symbol: SymbolT.Symbol)
+        (edge: Edge)
+        : Port list =
+    symbol.PortMaps.Order[edge]
+    |> List.map (fun portId -> model.Ports[portId])
+
+/// B3W Sets the list of ordered ports for a given side of a symbol.
+/// The provided list of ports must be a reordering of the existing list of ports
+/// (i.e. this function can only change order).
+let setOrderedPorts
+        (symbol: SymbolT.Symbol)
+        (edge: Edge)
+        (ports: Port list)
+        : SymbolT.Symbol =
+    let getId (port: Port) = port.Id // To deal with weird type error
+    let portIds = List.map getId ports
+    symbol.PortMaps.Order
+    |> Map.add edge portIds
+    |> fun map -> Optic.set (SymbolT.portMaps_ >-> SymbolT.order_) map symbol
+
+/// B4RW A lens for ReversedInputPorts in a symbol.
+let reversedInputPorts_ =
+    let get (symbol: SymbolT.Symbol) : bool option =
+        symbol.ReversedInputPorts
+    let set (revInputPorts: bool option) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
+        {symbol with ReversedInputPorts=revInputPorts}
+    Lens.create get set
+
+/// B5R Returns the position of a port on the sheet (port must exist).
+let getPortSheetPos
+        (model: SymbolT.Model)
+        (port: Port)
+        : XYPos =
+    let symbol = model.Symbols[ComponentId port.HostId]
+    (getPortPos symbol port) + symbol.Pos
+
+/// B6R Returns the bounding box of a symbol.
+// TODO it is really this easy?
+let getSymbolBoundingBox
+        (symbol: SymbolT.Symbol)
+        : BoundingBox =
+    getSymbolBoundingBox symbol
+
+/// B7RW A lens for the rotation state of a symbol.
+let rotation_ =
+    let get (symbol: SymbolT.Symbol) : Rotation =
+        symbol.STransform.Rotation
+    let set (rotation: Rotation) (symbol: SymbolT.Symbol) =
+        let requiredRotation =
+            match rotationDiff symbol.STransform.Rotation rotation with
+            | 0 -> Rotation.Degree0
+            | 1 -> Rotation.Degree90
+            | 2 -> Rotation.Degree180
+            | 3 -> Rotation.Degree270
+            | _ -> failwithf "Impossible - result is modulo division by 4"
+        rotateSymbolInBlock requiredRotation symbol.CentrePos symbol
+    Lens.create get set
+
+/// B8RW A lens for the flip state of a symbol.
+/// Note that toggling the flip state while keeping rotation constant
+/// implements horizontal flipping.
+let flipped_ =
+    let get (symbol: SymbolT.Symbol) : bool =
+        symbol.STransform.Flipped
+    let set (flip: bool) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
+        match symbol.STransform.Flipped = flip with
+        | true -> symbol
+        | false -> flipSymbolInBlock SymbolT.FlipHorizontal symbol.CentrePos symbol
+    Lens.create get set
+
+/// T1R Returns the number of pairs of symbols that intersect each other.
+let numPairsIntersectingSymbols
+        (sheet: SheetT.Model)
+        : int =
+    let boxes =
+        mapValues sheet.BoundingBoxes
+        |> Array.toList
+    uniquePairs boxes
+    |> List.filter (fun (box1, box2) -> BlockHelpers.overlap2DBox box1 box2)
+    |> List.length
 
 /// T2R Returns the number of distinct visible wire segments that intersect one or more symbols.
 let numSegmentsIntersectSymbols
@@ -323,13 +248,12 @@ let numSegmentsIntersectSymbols
                     |> updatePos Up_ Constants.minWireSeparation
                 }
             ))
-        |> List.tryFind (fun (compType, boundingBox) ->
+        |> List.exists (fun (compType, boundingBox) ->
             // TODO consider dealing with MUX bug later
             match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
             | Some _ -> true // segment intersects bounding box
             | None -> false // no intersection
         )
-        |> Option.isSome
         //|> List.map (fun (compType, boundingBox) -> boundingBox)
 
     getVisibleSegs sheet
@@ -351,7 +275,8 @@ let numRightAngleSegCrossings
         (sheet: SheetT.Model)
         : int =
 
-    /// Check if a given horizontal and vertical segment are crossing.
+    // Check if a given horizontal and vertical segment are crossing.
+    // Make sure they actually cross and don't just touch each other.
     let isCrossing (hSeg: XYPos*XYPos) (vSeg: XYPos*XYPos) : bool =
         let top = min (fst vSeg) (snd vSeg)
         let bottom = max (fst vSeg) (snd vSeg)
@@ -422,6 +347,7 @@ let visibleWireLength
         |> List.fold (+) 0.0
 
     // The total overlapping wire length in the sheet.
+    // Only consider overlap between wires in the same net.
     let totalOverlapLength =
         partitionWiresIntoNets sheet.Wire
         |> List.map snd
@@ -445,7 +371,7 @@ let numWireRightAngles
 
 /// Check if the segment at the given index is a zero-length segment connecting
 /// two segments that retrace each other.
-/// NOTE this function does not check if i is a valid index.
+/// This function does not check if i is a valid index.
 let isRetrace
         (segs: BusWireT.Segment list)
         (i: int)
@@ -502,10 +428,14 @@ let getSymbolRetraceSegs
     |> List.map (fun wire -> wire.Segments)
     |> List.collect findRetraced
 
-/// Returns a tuple of:
+/// Returns:
 /// 1. A list of all the pairs of segments that retrace themselves.
 /// 2. A list of all end-of-wire segments that retrace into their symbols.
-let getRetraced (sheet: SheetT.Model) : ((BusWireT.Segment*BusWireT.Segment) list * BusWireT.Segment list) =
+let getRetraced
+        (sheet: SheetT.Model)
+        : {|AllRetracedSegs: (BusWireT.Segment*BusWireT.Segment) list;
+            SymbolRetraceSegs: BusWireT.Segment list|} =
     // Note there is some repeated work for this implementation,
     // but it is the easiest to understand.
-    getAllRetracedSegs sheet, getSymbolRetraceSegs sheet
+    {|AllRetracedSegs = getAllRetracedSegs sheet;
+      SymbolRetraceSegs = getSymbolRetraceSegs sheet|}

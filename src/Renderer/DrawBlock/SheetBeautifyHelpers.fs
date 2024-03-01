@@ -56,7 +56,7 @@ let CustomCompDim : Lens<Symbol, (float * float)> =
 /// The position of a symbol on the sheet
 /// input - new position of symbol
 /// output - new symbol at the specific position
-let writeSymbolPos (newPos: XYPos) (sym: Symbol)= 
+let writeSymbolPos (newPos : XYPos) (sym : Symbol)= 
     {sym with Pos = newPos}
 
 // --------------------------------- B3 (read & write) ------------------------------
@@ -112,7 +112,7 @@ let readPort (port : Port) (sym : Symbol) : (XYPos) =
 /// output - the bouding box of the symbol
 /// Note : Helper function in symbol.fs have been used to implement this
 ///        Consider using `getSymBoundingBox` to simplify
-let readSymBoundingBox (sym: Symbol) : BoundingBox =
+let readSymBoundingBox (sym : Symbol) : BoundingBox =
     let h,w = getRotatedHAndW sym
     if sym.Annotation = Some ScaleButton then 
         {TopLeft = sym.Pos - {X = 9.; Y = 9.}; H = 17. ; W = 17.}
@@ -123,9 +123,9 @@ let readSymBoundingBox (sym: Symbol) : BoundingBox =
 /// The rotation state of a symbol
 /// input - rotation
 /// output - new rotated symbol
-let readSymRotationState (sym: Symbol) =
+let readSymRotationState (sym : Symbol) =
     sym.STransform.Rotation
-let writeSymRotationState (rotate : Rotation) (sym: Symbol) = 
+let writeSymRotationState (rotate : Rotation) (sym : Symbol) = 
     {sym with STransform = {sym.STransform with Rotation = rotate}}
 let symRotation : Lens<Symbol, Rotation> = 
     Lens (readSymRotationState, writeSymRotationState)
@@ -136,7 +136,7 @@ let symRotation : Lens<Symbol, Rotation> =
 /// output - new flipped symbol
 let readSymFlipState (sym : Symbol) = 
     sym.STransform.Flipped
-let writeSymFlipState (flip : bool) (sym: Symbol) = 
+let writeSymFlipState (flip : bool) (sym : Symbol) = 
     {sym with STransform = {sym.STransform with Flipped = flip}}
 let symFlip : Lens<Symbol, bool> = 
     Lens (readSymFlipState, writeSymFlipState)
@@ -213,13 +213,64 @@ let countSymIntersectWire (sheet: SheetT.Model) =
     |> Map.filter (fun _ wire -> findWireSymbolIntersections sheet.Wire wire <> [])
     |> Map.fold (fun acc _ _ -> acc + 1) 0
 
-// ------------------------------- T3 (read) -------------------------------------------
-// The number of distinct pairs of segments that cross each other at right angles. 
-// Does not include 0 length segments or segments on same net intersecting at one end, 
-// or segments on same net on top of each other. 
-// Count over whole sheet.
+// ---------------------------------------- T3 (read) -------------------------------------
+/// The number of *distinct* pairs of segments that *cross* each other at *right angles*. 
+/// *Condition 1* - Does not include 0 length segments 
+/// *Condition 2* - or segments on same net intersecting at one end, 
+/// *Condition 3* - or segments on same net on top of each other. 
+/// Count over whole sheet. 
+let countWireRightAngleIntersect (sheet : SheetT.Model) =  
+    // Helper functions:
+    let isDistinct (w1, _) (w2, _) =
+        w1 <> w2
 
-// TODO: warning fix
+    let isZeroLength (w : Wire) =
+        w.Segments.Length <> 0
+
+    let tupToXY (l : (float * float)) : XYPos =
+        let x, y = l
+        { X = x; Y = y }
+
+    let getSegOrient (segPos : XYPos * XYPos) =
+        let startPos, endPos = segPos
+        match startPos.Y = endPos.Y with
+        | true -> "Horizontal"
+        | false -> "Vertical"
+
+    // Original definition of segRightAngleIntersect
+    let segRightAngleIntersect (segPos1 : XYPos * XYPos) (segPos2 : XYPos * XYPos) = 
+        let ort1 = getSegOrient segPos1
+        let ort2 = getSegOrient segPos2
+        (overlap2D segPos1 segPos2) && (ort1 <> ort2)
+
+    // Converts a Segment list into a list of start and end XYPos of each segment
+    let getSegPosList (wire, segList) = 
+        let tupToXY (l: (float * float)) : XYPos = { X = fst l; Y = snd l }
+        let segVertices = 
+            segmentsToIssieVertices segList wire
+            |> List.map (fun (x, y, _) -> (x, y))
+            |> List.map tupToXY
+        let lstStartPos = 
+            match (List.rev segVertices) with
+            | [] -> []
+            | hd::tl -> List.rev tl
+        let lstEndPos = 
+            match segVertices with
+            | [] -> []
+            | hd::tl -> tl
+        List.zip lstStartPos lstEndPos
+
+    // Filter segments based on conditions: non-zero length, distinct wires, and right angle intersection
+    let segFilter =
+        mapValues sheet.Wire.Wires
+        |> Array.filter isZeroLength
+        |> Array.collect (fun wire -> getSegPosList wire wire.Segments)
+        |> Array.allPairs
+        |> Array.filter (fun (seg1, seg2) -> isDistinct seg1 seg2 && segRightAngleIntersect seg1 seg2)
+
+    // Count the filtered segments
+    segFilter.Length
+
 
 // ----------------------------------------- T4 (read) -------------------------------------------
 /// Sum of wiring segment length, counting only one when there are N same-net segments overlapping 
@@ -253,16 +304,43 @@ let countWireRightAngle (sheet : SheetT.Model) =
     |> Array.sumBy getNum
 
 // -------------------------------------- T6 (read) ---------------------------------------
-// The zero-length segments in a wire with non-zero segments on either side 
-// that have Lengths of opposite signs lead to a wire retracing itself. 
-// Note that this can also apply at the end of a wire (where the zero-length segment is one from the end). 
-// This is a wiring artifact that should never happen but errors in routing or separation can cause it. 
-// Count over the whole sheet. 
-// Return from one function a list of all the segments that retrace, 
-// and also a list of all the end of wire segments that retrace so far 
-// that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
+/// The zero-length segments in a wire with non-zero segments on either side 
+/// that have Lengths of opposite signs lead to a wire retracing itself. 
+/// Note that this can also apply at the end of a wire (where the zero-length segment is one from the end). 
+/// This is a wiring artifact that should never happen but errors in routing or separation can cause it. 
+/// Count over the whole sheet. 
+/// Return from one function a list of all the segments that retrace, 
+/// and also a list of all the end of wire segments that retrace so far 
+/// that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
+let countRetracingWire (sheet : SheetT.Model) : XYPos list * XYPos list =
+    // helper functions
+    let isOppositeDirection (v1 : XYPos) (v2 : XYPos) =
+        (v1.X * v2.X < 0.0) || (v1.Y * v2.Y < 0.0)
 
-// TODO: error fix
+    let isZeroVector (v : XYPos) =
+        (v.X = 0.0) && (v.Y = 0.0)
+
+    // check for retracing wires
+    let isRetracingWire (segPos : XYPos list) : XYPos list =
+        segPos
+        |> List.indexed
+        |> List.choose (fun (index, seg) ->
+            if index + 2 < List.length segPos then
+                if isZeroVector segPos.[index + 1] && isOppositeDirection seg segPos.[index + 2] 
+                then Some segPos.[index + 1]
+                else None
+            else None
+        )
+
+    // call the check function and fold results
+    let segPos, _ =
+        sheet.Wire.Wires
+        |> Map.fold (fun (accXYPos, accSegs) _ wire ->
+            let wireSeg = visibleSegments wire.WId sheet
+            (wireSeg @ accXYPos, wire.Segments @ accSegs)
+        ) ([], [])
+    let retraceSegList = isRetracingWire segPos
+    (retraceSegList, segPos)
 
 // =================================== End of helper functions =======================================
 

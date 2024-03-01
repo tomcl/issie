@@ -94,7 +94,7 @@ Using the Figure 1 functions as needed, make a coding contribution to your deliv
     - Corrected read functions of B7 and B8
 
 - Feb 25th `B5R` `B6R` `B3R` `B4R`
-    - [] TODO: B5 - check if look up for port/symbol is needed
+    - [x] TODO: B5 - check if look up for port/symbol is needed
 
 - Feb 27th `B3W` `B4W` `T1R` `T2R` `T3R` `T4R` `T5R`
     - Finished write functions of the order of ports and reverse of states
@@ -104,8 +104,12 @@ Using the Figure 1 functions as needed, make a coding contribution to your deliv
 - Feb 28th `RotateScale.fs` analysis and improvement
     - Finished analysing the code and purpose of each function. 
     - Improve on library functions & naming/layout & pipelines. 
-    - [] TODO: check for data type improvements
+    - [x] TODO: check for data type improvements
 
 - Feb 29th: organise notes and documentation. 
     - [] TODO: team phase
     - [x] TODO: XML comments
+
+- Mar 1st
+    - Fixed error in type match
+    - cleaned up code

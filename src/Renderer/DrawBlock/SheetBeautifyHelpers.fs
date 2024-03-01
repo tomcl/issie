@@ -280,13 +280,18 @@ let getWireSegVertices (wire: BusWireT.Wire): List<XYPos> =
 /// <remarks>Function refactored from TestDrawBlock.HLPTick3.visibleSegments.</remarks>
 let getWireVisibleSegVertices (wire: BusWireT.Wire): List<XYPos> =
     /// <summary>Helper to reduce multiple segments into one.</summary>
-    let tryCoalesceAboutIndex (segVecs: List<XYPos>) (index: int)  =
-        if index < segVecs.Length - 1 && segVecs[index] = ~ XYPos.zero
-        then segVecs[0..index-2] @ [segVecs[index-1] + segVecs[index+1]] @ segVecs[index+2..segVecs.Length - 1]
-        else segVecs
+    let rec coalesce (segVecs: XYPos list)  =
+            match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with          
+            | Some zeroVecIndex -> 
+                let index = zeroVecIndex + 1 // base index onto full segVecs
+                segVecs[0..index-2] @
+                [segVecs[index-1] + segVecs[index+1]] @
+                segVecs[index+2..segVecs.Length - 1]
+                |> coalesce // recurse as long as more coalescing might be possible
+            | None -> segVecs // end when there are no inner zero-length segment vectors
 
     getWireSegVectors wire
-    |> (fun segVecs -> (segVecs,[1..segVecs.Length-2]) ||> List.fold tryCoalesceAboutIndex)
+    |> coalesce
     |> List.mapFold (fun currPos segVec -> segVec+currPos, segVec+currPos) wire.StartPos
     |> (fun (vertices, _) -> wire.StartPos :: vertices)
 

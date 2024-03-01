@@ -238,7 +238,6 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
         |> List.filter (fun (seg1, seg2) -> overlapFilter seg1 seg2)
 
     let segWithoutOverlapLength =
-        // identify all segments that overlap
         let allSegsWithOverlap =
             overlapPairs
             |> List.unzip
@@ -252,14 +251,12 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
     
     let segInSameNetOverlapLength =
         let findSharedPoint (seg1: BusWireT.ASegment, seg2: BusWireT.ASegment) = 
-            // seg1.Start // NB: assume start and end points of ASegments are guaranteed to be in order
-            // NB: However, use this if the start and end points are not guaranteed to be in order
+            // seg1.Start // NB: However, can just use this if start and end are guaranteed to be in order
             if seg1.Start = seg2.Start then seg1.Start 
             elif seg1.Start = seg2.End then seg1.Start
             elif seg1.End = seg2.Start then seg1.End
             elif seg1.End = seg2.End then seg1.End
             else {X=0.; Y=0.}
-            // failwithf "No shared overlap starting point found."
         overlapPairs
         |> List.filter (fun (seg1, seg2) -> isSegFromSameNet seg1.Segment seg2.Segment sheetModel)
         |> List.groupBy findSharedPoint // group by the shared point of segments
@@ -269,7 +266,6 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
             |> List.max // calculate the maximum overlap length for each group
             ) 
         |> List.sum
-    printfn "(noOverlapLength, overlapLength) = %A, %A" segWithoutOverlapLength segInSameNetOverlapLength
     segWithoutOverlapLength + segInSameNetOverlapLength
 
 // T5R R Low 
@@ -287,10 +283,6 @@ let countWireRightAngles (sheetModel : SheetT.Model) : int =
 /// The second include only segments near the ports that cause intersection with symbol.</summary>
 let getRetracingSegment (sheetModel : SheetT.Model) =
     let wires = sheetModel.Wire.Wires
-    let segments = 
-        wires
-        |> Map.toList
-        |> List.map (fun (wid, wire) -> wire.Segments)
 
     let getSeg (wid: ConnectionId) (sid: int) : Segment Option =
         let folder acc seg =
@@ -299,7 +291,7 @@ let getRetracingSegment (sheetModel : SheetT.Model) =
             else acc
         List.fold folder None wires[wid].Segments
     
-    let getRetracingNeighbours (seg: Segment) : Segment list =
+    let getRetracingSegments (seg: Segment) : Segment list =
         let prevOpt = getSeg seg.WireId (seg.Index-1)
         let nextOpt = getSeg seg.WireId (seg.Index+1)
         match prevOpt, nextOpt with
@@ -310,10 +302,12 @@ let getRetracingSegment (sheetModel : SheetT.Model) =
         | _ -> []
 
     let allRetracingSegments =
-        segments
+        wires
+        |> Map.toList
+        |> List.map (fun (wid, wire) -> wire.Segments)
         |> List.concat
         |> List.filter (fun (seg: Segment) -> seg.IsZero)
-        |> List.collect getRetracingNeighbours
+        |> List.collect getRetracingSegments
 
     let endOfWireRetracingSegments =
         allRetracingSegments

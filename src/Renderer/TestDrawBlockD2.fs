@@ -5,7 +5,7 @@ open GenerateData
 open TestDrawBlock
 open TestDrawBlock.TestLib
 open SheetBeautifyHelpers
-            
+
 module D2Test =
     open EEExtensions
     open Optics
@@ -50,37 +50,121 @@ module D2Test =
         {Label=label; PortNumber = number}
 
 //------------------------------------------------------------------------------------------------------------------------//
-//------------------------------functions to display information of sheet model--------------------------------------//
+//------------------------------additional metrics to assess improvements-------------------------------------------//
+//------------------------------------------------------------------------------------------------------------------------//
+    module Metrics =
+        let computeMetricDifference (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->'a)  =
+            metric sheetAfter - metric sheetBefore, metric sheetAfter, metric sheetBefore
+        
+        let computeMetricPercentageChange (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->'a)  =
+            float (metric sheetAfter - metric sheetBefore)/float (metric sheetBefore)*100.0, metric sheetAfter, metric sheetBefore
+
+        /// number of visible wire segments counted over whole sheet
+        let countVisibleSegments (sheetModel : SheetT.Model) : int =
+            // this gives a simple indicator of how readable the schematic is
+            let wireModel = sheetModel.Wire
+
+            wireModel.Wires
+            |> Map.toList
+            |> List.map (fun (wid, wire) -> visibleSegments wid sheetModel)
+            |> List.map (fun segs -> segs.Length)
+            |> List.sum
+
+        // There is already a function to count segment intersections in SheetBeautifyHelpers
+        // Additional Metrics
+        let intersectionPerSegment (sheetModel: SheetT.Model): float =
+            let nIntersect = countSegmentIntersections sheetModel
+            let nSeg = 
+                sheetModel.Wire.Wires 
+                |> Map.toList 
+                |> List.map (fun (_,wire) -> wire.Segments.Length)
+                |> List.sum
+            float nIntersect / float nSeg
+
+        // wires having right angles are a necessary condition for intersection to exist
+        let rightAnglePerWire (sheetModel: SheetT.Model): float =
+            float (countWireRightAngles sheetModel) / float (Map.count sheetModel.Wire.Wires)
+
+        // the proportion of visible wiring length to total wiring length
+        let visibleToTotalLengthRatio (sheetModel: SheetT.Model): float =
+            let totalLength = 
+                sheetModel.Wire.Wires 
+                |> Map.toList 
+                |> List.map (fun (_,wire) -> wire.Segments |> List.fold (fun acc seg -> acc + abs seg.Length) 0.0)
+                |> List.sum
+            let visibleLength = calcVisibleWiringLength sheetModel
+            visibleLength / totalLength
+
+
+
+//------------------------------------------------------------------------------------------------------------------------//
+//------------------------------functions to display information of sheet model-------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Displays =
-        /// <summary> Display some information or calculated metrics on the sheet model. This will be called automatically on failed tests. </summary>
+        open Metrics
+        /// <summary> Display information or calculated metrics on the sheet model. This will be called automatically on failed tests. </summary>
         /// <param name="displayFunc"> A list of display functions </param>
         /// <param name="sheet"> The sheet model to display </param>
         let display (displayFuncs: (SheetT.Model -> string) list) (sheet: SheetT.Model) =
             let displays = 
                 displayFuncs
-                |> List.map (fun f -> f sheet) 
+                |> List.map (fun f -> f sheet)
                 |> String.concat "\n"
-            printfn $"== Display: {displays}"
-
+            printfn $"== Display: \n{displays}"
+        
+        /// <summary> Display information on all symbols' position and transform state </summary>
         let displayComponents (sheet: SheetT.Model) : string =
             sheet.Wire.Symbol.Symbols
             |> Map.toList
-            |> List.map (fun (id, sym) -> sprintf "\n> Symbol %s, %A, %A" sym.Component.Label sym.Pos sym.STransform)
-            |> String.concat ""
+            |> List.map (fun (id, sym) -> sprintf "> Symbol %s\n| %A\n| %A" sym.Component.Label sym.Pos sym.STransform)
+            |> String.concat "\n"
+
+        let displayer (name: string) (f: SheetT.Model -> 'a) (sheet: SheetT.Model) =
+            sheet |> f |> sprintf "> %s = %A" name
+
+        // Diplay Functions: Statistics
+        let displayCountSymIntersectSym (sheet: SheetT.Model) : string =
+            displayer "n_sym_intersect_sym" countSymIntersectSym sheet
+
+        let displayCountSegIntersectSym (sheet: SheetT.Model) : string =
+            displayer "n_seg_intersect_sym" countSegIntersectSym sheet
 
         let displaySegmentIntersections (sheet: SheetT.Model) : string =
-            sheet |> countSegmentIntersections |> sprintf "> n_intersection = %A"
+            displayer "n_intersections" countSegmentIntersections sheet
         
         let displayVisibleSegments (sheet: SheetT.Model) : string =
-            sheet |> countVisibleSegments |> sprintf "> n_visible_segments = %A"
+            displayer "n_visible_segments" countVisibleSegments sheet
 
         let displayWireRightAngles (sheet: SheetT.Model) : string =
-            sheet |> countWireRightAngles |> sprintf "> n_right_angles = %d"
+            displayer "n_wire_right_angles" countWireRightAngles sheet
 
         let displayVisibleWiringLength (sheet: SheetT.Model) : string =
-            sheet |> calcVisibleWiringLength |> sprintf "> visible_length = %f"
+            displayer "visible_wiring_length" calcVisibleWiringLength sheet
 
+        let displayRetracingSegments (sheet: SheetT.Model) : string =
+            displayer "n_retracing_segments" getRetracingSegment sheet
+
+        // Diplay Functions: Metrics
+        let displayIntersectPerSegment =
+            displayer "intersection/seg" intersectionPerSegment
+
+        let displayRightAnglesPerWire =
+            displayer "right_angle/wire" rightAnglePerWire
+
+        let displayMetric = [
+            displayIntersectPerSegment;
+            displayRightAnglesPerWire;
+        ]
+
+        let displayAll = [
+            displayComponents; 
+            displayCountSegIntersectSym;
+            displaySegmentIntersections; 
+            displayWireRightAngles; 
+            displayVisibleSegments;
+            displayVisibleWiringLength; 
+            displayRetracingSegments;
+            ]
 
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
@@ -147,40 +231,37 @@ module D2Test =
         // Rotate a symbol
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
             let symId = getSymId symLabel model.Wire.Symbol
-            let rotate90 (model: SheetT.Model) = 
-                let rotateSymbol' = SymbolResizeHelpers.rotateSymbol Degree90
-                let symModel: SymbolT.Model = 
-                    SymbolUpdate.updateSymbol rotateSymbol' symId model.Wire.Symbol
-
-                model
-                |> Optic.set symbolModel_ symModel
-                |> SheetUpdateHelpers.updateBoundingBoxes
-
-            model
-            |> match rotate with 
-                | Degree0 -> id
-                | Degree90 -> rotate90
-                | Degree180 -> rotate90 >> rotate90
-                | Degree270 -> rotate90 >> rotate90 >> rotate90
-        // 
-        // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            let symId = getSymId symLabel model.Wire.Symbol
-            let flipSymbol' = SymbolResizeHelpers.flipSymbol flip 
-            let symModel = 
-                SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
+            let rotateSymbol' = SymbolResizeHelpers.rotateSymbol rotate
+            let symModel: SymbolT.Model = 
+                SymbolUpdate.updateSymbol rotateSymbol' symId model.Wire.Symbol
 
             model
             |> Optic.set symbolModel_ symModel
-            |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
-            // |> Ok
+            |> SheetUpdateHelpers.updateBoundingBoxes
+
+        // Flip a symbol
+        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
+            let symId = getSymId symLabel model.Wire.Symbol
+            let flipSymbol' = 
+                match flip with
+                | SymbolT.FlipType.FlipHorizontal -> 
+                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
+                | SymbolT.FlipType.FlipVertical ->
+                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal 
+                    >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
+            let symModel: SymbolT.Model = 
+                SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
+
+            model
+            |> Optic.set symbolModel_ symModel 
+            |> SheetUpdateHelpers.updateBoundingBoxes
 
         let randomFlipping () =
             let randGen = System.Random()
             randGen.Next(0,2)
             |> function
                 | 0 -> Ok SymbolT.FlipHorizontal
-                | _ -> Error SymbolT.FlipHorizontal // SymbolT.FlipVertical <= this doesn't work and raise exception!!
+                | _ -> Error SymbolT.FlipVertical // SymbolT.FlipVertical <= this doesn't work and raise exception!!
             
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -265,7 +346,6 @@ module D2Test =
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
 //--------------------------------------------------------------------------------------------------//
-
     open Builder
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
@@ -273,55 +353,75 @@ module D2Test =
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
     // ====================== Positions Generator ======================
-    let gridPositions: Gen<XYPos> =
-        let genX = fromList [-100..20..100]
-        let genY = fromList [-100..20..100]
+    let gridPositions n : Gen<XYPos> =
+        let genX = fromList [-n..20..n]
+        let genY = fromList [-n..20..n]
         (genX, genY)
         ||> product (fun x y -> middleOfSheet + {X=float x; Y=float y})
 
-    let filterGridPositions (baseSheet: SheetT.Model) (generator: Gen<XYPos>) =
-        let getBoxFromList boxes idx =
-            boxes 
-            |> List.tryFind (fun (n,box) -> idx = n)
-            |> function
-                | Some (_, box) -> box
-                | _ -> failwithf "Boxes DFF not found for sheetMaker, or bounding box option is in wrong format"
+    let filteredGridPositions (sheetMaker) (pos: int) =
+        let existOverlapWithBoxes (pos: XYPos) =
+            let sheet: SheetT.Model = sheetMaker pos
+            let boxes: (int * BoundingBox) list = // list<(int * bounding box)>
+                sheet.BoundingBoxes
+                |> mapValues
+                |> Array.toList
+                |> List.mapi (fun n (box: BoundingBox) -> n,box)
 
-        let isOverlapWithBoxes boxes pos =
-            let boxDFF = getBoxFromList boxes 0
-            let boxGate = getBoxFromList boxes 1
-            BlockHelpers.overlap2DBox {boxGate with TopLeft=pos} {boxDFF with TopLeft=middleOfSheet} // get the gate box
-        
-        let boxes = // list<(int * bounding box)>
-            mapValues baseSheet.BoundingBoxes
-            |> Array.toList
-            |> List.mapi (fun n (box: BoundingBox) -> n,box)
+            boxes
+            |> List.allPairs boxes
+            |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
 
-        GenerateData.filter (isOverlapWithBoxes boxes >> not) generator
+        GenerateData.filter (existOverlapWithBoxes >> not) (gridPositions 100)
 
-    // ====================== Random Flip Generator ======================
-    // let randomFlipStates (shape : 'a) : SymbolT.FlipType list =
-    //     let randGen = System.Random()
-    //     randGen.Next(0,2)
-    //     |> function
-    //         | 0 -> SymbolT.FlipHorizontal
-    //         | _ -> SymbolT.FlipVertical
+    let makeTuple a b = (a, b)
 
-    /// demo test circuit consisting of a DFF & And gate
+    /// Gen samples incorporating two sets of rotations, and two of flips
+    let flipOnlySamples =
+        let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
+        gridPositions 100
+        |> product makeTuple flips  
+        |> product makeTuple flips
+        // This final stage makes the output more readable in an anonymous record
+        |> map (fun (flipDFF, (flipAnd, (andPos)))->
+            {|
+                FlipDFF=flipDFF;
+                FlipAnd=flipAnd;
+                AndPos=andPos
+             |})
+
+    /// From Ed: Fischer-Yates shuffle algorithm
+    /// Returns a random shuffled array without changing the input array
+    let shuffleAGen (rng: System.Random) arrayToShuffle: 'a array =
+        let tmpA = Array.copy arrayToShuffle
+        for i = 0 to tmpA.Length - 1 do 
+            let r = rng.Next(i, tmpA.Length);
+            (tmpA[i],tmpA[r])
+            |> fun (iv, rv) -> tmpA[r] <- iv;  tmpA[i]  <- rv
+        tmpA
+
+    // ====================== Fixed Circuit Generator ======================
     let makeTest1Circuit (andPos:XYPos) =
         initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
+        |> Result.bind (placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y})
+        |> Result.bind (placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y+100.})
+        |> Result.bind (placeSymbol "MUX1" Mux2 {X=middleOfSheet.X-100.;Y=middleOfSheet.Y-100.})
+        |> Result.bind (placeSymbol "MUX2" Mux2 middleOfSheet)
+        |> Result.map (flipSymbol "MUX2" SymbolT.FlipType.FlipVertical)
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0) )
+        |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1) )
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0) )
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1) )
         |> getOkOrFail
 
     let makeTest2Circuit (andPos:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
+        |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
     let makeTest3Circuit (andPos:XYPos) =
@@ -333,12 +433,23 @@ module D2Test =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
         |> getOkOrFail
 
-    let makeTest4Circuit (andPos:XYPos) =
+    // ====================== Random Flip Generator ======================
+    let makeTest4Circuit (sample: {|
+        FlipDFF: SymbolT.FlipType option;
+        FlipAnd: SymbolT.FlipType option;
+        AndPos: XYPos
+    |}) =
         initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> placeSymbol "G1" (GateN(And,2)) sample.AndPos
+        |> match sample.FlipAnd with
+            | Some f -> Result.map (flipSymbol "G1" SymbolT.FlipType.FlipHorizontal)
+            | None -> id
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1))
+        |> match sample.FlipDFF with
+            | Some f -> Result.map (flipSymbol "G1" SymbolT.FlipType.FlipHorizontal)
+            | None -> id
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
 //------------------------------------------------------------------------------------------------//
@@ -383,12 +494,13 @@ module D2Test =
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
     
-//---------------------------------------------------------------------------------------//
-//-----------------------------Demo tests on Draw Block code-----------------------------//
-//---------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------//
+//-----------------------------D2 Tests on Draw Block code-----------------------------//
+//-------------------------------------------------------------------------------------//
 
     module Tests =
         open Displays
+        open System
         /// Allow test errors to be viewed in sequence by recording the current error
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
         let recordPositionInTest (testNumber: int) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
@@ -402,11 +514,12 @@ module D2Test =
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
             
         let test1 testNum firstSample dispatch =
-            let displayOnFail = [displayComponents; displaySegmentIntersections; displayWireRightAngles; displayVisibleWiringLength; displayVisibleSegments]
+            let displayOnFail = displayAll
+            let generator = filteredGridPositions makeTest1Circuit 100
             runTestOnSheets
                 "DisplayAll: DFF+AND 2 Wires Different Net"
                 firstSample
-                (filterGridPositions (makeTest1Circuit middleOfSheet) gridPositions)
+                generator
                 makeTest1Circuit
                 Asserts.failOnAllTests
                 dispatch
@@ -414,11 +527,12 @@ module D2Test =
             |> recordPositionInTest testNum dispatch
 
         let test2 testNum firstSample dispatch =
-            let displayOnFail = [displayComponents; displaySegmentIntersections; displayWireRightAngles; displayVisibleWiringLength; displayVisibleSegments]
+            let displayOnFail = displayAll
+            let generator = filteredGridPositions makeTest2Circuit 100
             runTestOnSheets
                 "DisplayAll: DFF+AND 2 Wires Same Net"
                 firstSample
-                (filterGridPositions (makeTest2Circuit middleOfSheet) gridPositions)
+                generator
                 makeTest2Circuit
                 Asserts.failOnAllTests
                 dispatch
@@ -426,12 +540,27 @@ module D2Test =
             |> recordPositionInTest testNum dispatch
 
         let test3 testNum firstSample dispatch =
-            let displayOnFail = [displayComponents; displaySegmentIntersections; displayWireRightAngles; displayVisibleWiringLength; displayVisibleSegments]
+            let displayOnFail = displayMetric
+            let generator = filteredGridPositions makeTest3Circuit 100
             runTestOnSheets
                 "DisplayAll: DFF+AND 2 Wires Same Net + 1 Different Net"
                 firstSample
-                (filterGridPositions (makeTest3Circuit middleOfSheet) gridPositions)
+                generator
                 makeTest3Circuit
+                Asserts.failOnAllTests
+                dispatch
+                displayOnFail
+            |> recordPositionInTest testNum dispatch
+
+        let test4 testNum firstSample dispatch =
+            let displayOnFail = displayMetric
+            let generator = flipOnlySamples
+            let myRandomSample = shuffleAGen <| Random(1)
+            runTestOnSheets
+                "DisplayAll: Random Flip DFF+AND"
+                firstSample
+                generator
+                makeTest4Circuit
                 Asserts.failOnAllTests
                 dispatch
                 displayOnFail
@@ -454,55 +583,17 @@ module D2Test =
                 >> rotateSymbol "G1" Degree90
                 >> rotateSymbol "G1" Degree90
 
-        let testTick3 testNum firstSample dispatch =
-            // for obtaining template bounding boxes
-            let baseSheet = makeTest1Circuit {X=0.; Y=0.}
-            // making the circuit with random flip and rotate
-            let sheetMaker = makeTest1Circuit >> randomFlip
-
-            // Filter function type: Gen<XYPos> -> Gen<XYPos>
-            let filterGridPositions =
-                let getBoxFromList boxes idx =
-                    boxes 
-                    |> List.tryFind (fun (n,box) -> idx = n)
-                    |> function
-                        | Some (_, box) -> box
-                        | _ -> failwithf "Boxes DFF not found for sheetMaker, or bounding box option is in wrong format"
-
-                let isOverlapWithBoxes boxes pos =
-                    let boxDFF = getBoxFromList boxes 0
-                    let boxGate = getBoxFromList boxes 1
-                    BlockHelpers.overlap2DBox {boxGate with TopLeft=pos} {boxDFF with TopLeft=middleOfSheet} // get the gate box
-                
-                let boxes = // list<(int * bounding box)>
-                    mapValues baseSheet.BoundingBoxes
-                    |> Array.toList
-                    |> List.mapi (fun n (box: BoundingBox) -> n,box)
-
-                GenerateData.filter (isOverlapWithBoxes boxes >> not)
-
-            runTestOnSheets
-                "Non-overlapping grid positioned AND + DFF: fail wire on symbol"
-                firstSample
-                (filterGridPositions gridPositions)
-                sheetMaker
-                Asserts.failOnWireIntersectsSymbol
-                dispatch
-                []
-            |> recordPositionInTest testNum dispatch
-
-
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1: 2 diff net", test1 // example
-                "Test2: 2 same net", test2 // example
-                "Test3: 2 same + 1 diff", test3 // example
+                "Test1: 2 diff net", test1
+                "Test2: 2 same net", test2
+                "Test3: 2 same + 1 diff", test3
+                "Test4: Random Flip", test4
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
             ]
 
         /// Display the next error in a previously started test

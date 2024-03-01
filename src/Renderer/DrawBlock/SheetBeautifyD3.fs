@@ -1,6 +1,8 @@
 module SheetBeautifyD3
-
-// ll3621: I don't know why this file is full of error, I copied it directly from SheetBeautify.fs which I originally wrote
+//work from ll3621 to make a start on team deliverable D3
+//the functions are not funished, they are a build up to the final D3 deliverable
+//current completed functionalbilities:
+// find long wires, replace them with wire label symbols, adjust the symbols(size, orientation) according to which port they connect to, connect wire labels to port 
 open CommonTypes
 open DrawHelpers
 open DrawModelType
@@ -10,7 +12,7 @@ open DrawModelType.SheetT
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open Optics
-open Optic
+open Optics
 open BlockHelpers
 open System
 open EEExtensions
@@ -44,9 +46,9 @@ module Constants =
      //arbitary number 
     () 
 
-//work from ll3621 to make a start on team deliverable D3
 
-//some helper functions
+
+
 
 /// this function counts over a list of wires and outputs a Wire list from that list that are considered long
 let findLongWires (wires: Wire List)=

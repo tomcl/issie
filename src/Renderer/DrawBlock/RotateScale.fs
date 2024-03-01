@@ -678,28 +678,31 @@ let scaleSymbol xYSC sym =
 
     { sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true }
 
+/// <summary>
+/// Modifies a group of selected symbols in the model using a given function.
+/// </summary>
+/// <param name="compList">A list of component IDs for the symbols to be modified.</param>
+/// <param name="model">The current model containing all symbols.</param>
+/// <param name="selectedSymbols">A list of the symbols to be modified.</param>
+/// <param name="modifySymbolFunc">A function that takes a symbol and returns a modified symbol.</param>
+/// <returns>A new model with the selected symbols modified.</returns>
 let groupNewSelectedSymsModel
     (compList: ComponentId list)
     (model: SymbolT.Model)
     (selectedSymbols: Symbol list)
     (modifySymbolFunc)
     =
-
-    //let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols =
+    // Run through a single pipeline that checks if the component ID is in compList.
+    // If it is, apply the modifySymbolFunc to it. If it's not, keep it the same.
+    let newSymbols =
         model.Symbols
-        |> Map.filter (fun x _ -> not (List.contains x compList))
+        |> Map.map (fun k v ->
+            if (List.contains k compList) then
+                (modifySymbolFunc v)
+            else
+                v)
 
-    // let block = getBlock SelectedSymbols
-    // printfn "bbCentreX:%A" (block.Centre()).X
-
-    // let newSymbols = List.map (modifySymbolFunc (block.Centre())) SelectedSymbols
-    let newSymbols = List.map (modifySymbolFunc) selectedSymbols
-
-    { model with
-        Symbols =
-            ((Map.ofList (List.map2 (fun x y -> (x, y)) compList newSymbols)
-              |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)) }
+    { model with Symbols = newSymbols }
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
@@ -707,21 +710,20 @@ let groupNewSelectedSymsModel
 /// <param name="flip"> Type of flip to do</param>
 /// <returns>New flipped symbol model</returns>
 let flipBlock (compList: ComponentId list) (model: SymbolT.Model) (flip: FlipType) =
-    //Similar structure to rotateBlock, easy to understand
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols =
-        model.Symbols
-        |> Map.filter (fun x _ -> not (List.contains x compList))
+    // Get the block of the selected symbols.
+    let block = getBlock (List.map (fun x -> model.Symbols |> Map.find x) compList)
 
-    let block = getBlock SelectedSymbols
-
+    // Run through a single pipeline that checks if the component ID is in compList.
+    // If it is, flip the symbol. If it's not, keep it the same.
     let newSymbols =
-        List.map (fun x -> flipSymbolInBlock flip (block.Centre()) x) SelectedSymbols
+        model.Symbols
+        |> Map.map (fun k v ->
+            if List.contains k compList then
+                flipSymbolInBlock flip (block.Centre()) v
+            else
+                v)
 
-    { model with
-        Symbols =
-            ((Map.ofList (List.map2 (fun x y -> (x, y)) compList newSymbols)
-              |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)) }
+    { model with Symbols = newSymbols }
 
 let postUpdateScalingBox (model: SheetT.Model, cmd) =
 

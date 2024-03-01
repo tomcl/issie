@@ -17,6 +17,7 @@ open SymbolResizeHelpers
     - Changing match statements to reduce clutter
     - Changed layout of function to group functions and main body
     - Changed function parameters to allow better pipeline of functions
+    - Added to function optimizeSymbol name to make it more clear what is being optimized
     - refactoring of code to remove code duplication (noSymbolOverlap and Sheet.notIntersectingComponents)
     - comments
 
@@ -204,7 +205,7 @@ let noSymbolOverlap boundingBoxes box inputId =
     |> Map.isEmpty
 
 /// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
-let optimiseSymbol
+let optimiseSymbolDimensions
     (wModel: BusWireT.Model)
     (symbol: Symbol)
     (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)

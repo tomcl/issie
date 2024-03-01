@@ -227,9 +227,10 @@ let countWireRightAngleIntersect (sheet : SheetT.Model) =
     let isZeroLength (w : Wire) =
         w.Segments.Length <> 0
 
-    let tupToXY (l : (float * float)) : XYPos =
-        let x, y = l
-        { X = x; Y = y }
+    let getSegPosList (wire: Wire) = 
+        segmentsToIssieVertices wire.Segments wire
+        |> List.map (fun (x, y, _) -> { X = x; Y = y }) // Convert directly to XYPos
+        |> List.toArray
 
     let getSegOrient (segPos : XYPos * XYPos) =
         let startPos, endPos = segPos
@@ -237,40 +238,24 @@ let countWireRightAngleIntersect (sheet : SheetT.Model) =
         | true -> "Horizontal"
         | false -> "Vertical"
 
-    // Original definition of segRightAngleIntersect
+    // checks for right angle intersection
     let segRightAngleIntersect (segPos1 : XYPos * XYPos) (segPos2 : XYPos * XYPos) = 
         let ort1 = getSegOrient segPos1
         let ort2 = getSegOrient segPos2
         (overlap2D segPos1 segPos2) && (ort1 <> ort2)
 
-    // Converts a Segment list into a list of start and end XYPos of each segment
-    let getSegPosList (wire, segList) = 
-        let tupToXY (l: (float * float)) : XYPos = { X = fst l; Y = snd l }
-        let segVertices = 
-            segmentsToIssieVertices segList wire
-            |> List.map (fun (x, y, _) -> (x, y))
-            |> List.map tupToXY
-        let lstStartPos = 
-            match (List.rev segVertices) with
-            | [] -> []
-            | hd::tl -> List.rev tl
-        let lstEndPos = 
-            match segVertices with
-            | [] -> []
-            | hd::tl -> tl
-        List.zip lstStartPos lstEndPos
-
-    // Filter segments based on conditions: non-zero length, distinct wires, and right angle intersection
+    // Filter: 1. non-zero  2. distinct  3. right angle intersection
     let segFilter =
         mapValues sheet.Wire.Wires
         |> Array.filter isZeroLength
-        |> Array.collect (fun wire -> getSegPosList wire wire.Segments)
+        |> Array.map getSegPosList
+        |> Array.concat
         |> Array.allPairs
-        |> Array.filter (fun (seg1, seg2) -> isDistinct seg1 seg2 && segRightAngleIntersect seg1 seg2)
+        |> Array.filter (fun (seg1, seg2) -> (isDistinct seg1 seg2))
+        |> Array.filter (fun (seg1, seg2) -> (segRightAngleIntersect seg1 seg2))
 
     // Count the filtered segments
     segFilter.Length
-
 
 // ----------------------------------------- T4 (read) -------------------------------------------
 /// Sum of wiring segment length, counting only one when there are N same-net segments overlapping 

@@ -1,10 +1,5 @@
 module TestDrawBlock
 
-//--------------------------------------------------------------------------------------------------//
-//---Note to assessor: Any related labels to the questions in Tick3 are marked with hashes #, ------//
-//-------------------------- type in CTRL + F or CMD + F to find them.------------------------------//
-//--------------------------------------------------------------------------------------------------//
-
 open GenerateData
 open Elmish
 
@@ -238,14 +233,6 @@ module HLPTick3 =
         //--------------------------------------------------------------------------------------------------//
         //-----------------------------# Question 10 Rotation and Flip Components---------------------------//
         //--------------------------------------------------------------------------------------------------//
-        // open DrawModelType.SheetT
-        //  I can't import everything, seems to throw other errors
-        //  Type mismatch. Expecting a'Dispatch<Msg>'but given a 'Dispatch<SheetT.Msg>'
-
-        // Lenses for fields of SheetT.Model
-        // Note how this differs from DrawModelType.SheetT, as its wire_ is type Lens<Model, BusWireT.Model>
-        // Here we have wire_ : Lens<SheetT.Model, BusWireT.Model>
-        // This is because rotateSymbol and flipSymbol are specified to take in model: SheetT.Model
 
         let wire_: Lens<SheetT.Model, BusWireT.Model> =
             Lens.create (fun m -> m.Wire) (fun w m -> { m with Wire = w })
@@ -671,102 +658,3 @@ module HLPTick3 =
                 printf "Test Finished"
                 ()
             | _ -> func testIndex 0 dispatch
-
-// Written Questions
-
-//--------------------------------------------------------------------------------------------------//
-//------------------------------------------# Question 6--------------------------------------------//
-//--------------------------------------------------------------------------------------------------//
-
-// What is the sample data?
-// The sample data is a set of 11 equidistant points on a horizontal line, in bounds -100 to 100 spaced apart by 20.
-// This is represented by the variable horizLinePositions.
-
-// How is that converted into an Issie design sheet (e.g. what change to the sheet components does the sample data parametrise)?
-// The sample data is converted into an Issie design sheet by placing a new symbol with label "G1" (And gate) and "FF1" (DFF) onto the Sheet with given position.
-
-// What is the assertion used in the test (1-3)?
-// Tests1-2 fail on a given sample – this is just for a check
-// Test3 fails on symbols intersect assertion
-
-//--------------------------------------------------------------------------------------------------//
-//------------------------------------------# Question 8--------------------------------------------//
-//--------------------------------------------------------------------------------------------------//
-
-// Trace how the start of Test 1 is executed in Issie from the menu command in Renderer.filemenu by listing in order
-// every function that is executed between a key being pressed and the TestDrawBlock.HlpTick3.Tests.test1 function
-// starting. Considering the Fsharp source file compile order, and the fact that cross-module forward references are not
-//  allowed, explain the use of functions as data in this code.
-
-// We start from teststoRunFromSheetMenu, which is a list of tests available which can be run from the Issie File Menu.
-// This is called in Renderer.filemenu:
-
-// makeDebugItem name (Some $"CmdOrCtrl+{accelNumber + 1}") (fun _ ->
-//       dispatch (MenuAction(MenuDrawBlockTest(TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
-//
-// ...
-// makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
-//             TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
-//             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9.
-//                                 // Remove accelerator if keys are needed for other purposes
-//             |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
-// ...
-// let makeMenuGen (visible: bool) (topLevel: bool) (name : string) (table : MenuItemConstructorOptions list) =
-//    let subMenu = createEmpty<MenuItemConstructorOptions>
-//    subMenu.``type`` <- Some (if topLevel then MenuItemType.Normal else MenuItemType.Submenu)
-//    subMenu.label <-Some name
-//    subMenu.submenu <- Some (U2.Case1 (table |> ResizeArray))
-//    subMenu.visible <-  Some visible
-//    subMenu
-// ...
-// let makeDebugItem label accelerator option =
-//   makeCondItem (JSHelpers.debugLevel <> 0) label accelerator option
-// ...
-// let makeCondItem cond label accelerator action =
-//     let item = makeItem label accelerator action
-//     item.visible <- Some cond
-//     item
-
-//  makeCondItem makes a conditional menu item from a condition, name, opt key to trigger, and action
-//  makeDebugItem: A menu item which is visible only if in debug mode (run dev or command line -D on binaries) and on windows. Also handles the accelerator keypress
-//  makeMenuGen: Make a new menu from a list of menu items (javascript)
-
-//--------------------------------------------------------------------------------------------------//
-//------------------------------------------# Question 11-------------------------------------------//
-//--------------------------------------------------------------------------------------------------//
-
-// It is interesting that some blocks, once rotated or flipped, will fail to auto-route their wires.
-// This can be done by running Test 8 from the Issie File Menu. This test will fail on wire intersects symbol.
-// Right-clicking and choosing "Reroute All Wires" does not change the wire routing – which means in the last line of
-// smartAutoRoute, we have gone with the default vcalue snappedToNetWire
-
-// let smartAutoroute (model: Model) (wire: Wire) : Wire =
-
-//     let initialWire = (autoroute model wire)
-
-//     // Snapping to Net only if model.SnapToNet toggled to be true
-//     let snappedToNetWire =
-//         match model.SnapToNet with
-//         | _ -> initialWire // do not snap
-//     //| true -> snapToNet model initialWire
-
-//     let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire
-
-//     match intersectedBoxes.Length with
-//     | 0 -> snappedToNetWire
-//     | _ ->
-//         tryShiftVerticalSeg model intersectedBoxes snappedToNetWire
-//         |> Option.orElse (tryShiftHorizontalSeg maxCallsToShiftHorizontalSeg model intersectedBoxes snappedToNetWire)
-//         |> Option.defaultValue snappedToNetWire
-
-// However, immediately after the rotation or flip, if the user nudges a block a tiny bit away and then back to its original position,
-// The wires immediately snaps back correctly
-
-// Naive idea 1: Could this be automated? Could we dispatch a message to nudge the selected/last rotated block
-// a tiny bit away and then back to its original position?
-
-// Naive idea 2: Do we even need to physically move the block? We could perform calculations as normal as if the block was moved,
-// and then snap the wires back to their correct positions.
-
-// Naive idea 3: I don't have time, perhaps there is a way to reset all the segments of a wire to an orignal 2-segment
-// position, one for horizontal travel and one for vertical travel. Then reroute again

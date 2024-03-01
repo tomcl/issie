@@ -10,14 +10,15 @@ open Operators
 open BlockHelpers
 open SymbolResizeHelpers
 
-/// Improved RotateScale module - ec1221
-/// Split lines: 175 - 268
-/// Changed layout and code structure of optimize symbol function to reduce clutter and readability
-/// Changed function parameters to allow better pipeline of functions
-/// 
+(* Improveing RotateScale module - ec1221
+    Split lines: 175 - 268
+    - Changed nested match cases to make it more readable
+    - Removed some intermediate variables
+    - Changing match statements to reduce clutter
+    - Changed layout of function to group functions and main body
+    - Changed function parameters to allow better pipeline of functions
 
 
-(* 
     This module contains the code that rotates and scales blocks of components.
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.
     It requires better documentation of teh pasrts now used.
@@ -195,11 +196,10 @@ let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
     { ConnMap = Map.add (cid, edge) count m }
 
 // TODO: this is copied from Sheet.notIntersectingComponents. It requires SheetT.Model, which is not accessible from here. Maybe refactor it.
-let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundingBoxes sym =
-    let symBB = getSymbolBoundingBox sym
-
+// ec1221 - adjusted function to be usable in Sheet.notIntersectingComponents to remove code duplication
+let noSymbolOverlap boundingBoxes box inputId =
     boundingBoxes
-    |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox symBB && sym.Id <> sId)
+    |> Map.filter (fun sId boundingBox -> DrawHelpers.boxesIntersect boundingBox box && inputId <> sId)
     |> Map.isEmpty
 
 /// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
@@ -232,7 +232,8 @@ let optimiseSymbol
         // align symbol according to other symbols and resize when no overlap
         let alignSym (sym: Symbol) (otherSym: Symbol) =
             let resizedSym = reSizeSymbol wModel sym otherSym
-            let noOverlap = noSymbolOverlap DrawHelpers.boxesIntersect boundingBoxes resizedSym
+            let symBB = getSymbolBoundingBox resizedSym
+            let noOverlap = noSymbolOverlap boundingBoxes symBB resizedSym.Id
             // ec1221 - changed match to if statement as variable names are good and makes code more readable
             if noOverlap then (true, resizedSym) else (false, sym)
 

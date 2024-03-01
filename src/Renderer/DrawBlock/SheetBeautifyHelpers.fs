@@ -153,14 +153,14 @@ let countSymIntersectSym (sheetModel : SheetT.Model) : int =
 
 /// T2R R Low 
 /// <summary>The total number of distinct visible wire segments that intersect with one or more symbols. </summary>
-let countWireIntersectSym (sheetModel : SheetT.Model) : int =
+let countSegIntersectSym (sheetModel : SheetT.Model) : int =
     let wireModel = sheetModel.Wire
 
     wireModel.Wires
     |> Map.filter (fun _ wire -> BusWireRoute.findWireSymbolIntersections wireModel wire <> [])
     |> Map.count
 
-// ------------ Some Extra Helpers ------------
+// ------------ Helpers for T3R & T4R ------------
 /// helper to get all unique combinations of elements in a list
 let rec allPairsWithoutRepeats list =
     match list with
@@ -184,17 +184,7 @@ let calcASegOverlapLength (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) =
     let vector = min max1 max2 - max min1 min2
     max (abs vector.X) (abs vector.Y) // assume that the segments are parallel, either X or Y will be cancelled out
 
-/// number of visible wire segments counted over whole sheet
-let countVisibleSegments (sheetModel : SheetT.Model) : int =
-    let wireModel = sheetModel.Wire
-
-    wireModel.Wires
-    |> Map.toList
-    |> List.map (fun (wid, wire) -> visibleSegments wid sheetModel)
-    |> List.map (fun segs -> segs.Length)
-    |> List.sum
-
-// --------------------------------------------
+// -----------------------------------------------
 
 // T3R R Low 
 /// <summary>The number of distinct pairs of segments that cross each other at right angles. Does
@@ -241,8 +231,8 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
     // we require segments to be parallel to each other and overlap 
     let overlapPairs = 
         let overlapFilter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
-            (seg1.Orientation = seg2.Orientation) && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
-
+            (seg1.Orientation = seg2.Orientation) 
+            && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
         ASegments
         |> allPairsWithoutRepeats
         |> List.filter (fun (seg1, seg2) -> overlapFilter seg1 seg2)
@@ -262,13 +252,14 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
     
     let segInSameNetOverlapLength =
         let findSharedPoint (seg1: BusWireT.ASegment, seg2: BusWireT.ASegment) = 
-            seg1.Start // NB: assume start and end points of ASegments are guaranteed to be in order
+            // seg1.Start // NB: assume start and end points of ASegments are guaranteed to be in order
             // NB: However, use this if the start and end points are not guaranteed to be in order
-            // if seg1.Start = seg2.Start then seg1.Start 
-            // elif seg1.Start = seg2.End then seg1.Start
-            // elif seg1.End = seg2.Start then seg1.End
-            // elif seg1.End = seg2.End then seg1.End
-            // else failwithf "No shared overlap starting point found."
+            if seg1.Start = seg2.Start then seg1.Start 
+            elif seg1.Start = seg2.End then seg1.Start
+            elif seg1.End = seg2.Start then seg1.End
+            elif seg1.End = seg2.End then seg1.End
+            else {X=0.; Y=0.}
+            // failwithf "No shared overlap starting point found."
         overlapPairs
         |> List.filter (fun (seg1, seg2) -> isSegFromSameNet seg1.Segment seg2.Segment sheetModel)
         |> List.groupBy findSharedPoint // group by the shared point of segments
@@ -278,7 +269,7 @@ let calcVisibleWiringLength (sheetModel : SheetT.Model) : float =
             |> List.max // calculate the maximum overlap length for each group
             ) 
         |> List.sum
-
+    printfn "(noOverlapLength, overlapLength) = %A, %A" segWithoutOverlapLength segInSameNetOverlapLength
     segWithoutOverlapLength + segInSameNetOverlapLength
 
 // T5R R Low 
@@ -292,35 +283,53 @@ let countWireRightAngles (sheetModel : SheetT.Model) : int =
     |> List.fold (fun acc segs -> acc+segs.Length-1) 0 // a single segment has no right angles
 
 // T6R R High 
-// The zero-length segments in a wire with non-zero segments on either side that have
-// Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply
-// at the end of a wire (where the zero-length segment is one from the end). This is a
-// wiring artifact that should never happen but errors in routing or separation can
-// cause it. Count over the whole sheet. Return from one function a list of all the
-// segments that retrace, and also a list of all the end of wire segments that retrace so
-// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
-
-/// <summary>Return a list of zero-length segments that causes retrace on the sheet</summary>
-let getRetracingSegment (sheetModel : SheetT.Model) : Segment list =
+/// <summary> Return two lists of retracing segments. The first include all retracing segments. 
+/// The second include only segments near the ports that cause intersection with symbol.</summary>
+let getRetracingSegment (sheetModel : SheetT.Model) =
     let wires = sheetModel.Wire.Wires
+    let segments = 
+        wires
+        |> Map.toList
+        |> List.map (fun (wid, wire) -> wire.Segments)
 
-    let isSegLengthPositive (wid: ConnectionId) (sid: int) : bool Option =
+    let getSeg (wid: ConnectionId) (sid: int) : Segment Option =
         let folder acc seg =
             if seg.Index = sid 
-            then Some (seg.Length > 0.0)
+            then Some seg
             else acc
         List.fold folder None wires[wid].Segments
-
-    let isRetracing (wid: ConnectionId) (sid: int) : bool =
-        let prevOpt = isSegLengthPositive wid (sid-1)
-        let nextOpt = isSegLengthPositive wid (sid+1)
+    
+    let getRetracingNeighbours (seg: Segment) : Segment list =
+        let prevOpt = getSeg seg.WireId (seg.Index-1)
+        let nextOpt = getSeg seg.WireId (seg.Index+1)
         match prevOpt, nextOpt with
-        | Some prevIsPositive, Some nextIsPositive -> prevIsPositive <> nextIsPositive
-        | _ -> false
+        | Some (prevSeg: Segment), Some (nextSeg: Segment) -> 
+            if prevSeg.Length * nextSeg.Length < 0.0 // opposite signs
+            then [nextSeg]
+            else []
+        | _ -> []
 
-    wires
-    |> Map.toList
-    |> List.map (fun (wid, wire) -> wire.Segments)
-    |> List.concat
-    |> List.filter (fun (seg: Segment) -> seg.IsZero)
-    |> List.filter (fun seg -> isRetracing seg.WireId seg.Index)
+    let allRetracingSegments =
+        segments
+        |> List.concat
+        |> List.filter (fun (seg: Segment) -> seg.IsZero)
+        |> List.collect getRetracingNeighbours
+
+    let endOfWireRetracingSegments =
+        allRetracingSegments
+        |> List.filter (fun (seg: Segment) -> seg.Index = 3 || seg.Index = wires[seg.WireId].Segments.Length - 5)
+        |> List.map (fun seg -> BusWire.getASegmentFromId sheetModel.Wire seg.GetId)
+        |> List.filter (
+            fun aseg ->
+                sheetModel.BoundingBoxes 
+                |> Map.toList
+                |> List.map snd
+                |> List.exists(
+                    fun box -> 
+                        match BlockHelpers.segmentIntersectsBoundingBox box aseg.Start aseg.End with
+                        | Some _ -> true
+                        | None -> false
+                )
+        )
+
+    allRetracingSegments, endOfWireRetracingSegments

@@ -1,6 +1,6 @@
 Worked on implementation on D2. sheetOrderFlip
 
-Located in SheetBeautifyD2.sheetPortOrderFlip
+Located in SheetBeautifyD2.optimizePortOrder
 
 Summary - Adjusts port order on custom components, flip components, flip MUX input order to reduce wire crossings by
 - swapping pairs of ports

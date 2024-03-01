@@ -128,7 +128,6 @@ let setPortMapsOrder (sym: Symbol) (newSide: Edge) (newOrder: string list) : Sym
     { sym with PortMaps = newPortMaps }
 
 /// B4R: The reversed state of the inputs of a MUX2
-// question for TA: should I always failwithf?
 let getMUX2ReversedInput (sym: Symbol) : bool =
     match sym.Component.Type with
     | Mux2 ->
@@ -253,15 +252,16 @@ let perpendicularOverlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) :
 /// segments on same net on top of each other. Count over whole sheet.
 /// This can be potentially expanded to include more cases by modifying List.filter with more conditions
 let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
-    let wireModel = model.Wire
-    // Get all the wires from the Wire model
+    let wireModel = model.Wire // Get all the wires from the Wire model
     let wires = Map.toList wireModel.Wires
+
     // Get all the absolute segments from each wire
     let segments =
         wires
         |> List.collect (fun (_, wire) ->
             getAbsSegments wire
             |> List.map (fun seg -> (wire, seg)))
+
     // Generate all pairs of segments
     let allPairs =
         segments
@@ -270,6 +270,7 @@ let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
             |> List.skip (i + 1)
             |> List.map (fun seg2 -> (seg1, seg2)))
         |> List.concat
+
     // Filter the pairs to get only those that belong to wires that do not share the same InputPortId or OutputPortId
     // and intersect at a 90º angle
     let filteredPairs =
@@ -293,9 +294,7 @@ let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
 ///             = totalSegmentsLength - getSharedNetOverlapOffsetLength
 ///
 let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
-    //#######################
-    //   HELPERS
-    //#######################
+    //####################### HELPER FUNCTIONS #######################
     /// Helper for T4R that takes in a group of wires and returns the length of the wire with the least number of segments
     let getMinSegments (wireGroup: (Wire * ASegment list) list) =
         wireGroup
@@ -303,10 +302,11 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
         |> snd
         |> List.length
 
-    /// Helper for T4R that takes in a list of absolute segments that all share the same start or end position.
-    /// check if all the segments are moving horizontally or vertically, by checking ASegment.orientation
-    /// check if every Asegment.Segment.Length is the same sign, then return the minimum absolute value
-    /// if not, return 0.0 (no segments with shared orientations will overlap if they are travelling in opposite magnitudes)
+    /// Helper for T4R that outputs the partial overlapping distance for a list of segments share either the same start or end position,
+    /// Accepts a list of absolute segments. Function assumes that all segments either share the same start or end position. If no overlap, returns 0.0
+    // Algorithm: The function determines if all the segments are moving horizontally or vertically, by checking ASegment.orientation
+    // Then it checks if if every Asegment.Segment.Length is the same sign, then return the minimum absolute value
+    // if not, return 0.0 (no segments with shared orientations will overlap if they are travelling in opposite magnitudes)
     let partialOverlapDistance (absSegments: ASegment list) : float =
         let (allAligned: bool) =
             absSegments
@@ -327,11 +327,11 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
         else
             0.0
 
-    /// Helper for T4R that find the diverging index of a group of wires, d, of a list of (Wire * ASegment List).
-    /// all wires's segments from index 0 up to index d-1 are identical, i.e. have the same start and end points.
-    /// at index d, this is when all the wires' segments at index d starts to have different end points, i.e. they diverge
-    /// this function also determines if d exists in the shortest wire, as we will need to check the
-    /// dth segment differently for all wires.
+    /// Helper for T4R that find the diverging index of a group of wires, d, for a list of (Wire * ASegment List),
+    /// and also determines if d is accessible in the shortest wire of the group.
+    /// Returns a tuple of (d, dExists).
+    /// All wires's segments from index 0 up to index d-1 are identical, i.e. have the same start and end points.
+    /// At index d, this is when all the wires' segments at index d starts to have different end points, i.e. they diverge
     let findDivergingIndex (wireGroup: (Wire * ASegment list) list) (isOutput) =
         // FSharp doesn't support negative indexing, so this is an implementation
         let inline accessSegment (absSegments: ASegment list) (index: int) isOutput =
@@ -361,10 +361,8 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
         | Some d -> (d, (d <= minSegments - 1))
         | None -> minSegments - 1, true
 
-    //#######################
-    //   START OF FUNCTION
-    //#######################
-
+    //####################### START OF FUNCTION #######################
+    // Get wires and their absolute segments
     let wires = Map.toList (removeWireInvisibleSegments (model.Wire.Wires))
     let wiresWithAbsSegments =
         wires
@@ -389,6 +387,10 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
         // type (InputPortId * (Wire * ASegment list) list) list, coalsce to ((Wire * ASegment list) list) list)
         |> List.map (fun (_, wireGroup) -> wireGroup)
 
+    /// T4R helper to find the overlapping segment lengths of a group of wires.
+    /// Also has an input isOutput to check if we are calculating that share an output or input port, as the list will be accessed from different ends.
+    /// This is done by finding how many segments are identical (in start and end positions) amongst wires and calculating the lengths of these overlaps.
+    /// After a sequence of identical segments, they will diverge, but might partially overlap. This partial overlapping is calculated at the dth index using partialOverLapDistance
     let calculateOverlapLengths (wireGroups: (Wire * ASegment list) list) isOutput =
         if wireGroups = [] then //to prevent errors
             0.0
@@ -432,7 +434,7 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
              + distanceTravelledByDthSegs)
             * (float (List.length wireGroups - 1))
 
-    // map to calculateOverlapLengths to inputGroupedWires and return the sum of list elements
+    // Calculate the shared overlap lengths for both input and output grouped wires, and sum them
     let outputOverlapLengths =
         let outputOverlaps =
             outputGroupedWires
@@ -536,13 +538,12 @@ let countVisibleRAngles (model: SheetT.Model) =
 // See function countUniqRetracingSegmentsAndIntersects
 let getRetracingSegmentsAndIntersections (model: SheetT.Model) =
     let wireModel = model.Wire
-    // wireModel.Wires is Map<ConnectionId, Wire>, Wire is a record with a list of segments
-    // get a Map<Wire, Segment list> from wireModel.Wires
-    // iterate through map, get wire, form a map with key value pair of Wire, Wire.Segments
     wireModel.Wires
     |> Map.fold
         (fun (retracingSegments_acc, retracingSegmentsWithIntersections_acc) _ wire ->
             let segments = wire.Segments
+
+            // run through a window size of 3 segments, and look for the pattern
             let retracingSegments =
                 segments
                 |> List.windowed 3
@@ -552,6 +553,8 @@ let getRetracingSegmentsAndIntersections (model: SheetT.Model) =
                     && (seg2.Length = 0.0)
                     && (seg3.Length <> 0.0)
                     && (seg1.Length * seg3.Length < 0.0)) // nonzero segments must have opposite signs
+
+            // run through window size of 3, and try to find the segment before and after the pattern if it exists and is nonzero
             let retracingSegmentsWithIntersections =
                 segments
                 |> List.windowed 3
@@ -563,31 +566,29 @@ let getRetracingSegmentsAndIntersections (model: SheetT.Model) =
                         && (seg3.Length <> 0.0)
                         && (seg1.Length * seg3.Length < 0.0) // nonzero segments must have opposite signs
                     then // look for the segment before and after the pattern if it exists and is nonzero
-                        // Identify some NONZERO, NONZERO, ZERO, NONZERO, some NONZERO
+                        // Identify some NONZERO, (NONZERO, ZERO, NONZERO), some NONZERO (pattern in brackets)
                         let prev =
-                            if i > 0 && segments.[i - 1].Length <> 0.0 then
-                                [ segments.[i - 1] ]
-                            else
-                                []
+                            match (i > 0 && segments.[i - 1].Length <> 0.0) with
+                            | true -> [ segments.[i - 1] ]
+                            | false -> []
+
                         let next =
-                            if
-                                i < List.length segments - 3
-                                && segments.[i + 3].Length <> 0.0
-                            then
-                                [ segments.[i + 3] ]
-                            else
-                                []
+                            match
+                                (i < List.length segments - 3
+                                 && segments.[i + 3].Length <> 0.0)
+                            with
+                            | true -> [ segments.[i + 3] ]
+                            | false -> []
                         Some(prev @ segs @ next)
                     else
                         None)
-                |> List.choose id
+                |> List.choose id // filter out None values
                 |> List.filter (fun segs ->
-                    // get the first segment since all of them share WId,
-                    // look it up in wireModel and find the wire that has these segments
-                    // update the wire with the new segments
+                    // get the first segment since all of them share the same WId, lookup in wireModel and get the corresponding wire,
+                    // create a test wire with the retracing segments + adjacent segments if they exist
                     let testWire = { wireModel.Wires[segs[0].WireId] with Segments = segs }
-                    // now check if that wire intersects with any symbols by
-                    // running it with findSymbolIntersections and making sure list is non-empty
+                    // now check if that testwire intersects with any symbols by using findSymbolIntersections, make sure its output list is non-empty
+                    // if non empty, then filter condition evals to true, and the segment list is added to the accumulator retracingSegmentsWithIntersections_acc
                     testWire
                     |> findWireSymbolIntersections wireModel
                     |> List.isEmpty

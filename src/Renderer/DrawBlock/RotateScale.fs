@@ -11,13 +11,13 @@ open Operators
 open BlockHelpers
 open SymbolResizeHelpers
 
-(* 
-    HLP23: This module will normally be used exclusively by team member doing the "smart resize symbol" 
+(*
+    HLP23: This module will normally be used exclusively by team member doing the "smart resize symbol"
     part of the individual coding. During group phase work how it is used is up to the
-    group. Functions from other members MUST be documented by "HLP23: AUTHOR" XML 
+    group. Functions from other members MUST be documented by "HLP23: AUTHOR" XML
     comment as in SmartHelpers.
 
-    Normally it will update multiple wires and one symbols in the BusWire model so could use the SmartHelper 
+    Normally it will update multiple wires and one symbols in the BusWire model so could use the SmartHelper
     function for the wires.
 *)
 
@@ -79,7 +79,7 @@ let getOppEdgePortInfo
     =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
-    let tryGetOppEdgePorts wireSyms =
+    let tryGetOppEdgePorts (wireSyms: wireSymbols) =
         let portA, portB = getPortAB wModel wireSyms
         let edgeA = getSymbolPortOrientation wireSyms.symA portA
         let edgeB = getSymbolPortOrientation wireSyms.symB portB
@@ -116,44 +116,49 @@ let alignSymbols (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
         let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
         BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
 
-/// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
-/// so that the connecting wires are exactly straight
-/// HLP23: It should work out the interconnecting wires (wires) from
-/// the two symbols, wModel.Wires and sModel.Ports
-/// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
+// HLP23 reSizeSymbol: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
+// so that the connecting wires are exactly straight
+// HLP23: It should work out the interconnecting wires (wires) from
+// the two symbols, wModel.Wires and sModel.Ports
+// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
+
+/// HLP23: A helper function for reSizeSymbol that calculates the resizedDimensions for a CustomComponent to be resized, ensuring straight wires
+let calculateResizedDimensions (resizePortInfo: PortInfo) (otherPortInfo: PortInfo) =
+    let inline resizedWithGap gapMultiplier =
+        otherPortInfo.portGap
+        * (resizePortInfo.portDimension + 2.0 * gapMultiplier)
+
+    match resizePortInfo.side with
+    | Left
+    | Right -> (resizedWithGap resizePortInfo.gap), resizePortInfo.w
+
+    | Top
+    | Bottom -> resizePortInfo.h, (resizedWithGap resizePortInfo.topBottomGap)
+
+/// HLP23: A helper function that takes in two symbols connected by wires, symbolToSize and otherSymbol.
+/// The first symbol must be a Custom component. The function adjusts the size of symbolToSize so that the wires
+/// connecting it with the otherSymbol become exactly straight
 let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
-    // Try to get two ports that are on opposite edges, if none found just use any two ports.
+    // Try to get the PortInfo of two ports that are on opposite edges of two different symbols, if none found just use any two ports.
     let resizePortInfo, otherPortInfo =
         match getOppEdgePortInfo wModel symbolToSize otherSymbol with
         | None ->
             let pA, pB =
-                getPortAB wModel { symA = symbolToSize; symB = otherSymbol; wire = wires[0] }
+                getPortAB wModel { symA = symbolToSize; symB = otherSymbol; wire = wires.Head }
             makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
         | Some(pIA, pIB) -> (pIA, pIB)
 
-    let h, w =
-        match resizePortInfo.side with
-        | Left
-        | Right ->
-            otherPortInfo.portGap
-            * (resizePortInfo.portDimension
-               + 2.0 * resizePortInfo.gap),
-            resizePortInfo.w
-        | Top
-        | Bottom ->
-            resizePortInfo.h,
-            otherPortInfo.portGap
-            * (resizePortInfo.portDimension
-               + 2.0 * resizePortInfo.topBottomGap)
+    let h, w = calculateResizedDimensions resizePortInfo otherPortInfo
 
     match symbolToSize.Component.Type with
     | Custom _ ->
-        let scaledSymbol = setCustomCompHW h w symbolToSize
-        let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
-        let offset = alignPortsOffset scaledInfo otherPortInfo
-        moveSymbol offset scaledSymbol
+        symbolToSize
+        |> setCustomCompHW h w
+        |> (fun scaledSymbol -> makePortInfo scaledSymbol resizePortInfo.port)
+        |> (fun scaledInfo -> alignPortsOffset scaledInfo otherPortInfo)
+        |> (fun offset -> moveSymbol offset symbolToSize)
     | _ -> symbolToSize
 
 /// For UI to call ResizeSymbol.
@@ -162,8 +167,9 @@ let reSizeSymbolTopLevel (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherS
 
     let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
 
-    let model' = Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
-    BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
+    wModel
+    |> Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol
+    |> (fun model' -> BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id)
 
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT = { ConnMap: Map<ComponentId * Edge, int> }
@@ -271,7 +277,7 @@ let optimiseSymbol
 
     Currently if multiple symbols are selected and rotated, each symbol will rotate, but the positions
     of teh symbols will stay fixed. The desired function for the entire block of symbols to rotate,
-    applying 2-D rotation 90 degree rotation and flipping to the symbol positions about the centre of 
+    applying 2-D rotation 90 degree rotation and flipping to the symbol positions about the centre of
     the block of selected symbols.
 
     This operation has "simple" and "better" implementations, like all the initial tasks:
@@ -281,12 +287,12 @@ let optimiseSymbol
     3. Allow scaling as well as rotation (autoroute wires since components will not scale and therefore
       exact wire shape will change). This operation can include Custom components since all wires are
       autorouted anyway.
-    Driver test code can easily be adapted from existing Smart module Test menu items. Menu commands 
+    Driver test code can easily be adapted from existing Smart module Test menu items. Menu commands
     which operate on selected symbols - the tests will be more or less how this operation is actually used).
 
     One key UI challenge for SmartRotate is that when a block of symbols is rotated it may overlap other
     symbols. To allow valid placement it should be possible to move the block on the sheet until a place
-    to drop it is found, using an interface identical to the "copy" and "paste" interface - which works 
+    to drop it is found, using an interface identical to the "copy" and "paste" interface - which works
     fine with multiple symbols (try it). It should be possible to use that exact same interface by placing
     the rotated blokc into the copy buffer (not sure - maybe the copy buffer will need to be modified a bit).
 
@@ -309,19 +315,34 @@ let optimiseSymbol
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
 /// <returns>Bounding Box</returns>
-let getBlock (symbols: Symbol List) : BoundingBox =
+let getBlock (symbols: Symbol list) : BoundingBox =
+    // Define helper functions to get the rotated width and height of a symbol
+    let inline getRotatedWidth symbol = snd (getRotatedHAndW symbol)
+    let inline getRotatedHeight symbol = fst (getRotatedHAndW symbol)
 
-    let maxXsym =
-        (List.maxBy (fun (x: Symbol) -> x.Pos.X + (snd (getRotatedHAndW x))) symbols)
-    let maxX = maxXsym.Pos.X + (snd (getRotatedHAndW maxXsym))
+    // Calculate the maximum X position in the bounding box plus considering its rotated width
+    let maxX =
+        symbols
+        |> List.map (fun symbol -> symbol.Pos.X + getRotatedWidth symbol)
+        |> List.max
 
-    let minX = (List.minBy (fun (x: Symbol) -> x.Pos.X) symbols).Pos.X
+    // Calculate the minimum X position in the bounding box
+    let minX =
+        symbols
+        |> List.map (fun symbol -> symbol.Pos.X)
+        |> List.min
 
-    let maxYsym =
-        List.maxBy (fun (x: Symbol) -> x.Pos.Y + (fst (getRotatedHAndW x))) symbols
-    let maxY = maxYsym.Pos.Y + (fst (getRotatedHAndW maxYsym))
+    // Calculate the maximum Y position in the bounding box plus considering its rotated height
+    let maxY =
+        symbols
+        |> List.map (fun symbol -> symbol.Pos.Y + getRotatedHeight symbol)
+        |> List.max
 
-    let minY = (List.minBy (fun (x: Symbol) -> x.Pos.Y) symbols).Pos.Y
+    // Calculate the minimum Y position in the bounding box
+    let minY =
+        symbols
+        |> List.map (fun symbol -> symbol.Pos.Y)
+        |> List.min
 
     { TopLeft = { X = minX; Y = minY }; W = maxX - minX; H = maxY - minY }
 

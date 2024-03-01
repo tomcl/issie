@@ -1,8 +1,8 @@
 ﻿module SheetBeautifyHelpers
 
 //-----------------Module for beautify Helper functions--------------------------//
-// Typical candidates: all individual code library functions.
-// Other helpers identified by Team
+//written by ll3621
+//What each function does is from the xml comments, more detailed description is after each line when needed
 
 
 
@@ -24,32 +24,30 @@ open System
 module constants=
     ()
 
-//get a custom input symbol and returns the height and width of the symbol in a xypos format
-//B1R
+
+
+
+///get a custom input symbol and returns the height and width of the symbol in a xypos format
+///B1R
 let readCustomSymbolSize (sym:Symbol)=
     // let symPos = get posOfSym_ sym
     let comp = sym.Component 
     let compBox = {X=comp.W; Y=comp.H}
     compBox
-//returns a symbol with dimension of the input
-//B1W
+
+///returns a symbol with dimension of the input
+///B1W
 let writeCustomSymbolSize (HW:XYPos) (sym: Symbol)=
     let W,H= HW.X,HW.Y
     let newSym={sym with Component= {sym.Component with H=H; W=W}}
     newSym
+/// their combined lens
+let RWCustomSymbolSize_=Lens.create (readCustomSymbolSize) (writeCustomSymbolSize)
 
-let RWCustomSymbolSize=Lens.create (readCustomSymbolSize) (writeCustomSymbolSize)
 
-//B4R
-let readMux2ReverseState (sym:Symbol)=
-    sym.ReversedInputPorts
-//B4W
-let writeMux2ReverseState(state:option<bool>)(sym:Symbol)=
-    {sym with ReversedInputPorts = state}
 
-let RWMux2ReverseState= Lens.create (readMux2ReverseState) (writeMux2ReverseState)
-
-//B2W
+///B2W
+/// changes the position of a symbol within a sheet to user input
 let writeSymbolPosition (pos:XYPos) (symId:ComponentId) (sheet : SheetT.Model)=
     let boundingBoxes= sheet.BoundingBoxes
     let symBoundingBox=boundingBoxes[symId]
@@ -57,9 +55,9 @@ let writeSymbolPosition (pos:XYPos) (symId:ComponentId) (sheet : SheetT.Model)=
     let newSymBoundingBoxes= Map.change symId (fun stringsOpt -> Some newsymBox) boundingBoxes
     {sheet with BoundingBoxes=newSymBoundingBoxes}
 
-//B3R
-
-let readPortOrientation (sym:Symbol) (edge:Edge)=
+///B3R
+/// returns the ids of the ports of a symbols on a specified edge
+let readPortOrder (sym:Symbol) (edge:Edge)=
     let portmap=sym.PortMaps
     let order= portmap.Order
 
@@ -67,8 +65,9 @@ let readPortOrientation (sym:Symbol) (edge:Edge)=
     | Some keys -> keys
     | None -> []
     
-// B3W
-let WritePortOrientation (newOrder:list<string>)  (edge:Edge) (sym:Symbol)=
+/// B3W
+/// changes the ori
+let WritePortOrder (newOrder:list<string>)  (edge:Edge) (sym:Symbol)=
     let portmap=sym.PortMaps
     let order= portmap.Order
     let newOrderMap=Map.change edge (fun stringsOpt -> Some newOrder) order
@@ -76,43 +75,71 @@ let WritePortOrientation (newOrder:list<string>)  (edge:Edge) (sym:Symbol)=
     {sym with PortMaps = newportmap}
 
 
-//B5R
-let readPortPos(sym:Symbol) (port : Port)=
+///B4R
+   /// returns the reversesState of any symbol (especially a mux2)
+let readMux2ReverseState (sym:Symbol)=
+    sym.ReversedInputPorts
+///B4W
+///changes the reversesate of a symbol to specified state input
+let writeMux2ReverseState(state:option<bool>)(sym:Symbol)=
+    {sym with ReversedInputPorts = state}
+
+let RWMux2ReverseState= Lens.create (readMux2ReverseState) (writeMux2ReverseState)
+
+
+
+///B5R
+/// get the position of the a port in the sheet
+let readPortPos(sheet:SheetT.Model) (port : Port)=
+    let sym =
+        sheet.Wire.Symbol.Symbols
+        |> Map.toList
+        |> List.tryFind (fun (_, sym) -> sym.Component.Id = port.HostId)
+        |> function
+            | Some (_, sym) -> sym
+            | None -> failwithf "The given component should be in the list of symbols"
     getPortPos sym port
 
-//B6R
+///B6R
+/// get the bounding box of a symbol
 let readSymbolBoundingBox (sym:Symbol) =
     sym.SymbolBoundingBox
 
-//B7R
+///B7R
+/// get the rotation state of a symbol
 let readSymbolRotationState (sym:Symbol) =
     sym.STransform.Rotation
-//B7W
+///B7W
+///set the rotation state of a symbol
 let writeSymbolRotationState (rotation:Rotation) (sym:Symbol) =
     {sym with STransform= { sym.STransform with Rotation=rotation}}
 let RWSymbolRotationState=Lens.create  (readSymbolRotationState) (writeSymbolRotationState)
 
-//B8R 
+///B8R 
+///get the flipped state of a symbol
 let readSymbolFlipState(sym:Symbol) =
     sym.STransform.Flipped
-//B8W
+///B8W
+/// overwrite the flip state of a symbol
 let writeSymbolFlipState (flipped:bool) (sym:Symbol) =
     {sym with STransform= { sym.STransform with Flipped=flipped}}
 let RWSymbolFlipState= Lens.create  (readSymbolFlipState) (writeSymbolFlipState)
 
-//T1R
-
-let ReadSymbolIntersectsSymbolPairs  (sheet: SheetT.Model) =
+///T1R
+///number of pairs of symbols that intersect with each other
+let readSymIntersectsSymPairs  (sheet: SheetT.Model) =
             
             let boxes =
                 mapValues sheet.BoundingBoxes
                 |> Array.toList
-                |> List.mapi (fun n box -> n,box)
+                |> List.mapi (fun i box -> i,box)
             List.allPairs boxes boxes 
-            |> List.fold (fun num ((n1,box1),(n2,box2))  -> if ((n1 <> n2) && BlockHelpers.overlap2DBox box1 box2) then num+1 else num) 0
+            |> List.fold (fun num ((n1,box1),(n2,box2))  ->
+                 if ((n1 <> n2) && BlockHelpers.overlap2DBox box1 box2) then num+1 else num) 0
+            |> (fun num -> num/2) // for all pairs each pair is counted twice
 
         
-
+///visible segments function provided in tick3
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
         let wire = model.Wire.Wires[wId] // get wire from model
@@ -147,8 +174,8 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
                 (segVecs,[1..segVecs.Length-2])
                 ||> List.fold tryCoalesceAboutIndex)
 
-
-
+///The number of distinct wire visible segments that intersect with one or more symbols
+/// get all non zero segments and see if they intersect with every symbol
 let ReadSegmentIntersectSymbolNum ( sheet: SheetT.Model)=
     let wires= sheet.Wire.Wires
 
@@ -162,15 +189,29 @@ let ReadSegmentIntersectSymbolNum ( sheet: SheetT.Model)=
         match intersectRes with
         | Some _ -> num+1
         | None->num) 0
-    // List.map ( fun key-> visibleSegments key sheet) keysList##
 
-//T3R
+
+///T3R
+///The number of distinct pairs of segments that cross each other at right angles. 
+///counted the segment pairs that are not in the same net, and perpendicularly intersected
 
 let readSegRightIntersectPair(sheet: SheetT.Model)=
     let wires= sheet.Wire.Wires
     // let keysList= wires |> Map.toList  |> List.map fst
     let wiresList= wires |> Map.toList  |> List.map snd
-    let absSegments= (List.map (fun wire ->getNonZeroAbsSegments wire) wiresList )
+    let samenetWires= List.fold (fun (samenetWires:Map<Port ,Wire list>) (wire:Wire)-> 
+        let wireport= getSourcePort sheet.Wire wire
+        if (samenetWires.ContainsKey wireport)
+        then
+            let lis=samenetWires[wireport]
+            Map.add wireport (wire::lis) samenetWires
+        else Map.add wireport [wire] samenetWires ) Map.empty wiresList
+
+    let absSegmentsListListList= samenetWires |> Map.toList |> List.map snd |> List.map (fun wireList-> List.map (fun wire ->getNonZeroAbsSegments wire) wireList)
+    // list of Asegment lists from lists of wires with the same port
+
+    let absSegments= List.collect id absSegmentsListListList
+    // let absSegments= (List.map (fun wire ->getNonZeroAbsSegments wire) wiresList )
     let half num=num/2
     let isZero (num:float)=
         match num with
@@ -189,16 +230,18 @@ let readSegRightIntersectPair(sheet: SheetT.Model)=
     match bool with
     |true -> num+1
     |_ -> num ) 0
-    |> half // checked twice because same list pair with themselves
+    |> half // checked twice because all list returl a,b and b,a
     
-
+///helper type used to compute length of visable wire postions in T4R
 type WirePosDict =
     {
         Horizontal:Map<float,List<float*float>>
         Vertical:Map<float,List<float*float>>
     } //the intermediate data store to store the wire positions
-//T4R
-
+///T4R
+///Sum of wiring segment length, counting only one when there are N same-net segments overlapping
+///Groups same net wires into the same group, then compute a wirePosDict to resolve overlapping for wires in the same net
+/// then calculate the length, and finally added together
 let readTotalWireLength (sheet : SheetT.Model)=
     
    
@@ -225,8 +268,6 @@ let readTotalWireLength (sheet : SheetT.Model)=
                 let snds= segEndcord::(containedEntry |> List.map snd)
                 let newRange = (List.min fsts, List.max snds) 
                 Map.add key (newRange::(lis |> List.except containedEntry)) map
-           
-
         else
             Map.add key [(smallcord,largecord)] map
 
@@ -251,18 +292,14 @@ let readTotalWireLength (sheet : SheetT.Model)=
 
 
     let wires= sheet.Wire.Wires
-    // let keysList= wires |> Map.toList  |> List.map fst
     let wiresList= wires |> Map.toList  |> List.map snd
-
-    let samenetWiresEmpty: Map<Port ,Wire list>= Map.empty
-
     let samenetWires= List.fold (fun (samenetWires:Map<Port ,Wire list>) (wire:Wire)-> 
         let wireport= getSourcePort sheet.Wire wire
         if (samenetWires.ContainsKey wireport)
         then
             let lis=samenetWires[wireport]
             Map.add wireport (wire::lis) samenetWires
-        else Map.add wireport [wire] samenetWires ) samenetWiresEmpty wiresList
+        else Map.add wireport [wire] samenetWires ) Map.empty wiresList
     
     let absSegmentsListListList= samenetWires |> Map.toList |> List.map snd |> List.map (fun wireList-> List.map (fun wire ->getNonZeroAbsSegments wire) wireList)
     // list of Asegment lists from lists of wires with the same port
@@ -280,7 +317,10 @@ let readTotalWireLength (sheet : SheetT.Model)=
 
 
 
-//T5R
+///T5R
+///Number of visible wire right-angles
+///counts the number of visablesegments for each wire, because visible segments combines the 0 length segments 3 into 1
+///it must mean that all adjacent visible segments are perpendicular and >0 length, so right angle num= sum of (visible segment num in each wire-1)
 let readVisibleRightAngleNum (sheet:SheetT.Model)=
     let wires= sheet.Wire.Wires
     let IdList= wires |> Map.toList  |> List.map fst
@@ -290,8 +330,12 @@ let readVisibleRightAngleNum (sheet:SheetT.Model)=
     |> List.fold (fun num segmentList-> num+ (List.length segmentList)-1) 0
 
 
-//T6R
 
+///T6R
+///Return from one function a list of all the segments that retrace, and also a list of all the end of wire segments that retrace so far that the next segment starts inside symbol
+/// finds the retrace segment by identifying if they are 0 length have segments of opposite orientation, (or they are last one)
+/// find the segments that retrace too far by seeing if their previous segment retraces, and the end of this segment ends inside the symbol it started
+/// or it ends inside the symbol the wire is going to. Either way, they have retraced too far to end inside a symbol.
 let readRetracedWire(sheet:SheetT.Model)=
     let wiresMap= sheet.Wire.Wires
 

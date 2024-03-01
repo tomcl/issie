@@ -68,10 +68,14 @@ let findLongWires (wires: Wire List)=
         /// position - the top-left corner of the symbol outline.
         /// model - the Sheet model into which the new symbol is added.
         /// function from tick3 testdrawblock and modified, added extra symbol output because we need it in our function
-let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (model: SheetT.Model)  =
+        /// added rotation
+        /// might need to add position detection and same net detection
+let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (model: SheetT.Model)(rotation)  =
     let symLabel = String.toUpper symLabel // make label into its standard casing
     let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
     let sym:Symbol = symModel.Symbols[symId]
+    let rotatedSym= writeSymbolRotationState rotation sym 
+    let symModel = replaceSymbol symModel sym symId
     let res=
         match position + sym.getScaledDiagonal with
         | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
@@ -108,34 +112,55 @@ let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : 
                      {model with Wire={model.Wire with Wires= Map.add newWire.WId newWire model.Wire.Wires}}// optic did not work, so changed to this equivalent
                      |> Ok
 
-///this function adds wire labels at the beginning and the end of the wire, connecting them to the source and target ports
+///this functions does the following
+///places 2 new IOlabel components on either end of the wire, connecting their original connections
+///according to the edge that the port is in, rotate the symbol accordingly
+/// removes the original long wire
+/// to do: detect wether there is room for the symbol to be created
+/// detect if there already exists a IOlabel for that input port (so that no multiple wire labels are the source end for same net wires)
 let replaceWireWithWireLabels(wire:Wire, sheet:SheetT.Model)=
 
 
-
-    let calcLabelPosition (port:Port) sheet (portPos:XYPos)  =
+    // if isInput=true, then the label is acting as an input, else output
+    //calculates the position of the newly added io labels
+    let calcLabelPositionAndRotation (port:Port) sheet (portPos:XYPos) isInput =
         let a,b,height,width=getComponentProperties IOLabel "1"
         let orientation:Edge=getPortOrientationFrmPortIdStr  sheet.Wire.Symbol port.Id 
         // let portPos= port.
-        match orientation with
-        | Top -> {X= portPos.X ; Y=portPos.Y+1.5*height} // top and bot positons are not correly defined yet because rotation is needed
-        | Bottom-> {X= portPos.X ; Y=portPos.Y-1.5*height}
-        | Left-> {X= portPos.X-1.5*width ; Y=portPos.Y}
-        | Right ->{X= portPos.X+1.5*width ; Y=portPos.Y}
-    let (targetPort:Port), (targetSymbol:Symbol)= getTargetPort sheet.Wire wire, getTargetSymbol sheet.Wire wire
-    let sourcePort,sourceSymbol= getSourcePort sheet.Wire wire, getTargetSymbol sheet.Wire wire
-    let targetPortPos= readPortPos  targetSymbol targetPort
-    let sourcePortPos= readPortPos  sourceSymbol sourcePort
+        let labelPos=
+            match orientation with
+            | Top -> {X= portPos.X ; Y=portPos.Y+1.5*height} 
+            | Bottom-> {X= portPos.X ; Y=portPos.Y-1.5*height}
+            | Left-> {X= portPos.X-1.5*width ; Y=portPos.Y}
+            | Right ->{X= portPos.X+1.5*width ; Y=portPos.Y}
+        let labelRotation=
+            match orientation,isInput with
+            | Top, true-> Degree90
+            | Top, false-> Degree270
+            | Bottom, true-> Degree270
+            | Bottom, false-> Degree90
+            | Left,_-> Degree0 //assuming all inputs are at the left and outputs are at right
+            | Right,_ -> Degree0
+        labelPos, labelRotation
+
+    
+    let (targetPort:Port)= getTargetPort sheet.Wire wire
+    let sourcePort= getSourcePort sheet.Wire wire
+    let targetPortPos= readPortPos  sheet targetPort // used B5R from helpers
+    let sourcePortPos= readPortPos  sheet sourcePort
     let label= generateIOLabel sheet.Wire.Symbol IOLabel "I"
-    let targetIOLabelPos= calcLabelPosition targetPort sheet targetPortPos
-    let sourceIOLabelPos=calcLabelPosition sourcePort sheet sourcePortPos
+    let targetIOLabelPos, targetIORotation= calcLabelPositionAndRotation targetPort sheet targetPortPos true
+    let sourceIOLabelPos, sourceIORotation=calcLabelPositionAndRotation sourcePort sheet sourcePortPos false
 
     //place IO label symbols and connect the ports of the newly added IO labels to the ports that the wire is connected tos
-    let targetIOLabel= placeSymbol label IOLabel targetIOLabelPos sheet
+    let targetIOLabel= placeSymbol label IOLabel targetIOLabelPos sheet targetIORotation
+    // let intermediateModel=(getOkOrFail(snd targetIOLabel))
+    // let ModelwithRotatedTarget= intermediateModel with
     let targetIOLabelOutPort= (fst targetIOLabel).Component.OutputPorts.Head // only 1 outputport of IOLabel
     let placeTargetWire= 
         placeWire {Label=targetIOLabelOutPort.Id; PortNumber=(extractIntOption targetIOLabelOutPort.PortNumber)} {Label=targetPort.Id; PortNumber=(extractIntOption targetPort.PortNumber)}  sheet
-    let sourceIOLabel = placeSymbol label IOLabel sourceIOLabelPos (getOkOrFail placeTargetWire)
+   
+    let sourceIOLabel = placeSymbol label IOLabel sourceIOLabelPos (getOkOrFail placeTargetWire) sourceIORotation
     let sourceIOLabelInPort=(fst sourceIOLabel).Component.InputPorts.Head
     let placeSourceWire= 
         placeWire {Label=sourcePort.Id; PortNumber=(extractIntOption sourcePort.PortNumber)} {Label=sourceIOLabelInPort.Id; PortNumber=(extractIntOption sourceIOLabelInPort.PortNumber)}  sheet

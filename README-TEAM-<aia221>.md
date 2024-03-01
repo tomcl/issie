@@ -1,0 +1,5 @@
+Starting with the `sheetWireLabelSymbol` function I crafted, it basically toggles between two views in our D3 beautification process: one with wire labels (`LABEL_MODE`) and the other just the plain wire layout (`WIRE_MODE`). The cool part is it's all controlled by a simple toggle, giving us the flexibility to switch views on the fly.
+
+Right now, it's pretty slick. In `LABEL_MODE`, it zeroes in on those lengthy wires, essentially giving them a cloak of invisibility, but it doesn't stop there. It then assigns labels at both ends of these wires, clearly marking which symbol and port they connect to. It's a neat way to keep things organized and understandable at a glance.
+
+However, I've got plans to refine it further. The goal is to enhance the label placement logic, ensuring labels are positioned where there's ample space, and adjusting their orientation based on the symbol's direction. This way, readability is maximized, no matter the layout. It's a step towards making the tool not just functional but also intuitive and clean.

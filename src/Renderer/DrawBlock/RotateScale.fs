@@ -15,7 +15,49 @@ open SymbolResizeHelpers
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.
     It requires better documentation of the parts now used.
 *)
+(*
+//IMPROVEMENTS TO ROTATESCALE:
+//IMPROVEMENTS TO FUNCTIONS:
+    - alignPortsOffset:
+        Functional Abstraction, separated the original function into smaller functions for better readability and maintainability
+        Pipelines, used pipelines to make reading easier.
+    - getBlock:
+        Helper functions, created helper function getMaxMin to avoid duplicate calculations within the function.
+        Functional Abstraction, helper functions allowed for minimising computation within the getBlock function for better readability.
+        Discriminated Union, created a DU type MaxMinType so it is easier to manage Max and Min calculations
+        Match Case Compression, used match cases to allow for simpler and more intuitive viewing of the calculations
+    (The 3 below functions are outside my allocated section of rotateScale,
+     but I tried them anyway because there were not enough I could change in my section, and they were similar to getBlock)
+    - oneCompoundsBothEdges:
+        Helper Functions, findMaxMin function avoids duplicated calculations within the function
+        Functional Abstraction, same as previous function
+        Match Case Compression, same as previous function
+    - getScaleFactorAndOffsetCentre:
+        Match (using guards), used match cases to avoid using if. More visually appealing, and follows the Issie Guidelines
+    - getScaleFactorAndOffsetCentreGroup
+        Helper Functions
+        Functional Abstraction
+        Match Case Compression
+//FUNCTION NAME CHANGES:
+    - getScalingFactorAndOffsetCentre -> getScaleFactorAndOffsetCentre // consistency with scaleFact variable within the function
+    - getScalingFactorAndOffsetCentreGroup -> getScaleFactorAndOffsetCentreGroup //consistency with above
+    - oneCompBoundsBothEdges -> selectedSymbolsBoundedByBothEdges (suggested, not actually implemeted in the code as it is referenced multiple times in other files)
+//VARIABLE NAME CHANGES:
+    - wModel -> wireModel, minor change, but a lot clearer, does not hurt to change. Referenced throughout rotateScale
+    - symbolToResize -> sourceSymbol, original name was not quite clear. Referenced throughout rotateScale
+    - (updateOrInsert) m -> map, minor change, but does not hurt
+//XML COMMENTS:
+    - alignPortsOffset
+    - alignSymbols
+    - tryWireSymOppEdge
+    - updateOrInsert
+    - getMaxMin
+    - findMaxMinForScale
+    - findNewMaxMin
 
+
+    
+*)
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
@@ -63,22 +105,22 @@ let makePortInfo (sym: Symbol) (port: Port) =
       w = w
       portGap = portGap }
 
-let getPortAB wModel wireSyms =
-    let ports = portsOfWires wModel [ wireSyms.Wire ]
+let getPortAB wireModel wireSyms =
+    let ports = portsOfWires wireModel [ wireSyms.Wire ]
     let portA = filterPortBySym ports wireSyms.SymA |> List.head
     let portB = filterPortBySym ports wireSyms.SymB |> List.head
     portA, portB
 
 /// Try to get two ports that are on opposite edges.
 let getOppEdgePortInfo
-    (wModel: BusWireT.Model)
-    (symbolToSize: Symbol)
+    (wireModel: BusWireT.Model)
+    (sourceSymbol: Symbol)
     (otherSymbol: Symbol)
     : (PortInfo * PortInfo) option =
-    let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
+    let wires = wiresBtwnSyms wireModel sourceSymbol otherSymbol
 
     let tryGetOppEdgePorts wireSyms =
-        let portA, portB = getPortAB wModel wireSyms
+        let portA, portB = getPortAB wireModel wireSyms
         let edgeA = getSymbolPortOrientation wireSyms.SymA portA
         let edgeB = getSymbolPortOrientation wireSyms.SymB portB
 
@@ -89,81 +131,63 @@ let getOppEdgePortInfo
     wires
     |> List.tryPick (fun w ->
         tryGetOppEdgePorts
-            { SymA = symbolToSize
+            { SymA = sourceSymbol
               SymB = otherSymbol
               Wire = w })
 
-//CHANGEs TO alignPortsOffset
-
-///Calculate real position of port
+//CHANGEs TO alignPortsOffset:
+///Helper function to calculate real position of port on a Symbol
+///Adds the position of the port relative to symbol's original position
 let calculatePortRealPos (pInfo: PortInfo) =
     getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
 
-///Calculate offset between two ports
-let calculateOffset (movePortPos: XYPos) (otherPortPos: XYPos) =
+///Helper function to calculate offset between two port positions
+let calculateOffset (otherPortPos: XYPos) (movePortPos: XYPos) =
     { X = otherPortPos.X - movePortPos.X; Y = otherPortPos.Y - movePortPos.Y }
 
+///Helper function to determine direction of the offset based on side of symbol where port is located
 let determineOffsetDirection (side: Edge) (posDiff: XYPos) =
     match side with
     | Top | Bottom -> { X = posDiff.X; Y = 0.0 }
     | Left | Right -> { X = 0.0; Y = posDiff.Y }
 
+///calculates the offset needed to move the moving port to align it with the other port
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
-    let movePortPos = calculatePortRealPos movePInfo
-    let otherPortPos = calculatePortRealPos otherPInfo
-    let posDiff = calculateOffset movePortPos otherPortPos
-    let offsetDirection = determineOffsetDirection movePInfo.side posDiff
-    offsetDirection
+    calculatePortRealPos movePInfo
+    |> calculateOffset (calculatePortRealPos otherPInfo)
+    |> determineOffsetDirection movePInfo.side
 
-//reason for change:
-//          -better readability
-//          -easier to maintain
-
-(*
-let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
-    let getPortRealPos pInfo =
-        getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
-
-    let movePortPos = getPortRealPos movePInfo
-    let otherPortPos = getPortRealPos otherPInfo
-    let posDiff = otherPortPos - movePortPos
-
-    match movePInfo.side with
-    | Top
-    | Bottom -> { X = posDiff.X; Y = 0.0 }
-    | Left
-    | Right -> { X = 0.0; Y = posDiff.Y }
-*)
-
+///Aligns symbols in a circuit diagram, ensuring correct position and wire connections
 let alignSymbols
-    (wModel: BusWireT.Model)
-    (symbolToSize: Symbol)
+    (wireModel: BusWireT.Model)
+    (sourceSymbol: Symbol)
     (otherSymbol: Symbol)
     : BusWireT.Model =
 
     // Only attempt to align symbols if they are connected by ports on parallel edges.
-    match getOppEdgePortInfo (wModel:BusWireT.Model) symbolToSize otherSymbol with
-    | None -> wModel
+    match getOppEdgePortInfo (wireModel:BusWireT.Model) sourceSymbol otherSymbol with
+    | None -> wireModel
     | Some(movePortInfo, otherPortInfo) ->
         let offset = alignPortsOffset movePortInfo otherPortInfo
-        let symbol' = moveSymbol offset symbolToSize
-        let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
-        BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
+        let symbol' = moveSymbol offset sourceSymbol
+        let model' = Optic.set (symbolOf_ sourceSymbol.Id) symbol' wireModel
+        BusWireSeparate.routeAndSeparateSymbolWires model' sourceSymbol.Id
+
 
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
 /// HLP23: It should work out the interconnecting wires (wires) from
 /// the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
-let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
-    let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
+let reSizeSymbol (wireModel: BusWireT.Model) (sourceSymbol: Symbol) (otherSymbol: Symbol) : (Symbol) =
+    let wires = wiresBtwnSyms wireModel sourceSymbol otherSymbol
 
     // Try to get two ports that are on opposite edges, if none found just use any two ports.
     let resizePortInfo, otherPortInfo =
-        match getOppEdgePortInfo wModel symbolToSize otherSymbol with
+        match getOppEdgePortInfo wireModel sourceSymbol otherSymbol with
         | None ->
-            let pA, pB = getPortAB wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires[0] }
-            makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
+            let pA, pB = getPortAB wireModel { SymA = sourceSymbol; SymB = otherSymbol; Wire = wires[0] }
+            makePortInfo sourceSymbol pA, makePortInfo sourceSymbol pB
         | Some(pIA, pIB) -> (pIA, pIB)
 
     let h, w =
@@ -173,14 +197,16 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
         | Top | Bottom ->
             resizePortInfo.h, otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.topBottomGap)
 
-    match symbolToSize.Component.Type with
+    //possibly pipeline? 
+    match sourceSymbol.Component.Type with
     | Custom _ ->
-        let scaledSymbol = setCustomCompHW h w symbolToSize
+        let scaledSymbol = setCustomCompHW h w sourceSymbol
         let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
         let offset = alignPortsOffset scaledInfo otherPortInfo
         moveSymbol offset scaledSymbol
     | _ ->
-        symbolToSize
+        sourceSymbol
+
 
 /// For UI to call ResizeSymbol.
 let reSizeSymbolTopLevel
@@ -199,19 +225,22 @@ let reSizeSymbolTopLevel
 type SymConnDataT =
     { ConnMap: Map<ComponentId * Edge, int> }
 
-/// If a wire between a target symbol and another symbol connects opposite edges, return the edge that the wire is connected to on the target symbol 
-let tryWireSymOppEdge (wModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symbol) =
-    let symEdge = wireSymEdge wModel wire sym
-    let otherSymEdge = wireSymEdge wModel wire otherSym
+/// If a wire between a target symbol and another symbol connects opposite edges,
+/// return the edge that the wire is connected to on the target symbol 
+let tryWireSymOppEdge (wireModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symbol) =
+    let symEdge = wireSymEdge wireModel wire sym
+    let otherSymEdge = wireSymEdge wireModel wire otherSym
 
     match symEdge = otherSymEdge.Opposite with
     | true -> Some symEdge
     | _ -> None
 
+
+///Update or Insert an entry into the connection map
 let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
-    let m = symConnData.ConnMap
-    let count = Map.tryFind (cid, edge) m |> Option.defaultValue 0 |> (+) 1
-    { ConnMap = Map.add (cid, edge) count m }
+    let map = symConnData.ConnMap
+    let count = Map.tryFind (cid, edge) map |> Option.defaultValue 0 |> (+) 1
+    { ConnMap = Map.add (cid, edge) count map }
 
 // TODO: this is copied from Sheet.notIntersectingComponents. It requires SheetT.Model, which is not accessible from here. Maybe refactor it.
 let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundingBoxes sym =
@@ -222,17 +251,17 @@ let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundin
     |> Map.isEmpty
 
 
-//THIS FUNCTION DEFINITELY NEEDS IMPROVING
+
 /// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
 let optimiseSymbol
-    (wModel: BusWireT.Model)
+    (wireModel: BusWireT.Model)
     (symbol: Symbol)
     (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
     : BusWireT.Model =
 
     // If a wire connects the target symbol to another symbol, note which edge it is connected to
     let updateData (symConnData: SymConnDataT) _ (wire: Wire) =
-        let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire
+        let symS, symT = getSourceSymbol wireModel wire, getTargetSymbol wireModel wire
 
         let otherSymbol =
             match symS, symT with
@@ -242,7 +271,7 @@ let optimiseSymbol
 
         match otherSymbol with
         | Some otherSym ->
-            let edge = tryWireSymOppEdge wModel wire symbol otherSym
+            let edge = tryWireSymOppEdge wireModel wire symbol otherSym
 
             match edge with
             | Some e -> updateOrInsert symConnData e otherSym.Id
@@ -250,12 +279,12 @@ let optimiseSymbol
         | None -> symConnData 
 
     // Look through all wires to build up SymConnDataT.
-    let symConnData = ({ ConnMap = Map.empty }, wModel.Wires) ||> Map.fold updateData
+    let symConnData = ({ ConnMap = Map.empty }, wireModel.Wires) ||> Map.fold updateData
 
     let tryResize (symCount: ((ComponentId * Edge) * int) array) sym =
 
         let alignSym (sym: Symbol) (otherSym: Symbol) =
-            let resizedSym = reSizeSymbol wModel sym otherSym
+            let resizedSym = reSizeSymbol wireModel sym otherSym
             let noOverlap = noSymbolOverlap DrawHelpers.boxesIntersect boundingBoxes resizedSym
 
             match noOverlap with
@@ -263,7 +292,7 @@ let optimiseSymbol
             | _ -> false, sym
 
         let folder (hAligned, vAligned, sym) ((cid, edge), _) =
-            let otherSym = Optic.get (symbolOf_ cid) wModel       
+            let otherSym = Optic.get (symbolOf_ cid) wireModel       
 
             match hAligned, vAligned with
             | false, _ when edge = Top || edge = Bottom ->
@@ -285,46 +314,54 @@ let optimiseSymbol
 
         tryResize symCount symbol
 
-    let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
+    let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wireModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
 
 
 //IMPROVEMENTS TO getBlock
 
-/// Finds the maximum X and Y coord of symbol
-let maxSym (symbols: Symbol list) =
-    let maxX =
-        symbols
-        |> List.maxBy (fun sym -> sym.Pos.X + snd (getRotatedHAndW sym))
-        |> (fun maxXsym -> maxXsym.Pos.X + snd (getRotatedHAndW maxXsym))
+///DU to help find max and min
+type MaxMinType =
+    | Max
+    | Min
 
-    let maxY =
-        symbols
-        |> List.maxBy (fun sym -> sym.Pos.Y + fst (getRotatedHAndW sym))
-        |> (fun maxYsym -> maxYsym.Pos.Y + fst (getRotatedHAndW maxYsym))
+/// Helper function to find the maximum and minimum X and Y coord of symbols
+let getMaxMin (symbols: Symbol list) (maxMinType: MaxMinType) =
+    match maxMinType with
+    | Max ->
+        let maxX =
+            symbols
+            |> List.maxBy (fun sym -> sym.Pos.X + snd (getRotatedHAndW sym))
+            |> (fun maxXsym -> maxXsym.Pos.X + snd (getRotatedHAndW maxXsym))
 
-    maxX, maxY
+        let maxY =
+            symbols
+            |> List.maxBy (fun sym -> sym.Pos.Y + fst (getRotatedHAndW sym))
+            |> (fun maxYsym -> maxYsym.Pos.Y + fst (getRotatedHAndW maxYsym))
+        maxX, maxY
 
-///Finds minimum X and Y coord of symbol
-let minSym (symbols: Symbol list) =
-    let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
-    let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
+    | Min ->
+        let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
+        let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
+        minX, minY
 
-    minX, minY
+
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
 /// <returns>Bounding Box</returns>
-let getBlock 
+let calcSymbolBoundingBox
         (symbols:Symbol List) :BoundingBox = 
 
-    let maxX, maxY = maxSym symbols
-    let minX, minY = minSym symbols
+    let maxX, maxY = getMaxMin symbols Max
+    let minX, minY = getMaxMin symbols Min
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
     //getBLOCK simplified
     //reasons - a lot of repeated computations
     //more readable this way
+    // name changed getBlock not an apt name for a function that returns bounding box
+    // altered all instances of getBlock
 
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
@@ -393,7 +430,7 @@ let adjustPosForBlockRotation
 
 
 //--------------------------------------------------------------------------------------------------------------------------------------//
-//-----------------------------------------------------------------COURSEWORK END-------------------------------------------------------//
+//-----------------------------------------------------------------TALHA PART END-------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------------------//
 
 
@@ -492,7 +529,7 @@ let flipSymbolInBlock
         match flip with
         | FlipHorizontal -> sym
         | FlipVertical -> 
-            let newblock = getBlock [sym]
+            let newblock = calcSymbolBoundingBox [sym]
             let newblockCenter = newblock.Centre()
             sym
             |> rotateSymbolInBlock Degree270 newblockCenter 
@@ -549,7 +586,7 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
     //Get block properties of selected symbols
-    let block = getBlock SelectedSymbols
+    let block = calcSymbolBoundingBox SelectedSymbols
 
     //Rotated symbols about the center
     let newSymbols = 
@@ -563,98 +600,102 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
 
 
 //CHANGES MADE TO OneCompoundsBothEdges
-let maxSymCentre (symbols: Symbol list) =
-    let maxX =
-        symbols
-        |> List.maxBy (fun sym -> sym.Pos.X + snd (getRotatedHAndW sym))
-        |> getRotatedSymbolCentre
+/// Helper functions to find Max Min, oldMax, oldMin for oneComBoundsBothEdges
+let findMaxMinForScale (symbols: Symbol list) (maxMinType: MaxMinType) =
+    match maxMinType with
+    |Max -> let maxX =
+                symbols
+                |> List.maxBy (fun sym -> sym.Pos.X + snd (getRotatedHAndW sym)) 
+                |> getRotatedSymbolCentre
+            let oldMaxX = (maxX).X
+            let maxY =
+                symbols
+                |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y)) //maxYSym
+                |> getRotatedSymbolCentre
+            let oldMaxY = (maxY).Y
+            maxX, oldMaxX, maxY, oldMaxY
 
-    let maxY =
-        symbols
-        |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
-        |> getRotatedSymbolCentre
+    |Min -> let minX =
+                symbols
+                |> List.minBy (fun (x:Symbol) -> x.Pos.X)
+                |> getRotatedSymbolCentre
+            let oldMinX = (minX).X
+            let minY =
+                symbols
+                |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
+                |> getRotatedSymbolCentre
+            let oldMinY = (minY).Y
+            minX, oldMinX, minY, oldMinY
 
-    maxX, maxY
-
-///
-let minSymCentre (symbols: Symbol list) =
-    let minX =
-        symbols
-        |> List.minBy (fun (x:Symbol) -> x.Pos.X)
-        |> getRotatedSymbolCentre
-
-    let minY =
-        symbols
-        |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
-        |> getRotatedSymbolCentre
-
-    minX, minY
-
+//Simplified to avoid duplicate calculations
+//name change suggestion: selectedSymbolsBoundedByBothEdges
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
-    let maxXSymCentre, maxYSymCentre = maxSymCentre selectedSymbols
-    let minXSymCentre, minYSymCentre = minSymCentre selectedSymbols
+    let maxXSymCentre, _, maxYSymCentre, _ = findMaxMinForScale selectedSymbols Max
+    let minXSymCentre, _, minYSymCentre, _ = findMaxMinForScale selectedSymbols Min
 
     (maxXSymCentre.X = minXSymCentre.X) || (maxYSymCentre.Y = minYSymCentre.Y)
-    
+
 
 let findSelectedSymbols (compList: ComponentId list) (model: SymbolT.Model) = 
     List.map (fun x -> model.Symbols |> Map.find x) compList
 
-let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
-    let scaleFact = 
-        if min = max || matchMax <= matchMin then 1. 
-        else (matchMin - matchMax) / (min - max)
-    let offsetC = 
-        if scaleFact = 1. then 0.
-        else (matchMin - min * scaleFact) / (1.-scaleFact)
+//replaced if with match
+//rename scaling to scale to match scaleFact subfunction
+let getScaleFactorAndOffsetCentre (min: float) (matchMin: float) (max: float) (matchMax: float) = 
+    let scaleFact =
+        match min, max, matchMin, matchMax with
+        | _, _, _, _ when min = max || matchMax <= matchMin -> 1.0
+        | _, _, _, _ -> (matchMin - matchMax) / (min - max)
+    
+    let offsetC =
+        match scaleFact with
+        | 1.0 -> 0.0
+        | _ -> (matchMin - min * scaleFact) / (1.0 - scaleFact)
+    
     (scaleFact, offsetC)
 
+/// Helper function to find newMax and newMin for getScaleFactorAndOffsetCentreGroup
+let findNewMaxMin (symbols: Symbol list) (maxMinType: MaxMinType) (bb: XYPos)  =
+    match maxMinType with
+    | Max ->
+        let maxXSym =
+            symbols
+            |> List.maxBy (fun (x: Symbol) -> x.Pos.X + snd (getRotatedHAndW x))
+        let newMaxX = bb.X - (snd (getRotatedHAndW maxXSym)) / 2.
+        let maxYSym = 
+            symbols
+            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
+        let newMaxY = bb.Y - (fst (getRotatedHAndW maxYSym))/2. 
+        newMaxX, newMaxY
 
+    | Min ->
+        let minXSym =
+            symbols
+            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
+        let newMinX = bb.X + (snd (getRotatedHAndW minXSym))/2.
+        let minYSym =
+            symbols
+            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
+        let newMinY = bb.Y + (fst (getRotatedHAndW minYSym))/2.
+        newMinX, newMinY
 
-(*
 /// Return set of floats that define how a group of components is scaled
-let getScalingFactorAndOffsetCentreGroup
+//renamed to scale for consistency
+let getScaleFactorAndOffsetCentreGroup
     (matchBBMin:XYPos)
     (matchBBMax:XYPos)
     (selectedSymbols: Symbol list) : ((float * float) * (float * float)) = 
-    //(compList: ComponentId list)
-    //(model: SymbolT.Model)
 
-    //let selectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-
-    let maxXSym = 
-            selectedSymbols
-            |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
-
-    let oldMaxX = (maxXSym |> getRotatedSymbolCentre).X
-    let newMaxX = matchBBMax.X - (snd (getRotatedHAndW maxXSym))/2.
-
-    let minXSym =
-            selectedSymbols
-            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
-
-    let oldMinX = (minXSym |> getRotatedSymbolCentre).X
-    let newMinX = matchBBMin.X + (snd (getRotatedHAndW minXSym))/2.
+    let _, oldMaxX, _, oldMaxY = findMaxMinForScale selectedSymbols Max
+    let _, oldMinX, _, oldMinY = findMaxMinForScale selectedSymbols Min
+    let newMaxX, newMaxY = findNewMaxMin selectedSymbols Max matchBBMax 
+    let newMinX, newMinY = findNewMaxMin selectedSymbols Min matchBBMin
     
-    let maxYSym = 
-            selectedSymbols
-            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
-
-    let oldMaxY = (maxYSym |> getRotatedSymbolCentre).Y
-    let newMaxY = matchBBMax.Y - (fst (getRotatedHAndW maxYSym))/2.
-
-    let minYSym =
-            selectedSymbols
-            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
-
-    let oldMinY = (minYSym |>  getRotatedSymbolCentre).Y
-    let newMinY = matchBBMin.Y + (fst (getRotatedHAndW minYSym))/2.
-    
-    let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
-    let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
+    let xSC = getScaleFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
+    let ySC = getScaleFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
     (xSC, ySC)
 
-*)
+
 
 /// Alter position of one symbol as needed in a scaling operation
 let scaleSymbol
@@ -706,7 +747,7 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
     
-    let block = getBlock SelectedSymbols
+    let block = calcSymbolBoundingBox SelectedSymbols
   
     let newSymbols = 
         List.map (fun x -> flipSymbolInBlock flip (block.Centre()) x ) SelectedSymbols
@@ -736,7 +777,7 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
         let newBoxBound = 
             model.SelectedComponents
             |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
-            |> getBlock
+            |> calcSymbolBoundingBox
         match model.ScalingBox with 
         | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
         | _ -> 

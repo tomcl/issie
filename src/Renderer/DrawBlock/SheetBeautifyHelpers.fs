@@ -208,6 +208,8 @@ let getWireIntersectSymbolNum (sheet: SheetT.Model) : int =
     sheet.Wire.Wires
     |> Map.fold (fun acc _ wire -> acc + intersectingSegmentCount wire) 0
 
+//T3R
+
 
 
 

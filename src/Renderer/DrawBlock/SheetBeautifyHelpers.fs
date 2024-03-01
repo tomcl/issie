@@ -77,6 +77,7 @@ let setPosition (symbol: Symbol) (newPos: XYPos) : Symbol =
 let getPortOrder (symbol: Symbol) (side: Edge) : string list option =
     Map.tryFind side symbol.PortMaps.Order
 
+/// Check if port exists and sets a port order
 let setPortOrder (symbol: Symbol) (side: Edge) (newOrder: string list) : Symbol =
     let portMaps = symbol.PortMaps
     let portsOrder = portMaps.Order
@@ -122,7 +123,7 @@ let setSymFlip (symbol: Symbol) (flip: bool) : Symbol =
 
 
 // T1R
-/// The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols. 
+/// The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols.
 let countSymbolIntersectSymbols (sheet: SheetT.Model) : int =
             let boxes =
                 Helpers.mapValues sheet.BoundingBoxes
@@ -140,8 +141,15 @@ let countWireIntersectSymbols (model: SheetT.Model) : int =
         Helpers.mapValues model.BoundingBoxes
         |> Array.toList
 
+    let setMinSize length =
+        if length = 0.0 then 0.5 else length
+        
+    /// treat wires segments as very thin boxes
     let WireIntersectSymbol ((box,seg): BoundingBox*ASegment) =
-        let segAsBox = {TopLeft = seg.Start; W = 1; H =1}
+        let dim = seg.Start - seg.End
+
+
+        let segAsBox = {TopLeft = seg.Start; W = setMinSize dim.X; H = setMinSize dim.Y}
         overlap2DBox segAsBox box
 
     model.Wire.Wires
@@ -161,7 +169,8 @@ let countCrossingWires (model:SheetT.Model) : int =
         |> Helpers.mapValues
         |> Array.toList
         |> List.collect (fun wire -> getNonZeroAbsSegments wire)
-        
+
+    /// check for if 2 segments are connected at the ends
     let segmentsNotLinked (seg1: ASegment) (seg2: ASegment) =
         not (seg1.Start = seg2.Start || seg1.Start = seg2.End || seg1.End = seg2.Start || seg1.End = seg2.End)
 
@@ -221,7 +230,8 @@ let visibleWireLength (model: SheetT.Model) : float =
         |> List.collect snd
         |> getOverlapLength
 
-    let sumSegments (segList: ASegment list)=
+    /// find total length of every segment in list
+    let sumSegments (segList: ASegment list) =
         segList
         |> List.map (fun seg -> abs(seg.Start.X - seg.End.X) + abs(seg.Start.Y - seg.End.Y))
         |> List.sum
@@ -246,7 +256,7 @@ let countWireRightAngles (model: SheetT.Model) : int =
     |> Map.toList
     |> List.map fst
     |> List.collect (fun wId -> model.Wire.Wires[wId].Segments)
-    |> List.fold (fun acc seg -> if seg.Length = 0 then acc - 2 else acc + 1) -1
+    |> List.fold (fun acc seg -> if seg.Length = 0.0 then acc - 2 else acc + 1) -1
         
 // T6R
 /// The zero-length segments in a wire with non-zero segments on either side that have Lengths of opposite signs lead to a wire retracing itself.
@@ -262,15 +272,15 @@ let retracingSegments (model: SheetT.Model) : (Segment list * Segment list) =
 
     /// checks for retrace at the beginning and end of segment list
     let hasRetraceInSymbol (comb: Segment list) =
-        if (comb[0].Length = 0 && (comb[1].Length *  comb[2].Length) < 0)// eg. [0;-5;10]
+        if (comb[0].Length = 0.0 && (comb[1].Length *  comb[2].Length) < 0)// eg. [0;-5;10]
         then [comb[0]]
-        else if (comb[2].Length = 0 && (comb[0].Length *  comb[1].Length) < 0)// eg. [5;-10;0]
+        else if (comb[2].Length = 0.0 && (comb[0].Length *  comb[1].Length) < 0)// eg. [5;-10;0]
         then [comb[2]]
         else []
 
     /// checks for retrace in the middle of segment list
     let hasRetrace (comb: Segment list) =
-        if (comb[1].Length = 0 && (comb[0].Length * comb[2].Length) < 0) // eg. [5;0;-10], [-5;0;10]
+        if (comb[1].Length = 0.0 && (comb[0].Length * comb[2].Length) < 0) // eg. [5;0;-10], [-5;0;10]
         then [comb[1]]
         else []
 

@@ -237,7 +237,7 @@ let symbolFlipped_ = Lens.create getSymbolFlipped setSymbolFlipped
 /// <param name="model">The model to analy.</param>
 /// <returns>a interger, representing number of pairs of symbols that intersect.</returns>
 
-let countIntersectingSymbolPairs (model: SheetT.Model) =
+let countIntersectingSymbolPairs (model: SheetT.Model): int =
 
     let wireModel = model.Wire
 

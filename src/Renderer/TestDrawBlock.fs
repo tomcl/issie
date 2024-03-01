@@ -324,6 +324,8 @@ module HLPTick3 =
 //--------------------------------------------------------------------------------------------------//
 
     open Builder
+    open SheetBeautifyD2
+
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
         fromList [-100..20..100]
@@ -338,6 +340,39 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
+    let makeOFTestCircuitDemo1 (runSheetOrderFlip: bool) =
+        initSheetModel
+        |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -100; Y = -100 })
+        |> Result.bind (placeSymbol "MUX2" (Mux2) (middleOfSheet))
+        |> Result.bind (placeSymbol "S1" (Input1 (1,None) ) (middleOfSheet + { X = -150; Y = -10 }))
+        |> Result.bind (placeSymbol "S2" (Input1 (1,None)) (middleOfSheet + { X = -150; Y = 70 }))
+        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 150; Y = -100 }))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
+        |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0))
+        |> (fun res -> if runSheetOrderFlip then Result.map sheetOrderFlip res else res)
+        |> Result.map autoRouteAllWires
+        |> getOkOrFail
+
+    let makeOFTestCircuitDemo2 (runSheetOrderFlip: bool) =
+        initSheetModel
+        |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -150; Y = -90 })
+        |> Result.bind (placeSymbol "MUX2" (Mux2) (middleOfSheet))
+        |> Result.bind (placeSymbol "DEMUX2" (Demux2) (middleOfSheet + { X = -150; Y = 66.9 }))
+        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 150; Y = -76 }))
+        |> Result.bind (placeSymbol "G2" (GateN (Or,2)) (middleOfSheet + { X = 150; Y = 71.5 }))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0))
+        |> Result.bind (placeWire (portOf "DEMUX2" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "DEMUX2" 1) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "DEMUX2" 0) (portOf "G2" 0))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G2" 1))
+        |> (fun res -> if runSheetOrderFlip then Result.map sheetOrderFlip res else res)
+        |> Result.map autoRouteAllWires
+        |> getOkOrFail
 
 
 //------------------------------------------------------------------------------------------------//
@@ -446,6 +481,28 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// sheetOrderFlip test: Default circuit in Figure B1: fail all tests
+        let test5 testNum firstSample dispatch =
+            runTestOnSheets
+                "Default circuit in Figure B1: fail all tests"
+                firstSample
+                (fromList [ false; true ])
+                makeOFTestCircuitDemo1
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        /// sheetOrderFlip test: Multiple muxes and gates: fail all tests
+        let test6 testNum firstSample dispatch =
+            runTestOnSheets
+                "Multiple muxes and gates: fail all tests"
+                firstSample
+                (fromList [ false; true ])
+                makeOFTestCircuitDemo2
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
@@ -455,13 +512,12 @@ module HLPTick3 =
                 "Test1", test1 // example
                 "Test2", test2 // example
                 "Test3", test3 // example
-                "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
+                "Test4", test4 // example
+                "Test5", test5 // sheetOrderFlip: default circuit
+                "Test6", test6 // sheetOrderFlip: multiple mux and gates
+                "Test7", fun _ _ _ -> printf "Test7: Empty"
+                "Test8", fun _ _ _ -> printf "Test8: Empty"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
             ]
 
         /// Display the next error in a previously started test

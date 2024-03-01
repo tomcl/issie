@@ -6,8 +6,8 @@ open Optics
 open Operators
 open RotateScale
 open BusWireSeparate
-open SheetBeautifyHelpers
 open SheetUpdateHelpers
+open SheetBeautifyHelpers
 open System
 
 
@@ -65,27 +65,27 @@ let rec bruteForceOptimise
         : {|OptimisedSheet: SheetT.Model; Score: float|} =
 
     match symbols with
-    | h::t ->
+    | sym::remSyms ->
         let flippedSym =
-            match h.STransform.Rotation with
+            match sym.STransform.Rotation with
             | Rotation.Degree0 | Rotation.Degree180 ->
-                flipSymbolInBlock SymbolT.FlipHorizontal h.CentrePos h
-            | _ -> flipSymbolInBlock SymbolT.FlipVertical h.CentrePos h
+                flipSymbol SymbolT.FlipHorizontal sym
+            | _ -> flipSymbol SymbolT.FlipVertical sym
 
         let symbolChoices =
-            match h.Component.Type with
+            match sym.Component.Type with
             | Not | GateN (_, _) ->
-                [h; flippedSym]
+                [sym; flippedSym]
             | Mux2 | Mux4 | Mux8 ->
-                [Optic.set reversedInputPorts_ (Some false) h;
-                 Optic.set reversedInputPorts_ (Some true) h;
-                 Optic.set reversedInputPorts_ (Some false) flippedSym;
-                 Optic.set reversedInputPorts_ (Some true) flippedSym]
-            | _ -> [h]
+                [sym;
+                 toggleReversedInputs sym;
+                 flippedSym;
+                 toggleReversedInputs flippedSym]
+            | _ -> [sym]
 
         symbolChoices
         |> List.map (fun sym -> replaceSymbol sheet sym)
-        |> List.map (bruteForceOptimise t compIds)
+        |> List.map (bruteForceOptimise remSyms compIds)
         |> List.minBy (fun result -> result.Score)
 
     | [] ->

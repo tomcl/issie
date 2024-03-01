@@ -681,7 +681,7 @@ let groupNewSelectedSymsModel
 
 /// A wrapper for transformSelectedSymbols, specifically for block functions.
 /// modifySymbolFunc takes a block and a symbol as input, and returns the transformed symbol.
-//ra2520 (1/2) helper function + currying (careful order of modifySymbolFunc parameters)
+//ra2520 (1/2) helper function + currying (order of modifySymbolFunc parameters)
 let transformBlock
         (compList: ComponentId list)
         (modifySymbolFunc: BoundingBox -> Symbol -> Symbol)
@@ -740,7 +740,8 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
             |> getBlock
         match model.ScalingBox with 
         | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
-        | _ -> 
+        | _ ->
+            //ra2520 renamed/reordered things for clarity
             let topLeft = newBoxBound.TopLeft
             let scaleOffset: XYPos = {X = newBoxBound.W + 47.5; Y = -47.5}
             let rotateDeg90Offset: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}

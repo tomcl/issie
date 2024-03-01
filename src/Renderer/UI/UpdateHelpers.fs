@@ -323,6 +323,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | None -> false
         | Some b -> insideBox sheetXYPos b.ScalingBoxBound
     //insideBox (model.Sheet.LastMousePos) b.ScalingBoxBound
+    printfn "Mouse Position: (%.2f, %.2f)" model.Sheet.LastMousePos.X model.Sheet.LastMousePos.Y
 
     rightClickElement <-  // mutable so that we have this info also in the callback from main
         match drawOn, htmlId, elType with

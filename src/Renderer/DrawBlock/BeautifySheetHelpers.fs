@@ -17,10 +17,17 @@ open BusWire
 // ################################################## //
 // ##########          Helpers       ################ //
 // ################################################## //
+
+// lens to set the symbolMap in the model
 let symbolMap_: Lens<SheetT.Model, Map<ComponentId, Symbol>> =
     Lens.create (fun m -> m.Wire.Symbol.Symbols) (fun v m ->
         let updatedSymbol = { m.Wire.Symbol with Symbols = v }
         { m with Wire = { m.Wire with Symbol = updatedSymbol } })
+
+/// visibleSegments helper provided by Professor.
+/// The visible segments of a wire, as a list of vectors, from source end to target end.
+/// Note that a zero length segment one from either end of a wire is allowed which if present
+/// causes the end three segments to coalesce into a single visible segment.
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model) : XYPos list =
 
     let wire = model.Wire.Wires[wId] // get wire from model
@@ -130,6 +137,8 @@ let getMUX2ReversedInput (sym: Symbol) : bool =
     | _ -> failwithf "Symbol is not a MUX2"
 
 /// B4W: The reversed state of the inputs of a MUX2
+/// There are two variants of this helper: one toggles the state, and the other sets the state to a predefined value.
+/// setToggleMUX2ReversedInput toggles the state of the MUX2
 let setToggleMUX2ReversedInput (sym: Symbol) : Symbol =
     let toggle (state: bool option) =
         match state with
@@ -137,6 +146,15 @@ let setToggleMUX2ReversedInput (sym: Symbol) : Symbol =
         | None -> None
     match sym.Component.Type with
     | Mux2 -> { sym with ReversedInputPorts = toggle sym.ReversedInputPorts }
+    | _ -> failwithf "Symbol is not a MUX2"
+
+/// B4W: The reversed state of the inputs of a MUX2
+/// There are two variants of this helper: one toggles the state, and the other sets the state to a predefined value.
+/// setMUX2ReversedInput sets the state of the MUX2 to a predefined value
+let setMUX2ReversedInput (sym: Symbol) (state: bool) : Symbol =
+    let stateOption = Some state
+    match sym.Component.Type with
+    | Mux2 -> { sym with ReversedInputPorts = stateOption }
     | _ -> failwithf "Symbol is not a MUX2"
 
 /// B5R: The position of a port on the sheet. It cannot directly be written.
@@ -183,22 +201,13 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
     |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
 
-/// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline
-let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-    let wireModel = sheet.Wire
-    wireModel.Wires
-    |> Map.exists (fun _ wire ->
-        BusWireRoute.findWireSymbolIntersections wireModel wire
-        <> [])
-    |> (function
-    | true -> Some $"Wire intersects a symbol outline in Sample {sample}"
-    | false -> None)
-
-///T2R T3R Helper
-/// Remove all invisible segments from wires on the sheet, input and output are both of type Map<ConnectionId, Wire>
+///T2R, T3R Helper.
+/// Remove all invisible segments from wires on a sheet.Wire.Wires.
+/// Input and output are both of type Map<ConnectionId, Wire>.
 /// visibleSegments would've worked, but outputs an XYPos list, which is a format that isn't well accepted by the other functions and types.
-/// Note that by converting all segments to a list of vertices, it is very easy to remove duplicate vertices
-/// We can utilise an already extensive helper function to convert vertices back to segments, and create new wires
+/// This is achieved by utilising existing helper function segmentsToIssieVertices to convert all segments to a list of vertices.
+/// It is then very easy to remove duplicate vertices.
+/// We can utilise another helper function issieVerticesToSegments to convert vertices back to segments, and create new wires.
 let removeWireInvisibleSegments (wires: Map<ConnectionId, Wire>) =
     wires
     |> Map.map (fun connId wire ->
@@ -231,8 +240,8 @@ let countVisibleSegsIntersectingSymbols (model: SheetT.Model) =
         0
 
 /// T3R helper: Returns true if two 1D line segments intersect at a 90º angle.
-/// A variant of overlap2D
-
+/// Takes in two segments described as point-to-point  (XYPos * XYPos).
+/// A variant of overlap2D in BlockHelpers.fs.
 let perpendicularOverlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
     let overlapX = overlap1D (a1.X, a2.X) (b1.X, b2.X)
     let overlapY = overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y)
@@ -242,6 +251,7 @@ let perpendicularOverlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) :
 /// T3R The number of distinct pairs of segments that cross each other at right angles.
 /// Does not include 0 length segments or segments on same net intersecting at one end, or
 /// segments on same net on top of each other. Count over whole sheet.
+/// This can be potentially expanded to include more cases by modifying List.filter with more conditions
 let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
     let wireModel = model.Wire
     // Get all the wires from the Wire model
@@ -271,57 +281,32 @@ let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
     // Return the count of filtered pairs
     List.length filteredPairs
 
-/// T4R Helper: For N wires in the same-net, starting from the same port, count the total length
+/// T4R Top-Level Helper: For N wires in the same-net, starting from the same port, count the total length
 /// of segments that all overlap together multiplied by (N-1).
 /// This value (scaled overlap count) is used to offset/substract from total number of segments. Count over whole sheet.
-/// See T4R getApproxVisibleSegmentsLength function for more info
-(*
-Examples with 3 wires sharing an output port
-Example 1:  [(0,0, 0,1)], [(0,0 to 0,3)], [(0,0 to 0,5)],
-Shared overlap length is 1.
-
-Example 2: [(0,0 to 0,-1)], [(0,0 to 0,3)], [(0,0 to 0,5)],
-Shared overlap length is 0.
-
-Example 3: [(0,0 to 0,3), (0,3 to 1,3)], [(0,0 to 0,2), (0,3 to 5,3)], [(0,0 to 0,3), (0,3 to 7,3)],
-Shared overlap length is 2.
-
-Example 4: [(0,0 to 0,3), (0,3 to 1,3)], [(0,0 to 0,3), (0,3 to 5,3)], [(0,0 to 0,3), (0,3 to 7,3)],
-Shared overlap length is 3 + 1 = 4.
-
-Example 5 consists of 2 wires sharing an input port (and share the end point)
-Don't get confused! Input points share the same end
-[(4,5 to 4,3), (4,3 to 9,3), (9,3 to 9,5)],
-              [(4,3 to 9,3), (9,3 to 9,5)]
-Starting from the end, shared overlap length is 2 + 5 = 7
-
-Algorithm: find the diverging index, or dth index, where segments of all wires up to index d-1th are identical, i.e. have the same start and end points.
-The dth segments are when the wires start to diverge.
-If wires net is at the input ports, the wires share a same end point,
-the dth segment starting from the end, is the first instance of the segments not sharing a start point
-
-If wires net is at the output ports, the wires share a same start point,
-the dth segment from the start, the first instance of the segments not sharing an end point
-Calculate the distance travelled by the kth segments for all wires (they will be the same for all, so use the first wire).
-
-The (k+1)th segment of each wires will have a same starting point and same travel direction, but different end points.
-The shared overlap length is the minimum of the end points of the (k+1)th segments of all wires.
-*)
+/// At the bottom of the function is an in-depth explanation of the algorithm.
+/// See T4R getApproxVisibleSegmentsLength function for more information.
+///
+///             visible_Segments_Length
+///             ≈ getApproxVisibleSegmentsLength
+///             = totalSegmentsLength - (N-1) * sharedNetOverlapLength
+///             = totalSegmentsLength - getSharedNetOverlapOffsetLength
+///
 let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
     //#######################
     //   HELPERS
     //#######################
-    // Helper that takes in a group of wires and returns the length of the wire with the least number of segments
+    /// Helper for T4R that takes in a group of wires and returns the length of the wire with the least number of segments
     let getMinSegments (wireGroup: (Wire * ASegment list) list) =
         wireGroup
         |> List.minBy (fun (_, absSegments) -> List.length absSegments)
         |> snd
         |> List.length
 
-    // Helper that takes in a list of absolute segments that all share the same start or end position.
-    // check if all the segments are moving horizontally or vertically, by checking ASegment.orientation
-    // check if every Asegment.Segment.Length is the same sign, then return the minimum absolute value
-    // if not, return 0.0
+    /// Helper for T4R that takes in a list of absolute segments that all share the same start or end position.
+    /// check if all the segments are moving horizontally or vertically, by checking ASegment.orientation
+    /// check if every Asegment.Segment.Length is the same sign, then return the minimum absolute value
+    /// if not, return 0.0 (no segments with shared orientations will overlap if they are travelling in opposite magnitudes)
     let partialOverlapDistance (absSegments: ASegment list) : float =
         let (allAligned: bool) =
             absSegments
@@ -342,11 +327,11 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
         else
             0.0
 
-    // Helper that find the diverging index of a group of wires, d, of a list of (Wire * ASegment List),
-    // when the dth segment of the wires begin to have different endpoints
-    // the segments of all wires up to index d-1 are identical, i.e. have the same start and end points.
-    // this function also determines if d exists in the shortest wire, as we will need to check the
-    // dth segment differently for all wires
+    /// Helper for T4R that find the diverging index of a group of wires, d, of a list of (Wire * ASegment List).
+    /// all wires's segments from index 0 up to index d-1 are identical, i.e. have the same start and end points.
+    /// at index d, this is when all the wires' segments at index d starts to have different end points, i.e. they diverge
+    /// this function also determines if d exists in the shortest wire, as we will need to check the
+    /// dth segment differently for all wires.
     let findDivergingIndex (wireGroup: (Wire * ASegment list) list) (isOutput) =
         // FSharp doesn't support negative indexing, so this is an implementation
         let inline accessSegment (absSegments: ASegment list) (index: int) isOutput =
@@ -385,6 +370,7 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
         wires
         |> List.map (fun (_, wire) -> (wire, getAbsSegments wire))
 
+    // get and group wires that share the same input and output ports
     let outputGroupedWires =
         wiresWithAbsSegments
         |> List.groupBy (fun (wire, _) -> (wire.OutputPort))
@@ -404,14 +390,14 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
         |> List.map (fun (_, wireGroup) -> wireGroup)
 
     let calculateOverlapLengths (wireGroups: (Wire * ASegment list) list) isOutput =
-        if wireGroups = [] then
+        if wireGroups = [] then //to prevent errors
             0.0
         else
             let d, dExists = findDivergingIndex wireGroups isOutput
             printf "D: %A" d
             let distanceTravelledByIdenticalSegs =
-                // if starting from output, take first wire, calculate length from 0th to (d-1)th segment
-                // if starting from input, take first wire, calculate length from last to (last+1-d)th segment
+                // if starting from output, take first wire, calculate length of segments in 0th to (d-1)th index
+                // if starting from input, take first wire, calculate length of segments from the last to (last+1-d)th index
 
                 match d > 0, isOutput with
                 | false, _ -> 0.0
@@ -457,6 +443,38 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
         inputOverlaps @ outputOverlaps |> List.sum
 
     outputOverlapLengths
+(*
+    Algorithm: find the diverging index, or dth index, where segments of all wires up to index d-1th are identical, i.e. have the same start and end points.
+    The dth segments are when the wires start to diverge.
+    If wires net is at the input ports, the wires share a same end point,
+    the dth segment starting from the end, is the first instance of the segments not sharing a start point
+
+    Examples with 3 wires sharing an output port
+    Example 1:  [(0,0, 0,1)], [(0,0 to 0,3)], [(0,0 to 0,5)],
+    Shared overlap length is 1.
+
+    Example 2: [(0,0 to 0,-1)], [(0,0 to 0,3)], [(0,0 to 0,5)],
+    Shared overlap length is 0.
+
+    Example 3: [(0,0 to 0,3), (0,3 to 1,3)], [(0,0 to 0,2), (0,3 to 5,3)], [(0,0 to 0,3), (0,3 to 7,3)],
+    Shared overlap length is 2.
+
+    Example 4: [(0,0 to 0,3), (0,3 to 1,3)], [(0,0 to 0,3), (0,3 to 5,3)], [(0,0 to 0,3), (0,3 to 7,3)],
+    Shared overlap length is 3 + 1 = 4.
+
+    Example 5 consists of 2 wires sharing an input port (and share the end point)
+    Don't get confused! Input points share the same end
+    [(4,5 to 4,3), (4,3 to 9,3), (9,3 to 9,5)],
+                  [(4,3 to 9,3), (9,3 to 9,5)]
+    Starting from the end, shared overlap length is 2 + 5 = 7
+
+    If wires net is at the output ports, the wires share a same start point,
+    the dth segment from the start, the first instance of the segments not sharing an end point
+    Calculate the distance travelled by the kth segments for all wires (they will be the same for all, so use the first wire).
+
+    The (k+1)th segment of each wires will have a same starting point and same travel direction, but different end points.
+    The shared overlap length is the minimum of the end points of the (k+1)th segments of all wires.
+    *)
 
 /// T4R Helper: Get total length of wire segments in a model
 let getTotalSegmentsLength (model: SheetT.Model) =
@@ -469,13 +487,18 @@ let getTotalSegmentsLength (model: SheetT.Model) =
             |> List.sumBy (fun seg -> abs (seg.Length)))
         0.0
 
-/// T4R Sum of wiring segment length, counting only one when there are N same-net
+/// T4R Top-Level function. Returns the sum of wiring segment length, counting only one when there are N same-net
 /// segments overlapping (this is the visible wire length on the sheet). Count over whole
-/// sheet. Only considers overlaps from one 'patch' of contiguous segments of wires that start from the same port
-/// So this value is not always accurate . Assuming most overlaps happen with all wires starting from a shared port,
+/// sheet.
+/// Limitations: This function uses an approximation, only considers overlaps from one 'patch' of contiguous segments of wires that start from the same port
+/// It will not count partial overlaps of less than N wires, nor subsequent overlappings after the first patch of contiguous segments (in the case wires diverge and later return to overlap)
+/// So this value is not always exact. But since we assume most overlaps happen once with all wires starting from a shared port,
+/// the approximation below is good enough, since it is likely to be used as a heuristic for wiring complexity.
 /// It is approximated by (for n wires in a net):
+///
 ///              totalSegmentsLength - (N-1) * sharedNetOverlapLength
-///              totalSegmentsLength - getSharedNetOverlapOffsetLength
+///           => totalSegmentsLength - getSharedNetOverlapOffsetLength
+///
 /// To calculate the exact length accounting for overlaps is extremely complex (it is actively researched in computational geometry)
 /// and becomes even more computational if considering x overlaps of 1..x..n
 let getApproxVisibleSegmentsLength (model: SheetT.Model) =
@@ -496,13 +519,11 @@ let countVisibleRAngles (model: SheetT.Model) =
         // initialise the accumulator to 0
         0
 
-/// T6R: The zero-length segments in a wire with non-zero segments on either side that have
-/// Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply
-/// at the end of a wire (where the zero-length segment is one from the end). This is a
-/// wiring artifact that should never happen but errors in routing or separation can
-/// cause it. Count over the whole sheet. Return from one function a list of all the
-/// segments that retrace, and also a list of all the end of wire segments that retrace so
-/// far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
+/// T6R Function: The zero-length segments in a wire with non-zero segments on either side that have
+/// Lengths of opposite signs lead to a wire retracing itself.
+/// Returns a list tuple with:
+/// 1. a list of all segments that retrace
+/// 2. a list that includes adjacent segments to the retracing that starts(intersects) a symbol
 // Algorithm:
 // Repeat for every wire on the sheet:
 // 1. Get the absolute segments of the wire
@@ -576,7 +597,22 @@ let getRetracingSegmentsAndIntersections (model: SheetT.Model) =
              retracingSegmentsWithIntersections
              @ retracingSegmentsWithIntersections_acc))
         ([], [])
+(*
+ Note that this can also apply
+ at the end of a wire (where the zero-length segment is one from the end). This is a
+ wiring artifact that should never happen but errors in routing or separation can
+ cause it. Count over the whole sheet. Return from one function a list of all the
+ segments that retrace, and also a list of all the end of wire segments that retrace so
+ far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
+*)
 
+/// T6R Function Variant.
+/// The original T6R function, getRetracingSegmentsAndIntersections returns a tuple with:
+/// 1. a list of all segments that retrace
+/// 2. a list that includes adjacent segments to the retracing that starts(intersects) a symbol
+///
+/// This variant function, countUniqRetracingSegmentsAndIntersects, counts the unique segments where this occurs in a sheet.
+/// This is a helpful heuristic to count wiring artefacts, to test routing algorithms
 let countUniqRetracingSegmentsAndIntersects (model: SheetT.Model) =
     let (retracingSegments, retracingSegmentsWithIntersections) =
         getRetracingSegmentsAndIntersections model
@@ -591,60 +627,3 @@ let countUniqRetracingSegmentsAndIntersects (model: SheetT.Model) =
         |> List.distinct
 
     (List.length uniqRetracingSegments, List.length uniqRetracingSegmentsWithIntersections)
-(*
-
-// let getEdgeOnSymbolFromPortID (sym: Symbol) (portID: string) : Edge =
-//     sym.PortMaps.Orientation.TryFind(portID)
-//     |> Option.defaultValue Left
-
-
-// following CommonTypes.Edge, Left is the default value
-
-// let getPosOnSheetFromPortId (model: Model) (portId : string) : XYPos =
-// get symbol from portID
-
-// calculate from symbol
-// take in symbol
-
-Prof Edstem:
-For ports there are two things:
-
-XYPos coordinates (position) - there is indeed a function that gives this to you.
-
-Which symbol edge it is on, and where is it ordered relative to other ports on that edge (PortMaps has these things)
-
-So by position I mean XYPos.
-
-    type PortMaps =
-        {
-            /// Maps edge to list of ports on that edge, in correct order
-            Order: Map<Edge, string list>
-            /// Maps the port ids to which side of the component the port is on
-            Orientation: Map<string, Edge>
-        }
-        // rotate an And gate
-        // two left ports one right port
-        // rotation changes the deges
-
-
-
-    port from a sheet or a symbol?
-    symbol
-    buswire has wire stuff > symbol model  = symbols + positions + ref from ports to symbol
-    sheet has stuff to do with bounding boxes
-
-    work out bounding boxes from symbols
-
-
-if you write a function operating on sheets
-move symbol? change bounding box
-fundamental: symbolMap
-but.... when we are doing wire operations/moving stuff, need to calculate bounding boxes, we use two sets, one for labels and symbols
-
-// label bounding boxes are used to work out where to place a label
-// ports
-// when you connect wires to ports, need to know initial direction of wire, this is done with Edge
-// Each port has designated edge
-
-
-*)

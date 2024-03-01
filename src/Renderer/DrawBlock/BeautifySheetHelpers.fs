@@ -14,9 +14,9 @@ open Symbol
 open BusWireRoute
 open BusWire
 
-// ################################################## //
-// ##########          Helpers       ################ //
-// ################################################## //
+// --------------------------------------------------- //
+//                      Helpers                        //
+// --------------------------------------------------- //
 
 // lens to set the symbolMap in the model
 let symbolMap_: Lens<SheetT.Model, Map<ComponentId, Symbol>> =
@@ -74,9 +74,9 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model) : XYPos list =
         (segVecs, [ 1 .. segVecs.Length - 2 ])
         ||> List.fold tryCoalesceAboutIndex)
 
-// ################################################## //
-// ##########      Indiv Functions   ################ //
-// ################################################## //
+// --------------------------------------------------- //
+//                     B1 Functions                    //
+// --------------------------------------------------- //
 
 /// <summary>
 /// B1R: Return the dimensions of a custom component symbol.
@@ -101,6 +101,10 @@ let setCustomComponentSymbolDims (sym: Symbol) (dimensions: XYPos) : Symbol =
     let hScale = dimensions.X / sym.Component.H
     let vScale = dimensions.Y / sym.Component.W
     { sym with HScale = Some hScale; VScale = Some vScale }
+
+// --------------------------------------------------- //
+//                     B2 Functions                    //
+// --------------------------------------------------- //
 
 /// <summary> B2W: Modifies to the symbol's position. </summary>
 /// <param name="sym">The symbol to set the position of.</param>
@@ -130,6 +134,10 @@ let setSymbolPosOnSheet (symID: ComponentId) (pos: XYPos) (model: SheetT.Model) 
     // return the model with the new symbolMap
     model |> Optic.set symbolMap_ newSymbolMap
 
+// --------------------------------------------------- //
+//                     B3 Functions                    //
+// --------------------------------------------------- //
+
 /// <summary> B3R: Read the order of ports on a specified side of a symbol. </summary>
 /// <param name="sym">The symbol to get the port order of.</param>
 /// <param name="side">The Edge of the symbol to get the port order of.</param>
@@ -153,6 +161,10 @@ let setPortMapsOrder (sym: Symbol) (newSide: Edge) (newOrder: string list) : Sym
     let newPortMaps =
         { portMaps with Order = portMaps.Order |> Map.add newSide newOrder }
     { sym with PortMaps = newPortMaps }
+
+// --------------------------------------------------- //
+//                     B4 Functions                    //
+// --------------------------------------------------- //
 
 /// <summary> B4R: Read the reversed state of the inputs of a MUX2 </summary>
 /// <param name="sym">The symbol to get the reversed state of the inputs of.</param>
@@ -193,6 +205,10 @@ let setMUX2ReversedInput (sym: Symbol) (state: bool) : Symbol =
     | Mux2 -> { sym with ReversedInputPorts = stateOption }
     | _ -> failwithf "Symbol is not a MUX2"
 
+// --------------------------------------------------- //
+//                     B5 Function                     //
+// --------------------------------------------------- //
+
 /// <summary> B5R: The position of a port on the sheet. It cannot directly be written. </summary>
 /// <param name="sym">The symbol to get the position of the port of.</param>
 /// <param name="port">The port to get the position of.</param>
@@ -204,6 +220,10 @@ let getPortPosOnSheet (sym: Symbol) (port: Port) =
     let portPosOnSymbol = getPortPos (sym: Symbol) (port: Port)
     sym.Pos + portPosOnSymbol
 
+// --------------------------------------------------- //
+//                     B6 Function                     //
+// --------------------------------------------------- //
+
 /// <summary> B6R: The Bounding box of a symbol outline (position is contained in this) </summary>
 /// <param name="sym">The symbol to get the bounding box of.</param>
 /// <returns>The bounding box of the symbol outline as BoundingBox.</returns>
@@ -213,6 +233,10 @@ let getSymbolOutlineBoundingBox (sym: Symbol) : BoundingBox =
         { TopLeft = sym.Pos - { X = 9.; Y = 9. }; H = 17.; W = 17. }
     else
         { TopLeft = sym.Pos; H = float (h); W = float (w) }
+
+// --------------------------------------------------- //
+//                     B7 Functions                    //
+// --------------------------------------------------- //
 
 /// <summary> B7R: Read he rotation state of a symbol </summary>
 /// <param name="sym">The symbol to get the rotation state of.</param>
@@ -228,6 +252,10 @@ let setSymbolRotation (sym: Symbol) (newRot: Rotation) : Symbol =
     let newSTransform = { sTransform with Rotation = newRot }
     { sym with STransform = newSTransform }
 
+// --------------------------------------------------- //
+//                     B8 Functions                    //
+// --------------------------------------------------- //
+
 /// <summary> B8R: Read the flip state of a symbol </summary>
 /// <param name="sym">The symbol to get the flip state of.</param>
 /// <returns>The flip state of the symbol as bool.</returns>
@@ -242,6 +270,10 @@ let setSymbolFlip (sym: Symbol) (newFlip: bool) : Symbol =
     let newSTransform = { sTransform with flipped = newFlip }
     { sym with STransform = newSTransform }
 
+// --------------------------------------------------- //
+//                     T1R Function                    //
+// --------------------------------------------------- //
+
 /// <summary> T1R: The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols. </summary>
 /// <param name="model">The model to count the intersecting symbol pairs of.</param>
 /// <returns>The number of pairs of symbols that intersect each other.</returns>
@@ -253,6 +285,10 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
     List.allPairs boxes boxes
     |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
+
+// --------------------------------------------------- //
+//                     T2R Functions                   //
+// --------------------------------------------------- //
 
 ///<summary>
 /// T2R, T3R Helper.
@@ -298,6 +334,10 @@ let countVisibleSegsIntersectingSymbols (model: SheetT.Model) =
                |> List.length))
         // Initialize the accumulator to 0
         0
+
+// --------------------------------------------------- //
+//                     T3R Functions                   //
+// --------------------------------------------------- //
 
 /// <summary> T3R helper: Returns true if two 1D line segments intersect at a 90º angle. Takes in two segments described as point-to-point.
 /// A variant of overlap2D in BlockHelpers.fs </summary>
@@ -347,6 +387,10 @@ let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
             && overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End))
     // Return the count of filtered pairs
     List.length filteredPairs
+
+// --------------------------------------------------- //
+//                     T4R Functions                   //
+// --------------------------------------------------- //
 
 ///<summary>
 /// T4R High-Level Helper: For N wires in the same-net, starting from the same port, count the total length
@@ -586,6 +630,10 @@ let getApproxVisibleSegmentsLength (model: SheetT.Model) =
     (getTotalSegmentsLength model)
     - (getSharedNetOverlapOffsetLength model)
 
+// --------------------------------------------------- //
+//                     T5R Function                    //
+// --------------------------------------------------- //
+
 ///<summary> T5R: Number of visible wire right-angles. Count over whole sheet. Note that this also counts wires that overlap </summary>
 /// <param name="model">The model to count the visible wire right-angles of.</param>
 /// <returns>The number of visible wire right-angles.</returns>
@@ -601,6 +649,10 @@ let countVisibleRAngles (model: SheetT.Model) =
             + acc)
         // initialise the accumulator to 0
         0
+
+// --------------------------------------------------- //
+//                     T6R Functions                   //
+// --------------------------------------------------- //
 
 /// <summary>
 /// T6R Function: The zero-length segments in a wire with non-zero segments on either side that have lengths of opposite signs lead to a wire retracing itself.

@@ -53,11 +53,19 @@ module D2Test =
 //------------------------------additional metrics to assess improvements-------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Metrics =
-        let computeMetricDifference (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->'a)  =
+        // difference for integer metrics
+        let computeMetricDifference (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->int)  =
             metric sheetAfter - metric sheetBefore, metric sheetAfter, metric sheetBefore
         
-        let computeMetricPercentageChange (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->'a)  =
+        // percentage difference for float metrics
+        let computeMetricPercentageChange (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->float)  =
             float (metric sheetAfter - metric sheetBefore)/float (metric sheetBefore)*100.0, metric sheetAfter, metric sheetBefore
+        
+        let numberOfWireStraightened (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
+            computeMetricDifference sheetAfter sheetBefore countWireRightAngles
+
+        let numberOfIntersectionReduced (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
+            computeMetricDifference sheetAfter sheetBefore countSegmentIntersections
 
         /// number of visible wire segments counted over whole sheet
         let countVisibleSegments (sheetModel : SheetT.Model) : int =

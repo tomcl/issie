@@ -22,10 +22,10 @@ type Dimensions2D =
         W : float
         H : float
     }
-type segPair =
+type Seg =
     {
-        firstSeg : XYPos*XYPos
-        secSeg : XYPos*XYPos
+        Start : XYPos
+        End : XYPos
     }
 
 //B1Lens
@@ -294,52 +294,104 @@ let countSegmentsIntersectSymbols (sheet: SheetT.Model) =
 
 
 
-//T3R
+//T3R Helper functions
 
-// Function that finds the orientation of a segment (so whether it is vertical or horizontal) 
+/// Function that finds the orientation of a segment (so whether it is vertical or horizontal) 
 let segOrientation (startPos : XYPos , endPos : XYPos) =
     if abs(startPos.X - endPos.X) <= XYPos.epsilon
     then  Vertical
     else Horizontal
-let normalPairs  (firstSeg:XYPos*XYPos) (secSeg:XYPos*XYPos)=
+
+
+///Returns true if the input segments are nor 
+let orthogonalyIntersectedPairs  (firstSeg:XYPos*XYPos) (secSeg:XYPos*XYPos)=
+            let fstSeg={
+                Start = fst firstSeg;
+                End = snd firstSeg
+            }
+            let sndSeg={
+                Start = fst secSeg;
+                End = snd secSeg
+            }
             match segOrientation firstSeg, segOrientation secSeg with
-            | ( Vertical), ( Horizontal) -> true                
-            | ( Horizontal), (Vertical) -> true      
-            | _ -> false
+            | ( Vertical), ( Horizontal) ->
+            //The X coordinate of the vertical segment is the same everywhere along the segment and it needs to be between the Start X and End X coordinates of the horizontal segment 
+                (( min sndSeg.Start.X  sndSeg.End.X < (fstSeg.Start.X)) && ((fstSeg.Start.X) < max sndSeg.Start.X  sndSeg.End.X) &&
+            // The Y coordinate of the horizontal segment is the same everywhere along the segment and it needs to be between the Start Y and End Y coordinates of the vertical segment
+                ( min fstSeg.Start.Y  fstSeg.End.Y < (sndSeg.Start.Y)) && ((sndSeg.Start.Y) < max fstSeg.Start.Y  fstSeg.End.Y))         
+            | ( Horizontal), (Vertical) -> 
+                (( min fstSeg.Start.X  fstSeg.End.X < (sndSeg.Start.X)) && ((sndSeg.Start.X) < max fstSeg.Start.X  fstSeg.End.X) &&
+                ( min sndSeg.Start.Y  sndSeg.End.Y < (fstSeg.Start.Y)) && ((fstSeg.Start.Y) < max sndSeg.Start.Y  sndSeg.End.Y))           
+            | _ -> false  
 
-
-let intersectNormalPairs (seggPair:(XYPos*XYPos)*(XYPos*XYPos)) = 
-    let pair  = 
-        {
-        firstSeg = fst seggPair;
-        secSeg = snd seggPair
-        }
-    ()//---------> continue here **************************
-    
-    
-
+//T3R main function
+///Counts the number of distinct pairs of segments that cross each other at right angles. Does not include 0 length segments or 
+/// segments on same net intersecting at one end, or segments on same net on top of each other. Counts over whole sheet.
 let countSegCrosses (sheet: SheetT.Model) =
+    //Creates a list of all connectionIDs on the sheet
     let connectionIDsL = Map.fold (fun keys key _ -> key::keys) [] sheet.Wire.Wires
-    let segLists = connectionIDsL |> List.collect (fun wId -> SegStartAndEnd wId sheet)
+    //Creates a list of all segments on the sheet
+    let segLists = 
+        connectionIDsL 
+        |> List.collect (fun wId -> SegStartAndEnd wId sheet)
+    //Creates a list of all segment pairs on the sheet
     let allSegPairs (segLists:List<XYPos*XYPos>) =  List.collect (fun x -> List.map (fun y -> (x,y)) segLists) segLists
-    let normalSegPairs = allSegPairs segLists |> List.filter (fun pair -> normalPairs (fst pair) (snd pair))
-    normalSegPairs
+    //Creates a list of all pairs that are orthogonal 
+    let orthogonalyIntersectedSegPairs = 
+        allSegPairs segLists 
+        |> List.filter (fun pair -> orthogonalyIntersectedPairs (fst pair) (snd pair))
+    orthogonalyIntersectedSegPairs |> List.length
     
 
+//T4R helper function
+///If the segments overlap it returns the length of the overlaping part otherwise returns 0.
+let overlapLenthSegPairs  (firstSeg:XYPos*XYPos) (secSeg:XYPos*XYPos)=
+            let fstSeg={
+                Start = fst firstSeg;
+                End = snd firstSeg
+            }
+            let sndSeg={
+                Start = fst secSeg;
+                End = snd secSeg
+            }
+
+            match segOrientation firstSeg, segOrientation secSeg with
+            | ( Vertical), ( Vertical) -> 
+                if abs(fstSeg.Start.X - sndSeg.Start.X) < XYPos.epsilon
+                then
+                    let minFirst = min fstSeg.Start.Y fstSeg.End.Y
+                    let minSec = min sndSeg.Start.Y sndSeg.End.Y 
+                    let maxMin = max minFirst minSec
+
+                    let maxFirst = max fstSeg.Start.Y fstSeg.End.Y
+                    let maxSec = max sndSeg.Start.Y sndSeg.End.Y
+                    let minMax = min maxFirst maxSec
+                    abs(minMax - maxMin)                  
+                else 0
+            | ( Horizontal), (Horizontal) -> 
+                if abs(fstSeg.Start.Y - sndSeg.Start.Y) < XYPos.epsilon
+                    then
+                        let minFirst = min fstSeg.Start.X fstSeg.End.X
+                        let minSec = min sndSeg.Start.X sndSeg.End.X 
+                        let maxMin = max minFirst minSec
+
+                        let maxFirst = max fstSeg.Start.X fstSeg.End.X
+                        let maxSec = max sndSeg.Start.X sndSeg.End.X
+                        let minMax = min maxFirst maxSec
+                        abs(minMax - maxMin)                  
+                    else 0
+                           
+            | _ -> 0
 
 
 
+///Visible wire length
+let visibleLengthOfWires (sheet: SheetT.Model) =
+    let nets = groupWiresByNet sheet.Wire.Wires
+    let totalLengthOfAllWires = totalLengthOfWires sheet.Wire.Wires
+    let visibleTotalLengthOfWires = totalLengthOfAllWires - totalLengthOverlap
 
 
-
-// SegStartAndEnd gives you start and end coordinates of a segment - if x coordinate is the same => vertical segment, else horiz segment
-// Now check for two segments : 
-// 1. They have opposite orientation (so vert/horiz or horiz/vert)
-// 2. For the horiz seg, check if the unchanging coordinate (y coordinate is same at start and end) => should be between the start and end y coordinates of the vertical wire
-// 3. For the vert seg, check if the unchanging coordinate (x coordinate is same at start and end) => should be between the start and end x coodrinates of the horizontal wire
-// If all conditions hold, then return 1 otherwise return 0
-// Then need to check this condition for all pairs of segments on the sheet => Can use allPairs but try not to - try find better solutions using ChatGPT
-// You need to List.fold () and add all of the 1s and 0s
 
 //T5R
 /// Calculates the number of visible wire right-angles. Counts over whole sheet.

@@ -90,13 +90,12 @@ let getReversedInputsMux2 (sym: Symbol) =
     sym.ReversedInputPorts
 
 // B4W
-/// Set the reverses state of the inputs of a MUX2
+/// Set the reverses state of the inputs of a MUX2 to the provided state
 let updateReversedInputsMux2 (reversedState: Option<bool>) (sym: Symbol) = 
     let newReversedState =
         match reversedState with
-        | Some false -> Some true
-        | Some true -> Some false
-        | None -> Some true
+        | Some _ -> reversedState
+        | None -> Some false
     let newSymbolInfo = 
         match sym.Component.SymbolInfo with
         | Some symInfo -> Some {symInfo with ReversedInputPorts = newReversedState}

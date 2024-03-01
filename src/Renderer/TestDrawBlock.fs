@@ -244,12 +244,68 @@ module HLPTick3 =
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
             failwithf "Not Implemented"
         
+        //B1
         let setHAndW (model: SheetT.Model) =
             let newSymbolsMap =
                 model.Wire.Symbol.Symbols 
                 |> Map.map (fun compId sym -> 
                     let newW,newH = getCustomSymWH sym
                     updateCustomSymWH (newW/2.,newH/2.) sym)
+            Ok {model with Wire={model.Wire with Symbol={model.Wire.Symbol with Symbols=newSymbolsMap}}}
+
+        //B2
+        let setNewSymPos (model: SheetT.Model) =
+            let newSymbolsMap =
+                model.Wire.Symbol.Symbols 
+                |> Map.map (fun compId sym -> 
+                    let newSymPos = sym.Pos+{X=200.;Y=200.}
+                    updateSymXYPos newSymPos sym)
+            Ok {model with Wire={model.Wire with Symbol={model.Wire.Symbol with Symbols=newSymbolsMap}}}
+
+        //B3
+        let setNewPortOrder (model: SheetT.Model) = 
+            let newSymbolsMap =
+                model.Wire.Symbol.Symbols 
+                |> Map.map (fun compId sym -> 
+                    let leftPortOrder = 
+                        getPortOrderOnSide Left sym
+                        |> List.rev
+                    updatePortOrderOnSide Left leftPortOrder sym)
+            Ok {model with Wire={model.Wire with Symbol={model.Wire.Symbol with Symbols=newSymbolsMap}}}
+        
+        //B4
+        let setReversedInputsMux2 (model: SheetT.Model) = 
+            let newSymbolsMap =
+                model.Wire.Symbol.Symbols 
+                |> Map.map (fun compId sym -> 
+                    match sym.Component.Type with
+                    | Mux2 -> 
+                        printfn $"original reverse state: {getReversedInputsMux2 sym}";
+                        updateReversedInputsMux2 (Some true) sym
+                    | _ -> sym
+                    )
+            Ok {model with Wire={model.Wire with Symbol={model.Wire.Symbol with Symbols=newSymbolsMap}}}
+
+        //B7
+        let setRotation (model: SheetT.Model) = 
+            let newSymbolsMap =
+                model.Wire.Symbol.Symbols 
+                |> Map.map (fun compId sym -> 
+                    let rotation = getSymRotationState sym
+                    printfn $"original rotation state: {rotation}"
+                    updateSymRotationState Degree90 sym
+                    )
+            Ok {model with Wire={model.Wire with Symbol={model.Wire.Symbol with Symbols=newSymbolsMap}}}
+
+        //B8
+        let setFlip (model: SheetT.Model) = 
+            let newSymbolsMap =
+                model.Wire.Symbol.Symbols 
+                |> Map.map (fun compId sym -> 
+                    let flip = getSymFlipState sym
+                    printfn $"original flip state: {flip}"
+                    updateSymFlipState (not flip) sym
+                    )
             Ok {model with Wire={model.Wire with Symbol={model.Wire.Symbol with Symbols=newSymbolsMap}}}
         
         let testAutoWiresToWireLabels (model: SheetT.Model) =
@@ -352,11 +408,11 @@ module HLPTick3 =
 
     let makeTest5Circuit (andPos:XYPos) =
         initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> placeSymbol "MUX1" Mux2 andPos
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind setHAndW
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> Result.bind setFlip
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "MUX1" 0) )
         |> getOkOrFail
 
     let makeTest6Circuit (andPos:XYPos) =
@@ -398,8 +454,21 @@ module HLPTick3 =
         // test B1
             sheet.Wire.Symbol.Symbols 
             |> Map.iter (fun _ symbol -> 
-                let width,height = getCustomSymWH symbol
-                printfn "Width: %f, Height: %f" width height
+                //B1
+                // let width,height = getCustomSymWH symbol
+                // printfn "Width: %f, Height: %f" width height
+                //B2
+                // printfn $"{symbol.Pos}"
+                //B3
+                // let leftPortOrder = getPortOrderOnSide Left symbol
+                // let rightPortOrder = getPortOrderOnSide Right symbol
+                // printfn $"symbol:{symbol.Component.Label}, left port order: {leftPortOrder}, right port order: {rightPortOrder}"
+                //B4
+                // printfn $"new reverse state: {getReversedInputsMux2 symbol}";
+                //B7
+                // printfn $"new rotation state: {getSymRotationState symbol}"
+                //B8
+                printfn $"new flip state: {getSymFlipState symbol}"
             )
             Some <| $"Sample {sample}"
 

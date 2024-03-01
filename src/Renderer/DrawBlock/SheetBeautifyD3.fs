@@ -1,6 +1,6 @@
 module SheetBeautifyD3
-// open modules likely to be used
 
+// ll3621: I don't know why this file is full of error, I copied it directly from SheetBeautify.fs which I originally wrote
 open CommonTypes
 open DrawHelpers
 open DrawModelType

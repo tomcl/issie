@@ -54,6 +54,7 @@ open SymbolResizeHelpers
     - getMaxMin
     - findMaxMinForScale
     - findNewMaxMin
+    added more context to these functions
 
 
     

@@ -24,10 +24,15 @@ let symbolMap_: Lens<SheetT.Model, Map<ComponentId, Symbol>> =
         let updatedSymbol = { m.Wire.Symbol with Symbols = v }
         { m with Wire = { m.Wire with Symbol = updatedSymbol } })
 
+/// <summary>
 /// visibleSegments helper provided by Professor.
 /// The visible segments of a wire, as a list of vectors, from source end to target end.
 /// Note that a zero length segment one from either end of a wire is allowed which if present
 /// causes the end three segments to coalesce into a single visible segment.
+/// </summary>
+/// <param name="wId">The ID of the wire for which to calculate the visible segments.</param>
+/// <param name="model">The current model containing all wires.</param>
+/// <returns>A list of positions representing the visible segments of the wire.</returns>
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model) : XYPos list =
 
     let wire = model.Wire.Wires[wId] // get wire from model
@@ -73,21 +78,30 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model) : XYPos list =
 // ##########      Indiv Functions   ################ //
 // ################################################## //
 
-/// B1R: The dimensions of a custom component symbol
+/// <summary>
+/// B1R: Return the dimensions of a custom component symbol.
+/// Utilises getCustomSymCorners to find the dimensions
+/// </summary>
+/// <param name="sym">The symbol to get the dimensions of.</param>
+/// <returns>The dimensions of the custom component symbol.</returns>
 let getCustomComponentSymbolDims (sym: Symbol) : XYPos =
     // directly return the third element from the result of getCustomSymCorners
     // format: [|{X=0.0;Y=0.0}; {X=0.0;Y=yDim'}; {X=xDim';Y=yDim'}; {X=xDim';Y=0.0}|]
     (getCustomSymCorners sym).[2]
 
-/// B1W: The dimensions of a custom component symbol
-let setCustomComponentSymbolDims (sym: Symbol) (pos: XYPos) : Symbol =
+/// <summary> B1W: Set the dimensions of a custom component symbol </summary>
+/// <param name="sym">The symbol to set the dimensions of.</param>
+/// <param name="dimensions">The new dimensions of the symbol.</param>
+let setCustomComponentSymbolDims (sym: Symbol) (dimensions: XYPos) : Symbol =
     // Note: do not modify h and w as they are the default dimensions of the symbol.
     // We only scale them as needed
-    let hScale = pos.X / sym.Component.H
-    let vScale = pos.Y / sym.Component.W
+    let hScale = dimensions.X / sym.Component.H
+    let vScale = dimensions.Y / sym.Component.W
     { sym with HScale = Some hScale; VScale = Some vScale }
 
-/// B2W Helper
+/// <summary> B2W: Modifies to the symbol's position. </summary>
+/// <param name="sym">The symbol to set the position of.</param>
+/// <param name="newPos">The new position of the symbol.</param>
 let setSymbolPos (sym: Symbol) (newPos: XYPos) : Symbol =
     let comp' = { sym.Component with X = newPos.X; Y = newPos.Y }
     { sym with
@@ -97,7 +111,10 @@ let setSymbolPos (sym: Symbol) (newPos: XYPos) : Symbol =
             { sym.LabelBoundingBox with
                 TopLeft = sym.LabelBoundingBox.TopLeft - sym.Pos + newPos } }
 
-/// B2W: The position of a symbol on the sheet
+/// <summary> B2W: The position of a symbol on the sheet. This modifies the sheet's SymbolMap </summary>
+/// <param name="symID">The ID of the symbol to set the position of.</param>
+/// <param name="pos">The new position of the symbol.</param>
+/// <param name="model">The SheetT.Model to modify.</param>
 let setSymbolPosOnSheet (symID: ComponentId) (pos: XYPos) (model: SheetT.Model) : SheetT.Model =
     let symbolMap = model.Wire.Symbol.Symbols
     let sym: Symbol =
@@ -108,10 +125,12 @@ let setSymbolPosOnSheet (symID: ComponentId) (pos: XYPos) (model: SheetT.Model) 
     let newSym = moveSymbol pos sym // let newSym be the symbol with the new position
     let newSymbolMap = Map.remove symID symbolMap |> Map.add symID newSym
     // return the model with the new symbolMap
-    // { model with Wire.Symbol = { model.Wire.Symbol with Symbols = newSymbolMap } }
     model |> Optic.set symbolMap_ newSymbolMap
 
-/// B3R: Read/write the order of ports on a specified side of a symbol
+/// <summary> B3R: Read the order of ports on a specified side of a symbol. </summary>
+/// <param name="sym">The symbol to get the port order of.</param>
+/// <param name="side">The Edge of the symbol to get the port order of.</param>
+/// <returns>The order of ports on the specified side of the symbol.</returns>
 let getPortMapsOrder
     (sym: Symbol)
     (side: Edge)
@@ -120,14 +139,21 @@ let getPortMapsOrder
     =
     sym.PortMaps.Order.TryFind(side)
     |> Option.defaultValue []
-/// B3W: Read/write the order of ports on a specified side of a symbol
+
+/// <summary> B3W: Write the order of ports on a specified side of a symbol. </summary>
+/// <param name="sym">The symbol to set the port order of.</param>
+/// <param name="newSide">The Edge of the symbol to set the port order of.</param>
+/// <param name="newOrder">The new order sequence of ports to be set.</param>
+/// <returns>The symbol with the new port order set in the Symbol.PortMaps</returns>
 let setPortMapsOrder (sym: Symbol) (newSide: Edge) (newOrder: string list) : Symbol =
     let portMaps = sym.PortMaps
     let newPortMaps =
         { portMaps with Order = portMaps.Order |> Map.add newSide newOrder }
     { sym with PortMaps = newPortMaps }
 
-/// B4R: The reversed state of the inputs of a MUX2
+/// <summary> B4R: Read the reversed state of the inputs of a MUX2 </summary>
+/// <param name="sym">The symbol to get the reversed state of the inputs of.</param>
+/// <returns>The reversed state of the inputs of the MUX2</returns>
 let getMUX2ReversedInput (sym: Symbol) : bool =
     match sym.Component.Type with
     | Mux2 ->
@@ -135,9 +161,13 @@ let getMUX2ReversedInput (sym: Symbol) : bool =
         |> Option.defaultValue false
     | _ -> failwithf "Symbol is not a MUX2"
 
+/// <summary>
 /// B4W: The reversed state of the inputs of a MUX2
 /// There are two variants of this helper: one toggles the state, and the other sets the state to a predefined value.
-/// setToggleMUX2ReversedInput toggles the state of the MUX2
+/// setToggleMUX2ReversedInput toggles the state of the MUX2.
+/// </summary>
+/// <param name="sym">The symbol to toggle the reversed state of the inputs of.</param>
+/// <returns>The symbol with the reversed state of the inputs of the MUX2 toggled.</returns>
 let setToggleMUX2ReversedInput (sym: Symbol) : Symbol =
     let toggle (state: bool option) =
         match state with
@@ -150,13 +180,20 @@ let setToggleMUX2ReversedInput (sym: Symbol) : Symbol =
 /// B4W: The reversed state of the inputs of a MUX2
 /// There are two variants of this helper: one toggles the state, and the other sets the state to a predefined value.
 /// setMUX2ReversedInput sets the state of the MUX2 to a predefined value
+/// </summary>
+/// <param name="sym">The symbol to toggle the reversed state of the inputs of.</param>
+/// <param name="state">The new bool state of the MUX2.</param>
+/// <returns>The symbol with the reversed state of the inputs of the MUX2 toggled.</return
 let setMUX2ReversedInput (sym: Symbol) (state: bool) : Symbol =
     let stateOption = Some state
     match sym.Component.Type with
     | Mux2 -> { sym with ReversedInputPorts = stateOption }
     | _ -> failwithf "Symbol is not a MUX2"
 
-/// B5R: The position of a port on the sheet. It cannot directly be written.
+/// <summary> B5R: The position of a port on the sheet. It cannot directly be written. </summary>
+/// <param name="sym">The symbol to get the position of the port of.</param>
+/// <param name="port">The port to get the position of.</param>
+/// <returns>The position of the port on the sheet as XYPos.</returns>
 let getPortPosOnSheet (sym: Symbol) (port: Port) =
     // get the position of the symbol, and relative position of the port
     // add the two positions together and return the result
@@ -164,7 +201,9 @@ let getPortPosOnSheet (sym: Symbol) (port: Port) =
     let portPosOnSymbol = getPortPos (sym: Symbol) (port: Port)
     sym.Pos + portPosOnSymbol
 
-/// B6R: The Bounding box of a symbol outline (position is contained in this)
+/// <summary> B6R: The Bounding box of a symbol outline (position is contained in this) </summary>
+/// <param name="sym">The symbol to get the bounding box of.</param>
+/// <returns>The bounding box of the symbol outline as BoundingBox.</returns>
 let getSymbolOutlineBoundingBox (sym: Symbol) : BoundingBox =
     let h, w = getRotatedHAndW sym
     if sym.Annotation = Some ScaleButton then
@@ -172,25 +211,37 @@ let getSymbolOutlineBoundingBox (sym: Symbol) : BoundingBox =
     else
         { TopLeft = sym.Pos; H = float (h); W = float (w) }
 
-/// B7R: The rotation state of a symbol
+/// <summary> B7R: Read he rotation state of a symbol </summary>
+/// <param name="sym">The symbol to get the rotation state of.</param>
+/// <returns>The rotation state of the symbol as Rotation.</returns>
 let getSymbolRotation (sym: Symbol) : Rotation = sym.STransform.Rotation
 
-// B7W: The rotation state of a symbol
+/// <summary> B7W: Write the rotation state of a symbol </summary>
+/// <param name="sym">The symbol to set the rotation state of.</param>
+/// <param name="newRot">The new rotation state of the symbol.</param>
+/// <returns>The symbol with the new rotation state set.</returns>
 let setSymbolRotation (sym: Symbol) (newRot: Rotation) : Symbol =
     let sTransform = sym.STransform
     let newSTransform = { sTransform with Rotation = newRot }
     { sym with STransform = newSTransform }
 
-/// B8R: The flip state of a symbol
+/// <summary> B8R: Read the flip state of a symbol </summary>
+/// <param name="sym">The symbol to get the flip state of.</param>
+/// <returns>The flip state of the symbol as bool.</returns>
 let getSymbolFlip (sym: Symbol) : bool = sym.STransform.flipped
 
-/// B8W: The flip state of a symbol
+/// <summary> B8W: Write the flip state of a symbol </summary>
+/// <param name="sym">The symbol to set the flip state of.</param>
+/// <param name="newFlip">The new flip state of the symbol.</param>
+/// <returns>The symbol with the new flip state set.</returns>
 let setSymbolFlip (sym: Symbol) (newFlip: bool) : Symbol =
     let sTransform = sym.STransform
     let newSTransform = { sTransform with flipped = newFlip }
     { sym with STransform = newSTransform }
 
-/// T1R: The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols.
+/// <summary> T1R: The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols. </summary>
+/// <param name="model">The model to count the intersecting symbol pairs of.</param>
+/// <returns>The number of pairs of symbols that intersect each other.</returns>
 let countIntersectingSymbolPairs (model: SheetT.Model) =
     let boxes =
         mapValues model.BoundingBoxes
@@ -200,13 +251,16 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
     |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
 
-///T2R, T3R Helper.
+///<summary>
+/// T2R, T3R Helper.
 /// Remove all invisible segments from wires on a sheet.Wire.Wires.
-/// Input and output are both of type Map<ConnectionId, Wire>.
 /// visibleSegments would've worked, but outputs an XYPos list, which is a format that isn't well accepted by the other functions and types.
 /// This is achieved by utilising existing helper function segmentsToIssieVertices to convert all segments to a list of vertices.
 /// It is then very easy to remove duplicate vertices.
 /// We can utilise another helper function issieVerticesToSegments to convert vertices back to segments, and create new wires.
+/// </summary>
+/// <param name="wires">Map of wires indexed by ConnectionID to remove invisible segments from.</param>
+/// <returns>Map of wires indexed by ConnectionID with invisible segments removed.</returns>
 let removeWireInvisibleSegments (wires: Map<ConnectionId, Wire>) =
     wires
     |> Map.map (fun connId wire ->
@@ -221,7 +275,11 @@ let removeWireInvisibleSegments (wires: Map<ConnectionId, Wire>) =
         // for each wire, set the segments to the new segments
         wire |> Optic.set segments_ newSegments)
 
-/// T2R The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments.
+/// <summary>
+/// T2R: The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments.
+/// </summary>
+/// <param name="model">The model to count the intersecting wire segments of.</param>
+/// <returns>The number of distinct wire visible segments that intersect with one or more symbols.</returns>
 let countVisibleSegsIntersectingSymbols (model: SheetT.Model) =
     let wireModel = model.Wire
     wireModel.Wires
@@ -238,19 +296,24 @@ let countVisibleSegsIntersectingSymbols (model: SheetT.Model) =
         // Initialize the accumulator to 0
         0
 
-/// T3R helper: Returns true if two 1D line segments intersect at a 90º angle.
-/// Takes in two segments described as point-to-point  (XYPos * XYPos).
-/// A variant of overlap2D in BlockHelpers.fs.
+/// <summary> T3R helper: Returns true if two 1D line segments intersect at a 90º angle. Takes in two segments described as point-to-point.
+/// A variant of overlap2D in BlockHelpers.fs </summary>
+/// <param name="a1">The first segment.</param>
+/// <param name="a2">The second segment.</param>
 let perpendicularOverlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
     let overlapX = overlap1D (a1.X, a2.X) (b1.X, b2.X)
     let overlapY = overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y)
     (overlapX || overlapY)
     && not (overlapX && overlapY)
 
-/// T3R The number of distinct pairs of segments that cross each other at right angles.
+/// <summary>
+/// T3R: The number of distinct pairs of segments that cross each other at right angles.
 /// Does not include 0 length segments or segments on same net intersecting at one end, or
 /// segments on same net on top of each other. Count over whole sheet.
 /// This can be potentially expanded to include more cases by modifying List.filter with more conditions
+/// </summary>
+/// <param name="model">The SheetT.Model to count the right angle crossings of.</param>
+/// <returns>The number of distinct pairs of segments that cross each other at right angles.</returns>
 let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
     let wireModel = model.Wire // Get all the wires from the Wire model
     let wires = Map.toList wireModel.Wires
@@ -282,10 +345,11 @@ let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
     // Return the count of filtered pairs
     List.length filteredPairs
 
-/// T4R Top-Level Helper: For N wires in the same-net, starting from the same port, count the total length
+///<summary>
+/// T4R High-Level Helper: For N wires in the same-net, starting from the same port, count the total length
 /// of segments that all overlap together multiplied by (N-1).
 /// This value (scaled overlap count) is used to offset/substract from total number of segments. Count over whole sheet.
-/// At the bottom of the function is an in-depth explanation of the algorithm.
+/// At the bottom of the function definition is an in-depth explanation of the algorithm.
 /// See T4R getApproxVisibleSegmentsLength function for more information.
 ///
 ///             visible_Segments_Length
@@ -293,6 +357,9 @@ let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
 ///             = totalSegmentsLength - (N-1) * sharedNetOverlapLength
 ///             = totalSegmentsLength - getSharedNetOverlapOffsetLength
 ///
+/// </summary>
+/// <param name="model">The model to calculate the shared net overlap offset length of.</param>
+/// <returns>The shared net overlap offset length of the model.</returns>
 let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
     //####################### HELPER FUNCTIONS #######################
     /// Helper for T4R that takes in a group of wires and returns the length of the wire with the least number of segments
@@ -478,7 +545,9 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
     The shared overlap length is the minimum of the end points of the (k+1)th segments of all wires.
     *)
 
-/// T4R Helper: Get total length of wire segments in a model
+/// <summary> T4R High-Level Helper: Get total length of wire segments in a model </summary>
+/// <param name="model">The model to calculate the total length of wire segments of.</param>
+/// <returns>The total length of wire segments in the model, even counting overlaps.</returns>
 let getTotalSegmentsLength (model: SheetT.Model) =
     let wireModel = model.Wire
     wireModel.Wires
@@ -489,13 +558,9 @@ let getTotalSegmentsLength (model: SheetT.Model) =
             |> List.sumBy (fun seg -> abs (seg.Length)))
         0.0
 
-/// T4R Top-Level function. Returns the sum of wiring segment length, counting only one when there are N same-net
-/// segments overlapping (this is the visible wire length on the sheet). Count over whole
-/// sheet.
-/// Limitations: This function uses an approximation, only considers overlaps from one 'patch' of contiguous segments of wires that start from the same port
-/// It will not count partial overlaps of less than N wires, nor subsequent overlappings after the first patch of contiguous segments (in the case wires diverge and later return to overlap)
-/// So this value is not always exact. But since we assume most overlaps happen once with all wires starting from a shared port,
-/// the approximation below is good enough, since it is likely to be used as a heuristic for wiring complexity.
+/// <summary>
+/// T4R Top-Level function. Returns the sum of wiring segment length, counting only one wire when there are N same-net
+/// segments overlapping (this is the visible wire length on the sheet). Count overthe  whole sheet.
 /// It is approximated by (for n wires in a net):
 ///
 ///              totalSegmentsLength - (N-1) * sharedNetOverlapLength
@@ -503,11 +568,22 @@ let getTotalSegmentsLength (model: SheetT.Model) =
 ///
 /// To calculate the exact length accounting for overlaps is extremely complex (it is actively researched in computational geometry)
 /// and becomes even more computational if considering x overlaps of 1..x..n
+/// </summary>
+/// <param name="model">The model to calculate the visible wire length of.</param>
+/// <returns>The approximate visible wire length of the model.</returns>
+/// <remarks>
+/// Limitations: This function uses an approximation, it only considers overlaps from one 'patch' of contiguous segments of wires that start from the same port
+/// It will not count partial overlaps of less than N wires, nor subsequent overlappings after the first patch of contiguous segments (in the case wires diverge and later return to overlap)
+/// So this value is not always exact. But since we assume most overlaps happen once with all wires starting from a shared port,
+/// the approximation below is good enough, since it is likely to be used as a heuristic for wiring complexity.
+/// </remarks>
 let getApproxVisibleSegmentsLength (model: SheetT.Model) =
     (getTotalSegmentsLength model)
     - (getSharedNetOverlapOffsetLength model)
 
-///T5R:  Number of visible wire right-angles. Count over whole sheet. Note that this also counts wires that overlap
+///<summary> T5R: Number of visible wire right-angles. Count over whole sheet. Note that this also counts wires that overlap </summary>
+/// <param name="model">The model to count the visible wire right-angles of.</param>
+/// <returns>The number of visible wire right-angles.</returns>
 let countVisibleRAngles (model: SheetT.Model) =
     let wireModel = model.Wire
     wireModel.Wires
@@ -521,21 +597,28 @@ let countVisibleRAngles (model: SheetT.Model) =
         // initialise the accumulator to 0
         0
 
-/// T6R Function: The zero-length segments in a wire with non-zero segments on either side that have
-/// Lengths of opposite signs lead to a wire retracing itself.
+/// <summary>
+/// T6R Function: The zero-length segments in a wire with non-zero segments on either side that have lengths of opposite signs lead to a wire retracing itself.
+/// </summary>
+/// <param name="model">The model to get the retracing segments and intersections of.</param>
+/// <return>
 /// Returns a list tuple with:
 /// 1. a list of all segments that retrace
 /// 2. a list that includes adjacent segments to the retracing that starts(intersects) a symbol
-// Algorithm:
-// Repeat for every wire on the sheet:
-// 1. Get the absolute segments of the wire
-// 2. Look for a 3-segment pattern of a non-zero segment followed by a zero segment followed by a non-zero segment that has opposite signs to the previous
-// 3. Add them as a list to a list of retracing segments
-// 4. Add them as a list to a second retracing segments, ALSO including the segment before and after the pattern if it exists and is nonzero (max 5 segments in total)
-// 5. For the 2nd list, run them through the function findSymbolIntersections
-// Note that this function returns lists of segment lists, using a list of segments to represent a 'group' of retracing segments
-// To fully satisfy T6R, we need to get a function that returns all unique segments within the list
-// See function countUniqRetracingSegmentsAndIntersects
+/// </return>
+/// <remarks>
+/// Algorithm:
+/// Repeat for every wire on the sheet:
+/// 1. Get the absolute segments of the wire
+/// 2. Look for a 3-segment pattern of a non-zero segment followed by a zero segment followed by a non-zero segment that has opposite signs to the previous
+/// 3. Add them as a list to a list of retracing segments
+/// 4. Add them as a list to a second retracing segments, ALSO including the segment before and after the pattern if it exists and is nonzero (max 5 segments in total)
+/// 5. For the 2nd list, run them through the function findSymbolIntersections
+///
+/// Note that this function returns lists of segment lists, using a list of segments to represent a 'group' of retracing segments
+/// To fully satisfy T6R (it also asks for a count), we need to get a function that returns all unique segments within the list.
+/// See function <c>countUniqRetracingSegmentsAndIntersects</c> where this is implemented.
+/// </remarks>
 let getRetracingSegmentsAndIntersections (model: SheetT.Model) =
     let wireModel = model.Wire
     wireModel.Wires
@@ -607,13 +690,20 @@ let getRetracingSegmentsAndIntersections (model: SheetT.Model) =
  far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol.
 *)
 
+/// <summary>
 /// T6R Function Variant.
 /// The original T6R function, getRetracingSegmentsAndIntersections returns a tuple with:
 /// 1. a list of all segments that retrace
 /// 2. a list that includes adjacent segments to the retracing that starts(intersects) a symbol
-///
+/// </summary>
+/// <remarks>
 /// This variant function, countUniqRetracingSegmentsAndIntersects, counts the unique segments where this occurs in a sheet.
 /// This is a helpful heuristic to count wiring artefacts, to test routing algorithms
+/// </remarks>
+/// <param name="model">The model to count the retracing segments and intersections of.</param>
+/// <returns>
+/// The number of unique segments that retrace, and the number of unique segments in a group that retrace and intersect with a symbol.
+/// </returns>
 let countUniqRetracingSegmentsAndIntersects (model: SheetT.Model) =
     let (retracingSegments, retracingSegmentsWithIntersections) =
         getRetracingSegmentsAndIntersections model

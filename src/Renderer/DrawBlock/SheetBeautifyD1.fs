@@ -13,23 +13,6 @@ open DrawModelType.BusWireT
 //D1. sheetAlignScale ASB
 //________________________________________________________________________________________________________________________
 
-// Align all singly-connected components to eliminate wire bends in parallel wires
-
-//----> helper functions for the algorithm
-
-//I am using parallel as "wire that is straight, or a candidate for straightening".
-//Wires, for example, with 4 visual segments, are not parallel, and  are more complex. You could ignore them.
-
-//A component is single-connected (in a given direction) when it has a single straightenable 3-visual-segment 
-//wire connecting it to another component in that direction. In that case you can be sure that moving the component 
-//can straighten that connection without unstraightening any other connections.
-//Straightening: turn 3 visual segments into one
-//Unstraightening: turning one visual segment into 3
-
-//A *single-constrained wire* is one which can be straightened without unstraightening any other wires: in other 
-//words one of its ends is a single-connected component. - 
-
-
 
 //List of all the symbols on the sheet
 let symbolList (sheet: SheetT.Model) = 
@@ -37,19 +20,17 @@ let symbolList (sheet: SheetT.Model) =
     |> List.map snd
 
 
-
 ///Returns True if a wire is streightened.
 let streightenedWire (wire: Wire) (sheet: SheetT.Model) = 
     let wId = wire.WId
     (visibleSegments wId sheet |> List.length) = 1
+
 ///Returns True if a wire has potential to be streightened.
 let straighteningPotentialWire (wire: Wire) (sheet: SheetT.Model) =
     let wId = wire.WId
     (visibleSegments wId sheet |> List.length) = 3
 
 
-// Need to calculate the sign of the offset and return it as the second element of the tuple with this function
-// Can use PortMaps.Orientation - This is in the Symbol Record
 let checkIfSinglePortComponent (sym: Symbol) =
     let numInputPorts= sym.Component.InputPorts |> List.length 
     let numOutputPorts= sym.Component.OutputPorts |> List.length
@@ -67,35 +48,13 @@ let changeOffsetSign (sym: Symbol) (portId: string) =
 
 
 
-//BlockHelpers.getSourcePort
-    //let inline getSourcePort (model:Model) (wire:Wire)
-//BlockHelpers.moveSymbol
-    //moveSymbol (offset:XYPos) (sym:Symbol)
-//BusWireRoute.updateWires
-    //let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) = 
-    // list opf moved componnts
-
-//symbol.
-    //getPortLocation (defPos: XYPos option) (model: Model) (portId : string) : XYPos=
-
-
-
-//Should be used just for wires with 3 visible segments
-// Calculates the offSet based on the middle segmant of a potential wire 
+///Should be used just for wires with 3 visible segments
+/// Calculates the offSet based on the middle segmant of a potential wire 
 let calculateOffset (wire: Wire) (sheet: SheetT.Model) =
     wire.WId
     |> (fun wId -> visibleSegments wId sheet)
     |> (fun visSegs -> if List.length visSegs = 3 then visSegs[1] else XYPos.zero)
 
-//let calculateOffset_old (wire: Wire) (sheet: SheetT.Model) =
-//    let wId = wire.WId
-//    let nodeslist = visibleSegments wId sheet
-//    let firstNode = List.item 0 nodeslist
-//    let secondNode = List.item 1 nodeslist
-//    {
-//        X = firstNode.X - secondNode.X
-//        Y = firstNode.Y - secondNode.Y
-//    }
 
 
 ///Returns a list of the potential wire if there are no straight wires already.
@@ -115,15 +74,6 @@ let getPotentialWireOffset (sheet: SheetT.Model) (wires: list<Wire> ) =
         calculateOffset firstWire sheet
     
 
-
-
-
-
-
-    
-        
-
-
 let getWiresFromPort (sheet: SheetT.Model) (port: Port) (wireInputPort: bool) =
             sheet.Wire.Wires
             |> Map.toList
@@ -139,8 +89,6 @@ let getWiresFromPort (sheet: SheetT.Model) (port: Port) (wireInputPort: bool) =
 
 ///Get all the wires from a Symbol that has strictly just one Port
 let allWires1PortSym (sym: Symbol) (sheet: SheetT.Model)=
-        //let i = List.item 0 sym.Component.InputPorts 
-        // let o = List.item 0  sym.Component.OutputPorts
         if sym.Component.OutputPorts = []
         then
             let i = List.item 0 sym.Component.InputPorts
@@ -247,7 +195,7 @@ let connectedSymbolsMap (sheet: SheetT.Model) =
                             | None -> Map.add syms [wire] map) Map.empty
 
  
-
+///In this phase all singly-connected components are aligned and their wires are streightend.
 let firstPhaseStraightening (sheet: SheetT.Model) =
     let initialOverlap = countIntersectedSymbols sheet
     let singlePortComponents = 
@@ -269,7 +217,8 @@ let firstPhaseStraightening (sheet: SheetT.Model) =
     |> rerouteWires (List.map (fun sym -> sym.Id) changedSymbolList) XYPos.zero
     
 
-
+/// Phase where scaling and moving is done to a pair of multiport symbols (works for custom and non-custom) in order
+///  to streighten the wires between them.
 let secondPhaseStraightening (sheet: SheetT.Model)=
     connectedSymbolsMap sheet
     |> Map.filter (fun _ value -> List.length value > 1 )
@@ -285,21 +234,5 @@ let secondPhaseStraightening (sheet: SheetT.Model)=
                     |> rerouteWires [newSym.Id] XYPos.zero) sheet
 
     
-// let newSym = align1PortSymbol(snd syms) scaledModel
-//                     Optic.set (SheetT.symbolOf_ newSym.Id) newSym scaledModel
-//                     |> rerouteWires [newSym.Id] XYPos.zero
-
-
-    //get the actual position of the input port and allign the output port  with the input
-    //getPortPosOnSheet  
-
-//BlockHelpers.getSourcePort
-    //let inline getSourcePort (model:Model) (wire:Wire)
-//BlockHelpers.moveSymbol
-    //moveSymbol (offset:XYPos) (sym:Symbol)
-//BusWireRoute.updateWires
-    //let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) = 
-    // list opf moved componnts
-
-//for custom components I want to make the port distance equal on both sides
-//if I have two symbols and the input symbol is not singly connected then just scale the input symbol
+    //IMPORTANT NOTE: The align1PortSymbol function has a terible name, it actually aligns a symbol according its wire. 
+    //Will change the name when I can focus in order to find the name that makes sense for the both phases.

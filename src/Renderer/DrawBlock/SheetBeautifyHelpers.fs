@@ -55,130 +55,122 @@ let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option =
         |> Map.values
         |> Seq.tryFind (fun sym -> caseInvariantEqual label sym.Component.Label)
 
-// Update a Model with a new symbol
-let symbolModel_ = SheetT.symbol_
-let updateSymbolinSheet (model: SheetT.Model) (symbol: SymbolT.Symbol) (updateSymPos: (Symbol -> Symbol)) = 
-    let symModel: SymbolT.Model = 
-                    SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
-
-    model
-    |> Optic.set symbolModel_ symModel
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B1 The dimensions of a custom component symbol
-let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, (float * float)> =
+// let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, (float * float)> =
 
-        let originalWidth = symbol.Component.W
-        let originalHeight = symbol.Component.H
-
-
-        let get (model: SheetT.Model) =
-            let width = match symbol.HScale with
-                            | Some scale -> originalWidth * scale
-                            | None -> originalWidth
-            let height = match symbol.VScale with
-                            | Some scale -> originalHeight * scale
-                            | None -> originalHeight
-            (width, height)
+//         let originalWidth = symbol.Component.W
+//         let originalHeight = symbol.Component.H
 
 
-        let set (newDimensions: (float * float)) (model: SheetT.Model) =
-            let (width, height) = newDimensions
+//         let get (model: SheetT.Model) =
+//             let width = match symbol.HScale with
+//                             | Some scale -> originalWidth * scale
+//                             | None -> originalWidth
+//             let height = match symbol.VScale with
+//                             | Some scale -> originalHeight * scale
+//                             | None -> originalHeight
+//             (width, height)
 
-            let hScale = width / originalWidth
-            let vScale = height / originalHeight
-            let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
-            let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-            let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+
+//         let set (newDimensions: (float * float)) (model: SheetT.Model) =
+//             let (width, height) = newDimensions
+
+//             let hScale = width / originalWidth
+//             let vScale = height / originalHeight
+//             let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
+//             let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+//             let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
             
-            updatedSheetModel
-        (get, set)
+//             updatedSheetModel
+//         (get, set)
 
-
-let CustomComponentDimensionsLens2 (symbol: SymbolT.Symbol) : Lens<SymbolT.Symbol, (float * float)> =
-
+let getCustomSymDim (symbol: SymbolT.Symbol) =
         let originalWidth = symbol.Component.W
         let originalHeight = symbol.Component.H
 
-
-        let get (symbol: SymbolT.Symbol) =
-            let width = match symbol.HScale with
-                            | Some scale -> originalWidth * scale
-                            | None -> originalWidth
-            let height = match symbol.VScale with
-                            | Some scale -> originalHeight * scale
-                            | None -> originalHeight
-            (width, height)
+        let width = match symbol.HScale with
+                        | Some scale -> originalWidth * scale
+                        | None -> originalWidth
+        let height = match symbol.VScale with
+                        | Some scale -> originalHeight * scale
+                        | None -> originalHeight
+        (width, height)
 
 
-        let set (newDimensions: (float * float)) (symbol: SymbolT.Symbol) =
-            let (width, height) = newDimensions
+let setCustomSymDim ((width, height): (float * float)) (symbol: SymbolT.Symbol) =
+    let originalWidth = symbol.Component.W
+    let originalHeight = symbol.Component.H
 
-            let hScale = width / originalWidth
-            let vScale = height / originalHeight
-            { symbol with HScale = Some hScale; VScale = Some vScale }
+    let hScale = width / originalWidth
+    let vScale = height / originalHeight
+    { symbol with HScale = Some hScale; VScale = Some vScale }
 
-        (get, set)
+
+let customSymDim_ = Lens.create getCustomSymDim setCustomSymDim
+
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B2 The position of a symbol on the sheet 
+// let symbolModel_ = SheetT.symbol_
+// let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT.Model): SheetT.Model=
 
-let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT.Model): SheetT.Model=
+//     let updateSymPos (symbol: SymbolT.Symbol) = { symbol with Pos = newPos }
+//     let symModel: SymbolT.Model = 
+//                     SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
 
-    let updateSymPos (symbol: SymbolT.Symbol) = { symbol with Pos = newPos }
-    updateSymbolinSheet model symbol updateSymPos
-    // let symModel: SymbolT.Model = 
-    //                 SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
+//     model
+//     |> Optic.set symbolModel_ symModel
 
-    // model
-    // |> Optic.set symbolModel_ symModel
+let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos): SymbolT.Symbol=
+    
+    { symbol with Pos = newPos }
+
+
+    
+
+
     
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B3 Read/write the order of ports on a specified side of a symbol
-let portOrderLens (symbol: SymbolT.Symbol) (side: Edge) : Lens<SheetT.Model, string list option> =
+// let portOrderLens (side: Edge) : Lens<SymbolT.Symbol, string list option> =
 
-    let get (model: SheetT.Model) =
-        Map.tryFind side symbol.PortMaps.Order
+//     let get (symbol: SymbolT.Symbol) =
+//         Map.tryFind side symbol.PortMaps.Order
 
-    let set (newPortOrder: string list option) (model: SheetT.Model) =
-        match newPortOrder with
-        | Some (newOrder: string list) ->
-            let updater (symbol: SymbolT.Symbol) = 
-                { symbol with PortMaps = { symbol.PortMaps with Order = Map.add side newOrder symbol.PortMaps.Order } }
-            updateSymbolinSheet model symbol updater
-        
-        | None -> model
+//     let set (newPortOrder: string list option) (symbol: SymbolT.Symbol) =
+//         match newPortOrder with
+//         | Some (newOrder: string list) ->
+//             let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
+//             { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
+//         | None -> symbol
 
-    (get, set)
+//     (get, set)
 
-let portOrderLens2 (side: Edge) : Lens<SymbolT.Symbol, string list option> =
+let getPortOrder (side: Edge) (symbol: SymbolT.Symbol) =
+    Map.tryFind side symbol.PortMaps.Order
 
-    let get (symbol: SymbolT.Symbol) =
-        Map.tryFind side symbol.PortMaps.Order
+let setPortOrder (side: Edge) (newPortOrder: string list option) (symbol: SymbolT.Symbol) =
+    match newPortOrder with
+    | Some (newOrder: string list) ->
+        let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
+        { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
+    | None -> symbol
 
-    let set (newPortOrder: string list option)(symbol: SymbolT.Symbol): SymbolT.Symbol =
-        match newPortOrder with
-        | Some (newOrder: string list) -> 
-            { symbol with PortMaps = { symbol.PortMaps with Order = Map.add side newOrder symbol.PortMaps.Order } }
-        
-        | None -> symbol
-
-    (get, set)
-
-// let a, b = portOrderLens symbol Edge
+let symPortOrder_ side = Lens.create (getPortOrder side) (setPortOrder side)
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B4 The reverses state of the inputs of a MUX2 
-let reverseMuxInputLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
 
-    let get (model: SheetT.Model): bool = 
+let getreverseMux2Input (symbol: SymbolT.Symbol): bool = 
         
         let InputPort: option<bool> = symbol.ReversedInputPorts
         
@@ -186,32 +178,33 @@ let reverseMuxInputLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
         | Some state -> state
         | None -> false
         
-    let set (newState: bool) (model: SheetT.Model): SheetT.Model =
+let setreverseMux2Input (newState: bool) (symbol: SymbolT.Symbol): SymbolT.Symbol =
 
-        let updater (symbol: SymbolT.Symbol) = 
-            { symbol with ReversedInputPorts = Some newState }
+    { symbol with ReversedInputPorts = Some newState }
 
-        updateSymbolinSheet model symbol updater
+let reverseMux2Input_ = Lens.create getreverseMux2Input setreverseMux2Input        
 
-    (get, set)
+// let reverseMuxInputLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
 
-
-let reverseMuxInputLens2: Lens<SymbolT.Symbol, bool> =
-
-    let get (symbol: SymbolT.Symbol): bool = 
-
-        let InputPort: option<bool> = symbol.ReversedInputPorts
+//     let get (model: SheetT.Model): bool = 
         
-        match InputPort with
-        | Some state -> state
-        | None -> false
+//         let InputPort: option<bool> = symbol.ReversedInputPorts
         
-    let set (newState: bool) (symbol: SymbolT.Symbol): SymbolT.Symbol =
-        { symbol with ReversedInputPorts = Some newState }
+//         match InputPort with
+//         | Some state -> state
+//         | None -> false
+        
+//     let set (newState: bool) (model: SheetT.Model): SheetT.Model =
 
-    (get, set)
-// let a, b = MuxReverseLens (SymbolT.Symbol.Create (ComponentId.Create "1"))
+//         let updateSymbol (symbol: SymbolT.Symbol) = 
+//             { symbol with ReversedInputPorts = Some newState }
+            
+//         let updatedModel = SymbolUpdate.updateSymbol updateSymbol symbol.Id model.Wire.Symbol
 
+//         Optic.set SheetT.symbol_ updatedModel model
+
+
+//     (get, set)
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -276,55 +269,55 @@ let readBoundingBox (symbol: Symbol) : BoundingBox =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 
-// B7 RW  The rotation state of a symbol
-let SymbolRotationLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, Rotation> =
-    let get (model: SheetT.Model) : Rotation = symbol.STransform.Rotation
+// let SymbolRotationLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, Rotation> =
+//     let get (model: SheetT.Model) : Rotation = symbol.STransform.Rotation
 
-    //Rotation -> SheetT.Model -> SheetT.Model
-    let set (desiredRotation: Rotation) (model: SheetT.Model) : SheetT.Model =
-        let updatedSymbol = { symbol with STransform = { symbol.STransform with Rotation = desiredRotation}}
-        let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-        let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+//     //Rotation -> SheetT.Model -> SheetT.Model
+//     let set (desiredRotation: Rotation) (model: SheetT.Model) : SheetT.Model =
+//         let updatedSymbol = { symbol with STransform = { symbol.STransform with Rotation = desiredRotation}}
+//         let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+//         let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
         
-        updatedSheetModel
+//         updatedSheetModel
 
-    (get, set)
+//     (get, set)
 
-let SymbolRotationLens2: Lens<SymbolT.Symbol, Rotation> =
+// let SymbolFlippedLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
+//     let get (model: SheetT.Model) : bool = symbol.STransform.Flipped
 
-    let get (symbol: SymbolT.Symbol) : Rotation = 
-        symbol.STransform.Rotation
+//     //Rotation -> SheetT.Model -> SheetT.Model
+//     let set (desiredFlipped: bool) (model: SheetT.Model) : SheetT.Model =
+//         let updatedSymbol = { symbol with STransform = { symbol.STransform with Flipped = desiredFlipped}}
+//         let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
+//         let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
+        
+//         updatedSheetModel
 
-    //Rotation -> SheetT.Model -> SheetT.Model
-    let set (desiredRotation: Rotation) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
-        { symbol with STransform = { symbol.STransform with Rotation = desiredRotation}}
+//     (get, set)
 
-    (get, set)
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// B7 RW  Low The rotation state of a symbol
+let getSymbolRotation (symbol: SymbolT.Symbol) : Rotation = 
+    symbol.STransform.Rotation
+let setSymbolRotation (desiredRotation: Rotation) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
+    { symbol with STransform = { symbol.STransform with Rotation = desiredRotation}}
+    
+let SymbolRotation_ = Lens.create getSymbolRotation setSymbolRotation
 
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------//
 // B8 RW  Low The Flipped state of a symbol 
-let SymbolFlippedLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
-    let get (model: SheetT.Model) : bool = symbol.STransform.Flipped
+let getSymbolFlipped (symbol: SymbolT.Symbol) : bool = 
+    symbol.STransform.Flipped
+let setSymbolFlipped (desiredFlipped: bool) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
+    { symbol with STransform = { symbol.STransform with Flipped = desiredFlipped}}
 
-    //Rotation -> SheetT.Model -> SheetT.Model
-    let set (desiredFlipped: bool) (model: SheetT.Model) : SheetT.Model =
-        let updatedSymbol = { symbol with STransform = { symbol.STransform with Flipped = desiredFlipped}}
-        let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-        let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
-        
-        updatedSheetModel
-
-    (get, set)
+let symbolFlipped_ = Lens.create getSymbolFlipped setSymbolFlipped
 
 
-let SymbolFlippedLens2: Lens<SymbolT.Symbol, bool> =
-    let get (symbol: SymbolT.Symbol) : bool = 
-        symbol.STransform.Flipped
-
-    //Rotation -> SheetT.Model -> SheetT.Model
-    let set (desiredFlipped: bool) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
-        { symbol with STransform = { symbol.STransform with Flipped = desiredFlipped}}
-
-    (get, set)
 
 
 
@@ -581,76 +574,51 @@ let countTotalRightAngles (model: SheetT.Model) =
 // segments that retrace, and also a list of all the end of wire segments that retrace so 
 // far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol. 
 
-let findRetracingSegments (model: SheetT.Model) : XYPos list * XYPos list =
-    let segmentsXYPos =
+let findRetracingSegments (model: SheetT.Model) : Segment list * Segment list =
+    let allSegmentsXYPos =
         model.Wire.Wires
         |> Map.toList // Convert the map of wires to a list of (key, value) pairs
-        |> List.collect (fun (wId, _) -> visibleSegments wId model)
+        |> List.map (fun (wId, _) -> visibleSegments wId model)
     
-    let (segments: list<Segment>) =
+    let allSegments =
         model.Wire.Wires
         |> Map.toList // Convert the map of wires to a list of (key, value) pairs
-        |> List.collect (fun (wId, _) -> model.Wire.Wires[wId].Segments)
+        |> List.map (fun (wId, _) -> model.Wire.Wires[wId].Segments)
 
-    // let segments = model.Wire.Wires[wId].Segments
-    // let segmentsXYPos = visibleSegments wId model
-    // Detect retracing segments
-    // let detectRetracingSegments (segmentsXYPos: list<XYPos>) =
-    
-    let detectRetracingSegments (segmentsXYPos: list<XYPos>): list<int> =
-        let hasOppositeDirection (v1:XYPos) (v2:XYPos) = (v1.X * v2.X < 0.0) || (v1.Y * v2.Y < 0.0)
+    let checkSegmentRetrace (retracingSegments: list<Segment>, endOfWireRetracing: list<Segment>)(segments: list<Segment>, segmentsXYPos: list<XYPos>)(index: int) =
         let isZeroVector (v:XYPos) = (v.X = 0.0) && (v.Y = 0.0)
+        let hasOppositeDirection (v1:XYPos) (v2:XYPos) = (v1.X * v2.X < 0.0) || (v1.Y * v2.Y < 0.0)
 
-        let rec iter index acc =
-            if index + 2 < List.length segmentsXYPos then
-                let v1 = segmentsXYPos.[index]
-                let vZero = segmentsXYPos.[index + 1]
-                let v2 = segmentsXYPos.[index + 2]
-                if isZeroVector vZero && hasOppositeDirection v1 v2 then
-                    iter (index + 1) (acc @ [index + 1])
-                else
-                    iter (index + 1) acc
-            else
-                acc
+        let thisXYPos = segmentsXYPos.[index]
+        let prevXYPos = segmentsXYPos.[index - 1]
+        let nextXYPos = segmentsXYPos.[index + 1]
+        let thisSeg = segments.[index]
+        
 
-        iter 0 []
+        match thisSeg with
+        | thisSeg when isZeroVector thisXYPos ->
+
+            match thisSeg with
+                | _ when hasOppositeDirection prevXYPos nextXYPos -> 
+                    (thisSeg::retracingSegments, thisSeg::endOfWireRetracing)
+
+                | _ when index = segments.Length-1 || index = 0 ->
+                    (retracingSegments, thisSeg::endOfWireRetracing)
+
+                | _ -> 
+                    (retracingSegments, endOfWireRetracing)
+        | _ ->
+            (retracingSegments, endOfWireRetracing)
+
     
-    // let retracingSegmentsIndices = detectRetracingSegments segmentsXYPos
-    // let retracingSegments = List.choose (fun i -> List.tryItem i segments) retracingSegmentsIndices
-    let retraceSegmentList = 
-        segmentsXYPos
-        |> detectRetracingSegments
-        |> List.choose (fun i -> List.tryItem i segmentsXYPos)
-        // |> List.choose (fun i -> List.tryItem i segments)
-
-    (retraceSegmentList,segmentsXYPos)
-
-
-let getRetracingSegs (sheet:SheetT.Model) = 
-    let getRetracingSegsOfWire (wire:Wire) =
-        let segList = wire.Segments
-        let checkRetraceAtIndex (retraceList, endOfWireList) (idx:int) =
-            match segList[idx].Length with
-            | 0. -> (
-                    let currSeg = segList[idx]
-                    match idx with
-                    | nextIdx when nextIdx = segList.Length-1 -> // the zero-segment is already end-of-wire
-                        (currSeg::retraceList, endOfWireList)
-                    | _ ->                                            // the zero-segment is not end-of-wire
-                        let prevSeg = segList[idx-1]
-                        let nextSeg = segList[idx+1]
-                        match (sign prevSeg.Length = -(sign nextSeg.Length)) with     // check directions of neighbour segments
-                        | true ->  // opposite direction: add segments into lists
-                            match idx+1 with
-                            | nextIdx when nextIdx = segList.Length-1 -> // the next segment is end-of-wire
-                                (nextSeg::retraceList, nextSeg::endOfWireList)
-                            | _ -> (nextSeg::retraceList, endOfWireList)       // the next segment is not end-of-wire
-                        | false -> (retraceList, endOfWireList) // same direction: lists unchanged
-                )
-            | _ -> (retraceList, endOfWireList)
-        (([],[]),[1..segList.Length-1])
-        ||> List.fold checkRetraceAtIndex
-
-    mapValues sheet.Wire.Wires
-    |> Array.map getRetracingSegsOfWire
-    |> Array.fold (fun (li1,li2) (segLi1,segLi2) -> (List.append li1 segLi1, List.append li2 segLi2)) ([],[])
+    let checkWireRetrace (segments: list<Segment>, segmentsXYPos: list<XYPos>) =
+        [1 .. (List.length segmentsXYPos - 1)]
+        |> List.fold (fun acc idx ->
+            checkSegmentRetrace acc (segments, segmentsXYPos) idx
+        ) ([],[])
+    
+    List.zip allSegments allSegmentsXYPos
+    |> List.fold (fun (acc1, acc2) (cur1, cur2) ->
+            let new1, new2 = checkWireRetrace (cur1, cur2)
+            (acc1 @ new1, acc2 @ new2)
+        )([], [])

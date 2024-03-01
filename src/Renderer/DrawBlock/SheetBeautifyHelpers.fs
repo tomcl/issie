@@ -12,6 +12,7 @@ open BlockHelpers
 open CommonTypes
 open SymbolPortHelpers
 open Symbol
+open BusWire
 
 //Tick3 helper
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
@@ -182,16 +183,65 @@ let getSymbolOverlapNum (sheet: SheetT.Model): int =
 
 //T2R
 let getWireIntersectSymbolNum (sheet: SheetT.Model) : int =
+    let intersectingSegmentCount (wire: Wire) : int =
+        let segments = visibleSegments wire.WId sheet
+        let wireStartPos = wire.StartPos
+        let rec countIntersectingSegments count startPos = function
+            | [] -> count
+            | segment :: rest ->
+                let endPos = startPos + segment // Compute end position by adding segment vector to start position
+                let symbolBoundingBoxes =
+                    sheet.BoundingBoxes
+                    |> Map.toSeq
+                    |> Seq.map snd
+                    |> Seq.toList
+                let intersects =
+                    symbolBoundingBoxes
+                    |> List.exists (fun box ->
+                        match segmentIntersectsBoundingBox box startPos endPos with
+                        | Some _ -> true
+                        | None -> false)
+                let newCount = if intersects then count + 1 else count
+                countIntersectingSegments newCount endPos rest // Process the remaining segments recursively
+        countIntersectingSegments 0 wireStartPos segments
 
-    let countIntersectingSegments wireCount wire =
-        let segments = visibleSegments wireCount sheet
-        let symbolBoundingBoxes = BusWireRoute.findWireSymbolIntersections sheet.Wire wire
-        let isSegmentIntersectingSymbol (segment: XYPos) =
-            symbolBoundingBoxes |> List.exists (fun symbolBox -> BlockHelpers.overlap2DBox symbolBox segment)
-        segments |> List.filter isSegmentIntersectingSymbol |> List.length
+    sheet.Wire.Wires
+    |> Map.fold (fun acc _ wire -> acc + intersectingSegmentCount wire) 0
 
-    Map.fold (fun acc wireCount wire ->
-        acc + countIntersectingSegments wireCount wire) 0 sheet.Wire.Wires
+
+
+
+
+
+//T5R
+let getNumRightAngles (sheet: SheetT.Model) (wire: Wire) : int =
+    let segments = visibleSegments wire.WId sheet
+    let wireStartPos = wire.StartPos
+    let rec loop count segStart index =
+        if index >= segments.Length - 1 then
+            count
+        else
+            let seg = segments.[index]
+            let segEnd = segStart + seg
+            match getSegmentOrientationOpt segStart segEnd with
+            | Some Vertical when seg <> XYPos.zero ->
+                let nextSeg = segments.[index + 1]
+                if nextSeg <> XYPos.zero then
+                    let segEndNext = segEnd + nextSeg
+                    match getSegmentOrientationOpt segEnd segEndNext with
+                    | Some Horizontal ->
+                        loop (count + 1) segEnd (index + 1)
+                    | _ -> loop count segEnd (index + 1)
+                else
+                    loop count segEnd (index + 1)
+            | _ -> loop count segEnd (index + 1)
+    loop 0 wireStartPos 0
+
+
+
+
+
+
 
 
 

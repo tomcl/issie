@@ -13,18 +13,49 @@ open CommonTypes
 open SymbolPortHelpers
 open Symbol
 
+//Tick3 helper
+let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
+
+    let wire = model.Wire.Wires[wId] // get wire from model
+
+    /// helper to match even and off integers in patterns (active pattern)
+    let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
+
+    /// Convert seg into its XY Vector (from start to end of segment).
+    /// index must be the index of seg in its containing wire.
+    let getSegmentVector (index:int) (seg: BusWireT.Segment) =
+        // The implicit horizontal or vertical direction  of a segment is determined by 
+        // its index in the list of wire segments and the wire initial direction
+        match index, wire.InitialOrientation with
+        | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
+        | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
+
+    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
+    /// if this is possible, otherwise return segVecs unchanged.
+    /// Index must be in range >= 1
+    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
+        if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
+        then
+            segVecs[0..index-2] @
+            [segVecs[index-1] + segVecs[index+1]] @
+            segVecs[index+2..segVecs.Length - 1]
+        else
+            segVecs
+
+    wire.Segments
+    |> List.mapi getSegmentVector
+    |> (fun segVecs ->
+            (segVecs,[1..segVecs.Length-2])
+            ||> List.fold tryCoalesceAboutIndex)
 
 //B1R
 let readCustCompDim (sym: Symbol) =
     (sym.Component.H, sym.Component.W)
 
 //B1W
-//let writeCustCompDim (h: float) (w: float) (sym: Symbol) =
-//    BlockHelpers.setCustomCompHW h w sym
-
-let writeCustCompDim (h: float) (w: float) (sym: Symbol) =
-    let updatedComponent = { sym.Component with H = h; W = w }
-    { sym with Component = updatedComponent }
+let writeCustCompDim (h: float) (w: float) (symbol: Symbol) =
+    let updatedComponent = { symbol.Component with H = h; W = w }
+    { symbol with Component = updatedComponent }
 
 //B2W
 let writeSymbolPos (symbolModel: SymbolT.Model) (x: float) (y: float) (compId: ComponentId) =
@@ -33,7 +64,7 @@ let writeSymbolPos (symbolModel: SymbolT.Model) (x: float) (y: float) (compId: C
         let updatedPos = { X = x; Y = y }
         let updatedSymbol = { symbol with Pos = updatedPos }
         { symbolModel with Symbols = symbolModel.Symbols.Add(compId, updatedSymbol) }
-    | None -> symbolModel // Handle case where component ID is not found
+    | None -> symbolModel 
 
 
 //B3R
@@ -57,6 +88,7 @@ let isInputPortsReversed (symbol: Symbol) : bool option =
 
 //B4W
 
+(*
 let ReverseMuxInputs (symbol: Symbol) (symbolModel: SymbolT.Model) (compId: ComponentId) =
     let reverse = isInputPortsReversed symbol
     match Map.tryFind compId symbolModel.Symbols with
@@ -76,6 +108,7 @@ let ReverseMuxInputs (symbol: Symbol) (symbolModel: SymbolT.Model) (compId: Comp
             | _ -> Some symbol // No need to reverse inputs
         | _ -> Some symbol // Component type doesn't need input reversal
     | None -> None // Symbol not found in the model
+*)
 
 let writeReverseMuxInputs (symbol: Symbol) (reverse: bool option) : Symbol =
     match symbol.Component.Type with
@@ -86,6 +119,7 @@ let writeReverseMuxInputs (symbol: Symbol) (reverse: bool option) : Symbol =
 
 
 //B5R
+
 (*
 let getPortPosition (symbol: Symbol) (portId: string) : XYPos option =
     let component = symbol.Component
@@ -103,7 +137,7 @@ let getPortPosition (symbol: Symbol) (portId: string) : XYPos option =
         | Left -> // Calculate position along the left edge
         | Right -> // Calculate position along the right edge
     Some portPosition
-    *)
+*)
 
 let getPortPos (port: Port) (model: SymbolT.Model) : XYPos =
     let portId = port.Id
@@ -121,14 +155,6 @@ let writeRotateState (symbol: Symbol) (rotate: Rotation) : Symbol =
     let updatedSTransform = {symbol.STransform with Rotation = rotate}
     let updatedSymbol = {symbol with STransform = updatedSTransform}
     updatedSymbol
-
-let write2 (symbol: Symbol) (rotate: Rotation) : Symbol =
-    match rotate with
-    | Degree0 | Degree90 | Degree180 | Degree270 ->
-        let updatedSTransform = {symbol.STransform with Rotation = rotate}
-        let updatedSymbol = {symbol with STransform = updatedSTransform}
-        updatedSymbol
-    | _ -> symbol
         
 
 //B8R
@@ -140,5 +166,32 @@ let writeFlipState (symbol: Symbol) (flip: bool) : Symbol =
     let updatedSTransform = {symbol.STransform with Flipped = flip}
     let updatedSymbol = {symbol with STransform = updatedSTransform}
     updatedSymbol
+
+//T1R
+let getSymbolOverlapNum (sheet: SheetT.Model): int =
+    // Retrieve the bounding boxes of all components from the model
+    let boundingBoxes = sheet.BoundingBoxes |> Map.toList
+
+    // Define a function to count overlapping symbols
+    let countOverlappingSymbols (box1: BoundingBox) (acc: int) ((_, box2): CommonTypes.ComponentId * BoundingBox) =
+        if overlap2DBox box1 box2 then acc + 1 else acc
+
+    // Use List.fold to accumulate the count of overlapping symbols
+    boundingBoxes
+    |> List.fold (fun acc (_, box1) -> List.fold (countOverlappingSymbols box1) acc boundingBoxes) 0
+
+//T2R
+let getWireIntersectSymbolNum (sheet: SheetT.Model) : int =
+
+    let countIntersectingSegments wireCount wire =
+        let segments = visibleSegments wireCount sheet
+        let symbolBoundingBoxes = BusWireRoute.findWireSymbolIntersections sheet.Wire wire
+        let isSegmentIntersectingSymbol (segment: XYPos) =
+            symbolBoundingBoxes |> List.exists (fun symbolBox -> BlockHelpers.overlap2DBox symbolBox segment)
+        segments |> List.filter isSegmentIntersectingSymbol |> List.length
+
+    Map.fold (fun acc wireCount wire ->
+        acc + countIntersectingSegments wireCount wire) 0 sheet.Wire.Wires
+
 
 

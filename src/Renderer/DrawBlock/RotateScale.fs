@@ -13,7 +13,7 @@ open SymbolResizeHelpers
 (* 
     This module contains the code that rotates and scales blocks of components.
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.
-    It requires better documentation of teh pasrts now used.
+    It requires better documentation of the parts now used.
 *)
 
 /// Record containing all the information required to calculate the position of a port on the sheet.
@@ -93,6 +93,33 @@ let getOppEdgePortInfo
               SymB = otherSymbol
               Wire = w })
 
+//CHANGEs TO alignPortsOffset
+
+///Calculate real position of port
+let calculatePortRealPos (pInfo: PortInfo) =
+    getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
+
+///Calculate offset between two ports
+let calculateOffset (movePortPos: XYPos) (otherPortPos: XYPos) =
+    { X = otherPortPos.X - movePortPos.X; Y = otherPortPos.Y - movePortPos.Y }
+
+let determineOffsetDirection (side: Edge) (posDiff: XYPos) =
+    match side with
+    | Top | Bottom -> { X = posDiff.X; Y = 0.0 }
+    | Left | Right -> { X = 0.0; Y = posDiff.Y }
+
+let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
+    let movePortPos = calculatePortRealPos movePInfo
+    let otherPortPos = calculatePortRealPos otherPInfo
+    let posDiff = calculateOffset movePortPos otherPortPos
+    let offsetDirection = determineOffsetDirection movePInfo.side posDiff
+    offsetDirection
+
+//reason for change:
+//          -better readability
+//          -easier to maintain
+
+(*
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let getPortRealPos pInfo =
         getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
@@ -106,6 +133,7 @@ let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     | Bottom -> { X = posDiff.X; Y = 0.0 }
     | Left
     | Right -> { X = 0.0; Y = posDiff.Y }
+*)
 
 let alignSymbols
     (wModel: BusWireT.Model)
@@ -127,7 +155,6 @@ let alignSymbols
 /// HLP23: It should work out the interconnecting wires (wires) from
 /// the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
-///.................................................................COURSEWORK START....................................//
 let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
@@ -194,6 +221,8 @@ let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundin
     |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox symBB && sym.Id <> sId)
     |> Map.isEmpty
 
+
+//THIS FUNCTION DEFINITELY NEEDS IMPROVING
 /// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
 let optimiseSymbol
     (wModel: BusWireT.Model)
@@ -258,24 +287,44 @@ let optimiseSymbol
 
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
-    ///////..................................................................COURSEWORK END..............................//
+
+
+//IMPROVEMENTS TO getBlock
+
+/// Finds the maximum X and Y coord of symbol
+let maxSym (symbols: Symbol list) =
+    let maxX =
+        symbols
+        |> List.maxBy (fun sym -> sym.Pos.X + snd (getRotatedHAndW sym))
+        |> (fun maxXsym -> maxXsym.Pos.X + snd (getRotatedHAndW maxXsym))
+
+    let maxY =
+        symbols
+        |> List.maxBy (fun sym -> sym.Pos.Y + fst (getRotatedHAndW sym))
+        |> (fun maxYsym -> maxYsym.Pos.Y + fst (getRotatedHAndW maxYsym))
+
+    maxX, maxY
+
+///Finds minimum X and Y coord of symbol
+let minSym (symbols: Symbol list) =
+    let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
+    let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
+
+    minX, minY
+
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
 /// <returns>Bounding Box</returns>
 let getBlock 
         (symbols:Symbol List) :BoundingBox = 
 
-    let maxXsym = (List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) symbols)
-    let maxX = maxXsym.Pos.X + (snd (getRotatedHAndW maxXsym))
-
-    let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
-
-    let maxYsym = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) symbols
-    let maxY = maxYsym.Pos.Y + (fst (getRotatedHAndW maxYsym))
-
-    let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
+    let maxX, maxY = maxSym symbols
+    let minX, minY = minSym symbols
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
+    //getBLOCK simplified
+    //reasons - a lot of repeated computations
+    //more readable this way
 
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
@@ -306,6 +355,7 @@ let rotatePointAboutBlockCentre
     |> rotateAboutCentre
     |> relativeToTopLeft
 
+
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>
 /// <param name="center"> The center XYPos that the point is flipped about</param>
@@ -330,7 +380,7 @@ let flipPointAboutBlockCentre
 let adjustPosForBlockRotation
         (rotation:Rotation) 
         (h: float)
-        (w:float)
+        (w: float)
         (pos: XYPos)
          : XYPos =
     let posOffset =
@@ -340,6 +390,12 @@ let adjustPosForBlockRotation
         | Degree180 -> {X= (float)w; Y= -(float)h}
         | Degree270 -> { X = 0 ;Y = (float)w }
     pos - posOffset
+
+
+//--------------------------------------------------------------------------------------------------------------------------------------//
+//-----------------------------------------------------------------COURSEWORK END-------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------------------//
+
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been flipped</summary>
 /// <param name="flip">  Flipped horizontally or vertically</param>
@@ -505,23 +561,39 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
     )}
 
+
+//CHANGES MADE TO OneCompoundsBothEdges
+let maxSymCentre (symbols: Symbol list) =
+    let maxX =
+        symbols
+        |> List.maxBy (fun sym -> sym.Pos.X + snd (getRotatedHAndW sym))
+        |> getRotatedSymbolCentre
+
+    let maxY =
+        symbols
+        |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
+        |> getRotatedSymbolCentre
+
+    maxX, maxY
+
+///
+let minSymCentre (symbols: Symbol list) =
+    let minX =
+        symbols
+        |> List.minBy (fun (x:Symbol) -> x.Pos.X)
+        |> getRotatedSymbolCentre
+
+    let minY =
+        symbols
+        |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
+        |> getRotatedSymbolCentre
+
+    minX, minY
+
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
-    let maxXSymCentre = 
-            selectedSymbols
-            |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
-            |> getRotatedSymbolCentre
-    let minXSymCentre =
-            selectedSymbols
-            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
-            |> getRotatedSymbolCentre
-    let maxYSymCentre = 
-            selectedSymbols
-            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
-            |> getRotatedSymbolCentre
-    let minYSymCentre =
-            selectedSymbols
-            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
-            |> getRotatedSymbolCentre
+    let maxXSymCentre, maxYSymCentre = maxSymCentre selectedSymbols
+    let minXSymCentre, minYSymCentre = minSymCentre selectedSymbols
+
     (maxXSymCentre.X = minXSymCentre.X) || (maxYSymCentre.Y = minYSymCentre.Y)
     
 
@@ -537,6 +609,9 @@ let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (ma
         else (matchMin - min * scaleFact) / (1.-scaleFact)
     (scaleFact, offsetC)
 
+
+
+(*
 /// Return set of floats that define how a group of components is scaled
 let getScalingFactorAndOffsetCentreGroup
     (matchBBMin:XYPos)
@@ -578,6 +653,8 @@ let getScalingFactorAndOffsetCentreGroup
     let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
     let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
     (xSC, ySC)
+
+*)
 
 /// Alter position of one symbol as needed in a scaling operation
 let scaleSymbol

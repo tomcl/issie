@@ -15,7 +15,7 @@ open Operators
 /// flip MUX input order to reduce wire crossings.</summary>
 /// <param name="model">  sheet model with components to optimize</param>
 /// <returns>New sheet model with adjust ports/flip.</returns>
-let sheetPortOrderFlip (model: SheetT.Model) : SheetT.Model =
+let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
 
     let filterCustomComponents (symbols: (ComponentId * Symbol) list) =
         symbols |> List.filter (fun (id,symbol) -> match symbol.Component.Type with

@@ -46,15 +46,18 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
         |> coalesce
 
 //B1R
+/// returns the height and width of a custom component
 let getCustomDimensions (sym: Symbol) : float*float =
     (sym.Component.H, sym.Component.W)
 
 //B1W
+/// updates the height and width of a custom component
 let updateCustomDimensions (h: float) (w:float) (sym: Symbol) : Symbol =
     let updatedComponent = {sym.Component with H = h; W = w}
     {sym with Component = updatedComponent}
 
 //B2W
+/// write the position of a symbol on a sheet
 let updateSymbolPos (sym: Symbol) (pos: XYPos): Symbol =
     let newPos = pos
     let comp' = {sym.Component with X = newPos.X; Y = newPos.Y}
@@ -65,12 +68,14 @@ let updateSymbolPos (sym: Symbol) (pos: XYPos): Symbol =
     }
 
 //B3R
+/// Read the order of ports on a specified side of a symbol
 let getSidePorts (sym:Symbol) (side: Edge) : string list =
     match sym.PortMaps.Order.TryFind(side) with
     | Some(ports) -> ports
     | None -> []
 
 //B3W
+/// Write the order of ports on a specified side of a symbol
 let updateSidePorts (sym:Symbol) (side: Edge) (ports: string list) : Symbol =
     let updatedOrder = Map.add side ports sym.PortMaps.Order
     let updatedOrientation = 
@@ -80,31 +85,37 @@ let updateSidePorts (sym:Symbol) (side: Edge) (ports: string list) : Symbol =
     { sym with PortMaps = updatedPortMaps }
 
 //B4R
+/// Return the reverses state of the inputs of a MUX2
 let getReverseStateMux2 (sym: Symbol): bool option =
     match sym.Component.Type with
     | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> sym.ReversedInputPorts
     | _ -> None
 
 //B4W
+/// Update the reverses state of the inputs of a MUX2
 let updateReverseStateMux2 (sym: Symbol) (state: bool option): Symbol =
     match sym.Component.Type with
     | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> {sym with ReversedInputPorts = state}
     | _ -> sym
 
 //B5
+/// Return the position of a port on the sheet
 let getPortPos (port: Port) (model: SymbolT.Model) : XYPos =
     let portId = port.Id
     getPortLocation None model portId
 
 //B6
+/// Return the Bounding box of a symbol outline
 let getSymbolOutlineBoundingBox (sym:Symbol): BoundingBox =
     sym.SymbolBoundingBox
 
 //B7R
+/// Return the rotation state of a symbol
 let getRotationState (sym:Symbol): Rotation =
     sym.STransform.Rotation
 
 //B7W
+/// Update the rotation state of a symbol
 let updateRotationState (sym: Symbol) (rotation: Rotation): Symbol =
     match rotation with
     | Degree0 | Degree90 | Degree180 | Degree270 ->
@@ -113,15 +124,18 @@ let updateRotationState (sym: Symbol) (rotation: Rotation): Symbol =
     | _ -> sym
 
 //B8R
+/// Return the flip state of a symbol
 let getFlipState (sym:Symbol): bool =
     sym.STransform.Flipped
 
 //B8W
+/// Update the flip state of a symbol
 let updateFlipState (sym: Symbol) (flip: bool): Symbol =
     let updatedTransform = {sym.STransform with Flipped = flip}
     {sym with STransform = updatedTransform}
 
 //T1R
+/// Returns the number of pairs of symbols that intersect each other
 let getSymbolOverlapCount (sym: Symbol) (sheet: SheetT.Model): int =
     let wireModel = sheet.Wire
     let boxes =
@@ -134,6 +148,7 @@ let getSymbolOverlapCount (sym: Symbol) (sheet: SheetT.Model): int =
     List.length overlappingPairs
 
 //T2R
+/// Return the number of distinct wire visible segments that intersect with one or more symbols
 let getSegmentOverlapCount (sheet: SheetT.Model): int =
     let allWires = sheet.Wire.Wires
     let allSymbolsBoundingBox =
@@ -168,6 +183,7 @@ let getSegmentOverlapCount (sheet: SheetT.Model): int =
         if intersects then count + 1 else count) 0
 
 //T3R
+/// Return the number of distinct pairs of visible segments that cross each other at right angles
 let countPerpendicularSegments (sheet: SheetT.Model): int =
     let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
 
@@ -229,6 +245,7 @@ let countPerpendicularSegments (sheet: SheetT.Model): int =
     |> List.sum
 
 //T4
+/// return the sum of wiring segment length, counting only one when there are N same-net segments overlapping
 let countTotalWireLength (sheet: SheetT.Model): float =
     let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
 
@@ -294,6 +311,7 @@ let countTotalWireLength (sheet: SheetT.Model): float =
     totalLength - totalOverlapLength
 
 //T5
+/// return the number of visible wire right-angles on a sheet
 let countWireRightAngles (sheet: SheetT.Model): int =
     let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
     allWires
@@ -306,6 +324,7 @@ let countWireRightAngles (sheet: SheetT.Model): int =
     |> List.sum
 
 //T6
+/// Return the segments that retrace in a sheet. Also return the segments that retrace into a symbol
 let countRetraceSegments (sheet: SheetT.Model) =
     let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
 

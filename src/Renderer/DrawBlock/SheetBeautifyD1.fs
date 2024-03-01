@@ -8,7 +8,7 @@ open DrawModelType.BusWireT
 open Helpers
 open Symbol
 open BlockHelpers
-
+open SheetBeautifyHelpers
 
 module Helpers =
     let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
@@ -53,6 +53,13 @@ module Helpers =
         let updatedComponent = {sym.Component with H = h; W = w}
         {sym with Component = updatedComponent}
 
+    /// get list of all Port Positions - This can help in testing with 
+    let getAllPortPos (model: SymbolT.Model) =
+        model.Ports
+        |> Map.toList
+        |> List.map snd
+        |> List.map (fun port -> getPortPos port model)
+
     //This helper may be useful when aligning same-type components
     /// returns all the Symbols in a sheet grouped by Component Type
     let getSameTypeSymbol (sheet: SheetT.Model) =
@@ -74,7 +81,7 @@ module Helpers =
     let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
         (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
 
-    /// Returns a list of all the wires in the given model
+    /// Returns a list of all the wires in the given model - May be useful when handingling wire/segment intersections
     let getWireList (model: Model) =
         model.Wires
         |> Map.toList
@@ -104,6 +111,7 @@ module Helpers =
     
 
 module Beautify =
+    /// Attempts to align two symbols together - this will be exremely useful in aligning same-type components. This function may need some editing 
     let alignSymbols
         (wModel: BusWireT.Model)
         (symbolToSize: Symbol)

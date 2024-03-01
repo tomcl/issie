@@ -307,8 +307,76 @@ let countWireRightAngles (sheet: SheetT.Model): int =
     |> List.sum
 
 //T6
-let countRetraceSegments (sheet: SheetT.Model): int =
-    let allWires = sheet.Wire.Wires |> Map.toList
+let countRetraceSegments (sheet: SheetT.Model) =
+    let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
+
+    let allSymbolsBoundingBox =
+        sheet.Wire.Symbol.Symbols
+        |> Map.values
+        |> Seq.toList
+        |> List.filter (fun s -> s.Annotation = None)
+        |> List.map (fun s -> (Symbol.getSymbolBoundingBox s))
+
+    let doesSegmentStartInsideSymbol (segStart: XYPos) (bbox: BoundingBox) =
+        match segmentIntersectsBoundingBox bbox segStart segStart with
+        | Some _ -> true
+        | None -> false
+
+    let getSegmentPositions wire =
+        let startPos = wire.StartPos
+        visibleSegments wire.WId sheet
+        |> List.fold (fun (acc, lastPos) seg ->
+            let newPos = lastPos + seg
+            ((lastPos, newPos) :: acc, newPos) // Prepend to list for efficiency
+        ) ([], startPos)
+        |> fst
+        |> List.rev // Reverse the list to maintain original order
+
+    let findRetracingSegments (segments: Segment list) =
+        let sign x = compare x 0.
+        List.mapi (fun index _ ->
+            if index >= 0 && index < List.length segments - 1 then
+                let currSegment = segments.[index]
+                let nextSegment = segments.[index + 1]
+                if currSegment.IsZero && sign currSegment.Length <> sign nextSegment.Length then
+                    Some(index, nextSegment) // Use currSegment to indicate the zero-length segment before retracing
+                else
+                    None
+            else
+                None) segments
+        |> List.choose id
+
+    let findSegmentsStartingInSymbol (retracingIndices: (int * Segment) list) (positions: (XYPos * XYPos) list) =
+        retracingIndices
+        |> List.filter (fun (index, _) ->
+            let nextSegStartPos = (List.item (index + 1) positions |> fst) // Get start position of the next segment
+            allSymbolsBoundingBox |> List.exists (doesSegmentStartInsideSymbol nextSegStartPos))
+        |> List.map snd // Return only the segments
+
+    allWires
+    |> List.collect (fun wire ->
+        let segments = wire.Segments
+        let positions = getSegmentPositions wire
+        let retracingSegmentsWithIndex = findRetracingSegments segments
+        let segmentsStartingInSymbol = findSegmentsStartingInSymbol retracingSegmentsWithIndex positions
+        // This ensures each wire contributes a tuple of lists to the collection
+        [(List.map snd retracingSegmentsWithIndex, segmentsStartingInSymbol)])
+    |> List.reduce (fun (acc1, acc2) (segs1, segs2) ->
+        // Accumulate results from all wires, combining the lists appropriately
+        (acc1 @ segs1, acc2 @ segs2))
+    |> fun (retracingSegments, segmentsStartingInSymbol) ->
+        // Returns the final aggregated lists
+        (retracingSegments, segmentsStartingInSymbol)
+
+
+    
+
+    
+
+
+
+
+            
 
 
     

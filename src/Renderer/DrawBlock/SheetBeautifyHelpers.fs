@@ -168,13 +168,13 @@ let rec allPairsWithoutRepeats list =
     | hd::tl -> (List.map (fun elm -> (hd, elm)) tl) @ allPairsWithoutRepeats tl
 
 /// helper to get the input port of a segment from the sheet model
-let getInputPortOfSeg (seg : BusWireT.Segment) (sheetModel : SheetT.Model) =
+let getSourcePortOfSeg (seg : BusWireT.Segment) (sheetModel : SheetT.Model) =
     let wireMap : Map<ConnectionId,Wire> = sheetModel.Wire.Wires
     wireMap[seg.WireId].OutputPort
 
 /// helper to check if two segments are from the same net in the sheet model
 let isSegFromSameNet (seg1 : BusWireT.Segment) (seg2 : BusWireT.Segment) (sheetModel : SheetT.Model) =
-    getInputPortOfSeg seg1 sheetModel = getInputPortOfSeg seg2 sheetModel
+    getSourcePortOfSeg seg1 sheetModel = getSourcePortOfSeg seg2 sheetModel
 
 /// helper to calculate the overlap length of two segments
 let calcASegOverlapLength (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) = 

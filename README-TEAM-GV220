@@ -1,4 +1,4 @@
-The team-phase work is in [TestDrawBlockD3](src/Renderer/TestDrawBlockD3.fs). I created several helper functions and test circuits:
+The team-phase work is in [TestDrawBlockD3] (src/Renderer/TestDrawBlockD3.fs). I created several helper functions and test circuits:
 
 1. Added a better circuit generation DSL - which takes a list of components and a list of connections to generate circuits that have at least user-specified threshold distance between components. Also used Gen<> to apply small random position changes
 to each component.
@@ -13,5 +13,5 @@ doesn't try to beautify them.
 5. Added flip and rotate helper functions to SheetBeautifyHelpers as it offers more possible tests.
 6. Created a metrics counter that when given a circuit schematic counts: the number of symbol overlaps, number of wires intersecting symbols, number of wire bends. "Should-never-happen" cases i.e. number of symbol overlaps > 0 and number of wire intersecting symbols > 0
 are made into an assertion case. 
-7. Another helper function: collectMetricForD3 leverages the metrics counter by determining metrics of a sheet before and after applying sheetWireLabelSymbol (id is used as stub function).
+7. Another helper function: collectMetricsOfTests leverages the metrics counter by determining metrics of a sheet before and after applying sheetWireLabelSymbol (id is used as stub function).
 These helper functions for metrics allows the sheetWireLabelSymbol creator to numerically evaluate the function's performance.

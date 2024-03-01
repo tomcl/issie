@@ -31,7 +31,10 @@ open DrawModelType.BusWireT
 
 
 
-
+//List of all the symbols on the sheet
+let symbolList (sheet: SheetT.Model) = 
+    Map.toList sheet.Wire.Symbol.Symbols
+    |> List.map snd
 
 
 
@@ -163,27 +166,31 @@ let align1PortSymbol (onePortSym: Symbol) (sheet: SheetT.Model)= // (offsetSign:
     // |> (fun newSym -> Optic.set (SheetT.symbolOf_ onePortSym.Id) newSym sheet)
     // |> SheetUpdateHelpers.updateBoundingBoxes
 
+
+/// <summary>
 /// After all the symbols have been moved, update the wiring on the entire sheet.
-/// 
-/// newcIdList -> List of cIds of all symbols that have moved
-/// 
-/// sheet -> The sheet to be changed
-/// 
-/// symbolMovedBy -> Take as 0 for now, not sure what this does, needed in updateWires
-let update1PortWires (newcIdList: List<ComponentId>) (symbolMovedBy: XYPos) (sheet: SheetT.Model) = 
+/// </summary>
+/// <param name="newcIdList">List of cIds of all symbols that have moved.</param>
+/// <param name="sheet">The sheet to be changed.</param>
+/// <param name="symbolMovedBy">Take as 0 for now, not sure what this does, needed in updateWires.</param>
+/// <returns>Model with rerouted </returns>
+
+let rerouteWires (newcIdList: List<ComponentId>) (symbolMovedBy: XYPos) (sheet: SheetT.Model) = 
     BusWireRoute.updateWires sheet.Wire newcIdList symbolMovedBy
     |> (fun newWireModel -> Optic.set SheetT.wire_ newWireModel sheet)
 
 let scaleSymbol (newVertical: float option) (newHorizontal: float option) (symbol: Symbol) (sheet: SheetT.Model) =
-        let symbols = sheet.Wire.Symbol.Symbols
+    let symbols = sheet.Wire.Symbol.Symbols
 
-        let newSymbol = {symbol with VScale = newVertical; HScale = newHorizontal}
+    let newSymbol = {symbol with VScale = newVertical; HScale = newHorizontal}
+    // let newComp = {symbol.Component with H = symbol.Component.H * newVertical; W = symbol.Component.W * newHorizontal}
+    // let newSymbol = {symbol with Component = newComp}
 
-        let newSymbols = Map.add symbol.Id newSymbol symbols
+    let newSymbols = Map.add symbol.Id newSymbol symbols
 
-        Optic.set SheetT.symbols_ newSymbols sheet
-        |> SheetUpdateHelpers.updateBoundingBoxes
-        //fix the function Update boundingBoxes for scaling!!!
+    Optic.set SheetT.symbols_ newSymbols sheet
+    |> SheetUpdateHelpers.updateBoundingBoxes
+    //fix the function Update boundingBoxes for scaling!!!
 
 //Not used but might be needed later
 //let offestPortPos (firstPort:Port) (secondPort:Port) (sheet: SheetT.Model)=
@@ -196,24 +203,48 @@ let scaleSymbol (newVertical: float option) (newHorizontal: float option) (symbo
 
 ///Calculates port offset between two consecutive ports of same type (input or output).
 let calcPortOffset (sym: SymbolT.Symbol) (portType: PortType) =
-        let portList =
-            match portType with
-            | PortType.Input -> sym.Component.InputPorts
-            | PortType.Output -> sym.Component.OutputPorts
-        if List.length portList < 2
-        then None
-        else 
-            (Symbol.getPortPos sym portList[1]) - (Symbol.getPortPos sym portList[0])
-            |> (fun pos -> Some (max pos.X pos.Y))
+    let portList =
+        match portType with
+        | PortType.Input -> sym.Component.InputPorts
+        | PortType.Output -> sym.Component.OutputPorts
+    if List.length portList < 2
+    then None
+    else 
+        (Symbol.getPortPos sym portList[1]) - (Symbol.getPortPos sym portList[0])
+        |> (fun pos -> Some (max pos.X pos.Y))
 
 ///Calculates the ratio that is needed for scaleSymbol (newVertical and newHorizontal)
 let calcPortRatio (outSym: SymbolT.Symbol) (inSym: SymbolT.Symbol) =
-        printfn $"{calcPortOffset outSym PortType.Output}"
-        match calcPortOffset outSym PortType.Output, calcPortOffset inSym PortType.Input with
-        | Some (outOff), Some (inOff) -> outOff/inOff
-        | _ -> 1.0
+    match calcPortOffset outSym PortType.Output, calcPortOffset inSym PortType.Input with
+    | Some (outOff), Some (inOff) -> outOff/inOff
+    | _ ->
+        printfn "Something's wrong I can feel it..." 
+        1.0
 
 
+///Finds two symbols connected by a wire.
+let symbolsConnected (wire: Wire) (sheet: SheetT.Model) = 
+    //Checks if port is on the symbol based on port id
+    let portOnSymbol (pId: string) (symbol: Symbol) =
+        Map.toList symbol.PortMaps.Orientation
+        |> List.map fst
+        |> List.contains pId
+
+    match wire.InputPort, wire.OutputPort with 
+    | InputPortId (iId), OutputPortId(oId)  -> 
+        List.find (fun sym -> portOnSymbol oId sym) (symbolList sheet),
+        List.find (fun sym -> portOnSymbol iId sym) (symbolList sheet)
+
+
+///Finds the wires between any two symbols on the sheet for all symbols on the sheet.
+let connectedSymbolsMap (sheet: SheetT.Model) = 
+    Map.toList sheet.Wire.Wires
+        |> List.map snd
+        |> List.fold (fun map wire -> 
+                            let syms = symbolsConnected wire sheet
+                            match Map.tryFind syms map with
+                            | Some wireList -> Map.add syms (wire :: wireList) map
+                            | None -> Map.add syms [wire] map) Map.empty
 
  
 
@@ -235,11 +266,30 @@ let firstPhaseStraightening (sheet: SheetT.Model) =
                         then sheet
                         else newSheet) sheet
     |> SheetUpdateHelpers.updateBoundingBoxes
-    |> update1PortWires (List.map (fun sym -> sym.Id) changedSymbolList) XYPos.zero
+    |> rerouteWires (List.map (fun sym -> sym.Id) changedSymbolList) XYPos.zero
     
 
 
+let secondPhaseStraightening (sheet: SheetT.Model)=
+    connectedSymbolsMap sheet
+    |> Map.filter (fun _ value -> List.length value > 1 )
+    |> Map.toList 
+    |> List.map fst
+    |> List.fold (fun sheet syms -> 
+                    let scaleValue = calcPortRatio (fst syms) (snd syms)
+                    let scaledModel = 
+                        scaleSymbol (Some scaleValue) None (snd syms) sheet
+                        |> rerouteWires [(snd syms).Id] XYPos.zero
+                    let newSym = align1PortSymbol(fst syms) scaledModel
+                    Optic.set (SheetT.symbolOf_ newSym.Id) newSym scaledModel
+                    |> rerouteWires [newSym.Id] XYPos.zero) sheet
+
     
+// let newSym = align1PortSymbol(snd syms) scaledModel
+//                     Optic.set (SheetT.symbolOf_ newSym.Id) newSym scaledModel
+//                     |> rerouteWires [newSym.Id] XYPos.zero
+
+
     //get the actual position of the input port and allign the output port  with the input
     //getPortPosOnSheet  
 

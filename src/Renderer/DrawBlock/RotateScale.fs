@@ -311,7 +311,6 @@ let optimiseSymbol
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
 /// <returns>Bounding Box</returns>
-//START 1 *************************************************************************************************
 let getBlock (symbols: Symbol list) : BoundingBox = 
 
     let maxXsym = 
@@ -343,22 +342,7 @@ let getBlock (symbols: Symbol list) : BoundingBox =
     //Removed unnecessary parentheses.
     //Removed repeated calculations by storing minXsym and minYsym.
     //Made the structure of the code more consistent.
-let getBlock_old 
-        (symbols:Symbol List) :BoundingBox = 
 
-    let maxXsym = (List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) symbols)
-    let maxX = maxXsym.Pos.X + (snd (getRotatedHAndW maxXsym))
-
-    let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
-
-    let maxYsym = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) symbols
-    let maxY = maxYsym.Pos.Y + (fst (getRotatedHAndW maxYsym))
-
-    let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
-
-    {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
-
-//END 1 *****************************************************************************************************
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>
@@ -529,7 +513,6 @@ let flipSymbolInBlock
 /// <param name="block"> Bounding box of selected components</param>
 /// <param name="sym"> Symbol to be rotated</param>
 /// <returns>New symbol after scaled about block centre.</returns>
-//START 2 *********************************************************************************************************************
 let scaleSymbolInBlock
     //(Mag: float)
     (scaleType: ScaleType)
@@ -565,35 +548,8 @@ let scaleSymbolInBlock
     //separated the definition for xProp and yProp for clearness
 
 
-let scaleSymbolInBlock_old
-    //(Mag: float)
-    (scaleType: ScaleType)
-    (block: BoundingBox)
-    (sym: Symbol) : Symbol =
-
-    let symCenter = getRotatedSymbolCentre sym
-
-    //Get x and y proportion of symbol to block
-    let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
-
-    let newCenter = 
-        match scaleType with
-            | ScaleUp ->
-                {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
-            | ScaleDown ->
-                {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
-
-    let h,w = getRotatedHAndW sym
-    let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
-    let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
-
-    {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
-
-//END 2 *******************************************************************************************************************end2
-
 
 /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
-//START 3 *********************************************************************************************
 let rotateSymbolByDegree (degree: Rotation) (sym: Symbol) =
     match degree with
     | Degree0 -> sym
@@ -608,21 +564,13 @@ let rotateSymbolByDegree (degree: Rotation) (sym: Symbol) =
 //CHANGES MADE
 // renamed pos to centerPos, it's longer but it gives more context, and the reason for diving with 2 is obvious now.
 // moved the centerPos to the match output to make the function more efficient by avoiding the unnecessary computation of centerPos when Degree0 is matched
-let rotateSymbolByDegree_old (degree: Rotation) (sym:Symbol)  =
-    let pos = {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 }
-    match degree with
-    | Degree0 -> sym
-    | _ ->  rotateSymbolInBlock degree pos sym
-    
-//END 3 *********************************************************************************************************************************
+
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
 /// <param name="rotation"> Type of rotation to do</param>
 /// <returns>New rotated symbol model</returns>
-//START 4 *******************************************************************************************************************
-
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
 
     printfn "running rotateBlock"
@@ -648,27 +596,7 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
 //vertical alignment for UnselectedSymbols
 //Camel case is widely used for naming identifiers in F#, so renamed : SelectedSymbols -> SelectedSymbols and UnselectedSymbols -> unselectedSymbols
 //Renamed x and y in the List.map2 to cId and sym for better context and easier understanding of the List.map2 purpose  
-let rotateBlock_old (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
 
-    printfn "running rotateBlock"
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
-
-    //Get block properties of selected symbols
-    let block = getBlock SelectedSymbols
-
-    //Rotated symbols about the center
-    let newSymbols = 
-        List.map (fun x -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) x) SelectedSymbols 
-
-    //return model with block of rotated selected symbols, and unselected symbols
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
-//END 4 **********************************************************************************************************************************************************
-
-//START 5 ***********************************************************************************************************************************
 /// <summary>
 /// Checks if there exists one Symbol which bounds represent(overlap) two opposite bounds (two horizontal or two vertical) 
 /// of the bounding box of all the selected Symbols 
@@ -701,28 +629,6 @@ let oneCompBoundsBothEdges (selectedSymbols: Symbol list) =
 //CHANGES MADE:
 //added XML comments that didn't exist before
 //added comments about what each indentifer represents
-
-
-let oneCompBoundsBothEdges_old (selectedSymbols: Symbol list) = 
-    let maxXSymCentre = 
-            selectedSymbols
-            |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
-            |> getRotatedSymbolCentre
-    let minXSymCentre =
-            selectedSymbols
-            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
-            |> getRotatedSymbolCentre
-    let maxYSymCentre = 
-            selectedSymbols
-            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
-            |> getRotatedSymbolCentre
-    let minYSymCentre =
-            selectedSymbols
-            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
-            |> getRotatedSymbolCentre
-    (maxXSymCentre.X = minXSymCentre.X) || (maxYSymCentre.Y = minYSymCentre.Y)
-
-//END 5 *****************************************************************************************************************************
 
 
 //START 6 *****************************************************************************************************************************

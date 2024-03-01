@@ -265,7 +265,7 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
 /// <param name="model">The sheet.</param>
 /// <returns>a interger, representing number of pairs of symbols that intersect.</returns>
 
-let countSymbolIntersectingWire (model: SheetT.Model) =
+let countSymbolIntersectingWire (model: SheetT.Model): int =
 
     let wireModel = model.Wire
 
@@ -332,7 +332,7 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 /// <param name="model">The model containing that wire.</param>
 /// <returns>list of SegVector of all the segments of that wire.</returns>
 
-let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
+let wireToSegments (wId: ConnectionId) (model: SheetT.Model): list<SegVector> =
 
     let segmentsXYPos = visibleSegments wId model
 
@@ -363,7 +363,7 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
 let isVertical (direction: XYPos) = direction.X = 0.0
 
 /// <summary>Calculate the range of a segment</summary>
-let calculateRange (startPos: XYPos) (endPos: XYPos) (isVertical: bool) =
+let calculateRange (startPos: XYPos) (endPos: XYPos) (isVertical: bool): float * float =
     if isVertical then
         (min startPos.Y endPos.Y, max startPos.Y endPos.Y)
     else
@@ -377,7 +377,7 @@ let calculateRange (startPos: XYPos) (endPos: XYPos) (isVertical: bool) =
 /// <param name="seg2">the second SegVector</param>
 /// <returns>bool value, indicate weather two segment Intersect.</returns>
 
-let isCrossingAtRightAngle (seg1: SegVector) (seg2: SegVector) =
+let isCrossingAtRightAngle (seg1: SegVector) (seg2: SegVector): bool =
     let end1 = getEndPoint seg1
     let end2 = getEndPoint seg2
 
@@ -396,7 +396,7 @@ let isCrossingAtRightAngle (seg1: SegVector) (seg2: SegVector) =
         seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
 
 ///<summary>count number of intersections within a list of segments</summary>
-let countRightAngleIntersect (segVectorList: list<SegVector>) =
+let countRightAngleIntersect (segVectorList: list<SegVector>): int =
     let verticals = segVectorList |> List.filter (fun seg -> seg.Direction.X = 0.0)
     let horizontals = segVectorList |> List.filter (fun seg -> seg.Direction.Y = 0.0)
 
@@ -412,7 +412,7 @@ let countRightAngleIntersect (segVectorList: list<SegVector>) =
 /// </summary>
 /// <param name="model">the model to analyze</param>
 /// <returns>integer indicating the number of Intersections.</returns>
-let countTotalRightAngleIntersect (model: SheetT.Model) =
+let countTotalRightAngleIntersect (model: SheetT.Model): int =
     model.Wire.Wires
     |> Map.toList // Convert the map of wires to a list of (key, value) pairs
     |> List.collect (fun (wId, _) -> wireToSegments wId model) // flatten the lists of segments
@@ -428,7 +428,7 @@ let countTotalRightAngleIntersect (model: SheetT.Model) =
 // sheet. 
 
 ///<summary>Check if two segments are overlapping</summary>
-let isOverlapping (seg1: SegVector) (seg2: SegVector) =
+let isOverlapping (seg1: SegVector) (seg2: SegVector): bool =
 
     let end1 = getEndPoint seg1
     let end2 = getEndPoint seg2
@@ -439,7 +439,7 @@ let isOverlapping (seg1: SegVector) (seg2: SegVector) =
 
 
 ///<summary>Merge two overlapping segments if they are parallel and overlapping</summary>
-let mergeTwoSegments seg1 seg2 =
+let mergeTwoSegments (seg1: SegVector) (seg2: SegVector): SegVector =
     
     let start1, start2 = seg1.Start, seg2.Start
     let end1, end2 = getEndPoint seg1, getEndPoint seg2
@@ -457,7 +457,7 @@ let mergeTwoSegments seg1 seg2 =
 
 
 ///<summary> Merge all parallel overlapping segments in a list</summary>
-let mergeAllOverlapSegments segList =
+let mergeAllOverlapSegments (segList: list<SegVector>): list<SegVector> =
     let rec mergeRecursive acc remaining =
         match remaining with
         | [] -> acc
@@ -492,7 +492,7 @@ let totalVisibleWiringLength (model: SheetT.Model) =
 /// <param name="wId">the Id of the wire</param>
 /// <param name="model">the model the wire belongs to</param>
 /// <returns>int indicate the number of right angle.</returns>
-let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
+let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model): int =
 
     let segmentsPos = visibleSegments wId model
 
@@ -507,7 +507,7 @@ let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
 /// <summary>Sums up the right angles from all wires in the model.</summary>
 /// <param name="model">the model to analyze</param>
 /// <returns>int indicate the number of right angle.</returns>
-let countTotalRightAngles (model: SheetT.Model) =
+let countTotalRightAngles (model: SheetT.Model): int =
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
 
@@ -564,7 +564,7 @@ let findRetracingSegments (model: SheetT.Model) : Segment list * Segment list =
             (retracingSegments, endOfWireRetracing)
 
     // check for a single wire, update the two lists
-    let checkWireRetrace (segments: list<Segment>, segmentsXYPos: list<XYPos>) =
+    let checkWireRetrace (segments: list<Segment>, segmentsXYPos: list<XYPos>): list<Segment> * list<Segment>=
         [1 .. (List.length segmentsXYPos - 1)]
         |> List.fold (fun acc idx ->
             checkSegmentRetrace acc (segments, segmentsXYPos) idx

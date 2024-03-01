@@ -361,7 +361,9 @@ let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
 /// <param name="model">The model to calculate the shared net overlap offset length of.</param>
 /// <returns>The shared net overlap offset length of the model.</returns>
 let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
+
     //####################### HELPER FUNCTIONS #######################
+
     /// Helper for T4R that takes in a group of wires and returns the length of the wire with the least number of segments
     let getMinSegments (wireGroup: (Wire * ASegment list) list) =
         wireGroup
@@ -415,20 +417,24 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
                 let startsAreSame =
                     wireGroup
                     |> List.map (fun (_, absSegments) -> (accessSegment absSegments d isOutput).Start) // get a list of all dth segment's start points
-                    |> List.distinct // remove duplicates from list of start points, if all are identical, then list length = 1
+                    |> List.distinct
                     |> List.length = 1
+                // check if all are the same, i.e. a list of unique start points will have length 1 since all are the same
                 let endsAreSame =
                     wireGroup
                     |> List.map (fun (_, absSegments) -> (accessSegment absSegments d isOutput).End) // get a list of all dth segment's end points
-                    |> List.distinct // remove duplicates from list of start points, if all are identical, then list length = 1
+                    |> List.distinct
                     |> List.length = 1
-                not (startsAreSame && endsAreSame)) // We will find the first index, d, where all wires' 0th to (d-1)th segments share the same start and end points
+                // check if all are the same, i.e. a list of unique start points will have length 1 since all are the same
+                not (startsAreSame && endsAreSame))
+        // We will find the first index, d, where all wires' 0th to (d-1)th segments share the same start and end points
         // but the dth segments have different end points
         match d with
         | Some d -> (d, (d <= minSegments - 1))
         | None -> minSegments - 1, true
 
     //####################### START OF FUNCTION #######################
+
     // Get wires and their absolute segments
     let wires = Map.toList (removeWireInvisibleSegments (model.Wire.Wires))
     let wiresWithAbsSegments =
@@ -439,19 +445,15 @@ let getSharedNetOverlapOffsetLength (model: SheetT.Model) =
     let outputGroupedWires =
         wiresWithAbsSegments
         |> List.groupBy (fun (wire, _) -> (wire.OutputPort))
-        // type (InputPortId * (Wire * ASegment list) list) list
         // get rid of InputPortId groups that have less than or equal to 1 wire
         |> List.filter (fun (_, wireGroup) -> List.length wireGroup > 1)
-        // type (InputPortId * (Wire * ASegment list) list) list, coalsce to ((Wire * ASegment list) list) list)
         |> List.map (fun (_, wireGroup) -> wireGroup)
 
     let inputGroupedWires =
         wiresWithAbsSegments
         |> List.groupBy (fun (wire, _) -> (wire.InputPort))
-        // type (InputPortId * (Wire * ASegment list) list) list
         // get rid of InputPortId groups that have less than or equal to 1 wire
         |> List.filter (fun (_, wireGroup) -> List.length wireGroup > 1)
-        // type (InputPortId * (Wire * ASegment list) list) list, coalsce to ((Wire * ASegment list) list) list)
         |> List.map (fun (_, wireGroup) -> wireGroup)
 
     /// T4R helper to find the overlapping segment lengths of a group of wires.
@@ -692,12 +694,12 @@ let getRetracingSegmentsAndIntersections (model: SheetT.Model) =
 
 /// <summary>
 /// T6R Function Variant.
-/// The original T6R function, getRetracingSegmentsAndIntersections returns a tuple with:
+/// The original T6R function, <c>getRetracingSegmentsAndIntersections</c> returns a tuple with:
 /// 1. a list of all segments that retrace
 /// 2. a list that includes adjacent segments to the retracing that starts(intersects) a symbol
 /// </summary>
 /// <remarks>
-/// This variant function, countUniqRetracingSegmentsAndIntersects, counts the unique segments where this occurs in a sheet.
+/// This variant function, <c>countUniqRetracingSegmentsAndIntersects</c>, counts the unique segments where this occurs in a sheet.
 /// This is a helpful heuristic to count wiring artefacts, to test routing algorithms
 /// </remarks>
 /// <param name="model">The model to count the retracing segments and intersections of.</param>
@@ -712,9 +714,11 @@ let countUniqRetracingSegmentsAndIntersects (model: SheetT.Model) =
         retracingSegments
         |> List.collect id
         |> List.distinct
+        |> List.length
     let uniqRetracingSegmentsWithIntersections =
         retracingSegmentsWithIntersections
         |> List.collect id
         |> List.distinct
+        |> List.length
 
-    (List.length uniqRetracingSegments, List.length uniqRetracingSegmentsWithIntersections)
+    (uniqRetracingSegments, uniqRetracingSegmentsWithIntersections)

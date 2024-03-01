@@ -58,34 +58,11 @@ let getlabel (model:SheetT.Model) (label:string): SymbolT.Symbol option =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// B1 The dimensions of a custom component symbol
-// let CustomComponentDimensionsLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, (float * float)> =
+// get and set dimensions of a custom component symbol
 
-//         let originalWidth = symbol.Component.W
-//         let originalHeight = symbol.Component.H
-
-
-//         let get (model: SheetT.Model) =
-//             let width = match symbol.HScale with
-//                             | Some scale -> originalWidth * scale
-//                             | None -> originalWidth
-//             let height = match symbol.VScale with
-//                             | Some scale -> originalHeight * scale
-//                             | None -> originalHeight
-//             (width, height)
-
-
-//         let set (newDimensions: (float * float)) (model: SheetT.Model) =
-//             let (width, height) = newDimensions
-
-//             let hScale = width / originalWidth
-//             let vScale = height / originalHeight
-//             let updatedSymbol = { symbol with HScale = Some hScale; VScale = Some vScale }
-//             let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-//             let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
-            
-//             updatedSheetModel
-//         (get, set)
+/// <summary>
+/// lens for getting and setting the scaled dimensions of a custom component symbol
+/// </summary>
 
 let getCustomSymDim (symbol: SymbolT.Symbol) =
         let originalWidth = symbol.Component.W
@@ -115,19 +92,15 @@ let customSymDim_ = Lens.create getCustomSymDim setCustomSymDim
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// B2 The position of a symbol on the sheet 
-// let symbolModel_ = SheetT.symbol_
-// let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos) (model: SheetT.Model): SheetT.Model=
+// B2 Change the position of a symbol on the sheet
 
-//     let updateSymPos (symbol: SymbolT.Symbol) = { symbol with Pos = newPos }
-//     let symModel: SymbolT.Model = 
-//                     SymbolUpdate.updateSymbol updateSymPos symbol.Id model.Wire.Symbol
-
-//     model
-//     |> Optic.set symbolModel_ symModel
+/// <summary>
+/// Change the position of a symbol on the sheet
+/// </summary>
+/// <param name="symbol">The symbol to be moved.</param>
+/// <returns>symbol with the provided position.</returns>
 
 let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos): SymbolT.Symbol=
-    
     { symbol with Pos = newPos }
 
 
@@ -139,19 +112,10 @@ let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos): SymbolT.Symbo
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B3 Read/write the order of ports on a specified side of a symbol
-// let portOrderLens (side: Edge) : Lens<SymbolT.Symbol, string list option> =
 
-//     let get (symbol: SymbolT.Symbol) =
-//         Map.tryFind side symbol.PortMaps.Order
-
-//     let set (newPortOrder: string list option) (symbol: SymbolT.Symbol) =
-//         match newPortOrder with
-//         | Some (newOrder: string list) ->
-//             let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
-//             { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
-//         | None -> symbol
-
-//     (get, set)
+/// <summary>
+/// lens for getting and setting port order on a specified side of a symbol
+/// </summary>
 
 let getPortOrder (side: Edge) (symbol: SymbolT.Symbol) =
     Map.tryFind side symbol.PortMaps.Order
@@ -170,6 +134,10 @@ let symPortOrder_ side = Lens.create (getPortOrder side) (setPortOrder side)
 //-------------------------------------------------------------------------------------------------//
 // B4 The reverses state of the inputs of a MUX2 
 
+/// <summary>
+/// lens for getting and setting the reversed state of the inputs of a MUX2
+/// </summary>
+
 let getreverseMux2Input (symbol: SymbolT.Symbol): bool = 
         
         let InputPort: option<bool> = symbol.ReversedInputPorts
@@ -184,32 +152,19 @@ let setreverseMux2Input (newState: bool) (symbol: SymbolT.Symbol): SymbolT.Symbo
 
 let reverseMux2Input_ = Lens.create getreverseMux2Input setreverseMux2Input        
 
-// let reverseMuxInputLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
-
-//     let get (model: SheetT.Model): bool = 
-        
-//         let InputPort: option<bool> = symbol.ReversedInputPorts
-        
-//         match InputPort with
-//         | Some state -> state
-//         | None -> false
-        
-//     let set (newState: bool) (model: SheetT.Model): SheetT.Model =
-
-//         let updateSymbol (symbol: SymbolT.Symbol) = 
-//             { symbol with ReversedInputPorts = Some newState }
-            
-//         let updatedModel = SymbolUpdate.updateSymbol updateSymbol symbol.Id model.Wire.Symbol
-
-//         Optic.set SheetT.symbol_ updatedModel model
-
-
-//     (get, set)
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B5 R - The position of a port on the sheet. It cannot directly be written.
+
+/// <summary>
+/// Read the position of a port on the sheet
+/// </summary>
+/// <param name="symbol">The symbol port belongs to.</param>
+/// <param name="port">the port obj to be located</param>
+/// <returns>XYPos of the port.</returns>
+
 let getPortPosition (sym: Symbol) (port: Port) : XYPos =
     let TopLeftPos = sym.Pos
     let offset = getPortPos sym port
@@ -219,6 +174,12 @@ let getPortPosition (sym: Symbol) (port: Port) : XYPos =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B6 R - The Bounding box of a symbol outline (position is contained in this)
+
+/// <summary>
+/// Read the Bounding box of a symbol
+/// </summary>
+/// <param name="symbol">The symbol.</param>
+/// <returns>Bounding box of the symbol.</returns>
 
 let getBoundingBox (symbol: Symbol) : BoundingBox =
 
@@ -241,64 +202,16 @@ let getBoundingBox (symbol: Symbol) : BoundingBox =
         H = scaledH 
     }
 
-
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-// B6R - Read the Bounding box of a symbol outline
-let readBoundingBox (symbol: Symbol) : BoundingBox =
-    let applyScaling (width: float) (height: float) (hScale: float option) (vScale: float option) =
-        let w = match hScale with
-                | Some(scale) -> width * scale
-                | None -> width
-        let h = match vScale with
-                | Some(scale) -> height * scale
-                | None -> height
-        (w, h)
-    
-    let (scaledWidth, scaledHeight) = applyScaling symbol.Component.W symbol.Component.H symbol.HScale symbol.VScale
-    
-    {
-        TopLeft = symbol.Pos
-        W = scaledWidth
-        H = scaledHeight
-    }
-
-
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-
-// let SymbolRotationLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, Rotation> =
-//     let get (model: SheetT.Model) : Rotation = symbol.STransform.Rotation
-
-//     //Rotation -> SheetT.Model -> SheetT.Model
-//     let set (desiredRotation: Rotation) (model: SheetT.Model) : SheetT.Model =
-//         let updatedSymbol = { symbol with STransform = { symbol.STransform with Rotation = desiredRotation}}
-//         let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-//         let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
-        
-//         updatedSheetModel
-
-//     (get, set)
-
-// let SymbolFlippedLens (symbol: SymbolT.Symbol) : Lens<SheetT.Model, bool> =
-//     let get (model: SheetT.Model) : bool = symbol.STransform.Flipped
-
-//     //Rotation -> SheetT.Model -> SheetT.Model
-//     let set (desiredFlipped: bool) (model: SheetT.Model) : SheetT.Model =
-//         let updatedSymbol = { symbol with STransform = { symbol.STransform with Flipped = desiredFlipped}}
-//         let symbolModelUpdated = SymbolUpdate.replaceSymbol model.Wire.Symbol updatedSymbol symbol.Id
-//         let updatedSheetModel = model |> Optic.set SheetT.symbol_ symbolModelUpdated
-        
-//         updatedSheetModel
-
-//     (get, set)
-
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B7 RW  Low The rotation state of a symbol
+
+/// <summary>
+/// lens for getting and setting the rotation state of a symbol
+/// </summary>
+
+
 let getSymbolRotation (symbol: SymbolT.Symbol) : Rotation = 
     symbol.STransform.Rotation
 let setSymbolRotation (desiredRotation: Rotation) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
@@ -310,6 +223,11 @@ let SymbolRotation_ = Lens.create getSymbolRotation setSymbolRotation
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 // B8 RW  Low The Flipped state of a symbol 
+
+/// <summary>
+/// lens for getting and setting the flipped state of a symbol
+/// </summary>
+
 let getSymbolFlipped (symbol: SymbolT.Symbol) : bool = 
     symbol.STransform.Flipped
 let setSymbolFlipped (desiredFlipped: bool) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
@@ -324,10 +242,14 @@ let symbolFlipped_ = Lens.create getSymbolFlipped setSymbolFlipped
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
+// T1R The number of pairs of symbols that intersect each other. Count over all pairs of symbols.
 
-// T1R 
-// The number of pairs of symbols that intersect each other.
-// Count over all pairs of symbols.
+/// <summary>
+/// The number of pairs of symbols that intersect each other
+/// </summary>
+/// <param name="sheet">The sheet.</param>
+/// <returns>a interger, representing number of pairs of symbols that intersect.</returns>
+
 let countIntersectingSymbolPairs (sheet: SheetT.Model) =
 
     let wireModel = sheet.Wire
@@ -348,8 +270,14 @@ let countIntersectingSymbolPairs (sheet: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
-// T2R R Low 
-// The number of distinct wire visible segments that intersect with one or more symbols. See Tic
+// T2R R Low The number of distinct wire visible segments that intersect with one or more symbols.
+
+/// <summary>
+/// The number of distinct wire visible segments that intersect with one or more symbols.
+/// </summary>
+/// <param name="sheet">The sheet.</param>
+/// <returns>a interger, representing number of pairs of symbols that intersect.</returns>
+
 let countSymbolIntersectingWire (sheet: SheetT.Model) =
 
     let wireModel = sheet.Wire
@@ -373,7 +301,7 @@ type SegVector = {Start: XYPos; Direction: XYPos}
 let getEndPoint (seg: SegVector) = 
     { X = seg.Start.X + seg.Direction.X; Y = seg.Start.Y + seg.Direction.Y }
 
-
+// provided function
 let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
     let wire = model.Wire.Wires[wId] // get wire from model
@@ -409,8 +337,14 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
 
-// Take in a wire, and return a list of SegVector
-// Each SegVector represents a segment of the wire, with Starting position and Direction Vector
+
+/// <summary>
+/// convert a wire into a list of segments represented by SegVector
+/// </summary>
+/// <param name="wId">The Id of the wire needs to be converted.</param>
+/// <param name="model">The model containing that wire.</param>
+/// <returns>list of SegVector of all the segments of that wire.</returns>
+
 let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
 
     let segmentsXYPos = visibleSegments wId model
@@ -433,15 +367,23 @@ let wireToSegments (wId: ConnectionId) (model: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 // T3R - Number of visible wire Intersecting at right-angles
 
+/// <summary>Check if a segment is vertical</summary>
 let isVertical (direction: XYPos) = direction.X = 0.0
 
+/// <summary>Calculate the range of a segment</summary>
 let calculateRange (startPos: XYPos) (endPos: XYPos) (isVertical: bool) =
     if isVertical then
         (min startPos.Y endPos.Y, max startPos.Y endPos.Y)
     else
         (min startPos.X endPos.X, max startPos.X endPos.X)
 
-// Check if two segments are crossing at right angle
+/// <summary>
+/// Check if two segments are crossing at right angle
+/// </summary>
+/// <param name="seg1">the first SegVector</param>
+/// <param name="seg2">the second SegVector</param>
+/// <returns>bool value, indicate weather two segment Intersect.</returns>
+
 let isCrossingAtRightAngle (seg1: SegVector) (seg2: SegVector) =
     let end1 = getEndPoint seg1
     let end2 = getEndPoint seg2
@@ -460,7 +402,7 @@ let isCrossingAtRightAngle (seg1: SegVector) (seg2: SegVector) =
         seg1Pos > fst seg2Range && seg1Pos < snd seg2Range &&
         seg2Pos > fst seg1Range && seg2Pos < snd seg1Range
 
-// Count the number of right angle intersections
+///<summary>count number of intersections within a list of segments</summary>
 let countRightAngleIntersect (segVectorList: list<SegVector>) =
     let verticals = segVectorList |> List.filter (fun seg -> seg.Direction.X = 0.0)
     let horizontals = segVectorList |> List.filter (fun seg -> seg.Direction.Y = 0.0)
@@ -472,6 +414,11 @@ let countRightAngleIntersect (segVectorList: list<SegVector>) =
     |> List.length
 
 
+/// <summary>
+/// Count the total number of right angle intersections of two differet wires
+/// </summary>
+/// <param name="model">the model</param>
+/// <returns>integer indicate number of Intersect.</returns>
 let countTotalRightAngleIntersect (model: SheetT.Model) =
     model.Wire.Wires
     |> Map.toList // Convert the map of wires to a list of (key, value) pairs
@@ -487,7 +434,7 @@ let countTotalRightAngleIntersect (model: SheetT.Model) =
 // segments overlapping (this is the visible wire length on the sheet). Count over whole 
 // sheet. 
 
-// Check if two segments are overlapping
+///<summary>Check if two segments are overlapping</summary>
 let isOverlapping (seg1: SegVector) (seg2: SegVector) =
 
     let end1 = getEndPoint seg1
@@ -497,7 +444,8 @@ let isOverlapping (seg1: SegVector) (seg2: SegVector) =
     ((seg1.Start.X <= end2.X && end1.X >= seg2.Start.X) ||
     (seg1.Start.Y <= end2.Y && end1.Y >= seg2.Start.Y))
 
-// Merge two overlapping segments if they are parallel and overlapping
+
+///<summary>Merge two overlapping segments if they are parallel and overlapping</summary>
 let mergeTwoSegments seg1 seg2 =
     
     let start1, start2 = seg1.Start, seg2.Start
@@ -514,7 +462,8 @@ let mergeTwoSegments seg1 seg2 =
         Direction = { X = endX - startX; Y = startY - endY } 
     }
 
-// Merge all parallel overlapping segments in a list
+
+///<summary> Merge all parallel overlapping segments in a list</summary>
 let mergeAllOverlapSegments segList =
     let rec mergeRecursive acc remaining =
         match remaining with
@@ -525,7 +474,9 @@ let mergeAllOverlapSegments segList =
             mergeRecursive (mergedSegment :: acc) nonOverlaps
     mergeRecursive [] segList |> List.rev
 
-// Calculate sum of segment lengths
+/// <summary> Calculate sum of segment lengths N same-net segments overlapping count once only</summary>
+/// <param name="model">the model the algo is applying to</param>
+/// <returns>float indicate the length of visible wire length.</returns>
 let totalVisibleWiringLength (model: SheetT.Model) =
 
     // list of segments without overlapping
@@ -543,6 +494,11 @@ let totalVisibleWiringLength (model: SheetT.Model) =
 //-------------------------------------------------------------------------------------------------//
 // T5R - Number of visible wire right-angles. Count over whole sheet.
 // Count the number of right angles in a wire
+
+/// <summary>Sums up the right angles of one wire</summary>
+/// <param name="wId">the Id of the wire</param>
+/// <param name="model">the model the wire belongs to</param>
+/// <returns>int indicate the number of right angle.</returns>
 let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
 
     let segmentsPos = visibleSegments wId model
@@ -555,7 +511,9 @@ let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
         else 0)
     
 
-/// Sums up the right angles from all wires in the model.
+/// <summary>Sums up the right angles from all wires in the model.</summary>
+/// <param name="model">the model the algo is applying to</param>
+/// <returns>int indicate the number of right angle.</returns>
 let countTotalRightAngles (model: SheetT.Model) =
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
@@ -573,6 +531,12 @@ let countTotalRightAngles (model: SheetT.Model) =
 // cause it. Count over the whole sheet. Return from one function a list of all the 
 // segments that retrace, and also a list of all the end of wire segments that retrace so 
 // far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol. 
+
+/// <summary>
+/// Finds retracing segments within wires of a model, returning retracing segments and end-of-wire retracing segments.
+/// </summary>
+/// <param name="model">The model to analyze.</param>
+/// <returns>A tuple with two lists: retracing segments and end-of-wire retracing segments.</returns>
 
 let findRetracingSegments (model: SheetT.Model) : Segment list * Segment list =
     let allSegmentsXYPos =

@@ -47,104 +47,117 @@ module Constants =
     
 
     // generate all possible flip combinations
-    let rec generateFlipComb symbols =
-        match symbols with
-        | [] -> [[]]
-        | x::xs ->
-            let recs = generateFlipComb xs
-            List.collect (fun recComb -> [true::recComb; false::recComb]) recs
-
-    // generate all possible mux input combinations
-    let rec generateMuxInputComb symbols =
-        match symbols with
-        | [] -> [[]]
-        | x::xs ->
-            let recs = generateMuxInputComb xs
-            List.collect (fun recComb -> [true::recComb; false::recComb]) recs
     
-    let rec insertAt i x list =
-        match list with
-        | [] -> [x] // If the list is empty, return a list with the element x.
-        | h::t when i = 0 -> x::list // If i is 0, insert x at the beginning of the list.
-        | h::t -> h :: insertAt (i-1) x t // Otherwise, recursively insert x into the tail of the list.
+    
+    type symbolScript = {
+        Flipped: bool
+        ReversedInput: bool
+        PortEdge: Edge
+        PortOrder: list<string>
+    }
 
-    let rec permutations list = 
-        match list with
-        | [] -> [[]] // The permutation of an empty list is a list containing an empty list.
-        | x::xs -> 
-            permutations xs |> List.collect (fun perm -> 
-                List.mapi (fun i _ -> insertAt i x perm) (x::perm)
-            )
-    let generateAllPortOrderCombs symbols =
-        symbols |> List.map (fun symbol ->
-            let generatePermutationsForSide side =
-                match Map.tryFind side symbol.PortMaps.Order with
-                | Some ports -> permutations ports
-                | None -> [[]] // If no ports on this side, return a list with an empty list.
-            let sides = [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
-            sides |> List.map generatePermutationsForSide
-        )
+    type modelScript = list<symbolScript>
 
-    let optimizeFlipForComponents (model: SheetT.Model) =
-        // Convert symbol map to list
-        let symList = 
+    let rec combinations list =
+        match list with
+        | [] -> [[]] // The only combination of an empty list is a list with an empty list
+        | head :: tail ->
+            let recSubsets = combinations tail
+            recSubsets @ (recSubsets |> List.map (fun subset -> head :: subset))
+    let generateSymbolScript (symbol: SymbolT.Symbol) =
+        let flips = [true; false]
+        let reversedInputs = [true; false]
+        let portEdges = [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
+        
+        let portOrderCombs = 
+            portEdges
+            |> List.map (fun edge -> symbol.PortMaps.Order[edge])
+            |> combinations
+        
+        let allCombs =
+            List.collect (fun flipped ->
+                List.collect (fun reversedInput ->
+                    List.map (fun (portEdge, portOrder) ->
+                        {
+                            Flipped = flipped
+                            ReversedInput = reversedInput
+                            PortEdge = portEdge
+                            PortOrder = []
+                        }
+                    ) (List.zip portEdges portOrderCombs)
+                ) reversedInputs
+            ) flips
+        
+        allCombs
+    
+    let generateModelScript (model: SheetT.Model): list<modelScript> =
+        let symbols = 
             model.Wire.Symbol.Symbols
             |> Map.toList
             |> List.map snd
-
-        // Generate all possible flip combinations
-        let flipCombs = generateFlipComb symList
-        let reversedInputCombs = generateMuxInputComb symList
-        let portOrderCombs = generateAllPortOrderCombs symList
+        ()
+        //TODO: Implement this
         
-        let allCombinations = 
-            flipCombs
-            |> List.collect (fun flipComb ->
-                reversedInputCombs
-                |> List.collect (fun reversedInputComb ->
-                    portOrderCombs
-                    |> List.map (fun portOrderComb -> (flipComb, reversedInputComb, portOrderComb))
-                )
-            )
-        // Function to apply a flip combination to the model and return a new model
+
+    // update a symbol with a script
+    let applyScript (script: symbolScript) (symbol: SymbolT.Symbol) =
+        let _, updatePortOrder = symPortOrder_ script.PortEdge
+        let _, updateMux2InputOrder = reverseMux2Input_
+        let _, updateFlip = symbolFlipped_
+
+        symbol
+        |> updatePortOrder (Some script.PortOrder) 
+        |> updateMux2InputOrder script.ReversedInput
+        |> updateFlip script.Flipped
+    
+    let applyScriptToModel (model: SheetT.Model) (script: modelScript): SheetT.Model =
+        let symbols = 
+            model.Wire.Symbol.Symbols
+            |> Map.toList
+            |> List.map snd
+        ()
+        // Apply the script to each symbol
+
+    let evaluateModel (model: SheetT.Model) =
+        // Count the number of right angle intersections
+        countTotalRightAngleIntersect model
+
+    let optimizeFlipForComponents (model: SheetT.Model): SheetT.Model =
+        // Convert symbol map to list
+        let scripts = generateModelScript model
+
+        let modelsWithScores = 
+            scripts
+            |> List.map (applyScriptToModel model)
+            |> List.map (fun model -> (model, evaluateModel model))
+
+        let bestModel = 
+            modelsWithScores
+            |> List.minBy snd
+            |> fst
+        
+        bestModel
+        
 
         
-        let applyCombination (flipState: list<bool>) (reversedInputState: list<bool>) (portOrderState) model =
-            let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map snd
-
-            // Ensure the zip operations pair each symbol with its states correctly
-
-            let combinedStates = List.zip3 flipState reversedInputState portOrderState
-            let symbolStates = List.zip symbols combinedStates
-
-            // Define a function to apply states to a symbol and update the model
-            let applyStates (model: SheetT.Model) (symbol, (flip, reversedInput, portOrder)) =
-                let modelAfterFlip = (snd (SymbolFlippedLens symbol) flip model)
-                let modelAfterReversedInput = (snd (reverseMuxInputLens symbol) reversedInput modelAfterFlip)
-                let modelAfterPortOrder = (snd (portOrderLens symbol (determineEdgeForSymbol symbol)) portOrder modelAfterReversedInput)
-                modelAfterPortOrder
-
-            // Apply the states to each symbol in the model
-            List.fold applyStates model symbolStates
-
+        
         
         
         // Iterate over all combinations, apply them, and find the one with the least intersections
-        let bestModel =
-            flipCombs
-            |> List.collect (fun flipComb ->
-                reversedInputCombs
-                |> List.collect (fun reversedInputComb ->
-                    portOrderCombs
-                    |> List.map (fun portOrderComb ->
-                        let newModel = applyCombination flipComb reversedInputComb portOrderComb model
-                        let metric = countTotalRightAngleIntersect newModel
-                        (newModel, metric)
-                    )
-                )
-            )
-            |> List.minBy snd
-            |> fst
+        // let bestModel =
+        //     flipCombs
+        //     |> List.collect (fun flipComb ->
+        //         reversedInputCombs
+        //         |> List.collect (fun reversedInputComb ->
+        //             portOrderCombs
+        //             |> List.map (fun portOrderComb ->
+        //                 let newModel = applyCombination flipComb reversedInputComb portOrderComb model
+        //                 let metric = countTotalRightAngleIntersect newModel
+        //                 (newModel, metric)
+        //             )
+        //         )
+        //     )
+        //     |> List.minBy snd
+        //     |> fst
 
-        bestModel
-        
+        // bestModel

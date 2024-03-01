@@ -213,6 +213,7 @@ let optimiseSymbol
     // If a wire connects the target symbol to another symbol, note which edge it is connected to
     let updateData (symConnData: SymConnDataT) _ (wire: Wire) =
         let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire
+        // symbolSource, symbolTarget
 
         match symS, symT with
         | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> Some symS

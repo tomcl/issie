@@ -11,6 +11,7 @@ open SheetBeautifyHelpers
 open Optics
 open Operators
 
+/// Adjusts port order on custom components, flip components, flip MUX input order to reduce crossings
 let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
     let symbols =
         model.Wire.Symbol.Symbols
@@ -20,9 +21,11 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
         symbols |> List.filter (fun (id,symbol) -> match symbol.Component.Type with
                                                     | Custom _ -> true
                                                     | _ -> false)
-
+    /// recursion function to keep trying swapping port pairs until number of crossed wires does not improve, then returns model
+    /// for ports on a single edge 
     let rec swapPortsOnEdge ((model,id,symbol): SheetT.Model * ComponentId * Symbol) (edge: Edge) =
 
+        /// create list combinations each with 2 different port pairs swapped
         let generateSwaps (order: string list) : (string list list) =
             let possibleOrders = order.Length
 
@@ -46,6 +49,7 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
                     swapElementsAtIndexes i 0 order
             )
 
+        /// create model with new port layout and evaluate
         let checkSwapFolder ((improvement,model): bool * SheetT.Model) (order: string list)  =
             let beforeCount = countCrossingWires model
             let model' = Optic.set symbols_ (Map.add id (setPortOrder model.Wire.Symbol.Symbols[id] edge order) model.Wire.Symbol.Symbols) model
@@ -64,6 +68,7 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
         if improvement then swapPortsOnEdge (bestModel,id,symbol) edge
         else (bestModel,id,symbol)
 
+    /// swapping port pairs for all edges of a symbol
     let swapSymbolEdgePorts (model: SheetT.Model) ((id,symbol): ComponentId * Symbol) =
         let edgesWithPorts = 
             [Top;Bottom;Left;Right]

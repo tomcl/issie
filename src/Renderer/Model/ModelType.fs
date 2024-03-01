@@ -293,6 +293,7 @@ type MenuCommand =
     | MenuVerilogOutput
     | MenuLostFocus
     | MenuDrawBlockTest of (int -> Elmish.Dispatch<Msg> -> Model -> Unit) * int
+    | MenuFunctionTest of (Elmish.Dispatch<Msg> -> Model -> Unit)
 
 type SimulationProgress = { InitialClock: int; FinalClock: int; ClocksPerChunk: int }
 

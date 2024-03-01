@@ -112,6 +112,7 @@
     
     <Compile Include="GenerateData.fs" />
     <Compile Include="TestDrawBlock.fs" />
+    <Compile Include="TestSheetFunctions.fs" />
     
     <Compile Include="TestWorker.fs" />
     <Compile Include="Playground.fs" />

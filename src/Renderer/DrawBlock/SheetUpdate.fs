@@ -25,88 +25,10 @@ module node = Node.Api
 
 importReadUart
 
-type Test3 = { Length: float; Index: int }
-
-let visibleSegments (wId: ConnectionId) (model: SheetT.Model) : XYPos list =
-
-    let wire = model.Wire.Wires[wId] // get wire from model
-
-    /// helper to match even and odd integers in patterns (active pattern)
-    let (|IsEven|IsOdd|) (n: int) =
-        match n % 2 with
-        | 0 -> IsEven
-        | _ -> IsOdd
-
-    /// Convert seg into its XY Vector (from start to end of segment).
-    /// index must be the index of seg in its containing wire.
-    let getSegmentVector (index: int) (seg: BusWireT.Segment) =
-        // The implicit horizontal or vertical direction  of a segment is determined by
-        // its index in the list of wire segments and the wire initial direction
-        match index, wire.InitialOrientation with
-        | IsEven, BusWireT.Vertical
-        | IsOdd, BusWireT.Horizontal -> { X = 0.; Y = seg.Length }
-        | IsEven, BusWireT.Horizontal
-        | IsOdd, BusWireT.Vertical -> { X = seg.Length; Y = 0. }
-
-    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-    /// if this is possible, otherwise return segVecs unchanged.
-    /// Index must be in range 1..segVecs
-    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int) =
-        if
-            index < segVecs.Length - 1
-            && segVecs[index] =~ XYPos.zero
-        then
-            segVecs[0 .. index - 2]
-            @ [ segVecs[index - 1] + segVecs[index + 1] ]
-            @ segVecs[index + 2 .. segVecs.Length - 1]
-        else
-            segVecs
-
-    wire.Segments
-    |> List.mapi getSegmentVector
-    |> (fun segVecs ->
-        (segVecs, [ 1 .. segVecs.Length - 2 ])
-        ||> List.fold tryCoalesceAboutIndex)
-
 /// Update Function
 let update (msg: Msg) (issieModel: ModelType.Model) : ModelType.Model * Cmd<ModelType.Msg> =
     /// In this module model = Sheet model
     let model = issieModel.Sheet
-    let testVisibleSegments =
-        List.map (fun (w: Wire) -> visibleSegments w.WId model) (List.map snd (Map.toList model.Wire.Wires))
-
-    let prettyPrint (list: XYPos list list) =
-        list
-        |> List.iteri (fun i innerList ->
-            // printfn "List %d:" i
-            innerList
-            |> List.iter (fun xy -> printfn "X = %.2f, Y = %.2f" xy.X xy.Y))
-    // prettyPrint testVisibleSegments
-    // printf "%A" testVisibleSegments
-    // printf "%A" (model.LastMousePos)
-    // printf "getSharedNetOverlaplength %A" (getSharedNetOverlapLength model)
-
-    let what = (model.Wire.Wires)
-    let what2 = (Map.toList model.Wire.Wires)
-    let what3 = (List.map snd (Map.toList model.Wire.Wires))
-
-    // printf "HEY"
-    // printf "%A" what2[0]
-
-    let wireModel = model.Wire
-
-    // let findWireSymbolIntersections (sheet: SheetT.Model) =
-    // let wireModel = sheet.Wire
-    // wireModel.Wires
-    // |> Map.toList
-    // |> List.collect (fun (_, wire) -> BusWireRoute.findWireSymbolIntersections wireModel wire)
-
-    // printf "%A" (findWireSymbolIntersections model)
-    // printf "countVisibleSegsIntersectingSymbols %A" (countVisibleSegsIntersectingSymbols model)
-    // printf "countVisibleSegsPerpendicularCrossings %A" (countVisibleSegsPerpendicularCrossings model)
-    // printf "getApproxVisibleSegmentsLength %A" (getApproxVisibleSegmentsLength model)
-    // printf "countVisibleRAngles %A" (countVisibleRAngles model)
-    // printf "countUniqRetracingSegmentsAndIntersects %A" (countUniqRetracingSegmentsAndIntersects model)
 
     /// check things that might not have been correctly completed in the last update and if so do them
     /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than

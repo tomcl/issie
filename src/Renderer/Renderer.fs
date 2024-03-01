@@ -177,6 +177,8 @@ let fileMenu (dispatch) =
               (TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
                |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
                |> List.mapi (fun n (name, _) -> (makeTestItem name n)))
+          makeDebugItem "Test Functions" (Some "CmdOrCtrl+Shift+1") (fun ev ->
+              dispatch (MenuAction(MenuFunctionTest(TestSheetFunctions.testSheetFunc), dispatch)))
           makeWinDebugItem "Trace all" None (fun _ -> debugTraceUI <- Set.ofList [ "update"; "view" ])
           makeWinDebugItem "Trace View function" None (fun _ -> debugTraceUI <- Set.ofList [ "view" ])
           makeWinDebugItem "Trace Update function" None (fun _ -> debugTraceUI <- Set.ofList [ "update" ])
@@ -186,6 +188,10 @@ let fileMenu (dispatch) =
               false
               "Play"
               [ makeDebugItem "Set Scroll" None (fun _ -> SheetDisplay.writeCanvasScroll { X = 1000.; Y = 1000. })
+                makeDebugItem "Trace off" None (fun _ ->
+                    TimeHelpers.instrumentation <- TimeHelpers.Off
+                    if debugTraceUI = Set.ofList [] then
+                        debugTraceUI <- Set.ofList [ "update"; "view" ])
                 makeDebugItem "Trace all times" None (fun _ ->
                     TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(0.1, 0.1)
                     if debugTraceUI = Set.ofList [] then

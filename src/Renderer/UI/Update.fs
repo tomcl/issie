@@ -547,6 +547,9 @@ let update (msg: Msg) oldModel =
         | MenuDrawBlockTest(testFunc, testNum) ->
             testFunc testNum dispatch model
             model, Cmd.none
+        | MenuFunctionTest(testFunc) ->
+            testFunc dispatch model
+            model, Cmd.none
         | _ -> getMenuView act model dispatch, Cmd.none
 
     | ContextMenuAction e ->

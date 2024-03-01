@@ -1,5 +1,6 @@
-﻿module SheetBeautify
+module SheetBeautifyD3
 // open modules likely to be used
+
 open CommonTypes
 open DrawHelpers
 open DrawModelType
@@ -39,7 +40,9 @@ let extractIntOption (data: int option) =
     | None ->
         0 // return default int value
 /// constants used by SheetBeautify
-
+module Constants =
+     //arbitary number 
+    () 
 
 //work from ll3621 to make a start on team deliverable D3
 

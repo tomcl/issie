@@ -34,7 +34,8 @@ open Elmish
 
     let makePositions = genXYPos 100
 
-    ///Generate samples for sheetWireLabelSymbol (D3) Easy Test
+    ///Generate samples for sheetWireLabelSymbol (D3) Easy Test.
+    ///Return a Gen of flip, rotations and positions.
     let makeSamplesD3Easy =
         let rotations = fromList [Some Rotation.Degree90; Some Rotation.Degree270; None]
         let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; None]
@@ -51,7 +52,8 @@ open Elmish
                 Mux2Pos = muxPos
             |})
 
-    ///Generate samples for sheetWireLabelSymbol (D3) Hard Test
+    ///Generate samples for sheetWireLabelSymbol (D3) Hard Test.
+    ///Return a Gen of flip, rotations and positions.
     let makeSamplesD3Hard =
         let rotations = fromList [Some Rotation.Degree90; Some Rotation.Degree270; None]
         let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; None]
@@ -69,7 +71,9 @@ open Elmish
                 MuxPos = muxPos
             |})
 
-    ///Generates position for a component in circuit such that it's threshold distance away from another component
+    ///Generates position for a component in circuit such that it's threshold distance away from another component.
+    ///Takes the sheet and the required threshold distance between components.
+    ///Returns X,Y coordinate position of the component in the sheet.
     let generatePosition (model: SheetT.Model) (threshold:float) : XYPos =
         let initPosition = middleOfSheet
 
@@ -90,6 +94,9 @@ open Elmish
 
         findPosition initPosition
 
+    ///Places a list of components on a sheet such that they're all threshold distance apart with small random changes in position.
+    ///Takes a list of components, threshold distance and set of X,Y coordinates to apply small changes in position.
+    ///Returns a sheet with the components placed.
     let placeComponentsOnModel (components: componentInfo list) (threshold: float) (genSamples: XYPos) : SheetT.Model =
         components
         |> List.fold (fun currModel comp ->
@@ -97,12 +104,13 @@ open Elmish
             placeSymbol comp.Label comp.CompType (compPosition + genSamples) currModel
             |> getOkOrFail) initSheetModel
 
-    ///Constructs a circuit using given list of compoennts and randomly connects components at threshold distance apart
+    ///Constructs a circuit using a list of components and randomly connects components at threshold distance apart.
+    ///Takes a list of components, threshold distance and set of X,Y coordinates.
+    ///Returns a sheet with components placed and wires routed.
     let randomConnectCircuitGen (components: componentInfo list) (threshold: float) (genSamples: XYPos) =
         components
         |> List.toArray
         |> shuffleA
-        //could do pairwise and then connect the ports of the 1st element in the tuple with the 2nd
         |> Array.pairwise
         |> Array.fold (fun currModel (comp1, comp2) ->
             placeWire (portOf comp1.Label 0) (portOf comp2.Label 0) currModel
@@ -111,7 +119,9 @@ open Elmish
             |> separateAllWires
         ) (placeComponentsOnModel components threshold genSamples)
 
-    ///Constructs a circuit by connecting a given list of components based on given list of connections
+    ///Constructs a circuit by connecting a given list of components based on given list of connections at threshold distance apart.
+    ///Takes a list of components, list of connections, threshold distance and set of X,Y coordinates.
+    ///Returns a sheet with the components placed and wires routed.
     let fixedConnectCircuitGen (components: componentInfo list) (connections: connectionInfo list) (threshold: float) (genSamples: XYPos)=
         connections
         |> List.fold (fun currModel connect ->
@@ -120,7 +130,9 @@ open Elmish
             |> separateAllWires
         ) (placeComponentsOnModel components threshold genSamples)
 
-    ///Counts number of overlapping symbols, number of wires intersecting symbols and number of wire bends in a given sheet
+    ///Counts number of overlapping symbols, number of wires intersecting symbols and number of wire bends in a given sheet.
+    ///Takes in a sheet.
+    ///Returns a record with the number of overlapping symbols, wires intersecting symbols and wire bends.
     let countMetrics (model: SheetT.Model) =
         //Metric 1: count number of symbols overlapping
         let boxes =
@@ -150,8 +162,10 @@ open Elmish
    
         {|SymbolOverlaps = numOfSymbolOverlaps; WireIntersectSym = numOfWireIntersectSym; WireBends = numOfWireBends|}
 
-    ///Runs tests through testFunction and prints result metrics for each test
-    let collectMetricsForTests (samples: Gen<'a>) (sheetMaker: 'a -> SheetT.Model) (testFunction) =
+    ///Runs tests through testFunction and prints the resultant metrics for each test.
+    ///Takes in the set of tests, a test/circuit maker function, and a testing function.
+    ///Prints the number of overlapping symbols, wires intersecting symbols and wire bends.
+    let collectMetricsOfTests (samples: Gen<'a>) (sheetMaker: 'a -> SheetT.Model) (testFunction) =
         [0..samples.Size-1]
         |> List.map (fun n -> 
             let sample = samples.Data n
@@ -172,7 +186,9 @@ open Elmish
 //-------------------------Example Test Circuits using Gen<'a> samples testing D3 Function----------//
 //--------------------------------------------------------------------------------------------------//
 
-    ///Generate easy/likely-to-pass tests for sheetWireLabelSymbol (D3)
+    ///Generate easy/likely-to-pass tests for sheetWireLabelSymbol (D3) with all components being threshold distance apart.
+    ///Takes in a threshold distance between components
+    ///Returns a sheet with the circuit placed on it.
     let makeTestD3Easy (threshold: float) (
                             sample: {|
                                 FlipMux: SymbolT.FlipType option;
@@ -203,7 +219,9 @@ open Elmish
         |> getOkOrFail
         |> separateAllWires
 
-    ///Generate hard/likely-to-fail tests for sheetWireLabelSymbol (D3)
+    ///Generate hard/likely-to-fail tests for sheetWireLabelSymbol (D3) with all components being threshold distance apart.
+    ///Takes in a threshold distance between components
+    ///Returns a sheet with the circuit placed on it.
     let makeTestD3Hard (threshold: float) (
                             sample: {|
                                 FlipMux: SymbolT.FlipType option;
@@ -238,6 +256,8 @@ open Elmish
         |> separateAllWires
 
     ///Generate tests using circuit generation DSL with given components and connections list
+    ///Takes in a threshold distance between components and X,Y position.
+    ///Returns a sheet with the circuit placed on it.
     let makeTestFixedConnectCircuitGen (threshold: float) (genSamples : XYPos) : SheetT.Model =
         let components = [
             { Label = "AND1"; CompType = GateN(And, 2) };
@@ -256,6 +276,8 @@ open Elmish
         fixedConnectCircuitGen components connections threshold genSamples
 
     ///Generate tests using circuit generation DSL with only given components list
+    ///Takes in a threshold distance between components and X,Y position.
+    ///Returns a sheet with the circuit placed on it.
     let makeTestRandomConnectCircuitGen (threshold: float) (genSamples : XYPos) : SheetT.Model =
         let components = [
             { Label = "AND1"; CompType = GateN(And, 2) };
@@ -277,6 +299,8 @@ open Elmish
            easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
 
         ///Fails when sheet contains two overlapping symbols or a wire intersecting symbol
+        ///Takes in a sample number for the current test and a sheet.
+        ///Returns a fail or success.
         let failD3 (sample: int) (sheet: SheetT.Model) =
             let metrics = countMetrics sheet
 
@@ -313,7 +337,7 @@ open Elmish
                 Asserts.failD3
                 dispatch
             |> recordPositionInTest testNum dispatch
-            (collectMetricsForTests makeSamplesD3Easy (makeTestD3Easy threshold) id)
+            (collectMetricsOfTests makeSamplesD3Easy (makeTestD3Easy threshold) id)
 
         let testD3Hard testNum firstSample dispatch =
             let threshold = 200.0

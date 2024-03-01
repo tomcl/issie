@@ -220,17 +220,17 @@ let countSymIntersectWire (sheet: SheetT.Model) =
 /// *Condition 3* - or segments on same net on top of each other. 
 /// Count over whole sheet. 
 let countWireRightAngleIntersect (sheet : SheetT.Model) =  
-    // Helper functions:
-    let isDistinct (w1, _) (w2, _) =
-        w1 <> w2
+    // Helper functions: 
+    let isZeroLength (_, wire) =
+        wire.Segments.Length > 0 
 
-    let isZeroLength (w : Wire) =
-        w.Segments.Length <> 0
+    let getSegList (start: XYPos) (seg: XYPos list) =
+        seg |> List.scan (fun currentPos vector -> { X = currentPos.X + vector.X; Y = currentPos.Y + vector.Y } ) start
 
-    let getSegPosList (wire: Wire) = 
-        segmentsToIssieVertices wire.Segments wire
-        |> List.map (fun (x, y, _) -> { X = x; Y = y }) // Convert directly to XYPos
-        |> List.toArray
+    let generatePairs wires =
+        let n = List.length wires
+        [0 .. n - 2]
+        |> List.collect (fun i -> [i + 1 .. n - 1] |> List.map (fun j -> (wires.[i], wires.[j])))
 
     let getSegOrient (segPos : XYPos * XYPos) =
         let startPos, endPos = segPos
@@ -239,20 +239,27 @@ let countWireRightAngleIntersect (sheet : SheetT.Model) =
         | false -> "Vertical"
 
     // checks for right angle intersection
-    let segRightAngleIntersect (segPos1 : XYPos * XYPos) (segPos2 : XYPos * XYPos) = 
+    let isRightAngleIntersect (segPos1 : XYPos * XYPos) (segPos2 : XYPos * XYPos) = 
         let ort1 = getSegOrient segPos1
         let ort2 = getSegOrient segPos2
         (overlap2D segPos1 segPos2) && (ort1 <> ort2)
+        
+    // Define a function to count intersections between two wires
+    let segRightAngleIntersect ((_, wire1), (_, wire2)) =
+        List.pairwise wire1
+        |> List.collect (fun seg1 -> List.pairwise wire2 |> List.filter (fun seg2 -> isRightAngleIntersect seg1 seg2))
+        |> List.length
 
     // Filter: 1. non-zero  2. distinct  3. right angle intersection
-    let segFilter =
-        mapValues sheet.Wire.Wires
-        |> Array.filter isZeroLength
-        |> Array.map getSegPosList
-        |> Array.concat
-        |> Array.allPairs
-        |> Array.filter (fun (seg1, seg2) -> (isDistinct seg1 seg2))
-        |> Array.filter (fun (seg1, seg2) -> (segRightAngleIntersect seg1 seg2))
+    let segFilter = 
+        sheet.Wire.Wires
+        |> Map.toList
+        |> List.filter isZeroLength
+        |> List.map (fun (wId, wire) -> (wId, (getSegList wire.StartPos (visibleSegments wId sheet))))
+        |> generatePairs 
+        |> List.map segRightAngleIntersect
+        |> List.filter (fun x -> x > 0) // no. of intersection
+        |> List.distinct
 
     // Count the filtered segments
     segFilter.Length

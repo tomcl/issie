@@ -16,7 +16,7 @@ Write a required set of build and testing functions (Figure 1) that will be usef
 |x| B8R, B8W | RW | Low | The flip state of a symbol |
 |x| T1R | R | Low | The number of pairs of symbols that intersect each other. See Tick3 for a related function. Count over all pairs of symbols. |
 |x| T2R | R | Low | The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments. |
-|o| T3R | R | Low | The number of distinct pairs of segments that cross each other at right angles. Does not include 0 length segments or segments on same net intersecting at one end, or segments on same net on top of each other. Count over whole sheet. |
+|x| T3R | R | Low | The number of distinct pairs of segments that cross each other at right angles. Does not include 0 length segments or segments on same net intersecting at one end, or segments on same net on top of each other. Count over whole sheet. |
 |x| T4R | R | Medium | Sum of wiring segment length, counting only one when there are N same-net segments overlapping (this is the visible wire length on the sheet). Count over whole sheet. |
 |x| T5R | R | Low | Number of visible wire right-angles. Count over whole sheet. |
 |?| T6R | R | High | The zero-length segments in a wire with non-zero segments on either side that have Lengths of opposite signs lead to a wire retracing itself. Note that this can also apply at the end of a wire (where the zero-length segment is one from the end). This is a wiring artifact that should never happen but errors in routing or separation can cause it. Count over the whole sheet. Return from one function a list of all the segments that retrace, and also a list of all the end of wire segments that retrace so far that the next segment (index = 3 or Segments.Length – 4) - starts inside a symbol. |
@@ -78,7 +78,20 @@ Using the Figure 1 functions as needed, make a coding contribution to your deliv
 | -------- | --------------- | -------------------- | ------------------------------- |
 | D3. sheetWireLabelSymbol | Add or remove wire labels (swapping between long wires and wire labels). Improve symbol rendering. | Reduce wiring complexity (symbol rendering is judged manually on appearance) | Test ability to add labels without overlap in presence of adjacent components with visually helpful placement. |
 
+`https://github.com/dyu18/hlp24-project-issie-team7/tree/indiv-az1821/src/Renderer/DrawBlock/SheetBeautifyT3.fs`
 
+The test of this part could be divided into some assertion functions and a test model. To contribute to this part, a test skeleton code have been built and some basic assertion functions are also added. 
+
+### Assertion cases
+
+For now, the following assertion cases are attemped: 
+
+- Wire label placement with different wire lengths.
+- Wire label removal when under the threshold.
+- Wire label naming based on component and port names.
+- Wire label positioning adjustment to avoid overlaps.
+
+The run test function before and after label manipulation is still due to testing, more assertion functions can also be added in the future. 
 
 ---
 
@@ -107,7 +120,7 @@ Using the Figure 1 functions as needed, make a coding contribution to your deliv
     - [x] TODO: check for data type improvements
 
 - Feb 29th: organise notes and documentation. 
-    - [] TODO: team phase
+    - [x] TODO: team phase
     - [x] TODO: XML comments
 
 - Mar 1st

@@ -304,18 +304,18 @@ let getAllWires (sheet: SheetT.Model): List<BusWireT.Wire> =
 
 /// <summary>Get all visible segments of all wires within a sheet.</summary>
 /// <param name="sheet">Model of the whole sheet.</param>
-/// <returns>List of tuple of segments': wire's InputPortId, start,
+/// <returns>List of tuple of segments': wire's OutputPortId, start,
 /// and end positions of all segments on the sheet.</returns>
-let getAllWireVisibleSegs (sheet: SheetT.Model): List<InputPortId*XYPos*XYPos> =
-    /// <summary>Helper to create data of InputPortId, start, and end position tuples,
+let getAllWireVisibleSegs (sheet: SheetT.Model): List<OutputPortId*XYPos*XYPos> =
+    /// <summary>Helper to create data of OutputPortId, start, and end position tuples,
     /// from list of wire vertices.</summary>
-    let makeSegData (sourceId: InputPortId, posList: List<XYPos>) =
+    let makeSegData (sourceId: OutputPortId, posList: List<XYPos>) =
         List.pairwise posList
         |> List.map (fun (segStart, segEnd) -> (sourceId, segStart, segEnd))
 
     getAllWireIds sheet
     |> List.map (fun wireId -> sheet.Wire.Wires[wireId])
-    |> List.map (fun wire -> (wire.InputPort, getWireVisibleSegVertices wire))
+    |> List.map (fun wire -> (wire.OutputPort, getWireVisibleSegVertices wire))
     |> List.map makeSegData
     |> List.collect (fun item -> item)
 
@@ -363,7 +363,7 @@ let findVisibleSegIntersectsSymCount (sheet: SheetT.Model): int =
 /// superset of "segments same net intersecting at one end".</remarks>
 let findSegIntersectsSegCount (sheet: SheetT.Model): int =
     /// <summary>Helper to identify perpendicular segment pairs.</summary>
-    let isPerpSegPair (seg1: InputPortId*XYPos*XYPos, seg2: InputPortId*XYPos*XYPos): bool =
+    let isPerpSegPair (seg1: OutputPortId*XYPos*XYPos, seg2: OutputPortId*XYPos*XYPos): bool =
         let _, segStart1, segEnd1 = seg1
         let _, segStart2, segEnd2 = seg2
 

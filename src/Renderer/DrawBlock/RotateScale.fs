@@ -357,132 +357,18 @@ let adjustPosForBlockFlip
         | FlipVertical -> { X = 0 ;Y = (float)h }
     pos - posOffset
 
-// /// <summary>HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.</summary>
-// /// <param name="rotation">  Clockwise or Anticlockwise rotation</param>
-// /// <param name="block"> Bounding box of selected components</param>
-// /// <param name="sym"> Symbol to be rotated</param>
-// /// <returns>New symbol after rotated about block centre.</returns>
-// let rotateSymbolInBlock 
-//         (rotation: Rotation) 
-//         (blockCentre: XYPos)
-//         (sym: Symbol)  : Symbol =
-      
-//     let h,w = getRotatedHAndW sym
+//-------------------------------------------------------------------------------------------------
+// Code Improved by Johnny Line 360 - 480
+//--------------improve summary------
 
-//     let newTopLeft = 
-//         rotatePointAboutBlockCentre sym.Pos blockCentre (invertRotation rotation)
-//         |> adjustPosForBlockRotation (invertRotation rotation) h w
+// 1. Pipelining for Clarity: 
+//      Utilized pipelines in rotateSymbolInBlock and flipSymbolInBlock for clearer data transformations.
+// 2. Function Decomposition: 
+//      In flipSymbolInBlock, Extracted complex logic into applyFlip for better modularity.
+// 3. Variable Declaration Clarity: 
+//      Split combined variable declarations in scaleSymbolInBlock for enhanced readability.
 
-//     let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
-    
-//     let newSTransform = 
-//         match sym.STransform.Flipped with
-//         | true -> 
-//             {sym.STransform with Rotation = combineRotation (invertRotation rotation) sym.STransform.Rotation}  
-//         | _-> 
-//             {sym.STransform with Rotation = combineRotation rotation sym.STransform.Rotation}
-
-//     { sym with 
-//         Pos = newTopLeft;
-//         PortMaps = rotatePortInfo rotation sym.PortMaps
-//         STransform = newSTransform 
-//         LabelHasDefaultPos = true
-//         Component = newComponent
-//     } |> calcLabelBoundingBox 
-
-
-// /// <summary>HLP 23: AUTHOR Ismagilov - Flip a symbol horizontally or vertically in its block.</summary>
-// /// <param name="flip">  Flip horizontally or vertically</param>
-// /// <param name="block"> Bounding box of selected components</param>
-// /// <param name="sym"> Symbol to be flipped</param>
-// /// <returns>New symbol after flipped about block centre.</returns>
-// let flipSymbolInBlock
-//     (flip: FlipType)
-//     (blockCentre: XYPos)
-//     (sym: Symbol) : Symbol =
-
-//     let h,w = getRotatedHAndW sym
-//     //Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
-//     let newTopLeft = 
-//         flipPointAboutBlockCentre sym.Pos blockCentre flip
-//         |> adjustPosForBlockFlip flip h w
-
-//     let portOrientation = 
-//         sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
-
-//     let flipPortList currPortOrder side =
-//         currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
-
-//     let portOrder = 
-//         (Map.empty, [Edge.Top; Edge.Left; Edge.Bottom; Edge.Right]) ||> List.fold flipPortList
-//         |> Map.map (fun edge order -> List.rev order)       
-
-//     let newSTransform = 
-//         {Flipped= not sym.STransform.Flipped;
-//         Rotation= sym.STransform.Rotation} 
-
-//     let newcomponent = {sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
-
-//     { sym with
-//         Component = newcomponent
-//         PortMaps = {Order=portOrder;Orientation=portOrientation}
-//         STransform = newSTransform
-//         LabelHasDefaultPos = true
-//         Pos = newTopLeft
-//     }
-//     |> calcLabelBoundingBox
-//     |> (fun sym -> 
-//         match flip with
-//         | FlipHorizontal -> sym
-//         | FlipVertical -> 
-//             let newblock = getBlock [sym]
-//             let newblockCenter = newblock.Centre()
-//             sym
-//             |> rotateSymbolInBlock Degree270 newblockCenter 
-//             |> rotateSymbolInBlock Degree270 newblockCenter)
-
-// /// <summary>HLP 23: AUTHOR Ismagilov - Scales selected symbol up or down.</summary>
-// /// <param name="scaleType"> Scale up or down. Scaling distance is constant</param>
-// /// <param name="block"> Bounding box of selected components</param>
-// /// <param name="sym"> Symbol to be rotated</param>
-// /// <returns>New symbol after scaled about block centre.</returns>
-// let scaleSymbolInBlock
-//     //(Mag: float)
-//     (scaleType: ScaleType)
-//     (block: BoundingBox)
-//     (sym: Symbol) : Symbol =
-
-//     let symCenter = getRotatedSymbolCentre sym
-
-//     //Get x and y proportion of symbol to block
-//     let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
-
-//     let newCenter = 
-//         match scaleType with
-//             | ScaleUp ->
-//                 {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
-//             | ScaleDown ->
-//                 {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
-
-//     let h,w = getRotatedHAndW sym
-//     let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
-//     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
-
-//     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
-
-
-// /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
-
-// let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
-//     let pos = {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 }
-//     match degree with
-//     | Degree0 -> sym
-//     | _ ->  rotateSymbolInBlock degree pos sym
-
-
-///-------------------------------------------------------------------------------------------------
-/// Code Improved by Johnny Line 360 - 480
-/// ----------------------------------------Summary-----------------------------------------------
+//_________________improve description end-------------
 
 /// <summary>Rotate a symbol around the block centre.</summary>
 /// <param name="rotation">Clockwise or Anticlockwise rotation</param>
@@ -623,16 +509,6 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
     | Degree0 -> sym
     | _ ->  rotateSymbolInBlock degree pos sym
 
-//--------------improve summary------
-
-// 1. Pipelining for Clarity: 
-//      Utilized pipelines in rotateSymbolInBlock and flipSymbolInBlock for clearer data transformations.
-// 2. Function Decomposition: 
-//      In flipSymbolInBlock, Extracted complex logic into applyFlip for better modularity.
-// 3. Variable Declaration Clarity: 
-//      Split combined variable declarations in scaleSymbolInBlock for enhanced readability.
-
-//_________________improve description end-------------
 /// --------------------------------------improve code end------------------------------------------
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>

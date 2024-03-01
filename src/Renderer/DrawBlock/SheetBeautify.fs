@@ -30,11 +30,3 @@ open Optics
 /// constants used by SheetBeautify
 module Constants =
     ()
-    // D2. sheetOrderFlip 
-    // Adjust on sheet: Port order on custom components, flip components, flip MUX input order
-    // Primary Optimisation: Reduce wire crossings 
-    // Test using random sample inputsReduction in wire crossings, other quality measures
-    
-
-
-    

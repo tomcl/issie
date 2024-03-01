@@ -28,27 +28,18 @@ open SheetBeautifyHelpers
 open Optics
 
 /// constants used by SheetBeautify
-module Constants =
+module SheetBeautifyD2 =
     // D2. sheetOrderFlip 
     // Adjust on sheet: Port order on custom components, flip components, flip MUX input order
     // Primary Optimisation: Reduce wire crossings 
     // Test using random sample inputsReduction in wire crossings, other quality measures
-    
 
-
-    // Test Function: 
+    // Build Function: 
     //      - try through all possible combinations of flipping components
     //      - find the one with the least wire crossings
     //      - apply that combination to the model and return the new model
 
-    //  this can be used in the team deliverable to find the best combination of flipping components
-    //  to reduce wire crossings
-    //  Test on Port order of custom components, MUX input order were not tested in this function, and is needed to be implemented in the future
-    
-
-    // generate all possible flip combinations
-    
-    
+    // script to describe a symbol
     type symbolScript = {
         Flipped: bool
         ReversedInput: bool
@@ -56,6 +47,7 @@ module Constants =
         PortOrder: list<string>
     }
 
+    // script to describe a model
     type modelScript = list<symbolScript>
 
     let rec combinations list =
@@ -64,6 +56,7 @@ module Constants =
         | head :: tail ->
             let recSubsets = combinations tail
             recSubsets @ (recSubsets |> List.map (fun subset -> head :: subset))
+    
     let generateSymbolScript (symbol: SymbolT.Symbol) =
         let flips = [true; false]
         let reversedInputs = [true; false]
@@ -99,7 +92,7 @@ module Constants =
         //TODO: Implement this
         
 
-    // update a symbol with a script
+    // update a symbol with a symbolScript
     let applyScript (script: symbolScript) (symbol: SymbolT.Symbol) =
         let _, updatePortOrder = symPortOrder_ script.PortEdge
         let _, updateMux2InputOrder = reverseMux2Input_
@@ -110,18 +103,20 @@ module Constants =
         |> updateMux2InputOrder script.ReversedInput
         |> updateFlip script.Flipped
     
+    // TODO: Apply the script to each symbol
     let applyScriptToModel (model: SheetT.Model) (script: modelScript): SheetT.Model =
         let symbols = 
             model.Wire.Symbol.Symbols
             |> Map.toList
             |> List.map snd
+        // TODO: Apply the script to each symbol
         ()
-        // Apply the script to each symbol
 
+    // Count the number of right angle intersections
     let evaluateModel (model: SheetT.Model) =
-        // Count the number of right angle intersections
         countTotalRightAngleIntersect model
 
+    // Get optimized model
     let optimizeFlipForComponents (model: SheetT.Model): SheetT.Model =
         // Convert symbol map to list
         let scripts = generateModelScript model
@@ -138,26 +133,8 @@ module Constants =
         
         bestModel
         
-
-        
-        
-        
-        
-        // Iterate over all combinations, apply them, and find the one with the least intersections
-        // let bestModel =
-        //     flipCombs
-        //     |> List.collect (fun flipComb ->
-        //         reversedInputCombs
-        //         |> List.collect (fun reversedInputComb ->
-        //             portOrderCombs
-        //             |> List.map (fun portOrderComb ->
-        //                 let newModel = applyCombination flipComb reversedInputComb portOrderComb model
-        //                 let metric = countTotalRightAngleIntersect newModel
-        //                 (newModel, metric)
-        //             )
-        //         )
-        //     )
-        //     |> List.minBy snd
-        //     |> fst
-
-        // bestModel
+    
+    // Heuristic Algorithm
+    // Use a heuristic to partition components into independent connected groups
+    
+    

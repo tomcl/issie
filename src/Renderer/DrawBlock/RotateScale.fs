@@ -21,9 +21,10 @@ open SymbolResizeHelpers
 (* 
     Lines 504-638
     Most significant changes:
-        1. reduced code repetitions using "function wrapping"
-        2. replaced unnecessary/clumsy expressions with more concise ones, keeping sematics unchanged
-        3. changed meaningless namings to something that better represent meanings
+        1. Reduced code repetitions using "function wrapping".
+        2. Replaced unnecessary/overcomplicated expressions with more concise ones, keeping sematics unchanged.
+        3. To improve readability, I have rearranged some one-line statements into pipelines,
+           and changed meaningless namings to something that better represent their meanings in Issie context.
 
     Transform 1: Functional Abstraction
         used in oneCompBoundsBothEdges, getScalingFactorAndOffsetCentreGroup.
@@ -544,6 +545,8 @@ let getSymBounds (dirIsX:bool) (wHOffset:float) (sym: Symbol) =
         | false -> sym.Pos.Y + wHOffset*height
 
 //*dy321: reduced repetition using "function wrapping". (but perhaps less readable?)
+//        (The original code here contained four highly repetitive assignments,
+//         which have been shrinked into one single subfunction being utilised twice.)
 /// Check whether there exists a single component that is on the boundaries of two opposite edges of selected area.
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
     let checkIfTwoBoundsSameComp (dirIsX:bool) =
@@ -583,6 +586,8 @@ let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (ma
 
 //*dy321: reduced repetition using "function wrapping";
 //        improved namings (to represent meanings).
+//        (The original code here contained four sets of highly repetitive assignments,
+//         which have been shrinked into one single subfunction being utilised twice.)
 /// Return set of floats that define how a group of components is scaled
 let getScalingFactorAndOffsetCentreGroup
     (matchBBMin:XYPos)

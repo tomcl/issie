@@ -12,10 +12,10 @@ Contribution to team-phase work: implemented some fundamental functionalities re
     5. function to place new wires between components and wire labels
     6. function to remove the original wire
 2. Get total length of a wire and filter out the long ones.
-
+3. Try adjusting the positions of new wire labels so that they don't overlap with other symbols.
 
 ### Remaining work in D3 to be done:
-1. Filter out the wires that have available room for wire label replacement, choose appropriate positions of wire labels (e.g. make sure there's no overlapping within a pre-defined neighbourhood).
-2. Remove wire labels and change into single wires (reverse operation).
+1. Refine the position-adjusting function, change to recursive if possible.
+2. Remove wire labels and change into single wires (reverse operation) when under threshold.
 3. Improve symbol rendering.
 

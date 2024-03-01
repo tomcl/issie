@@ -4,12 +4,19 @@ Objective: Reducing total wire segments without increasing wire crossings by sca
 
 
 ### Summary of how objective can be achieved:
-1. We need to find the arrangement such that the number of input and output ports that are either horizontally or vertically on the same line is maximized, because this can make sure the number of straight lines connecting inputs and outputs are max.
+We need to find the arrangement such that the number of input and output ports that are either horizontally or vertically on the same line is maximized
 
-2. To achieve this arrangement, we need to determine how many input-output ports are on opposite sides of two symbols. Then find out the opposite sides that has the most input-output wire that are either on the same horizontal or vertical line by scaling the symbols(for more than two input-output paris, we can at least align two pairs by scaling and translation).
+1. This can be achieved by first identifying singly connected components. For single connection component between symbols, their wires can always be straighten without changing or crossing other wires. We only need to shift the components across the sheet.
 
-3. Use the concept of two symbols arrangemengt, search all pairs of symbols on the sheet and rank the pairs with highest being the pair of symbols with the side that has the most same line input-output ports.
+2. For not singly connected components, such as, two symbols that have more than one wires connected. We need to enlarge the components to fit the spaces between ports with one another and it will be achieved by shifting + enlarging.
+
 
 ### Implemented functionalities useful in D3 Build:
 
+1. Singly connected Component
+    1. Function to check if a wire is parrallel(can be straighten)
+    2. Function to find out all the singly connected component returning a list of component ID as string
+They are useful because it helps us identifying the single line that can be straighten
 
+2. Multiple Connected Component(still working on)
+    1. Function that return a model enlarging component to align two ports(still need to change position to fully align)

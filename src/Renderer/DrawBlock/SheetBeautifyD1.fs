@@ -15,15 +15,75 @@ module Constants =
 
 // D1. sheetAlignScale implementation part - Custom component scaling. Positioning of all components to reduce segments without increasing wire crossings.
 
+///---------------------------------------------------------------------------------------------------------------///
+///----------------------------------------processing-only-one-connection----------------------------------------///
+///---------------------------------------------------------------------------------------------------------------///
+// determine if a wire is parallel
+let isParallel(model: SheetT.Model)(wId: ConnectionId) =
+    let segments = visibleSegments wId model
+    let rec aux previousDirection segments =
+        match previousDirection, segments with
+        | _, ({X = 0.; Y = _} :: {X = _; Y = 0.} :: {X = 0.; Y = _} :: _)
+        | _, ({X = _; Y = 0.} :: {X = 0.; Y = _} :: {X = _; Y = 0.} :: _) ->
+            // Detected two continuous direction changes: H -> V -> H or V -> H -> V
+            true
+        | _, ({X = 0.; Y = _} as current) :: rest ->
+            // Current segment is horizontal, proceed to check the rest
+            aux "Horizontal" rest
+        | _, ({X = _; Y = 0.} as current) :: rest ->
+            // Current segment is vertical, proceed to check the rest
+            aux "Vertical" rest
+        | _, _ :: rest ->
+            // No direction change detected, proceed with the next segment
+            aux previousDirection rest
+        | _, [] ->
+            // No more segments to check, and no pattern found
+            false
 
-// determine if two ports are on the same horizontal or vertical line
-let isSameXYAxis (sym1: Symbol) (p1:Port) (sym2: Symbol) (p2:Port) =
-    let xy1 = readPortPosition sym1 p1
-    let xy2= readPortPosition sym2 p2
-    match (xy1.X = xy2.X, xy1.Y = xy2.Y) with
-    | (true, _) -> true
-    | (_, true) -> true
-    | _ -> false
+    // Start checking from the beginning without a predefined direction
+    aux "" segments
+
+// find the singly connected component on the sheet
+let findSinglyConnectedComponents (model:SheetT.Model) =
+    // Get all the connected wires of the model
+    let singlyConnectedWires = 
+        model.Wire.Wires
+        |> Map.toList
+        |> List.map snd
+        |> List.filter (fun wire -> isParallel model wire.WId)
+    let singlyConnectedPorts = 
+        singlyConnectedWires
+        |> List.map (fun wire -> wire.InputPort)
+        |> List.map (fun (InputPortId id) -> id)
+        |> List.append 
+            (singlyConnectedWires
+            |> List.map (fun wire -> wire.OutputPort)
+            |> List.map (fun (OutputPortId id) -> id))
+    let allPorts = 
+        model.Wire.Symbol.Ports
+        |> Map.toList
+        |> List.map snd
+    
+    let initialMap: Map<string, int> = Map.empty
+
+    let updateMapWithPort (acc: Map<string, int>) (port: Port) =
+        if List.contains port.Id singlyConnectedPorts then
+            // If the port ID is in the list, update the count for its HostId
+            match Map.tryFind port.HostId acc with
+            | Some(count) -> Map.add port.HostId (count + 1) acc
+            | None -> Map.add port.HostId 1 acc
+        else
+            acc
+    allPorts
+    |> List.fold updateMapWithPort initialMap
+    |> Map.filter (fun _ count -> count = 1)
+    |> Map.toList
+    |> List.map fst
+
+    
+///----------------------------------------processing-more-than-one-connections----------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
 
 // determine if two ports are on the opposite sides of a symbol
 let isOppositeSide (sym1: Symbol) (p1:Port) (sym2: Symbol) (p2:Port) =
@@ -50,7 +110,7 @@ let connectedPorts (model: SheetT.Model) (port: Port) =
     | PortType.Input -> outputPorts |> List.map (fun (OutputPortId id) -> id)
     | PortType.Output -> inputPorts |> List.map (fun (InputPortId id) -> id)
 
-// Align the scale of the symbols such that two ports are on the same axis, make sure it is opposite side already
+// Enlarge the space between two ports such that two symbols have same port space alignment, make sure it is opposite side already
 let alignScale (model: SymbolT.Model) 
     (sym1: Symbol) (sym1Port1:Port) (sym1Port2:Port) 
     (sym2: Symbol) (sym2Port1:Port) (sym2Port2:Port) =
@@ -119,4 +179,5 @@ let alignScale (model: SymbolT.Model)
     { model with Symbols = updatedSymbols }
 
 
-// determine which two sides of two symbols have the most ports connected on the same axis
+// change the position of the symbol to align with two ports
+

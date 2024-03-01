@@ -51,6 +51,7 @@ let findSinglyConnectedComponents (model:SheetT.Model) =
         |> Map.toList
         |> List.map snd
         |> List.filter (fun wire -> isParallel model wire.WId)
+    // Get all the ports that are singly connected(both inputs and outputs)
     let singlyConnectedPorts = 
         singlyConnectedWires
         |> List.map (fun wire -> wire.InputPort)
@@ -59,13 +60,13 @@ let findSinglyConnectedComponents (model:SheetT.Model) =
             (singlyConnectedWires
             |> List.map (fun wire -> wire.OutputPort)
             |> List.map (fun (OutputPortId id) -> id))
+    // Get all the ports of the model
     let allPorts = 
         model.Wire.Symbol.Ports
         |> Map.toList
         |> List.map snd
-    
+    // create a map of the host id and the number of singly connected ports
     let initialMap: Map<string, int> = Map.empty
-
     let updateMapWithPort (acc: Map<string, int>) (port: Port) =
         if List.contains port.Id singlyConnectedPorts then
             // If the port ID is in the list, update the count for its HostId
@@ -74,6 +75,7 @@ let findSinglyConnectedComponents (model:SheetT.Model) =
             | None -> Map.add port.HostId 1 acc
         else
             acc
+    // filter the map to only include the host id with one singly connected port, returned as a list
     allPorts
     |> List.fold updateMapWithPort initialMap
     |> Map.filter (fun _ count -> count = 1)

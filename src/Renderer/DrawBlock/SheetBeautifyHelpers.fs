@@ -15,14 +15,7 @@ open Helpers
 
 
 //-----------------Module for beautify Helper functions--------------------------//
-// Typical candidates: all individual code library functions.
-// Other helpers identified by Team
-// B3, B5, B6 T2 still trying
 // lists the functions that must be written, R = Read, W = write. Where a value is RW two functions are needed one for Read and one for Write. These should be combined in a Lens (if possible).
-// B3R, B3W RW Medium Read/write the order of ports on a specified side of a symbol
-// B5R R Low The position of a port on the sheet. It cannot directly be written.
-// B6R R Low The Bounding box of a symbol outline (position is contained in this)
-// T2R R Low The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments.
 
 /// Identify a port from its component label and number.
 /// Usually both an input and output port will mathc this, so
@@ -34,7 +27,9 @@ type SymbolPort = { Label: string; PortNumber: int }
 /// convenience function to make SymbolPorts
 let portOf (label:string) (number: int) =
     {Label=label; PortNumber = number}
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // B1RW - The dimensions of a custom component symbol
 let customComponentDimensionsLens : Lens<Symbol, (float * float)> =
     // Getter function: gets the width and height of a custom component symbol
@@ -45,7 +40,9 @@ let customComponentDimensionsLens : Lens<Symbol, (float * float)> =
 
     Lens.create get set
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // B2W - The position of a symbol on the sheet
 let symbolPositionLens : Lens<Symbol, XYPos> =
     // Getter function: gets the position of a symbol on the sheet
@@ -55,7 +52,9 @@ let symbolPositionLens : Lens<Symbol, XYPos> =
 
     Lens.create get set
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // B3R, B3W - Read and Write the order of ports on a specified side of a symbol
 let portOrderLens (side: Edge) : Lens<Symbol, string list option> =
     // Getter function: gets the list of port IDs for a specified side from a Symbol
@@ -71,7 +70,9 @@ let portOrderLens (side: Edge) : Lens<Symbol, string list option> =
 
     Lens.create get set
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // B4RW - The reverses state of the inputs of a MUX2
 let reversedInputPortsLens : Lens<Symbol, bool option> =
     // Getter function: gets the reverse state of the input ports if available from the Symbol's Component
@@ -98,7 +99,9 @@ let reversedInputPortsLens : Lens<Symbol, bool option> =
 
 
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // B5R - Read the position of a port on the sheet
 let readPortPosition (sym: Symbol) (port: Port) : XYPos =
     let addXYPos (pos1: XYPos) (pos2: XYPos) : XYPos =
@@ -120,7 +123,9 @@ let applyScaling (width: float) (height: float) (hScale: float option) (vScale: 
             | Some(scale) -> height * scale
             | None -> height
     (w, h)
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // B6R - Read the Bounding box of a symbol outline
 let readBoundingBox (symbol: Symbol) : BoundingBox =
     let (scaledWidth, scaledHeight) = applyScaling symbol.Component.W symbol.Component.H symbol.HScale symbol.VScale
@@ -129,7 +134,9 @@ let readBoundingBox (symbol: Symbol) : BoundingBox =
         W = scaledWidth
         H = scaledHeight
     }
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // B7RW - The rotation of a symbol
 let symbolRotationLens : Lens<Symbol, Rotation> =
     // Getter function: gets the rotation of a symbol
@@ -145,7 +152,9 @@ let symbolRotationLens : Lens<Symbol, Rotation> =
         { sym with Component = updatedComponent; STransform = { sym.STransform with Rotation = newRotation } }
 
     Lens.create get set
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // B8RW - The flip state of a symbol
 let symbolFlipLens : Lens<Symbol, bool> =
     // Getter function: gets the flip state of a symbol
@@ -197,7 +206,9 @@ let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
             (segVecs,[1..segVecs.Length-2])
             ||> List.fold tryCoalesceAboutIndex)
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // T1R - The number of pairs of symbols that intersect each other. Count over all pairs of symbols.
 let countSymbolIntersectSymbol (sheet: SheetT.Model) =
     let boxes = mapValues sheet.BoundingBoxes |> Array.toList |> List.indexed
@@ -209,7 +220,9 @@ let countSymbolIntersectSymbol (sheet: SheetT.Model) =
         ) acc
     boxes |> List.fold countOverlaps 0
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // T2R - The number of distinct wire visible segments that intersect with one or moresymbols. Count over all visible wire segments.
 let countSymbolIntersectWire (sheet: SheetT.Model) =
     let wireModel = sheet.Wire
@@ -223,7 +236,9 @@ let countSymbolIntersectWire (sheet: SheetT.Model) =
         else acc
     ) 0
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // T3R - The number of distinct pairs of segments that cross each other at right angles on the whole sheet
 type SegVector = {Start: XYPos; Dir: XYPos} // A segment vector with absolute start and direction
 
@@ -288,7 +303,9 @@ let totalRightAngleIntersect (model: SheetT.Model) =
     allSegments
     |> countRightAngleIntersectionsAll
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // T4R - Sum of wiring segment length, counting only one when there are N same-net segments overlapping on the whole sheet
 let sumWireLength (model: SheetT.Model) =
     let countSegmentLength (wId: ConnectionId) (model: SheetT.Model) =
@@ -301,14 +318,13 @@ let sumWireLength (model: SheetT.Model) =
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countSegmentLength wId model) 0.0
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // T5R - Number of visible wire right-angles. Count over whole sheet.
 let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
-    // printfn "countWireRightAngles: wId: %A" wId
     let segments = visibleSegments wId model
-    // printfn "segments: %A" segments
     let numSegments = List.length segments
-    // printfn "numSegments: %A" numSegments
     if numSegments > 0 then numSegments - 1 else 0
     // The check `if numSegments > 0 then ... else 0` ensures that wires with no visible segments
     // do not contribute to the right angle count negatively or incorrectly.
@@ -317,14 +333,10 @@ let countWireRightAngles (wId: ConnectionId) (model: SheetT.Model) =
 let countTotalRightAngles (model: SheetT.Model) =
     model.Wire.Wires
     |> Map.fold (fun acc wId _ -> acc + countWireRightAngles wId model) 0
-    // |> Map.fold (fun acc key _ -> 
-    //     let newAcc = acc + countWireRightAngles key model
-    //     // Print the updated accumulator value
-    //     printfn "Current total right angles: %d" newAcc
-    //     newAcc
-    // ) 0
 
-
+///-------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
+/// ------------------------------------------------------------------------------------------------------------------------------------------//
 // T6R - The zero-length segments in a wire with non-zero segments on either side that have Lengths of opposite signs lead to a wire retracing itself
 // Count over the whole sheet. Return from one function a list of all the segments that retrace, and also a list of all the end of wire segments that retrace so far
 let countRetraceSegments (model: SheetT.Model) : BusWireT.Segment list * BusWireT.Segment list =

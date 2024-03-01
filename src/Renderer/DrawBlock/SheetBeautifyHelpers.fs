@@ -7,7 +7,6 @@
 open BlockHelpers
 open CommonTypes
 open SymbolHelpers
-open SymbolUpdate
 open DrawModelType
 open Optics
 open Operators
@@ -42,23 +41,21 @@ let visibleSegments
         | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
         | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
 
-    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-    /// if this is possible, otherwise return segVecs unchanged.
-    /// Index must be in range 1..segVecs
-    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-        if segVecs[index] =~ XYPos.zero
-        then
+    /// Return the list of segment vectors with 3 vectors coalesced into one visible equivalent
+    /// wherever this is possible
+    let rec coalesce (segVecs: XYPos list)  =
+        match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with          
+        | Some zeroVecIndex -> 
+            let index = zeroVecIndex + 1 // base index onto full segVecs
             segVecs[0..index-2] @
             [segVecs[index-1] + segVecs[index+1]] @
             segVecs[index+2..segVecs.Length - 1]
-        else
-            segVecs
-
+            |> coalesce // recurse as long as more coalescing might be possible
+        | None -> segVecs // end when there are no inner zero-length segment vectors
+     
     wire.Segments
     |> List.mapi getSegmentVector
-    |> (fun segVecs ->
-            (segVecs,[1..segVecs.Length-2])
-            ||> List.fold tryCoalesceAboutIndex)
+    |> coalesce
 
 /// Returns all unique pairs of elements from a list.
 let rec uniquePairs
@@ -185,8 +182,8 @@ let setSymbolPosition
 
 /// B3R Returns a list of ordered ports for a given side of a symbol.
 let getOrderedPorts
-        (edge: Edge)
         (symbol: SymbolT.Symbol)
+        (edge: Edge)
         : string list =
     symbol.PortMaps.Order[edge]
 
@@ -194,9 +191,9 @@ let getOrderedPorts
 /// The provided list of ports must be a reordering of the existing list of ports
 /// (i.e. this function can only change order).
 let setOrderedPorts
+        (symbol: SymbolT.Symbol)
         (edge: Edge)
         (ports: string list)
-        (symbol: SymbolT.Symbol)
         : SymbolT.Symbol =
     symbol.PortMaps.Order
     |> Map.add edge ports

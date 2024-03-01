@@ -539,16 +539,19 @@ let countTotalRightAngles (model: SheetT.Model) =
 /// <returns>A tuple with two lists: retracing segments and end-of-wire retracing segments.</returns>
 
 let findRetracingSegments (model: SheetT.Model) : Segment list * Segment list =
+    // Get all segments XY positions
     let allSegmentsXYPos =
         model.Wire.Wires
         |> Map.toList // Convert the map of wires to a list of (key, value) pairs
         |> List.map (fun (wId, _) -> visibleSegments wId model)
     
+    // Get all segments
     let allSegments =
         model.Wire.Wires
         |> Map.toList // Convert the map of wires to a list of (key, value) pairs
         |> List.map (fun (wId, _) -> model.Wire.Wires[wId].Segments)
 
+    // Check for a single segment, update the two lists
     let checkSegmentRetrace (retracingSegments: list<Segment>, endOfWireRetracing: list<Segment>)(segments: list<Segment>, segmentsXYPos: list<XYPos>)(index: int) =
         let isZeroVector (v:XYPos) = (v.X = 0.0) && (v.Y = 0.0)
         let hasOppositeDirection (v1:XYPos) (v2:XYPos) = (v1.X * v2.X < 0.0) || (v1.Y * v2.Y < 0.0)
@@ -574,13 +577,14 @@ let findRetracingSegments (model: SheetT.Model) : Segment list * Segment list =
         | _ ->
             (retracingSegments, endOfWireRetracing)
 
-    
+    // check for a single wire, update the two lists
     let checkWireRetrace (segments: list<Segment>, segmentsXYPos: list<XYPos>) =
         [1 .. (List.length segmentsXYPos - 1)]
         |> List.fold (fun acc idx ->
             checkSegmentRetrace acc (segments, segmentsXYPos) idx
         ) ([],[])
     
+    // Iter over all wires, update and return the two lists
     List.zip allSegments allSegmentsXYPos
     |> List.fold (fun (acc1, acc2) (cur1, cur2) ->
             let new1, new2 = checkWireRetrace (cur1, cur2)

@@ -478,13 +478,6 @@ module HLPTick3 =
 
             let testTotalRetrace (sample: int) (model: SheetT.Model) = 
                 let resultList = findRetracingSegments model
-                printfn "choosen---------------------------------"
-                printXYPosList (fst resultList)
-                printfn "all segments---------------------------------"
-                printXYPosList (snd resultList)
-                printfn "------------------------------------------------------------------"
-                printfn "------------------------------------------------------------------"
-                printfn "------------------------------------------------------------------"
                 
                 if (true) then
                     Some $"{sample}"

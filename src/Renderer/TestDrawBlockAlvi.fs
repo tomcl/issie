@@ -134,37 +134,7 @@ module HLPTick3 =
     /// which if present causes the two segments on either side of it to coalesce into a single visible segment.
     /// A wire can have any number of visible segments - even 1.
     let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
-
-        let wire = model.Wire.Wires[wId] // get wire from model
-
-        /// helper to match even and off integers in patterns (active pattern)
-        let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
-
-        /// Convert seg into its XY Vector (from start to end of segment).
-        /// index must be the index of seg in its containing wire.
-        let getSegmentVector (index:int) (seg: BusWireT.Segment) =
-            // The implicit horizontal or vertical direction  of a segment is determined by 
-            // its index in the list of wire segments and the wire initial direction
-            match index, wire.InitialOrientation with
-            | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
-            | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
-
-        /// Return the list of segment vectors with 3 vectors coalesced into one visible equivalent
-        /// wherever this is possible
-        let rec coalesce (segVecs: XYPos list)  =
-            match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with          
-            | Some zeroVecIndex ->
-                let index = zeroVecIndex + 1 // base index as it should be on full segVecs
-                segVecs[0..index-2] @
-                [segVecs[index-1] + segVecs[index+1]] @
-                segVecs[index+2..segVecs.Length - 1]
-                |> coalesce
-            | None -> segVecs
-     
-        wire.Segments
-        |> List.mapi getSegmentVector
-        |> coalesce
-                
+        SheetBeautifyHelpers.visibleSegments' wId model
 
 
 //------------------------------------------------------------------------------------------------------------------------//

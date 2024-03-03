@@ -150,6 +150,8 @@ let getSymBoundingBox (symbol : Symbol) = symbol.SymbolBoundingBox
 
 //B7 RW
 /// A lens for accessing the rotation state of a symbol.
+/// NB after writing this, the symbol label box, and the sheet-level symbol
+/// bounding box will chnage. Arguably this function should do those things.
 let symbol_rotation_ =
     Lens.create (fun symbol -> symbol.STransform.Rotation)
                 (fun newState symbol -> {symbol with STransform = {symbol.STransform with Rotation = newState}})
@@ -391,33 +393,40 @@ let numOfVisRightAngles (model: SheetT.Model) : int =
 /// a segment seg is retracing if the segment before it is zero-length and
 /// the segment two segments before has opposite sign length
 let findRetracingSegments (model : SheetT.Model) =
-
+    /// Return any segemnts in the wire which are retracing.
     let getRetracingSegments (segs: BusWireT.ASegment list) =
+        /// the two segments go in opposite directions so retrace if separted by zero segmnet
         let hasOppositeDir (seg1:BusWireT.ASegment) (seg2:BusWireT.ASegment) =
             System.Math.Sign seg1.Segment.Length <> System.Math.Sign seg2.Segment.Length
         segs[2..segs.Length-1] // take all but first two segments - those cannot retrace
-        |> List.mapi (fun n seg -> n+2, seg) // index as in original list
+        |> List.mapi (fun n seg -> n+2, seg) // index (n+2) is correct for lookup in segs
         |> List.filter (fun (n,seg) -> segs[n-1].IsZero && hasOppositeDir segs[n-2] seg)
         |> List.map snd
 
+    /// list of all the segments that are retracing
     let retracingSegs = 
         model.Wire.Wires
         |> Map.values
         |> Array.toList
         |> List.collect (getAbsSegments >> getRetracingSegments)
-                       
+
+    /// list of all the symbol bounding boxes from sheet model
     let symbolBoundingBoxes =
         model.BoundingBoxes
         |> Map.toList
         |> List.map (fun (_, box) -> box)
 
+    /// return true if the segments intersects any symbol
     let checkSegIntersectsAnySymbol (aSeg: BusWireT.ASegment) =
         symbolBoundingBoxes
-        |> List.exists (fun box -> Option.isSome <| segmentIntersectsBoundingBox box aSeg.Start aSeg.End)
+        |> List.exists (fun box ->
+            segmentIntersectsBoundingBox box aSeg.Start aSeg.End
+            |> Option.isSome)
 
     let retracingSegsInsideSymbol = retracingSegs |> List.filter checkSegIntersectsAnySymbol
 
-    {|RetraceSegs =retracingSegs; RetraceSegsInSymbol = retracingSegsInsideSymbol|}
+    {| RetraceSegs =retracingSegs;
+       RetraceSegsInSymbol = retracingSegsInsideSymbol|}
     
 
 

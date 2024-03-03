@@ -101,6 +101,7 @@ let customCompDims_ = Lens.create getCustomCompDims putCustomCompDims
 /// WARNING - this does not update SheetT.Model BoundingBoxes
 let updateSymPos (newPos : XYPos) (sym: Symbol)  =
     {sym with Pos = newPos}
+    |> Optic.map component_ (fun comp -> {comp with X=newPos.X; Y = newPos.Y}) // maybe not needed?
     |> calcLabelBoundingBox // recalculate the label bounding box in the symbol
 
 

@@ -1,4 +1,25 @@
-﻿module RotateScale
+﻿// Summary of <sk1421>'s improvements to RotateScale:
+// 1. Line 261 onwards [updateData]: Match case compression (bringing common logic before the match),
+// better use of monadic library functions (bind).
+// 2. Line 280 onwards [tryResize]: Ordering - Changed the order of sym and symCount (sym is more static
+// parameter) to facilitate currying.
+// 3. Line 298 onwards [tryResize]: Match case compression - brought common logic before the match, to
+// calculate one variable whose value could be used in the horizontal or vertical alignment.
+// 4. Line 315 onwards [scaledSymbol]: Better use of pipelines - this was facilitated by switching the order of
+// arguments in the function tryResize
+// 5. Better XML docs: Lines 87 [getWirePorts] onwards, 124 [alignPortsOffset] onwards, 145 [alignSymbols] onwards, 227 [updateOrInsert] onwards - streamlined XML
+// documentation, ensuring line breaks and explanation of the parameters of each function.
+// 6. Changed function name and variables [getWirePorts]: getPortsAB renamed to getWirePorts -> More descriptive, the function is meant to get the source and target ports of a
+// wire from the two symbols connected to it.
+// 7. Lines 367 onwards [rotatePointAboutBlockCentre]: Better use of anonymous functions to make the pipeline readable, and more functional.
+// Change function names to make them more descriptive and extract similar functionality from the same
+// function (one function just used the opposite sign for the same value - more in the description).
+// 8. Lines 411 onwards [adjustPosForBlockRotation]: Used anonymous function at the end of the pipeline to subtract offset
+// from the position. Also removed redundant helper function within the function.
+// 9. Lines 435 onwards [adjustPosForBlockFlip]: Same as above, implemented the same functionality except for flip state.
+// Also removed redundant helper function within the function.
+
+module RotateScale
 open CommonTypes
 open DrawModelType
 open DrawModelType.SymbolT
@@ -63,11 +84,18 @@ let makePortInfo (sym: Symbol) (port: Port) =
       w = w
       portGap = portGap }
 
-let getPortAB wModel wireSyms =
+// <sk1421's addition: Better XML docs
+/// Given a wire between two symbols (A and B), gets the ports
+/// at either end (input and output) of the connection
+///
+/// wModel - The wire model
+///
+/// wireSyms - Record containing symbol - wire - symbol connection.
+let getWirePorts wModel wireSyms =
     let ports = portsOfWires wModel [ wireSyms.Wire ]
-    let portA = filterPortBySym ports wireSyms.SymA |> List.head
-    let portB = filterPortBySym ports wireSyms.SymB |> List.head
-    portA, portB
+    let sourcePort = filterPortBySym ports wireSyms.SymA |> List.head
+    let targetPort = filterPortBySym ports wireSyms.SymB |> List.head
+    sourcePort, targetPort
 
 /// Try to get two ports that are on opposite edges.
 let getOppEdgePortInfo
@@ -78,7 +106,7 @@ let getOppEdgePortInfo
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
     let tryGetOppEdgePorts wireSyms =
-        let portA, portB = getPortAB wModel wireSyms
+        let portA, portB = getWirePorts wModel wireSyms
         let edgeA = getSymbolPortOrientation wireSyms.SymA portA
         let edgeB = getSymbolPortOrientation wireSyms.SymB portB
 
@@ -93,6 +121,13 @@ let getOppEdgePortInfo
               SymB = otherSymbol
               Wire = w })
 
+// <sk1421's addition>: Better XML documentation
+/// Given the port info for two ports, finds the offset
+/// between them that leads to alignment when covered.
+///
+/// movePInfo - PortInfo for port to be moved.
+///
+/// otherPInfo - PortInfo for the other port.
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let getPortRealPos pInfo =
         getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
@@ -107,6 +142,15 @@ let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     | Left
     | Right -> { X = 0.0; Y = posDiff.Y }
 
+// <sk1421>'s addition: Better XML Docs
+/// Given a symbol to align with another symbol, attempts to
+/// align them.
+///
+/// wModel - The wire model on the sheet
+///
+/// symbolToSize - Symbol to align
+///
+/// otherSymbol - The symbol with respect to which the alignment should occur.
 let alignSymbols
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
@@ -134,7 +178,7 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
     let resizePortInfo, otherPortInfo =
         match getOppEdgePortInfo wModel symbolToSize otherSymbol with
         | None ->
-            let pA, pB = getPortAB wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires[0] }
+            let pA, pB = getWirePorts wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires[0] }
             makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
         | Some(pIA, pIB) -> (pIA, pIB)
 
@@ -180,6 +224,10 @@ let tryWireSymOppEdge (wModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symb
     | true -> Some symEdge
     | _ -> None
 
+// <sk1421>'s addition: Better XML docs
+/// Given an edge, component ID and the connection data for a symbol,
+/// adds a connection to that edge on the symbol. If there are no connections,
+/// initializes the map with 1 (returns a new map).
 let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
     let m = symConnData.ConnMap
     let count = Map.tryFind (cid, edge) m |> Option.defaultValue 0 |> (+) 1
@@ -210,19 +258,31 @@ let optimiseSymbol
             | _ when (symS = symbol) && (symT <> symbol) -> Some symT
             | _ -> None
 
-        match otherSymbol with
-        | Some otherSym ->
-            let edge = tryWireSymOppEdge wModel wire symbol otherSym
+        // <sk1421>'s addition:
+        // Transform 6 & 1: Monadic operations & Match case compression
+        // Issie coding guidelines - moving common code outside the match
+        // Initially, in this function, edge was being calculated inside a match statement
+        // There was a match to extract the otherSymbol from the option and then use that to
+        // find an edge option. There was a redundant case, wherein if the edge was none
+        // (which should never happen) symConnData was returned, but this was the default
+        // return anyway for a None case in otherSymbol.
+        let edge =
+            otherSymbol
+            |> Option.bind (tryWireSymOppEdge wModel wire symbol)
 
-            match edge with
-            | Some e -> updateOrInsert symConnData e otherSym.Id
-            | None -> symConnData // should not happen
-        | None -> symConnData 
+        match otherSymbol, edge with
+        | Some otherSym, Some edge -> updateOrInsert symConnData edge otherSym.Id
+        | _ -> symConnData 
 
     // Look through all wires to build up SymConnDataT.
     let symConnData = ({ ConnMap = Map.empty }, wModel.Wires) ||> Map.fold updateData
 
-    let tryResize (symCount: ((ComponentId * Edge) * int) array) sym =
+    // <sk1421>'s addition:
+    // Transform 2: Ordering
+    // Re-ordered sym, moved it ahead of symCount to implement RSN,
+    // this is immediately useful below (lines 319 onwards) as it allows good use of pipelining
+    // in scaledSymbol
+    let tryResize sym (symCount: ((ComponentId * Edge) * int) array) =
 
         let alignSym (sym: Symbol) (otherSym: Symbol) =
             let resizedSym = reSizeSymbol wModel sym otherSym
@@ -235,25 +295,32 @@ let optimiseSymbol
         let folder (hAligned, vAligned, sym) ((cid, edge), _) =
             let otherSym = Optic.get (symbolOf_ cid) wModel       
 
+            // <sk1421> 's addition:
+            // Transform 1: Match case compression
+            // Extracted common code at the beginning of the match, outside of it,
+            // slightly more descriptive variable names.
+            // Initially there was a let definition using the same value in the first two match cases.
+            let isAligned, newSym = alignSym sym otherSym
+
             match hAligned, vAligned with
             | false, _ when edge = Top || edge = Bottom ->
-                let hAligned', resizedSym = alignSym sym otherSym
-                (hAligned', vAligned, resizedSym)
+                (isAligned, vAligned, newSym)
             | _, false when edge = Left || edge = Right ->
-                let vAligned', resizedSym = alignSym sym otherSym
-                (hAligned, vAligned', resizedSym)
+                (hAligned, isAligned, newSym)
             | _ -> (hAligned, vAligned, sym)
 
         let (_, _, sym') = ((false, false, sym), symCount) ||> Array.fold folder
         sym'
 
+    // <sk1421> 's addition:
+    // Transform 3 & 1: Making (extending) pipeline + Structural Abstraction [This was facilitated
+    // by the transform 2 above.] Better use of pipelines here, avoiding unnecessary let by applying
+    // tryResize to symbol Which was achieved by swapping parameters of tryResize. This allowed the pipeline to feed into the curried tryResize.
     let scaledSymbol =
-        let symCount =
-            Map.toArray symConnData.ConnMap
-            |> Array.filter (fun (_, count) -> count > 1)
-            |> Array.sortByDescending snd
-
-        tryResize symCount symbol
+        Map.toArray symConnData.ConnMap
+        |> Array.filter (fun (_, count) -> count > 1)
+        |> Array.sortByDescending snd
+        |> tryResize symbol
 
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
@@ -286,7 +353,6 @@ let rotatePointAboutBlockCentre
             (point:XYPos) 
             (centre:XYPos) 
             (rotation:Rotation) = 
-    let relativeToCentre = (fun x-> x - centre)
     let rotateAboutCentre (pointIn:XYPos) = 
         match rotation with 
         | Degree0 -> 
@@ -297,13 +363,22 @@ let rotatePointAboutBlockCentre
             {X = -pointIn.X ; Y = - pointIn.Y}
         | Degree270 ->
             {X = -pointIn.Y ; Y = pointIn.X}
-           
-    let relativeToTopLeft = (fun x-> centre - x)
+
+    // <sk1421> 's addition:
+    // Transform 3: Anonymous function at the end (and between)
+    // Replaced unnecessary anonymous function declarations. Also
+    // created function distanceFromCentre (below) which binds the
+    // +/- functionality of the previous relativeToCentre and
+    // relativeToTopLeft anonymous functions which performed the same
+    // subtraction but with different signs (relativeToCentre = - relativeToTopLeft). 
+
+    let distanceFromCentre (pointIn: XYPos) = centre - pointIn
 
     point
-    |> relativeToCentre
+    |> distanceFromCentre
+    |> (-) XYPos.zero // This just gets - distanceFromCentre
     |> rotateAboutCentre
-    |> relativeToTopLeft
+    |> distanceFromCentre
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>
@@ -332,13 +407,18 @@ let adjustPosForBlockRotation
         (w:float)
         (pos: XYPos)
          : XYPos =
-    let posOffset =
-        match rotation with
-        | Degree0 -> {X = 0; Y = 0}
-        | Degree90 -> {X=(float)h ;Y=0}
-        | Degree180 -> {X= (float)w; Y= -(float)h}
-        | Degree270 -> { X = 0 ;Y = (float)w }
-    pos - posOffset
+
+    // <sk1421> 's addition:
+    // Transform 1: Structural Abstraction with pipelining
+    // Pipeline adds more readability. Anonymous function at the end of the pipeline to
+    // achieve subtraction of the newly calculated symbol boundaries (based on the degree of rotation)
+    // from the position of the block.
+    match rotation with
+    | Degree0 -> {X = 0; Y = 0}
+    | Degree90 -> {X=(float)h ;Y=0}
+    | Degree180 -> {X= (float)w; Y= -(float)h}
+    | Degree270 -> { X = 0 ;Y = (float)w }
+    |> (-) pos
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been flipped</summary>
 /// <param name="flip">  Flipped horizontally or vertically</param>
@@ -351,11 +431,16 @@ let adjustPosForBlockFlip
         (h: float)
         (w:float)
         (pos: XYPos) =
-    let posOffset =
-        match flip with
-        | FlipHorizontal -> {X=(float)w ;Y=0}
-        | FlipVertical -> { X = 0 ;Y = (float)h }
-    pos - posOffset
+
+    // <sk1421> 's addition:
+    // Transform 1: Structural Abstraction with pipelining
+    // Pipeline adds more readability. Anonymous function at the end of the pipeline to
+    // achieve subtraction of the newly calculated symbol boundaries (based on the flip orientation)
+    // from the position of the block.
+    match flip with
+    | FlipHorizontal -> {X=(float)w ;Y=0}
+    | FlipVertical -> { X = 0 ;Y = (float)h }
+    |> (-) pos
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.</summary>
 /// <param name="rotation">  Clockwise or Anticlockwise rotation</param>

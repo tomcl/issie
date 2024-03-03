@@ -14,19 +14,19 @@ open Optics.Operators // for >-> operator
 
 
 //----------------------------------------------------------------------------------------------------//
-//------------------------------Helpers used in in SheetBeautifyHelpers-------------------------------//
+//----------------------------------------General Helpers---------------------------------------------//
 //----------------------------------------------------------------------------------------------------//
 
 module Constants =
     /// determines how close segment starting positions must be for them to be in the same bucket
     /// segment overlaps are determined by checking are segment starts in the same bucket
     /// this is faster than clustering based in euclidean distance
-    /// Two very close segments will sometimes map to different buckets if ion a bucket boundary
+    /// Two very close segments will sometimes map to different buckets if on a bucket boundary
     /// for the use here this potential error is likley very unusual and deemed OK
     let bucketSpacing = 0.1
 
 
-
+/// Compare two strings ignoring case
 let caseInvariantEqual str1 str2 =
     String.toUpper str1 = String.toUpper str2
 
@@ -69,7 +69,7 @@ let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model)
     | _ -> model
 
 //----------------------------------------------------------------------------------------------------//
-//------------------------------Helpers used in in SheetBeautifyHelpers-------------------------------//
+//------------------------------Helpers functions assesed in Individual Phase-------------------------//
 //----------------------------------------------------------------------------------------------------//
 
 
@@ -163,9 +163,9 @@ let symbol_flipped_ =
                 (fun newState sym -> {sym with STransform = {sym.STransform with Flipped =newState}})
 
 
-//-------------------------------------------------------------------------------------//
-//-----------------------------------SegmentHelpers------------------------------------//
-//-------------------------------------------------------------------------------------//
+//----------------------------------------------------------------------------------------------//
+//-----------------------------------SegmentHelpers Submodel------------------------------------//
+//----------------------------------------------------------------------------------------------//
 
 /// Helpers to work with visual segments and nets
 /// Includes functions to remove overlapping same-net segments
@@ -259,7 +259,7 @@ module SegmentHelpers =
         // Without that, the code is slower and longer
 
         /// Turn segs into a distinctSegs list, losing shorter overlapped segments.
-        /// All of segs muts be the same orientation.
+        /// All of segs must be the same orientation.
         let clusterSegments segs =
 
             /// Add a segment to distinctSegs unless it overlaps.
@@ -274,8 +274,10 @@ module SegmentHelpers =
                 |> function
                         | Some index when len distinctSegs[index] < len seg ->
                             List.updateAt index seg distinctSegs
+                        | Some index ->
+                            distinctSegs // can do nothing
                         | _ ->
-                            distinctSegs
+                            seg :: distinctSegs // add seg to the list of distinct (non-overlapped) segments
 
             ([], segs)
             ||> List.fold addOrientedSegmentToClusters
@@ -290,13 +292,17 @@ module SegmentHelpers =
     let getVisualSegsFromNetWires (isDistinct: bool) (model: SheetT.Model) netWires =
         netWires
         |> List.collect (fun wire -> visibleSegsWithVertices wire model)
-        |> (if isDistinct then distinctVisSegs else id)
+        |> (if isDistinct then distinctVisSegs else id) // comment this to test the preision implementation
+        //|> (if isDistinct then distinctVisSegsPrecision else id) // uncomment this to test the preision implementation
 
-    /// Returns true if two segments (seg1, seg2) cross in the middle (e.g. not a T junction)
+
+    /// Returns true if two segments (seg1, seg2) cross in the middle (e.g. not a T junction).
+    /// Segment crossings very close to being a T junction will be counted. That however should not happen?
     /// Seg1, seg2 are represented as pair of start and end vertices
     let isProperCrossing (seg1: XYPos*XYPos) (seg2: XYPos*XYPos) =
         /// return true if mid is in between a & b, where the order of a & b does not matter.
-        /// this is an open interval: if mid is close to an endpoint return false
+        /// this is an open interval: if mid is close to an endpoint return false.
+        // rewrite inMiddleOf here with larger tolerance if this is needed.
         let isBetween a mid b =
             match a > b with
             | true -> inMiddleOf b mid a

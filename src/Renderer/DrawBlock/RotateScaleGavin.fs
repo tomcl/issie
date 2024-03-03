@@ -16,6 +16,22 @@ open SymbolResizeHelpers
     It requires better documentation of teh pasrts now used.
 *)
 
+(*
+Improvements applied to RotateScale:
+1. Improved getPortAB (now getConnectedPorts) at line 99, to handle the possibility of an empty list being returned by
+filterPortsBySym which itself doesn't have protection or safe guards against an empty list, hence an empty list scenario
+could appear for getPortAB.
+2. Used more built-in option handlers i.e. Option.map at line 165. Reduces code verbosity and is possibly a
+more safer implementation for option handling.
+3. Refactored code in updateData at line 271 to prevent a nested match with statement and to evaluate a variable first that can
+immediately return the default case if None is encounted, instead of evaluating it later and spending wasteful resources
+for the same outcome.
+4. Removed redundant code within alignSym function at line 306, specifically in a match with statement by computing it outside and passing the result.
+Also leveraged pattern matching to simplify match case code. 
+5. Introduced better XML comments that clearly indicate function purpose, input parameters and return objects at lines 56,95,133,151,254.
+6. Renamed functions so that they represent the function's purpose at lines 94, 131.
+*)
+
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
@@ -37,9 +53,13 @@ type WireSymbols =
 
 /// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
 /// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
+//Improved function XML:
+/// Creates a PortInfo record for a given symbol and port.
+/// Takes in a symbol and port.
+/// Returns a PortInfo record.
 let makePortInfo (sym: Symbol) (port: Port) =
     let side = getSymbolPortOrientation sym port
-    let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
+    let ports = sym.PortMaps.Order.[side] //list of ports on the same side as port
     let gap = getPortPosEdgeGap sym.Component.Type
     let topBottomGap = gap + 0.3 // extra space for clk symbol
     let portDimension = float ports.Length - 1.0
@@ -63,11 +83,24 @@ let makePortInfo (sym: Symbol) (port: Port) =
       w = w
       portGap = portGap }
 
-let getPortAB wModel wireSyms =
+    
+   (* Improvement: filterPortBySym outputs a list of ports that belong to a symbol from a given port list.
+    There is a possibility that no port matches which yields an empty list.
+    Applying List.head on an empty list would give a runtime error.
+    Fixed by adding a match case to check whether a head exists in both the returned lists, if not a None was returned.
+    Function return type was changed to an option, which was able to handle this issue gracefully. 
+    So the function returns a (Port * Port) option. *)
+
+(* Improvement: Renamed getPortAB to getConnectedPorts which more clearly represents purpose of function *)
+//Improved function XML:
+/// Attempts to find a pair of ports from two symbols connected by a wire within a model.
+/// Takes in a model and a WireSymbols object
+/// Returns an option tuple of the 2 ports connected by a wire
+let getConnectedPorts wModel wireSyms =
     let ports = portsOfWires wModel [ wireSyms.Wire ]
-    let portA = filterPortBySym ports wireSyms.SymA |> List.head
-    let portB = filterPortBySym ports wireSyms.SymB |> List.head
-    portA, portB
+    match filterPortBySym ports wireSyms.SymA, filterPortBySym ports wireSyms.SymB with
+    | portA :: _, portB :: _ -> Some (portA, portB) // Successfully found both ports
+    | _, _ -> None // One or both ports not found, handle gracefully
 
 /// Try to get two ports that are on opposite edges.
 let getOppEdgePortInfo
@@ -78,13 +111,15 @@ let getOppEdgePortInfo
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
     let tryGetOppEdgePorts wireSyms =
-        let portA, portB = getPortAB wModel wireSyms
-        let edgeA = getSymbolPortOrientation wireSyms.SymA portA
-        let edgeB = getSymbolPortOrientation wireSyms.SymB portB
+        match getConnectedPorts wModel wireSyms with
+        | Some (portA, portB) ->
+            let edgeA = getSymbolPortOrientation wireSyms.SymA portA
+            let edgeB = getSymbolPortOrientation wireSyms.SymB portB
+            match edgeA = edgeB.Opposite with //could use if statement here
+            | true -> Some(makePortInfo wireSyms.SymA portA, makePortInfo wireSyms.SymB portB)
+            | _ -> None
 
-        match edgeA = edgeB.Opposite with
-        | true -> Some(makePortInfo wireSyms.SymA portA, makePortInfo wireSyms.SymB portB)
-        | _ -> None
+        | None -> None
 
     wires
     |> List.tryPick (fun w ->
@@ -93,7 +128,13 @@ let getOppEdgePortInfo
               SymB = otherSymbol
               Wire = w })
 
-let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
+(* Improvement: the function alignPortsOffset was renamed to calcPortAlignmentOffset, as it better
+communicates the purpose of the function which is to calculate an offset between ports.*)
+//Improved function XML:
+/// Calculates alignment offset betwee two ports by determining different in their positions.
+/// Takes in a port to be moved and a reference port.
+/// Returns an X,Y position coordinate representing the offset required to align the ports.
+let calcPortAlignmentOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     let getPortRealPos pInfo =
         getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
 
@@ -107,20 +148,27 @@ let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
     | Left
     | Right -> { X = 0.0; Y = posDiff.Y }
 
+//Improved function XML:
+/// Aligns the ports of 2 symbols.
+/// Takes in a wire model, the symbol to be aligned by moving, the reference symbol.
+/// Returns the updated model with the symbols in aligned position.
 let alignSymbols
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
     (otherSymbol: Symbol)
     : BusWireT.Model =
 
-    // Only attempt to align symbols if they are connected by ports on parallel edges.
-    match getOppEdgePortInfo (wModel:BusWireT.Model) symbolToSize otherSymbol with
-    | None -> wModel
-    | Some(movePortInfo, otherPortInfo) ->
-        let offset = alignPortsOffset movePortInfo otherPortInfo
-        let symbol' = moveSymbol offset symbolToSize
-        let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
-        BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
+    (* Improvement: getOppEdgePortInfo uses a match case to handle an option type object.
+        This is replaced by an Option.map which reduces the verbosity of the code and uses
+        built-in option handlers in F# *)
+    getOppEdgePortInfo wModel symbolToSize otherSymbol
+    |> Option.map (fun (movePortInfo, otherPortInfo) ->
+        let offset = calcPortAlignmentOffset movePortInfo otherPortInfo
+        moveSymbol offset symbolToSize
+        |> fun symbol' -> Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
+        |> fun model' -> BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
+        )
+    |> Option.defaultValue wModel
 
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
@@ -134,8 +182,10 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
     let resizePortInfo, otherPortInfo =
         match getOppEdgePortInfo wModel symbolToSize otherSymbol with
         | None ->
-            let pA, pB = getPortAB wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires[0] }
-            makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
+            match getConnectedPorts wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires.Head } with
+            | Some (portA, portB) -> 
+                (makePortInfo symbolToSize portA, makePortInfo otherSymbol portB)
+            | None -> failwithf "No ports found for resizing" //Should not happen
         | Some(pIA, pIB) -> (pIA, pIB)
 
     let h, w =
@@ -149,7 +199,7 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
     | Custom _ ->
         let scaledSymbol = setCustomCompHW h w symbolToSize
         let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
-        let offset = alignPortsOffset scaledInfo otherPortInfo
+        let offset = calcPortAlignmentOffset scaledInfo otherPortInfo
         moveSymbol offset scaledSymbol
     | _ ->
         symbolToSize
@@ -161,9 +211,9 @@ let reSizeSymbolTopLevel
     (otherSymbol: Symbol)
     : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
-
+    //could do similar improvement here as in line 130
     let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
-
+    
     let model' = Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
 
@@ -186,6 +236,11 @@ let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
     { ConnMap = Map.add (cid, edge) count m }
 
 // TODO: this is copied from Sheet.notIntersectingComponents. It requires SheetT.Model, which is not accessible from here. Maybe refactor it.
+//let notIntersectingHelper boundingBoxes (boxesIntersect: BoundingBox -> BoundingBox -> bool) sym symBB =
+//    boundingBoxes
+//    |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox symBB && sym.Id <> sId)
+//    |> Map.isEmpty
+
 let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundingBoxes sym =
     let symBB = getSymbolBoundingBox sym
 
@@ -193,31 +248,37 @@ let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundin
     |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox symBB && sym.Id <> sId)
     |> Map.isEmpty
 
-/// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
+//let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
+//   notIntersectingHelper model.boundingBoxes
+
+//Improved function XML:
+/// Optimizes the size and position for the selected symbol relative to the surrounding symbols in the model.
+/// Takes in a wire model, the symbol to optimize, and a map of boundingBoxes for the model.
+/// Returns the updated model with the symbol at optimal size and position.
 let optimiseSymbol
     (wModel: BusWireT.Model)
     (symbol: Symbol)
     (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
     : BusWireT.Model =
 
-    // If a wire connects the target symbol to another symbol, note which edge it is connected to
+    (* Improvement: updateData uses a nested match with statement that returns the symConnData if otherSymbol is None.
+     If Some, an edge computation is performed, which also returns the default symConnData case if it evaluates to None.
+     A cleaner approach is suggested that evaluates the edge first, allowing for the immediate return of the default case if None is encountered.
+     Refactored version introduces abstraction by isolating the logic applied to the symbol after the otherSymbol match case into a function named processSymbol.
+     Isolating the processing logic into processSymbol, the code becomes more modular, making it easier to update the processing logic for a symbol pair without affecting the broader updateData function.
+     This modularity benefits the maintainability and extensibility of the code. The code length is also reduced. *)
+    
     let updateData (symConnData: SymConnDataT) _ (wire: Wire) =
+        let processSymbol sym otherSym =
+            match tryWireSymOppEdge wModel wire sym otherSym with
+            | Some edge -> updateOrInsert symConnData edge otherSym.Id
+            | None -> symConnData
+
         let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire
-
-        let otherSymbol =
-            match symS, symT with
-            | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> Some symS
-            | _ when (symS = symbol) && (symT <> symbol) -> Some symT
-            | _ -> None
-
-        match otherSymbol with
-        | Some otherSym ->
-            let edge = tryWireSymOppEdge wModel wire symbol otherSym
-
-            match edge with
-            | Some e -> updateOrInsert symConnData e otherSym.Id
-            | None -> symConnData // should not happen
-        | None -> symConnData 
+        match symS, symT with
+        | _ when symS.Id <> symbol.Id && symT.Id = symbol.Id -> processSymbol symT symS
+        | _ when symS.Id = symbol.Id && symT.Id <> symbol.Id -> processSymbol symS symT
+        | _ -> symConnData
 
     // Look through all wires to build up SymConnDataT.
     let symConnData = ({ ConnMap = Map.empty }, wModel.Wires) ||> Map.fold updateData
@@ -235,12 +296,21 @@ let optimiseSymbol
         let folder (hAligned, vAligned, sym) ((cid, edge), _) =
             let otherSym = Optic.get (symbolOf_ cid) wModel       
 
-            match hAligned, vAligned with
-            | false, _ when edge = Top || edge = Bottom ->
-                let hAligned', resizedSym = alignSym sym otherSym
+            (* Improvement 1: alignSym function is redundantly called with the same input parameters (sym, otherSym) in two separate match cases.
+            The redundancy is eliminated by computing alignSym operation for sym and otherSym outside of the match cases and passing the result.
+
+            Improvement 2: original match case implementation utilizes two matching variables (hAligned, vAligned) and then a conditional to evaluate edge.
+            A more readable and efficient approach involves pattern matching on edge along with hAligned and vAligned as part of the match variables.
+            This simplifies the conditional logic and shortens the code within each match case. *)
+    
+            let aligned = alignSym sym otherSym
+
+            match hAligned, vAligned, edge with
+            | false, _, (Top | Bottom) ->
+                let hAligned', resizedSym = aligned
                 (hAligned', vAligned, resizedSym)
-            | _, false when edge = Left || edge = Right ->
-                let vAligned', resizedSym = alignSym sym otherSym
+            | _, false, (Left | Right) ->
+                let vAligned', resizedSym = aligned
                 (hAligned, vAligned', resizedSym)
             | _ -> (hAligned, vAligned, sym)
 

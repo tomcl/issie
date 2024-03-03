@@ -12,13 +12,10 @@ open BlockHelpers
 
 open Optics.Operators // for >-> operator
 
-//-----------------Module for beautify Helper functions--------------------------//
-// Typical candidates: all individual code library functions.
-// Other helpers identified by Team
 
-//------------------------------------------------------------------------------------------------------------------------//
-//------------------------------Helpers used in TestDrawBlockD3 and in SheetBeautifyHelpers-------------------------------//
-//------------------------------------------------------------------------------------------------------------------------//
+//----------------------------------------------------------------------------------------------------//
+//------------------------------Helpers used in in SheetBeautifyHelpers-------------------------------//
+//----------------------------------------------------------------------------------------------------//
 
 module Constants =
     /// determines how close segment starting positions must be for them to be in the same bucket
@@ -70,6 +67,11 @@ let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model)
         { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbolsMap } } }
 
     | _ -> model
+
+//----------------------------------------------------------------------------------------------------//
+//------------------------------Helpers used in in SheetBeautifyHelpers-------------------------------//
+//----------------------------------------------------------------------------------------------------//
+
 
 
 // B1 R
@@ -147,13 +149,15 @@ let getSymBoundingBox (symbol : Symbol) = symbol.SymbolBoundingBox
 
 //B7 RW
 /// A lens for accessing the rotation state of a symbol.
-let symbol_rotation_ = Lens.create (fun symbol -> symbol.STransform.Rotation)
-                                   (fun newState symbol -> {symbol with STransform = {symbol.STransform with Rotation =newState}})
+let symbol_rotation_ =
+    Lens.create (fun symbol -> symbol.STransform.Rotation)
+                (fun newState symbol -> {symbol with STransform = {symbol.STransform with Rotation = newState}})
 
 //B8 RW
 /// A lens for accessing the flip state of a symbol.
-let symbol_flipped_ = Lens.create (fun sym -> sym.STransform.Flipped)
-                                   (fun newState sym -> {sym with STransform = {sym.STransform with Flipped =newState}})
+let symbol_flipped_ =
+    Lens.create (fun sym -> sym.STransform.Flipped)
+                (fun newState sym -> {sym with STransform = {sym.STransform with Flipped =newState}})
 
 
 //-------------------------------------------------------------------------------------//

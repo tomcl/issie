@@ -225,7 +225,7 @@ module SegmentHelpers =
         visibleSegments wire.WId model
         |> List.map (fun segV -> wire.StartPos, wire.StartPos + segV)
 
-    /// Input must be a pair of visula segment vertices (start, end)
+    /// Input must be a pair of visula segment vertices (start, end).
     /// Returns segment orientation
     let visSegOrientation ((vSegStart, vSegEnd): XYPos * XYPos) =
         match abs (vSegStart.X - vSegEnd.X) > abs (vSegStart.Y - vSegEnd.Y) with
@@ -233,22 +233,55 @@ module SegmentHelpers =
         | false -> Vertical
 
 
-    /// filter vSegs so that if they overlap with common start only the longest is kept
+    /// Filter visSegs so that if they overlap with common start only the longest is kept.
     /// ASSUMPTION: in a connected Net this will remove all overlaps
-    let distinctVisSegs (vSegs: (XYPos * XYPos) list) =
+    let distinctVisSegs (visSegs: (XYPos * XYPos) list) =
         /// convert float to integer buckt number
         let pixBucket (pixel:float) = int(pixel / Constants.bucketSpacing)
 
         /// convert XYPos to pair of bucket numbers
         let posBucket (pos:XYPos) = pixBucket pos.X, pixBucket pos.Y
 
-        vSegs
+        visSegs
         // first sort segments so longest (which we want to keep) are first
         |> List.sortByDescending (fun (startOfSeg, endOfSeg) -> euclideanDistance startOfSeg endOfSeg)
         // then discard duplicates (the later = shorter ones will be discarded)
         // Two segments are judged the same if X & y starting coordinates map to the same "buckets"
         // This will very rarely mean that very close but not identical position segments are viewed as different
-        |> List.distinctBy (fun ((startSeg, _) as vSeg) -> posBucket startSeg, visSegOrientation vSeg)
+        |> List.distinctBy (fun ((startOfSeg, _) as vSeg) -> posBucket startOfSeg, visSegOrientation vSeg)
+
+    /// Filter visSegs so that if they overlap with common start only the longest is kept.
+    /// More accurate version of distinctVisSegs.
+    /// Use if the accuracy is needed.
+    let distinctVisSegsPrecision (visSegs: (XYPos * XYPos) list) =
+        // This implementation clusters the segments, so cannot go wrong
+        // It still uses the assumption that overlapped segments have common start position.
+        // Without that, the code is slower and longer
+
+        /// Turn segs into a distinctSegs list, losing shorter overlapped segments.
+        /// All of segs muts be the same orientation.
+        let clusterSegments segs =
+
+            /// Add a segment to distinctSegs unless it overlaps.
+            /// In that case replace seg in distinctSegs if seg is longer than the segment it overlaps.
+            /// If seg overlaps and is shorter, there is no change to distinctSegs.
+            /// seg and all segments in distinctSegs must have same orientation.
+            let addOrientedSegmentToClusters (distinctSegs:(XYPos*XYPos) list) (seg:XYPos*XYPos) =
+                let len (seg: XYPos*XYPos) = euclideanDistance (fst seg) (snd seg)
+                let segStart = fst seg
+                distinctSegs
+                |> List.tryFindIndex (fun dSeg -> euclideanDistance (fst dSeg) segStart < Constants.bucketSpacing / 2.)
+                |> function
+                        | Some index when len distinctSegs[index] < len seg ->
+                            List.updateAt index seg distinctSegs
+                        | _ ->
+                            distinctSegs
+
+            ([], segs)
+            ||> List.fold addOrientedSegmentToClusters
+        visSegs
+        |> List.partition (visSegOrientation >> (=) Horizontal) // separate into the two orientations
+        |> (fun (hSegs, vSegs) -> clusterSegments hSegs @ clusterSegments vSegs) // cluster each orientation separately
 
 
     /// input is a list of all the wires in a net.

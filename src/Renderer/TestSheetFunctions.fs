@@ -23,8 +23,9 @@ let testSheetFunc (dispatch: Dispatch<Msg>) (model: Model) =
 
     let modelSheet = model.Sheet
 
-    printf "countVisibleSegsIntersectingSymbols %A" (countVisibleSegsIntersectingSymbols modelSheet)
-    printf "countVisibleSegsPerpendicularCrossings %A" (countVisibleSegsPerpendicularCrossings modelSheet)
-    printf "getApproxVisibleSegmentsLength %A" (getApproxVisibleSegmentsLength modelSheet)
+    printf "T1R: countIntersectingSymbolPairs %A" (countIntersectingSymbolPairs modelSheet)
+    printf "T2R: countVisibleSegsIntersectingSymbols %A" (countVisibleSegsIntersectingSymbols modelSheet)
+    printf "T3R: countVisibleSegsPerpendicularCrossings %A" (countVisibleSegsPerpendicularCrossings modelSheet)
+    printf "T4R: getApproxVisibleSegmentsLength %A" (getApproxVisibleSegmentsLength modelSheet)
     printf "countVisibleRAngles %A" (countVisibleRAngles modelSheet)
     printf "countUniqRetracingSegmentsAndIntersects %A" (countUniqRetracingSegmentsAndIntersects modelSheet)

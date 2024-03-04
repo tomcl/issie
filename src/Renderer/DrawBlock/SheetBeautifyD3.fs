@@ -59,6 +59,31 @@ let symbolModel_ = SheetT.symbol_
 
 // ---------------------------------- D3 ---------------------------------------------------------
 
+/// Check whether the given output port is already connected to a wire label, if true, return the label name
+let checkOutputPortConnectedToWireLabel (portId: OutputPortId) (model:SheetT.Model) : Option<string> =
+    let tryFindWireLabelWithInputPort (portId:InputPortId) = 
+        let portIdStr =
+            match portId with
+            | InputPortId str -> str
+        let port = Map.find portIdStr model.Wire.Symbol.Ports
+        let sym = Map.find (ComponentId port.HostId) model.Wire.Symbol.Symbols
+        match sym.Component.Type with
+        | IOLabel -> Some sym.Component.Label
+        | _ -> None
+        
+    let wireOption =
+        mapValues model.Wire.Wires
+        |> List.filter (fun wire -> wire.OutputPort = portId)   // all wires going out from the given port
+        |> List.tryFind (fun wire ->    // try find a wire whose other end connects to a wire label
+            match tryFindWireLabelWithInputPort wire.InputPort with
+            | Some _ -> true
+            | None -> false
+            )
+    match wireOption with 
+    | Some wire -> tryFindWireLabelWithInputPort wire.InputPort
+    | None -> None
+
+
 /// Return an automatically created WireLabel name (string) with a default basename
 let generateWireLabel (model: SheetT.Model) (defaultName:string) : string =
 // code adapted from SymbolUpdate.generateIOLabel
@@ -211,9 +236,36 @@ let moveSymToNonOverlap (sym: Symbol) (model:SheetT.Model) =
 let updateWiring (sym:Symbol) (model:SheetT.Model) = 
     Optic.set wire_ (routeAndSeparateSymbolWires model.Wire sym.Id) model
 
+
+/// Create and place IOLabel components for a given port, return the updated model and the added wire label's name
+let addIOLabelAtPortAndPlaceWire (portIdStr:string) (portPos:XYPos) (isStart:bool) (label:string) (model:SheetT.Model) =
+    let ioLabelPos, ioLabelRot = 
+        let posRotOption = getPosRotNextToPort model.Wire.Symbol.Ports[portIdStr] model.Wire.Symbol (3.*Constants.minCompDistance)
+        match posRotOption with
+        | Some (pos,rot) -> pos,rot
+        | None -> 
+            printf "no good end pos, using default pos" // debug
+            if isStart then {X=portPos.X+3.*Constants.minCompDistance; Y=portPos.Y},Degree0
+            else {X=portPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=portPos.Y},Degree0
+
+    let modelPlacedSym,ioLabelSym,ioLabelName =  addIOLabelComp ioLabelPos ioLabelRot label model
+    let sourcePort, targetPort =
+        match isStart with
+        | true -> portIdStr, ioLabelSym.PortMaps.Order[Left][0]
+        | false -> ioLabelSym.PortMaps.Order[Right][0], portIdStr
+
+    let modelPlacedWire =
+        modelPlacedSym
+        |> moveSymToNonOverlap ioLabelSym   // reduce overlap with other symbols
+        |> placeSingleWire (OutputPortId sourcePort) (InputPortId targetPort)
+        |> updateWiring ioLabelSym
+    
+    ioLabelName, modelPlacedWire
+
+
 /// Replace a given wire with wire labels, return the updated model
 let wireToWireLabels (targetWire:Wire) (model:SheetT.Model) = 
-    let label = "I"
+    let givenLabel = "I"
     let startPort = 
         match targetWire.OutputPort with
         | OutputPortId str -> str
@@ -223,47 +275,34 @@ let wireToWireLabels (targetWire:Wire) (model:SheetT.Model) =
         | InputPortId str -> str
     let endPos = getPortPosOnSheet endPort model
     
-    // create and place IOLabel components for each port
-    let startIOPos, startRot = 
-        let posRotOption = getPosRotNextToPort model.Wire.Symbol.Ports[startPort] model.Wire.Symbol (3.*Constants.minCompDistance)
-        match posRotOption with
-        | Some (pos,rot) -> pos,rot
-        | None -> 
-            printf "no good start pos, using default pos"    // debug
-            {X=startPos.X+3.*Constants.minCompDistance; Y=startPos.Y},Degree0
-    let model,startIOLabelSym, newLabel =  addIOLabelComp startIOPos startRot label model
-    let startIOLabelLeftPortId = InputPortId (startIOLabelSym.PortMaps.Order[Left][0])
-
-    let endIOPos, endRot = 
-        let posRotOption = getPosRotNextToPort model.Wire.Symbol.Ports[endPort] model.Wire.Symbol (3.*Constants.minCompDistance)
-        match posRotOption with
-        | Some (pos,rot) -> pos,rot
-        | None -> 
-            printf "no good end pos, using default pos" // debug
-            {X=endPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=endPos.Y},Degree0
-    let model,endIOLabelSym,_ =  addIOLabelComp endIOPos endRot newLabel model
-    let endIOLabelRightPortId = OutputPortId (endIOLabelSym.PortMaps.Order[Right][0])
+    let addWireLabelsToModel (model:SheetT.Model) =
+        let _,newModel =
+            match (checkOutputPortConnectedToWireLabel targetWire.OutputPort model) with
+            | Some label -> // the start (output) port already has a wire label
+                // only need to add the "end wire label"
+                (label,model)
+                ||> addIOLabelAtPortAndPlaceWire endPort endPos false
+            | None -> // the start (output) port has no wire label, need to create both
+                (givenLabel,model)
+                ||> addIOLabelAtPortAndPlaceWire startPort startPos true
+                ||> addIOLabelAtPortAndPlaceWire endPort endPos false
+        newModel
 
     // remove original wire, then add new wirings
     model
     |> deleteSingleWire targetWire.WId
-    |> moveSymToNonOverlap startIOLabelSym  // reduce overlap with other symbols
-    |> moveSymToNonOverlap endIOLabelSym
-    |> moveSymToNonOverlap startIOLabelSym  // applying twice to mirror the effect of recursion
-    |> moveSymToNonOverlap endIOLabelSym
-    // TODO: reduce overlap with wire
-    |> placeSingleWire (OutputPortId startPort) startIOLabelLeftPortId
-    |> placeSingleWire endIOLabelRightPortId (InputPortId endPort)
-    |> updateWiring startIOLabelSym
-    |> updateWiring endIOLabelSym
-    
+    |> addWireLabelsToModel
+
 
 /// Automatically identify long wires and transform them into wire labels
 let autoWiresToWireLabels (model:SheetT.Model) = 
     mapValues model.Wire.Wires
     |> List.filter (fun wire -> (getWireLength wire) > Constants.longSingleWireLength)
+    // get distinct output ports here
     |> List.fold (fun m wire -> wireToWireLabels wire m) model
     
+let wireLabelsToWire (model:SheetT.Model) = 
+    ()
 
 /// Add or remove wire labels (swapping between long wires and wire labels) to reduce wiring complexity
 let sheetWireLabelSymbol (model:SheetT.Model) = 

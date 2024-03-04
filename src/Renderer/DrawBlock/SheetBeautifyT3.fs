@@ -1,4 +1,4 @@
-﻿module SheetBeautify
+module SheetBeautify
 
 //-----------------------------------------------------------------------------------------//
 //----------Module for top-level beautify functions making (mostly) whole-sheet changes----//

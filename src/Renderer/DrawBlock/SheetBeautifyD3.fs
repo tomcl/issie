@@ -59,8 +59,8 @@ let symbolModel_ = SheetT.symbol_
 
 // ---------------------------------- D3 ---------------------------------------------------------
 
-/// Check whether the given output port is already connected to a wire label, if true, return the label name
-let checkOutputPortConnectedToWireLabel (portId: OutputPortId) (model:SheetT.Model) : Option<string> =
+/// Check whether the given output port is already connected to a wire label, if true, return the label name and its InputPortId
+let checkOutputPortConnectedToWireLabel (portId: OutputPortId) (model:SheetT.Model) : Option<string*InputPortId> =
     let tryFindWireLabelWithInputPort (portId:InputPortId) = 
         let portIdStr =
             match portId with
@@ -68,7 +68,7 @@ let checkOutputPortConnectedToWireLabel (portId: OutputPortId) (model:SheetT.Mod
         let port = Map.find portIdStr model.Wire.Symbol.Ports
         let sym = Map.find (ComponentId port.HostId) model.Wire.Symbol.Symbols
         match sym.Component.Type with
-        | IOLabel -> Some sym.Component.Label
+        | IOLabel -> Some (sym.Component.Label,portId)
         | _ -> None
         
     let wireOption =
@@ -262,44 +262,51 @@ let addIOLabelAtPortAndPlaceWire (portIdStr:string) (portPos:XYPos) (isStart:boo
     
     ioLabelName, modelPlacedWire
 
+/// Get the list of wires belonging to the same net with the given OutputPortId
+let getSameNetWires (sourcePortId) (model:SheetT.Model) =
+    mapValues model.Wire.Wires
+    |> List.filter (fun wire -> wire.OutputPort = sourcePortId)
 
-/// Replace a given wire with wire labels, return the updated model
-let wireToWireLabels (targetWire:Wire) (model:SheetT.Model) = 
+/// Replace the net of wires corresponding to the given source port with a set of wire labels, return the updated model
+let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (model:SheetT.Model) = 
+    let srcPortStr, srcPos = 
+        match sourcePortId with
+        | OutputPortId str -> str, getPortPosOnSheet str model
+
+    let sameNetWires = 
+        getSameNetWires sourcePortId model
+
     let givenLabel = "I"
-    let startPort = 
-        match targetWire.OutputPort with
-        | OutputPortId str -> str
-    let startPos = getPortPosOnSheet startPort model
-    let endPort = 
-        match targetWire.InputPort with
-        | InputPortId str -> str
-    let endPos = getPortPosOnSheet endPort model
-    
-    let addWireLabelsToModel (model:SheetT.Model) =
-        let _,newModel =
-            match (checkOutputPortConnectedToWireLabel targetWire.OutputPort model) with
-            | Some label -> // the start (output) port already has a wire label
-                // only need to add the "end wire label"
-                (label,model)
-                ||> addIOLabelAtPortAndPlaceWire endPort endPos false
-            | None -> // the start (output) port has no wire label, need to create both
+    let newSameNetWires, labelName, modelWithSrcWireLabel = 
+        match (checkOutputPortConnectedToWireLabel sourcePortId model) with
+        | Some (label,wireLabelPortId) ->   // a source wire label already exists
+            let sameNetWires = 
+                sameNetWires
+                |> List.filter (fun wire -> wire.InputPort<>wireLabelPortId) // remove the wire connecting to the wire label from list
+            sameNetWires,label,model
+        | None ->   // add the source wire label
+            let label,model = 
                 (givenLabel,model)
-                ||> addIOLabelAtPortAndPlaceWire startPort startPos true
-                ||> addIOLabelAtPortAndPlaceWire endPort endPos false
-        newModel
-
-    // remove original wire, then add new wirings
-    model
-    |> deleteSingleWire targetWire.WId
-    |> addWireLabelsToModel
+                ||> addIOLabelAtPortAndPlaceWire srcPortStr srcPos true // add the source wire label
+            sameNetWires,label,model
+    
+    (modelWithSrcWireLabel, newSameNetWires)
+    ||> List.fold (fun model  wire ->
+        let tgtPortStr, tgtPos = 
+            match wire.InputPort with
+            | InputPortId str -> str, getPortPosOnSheet str model
+        model
+        |> deleteSingleWire wire.WId
+        |> addIOLabelAtPortAndPlaceWire tgtPortStr tgtPos false labelName   // add a target wire label
+        |> snd)
 
 
 /// Automatically identify long wires and transform them into wire labels
 let autoWiresToWireLabels (model:SheetT.Model) = 
     mapValues model.Wire.Wires
     |> List.filter (fun wire -> (getWireLength wire) > Constants.longSingleWireLength)
-    // get distinct output ports here
-    |> List.fold (fun m wire -> wireToWireLabels wire m) model
+    |> List.distinctBy (fun wire -> wire.OutputPort) // get wires with distinct output ports here
+    |> List.fold (fun m wire -> sameNetWiresToWireLabels wire.OutputPort m) model
     
 let wireLabelsToWire (model:SheetT.Model) = 
     ()

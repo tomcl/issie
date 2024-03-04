@@ -394,7 +394,7 @@ module HLPTick3 =
     open Builder
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
-        fromList [-100..20..100]
+        fromList [-200..20..200]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
     /// demo test circuit consisting of a DFF & And gate
@@ -415,16 +415,30 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "MUX1" 0) )
         |> getOkOrFail
 
+    // let makeTest6Circuit (andPos:XYPos) =
+    //     initSheetModel
+    //     |> placeSymbol "G1" (GateN(And,2)) andPos
+    //     |> Result.bind (placeSymbol "I0" IOLabel (andPos+{X=60.;Y=60.}))
+    //     |> Result.bind (placeSymbol "I1" IOLabel (middleOfSheet+{X=60.;Y=30.}))
+    //     |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+    //     |> Result.bind (placeWire (portOf "G1" 0) (portOf "I0" 0))
+    //     |> Result.bind (placeWire (portOf "FF1" 0) (portOf "I1" 0))
+    //     |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+    //     |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
+    //     |> Result.bind testAutoWiresToWireLabels
+    //     |> getOkOrFail
+
     let makeTest6Circuit (andPos:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "I0" IOLabel (andPos+{X=60.;Y=60.}))
-        |> Result.bind (placeSymbol "I1" IOLabel (middleOfSheet+{X=60.;Y=30.}))
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeSymbol "FF1" DFF (middleOfSheet-{X=0.;Y=100.}))
+        |> Result.bind (placeSymbol "FF2" DFF (middleOfSheet))
+        |> Result.bind (placeSymbol "FF3" DFF (middleOfSheet+{X=0.;Y=100.}))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "I0" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "I1" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF2" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF3" 0))
         |> Result.bind testAutoWiresToWireLabels
         |> getOkOrFail
 

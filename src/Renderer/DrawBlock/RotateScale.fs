@@ -179,25 +179,57 @@ let reSizeSymbolTopLevel (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherS
     |> Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol
     |> (fun model' -> BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id)
 
-/// For each edge of the symbol, store a count of how many connections it has to other symbols.
-type SymConnDataT = { ConnMap: Map<ComponentId * Edge, int> }
+(* mhc21
+Changes to RotateScale (specifically optimiseSymbol and fuctions/dataTypes related to it):
 
-/// If a wire between a target symbol and another symbol connects opposite edges, return the edge that the wire is connected to on the target symbol
-let tryWireSymOppEdge (wModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symbol) =
+(1) Changed SymConnDataT so that it's Map<Symbol*Edge, Int> from Map<ComponentId*Edge, Int>.
+    This is because having it as cid (instead of symbol) before was redundant and used to
+    fetch the otherSymbol anyway: "let otherSym = Optic.get (symbolOf_ cid) wModel ".
+
+(2) Made updateData function into a single match case function, making it simpler to read.
+    Before there were many unecessary match statements that would find "otherSymbol",
+    "check opposite symbol edge", etc which could all be combined into 1 match as all
+    the needed information was already there (Note: This was also possible as I changed
+    the function to tryWireSymOppEdge to updateConnMap in the next point).
+
+(3) Changed tryWireSymOppEdge to updateConnMap which deals with updating the ConnMap now,
+    dependent on if the symbols connect on opposite edges. This saved space/lines of
+    unnecessary code as tryWireSymOppEdge would return an option to optimiseSymbol,
+    which from there then calls updateOrInsert depending on the result.
+    Instead just have it all done in tryWireSymmOppEdge(which is now renamed updateConnMap).
+
+(4) Made folder slightly easier to read by removing brackets/variables that were unnecessary.
+    What was before "(symCount: ((ComponentId * Edge) * int) array)" is now
+    "(connSorted: (Symbol * Edge) array)". This was possible due to the change of
+    SymConnDataT type and only taking "fst" of its value.
+
+(5) Added XML comments above functions and next to confusing lines, specifying their purpose.
+
+(6) Changed a few variable names to make them more readable and appropriate.
+*)
+
+/// Symbol = The otherSymbol connected to this symbol
+/// Edge = This symbol edge
+/// Int = count (No of times otherSymbol is connected to this symbol edge)
+type SymConnDataT = { ConnMap: Map<Symbol * Edge, int> }
+
+// Updates/Inserts the "edge" and "otherSym" that is connected to target symbol
+let updateOrInsert (symConn: SymConnDataT) (edge: Edge) (otherSym: Symbol) : SymConnDataT =
+    let m = symConn.ConnMap
+    let count =
+        Map.tryFind (otherSym, edge) m
+        |> Option.defaultValue 0
+        |> (+) 1 // Finds key "(otherSym, edge)", update its "No of connections" if exist, else insert
+    { ConnMap = Map.add (otherSym, edge) count m } // Updates/Inserts "(otherSym, edge)" with value "count"
+
+/// If a wire between a target symbol and another symbol connects opposite edges, return and update the symmConnData, else return symConn
+let updateConnMap (wModel: Model) (wire: Wire) (symConn: SymConnDataT) (sym: Symbol) (otherSym: Symbol) : SymConnDataT =
     let symEdge = wireSymEdge wModel wire sym
     let otherSymEdge = wireSymEdge wModel wire otherSym
 
     match symEdge = otherSymEdge.Opposite with
-    | true -> Some symEdge
-    | _ -> None
-
-let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
-    let m = symConnData.ConnMap
-    let count =
-        Map.tryFind (cid, edge) m
-        |> Option.defaultValue 0
-        |> (+) 1
-    { ConnMap = Map.add (cid, edge) count m }
+    | true -> updateOrInsert symConn symEdge otherSym
+    | _ -> symConn
 
 // TODO: this is copied from Sheet.notIntersectingComponents. It requires SheetT.Model, which is not accessible from here. Maybe refactor it.
 let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundingBoxes sym =
@@ -210,36 +242,25 @@ let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundin
 /// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
 let optimiseSymbol
     (wModel: BusWireT.Model)
-    (symbol: Symbol)
+    (symbol: Symbol) // Target symbol
     (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
     : BusWireT.Model
     =
 
-    // If a wire connects the target symbol to another symbol, note which edge it is connected to
-    let updateData (symConnData: SymConnDataT) _ (wire: Wire) =
-        let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire
+    // If a wire connects "symbol" to different symbol, note which edge (of "symbol") it is connected to
+    let updateData (symConn: SymConnDataT) _ (wire: Wire) : SymConnDataT =
+        let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire // Get both symbols at each end of the wire
 
-        let otherSymbol =
-            match symS, symT with
-            | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> Some symS
-            | _ when (symS = symbol) && (symT <> symbol) -> Some symT
-            | _ -> None
+        match symS, symT with
+        | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> updateConnMap wModel wire symConn symbol symS // symT="symbol" and symS=otherSymbol
+        | _ when (symS = symbol) && (symT <> symbol) -> updateConnMap wModel wire symConn symbol symT // symS="symbol" and symT=otherSymbol
+        | _ -> symConn // symS or symT are not "symbol"
 
-        match otherSymbol with
-        | Some otherSym ->
-            let edge = tryWireSymOppEdge wModel wire symbol otherSym
-
-            match edge with
-            | Some e -> updateOrInsert symConnData e otherSym.Id
-            | None -> symConnData // should not happen
-        | None -> symConnData
-
-    // Look through all wires to build up SymConnDataT.
-    let symConnData =
+    let symConn =
         ({ ConnMap = Map.empty }, wModel.Wires)
-        ||> Map.fold updateData
+        ||> Map.fold updateData // Look through all wires to build and accumulate SymConnDataT.
 
-    let tryResize (symCount: ((ComponentId * Edge) * int) array) sym =
+    let tryResize (connSorted: (Symbol * Edge) array) (sym: Symbol) : Symbol =
 
         let alignSym (sym: Symbol) (otherSym: Symbol) =
             let resizedSym = reSizeSymbol wModel sym otherSym
@@ -249,30 +270,31 @@ let optimiseSymbol
             | true -> true, resizedSym
             | _ -> false, sym
 
-        let folder (hAligned, vAligned, sym) ((cid, edge), _) =
-            let otherSym = Optic.get (symbolOf_ cid) wModel
-
+        let folder
+            ((hAligned, vAligned, sym): bool * bool * Symbol)
+            ((otherSym, edge): Symbol * Edge)
+            : (bool * bool * Symbol)
+            =
             match hAligned, vAligned with
-            | false, _ when edge = Top || edge = Bottom ->
+            | false, _ when edge = Top || edge = Bottom -> // Try to align horizontally
                 let hAligned', resizedSym = alignSym sym otherSym
                 (hAligned', vAligned, resizedSym)
-            | _, false when edge = Left || edge = Right ->
+            | _, false when edge = Left || edge = Right -> // Try to align vertically
                 let vAligned', resizedSym = alignSym sym otherSym
                 (hAligned, vAligned', resizedSym)
-            | _ -> (hAligned, vAligned, sym)
+            | _ -> (hAligned, vAligned, sym) // Else already aligned so return sym
 
-        let (_, _, sym') =
-            ((false, false, sym), symCount)
-            ||> Array.fold folder
-        sym'
+        ((false, false, sym), connSorted)
+        ||> Array.fold folder // Goes through each conn and tries to make sym "hAligned" and "vAligned"
+        |> (fun (hAligned, vAligned, sym) -> sym) // Return just the sym
 
     let scaledSymbol =
-        let symCount =
-            Map.toArray symConnData.ConnMap
+        let connSorted =
+            Map.toArray symConn.ConnMap
             |> Array.filter (fun (_, count) -> count > 1)
-            |> Array.sortByDescending snd
-
-        tryResize symCount symbol
+            |> Array.sortByDescending snd // Sort by count
+            |> Array.map fst // Only need the (symbol * edge)
+        tryResize connSorted symbol
 
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
@@ -367,30 +389,31 @@ let getBlock (symbols: Symbol list) : BoundingBox =
 /// <param name="rotation"> Clockwise or Anticlockwise </param>
 /// <returns>New flipped point</returns>
 let rotatePointAboutBlockCentre (point: XYPos) (centre: XYPos) (rotation: Rotation) =
-    let relativeToCentre = (fun x -> x - centre)
-    let rotateAboutCentre (pointIn: XYPos) =
+    let relToCentre = (fun x -> x - centre)
+    let rotAboutCentre (pointIn: XYPos) =
         match rotation with
         | Degree0 -> pointIn
         | Degree90 -> { X = pointIn.Y; Y = -pointIn.X }
         | Degree180 -> { X = -pointIn.X; Y = -pointIn.Y }
         | Degree270 -> { X = -pointIn.Y; Y = pointIn.X }
 
-    let relativeToTopLeft = (fun x -> centre - x)
+    let relToTopLeft = (fun x -> centre - x)
 
     point
-    |> relativeToCentre
-    |> rotateAboutCentre
-    |> relativeToTopLeft
+    |> relToCentre
+    |> rotAboutCentre
+    |> relToTopLeft
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>
 /// <param name="center"> The center XYPos that the point is flipped about</param>
 /// <param name="flip"> Horizontal or Vertical flip</param>
 /// <returns>New flipped point</returns>
+/// Improved readability of match case statements
 let flipPointAboutBlockCentre (point: XYPos) (center: XYPos) (flip: FlipType) =
     match flip with
     | FlipHorizontal -> { X = center.X - (point.X - center.X); Y = point.Y }
-    | FlipVertical -> { X = point.X; Y = center.Y - (point.Y - center.Y) }
+    | FlipVertical -> { Y = center.Y - (point.Y - center.Y); X = point.X }
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been rotated</summary>
 /// <param name="rotation"> Rotated CW or AntiCW</param>
@@ -398,6 +421,10 @@ let flipPointAboutBlockCentre (point: XYPos) (center: XYPos) (flip: FlipType) =
 /// <param name="w"> Original width of symbol (Before rotation)</param>
 /// <param name="sym"> Symbol</param>
 /// <returns>New top left point of the symbol</returns>
+///
+///
+///
+/// Improved readability of match case statements
 let adjustPosForBlockRotation (rotation: Rotation) (h: float) (w: float) (pos: XYPos) : XYPos =
     let posOffset =
         match rotation with
@@ -413,6 +440,8 @@ let adjustPosForBlockRotation (rotation: Rotation) (h: float) (w: float) (pos: X
 /// <param name="w"> Original width of symbol (Before flip)</param>
 /// <param name="sym"> Symbol</param>
 /// <returns>New top left point of the symbol</returns>
+///
+/// Improved readability of match case statements
 let adjustPosForBlockFlip (flip: FlipType) (h: float) (w: float) (pos: XYPos) =
     let posOffset =
         match flip with
@@ -425,24 +454,29 @@ let adjustPosForBlockFlip (flip: FlipType) (h: float) (w: float) (pos: XYPos) =
 /// <param name="block"> Bounding box of selected components</param>
 /// <param name="sym"> Symbol to be rotated</param>
 /// <returns>New symbol after rotated about block centre.</returns>
+///
+///
+/// Replaced sym.Component and sym.STransform by denoting them with shorter identifiers adhering to DUI
+/// Made match case statements more readable
 let rotateSymbolInBlock (rotation: Rotation) (blockCentre: XYPos) (sym: Symbol) : Symbol =
 
     let h, w = getRotatedHAndW sym
+
+    let comp = sym.Component
+    let STransform = sym.STransform
 
     let newTopLeft =
         rotatePointAboutBlockCentre sym.Pos blockCentre (invertRotation rotation)
         |> adjustPosForBlockRotation (invertRotation rotation) h w
 
-    let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y }
+    let newComponent = { comp with X = newTopLeft.X; Y = newTopLeft.Y }
 
     let newSTransform =
-        match sym.STransform.flipped with
+        match STransform.flipped with
         | true ->
-            { sym.STransform with
-                Rotation = combineRotation (invertRotation rotation) sym.STransform.Rotation }
-        | _ ->
-            { sym.STransform with
-                Rotation = combineRotation rotation sym.STransform.Rotation }
+            { STransform with
+                Rotation = combineRotation (invertRotation rotation) STransform.Rotation }
+        | _ -> { STransform with Rotation = combineRotation rotation STransform.Rotation }
 
     { sym with
         Pos = newTopLeft
@@ -457,7 +491,14 @@ let rotateSymbolInBlock (rotation: Rotation) (blockCentre: XYPos) (sym: Symbol) 
 /// <param name="block"> Bounding box of selected components</param>
 /// <param name="sym"> Symbol to be flipped</param>
 /// <returns>New symbol after flipped about block centre.</returns>
+///
+/// Replaced sym.Component, sym.STransform and sym.PortMaps by denoting them with shorter useful identifiers that adhere to DUI
+/// Made pipelining and match case statements more readable
 let flipSymbolInBlock (flip: FlipType) (blockCentre: XYPos) (sym: Symbol) : Symbol =
+
+    let comp = sym.Component
+    let STransform = sym.STransform
+    let PortMaps = sym.PortMaps
 
     let h, w = getRotatedHAndW sym
     //Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
@@ -466,12 +507,12 @@ let flipSymbolInBlock (flip: FlipType) (blockCentre: XYPos) (sym: Symbol) : Symb
         |> adjustPosForBlockFlip flip h w
 
     let portOrientation =
-        sym.PortMaps.Orientation
+        PortMaps.Orientation
         |> Map.map (fun id side -> flipSideHorizontal side)
 
     let flipPortList currPortOrder side =
         currPortOrder
-        |> Map.add (flipSideHorizontal side) sym.PortMaps.Order[side]
+        |> Map.add (flipSideHorizontal side) PortMaps.Order[side]
 
     let portOrder =
         (Map.empty, [ Edge.Top; Edge.Left; Edge.Bottom; Edge.Right ])
@@ -479,12 +520,12 @@ let flipSymbolInBlock (flip: FlipType) (blockCentre: XYPos) (sym: Symbol) : Symb
         |> Map.map (fun edge order -> List.rev order)
 
     let newSTransform =
-        { flipped = not sym.STransform.flipped; Rotation = sym.STransform.Rotation }
+        { flipped = not STransform.flipped; Rotation = STransform.Rotation }
 
-    let newcomponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y }
+    let newComponent = { comp with X = newTopLeft.X; Y = newTopLeft.Y }
 
     { sym with
-        Component = newcomponent
+        Component = newComponent
         PortMaps = { Order = portOrder; Orientation = portOrientation }
         STransform = newSTransform
         LabelHasDefaultPos = true

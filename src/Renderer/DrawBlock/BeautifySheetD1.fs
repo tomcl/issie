@@ -51,7 +51,7 @@ let removeWireInvisibleSegments' (wires: Map<ConnectionId, Wire>) =
 /// </summary>
 /// <param name="a1">The first segment.</param>
 /// <param name="a2">The second segment.</param>
-let perpendicularOverlap2D' ((a1, a2I): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
+let perpendicularOverlap2D' ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
     let overlapX = overlap1D (a1.X, a2.X) (b1.X, b2.X)
     let overlapY = overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y)
     (overlapX || overlapY)

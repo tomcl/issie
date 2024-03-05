@@ -1,5 +1,13 @@
 # HLP Team 8
 
+## Updated Features:
+- Right-clicking on the sheet prints the position of the mouse
+- TestDrawBlock (in the Renderer directory) is activated by cmd/ctrl 1-9
+- TestSheetFunctions (in the Renderer directory) let you call functions with the sheet. See the file for more info. To activate, press cmd/ctrl + shift + 1
+
+
+
+
 ## Project Partitioning
 Note: There are 6 members, so 3 students doing 3 distinct deliverables, and 3 students working on testing (1-2 testers per deliverable)
 

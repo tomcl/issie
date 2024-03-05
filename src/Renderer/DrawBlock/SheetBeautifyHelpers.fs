@@ -12,6 +12,52 @@ open BlockHelpers
 
 open Optics.Operators // for >-> operator
 
+//----------------------------------------------------------------------------------------------------//
+//----------------------------------------RotateScale-------------------------------------------------//
+//----------------------------------------------------------------------------------------------------//
+
+
+let getBlockAbstracted (symbols: Symbol list) : BoundingBox =
+    /// Sample implementation to show how abstraction can capture XY regularity
+    /// It is debatable whetehr this on its own is worthwhile because of the
+    /// cognitive burden understanding what it is doing. But with more consistent use
+    /// of XYPos (see TODO) and a few standard helper functions it looks better.
+    /// This implementation captures more readably the "real content" of the function.
+
+    /// Return height and width of symbol in XYPos form
+    /// TODO - refactor rotatScaleHW to do this!
+    let getWH sym =
+        getRotatedHAndW sym
+        |> (fun (h, w) -> {X=w;Y=h})
+
+    /// Convenience function to turn its two curries arguments into an XYPos
+    /// TODO: put this in DrawHelpers with other low-level stuff.
+    let toXY x y : XYPos = {X=x;Y=y}
+
+    /// apply f to a list to genrate a list of XYPos. Extract lists of X and y coordinates.
+    /// Apply total to make a float from each coordinate-list, return X,Y results as an XYPos.
+    let listMapXY total (f: 'a -> XYPos) (xyL: 'a list) =
+            toXY (total (List.map (fun xy -> (f xy).X) xyL))
+                 (total (List.map (fun xy -> (f xy).Y) xyL))
+    
+    // Calculate the maximum X & Y position of a symbol edge in the bounding box plus its rotated width
+    let maxXY = symbols |> listMapXY List.max (fun sym -> sym.Pos + getWH sym)
+
+    // Calculate the minimum X & Y  position of a symbol edge in the bounding box
+    let minXY = symbols |> listMapXY List.min (fun sym -> sym.Pos)
+
+    // used to generate result
+    let sizeXY = maxXY - minXY
+
+    // TODO: make W,H into an XYPos chnaging types. In addition,
+    // move W,H (now called Size) from Component into Symbol so that
+    // all the non-electrical component stuff is part of Symbol not Component.
+    // Do a similar transform of HScale,VScale to Scale : XYPos.
+    { TopLeft = minXY; W = sizeXY.X; H = sizeXY.Y }
+
+//----------------------------------------------------------------------------------------------------//
+//----------------------------------------General Helpers---------------------------------------------//
+//----------------------------------------------------------------------------------------------------//
 
 //----------------------------------------------------------------------------------------------------//
 //----------------------------------------General Helpers---------------------------------------------//

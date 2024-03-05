@@ -310,7 +310,10 @@ module HLPTick3 =
         
         let testAutoWiresToWireLabels (model: SheetT.Model) =
             Ok (autoWiresToWireLabels model)
-
+        
+        let testWireLabelsToWires (model: SheetT.Model) =
+            Ok (autoWireLabelsToWire model)
+        
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
         /// The wire created will be smart routed but not separated from other wires: for a nice schematic
@@ -430,16 +433,17 @@ module HLPTick3 =
 
     let makeTest6Circuit (andPos:XYPos) =
         initSheetModel
-        |> placeSymbol "MUX1" Mux2  andPos
+        |> placeSymbol "G1" (GateN(And,2)) andPos
         // |> Result.bind (placeSymbol "I0" IOLabel (andPos+{X=60.;Y=60.}))
         |> Result.bind (placeSymbol "FF1" DFF (middleOfSheet-{X=0.;Y=100.}))
         |> Result.bind (placeSymbol "FF2" DFF (middleOfSheet))
         |> Result.bind (placeSymbol "FF3" DFF (middleOfSheet+{X=0.;Y=100.}))
         // |> Result.bind (placeWire (portOf "G1" 0) (portOf "I0" 0))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF2" 0))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF3" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF2" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF3" 0))
         |> Result.bind testAutoWiresToWireLabels
+        |> Result.bind testWireLabelsToWires
         |> getOkOrFail
 
 //------------------------------------------------------------------------------------------------//

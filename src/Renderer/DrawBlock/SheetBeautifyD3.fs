@@ -66,8 +66,8 @@ let checkOutputPortConnectedToWireLabel (portId: OutputPortId) (model:SheetT.Mod
         let portIdStr =
             match portId with
             | InputPortId str -> str
-        let port = Map.find portIdStr model.Wire.Symbol.Ports
-        let sym = Map.find (ComponentId port.HostId) model.Wire.Symbol.Symbols
+        let port = getPort  model.Wire.Symbol portIdStr
+        let sym = getSymbol model.Wire.Symbol portIdStr
         match sym.Component.Type with
         | IOLabel -> Some (sym.Component.Label,portId)
         | _ -> None
@@ -169,15 +169,20 @@ let addIOLabelComp (pos:XYPos) (rot:Rotation) (labelName:string) (model:SheetT.M
 
 
 /// Remove the given wire from the sheet
-let deleteSingleWire (wId:ConnectionId) (model:SheetT.Model) =
+let deleteSingleWire (wire:Wire) (model:SheetT.Model) =
 // code adapted from BusWireUpdate.update (DeleteWires)
     // deletes wires from model, then runs bus inference
     // Issie model is not affected but will extract connections from wires
     // at some time.
     let newWires =
         model.Wire.Wires
-        |> Map.remove wId
-    {model with Wire={ model.Wire with Wires = newWires ; ErrorWires = [wId]}}
+        |> Map.remove wire.WId
+    {model with Wire={model.Wire with Wires = newWires ; ErrorWires = [wire.WId]}}
+
+/// Remove the given list of wires from the sheet
+let deleteWires (wireList:list<Wire>) (model:SheetT.Model) =
+    (model,wireList)
+    ||> List.fold (fun m wire -> deleteSingleWire wire m)
 
 
 /// Place a wire from a source port to a target port, return the updated model
@@ -190,6 +195,11 @@ let placeSingleWire (sourcePortId: OutputPortId) (targetPortId: InputPortId) (mo
     // else
     model
     |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
+
+/// Place wires for a list of (source port, target port) tuples, return the updated model
+let placeWires (portsList: list<string*string>) (model: SheetT.Model) =
+    (model,portsList)
+    ||> List.fold (fun m (srcPort,tgtPort) -> placeSingleWire (OutputPortId srcPort) (InputPortId tgtPort) m)
 
 
 /// (Helper function for moveSymToNonOverlap)
@@ -278,8 +288,8 @@ let getSameNetWires (sourcePortId) (model:SheetT.Model) =
 
 /// Derive wire label names from names of driving components and ports
 let deriveWireLabelFromSrcPort (sourcePortStr:string) (model:SheetT.Model) = 
-    let port = Map.find sourcePortStr model.Wire.Symbol.Ports
-    let sym = Map.find (ComponentId port.HostId) model.Wire.Symbol.Symbols
+    let port = getPort model.Wire.Symbol sourcePortStr
+    let sym = getSymbol model.Wire.Symbol sourcePortStr
     let symLabel = sym.Component.Label
     let portLabel = getPortName sym.Component port
     match portLabel with
@@ -315,7 +325,7 @@ let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (model:SheetT.Model) =
             match wire.InputPort with
             | InputPortId str -> str, getPortPosOnSheet str model
         model
-        |> deleteSingleWire wire.WId
+        |> deleteSingleWire wire
         |> addIOLabelAtPortAndPlaceWire tgtPortStr tgtPos false labelName   // add a target wire label
         |> snd)
 
@@ -327,8 +337,108 @@ let autoWiresToWireLabels (model:SheetT.Model) =
     |> List.distinctBy (fun wire -> wire.OutputPort) // get wires with distinct output ports here
     |> List.fold (fun m wire -> sameNetWiresToWireLabels wire.OutputPort m) model
     
-let wireLabelsToWire (model:SheetT.Model) = 
-    ()
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+/// Try to find the wire connected to the given port and return them both, return None if not found
+let tryFindWireWithPort (portId:string) (model:SheetT.Model) = 
+    let wireOption =
+        mapValues model.Wire.Wires
+        |> List.tryFind (fun wire -> wire.OutputPort = OutputPortId portId || wire.InputPort = InputPortId portId)
+    match wireOption with
+    | Some wire -> Some (wire,portId)
+    | None -> None
+
+
+/// Return the wire connected to the wire label and the port on the symbol connected to the wire,
+/// assume sym is of type IOLabel and it is connected to one wire only
+let getWireAndPort (sym:Symbol) (model:SheetT.Model) = 
+    let wire,portOnWireLabel = 
+        mapValues model.Wire.Symbol.Ports
+        |> List.filter (fun port -> port.HostId = sym.Component.Id)     // get ports on the wire label
+        |> List.choose (fun port -> tryFindWireWithPort port.Id model)  // get the port that has wire connected, and the wire itself
+        |> List.last    // the list should only contain one element
+    sym,wire,portOnWireLabel
+
+
+/// Return the absolute Manhattan distance between two ports on the sheet
+/// (i.e.) the potential wire length if placed between them
+let getAbsDistanceBetweenPorts (port1:string) (port2:string) (model:SheetT.Model) = 
+    let pos1 = getPortPosOnSheet port1 model
+    let pos2 = getPortPosOnSheet port2 model
+    let distance = pos1-pos2
+    abs distance.X + abs distance.Y
+
+
+/// For a list of wire labels belonging to the same net,
+/// check whether ALL of them are below the threshold of converting into wires;
+/// if ture, perform the conversion to the entire net and return the updated model, otherwise keep the model unchanged.
+let sameNetWireLabelsToWire (wireLabelList:list<Symbol>) (model:SheetT.Model) = 
+    // 1. check condition
+    let wireLabelsMap =
+        wireLabelList
+        |> List.map (fun sym -> getWireAndPort sym model)
+        |> List.groupBy (fun (sym,wire,portId) ->
+                wire.InputPort = InputPortId portId     // the source wire label
+            )
+        |> Map.ofList
+    let sourceWireLabel, sourceWire, _ = wireLabelsMap[true][0]        // should only have one
+    let targetWireLabelInfoList = wireLabelsMap[false]
+
+    let targetWireLabels,targetWires, _ = List.unzip3 targetWireLabelInfoList
+
+    // stuff to (potentially) remove
+    let wireLabelsInNet = sourceWireLabel::targetWireLabels
+    let wiresInNet = sourceWire::targetWires
+
+    let sourceSymPort = 
+        match sourceWire.OutputPort with
+        | OutputPortId portIdStr -> portIdStr
+
+    let targetSymPortList = 
+        targetWires
+        |> List.map (fun targetWire ->
+            match targetWire.InputPort with
+            | InputPortId portIdStr -> portIdStr)
+
+    let potentialWiresPortPairs = List.allPairs [sourceSymPort] targetSymPortList
+    let cond =
+        potentialWiresPortPairs     // ports of potential wires
+        |> List.forall (fun (srcPort,tgtPort) ->
+            (getAbsDistanceBetweenPorts srcPort tgtPort model) < Constants.longSingleWireLength)
+    
+
+    // 2. if meet condition, perform wire-labels-to-wires replacement
+    let deleteWireLabels (wireLabelList:list<Symbol>) (model:SheetT.Model) = 
+        let newSymbolModel =
+            wireLabelList
+            |> List.map (fun sym -> sym.Id)
+            |> deleteSymbols model.Wire.Symbol
+        Optic.set symbol_ newSymbolModel model
+
+    match cond with
+    | false -> model
+    | true -> 
+        let newModel = 
+            model
+            // delete old wires (deleteSingleWire)
+            |> deleteWires wiresInNet
+            // delete old wire labels
+            |> deleteWireLabels wireLabelsInNet
+            // add new wires (placeSingleWire)
+            |> placeWires potentialWiresPortPairs
+        newModel
+
+
+/// Automatically identify same-net wire labels that score below threshold and transform them into wires
+let autoWireLabelsToWire (model:SheetT.Model) = 
+    mapValues model.Wire.Symbol.Symbols
+    |> List.filter (fun sym -> sym.Component.Type = IOLabel)    // list of all wire labels on the sheet
+    |> List.groupBy (fun sym -> sym.Component.Label)            // get sets of same-net wire labels
+    |> List.map snd
+    |> List.fold (fun m symList -> sameNetWireLabelsToWire symList m) model 
+
 
 /// Add or remove wire labels (swapping between long wires and wire labels) to reduce wiring complexity
 let sheetWireLabelSymbol (model:SheetT.Model) = 

@@ -206,8 +206,6 @@ module SymbolT =
             MovingPortTarget: (XYPos*XYPos) option
 
         }
-    /// Return the symbol outline diagonal from sym.Pos to its opposite corner as an XYPos.
-    /// Both coordinates of this vector are always positive.
     with member this.getScaledDiagonal : XYPos =
           {X=Option.defaultValue 1.0 this.HScale * this.Component.W; Y=Option.defaultValue 1.0 this.VScale * this.Component.H}
 

@@ -323,7 +323,6 @@ let optimiseSymbol
 // ############################################################################################################
 //                                      ----- Ezra Reich -- er121 -----
 // ############################################################################################################
-// broken, needs changing
 
 /// <summary>
 /// Calculates the bounding box of all symbols in the given list, adjusting for rotation and scale.
@@ -380,7 +379,9 @@ let rotatePointAboutCentre (point: XYPos) (centre: XYPos) (rotation: Rotation) :
         | Degree180 -> (-deltaX, -deltaY)
         | Degree270 -> (deltaY, -deltaX) 
 
-    { X = centre.X + newX; Y = centre.Y + newY }/// <summary>
+    { X = centre.X + newX; Y = centre.Y + newY }
+
+/// <summary>
 /// Flips a point about a specified center point either horizontally or vertically.
 /// </summary>
 /// <param name="point">The point to flip.</param>
@@ -499,7 +500,6 @@ let rotateSymbolInBlock
     - Added 'new' to some of the names of calculated values to clearly represent what they are
 
     - Removed redundant Edge qualifier in newPortOrder function
-
     - Made variable names consistent, e.g camelCase for newComponent
 
     - Changed some pipelines to be vertical so more readable
@@ -624,11 +624,10 @@ let scaleSymbolInBlock
 
     let newComponent = {sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
 
-    { sym with
+    { sym with 
         Pos = newTopLeft
-        Component = newComponent
+        Component = newComponent  
         LabelHasDefaultPos = true }
-
 
 //------------------------------------------------------------------------------------------------//
 //----------------------------------------End of Changes------------------------------------------//

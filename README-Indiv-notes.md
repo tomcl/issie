@@ -93,6 +93,27 @@ For now, the following assertion cases are attemped:
 
 The run test function before and after label manipulation is still due to testing, more assertion functions can also be added in the future. 
 
+### Test structure 
+
+The test of label placement and removal is splitted into three steps: A test driver would call a dataset generation function first, which provides a set of data of different component position and connection cases; Then, the `sheetWireLabelSymbol` function would be called to beautify the sheet; Finally, the assert functions would be used to check if the beautifier function has done the job as expected, those that fail to pass the assertion would be filtered out. 
+
+1. Test dataset generation
+    - 
+    - All the tests must pass all the position asserts in `TestDrawBlock.fs` first, before they are used to test the `sheetWireLabelSymbol` function, in order to make sure these cases are legal and meaningful. 
+
+2. Assert functions
+    - Label placement : wire lengths > threshold
+    - Label removal : wire lengths < threshold
+    - Correct connection 
+    - No overlaps
+
+3. Test driver
+    - dataset generation
+    - `sheetWireLabelSymbol`
+    - assertion and results filtering
+    
+4. Improvements
+
 ---
 
 ## Work Diary 
@@ -126,3 +147,16 @@ The run test function before and after label manipulation is still due to testin
 - Mar 1st
     - Fixed error in type match
     - cleaned up code
+
+- Mar 4th
+    - Built the basic structure of test driver
+    - Show T3 tests in issie file menu
+    - Basic assert functions (case 1 & 2)
+
+- Mar 5th
+    - Basic assert functions (case 3)
+    - Documentation of assertion function 
+    - [ ] TODO: assertion function case 4
+    - [ ] TODO: test cases with wire labels
+
+

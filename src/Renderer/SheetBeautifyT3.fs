@@ -1,11 +1,48 @@
-﻿module TestDrawBlock
+module SheetBeautifyT3
+
+//-----------------------------------------------------------------------------------------//
+//----------Module for top-level beautify functions making (mostly) whole-sheet changes----//
+//-----------------------------------------------------------------------------------------//
+
+(*
+Whole sheet functions are normally applied to whole sheet. In many cases a feature could be to
+apply them to currently selected wires or components. That provides users control over what gets beautified.
+Ideal beautify code will never make things worse so can be applied to whole sheet always.
+
+Otehr relevant modules:
+SheetBeautifyHelpers (helpers)
+Generatedata (used to make randomized tests)
+TestDrawBlock (used to test the code written here).
+
+*)
+
+// open modules likely to be used
+open CommonTypes
+open DrawHelpers
+open DrawModelType
+open DrawModelType.SymbolT
+open DrawModelType.BusWireT
+open DrawModelType.SheetT
+open SheetUpdateHelpers
+open SheetBeautifyHelpers
+open Optics
+open Optics.Operators
 open GenerateData
 open Elmish
+open EEExtensions
+open Helpers
+open BlockHelpers
+open ModelType
+open Sheet.SheetInterface
 
+/// constants used by SheetBeautify
+module Constants = 
+    // () // dummy to make skeleton type check - remove when other content exists
+    let wireLabelThreshold = 100 
 
-//-------------------------------------------------------------------------------------------//
-//--------Types to represent tests with (possibly) random data, and results from tests-------//
-//-------------------------------------------------------------------------------------------//
+// Copied from TestDrawBlock.fs
+/// 1. Types to represent tests with (possibly) random data, and results from tests; 
+/// 2. Helper functions to manipulate sheet and component data; 
 module TestLib =
 
     /// convenience unsafe function to extract Ok part of Result or fail if value is Error
@@ -67,30 +104,6 @@ module TestLib =
                     TestData = test.Samples
                     TestErrors =  resL
                 })
- 
- 
-            
-(******************************************************************************************
-   This submodule contains a set of functions that enable random data generation
-   for property-based testing of Draw Block wire routing functions.
-   basic idea.
-   1. Generate, in various ways, random circuit layouts
-   2. For each layout apply smartautoroute to regenerate all wires
-   3. Apply check functions to see if the resulting wire routing obeys "good layout" rules.
-   4. Output any layouts with anomalous wire routing
-*******************************************************************************************)
-module HLPTick3 =
-    open EEExtensions
-    open Optics
-    open Optics.Operators
-    open DrawHelpers
-    open Helpers
-    open CommonTypes
-    open ModelType
-    open DrawModelType
-    open Sheet.SheetInterface
-    open GenerateData
-    open TestLib
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -167,10 +180,6 @@ module HLPTick3 =
                 (segVecs,[1..segVecs.Length-2])
                 ||> List.fold tryCoalesceAboutIndex)
 
-
-//------------------------------------------------------------------------------------------------------------------------//
-//------------------------------functions to build issue schematics programmatically--------------------------------------//
-//------------------------------------------------------------------------------------------------------------------------//
     module Builder =
 
         /// Place a new symbol with label symLabel onto the Sheet with given position.
@@ -192,9 +201,6 @@ module HLPTick3 =
                 |> Optic.set symbolModel_ symModel
                 |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
                 |> Ok
-        
-
-
     
         /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
         /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
@@ -225,16 +231,6 @@ module HLPTick3 =
                         Description = None
                     }
                 placeSymbol symLabel (Custom ccType) position model
-            
-        
-
-        // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
-
-        // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -265,7 +261,6 @@ module HLPTick3 =
                      model
                      |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
                      |> Ok
-            
 
         /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
         let separateAllWires (model: SheetT.Model) : SheetT.Model =
@@ -279,182 +274,134 @@ module HLPTick3 =
             sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
 
 
-        /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
-        /// 2. Check each ciruit with sheetChecker.
-        /// 3. Return a TestResult record with errors those samples for which sheetChecker returns false,
-        /// or where there is an exception.
-        /// If there are any test errors display the first in Issie, and its error message on the console.
-        /// sheetMaker: generates a SheetT.model from the random sample
-        /// sheetChecker n model: n is sample number, model is the genrated model. Return false if test fails.
-        let runTestOnSheets
-            (name: string)
-            (sampleToStartFrom: int)
-            (samples : Gen<'a>)
-            (sheetMaker: 'a -> SheetT.Model)
-            (sheetChecker: int -> SheetT.Model -> string option)
-            (dispatch: Dispatch<Msg>)
-                : TestResult<'a> =
-            let generateAndCheckSheet n = sheetMaker >> sheetChecker n
-            let result =
-                {
-                    Name=name;
-                    Samples=samples;
-                    StartFrom = sampleToStartFrom
-                    Assertion = generateAndCheckSheet
-                }
-                |> runTests
-            match result.TestErrors with
-            | [] -> // no errors
-                printf $"Test {result.TestName} has PASSED."
-            | (n,first):: _ -> // display in Issie editor and print out first error
-                printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
-                match catchException "" sheetMaker (samples.Data n) with
-                | Ok sheet -> showSheetInIssieSchematic sheet dispatch
-                | Error mess -> ()
-            result
-//--------------------------------------------------------------------------------------------------//
-//----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
-//--------------------------------------------------------------------------------------------------//
+// ------------------------------------ Team work ------------------------------------------
+(* 
+    This part of the code aims to test the correct usage of labels as described in D3. 
+    See https://github.com/dyu18/hlp24-project-issie-team7/tree/indiv-az1821/README-Indiv-notes.md for more documentation. 
+*)
 
-    open Builder
-    /// Sample data based on 11 equidistant points on a horizontal line
-    let horizLinePositions =
-        fromList [-100..20..100]
-        |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
+// dummy function to be tested (to avoid error for now)
+let sheetWireLabelSymbol (model : SheetT.Model) = 
+    Ok (model) // returns the same model, no change in labels
 
-    /// demo test circuit consisting of a DFF & And gate
-    let makeTest1Circuit (andPos:XYPos) =
+module T3 =
+    open TestLib
+    open TestLib.Builder
+    open Constants
+
+    // -------------------------- Test data generation -------------------------------------------
+
+    let makeTestCircuit (andPos:XYPos) =
         initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> placeSymbol "MUX1" Mux2  andPos
+        |> Result.bind (placeSymbol "I0" IOLabel (andPos+{X=60.;Y=60.}))
+        |> Result.bind (placeSymbol "FF1" DFF (middleOfSheet-{X=0.;Y=100.}))
+        |> Result.bind (placeSymbol "FF2" DFF (middleOfSheet))
+        |> Result.bind (placeSymbol "FF3" DFF (middleOfSheet+{X=0.;Y=100.}))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "I0" 0))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF2" 0))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF3" 0))
+        |> Result.bind sheetWireLabelSymbol
         |> getOkOrFail
 
+    // ------------------------------------ Assertions -----------------------------------------
+    /// Assert functions to use for the testing of D3 task
+    /// 0. The dataset used in this test must pass all the assertion in TestDrawBlocks.fs 
+    /// 1. Wire label placement when wire lengths > threshold.
+    /// 2. Wire label removal when wire lengths < threshold.
+    /// 3. Wire label correct connection between component ports. 
+    /// 4. Wire label positioning adjustment to avoid overlaps.
+    module Asserts = 
 
-
-//------------------------------------------------------------------------------------------------//
-//-------------------------Example assertions used to test sheets---------------------------------//
-//------------------------------------------------------------------------------------------------//
-
-
-    module Asserts =
-
-        (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
-           It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
-           easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
-
-        /// Ignore sheet and fail on the specified sample, useful for displaying a given sample
-        let failOnSampleNumber (sampleToFail :int) (sample: int) _sheet =
+        /// Fails on test number: show certain test case
+        let failOnSampleNumber (sampleToFail : int) (sample: int) _sheet =
             if sampleToFail = sample then
                 Some $"Failing forced on Sample {sampleToFail}."
             else
                 None
 
-        /// Fails all tests: useful to show in sequence all the sheets generated in a test
+        /// Fails all tests: show all test cases
         let failOnAllTests (sample: int) _ =
-            Some <| $"Sample {sample}"
+            Some $"Sample {sample}"
 
-        /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
-        let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let wireModel = sheet.Wire
-            wireModel.Wires
-            |> Map.exists (fun _ wire -> BusWireRoute.findWireSymbolIntersections wireModel wire <> [])
-            |> (function | true -> Some $"Wire intersects a symbol outline in Sample {sample}"
-                         | false -> None)
+        /// 0. simply count number of wire/labels
+        let failOnWireLabels (sample: int) (model: SheetT.Model) =
+            let originalWireCount = Map.countBy (fun _ wire -> wire |> WireT.wireOf).Wires
+            let updatedmodel = sheetWireLabelSymbol model 
+            let updatedWireCount = Map.countBy (fun _ wire -> wire |> WireT.wireOf).Wires
 
-        /// Fail when sheet contains two symbols which overlap
-        let failOnSymbolIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let wireModel = sheet.Wire
-            let boxes =
-                mapValues sheet.BoundingBoxes
-                |> Array.toList
-                |> List.mapi (fun n box -> n,box)
-            List.allPairs boxes boxes 
-            |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
-            |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
-                         | false -> None)
+            if originalWireCount <> updatedWireCount then
+                Some $"Wire labels were not added or removed correctly in Sample {sample}."
+            else
+                None
 
-
-
-//---------------------------------------------------------------------------------------//
-//-----------------------------Demo tests on Draw Block code-----------------------------//
-//---------------------------------------------------------------------------------------//
-
-    module Tests =
-
-        /// Allow test errors to be viewed in sequence by recording the current error
-        /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
-        let recordPositionInTest (testNumber: int) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
-            dispatch <| UpdateDrawBlockTestState(fun _ ->
-                match result.TestErrors with
-                | [] ->
-                    printf "Test finished"
-                    None
-                | (numb, _) :: _ ->
-                    printf $"Sample {numb}"
-                    Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
+        /// 1. check wire -> label placement
+        let failOnLabelNotPlaced (sample: int) (model: SheetT.Model) =
+            let wireLabels = Map.toSeq model.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type = IOLabel)
             
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 0
-        let test1 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 0"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
-                dispatch
-            |> recordPositionInTest testNum dispatch
+            let misplacedLabels =
+                wireLabels
+                |> Seq.filter (fun (_, label) ->
+                    let wireLength = getWireLength label
+                    let expectedPlacement = if wireLength > wireLabelThreshold then WireLabelPlacement.InPlace else WireLabelPlacement.Removed
+                    match expectedPlacement with
+                    | WireLabelPlacement.InPlace -> label.Pos = expectedPositionForLabel label
+                    | WireLabelPlacement.Removed -> not (Map.exists (fun _ wire -> wire.Label = label.Component.Label) sheet.Wire.Wires)
+                )
+            match Seq.isEmpty misplacedLabels with
+            | true -> None
+            | false -> Some $"Wire labels are misplaced in Sample {sample}."
 
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 10
-        let test2 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 10"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 10)
-                dispatch
-            |> recordPositionInTest testNum dispatch
+        /// 2. check label -> wire removal
+        let failOnLabelNotRemoved (sample: int) (model: SheetT.Model) =
+            let wireLabels = Map.toSeq model.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type = IOLabel)
+            
+            let removedLabels =
+                wireLabels
+                |> Seq.filter (fun (_, label) ->
+                    let wireLength = getWireLength label
+                    wireLength <= wireLabelThreshold && not (Map.exists (fun _ wire -> wire.Label = label.Component.Label) sheet.Wire.Wires)
+                )
+            match Seq.isEmpty removedLabels with
+            | true -> None
+            | false -> Some $"Wire labels are not removed correctly in Sample {sample}."
 
-        /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
-        let test3 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on symbols intersect"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnSymbolIntersectsSymbol
-                dispatch
-            |> recordPositionInTest testNum dispatch
+        /// whether wire labels are named correctly based on component and port names
+        let assertWireLabelNaming (sample: int) (model: SheetT.Model) =
+            failwithf "Not Implemented"
 
-        /// Example test: Horizontally positioned AND + DFF: fail all tests
-        let test4 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail all tests"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
+        // /// whether wire labels are correctly positioned to avoid overlaps with symbols
+        // let assertWireLabelPositionAdjustment (sample: int) (sheet: SheetT.Model) =
+        //     let wireLabels = Map.toSeq sheet.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type = IOLabel)
+        //     let symbols = Map.toSeq sheet.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type <> IOLabel)
+        //     let misplacedLabels =
+        //         wireLabels
+        //         |> Seq.filter (fun (_, label) ->
+        //             symbols |> Seq.exists (fun (_, symbol) -> overlap2DBox (getSymBoundingBox symbol) (getSymBoundingBox label))
+        //         )
+        //     match Seq.isEmpty misplacedLabels with
+        //     | true -> None
+        //     | false -> Some $"Wire labels are misplaced due to overlap with symbols in Sample {sample}."
 
-        /// List of tests available which can be run ftom Issie File Menu.
-        /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
-            // Change names and test functions as required
-            // delete unused tests from list
+    // ----------------------------------- Test driver -----------------------------------
+    /// this is a similar test menu as tick 3
+    module Tests = 
+        let testSheetWireLabelSymbol testNum firstSample dispatch = 
+            // runTestOnSheets
+            //     "Test sheetWireLabelSymbol function"
+            //     firstSample
+            //     sampleSheet // Replace sampleSheet with actual sheet
+            //     sheetWireLabelSymbol 
+            //     Asserts.failOnWireLabels
+            //     dispatch
+            // |> recordPositionInTest testNum dispatch
+            failwithf "Not Implemented"
+
+        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> unit)) list =
             [
-                "Test1", test1 // example
-                "Test2", test2 // example
-                "Test3", test3 // example
-                "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
+                "SheetWireLabelSymbolTest", testSheetWireLabelSymbol
+                // more test cases can be added here
             ]
 
         /// Display the next error in a previously started test
@@ -478,9 +425,4 @@ module HLPTick3 =
                 ()
             | _ ->
                 func testIndex 0 dispatch
-        
-
-
-    
-
 

@@ -22,6 +22,7 @@ open Optics
 open Optics.Operators
 open TestParser
 open ContextMenus
+open SheetBeautifyT3
 
 importSideEffects "./scss/main.css"
 
@@ -156,6 +157,10 @@ let fileMenu (dispatch) =
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
             TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
+            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
+            |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
+        makeMenuGen (debugLevel > 0) false "Label Tests" (
+            SheetBeautifyT3.T3.Tests.testsToRunFromSheetMenu // make a submenu from this list
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
             |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
         makeWinDebugItem "Trace all" None (fun _ ->

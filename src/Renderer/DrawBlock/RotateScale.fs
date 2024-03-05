@@ -350,6 +350,18 @@ let adjustPosForBlockFlip (flip:FlipType) (h: float) (w:float)(pos: XYPos): XYPo
     | FlipHorizontal -> pos - {X=(float)w ;Y=0}
     | FlipVertical -> pos - { X = 0 ;Y = (float)h }
 
+type flipOrRot =
+    | Flip of FlipType
+    | Rot of Rotation
+let newTopLeftFlipOrRot (blockCentre: XYPos) (transform: flipOrRot) (sym: Symbol) : XYPos =
+    let h,w = getRotatedHAndW sym 
+    match transform with 
+    | Flip x -> flipPointAboutBlockCentre sym.Pos blockCentre x
+                            |>adjustPosForBlockFlip x h w 
+    | Rot x -> rotatePointAboutBlockCentre sym.Pos blockCentre (invertRotation x)
+                            |>adjustPosForBlockRotation (invertRotation x) h w 
+    
+
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.</summary>
 /// <param name="rotation">  Clockwise or Anticlockwise rotation</param>
 /// <param name="block"> Bounding box of selected components</param>
@@ -360,11 +372,7 @@ let rotateSymbolInBlock
         (blockCentre: XYPos)
         (sym: Symbol)  : Symbol =
       
-    let h,w = getRotatedHAndW sym
-
-    let newTopLeft = 
-        rotatePointAboutBlockCentre sym.Pos blockCentre (invertRotation rotation)
-        |> adjustPosForBlockRotation (invertRotation rotation) h w
+    let newTopLeft = newTopLeftFlipOrRot blockCentre (Rot rotation) sym
 
     let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
     
@@ -394,11 +402,7 @@ let flipSymbolInBlock
     (blockCentre: XYPos)
     (sym: Symbol) : Symbol =
 
-    let h,w = getRotatedHAndW sym
-    //Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
-    let newTopLeft = 
-        flipPointAboutBlockCentre sym.Pos blockCentre flip
-        |> adjustPosForBlockFlip flip h w
+    let newTopLeft = newTopLeftFlipOrRot blockCentre (Flip flip) sym
 
     let portOrientation = 
         sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)

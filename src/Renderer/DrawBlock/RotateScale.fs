@@ -37,7 +37,6 @@ type WireSymbols =
       SymB: Symbol
       Wire: Wire }
 
-// ac2021: new function here
 /// Updates model with new symbol & reroutes wires
 let editSymInModelAndReroute (editedSym: Symbol) (wModel: BusWireT.Model) =
     let model' = Optic.set (symbolOf_ editedSym.Id) editedSym wModel
@@ -69,12 +68,18 @@ let makePortInfo (sym: Symbol) (port: Port) =
       w = w
       portGap = portGap }
 
+// ac2021: had simplification for this but not sure if it works
+// TODO: check if it works
 /// Get ports connected to a wire
 let getPortAB (wModel: Model) wireSyms =
-    let ports = wModel.Symbol.Ports
-    let wire = wireSyms.Wire
-    let portA = ports[string wire.InputPort]
-    let portB = ports[string wire.OutputPort]
+    // let ports = portsOfWires wModel [ wireSyms.Wire ]
+    // let wire = wireSyms.Wire
+    // let portA = ports[string wire.InputPort]
+    // let portB = ports[string wire.OutputPort]
+    // portA, portB
+    let ports = portsOfWires wModel [ wireSyms.Wire ]
+    let portA = filterPortBySym ports wireSyms.SymA |> List.head
+    let portB = filterPortBySym ports wireSyms.SymB |> List.head
     portA, portB
     
 
@@ -173,12 +178,7 @@ let reSizeSymbolTopLevel
 
     let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
 
-    let model' = 
-        wModel
-        |> Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol
-    
-    scaledSymbol.Id
-    |> BusWireSeparate.routeAndSeparateSymbolWires model'
+    editSymInModelAndReroute scaledSymbol wModel
 
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =
@@ -193,6 +193,7 @@ let tryWireSymOppEdge (wModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symb
     | true -> Some symEdge
     | _ -> None
 
+/// Increments ConnMap count or initialises at 1 if new connection
 let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
     let map = symConnData.ConnMap
     let count = 
@@ -274,10 +275,7 @@ let optimiseSymbol
         tryResize symCount symbol
     
     // Update the model with the resized symbol and route wires
-    let model' = 
-        wModel
-        |> Optic.set (symbolOf_ symbol.Id) scaledSymbol
-    BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
+    editSymInModelAndReroute scaledSymbol wModel
 
 /// <summary> Improve by az1221 - Obtain the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
@@ -519,21 +517,37 @@ let oneCompBoundsBothEdges (selectedSymbols: Symbol list) =
     let maxYSymCentre = selectedSymbols |> getMaxYSym |> getRotatedSymbolCentre
     let minYSymCentre = selectedSymbols |> getMinYSym |> getRotatedSymbolCentre
     (maxXSymCentre.X = minXSymCentre.X) || (maxYSymCentre.Y = minYSymCentre.Y)
-    
-let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
-    let scaleFact = 
-        if min = max || matchMax <= matchMin then 1. 
-        else (matchMin - matchMax) / (min - max)
-    let offsetC = 
-        if scaleFact = 1. then 0.
-        else (matchMin - min * scaleFact) / (1.-scaleFact)
-    (scaleFact, offsetC)
 
-/// Return set of floats that define how a group of components is scaled
+// ac2021: reduce need for consfusing (float * float) * (float * float).
+// ac2021: as intermedited helper functions work together,
+// ac2021: changing intermediary type causes no problems is code (compiles)
+/// Scaling factor & offset from centre
+type scalingOffset =
+    {
+        ScalingF: float
+        OffsetC: float
+    }
+
+let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
+    let isInvalid = min = max || matchMax <= matchMin
+    let scaleFact =
+        match isInvalid with
+        | true -> 1.
+        | false -> (matchMin - matchMax) / (min - max)
+    let offsetC =
+        match scaleFact with
+        | 1. -> 0.
+        | _ -> (matchMin - min * scaleFact) / (1.-scaleFact)
+    {
+        ScalingF = scaleFact
+        OffsetC = offsetC
+    }
+
+/// Return set of scalingOffset that define how a group of components is scaled
 let getScalingFactorAndOffsetCentreGroup
     (matchBBMin:XYPos)
     (matchBBMax:XYPos)
-    (selectedSymbols: Symbol list) : ((float * float) * (float * float)) = 
+    (selectedSymbols: Symbol list) : (scalingOffset * scalingOffset) = 
 
     let maxXSym = getMaxXSym selectedSymbols
     let oldMaxX = (maxXSym |> getRotatedSymbolCentre).X
@@ -557,14 +571,13 @@ let getScalingFactorAndOffsetCentreGroup
 
 /// Alter position of one symbol as needed in a scaling operation
 let scaleSymbol
-        (xYSC: (float * float) * (float * float))
+        (xSC, ySC)
         (sym: Symbol)
         : Symbol = 
     let symCentre =  getRotatedSymbolCentre sym
     let translateFunc scaleFact offsetC coordinate = (coordinate - offsetC) * scaleFact + offsetC
-    let xSC,ySC = xYSC
-    let newX = translateFunc (fst xSC) (snd xSC) symCentre.X
-    let newY = translateFunc (fst ySC) (snd ySC) symCentre.Y
+    let newX = translateFunc (xSC.ScalingF) (xSC.OffsetC) symCentre.X
+    let newY = translateFunc (ySC.ScalingF) (ySC.OffsetC) symCentre.Y
 
     let newTopLeftPos = 
         {X = newX - (snd (getRotatedHAndW sym))/2. 
@@ -572,6 +585,17 @@ let scaleSymbol
     let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
 
     {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
+
+// ac2021: in implementations, these are used together
+/// Get scaled symbol from desired characteristics
+let scaleSymbolToBB
+        (matchBBMin:XYPos)
+        (matchBBMax:XYPos)
+        (selectedSymbols: Symbol list)
+        (sym: Symbol)
+        : Symbol =
+    let xySC = getScalingFactorAndOffsetCentreGroup matchBBMin matchBBMax selectedSymbols
+    scaleSymbol xySC sym
 
 /// Modify a selected subset of symbols found in a Symbol model according to a supplied function.
 /// Returns the updated Symbol model.

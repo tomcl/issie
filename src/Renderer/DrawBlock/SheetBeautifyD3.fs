@@ -35,6 +35,7 @@ open BlockHelpers
 open BusWidthInferer
 open BusWireSeparate
 open RotateScale
+open CanvasStateAnalyser
 
 /// constants used by SheetBeautify
 module Constants =
@@ -110,7 +111,7 @@ let generateWireLabel (model: SheetT.Model) (defaultName:string) : string =
     | _ -> defaultName
 
 
-// function below copied from SimulationView.getPosRotNextToPort (due to compile order restriction)
+// function below adapted from SimulationView.getPosRotNextToPort (due to compile order restriction)
 /// get the position and rotation for inserting a new component next to the given port
 /// at a given distance
 /// the rotation is such that the original left side of the component (input side)
@@ -135,7 +136,7 @@ let getPosRotNextToPort (port: Port) (model: SymbolT.Model) (dist: float) =
         match edge with
         | Right ->
             {X = sym.Pos.X + portPos.X + dist; Y = sym.Pos.Y + portPos.Y},
-            Degree0
+            Degree180
         | Top ->
             {X = sym.Pos.X + portPos.X; Y = sym.Pos.Y + portPos.Y - dist},
             Degree90
@@ -156,8 +157,8 @@ let getPosRotNextToPort (port: Port) (model: SymbolT.Model) (dist: float) =
 
 
 /// Add a IOLabel (wire label) component to the sheet, return the updated model, the added symbol, and its label name
-let addIOLabelComp (pos:XYPos) (rot:Rotation) (defaultLabel:string) (model:SheetT.Model) = 
-    let labelName = generateWireLabel model defaultLabel
+let addIOLabelComp (pos:XYPos) (rot:Rotation) (labelName:string) (model:SheetT.Model) = 
+    // let labelName = generateWireLabel model label
     let newSymbolModel, compId = addSymbol [] model.Wire.Symbol pos IOLabel labelName
     let newSymbolModelWithRot = rotateBlock [compId] newSymbolModel rot
     let newModel = 
@@ -245,14 +246,22 @@ let addIOLabelAtPortAndPlaceWire (portIdStr:string) (portPos:XYPos) (isStart:boo
         | Some (pos,rot) -> pos,rot
         | None -> 
             printf "no good end pos, using default pos" // debug
-            if isStart then {X=portPos.X+3.*Constants.minCompDistance; Y=portPos.Y},Degree0
-            else {X=portPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=portPos.Y},Degree0
+            if isStart then {X=portPos.X+3.*Constants.minCompDistance; Y=portPos.Y},Degree180
+            else {X=portPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=portPos.Y},Degree180
 
     let modelPlacedSym,ioLabelSym,ioLabelName =  addIOLabelComp ioLabelPos ioLabelRot label model
+    
+    let ioLabelInputEdge,ioLabelOutputEdge =
+    // note: IOLabel with Degree180 rotation is in the "normal" orientation (input on the left, output on the right)
+        match ioLabelRot with
+        | Degree0 -> Right,Left
+        | Degree90 -> Top,Bottom
+        | Degree180 -> Left,Right
+        | Degree270 -> Bottom,Top
     let sourcePort, targetPort =
         match isStart with
-        | true -> portIdStr, ioLabelSym.PortMaps.Order[Left][0]
-        | false -> ioLabelSym.PortMaps.Order[Right][0], portIdStr
+        | true -> portIdStr, ioLabelSym.PortMaps.Order[ioLabelInputEdge][0]
+        | false -> ioLabelSym.PortMaps.Order[ioLabelOutputEdge][0], portIdStr
 
     let modelPlacedWire =
         modelPlacedSym
@@ -267,6 +276,16 @@ let getSameNetWires (sourcePortId) (model:SheetT.Model) =
     mapValues model.Wire.Wires
     |> List.filter (fun wire -> wire.OutputPort = sourcePortId)
 
+/// Derive wire label names from names of driving components and ports
+let deriveWireLabelFromSrcPort (sourcePortStr:string) (model:SheetT.Model) = 
+    let port = Map.find sourcePortStr model.Wire.Symbol.Ports
+    let sym = Map.find (ComponentId port.HostId) model.Wire.Symbol.Symbols
+    let symLabel = sym.Component.Label
+    let portLabel = getPortName sym.Component port
+    match portLabel with
+    | "" -> "OUT"   // TODO: add support for "SplitWire" & "SplitN" (multiple possible outputs)
+    | _ -> symLabel+"_"+portLabel
+
 /// Replace the net of wires corresponding to the given source port with a set of wire labels, return the updated model
 let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (model:SheetT.Model) = 
     let srcPortStr, srcPos = 
@@ -276,7 +295,7 @@ let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (model:SheetT.Model) =
     let sameNetWires = 
         getSameNetWires sourcePortId model
 
-    let givenLabel = "I"
+    let givenLabel = deriveWireLabelFromSrcPort srcPortStr model
     let newSameNetWires, labelName, modelWithSrcWireLabel = 
         match (checkOutputPortConnectedToWireLabel sourcePortId model) with
         | Some (label,wireLabelPortId) ->   // a source wire label already exists

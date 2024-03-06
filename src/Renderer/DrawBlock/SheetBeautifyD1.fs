@@ -71,7 +71,7 @@ module Helpers =
     /// Convert a wire and its segment displacement into actual segment start and end positions
     let getSegmentPositions (sheet:SheetT.Model) wire =
         let startPos = wire.StartPos
-        visibleSegments wire.WId sheet
+        SegmentHelpers.visibleSegments wire.WId sheet
         |> List.fold (fun (acc, lastPos) seg ->
             let newPos = lastPos + seg
             ((lastPos, newPos) :: acc, newPos) // Prepend to list for efficiency

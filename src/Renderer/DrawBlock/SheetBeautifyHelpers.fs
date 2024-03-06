@@ -12,6 +12,52 @@ open BlockHelpers
 
 open Optics.Operators // for >-> operator
 
+//----------------------------------------------------------------------------------------------------//
+//----------------------------------------RotateScale-------------------------------------------------//
+//----------------------------------------------------------------------------------------------------//
+
+
+let getBlockAbstracted (symbols: Symbol list) : BoundingBox =
+    /// Sample implementation to show how abstraction can capture XY regularity
+    /// It is debatable whetehr this on its own is worthwhile because of the
+    /// cognitive burden understanding what it is doing. But with more consistent use
+    /// of XYPos (see TODO) and a few standard helper functions it looks better.
+    /// This implementation captures more readably the "real content" of the function.
+
+    /// Return height and width of symbol in XYPos form
+    /// TODO - refactor rotatScaleHW to do this!
+    let getWH sym =
+        getRotatedHAndW sym
+        |> (fun (h, w) -> {X=w;Y=h})
+
+    /// Convenience function to turn its two curries arguments into an XYPos
+    /// TODO: put this in DrawHelpers with other low-level stuff.
+    let toXY x y : XYPos = {X=x;Y=y}
+
+    /// apply f to a list to genrate a list of XYPos. Extract lists of X and y coordinates.
+    /// Apply total to make a float from each coordinate-list, return X,Y results as an XYPos.
+    let listMapXY total (f: 'a -> XYPos) (xyL: 'a list) =
+            toXY (total (List.map (fun xy -> (f xy).X) xyL))
+                 (total (List.map (fun xy -> (f xy).Y) xyL))
+    
+    // Calculate the maximum X & Y position of a symbol edge in the bounding box plus its rotated width
+    let maxXY = symbols |> listMapXY List.max (fun sym -> sym.Pos + getWH sym)
+
+    // Calculate the minimum X & Y  position of a symbol edge in the bounding box
+    let minXY = symbols |> listMapXY List.min (fun sym -> sym.Pos)
+
+    // used to generate result
+    let sizeXY = maxXY - minXY
+
+    // TODO: make W,H into an XYPos chnaging types. In addition,
+    // move W,H (now called Size) from Component into Symbol so that
+    // all the non-electrical component stuff is part of Symbol not Component.
+    // Do a similar transform of HScale,VScale to Scale : XYPos.
+    { TopLeft = minXY; W = sizeXY.X; H = sizeXY.Y }
+
+//----------------------------------------------------------------------------------------------------//
+//----------------------------------------General Helpers---------------------------------------------//
+//----------------------------------------------------------------------------------------------------//
 
 //----------------------------------------------------------------------------------------------------//
 //----------------------------------------General Helpers---------------------------------------------//
@@ -77,19 +123,21 @@ let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model)
 // B1 R
 /// get the outline dimensions of a custom component
 let getCustomCompDims (sym: Symbol) =
-    let h,w = getRotatedHAndW sym // compensates for rotation
-    { X = w * Option.defaultValue 1. sym.HScale; // compensates for custom symbol scaling
-      Y = h * Option.defaultValue 1. sym.VScale}
+    (SymbolHelpers.getCustomSymCorners sym)[2] // compensates for rotation & scaling
 
 // B1 W
 /// Write the outline dimensions of a custom component
 let putCustomCompDims  (newDims: XYPos) (sym: Symbol) =
     // changing H & W does not work well because these are recalculated by autoScaleHandW
-    // symbol is resized by chnaging HScale, VScale
+    // symbol is resized by changing HScale, VScale
     let {X=w; Y=h} = getCustomCompDims sym // old dimensions
     let ws, hs = Option.defaultValue 1. sym.HScale, Option.defaultValue 1. sym.VScale
-    {sym with HScale = Some (ws * newDims.X / w);
-              VScale = Some (hs * newDims.Y / h)}
+    let ws', hs' = // HScale, VScale affect h,w before rotation, so we need to compensate for that
+        match sym.STransform.Rotation with
+        | Degree0 | Degree180 -> ws * newDims.X / w, hs * newDims.Y / h // non-rotated case
+        | Degree90 | Degree270 -> hs * newDims.Y / w, ws * newDims.X / h // rotated case: swap w,h
+    {sym with HScale = Some ws'
+              VScale = Some hs'}
    
 /// A lens from a symbol to its bounding box dimensions (as a width X height XYPos)
 let customCompDims_ = Lens.create getCustomCompDims putCustomCompDims
@@ -466,3 +514,4 @@ let findRetracingSegments (model : SheetT.Model) =
     {| RetraceSegs =retracingSegs;
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
     
+

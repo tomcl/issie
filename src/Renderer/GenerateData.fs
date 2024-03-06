@@ -64,6 +64,12 @@
             |> shuffleA
             |> fromArray
 
+    /// return a shuffled range of integers
+    let randomFloat (min:float) (step:float) (max:float) : Gen<float> =
+            [|min..step..max|]
+            |> shuffleA
+            |> fromArray
+
 //------------------------Combinators to transform and combine random sequences-----------------//
 
     /// Map the sequence elemntwise

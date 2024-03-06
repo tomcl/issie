@@ -23,6 +23,7 @@ open TestDrawBlock.HLPTick3.Asserts
 open TestDrawBlock.HLPTick3.Builder
 open TestDrawBlock.HLPTick3.Tests
 open TestLib
+open SheetBeautifyD2
 
 
 
@@ -87,7 +88,7 @@ let flipSymbol (symLabel: string) (orientation: FlipType) (model : SheetT.Model)
 
 // Placeholder for actual implementation
 let beautify (model : SheetT.Model) : SheetT.Model = 
-    model
+    evaluateTransformations model
 
 /// <summary> Beautifies the given sheet within the model then updates and displays the new sheet. Prints metrics before and after changes. </summary>
 /// <param name="model">The model containing the sheet to be beautified.</param>
@@ -198,8 +199,8 @@ let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
                 printf "Test Finished"
                 ()
             | "Run Beautify Function", _ ->
-                printf "Test Finished"
                 beautifySheet model dispatch
+                printf "Test Finished"
                 ()
             | _ ->
                 func testIndex 0 dispatch

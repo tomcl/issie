@@ -48,16 +48,19 @@ let rotatePortInfo (rotation:Rotation) (portMaps:PortMaps) : PortMaps=
         (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold rotatePortList
     {Orientation= newPortOrientation; Order = newPortOrder}
 
-let adjustPosForRotation 
-        (rotation:Rotation) 
-        (h: float)
-        (w:float)
-        (pos: XYPos)
-         : XYPos =
+
+let adjustPosForRotation
+    (rotation:Rotation)
+    (h: float)
+    (w:float)
+    (pos: XYPos)
+     : XYPos =
     let posOffset =
         match rotation with
         | Degree90 | Degree270 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-        | _ ->  failwithf "Can't encounter Degree0 or Degree180 here in SymbolResizeHelpers/adjustPosForRotation function"
+        | Degree0 -> { X = 0.0; Y = 0.0 } // No adjustment for Degree0
+        | Degree180 -> { X = w; Y = h } // Assuming full width and height adjustment for Degree180
+        | _ ->  failwithf "Unsupported rotation degree in adjustPosForRotation function"
     pos - posOffset
 
 

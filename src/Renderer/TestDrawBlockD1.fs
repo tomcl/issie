@@ -19,6 +19,7 @@ open TestDrawBlock
 open GenerateData
 
 
+
 module D1TestHelperFunctions =
 
     let alignSymbols (wireModel: BusWireT.Model) (sourceSymbol: Symbol) (otherSymbol: Symbol) : BusWireT.Model =
@@ -53,6 +54,11 @@ module D1TestHelperFunctions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
+    let verticLinePositions =
+        fromList [-100..20..100]
+        |> map (fun n -> middleOfSheet + {X=0.; Y=float n})
+
+
     let generateSampleData =
         product (fun x y -> middleOfSheet + {X = float x; Y = float y})
             (fromList [-100..20..100])
@@ -71,6 +77,17 @@ module D1TestHelperFunctions =
     let filteredSampleData =
         generateSampleData
         |> GenerateData.filter filterOverlap
+
+    let makeNearStraightWireCircuit (andPos: XYPos) =
+        initSheetModel
+        |> HLPTick3.Builder.placeSymbol "A" (Input1(1, None)) andPos
+        |> Result.bind (HLPTick3.Builder.placeSymbol "B" (Input1(1, None)) andPos)
+        |> Result.bind (HLPTick3.Builder.placeSymbol "MUX1" Mux2 middleOfSheet)
+        |> Result.bind (HLPTick3.Builder.placeWire (HLPTick3.portOf "A" 0) (HLPTick3.portOf "MUX1" 0))
+        |> Result.bind (HLPTick3.Builder.placeWire (HLPTick3.portOf "MUX1" 0) (HLPTick3.portOf "A" 0))
+        |> Result.bind (HLPTick3.Builder.placeWire (HLPTick3.portOf "B" 0) (HLPTick3.portOf "MUX1" 1))
+        |> Result.bind (HLPTick3.Builder.placeWire (HLPTick3.portOf "MUX1" 1) (HLPTick3.portOf "B" 0))
+        |> TestLib.getOkOrFail
 
 
 
@@ -96,7 +113,7 @@ module D1TestHelperFunctions =
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
 
-        // Fail when sheet contains 2 different wires that intersect
+  (*      // Fail when sheet contains 2 different wires that intersect
         let failOnWireIntersectsWire (sample: int) (sheet: SheetT.Model) =
             let wireModel = sheet.Wire.Wires
             let absSegments =
@@ -110,7 +127,6 @@ module D1TestHelperFunctions =
                         overlap1D (seg1.Start.Y, seg1.End.Y) (seg2.Start.Y, seg2.End.Y)
                     )
                 )
-
             absSegments
             |> List.allPairs
             |> List.filter (fun ((id1, _), (id2, _)) -> id1 <> id2)
@@ -119,17 +135,17 @@ module D1TestHelperFunctions =
             )
             |> function
             | true -> Some $"Wire intersects another wire in Sample {sample}"
-            | false -> None
+            | false -> None *)
 
     module TestD1 =
 
         let testD1_1 testNum firstSample dispatch =
             HLPTick3.Builder.runTestOnSheets
-                "Test Wire Intersects"
+                "Test Near Straight Wire"
                 firstSample
-                horizLinePositions
-                HLPTick3.makeTest5Circuit
-                Asserts.failOnWireIntersectsWire
+                filteredSampleData
+                makeNearStraightWireCircuit
+                Asserts.failOnSymbolIntersectsSymbol
                 dispatch
             |> HLPTick3.Tests.recordPositionInTest testNum dispatch
 

@@ -47,13 +47,15 @@ let rotateSymbol (rotation: Rotation) (label: string) (sheet: SheetT.Model): She
         (Map.toList >> List.map snd) symMap
         |> List.find (fun sym -> sym.Component.Label = label)
 
-    let symCentre = getRotatedSymbolCentre symbol // If not rotated, just returns the correct centre, but accounts for rotated case.
+    // let symCentre = getRotatedSymbolCentre symbol // If not rotated, just returns the correct centre, but accounts for rotated case.
+    let symBBox = getBlock [ symbol ] // SAM: edit for refactored rotatescale
     let symId = ComponentId symbol.Component.Id
 
     let rotatedSymbol =
         symMap
         |> Map.tryFind symId
-        |> Option.map (fun sym -> rotateSymbolInBlock rotation symCentre sym) // The symbol is the only one in the block
+        // |> Option.map (fun sym -> rotateSymbolInBlock rotation symCentre sym) // The symbol is the only one in the block
+        |> Option.map (fun sym -> rotateSymInBlock rotation symBBox sym) // SAM: edit for refactored rotatescale
 
     match rotatedSymbol with
     | Some (sym) ->
@@ -80,13 +82,16 @@ let flipSymbol (label: string) (flip: FlipType) (sheet: SheetT.Model): SheetT.Mo
         (Map.toList >> List.map snd) symMap
         |> List.find (fun sym -> sym.Component.Label = label)
 
-    let symCentre = getRotatedSymbolCentre symbol // If not rotated, just returns the correct centre, but accounts for rotated case.
+    // let symCentre = getRotatedSymbolCentre symbol // If not rotated, just returns the correct centre, but accounts for rotated case.
+    let symBBox = getBlock [ symbol ] // SAM: edit for refactored rotatescale
+
     let symId = ComponentId symbol.Component.Id
 
     let flippedSymbol =
         symMap
         |> Map.tryFind symId
-        |> Option.map (fun sym -> flipSymbolInBlock flip symCentre sym) // The symbol is the only one in the block
+        // |> Option.map (fun sym -> flipSymbolInBlock flip symCentre sym) // The symbol is the only one in the block
+        |> Option.map (fun sym -> flipSymInBlock flip symBBox sym) // SAM: edit for refactored rotatescale
 
     match flippedSymbol with
     | Some (sym) ->
@@ -137,8 +142,8 @@ let evaluateBeautification (model: SheetT.Model) =
     let finalStraightWires = straightWires beautifiedModel
 
     let percentWiresStraightened = int (100.0 * float (finalStraightWires - initialStraightWires) / float initialStraightWires)
-    let symbolIntersectionCount = T1.intersectingSymbolPairs beautifiedModel
-    let wireSymbolIntersectionCount = T2.visSegsIntersectSymbol beautifiedModel
+    let symbolIntersectionCount = numOfIntersectedSymPairs beautifiedModel
+    let wireSymbolIntersectionCount = numOfIntersectSegSym beautifiedModel
 
     match (percentWiresStraightened, symbolIntersectionCount, wireSymbolIntersectionCount) with
     | (wires, _, _) when wires < 0 ->

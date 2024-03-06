@@ -158,7 +158,7 @@ open Elmish
 
         //Metric 3: Number of wire bends
         let numOfWireBends =
-            countVisRightAngles model
+            numOfVisRightAngles model
    
         {|SymbolOverlaps = numOfSymbolOverlaps; WireIntersectSym = numOfWireIntersectSym; WireBends = numOfWireBends|}
 

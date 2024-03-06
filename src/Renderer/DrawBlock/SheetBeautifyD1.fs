@@ -1,5 +1,6 @@
 ﻿module SheetBeautifyD1
 open SheetBeautifyHelpers
+open SheetBeautifyHelpers.SegmentHelpers
 open Optics
 
 open CommonTypes
@@ -197,7 +198,7 @@ let connectedSymbolsMap (sheet: SheetT.Model) =
  
 ///In this phase all singly-connected components are aligned and their wires are streightend.
 let firstPhaseStraightening (sheet: SheetT.Model) =
-    let initialOverlap = countIntersectedSymbols sheet
+    let initialOverlap = numOfIntersectedSymPairs sheet
     let singlePortComponents = 
         sheet.Wire.Symbol.Symbols
         |> Map.toList 
@@ -210,7 +211,7 @@ let firstPhaseStraightening (sheet: SheetT.Model) =
     changedSymbolList
     |> List.fold (fun sheet newSym -> 
                         let newSheet = Optic.set (SheetT.symbolOf_ newSym.Id) newSym sheet
-                        if countIntersectedSymbols newSheet > initialOverlap
+                        if numOfIntersectedSymPairs newSheet > initialOverlap
                         then sheet
                         else newSheet) sheet
     |> SheetUpdateHelpers.updateBoundingBoxes

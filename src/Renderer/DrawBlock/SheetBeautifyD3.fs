@@ -130,7 +130,7 @@ let placeWireLabels (wire : BusWireT.Wire) (sheetModel : SheetT.Model) : SheetT.
     // sub-function to perform the labl placing operation
     let addLabelBesidePort portID labelText theme symbolsMap =
         let symbol = BlockHelpers.getSymbol model portID
-        let portPos = SheetBeautifyHelpers.getPortPosition symbol model portID
+        let portPos = getPortPos portID model
         let labelPos = computeLabelPos portID portPos symbol model
         let labelSymbol = Symbol.createNewSymbol [] labelPos IOLabel labelText theme
         Map.add labelSymbol.Id labelSymbol symbolsMap

@@ -174,7 +174,9 @@ let getSymPortIds (sym: SymbolT.Symbol): List<string> =
 let getSymConnetedWires (sym: SymbolT.Symbol) (sheet: SheetT.Model): List<BusWireT.Wire> =
     let symPortIds = getSymPortIds sym
 
-    getAllWires sheet
+    sheet.Wire.Wires
+    |> Map.values
+    |> List.ofSeq
     |> List.filter
         (fun wire ->
             List.contains (inputPortStr wire.InputPort) symPortIds ||
@@ -246,7 +248,7 @@ let findClockfacePortIdOrder (sym: SymbolT.Symbol) (sheet: SheetT.Model): List<s
 
     let clockfaceConnectedPortOrder = // sort the other end of the wires
         connectedPorts
-        |> List.map (fun port -> (getPortPosOnSheet port sheet, port))
+        |> List.map (fun port -> (getPortPos port.Id sheet.Wire.Symbol, port))
         |> List.map (fun (pos, port) -> (pos-symCentre, port))
         |> List.map (fun (vec, port) -> (vecToAng vec, port))
         |> List.map
@@ -360,7 +362,7 @@ let setMuxSymReverseState
         (sym: SymbolT.Symbol)
         (sheet: SheetT.Model)
             : SheetT.Model =
-    updateSymToSheet (Optic.set reversedInputPorts_ muxReverseState sym) sheet
+    updateSymToSheet (Optic.set reversedInputPorts_ (Some muxReverseState) sym) sheet
 
 /// <summary>Set a symbol's <c>PortMaps.Order</c> in a sheet.</summary>
 /// <param name="sym">Target symbol.</param>
@@ -472,21 +474,21 @@ let sheetOrderFlip (sheet: SheetT.Model): SheetT.Model =
     let muxCandidates = findSymCandidates isMuxSym sheet
     let gateCandidates = findSymCandidates isGateSym sheet
 
-    let originalWireBends = findRightAngleCount sheet
+    let originalWireBends = numOfVisRightAngles sheet
     /// <summary>Helper to check on more wire bends is created.</summary>
     let notMoreWireBendsLimiter (sheet: SheetT.Model): bool =
-        (sheet |> findRightAngleCount) <= originalWireBends
+        (sheet |> numOfVisRightAngles) <= originalWireBends
 
     sheet
     |> getBestOrderFlipResultByList
         setMuxSymReverseState
-        findSegIntersectsSegCount
+        numOfWireRightAngleCrossings
         notMoreWireBendsLimiter
         (fun _ -> [ false; true ]) // two state of mux input ports
         muxCandidates // change input order of muxes
     |> getBestOrderFlipResultByList
         setSymPortOrder
-        findSegIntersectsSegCount
+        numOfWireRightAngleCrossings
         notMoreWireBendsLimiter
         getSymPortPermData
         gateCandidates // permutate gates

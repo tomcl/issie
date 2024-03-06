@@ -11,6 +11,7 @@ open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open Optics
 open BlockHelpers
+open SegmentHelpers
 
 /// <summary>
 /// Filters parallel wires from the model based on the number of visible segments.
@@ -56,7 +57,7 @@ let getAllSymbols (model: SheetT.Model) =
 let getSymbolsBoundingBox (model: SheetT.Model) =
     let symbols = getAllSymbols model
     symbols
-    |> List.map (fun (symS, symT, _) -> getSymBoundingBox model symS)
+    |> List.map (fun (symS, symT, _) -> getSymBoundingBox symS)
 
 /// <summary>
 /// Aligns and scales symbols based on the positions and bounding boxes of connected symbols.
@@ -64,7 +65,7 @@ let getSymbolsBoundingBox (model: SheetT.Model) =
 /// <param name="model">The sheet model containing wires and symbols.</param>
 let sheetAlignScale (model: SheetT.Model) =
     let symbols = getAllSymbols model
-    let boundingBoxes = getSymbolsBoundingBox model |> List.choose (fun bb -> bb)
+    let boundingBoxes = getSymbolsBoundingBox model |> List.choose (fun bb -> Some(bb))
 
     let rec groupInPairs list =
         match list with
@@ -74,4 +75,4 @@ let sheetAlignScale (model: SheetT.Model) =
 
     let pairsBoundingBox = groupInPairs boundingBoxes
     symbols
-    |> List.map (fun (symS, symT, _) -> changeSymbolPosition symS symT.Pos)
+    |> List.map (fun (symS, symT, _) -> updateSymPosInSheet symS.Id symT.Pos)

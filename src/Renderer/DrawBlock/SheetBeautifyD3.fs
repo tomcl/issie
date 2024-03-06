@@ -75,7 +75,7 @@ let getSymPortNamesAndPos (sym: Symbol) (isInputWL: bool) (model: SheetT.Model) 
         else sym.Component.InputPorts
     
     let portLabelAndPos (port: Port) = 
-        let portSheetPosition = portPos model port.Id
+        let portSheetPosition = SheetBeautifyHelpers.getPortPos port.Id model.Wire.Symbol
         (port.Id, portSheetPosition)
 
     ports

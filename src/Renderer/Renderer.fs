@@ -145,9 +145,15 @@ let fileMenu (dispatch) =
         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
         makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
+    let makeD1TestItem (name:string) (accelNumber:int)  =
+        makeDebugItem name (Some $"CmdOrCtrl+Alt+{accelNumber+1}") (fun _ -> // Using Cmd+Alt (or Ctrl+Alt)
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD1.testMenuFunc, accelNumber), dispatch)))
     let makeD2TestItem (name:string) (accelNumber:int)  =
-        makeDebugItem name (Some $"CmdOrCtrl+Shift+{accelNumber+1}") (fun _ -> // Using +11 to differentiate accelerator keys
+        makeDebugItem name (Some $"CmdOrCtrl+Shift+{accelNumber+1}") (fun _ ->
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.testMenuFunc, accelNumber), dispatch)))
+    let makeD3TestItem (name:string) (accelNumber:int)  =
+        makeDebugItem name (Some $"Alt+Shift+{accelNumber+1}") (fun _ -> // Using Alt+Shift
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD3.testMenuFunc, accelNumber), dispatch)))
     makeMenu false "File" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
@@ -161,10 +167,21 @@ let fileMenu (dispatch) =
             TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
             |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
-        makeMenuGen (debugLevel > 0) false "D2 Tests" ( // This adds the "D2 Tests" submenu
-            TestDrawBlockD2.testsToRunFromSheetMenu // Assuming this is the name of your function
+        // Add D1 Tests submenu
+        makeMenuGen (debugLevel > 0) false "D1 Tests" ( // This adds the "D1 Tests" submenu
+            TestDrawBlockD1.testsToRunFromSheetMenu // Assuming this is the name of your function
+            |> List.truncate 10 
+            |> List.mapi (fun n (name,_) -> (makeD1TestItem name n)))
+        // D2 Tests submenu (existing)
+        makeMenuGen (debugLevel > 0) false "D2 Tests" (
+            TestDrawBlockD2.testsToRunFromSheetMenu 
             |> List.truncate 10 
             |> List.mapi (fun n (name,_) -> (makeD2TestItem name n)))
+        // Add D3 Tests submenu
+        makeMenuGen (debugLevel > 0) false "D3 Tests" ( // This adds the "D3 Tests" submenu
+            TestDrawBlockD3.testsToRunFromSheetMenu // Assuming this is the name of your function
+            |> List.truncate 10 
+            |> List.mapi (fun n (name,_) -> (makeD3TestItem name n)))
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
         makeWinDebugItem "Trace View function" None (fun _ ->

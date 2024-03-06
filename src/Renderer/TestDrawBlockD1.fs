@@ -48,7 +48,7 @@ let rotateSymbol (rotation: Rotation) (label: string) (sheet: SheetT.Model): She
         |> List.find (fun sym -> sym.Component.Label = label)
 
     // let symCentre = getRotatedSymbolCentre symbol // If not rotated, just returns the correct centre, but accounts for rotated case.
-    let symBBox = getBlock [ symbol ] // SAM: edit for refactored rotatescale
+    let symBBox = getSymbolBoundingBox symbol // SAM: edit for refactored rotatescale
     let symId = ComponentId symbol.Component.Id
 
     let rotatedSymbol =
@@ -83,7 +83,7 @@ let flipSymbol (label: string) (flip: FlipType) (sheet: SheetT.Model): SheetT.Mo
         |> List.find (fun sym -> sym.Component.Label = label)
 
     // let symCentre = getRotatedSymbolCentre symbol // If not rotated, just returns the correct centre, but accounts for rotated case.
-    let symBBox = getBlock [ symbol ] // SAM: edit for refactored rotatescale
+    let symBBox = getSymbolBoundingBox symbol // SAM: edit for refactored rotatescale
 
     let symId = ComponentId symbol.Component.Id
 

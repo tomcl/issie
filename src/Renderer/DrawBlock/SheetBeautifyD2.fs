@@ -29,8 +29,8 @@ let rec permute list =
 
 /// Applies all permutations of gate inputs and MUX inputs and evaluate the transformations to output the best model
 let evaluateTransformations (model: Model) : Model =
-    let originalCrossings = countRightAngleCrossings model
-    let originalRightAngles = countVisibleWireRightAngles model
+    let originalCrossings = numOfWireRightAngleCrossings model
+    let originalRightAngles = numOfVisRightAngles model
 
     // Extracts gates from the model
     let gates =
@@ -63,7 +63,7 @@ let evaluateTransformations (model: Model) : Model =
         muxes
         |> List.map (fun (id, symbol) ->
             match symbol.ReversedInputPorts with
-            | Some state -> (id, Optic.set reverseInputPortsMUX2_ (not state) symbol)
+            | Some state -> (id, Optic.set reversedInputPorts_ (Some(not state)) symbol)
             | None -> failwithf "Reversed Input Ports not found for MUX %A" id)
 
     // Applies permutations and flip transformations
@@ -81,8 +81,8 @@ let evaluateTransformations (model: Model) : Model =
     let bestModel =
         models
         |> List.minBy (fun m ->
-            let crossings = countRightAngleCrossings m
-            let rightAngles = countVisibleWireRightAngles m
+            let crossings = numOfWireRightAngleCrossings m
+            let rightAngles = numOfVisRightAngles m
             if
                 crossings < originalCrossings
                 && rightAngles <= originalRightAngles
@@ -93,15 +93,15 @@ let evaluateTransformations (model: Model) : Model =
 
     bestModel
 /// Flips all MUXes on a sheet. Not implemented yet (to be used for options section)
-let sheetFlipMUX (model: Model) : Model =
-    let updatedSymbols =
-        model.Wire.Symbol.Symbols
-        |> Map.toList
-        |> List.map (fun (id, symbol) ->
-            if symbol.Component.Type = Mux2 then
-                (id, Optic.set symbolFlipState_ (not symbol.STransform.Flipped) symbol)
-            else
-                (id, symbol))
-        |> Map.ofList
-    { model with
-        Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
+// let sheetFlipMUX (model: Model) : Model =
+//     let updatedSymbols =
+//         model.Wire.Symbol.Symbols
+//         |> Map.toList
+//         |> List.map (fun (id, symbol) ->
+//             if symbol.Component.Type = Mux2 then
+//                 (id, Optic.set symbolFlipState_ (not symbol.STransform.Flipped) symbol)
+//             else
+//                 (id, symbol))
+//         |> Map.ofList
+//     { model with
+//         Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }

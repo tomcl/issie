@@ -38,23 +38,23 @@ let print x = printfn "%A" x
 /// <param name="model">The sheet model to analyze.</param>
 let printMetrics (model : SheetT.Model) : unit =
     // T1
-    let symbolPairIntersection : int = countIntersectingSymbolPairs model
+    let symbolPairIntersection : int = numOfIntersectedSymPairs model
     print ($"Number of Symbol and Symbol Intersections: {symbolPairIntersection}")
     
     // T2
-    let segmentSymbolIntersections : int = countSegmentSymbolIntersections model
+    let segmentSymbolIntersections : int = numOfIntersectSegSym model
     print ($"Number of Symbol and Wire Intersections: {segmentSymbolIntersections}")
 
     // T3
-    let wireIntersections : int = countRightAngleSegmentIntersections model
+    let wireIntersections : int = numOfWireRightAngleCrossings model
     print ($"Number of Wire Intersections: {wireIntersections}")
     
     // T4
-    let totalSegLength : int = totalSegmentLength model
+    let totalSegLength : float = calcVisWireLength model
     print ($"Total Segment Length: {totalSegLength}")
 
     // T5
-    let wireRightAngles : int = countWireRightAngles model
+    let wireRightAngles : int = numOfVisRightAngles model
     print ($"Number of Wire Right angles: {wireRightAngles}")
 
 

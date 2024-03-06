@@ -758,7 +758,10 @@ let scaleSymbol
         (xYSC: ((float*float)*(float*float)))
         (sym: Symbol)
             : Symbol =
-    scaleSymbolPos xYSC sym
+    let (xSF, xOC), (ySF, yOC) = xYSC
+    scaleSymbolPos 
+        ({ ScalingFactor = xSF; OffsetCentre = xOC }, { ScalingFactor = ySF; OffsetCentre = yOC }) 
+        sym
 
 
 (* ---------------------------------------------------------------------------------------------- *)

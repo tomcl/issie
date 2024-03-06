@@ -231,7 +231,8 @@ let findPortAlignOffset (refPInfo: PortInfo) (targetPInfo: PortInfo) : XYPos =
 (* ----------------------------------------- Info Types ----------------------------------------- *)
 
 /// <summary>Record type to note the number of connections on each edge of a symbol</summary>
-type SymConnDataT = { ConnMap: Map<ComponentId*Edge,int> }
+type SymConnData = 
+    { ConnMap: Map<ComponentId*Edge,int> }
 
 
 (* --------------------------------------- Implementation --------------------------------------- *)
@@ -338,7 +339,7 @@ let tryFindWireSymOppEdgeInfo (wModel: BusWireT.Model) (sym: Symbol) (wire: Wire
 let optimiseSym (wModel: BusWireT.Model) (bboxMap: Map<ComponentId,BoundingBox>) (sym: Symbol): BusWireT.Model =
     /// <summary>Increment counnection count for given <c>componentId</c> and <c>edge</c>.
     /// If there are no connections, value will be set to 1.</summary>
-    let incrementSymConnData (symConnData: SymConnDataT) (cId: ComponentId, edge: Edge): SymConnDataT =
+    let incrementSymConnData (symConnData: SymConnData) (cId: ComponentId, edge: Edge): SymConnData =
         let map = symConnData.ConnMap
         let count = Map.tryFind (cId, edge) map |> Option.defaultValue 0 |> (+) 1
         { ConnMap = Map.add (cId, edge) count map }
@@ -606,6 +607,15 @@ let flipBlock (compList: ComponentId list) (model: SymbolT.Model) (flip: FlipTyp
 (*                                              Scale                                             *)
 (* ---------------------------------------------------------------------------------------------- *)
 
+(* ----------------------------------------- Info Types ----------------------------------------- *)
+
+type ScalingCoeff = 
+    { ScalingFactor: float
+      OffsetCentre: float }
+
+
+(* --------------------------------------- Implementation --------------------------------------- *)
+
 /// <summary>Scales a symbol up or down in a selection box.</summary>
 /// <param name="scale"><c>ScaleUp</c> or <c>ScaleDown</c>.</param>
 /// <param name="blockBBox">Bounding box of selected components.</param>
@@ -651,9 +661,8 @@ let scaleSymInBlock (scale: ScaleType) (blockBBox: BoundingBox) (sym: Symbol): S
 /// <param name="matchMin">Min of range to scale to.</param>
 /// <param name="max">Max of original range.</param>
 /// <param name="matchMax">Max of range to scale to.</param>
-/// <returns>Tuple of coefficients, in the order of: scaling factor and offset centre.</returns>
-/// <remarks>No original docstring, educated guess used.</remarks>
-let getScalingCoeffs1D (min: float) (matchMin: float) (max: float) (matchMax: float): float*float =
+/// <returns>Scaling coefficients, of type <c>ScalingCoeff</c>.</returns>
+let getScalingCoeffs1D (min: float) (matchMin: float) (max: float) (matchMax: float): ScalingCoeff =
     let scaleFact =
         if min = max || matchMax <= matchMin
         then 1.
@@ -663,19 +672,17 @@ let getScalingCoeffs1D (min: float) (matchMin: float) (max: float) (matchMax: fl
         if scaleFact = 1. then 0.
         else (matchMin - min * scaleFact) / (1.-scaleFact)
 
-    (scaleFact, offsetCentre)
+    { ScalingFactor = scaleFact; OffsetCentre = offsetCentre }
 
 /// <summary>Return set of floats that define how a group of components is scaled.</summary>
 /// <param name="matchBBoxMin">Min corner of bounding box to scale to.</param>
 /// <param name="matchBBoxMax">Max corner of bounding box to scale to.</param>
-/// <returns>Tuple of tuple of scaling coefficients, in the order of x-dimension scaling factor and offset centre,
-/// and then the y-dimension.</returns>
-/// <remarks>Original docstring not complete, educated guess used for params.</remarks>
+/// <returns>Tuple of <c>ScalingCoeff</c>, in the order of x-dimension and then the y-dimension.</returns>
 let getScalingCoeffsGroup
         (matchBBoxMin: XYPos)
         (matchBBoxMax: XYPos)
         (selectedSyms: List<Symbol>)
-            : ((float*float)*(float*float)) =
+            : (ScalingCoeff*ScalingCoeff) =
 
     let maxXSym, minXSym, maxYSym, minYSym =
         getMaxMinSymInBlock2D selectedSyms
@@ -697,17 +704,17 @@ let getScalingCoeffsGroup
     (xScalingCoeffs, yScalingCoeffs)
 
 /// <summary>Alter the position of a symbol as needed in a scaling operation.</summary>
-/// <param name="xyScalingCoeffs">Scaling coefficients, in the form of the output of <c>getScalingCoeffsGroup</c>.</param>
+/// <param name="xyScalingCoeffs">Scaling coefficients, in the form of a tuple of <c>ScalingCoeff</c>,.</param>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Updated symbol its position is updated.</returns>
 /// <remarks>Original docstring not complete, educated guess used for params.</remarks>
-let scaleSymbolPos (xyScalingCoeffs: (float*float)*(float*float)) (sym: Symbol): Symbol =
+let scaleSymbolPos (xyScalingCoeffs: ScalingCoeff*ScalingCoeff) (sym: Symbol): Symbol =
     let symCentre = getRotatedSymbolCentre sym
     let xScalingCoeffs, yScalingCoeffs = xyScalingCoeffs
 
     /// <summary>Helper function to update coordinate based on scaling coefficients.</summary>
-    let translateFunc (scalingCoeff: float*float) (coordinate: float): float =
-        let scaleFact, offsetCentre = scalingCoeff
+    let translateFunc (scalingCoeff: ScalingCoeff) (coordinate: float): float =
+        let scaleFact, offsetCentre = scalingCoeff.ScalingFactor, scalingCoeff.OffsetCentre
         (coordinate - offsetCentre) * scaleFact + offsetCentre
 
     let newX = translateFunc xScalingCoeffs symCentre.X
@@ -737,7 +744,8 @@ let getScalingFactorAndOffsetCentreGroup
         (matchBBMax: XYPos)
         (selectedSyms: List<Symbol>)
             : ((float*float)*(float*float)) =
-    getScalingCoeffsGroup matchBBMin matchBBMax selectedSyms
+    let xScalingCoeff, yScalingCoeff = getScalingCoeffsGroup matchBBMin matchBBMax selectedSyms
+    (xScalingCoeff.ScalingFactor, xScalingCoeff.OffsetCentre), (yScalingCoeff.ScalingFactor, yScalingCoeff.OffsetCentre)
 
 /// <summary>[Deprecated] Alter the position of a symbol as needed in a scaling operation.
 /// Use <c>scaleSymbolPos</c> instead.</summary>

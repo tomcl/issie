@@ -153,7 +153,7 @@ The test of label placement and removal is splitted into three steps: A test dri
     - Show T3 tests in issie file menu
     - Basic assert functions (case 1 & 2)
 
-- Mar 5th
+- Mar 6th
     - Basic assert functions (case 3)
     - Documentation of assertion function 
     - [ ] TODO: assertion function case 4

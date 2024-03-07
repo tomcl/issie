@@ -34,245 +34,18 @@ open Helpers
 open BlockHelpers
 open ModelType
 open Sheet.SheetInterface
+open Symbol
+open SymbolUpdate
+open SymbolResizeHelpers
+open BusWidthInferer
+open BusWireSeparate
+open RotateScale
+open CanvasStateAnalyser
 
 /// constants used by SheetBeautify
 module Constants = 
     // () // dummy to make skeleton type check - remove when other content exists
-    let wireLabelThreshold = 100 
-
-// Copied from TestDrawBlock.fs
-/// 1. Types to represent tests with (possibly) random data, and results from tests; 
-/// 2. Helper functions to manipulate sheet and component data; 
-module TestLib =
-
-    /// convenience unsafe function to extract Ok part of Result or fail if value is Error
-    let getOkOrFail (res: Result<'a,string>) =
-        match res with
-        | Ok x -> x
-        | Error mess ->
-            failwithf "%s" mess
-
-
-    type TestStatus =
-            | Fail of string
-            | Exception of string
-
-    type Test<'a> = {
-        Name: string
-        Samples: Gen<'a>
-        StartFrom: int
-        /// The 1st argument is the test number: allows assertions that fail on a specific sample
-        /// to display just one sample.
-        /// The return value is None if test passes, or Some message if it fails.
-        Assertion: int -> 'a -> string option
-        }
-
-    type TestResult<'a> = {
-        TestName: string
-        TestData: Gen<'a>
-        FirstSampleTested: int
-        TestErrors: (int * TestStatus) list
-    }
-
-    let catchException name func arg =
-        try
-            Ok (func arg)
-        with
-            | e ->
-                Error ($"Exception when running {name}\n" + e.StackTrace)
-            
-    /// Run the Test samples from 0 up to test.Size - 1.
-    /// The return list contains all failures or exceptions: empty list => everything has passed.
-    /// This will always run to completion: use truncate if text.Samples.Size is too large.
-    let runTests (test: Test<'a>) : TestResult<'a>  =
-        [test.StartFrom..test.Samples.Size - 1]
-        |> List.map (fun n ->
-                catchException $"generating test {n} from {test.Name}" test.Samples.Data n
-                |> (fun res -> n,res)
-           )           
-        |> List.collect (function
-                            | n, Error mess -> [n, Exception mess]
-                            | n, Ok sample ->
-                                match catchException $"'test.Assertion' on test {n} from 'runTests'" (test.Assertion n) sample with
-                                | Ok None -> []
-                                | Ok (Some failure) -> [n,Fail failure]
-                                | Error (mess) -> [n,Exception mess])
-        |> (fun resL ->                
-                {
-                    TestName = test.Name
-                    FirstSampleTested = test.StartFrom
-                    TestData = test.Samples
-                    TestErrors =  resL
-                })
-
-    /// create an initial empty Sheet Model 
-    let initSheetModel = DiagramMainView.init().Sheet
-
-    /// Optic to access SheetT.Model from Issie Model
-    let sheetModel_ = sheet_
-
-    /// Optic to access BusWireT.Model from SheetT.Model
-    let busWireModel_ = SheetT.wire_
-
-    /// Optic to access SymbolT.Model from SheetT.Model
-    let symbolModel_ = SheetT.symbol_
-
-    /// allowed max X or y coord of svg canvas
-    let maxSheetCoord = Sheet.Constants.defaultCanvasSize
-    let middleOfSheet = {X=maxSheetCoord/2.;Y=maxSheetCoord/2.}
-
-    /// Used throughout to compare labels since these are case invariant "g1" = "G1"
-    let caseInvariantEqual str1 str2 =
-        String.toUpper str1 = String.toUpper str2
- 
-
-    /// Identify a port from its component label and number.
-    /// Usually both an input and output port will mathc this, so
-    /// the port is only unique if it is known to be input or output.
-    /// used to specify the ends of wires, since tehee are known to be
-    /// connected to outputs (source) or inputs (target).
-    type SymbolPort = { Label: string; PortNumber: int }
-
-    /// convenience function to make SymbolPorts
-    let portOf (label:string) (number: int) =
-        {Label=label; PortNumber = number}
-
-
-    //-----------------------------------------------------------------------------------------------
-    // visibleSegments is included here as ahelper for info, and because it is needed in project work
-    //-----------------------------------------------------------------------------------------------
-
-    /// The visible segments of a wire, as a list of vectors, from source end to target end.
-    /// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
-    /// which if present causes the two segments on either side of it to coalesce into a single visible segment.
-    /// A wire can have any number of visible segments - even 1.
-    let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
-
-        let wire = model.Wire.Wires[wId] // get wire from model
-
-        /// helper to match even and off integers in patterns (active pattern)
-        let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
-
-        /// Convert seg into its XY Vector (from start to end of segment).
-        /// index must be the index of seg in its containing wire.
-        let getSegmentVector (index:int) (seg: BusWireT.Segment) =
-            // The implicit horizontal or vertical direction  of a segment is determined by 
-            // its index in the list of wire segments and the wire initial direction
-            match index, wire.InitialOrientation with
-            | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
-            | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
-
-        /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-        /// if this is possible, otherwise return segVecs unchanged.
-        /// Index must be in range 1..segVecs
-        let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-            if segVecs[index] =~ XYPos.zero
-            then
-                segVecs[0..index-2] @
-                [segVecs[index-1] + segVecs[index+1]] @
-                segVecs[index+2..segVecs.Length - 1]
-            else
-                segVecs
-
-        wire.Segments
-        |> List.mapi getSegmentVector
-        |> (fun segVecs ->
-                (segVecs,[1..segVecs.Length-2])
-                ||> List.fold tryCoalesceAboutIndex)
-
-    module Builder =
-
-        /// Place a new symbol with label symLabel onto the Sheet with given position.
-        /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
-        /// To be safe place components close to (maxSheetCoord/2.0, maxSheetCoord/2.0).
-        /// symLabel - the component label, will be uppercased to make a standard label name
-        /// compType - the type of the component
-        /// position - the top-left corner of the symbol outline.
-        /// model - the Sheet model into which the new symbol is added.
-        let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (model: SheetT.Model) : Result<SheetT.Model, string> =
-            let symLabel = String.toUpper symLabel // make label into its standard casing
-            let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
-            let sym = symModel.Symbols[symId]
-            match position + sym.getScaledDiagonal with
-            | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
-                Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
-            | _ ->
-                model
-                |> Optic.set symbolModel_ symModel
-                |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
-                |> Ok
-    
-        /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
-        /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
-        /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
-        let placeCustomSymbol
-                (symLabel: string)
-                (ccSheetName: string)
-                (project: Project)
-                (scale: XYPos)
-                (position: XYPos)
-                (model: SheetT.Model)
-                    : Result<SheetT.Model, string> =
-           let symbolMap = model.Wire.Symbol.Symbols
-           if caseInvariantEqual ccSheetName project.OpenFileName then
-                Error "Can't create custom component with name same as current opened sheet"        
-            elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
-                Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
-            elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
-                Error "Can't create custom component with duplicate Label"
-            else
-                let canvas = model.GetCanvasState()
-                let ccType: CustomComponentType =
-                    {
-                        Name = ccSheetName
-                        InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
-                        OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
-                        Form = None
-                        Description = None
-                    }
-                placeSymbol symLabel (Custom ccType) position model
-
-        /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
-        /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
-        /// The wire created will be smart routed but not separated from other wires: for a nice schematic
-        /// separateAllWires should be run after  all wires are added.
-        /// source, target: respectively the output port and input port to which the wire connects.
-        let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : Result<SheetT.Model,string> =
-            let symbols = model.Wire.Symbol.Symbols
-            let getPortId (portType:PortType) symPort =
-                mapValues symbols
-                |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symPort.Label)
-                |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
-                |> Result.bind (fun sym ->
-                    match portType with
-                    | PortType.Input -> List.tryItem symPort.PortNumber sym.Component.InputPorts
-                    | PortType.Output -> List.tryItem symPort.PortNumber sym.Component.OutputPorts
-                    |> function | Some port -> Ok port.Id
-                                | None -> Error $"Can't find {portType} port {symPort.PortNumber} on component {symPort.Label}")
-            
-            match getPortId PortType.Input target, getPortId PortType.Output source with
-            | Error e, _ | _, Error e -> Error e
-            | Ok inPort, Ok outPort ->
-                let newWire = BusWireUpdate.makeNewWire (InputPortId inPort) (OutputPortId outPort) model.Wire
-                if model.Wire.Wires |> Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) then
-                        // wire already exists
-                        Error "Can't create wire from {source} to {target} because a wire already exists between those ports"
-                else
-                     model
-                     |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
-                     |> Ok
-
-        /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
-        let separateAllWires (model: SheetT.Model) : SheetT.Model =
-            model
-            |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
-
-        /// Copy testModel into the main Issie Sheet making its contents visible
-        let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
-            let sheetDispatch sMsg = dispatch (Sheet sMsg)
-            dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
-            sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
-
+    let wireLabelThreshold = 100.0 
 
 // ------------------------------------ Team work ------------------------------------------
 (* 
@@ -280,14 +53,35 @@ module TestLib =
     See https://github.com/dyu18/hlp24-project-issie-team7/tree/indiv-az1821/README-Indiv-notes.md for more documentation. 
 *)
 
-// dummy function to be tested (to avoid error for now)
+/// dummy function to be tested (to avoid error for now)
 let sheetWireLabelSymbol (model : SheetT.Model) = 
     Ok (model) // returns the same model, no change in labels
 
 module T3 =
-    open TestLib
-    open TestLib.Builder
-    open Constants
+    open TestDrawBlock.TestLib
+    open TestDrawBlock.HLPTick3
+    open TestDrawBlock.HLPTick3.Asserts
+    open TestDrawBlock.HLPTick3.Builder
+    open TestDrawBlock.HLPTick3.Tests
+
+    // More helper functions
+    let getWireAndPort (sym : Symbol) (model : SheetT.Model) =
+        let portOption =
+            mapValues model.Wire.Symbol.Ports
+            |> List.tryFind (fun port -> port.HostId = sym.Component.Id) // Get ports on the wire label
+        match portOption with
+        | Some port ->
+            let wireOption =
+                mapValues model.Wire.Wires
+                |> List.tryFind (fun wire -> wire.OutputPort = OutputPortId port.Id || wire.InputPort = InputPortId port.Id)
+            match wireOption with
+            | Some wire -> Some (sym, wire, port.Id)
+            | None -> None
+        | None -> None
+
+    /// Simply count number of wire/labels
+    let countPorts (model: SheetT.Model) =
+        model.Wire.Wires |> Map.count
 
     // -------------------------- Test data generation -------------------------------------------
 
@@ -307,7 +101,8 @@ module T3 =
 
     // ------------------------------------ Assertions -----------------------------------------
     /// Assert functions to use for the testing of D3 task
-    /// 0. The dataset used in this test must pass all the assertion in TestDrawBlocks.fs 
+    /// The dataset used in this test must pass all the assertion in TestDrawBlocks.fs 
+    /// 0. No port is connected to more than 1 label
     /// 1. Wire label placement when wire lengths > threshold.
     /// 2. Wire label removal when wire lengths < threshold.
     /// 3. Wire label correct connection between component ports. 
@@ -325,50 +120,68 @@ module T3 =
         let failOnAllTests (sample: int) _ =
             Some $"Sample {sample}"
 
-        /// 0. simply count number of wire/labels
-        let failOnWireLabels (sample: int) (model: SheetT.Model) =
-            let originalWireCount = Map.countBy (fun _ wire -> wire |> WireT.wireOf).Wires
-            let updatedmodel = sheetWireLabelSymbol model 
-            let updatedWireCount = Map.countBy (fun _ wire -> wire |> WireT.wireOf).Wires
+        /// 0. Each port has no more than 1 label
+        ///    and if it has a label, no wire is connected to it
+        ///   (for now this is abandoned, could be changed later)
+        let failOnWireLabels (model : SheetT.Model) =
+            let portLabelCounts =
+                model.Wire.Symbol.Ports
+                |> Map.toList
+                |> List.map (fun (_, port) ->
+                    let labelCount =
+                        model.Wire.Symbol.Symbols
+                        |> Map.filter (fun _ sym -> sym.Component.Type = IOLabel)
+                        |> Map.filter (fun _ sym ->
+                            match getWireAndPort sym model with
+                            | Some (_, _, portId) -> portId = port.Id
+                            | None -> false)
+                        |> Map.count
+                    port.Id, labelCount)
 
-            if originalWireCount <> updatedWireCount then
-                Some $"Wire labels were not added or removed correctly in Sample {sample}."
+            let failedPorts =
+                portLabelCounts
+                |> List.filter (fun (_, countLabel) -> countLabel > 1)
+
+            if List.isEmpty failedPorts then
+                printfn "Each port has at most 1 label and no wire connected to it."
             else
-                None
+                printfn "The following ports violate the constraint of having at most 1 label and no wire connected to it:"
+                for portId, countLabel in failedPorts do
+                    printfn "Port: %s, Label Count: %d" portId countLabel
 
-        /// 1. check wire -> label placement
-        let failOnLabelNotPlaced (sample: int) (model: SheetT.Model) =
-            let wireLabels = Map.toSeq model.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type = IOLabel)
-            
-            let misplacedLabels =
-                wireLabels
-                |> Seq.filter (fun (_, label) ->
-                    let wireLength = getWireLength label
-                    let expectedPlacement = if wireLength > wireLabelThreshold then WireLabelPlacement.InPlace else WireLabelPlacement.Removed
-                    match expectedPlacement with
-                    | WireLabelPlacement.InPlace -> label.Pos = expectedPositionForLabel label
-                    | WireLabelPlacement.Removed -> not (Map.exists (fun _ wire -> wire.Label = label.Component.Label) sheet.Wire.Wires)
-                )
-            match Seq.isEmpty misplacedLabels with
-            | true -> None
-            | false -> Some $"Wire labels are misplaced in Sample {sample}."
+        /// 1. Check wire -> label placement
+        let failOnLabelNotPlaced (model: SheetT.Model) =
+            let wiresAboveThreshold =
+                mapValues model.Wire.Wires
+                |> List.filter (fun wire -> getWireLength wire >= Constants.wireLabelThreshold)
 
-        /// 2. check label -> wire removal
-        let failOnLabelNotRemoved (sample: int) (model: SheetT.Model) =
-            let wireLabels = Map.toSeq model.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type = IOLabel)
-            
-            let removedLabels =
-                wireLabels
-                |> Seq.filter (fun (_, label) ->
-                    let wireLength = getWireLength label
-                    wireLength <= wireLabelThreshold && not (Map.exists (fun _ wire -> wire.Label = label.Component.Label) sheet.Wire.Wires)
-                )
-            match Seq.isEmpty removedLabels with
-            | true -> None
-            | false -> Some $"Wire labels are not removed correctly in Sample {sample}."
+            if List.isEmpty wiresAboveThreshold then
+                printfn "All wires above threshold have been replaced by labels."
+            else
+                printfn "The following wires are still above the threshold length and haven't been replaced by labels:"
+                for wire in wiresAboveThreshold do
+                    printfn "Wire: %A, Length: %f" wire.WId (getWireLength wire)
 
-        /// whether wire labels are named correctly based on component and port names
-        let assertWireLabelNaming (sample: int) (model: SheetT.Model) =
+        /// 2. Check label -> wire removal
+        let failOnLabelNotRemoved (model: SheetT.Model) =
+            let labelsWithWires =
+                mapValues model.Wire.Symbol.Symbols
+                |> List.filter (fun sym -> sym.Component.Type = IOLabel)
+                |> List.filter (fun sym ->
+                    match getWireAndPort sym model with
+                    | Some (_, wire, _) -> getWireLength wire < Constants.wireLabelThreshold
+                    | None -> false)
+
+            if List.isEmpty labelsWithWires then
+                printfn "All labels corresponding to wires below threshold length have been removed."
+            else
+                printfn "The following labels still correspond to wires below the threshold length and haven't been removed:"
+                for sym in labelsWithWires do
+                    printfn "Label: %s" sym.Component.Label
+
+        /// 3. Check port are connected correctly
+        /// (the model should be the same before and after sheet beautify)
+        let failOnWrongConnection (model : SheetT.Model) = 
             failwithf "Not Implemented"
 
         // /// whether wire labels are correctly positioned to avoid overlaps with symbols
@@ -387,6 +200,22 @@ module T3 =
     // ----------------------------------- Test driver -----------------------------------
     /// this is a similar test menu as tick 3
     module Tests = 
+
+        let testWireToLabel testNum firstSample dispatch = 
+            // runTestOnSheets
+            //     "Test sheetWireLabelSymbol function"
+            //     firstSample
+            //     sampleSheet // Replace sampleSheet with actual sheet
+            //     sheetWireLabelSymbol 
+            //     Asserts.failOnWireLabels
+            //     dispatch
+            // |> recordPositionInTest testNum dispatch
+            failwithf "Not Implemented"
+
+        // let testLabelToWire = 
+        //     failwithf "Not Implemented"
+
+
         let testSheetWireLabelSymbol testNum firstSample dispatch = 
             // runTestOnSheets
             //     "Test sheetWireLabelSymbol function"
@@ -398,10 +227,12 @@ module T3 =
             // |> recordPositionInTest testNum dispatch
             failwithf "Not Implemented"
 
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> unit)) list =
+        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             [
-                "SheetWireLabelSymbolTest", testSheetWireLabelSymbol
-                // more test cases can be added here
+                "test 0 : No port connected to more than 1 label", testWireToLabel
+                "test 1 : Wire to label", testWireToLabel
+                // "test 2 : Label to wire", testLabelToWire
+                "(Dummy Test : SheetWireLabelSymbol)", testSheetWireLabelSymbol
             ]
 
         /// Display the next error in a previously started test

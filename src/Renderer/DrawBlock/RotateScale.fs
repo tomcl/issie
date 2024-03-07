@@ -349,8 +349,7 @@ let optimiseSym (wModel: BusWireT.Model) (bboxMap: Map<ComponentId,BoundingBox>)
         |> Map.values
         |> List.ofSeq
         |> List.map (tryFindWireSymOppEdgeInfo wModel sym)
-        |> List.filter Option.isSome
-        |> List.map Option.get
+        |> List.choose id
         |> List.fold incrementSymConnData { ConnMap = Map.empty }
 
     // TODO:
@@ -554,8 +553,8 @@ let flipSymInBlock (flip: FlipType) (blockBBox: BoundingBox) (sym: Symbol): Symb
 
     let newPortOrder =
         sym.PortMaps.Order
-        |> Map.toList
-        |> List.map (fun (side, _) -> side) // get all sides
+        |> Map.keys
+        |> List.ofSeq
         |> List.fold
             (fun currPortOrder side -> Map.add (flipSideHorizontal side) sym.PortMaps.Order[side] currPortOrder)
             Map.empty

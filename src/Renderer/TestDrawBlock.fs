@@ -235,13 +235,33 @@ module HLPTick3 =
             
         
 
-        // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+        /// Finds the componentID of a symbol with symLabel
+        /// returns symbolMap and componentID
+        let getSymbolMapCopmonentId symLabel (model:SheetT.Model) =
+            let symbolMap = model.Wire.Symbol.Symbols
+            let componentID = Map.findKey (fun _ (sym: SymbolT.Symbol) -> sym.Component.Label = symLabel) symbolMap
+            (symbolMap, componentID)
 
-        // Flip a symbol
+        /// updates model with symbol and reroutes wires
+        let updatedModel componentID symModel model =
+            let newModel =
+                model
+                |> Optic.set (SheetT.symbolOf_ componentID) symModel
+                |> SheetUpdateHelpers.updateBoundingBoxes
+            let reroutedWires = BusWireSeparate.routeAndSeparateSymbolWires newModel.Wire componentID
+            {newModel with Wire = reroutedWires}
+
+        /// Rotate a symbol given its label
+        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+            let symbolMap, componentID = getSymbolMapCopmonentId symLabel model
+            let symModel = SymbolResizeHelpers.rotateAntiClockByAng rotate symbolMap[componentID]
+            updatedModel componentID symModel model
+
+        /// Flip a symbol given its label
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+            let symbolMap, componentID = getSymbolMapCopmonentId symLabel model
+            let symModel = SymbolResizeHelpers.flipSymbol flip symbolMap[componentID]
+            updatedModel componentID symModel model
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.

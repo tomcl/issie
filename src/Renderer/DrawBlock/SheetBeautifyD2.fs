@@ -1,6 +1,15 @@
 module SheetBeautifyD2
 
+open CommonTypes
+open Helpers
+open Optics
+open Operators
+open BlockHelpers
 
+open DrawModelType
+open DrawModelType.SymbolT
+open DrawModelType.BusWireT
+open DrawModelType.SheetT
 
 //--------------------------------------------------------------------------------------//
 //                               Helper Functions for D2                                //

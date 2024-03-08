@@ -71,7 +71,6 @@
     <Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
     <Compile Include="DrawBlock\BusWireRoutingHelpers.fs" />
     <Compile Include="DrawBlock\BusWireRoute.fs" />
-    <Compile Include="DrawBlock\BeautifySheetHelpers.fs" />
     <Compile Include="DrawBlock\BeautifySheetD1.fs" />
     <Compile Include="DrawBlock\BusWireSeparate.fs" />
     <Compile Include="DrawBlock\BusWireUpdate.fs" />
@@ -81,6 +80,7 @@
     <Compile Include="DrawBlock\SheetDisplay.fs" />
     <Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
+    <Compile Include="DrawBlock\SheetBeautifyHelpers.fs" />
     <Compile Include="DrawBlock\SheetBeautifyD1.fs" />
     <Compile Include="DrawBlock\SheetBeautifyD2.fs" />
     <Compile Include="DrawBlock\SheetBeautifyD3.fs" />

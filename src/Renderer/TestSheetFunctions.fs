@@ -11,7 +11,7 @@ open CommonTypes
 open ModelType
 open DrawModelType
 open Sheet.SheetInterface
-open BeautifySheetHelpers
+open SheetBeautifyHelpers
 open Fable.Core
 
 [<Emit("console.log('%c' + $0, 'font-weight: bold; color: blue;')")>]

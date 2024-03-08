@@ -19,7 +19,6 @@ open FSharp.Core
 open Fable.Core.JsInterop
 open BuildUartHelpers
 open Node
-open BeautifySheetHelpers
 
 module node = Node.Api
 

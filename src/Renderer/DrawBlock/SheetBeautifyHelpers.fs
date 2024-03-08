@@ -308,23 +308,17 @@ let setSymbolRotation (sym: Symbol) (newRot: Rotation) : Symbol =
 /// <returns>The flip state of the symbol as bool.</returns>
 let getSymbolFlip (sym: Symbol) : bool = sym.STransform.flipped
 
-/// <summary> B8W: Write the flip state of a symbol </summary>
-/// <param name="sym">The symbol to set the flip state of.</param>
-/// <param name="newFlip">The new flip state of the symbol.</param>
-/// <returns>The symbol with the new flip state set.</returns>
-let setSymbolFlip (sym: Symbol) (newFlip: bool) : Symbol =
-    let sTransform = sym.STransform
-    let newSTransform = { sTransform with flipped = newFlip }
-    { sym with STransform = newSTransform }
-
 /// <summary> B8W: Alternative to B8W </summary>
 /// <param name="flip">The new flip state of the symbol.</param>
 /// <param name="sym">The symbol to set the flip state of.</param>
 /// <returns>The symbol with the new flip state set.</returns>
 let setSymbolFlip (flip: bool) (sym: Symbol) : Symbol =
-    match sym.STransform.Rotation with
-    | Degree0 | Degree180 -> SymbolResizeHelpers.flipSymbol FlipHorizontal sym
-    | Degree90 | Degree270 -> SymbolResizeHelpers.flipSymbol FlipVertical sym
+    match flip with
+    | true ->
+        match sym.STransform.Rotation with
+        | Degree0 | Degree180 -> SymbolResizeHelpers.flipSymbol FlipHorizontal sym
+        | Degree90 | Degree270 -> SymbolResizeHelpers.flipSymbol FlipVertical sym
+    | false -> sym
 
 // --------------------------------------------------- //
 //                     T1R Function                    //

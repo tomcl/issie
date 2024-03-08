@@ -39,6 +39,12 @@ type MinMax =
     | Min
     | Max
 
+// Helper function to calculate port gap based on the side.
+let calculatePortGap side h w portDimension gap topBottomGap =
+    match side with
+    | Left | Right -> float h / (portDimension + 2.0 * gap)
+    | Bottom | Top -> float w / (portDimension + 2.0 * topBottomGap)
+
 /// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
 /// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
 let makePortInfo (sym: Symbol) (port: Port) =
@@ -49,23 +55,20 @@ let makePortInfo (sym: Symbol) (port: Port) =
     let portDimension = float ports.Length - 1.0
     let h, w = getRotatedHAndW sym
 
-    let portGap =
-        match side with
-        | Left
-        | Right -> float h / (portDimension + 2.0 * gap)
-        | Bottom
-        | Top -> float w / (portDimension + 2.0 * topBottomGap)
+    let portGap = calculatePortGap side h w portDimension gap topBottomGap
 
-    { port = port
-      sym = sym
-      side = side
-      ports = ports
-      gap = gap
-      topBottomGap = topBottomGap
-      portDimension = portDimension
-      h = h
-      w = w
-      portGap = portGap }
+    {
+        port = port
+        sym = sym
+        side = side
+        ports = ports
+        gap = gap
+        topBottomGap = topBottomGap
+        portDimension = portDimension
+        h = h
+        w = w
+        portGap = portGap
+    }
 
 let getPortAB wModel wireSyms =
     let ports = portsOfWires wModel [ wireSyms.Wire ]
@@ -97,19 +100,26 @@ let getOppEdgePortInfo
               SymB = otherSymbol
               Wire = w })
 
+///Helper function to calculate real position of port on a Symbol
+///Adds the position of the port relative to symbol's original position
+let calculatePortRealPos (pInfo: PortInfo) =
+    getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
+
+///Helper function to calculate offset between two port positions
+let calculateOffset (otherPortPos: XYPos) (movePortPos: XYPos) =
+    { X = otherPortPos.X - movePortPos.X; Y = otherPortPos.Y - movePortPos.Y }
+
+///Helper function to determine direction of the offset based on side of symbol where port is located
+let determineOffsetDirection (side: Edge) (posDiff: XYPos) =
+    match side with
+    | Top | Bottom -> { X = posDiff.X; Y = 0.0 }
+    | Left | Right -> { X = 0.0; Y = posDiff.Y }
+
+///calculates the offset needed to move the moving port to align it with the other port
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
-    let getPortRealPos pInfo =
-        getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
-
-    let movePortPos = getPortRealPos movePInfo
-    let otherPortPos = getPortRealPos otherPInfo
-    let posDiff = otherPortPos - movePortPos
-
-    match movePInfo.side with
-    | Top
-    | Bottom -> { X = posDiff.X; Y = 0.0 }
-    | Left
-    | Right -> { X = 0.0; Y = posDiff.Y }
+    calculatePortRealPos movePInfo
+    |> calculateOffset (calculatePortRealPos otherPInfo)
+    |> determineOffsetDirection movePInfo.side
 
 let alignSymbols
     (wModel: BusWireT.Model)

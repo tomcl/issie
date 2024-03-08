@@ -1,4 +1,4 @@
-module BeautifySheetD1
+module SheetBeautifyD1
 
 open DrawModelType
 open CommonTypes

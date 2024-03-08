@@ -127,37 +127,3 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
     let currCross = countVisibleSegsPerpendicularCrossings model
     let (_, _, optimModel) = List.fold testSymbolFlip (currBends, currCross, model) muxSyms
     optimModel
-
-//--------------------------------------------------------------------------------------//
-//                               Helper Functions for D3                                //
-//--------------------------------------------------------------------------------------//
-
-// Returns the wire along with its length in a tuple
-let getWireLength (wire: Wire) : Wire * float =
-    wire, List.fold (fun sum seg -> sum + seg.Length) 0.0 wire.Segments
-
-// Get all the source ports of the wires in the list
-let getPortId (wireList: Wire list) : OutputPortId list =
-    List.map (fun wire -> wire.OutputPort) wireList
-
-//--------------------------------------------------------------------------------------//
-//                                D3 Partially Completed                                //
-//--------------------------------------------------------------------------------------//
-
-// Very initial start to D3, currently filters wires on a sheet into long and short wires
-
-// TODOS:
-// - Find a way of replacing longWires with labels (e.g using AddNotConnected).
-// - Figure out where to position the label.
-// - What names to give each label.
-let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
-    let wires = getAllWires model
-    let wireLengths = List.map getWireLength wires
-    let longWires = wireLengths 
-                    |> List.filter (fun (_, length) -> length > 500.0)  // Some threshold e.g 500
-                    |> List.map fst // Remove the length from snd as Wire list is now filtered
-    let sourcePortIds = getPortId longWires
-    model
-
-let test = [1; 2; 3; 4; 5; 6; 7; 8]
-let test2 = List.splitAt 2 test

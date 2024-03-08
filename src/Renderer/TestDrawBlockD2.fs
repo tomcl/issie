@@ -88,7 +88,7 @@ let flipSymbol (symLabel: string) (orientation: FlipType) (model : SheetT.Model)
 
 // Placeholder for actual implementation
 let beautify (model : SheetT.Model) : SheetT.Model = 
-    evaluateTransformations model
+    findBestModel model
 
 /// <summary> Beautifies the given sheet within the model then updates and displays the new sheet. Prints metrics before and after changes. </summary>
 /// <param name="model">The model containing the sheet to be beautified.</param>
@@ -148,8 +148,8 @@ let makeCircuit1 (symFlips : FlipType*FlipType*FlipType) =
         |> Result.bind (placeSymbol "S1" (Input1(1, Some 1)) input1PosCircuit1)
         |> Result.bind (placeSymbol "S2" (Input1(1, Some 1)) input2PosCircuit1)
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 0))
-        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 1))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0))
         |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
         |> getOkOrFail

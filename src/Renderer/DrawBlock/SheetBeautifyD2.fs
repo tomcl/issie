@@ -11,6 +11,11 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open DrawModelType.SheetT
 
+open SheetBeautifyHelpers
+
+/// Optic to access SymbolT.Model from SheetT.Model
+let symbolModel_ = SheetT.symbol_
+
 //--------------------------------------------------------------------------------------//
 //                               Helper Functions for D2                                //
 //--------------------------------------------------------------------------------------//
@@ -65,7 +70,7 @@ let rotationallySortCustomSymPorts (model: SheetT.Model) (sym: Symbol) : Symbol 
     
     let applyPorts ((newSym, sortedPorts): Symbol * string list) ((edge, amount): Edge * int) =
         let front, back = List.splitAt amount sortedPorts
-        (setPortsAtSymEdge front newSym edge), back
+        (setPortMapsOrder newSym edge front), back
 
     let sortedPorts = model 
                       |> getAllWires // Get all Wires on the sheet

@@ -16,6 +16,52 @@ open SymbolResizeHelpers
     It requires better documentation of teh pasrts now used.
 *)
 
+(*ra2520
+Most significant improvements:
+1. Created a new helper function transformBlock that performs the general operations for both rotateBlock
+   and flipBlock, improving code reuse and (possibly?) making future extensions easier.
+2. Used transformSelectedSymbols (an alias for groupNewSelectedSymsModel) as the basis of transformBlock,
+   reusing this functionality in a way that was not taken advantage of before.
+3. Restructured scaleSymbol to improve functional abstraction and allow the use of more pipelines (and fewer
+   let statements), making the flow of data clearer.
+Honourable mention: input-wrapped xYSC into an anonymous record using pattern matching (3 transforms in 1!).
+Note: I moved rotateBlock to my section (although it's not technically assigned to me) so it could take
+advantage of my new helper function, transformBlock.
+Transformation 1:
+- Changed function boundaries in scaleSymbol to allow use of pipelining, break more problems into subproblems
+  along meaningful boundaries e.g. 2D as an extension of 1D.
+- Created global helper function transformBlock that does most of the work of both rotateBlock and flipBlock.
+- Created local helper function removeOldScalingBoxCmd in postUpdateScalingBox to reduce repeated code.
+- Used input wrapping to convert the nested tuple in scaleSymbol to an anonymous record, with meaningful
+  field names to make later code more readable.
+Transformation 2:
+- Put model last in transformSelectedSymbols and transformBlock for easier currying (model is likely to be
+  changed most often e.g. in pipeline). Note I was quite limited in what I could do as most of my assigned
+  functions are top-level functions.
+- Made block the first parameter of modifySymbolFunc in transformBlock to allow for currying - the curried
+  function can be directly passed to transformSelectedSymbols.
+Transformation 3:
+- Reorganised scaleSymbol to allow the use of a pipeline to make newTopLeftPos, with an anonymous function
+  at the end to reduce unnecessary let statements.
+- Used pipelining throughout transformSelectedSymbols, and particularly to generate the new selected symbol
+  map.
+- Although there were opportunities to make pipelines longer in places, I deliberately separated them along
+  meaningful boundaries.
+Transformation 4:
+- Used an anonymous record for input wrapping of xYSC in scaleSymbol, as fields can be given meaningful names
+  and it makes sense to group the paramters together. Anonymous record was used as these parameters are only
+  used once.
+Transformation 5:
+- Used pattern matching to extract and name the relevant elements of the input tuple of scaleSymbol, putting
+  them into an anonymous record (better than using fst/snd many times).
+Additional discussion (can be skipped):
+- I have evaluated postUpdateScalingBox's implementation of its required control flow as being optimal.
+  Using an if/else statement handles the inquality better than a match statement. Also, I considered condensing
+  the nested control flow into a single match statement - however, for the second match statement in the code,
+  both cases use newBoxBound (an example of transformation 1 - match case compression), and condensing
+  everything into a single match statement would lose this.
+*)
+
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
@@ -478,31 +524,8 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
     match degree with
     | Degree0 -> sym
     | _ ->  rotateSymbolInBlock degree pos sym
-    
 
-/// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>
-/// <param name="compList"> List of ComponentId's of selected components</param>
-/// <param name="model"> Current symbol model</param>
-/// <param name="rotation"> Type of rotation to do</param>
-/// <returns>New rotated symbol model</returns>
-let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
-
-    printfn "running rotateBlock"
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
-
-    //Get block properties of selected symbols
-    let block = getBlock SelectedSymbols
-
-    //Rotated symbols about the center
-    let newSymbols = 
-        List.map (fun x -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) x) SelectedSymbols 
-
-    //return model with block of rotated selected symbols, and unselected symbols
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
+//ra2520 removed rotateBlock to incorporate a helper function later.
 
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
     let maxXSymCentre = 
@@ -578,124 +601,179 @@ let getScalingFactorAndOffsetCentreGroup
     let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
     (xSC, ySC)
 
-/// Alter position of one symbol as needed in a scaling operation
+// Changes begin here (also rotateBlock from earlier moved here).
+
+/// Alter position of one symbol as needed in a scaling operation.
+/// xYSC has meaning ((XScale, XOffset), (YScale, YOffset)).
 let scaleSymbol
         (xYSC: (float * float) * (float * float))
         (sym: Symbol)
         : Symbol = 
-    let symCentre =  getRotatedSymbolCentre sym
-    let translateFunc scaleFact offsetC coordinate = (coordinate - offsetC) * scaleFact + offsetC
-    let xSC = fst xYSC
-    let ySC = snd xYSC
-    let newX = translateFunc (fst xSC) (snd xSC) symCentre.X
-    let newY = translateFunc (fst ySC) (snd ySC) symCentre.Y
 
-    let symCentreOffsetFromTopLeft = {X = (snd (getRotatedHAndW sym))/2.; Y = (fst (getRotatedHAndW sym))/2.}
-    let newTopLeftPos = {X = newX; Y = newY} - symCentreOffsetFromTopLeft
-    let newComp = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
+    //ra2520 (1/4/5) input wrapping + anon record + pattern matching
+    let transformInfo =
+        match xYSC with
+        | ((xScale, xOffset), (yScale, yOffset)) -> {|XScale = xScale; XOffset = xOffset;
+                                                      YScale = yScale; YOffset = yOffset|}
 
-    {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
-
-/// Part of the rotate and scale code       
-let groupNewSelectedSymsModel
-    (compList:ComponentId list) 
-    (model:SymbolT.Model) 
-    (selectedSymbols: Symbol list)
-    (modifySymbolFunc) = 
-
-    //let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
-
-    // let block = getBlock SelectedSymbols
-    // printfn "bbCentreX:%A" (block.Centre()).X
-
-    // let newSymbols = List.map (modifySymbolFunc (block.Centre())) SelectedSymbols
-    let newSymbols = List.map (modifySymbolFunc) selectedSymbols
-
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
-
-
-/// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
-/// <param name="compList"> List of ComponentId's of selected components</param>
-/// <param name="model"> Current symbol model</param>
-/// <param name="flip"> Type of flip to do</param>
-/// <returns>New flipped symbol model</returns>
-let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) = 
-    //Similar structure to rotateBlock, easy to understand
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+    //ra2520 (1) structural abstraction
+    let translate1D scale offset coord = (coord - offset) * scale + offset
+    let translate2D (pos: XYPos) : XYPos =
+        {X = translate1D transformInfo.XScale transformInfo.XOffset pos.X;
+         Y = translate1D transformInfo.YScale transformInfo.YOffset pos.Y}
     
-    let block = getBlock SelectedSymbols
-  
-    let newSymbols = 
-        List.map (fun x -> flipSymbolInBlock flip (block.Centre()) x ) SelectedSymbols
+    let halfDims =
+        getRotatedHAndW sym
+        |> fun (h, w) -> {X = w/2.; Y = h/2.}
 
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
+    //ra2520 (3) pipelining
+    let newTopLeftPos =
+        getRotatedSymbolCentre sym
+        |> translate2D
+        |> fun pos -> pos - halfDims
+
+    let newComponent = {sym.Component with X = newTopLeftPos.X; Y = newTopLeftPos.Y}
+
+    {sym with Pos = newTopLeftPos; Component = newComponent; LabelHasDefaultPos = true}
+
+/// Apply a function to the selected symbols, and return the new model.
+/// compList and selectedSymbols refer to pairs of matching component ids and symbols.
+/// modifySymbolFunc is applied to each selected symbol to get a new symbol.
+//ra2520 (1/2/3) helper function + currying + pipelines used throughout
+let transformSelectedSymbols
+        (compList: ComponentId list) 
+        (selectedSymbols: Symbol list)
+        (modifySymbolFunc: Symbol -> Symbol)
+        (model: SymbolT.Model) 
+        : SymbolT.Model =
+
+    // Zip together the existing component id list and new symbol list.
+    let zipSymbols (newSymbols: Symbol list) : Map<ComponentId, Symbol> =
+        List.map2 (fun x y -> (x, y)) compList newSymbols
+        |> Map.ofList
+
+    let newSelectedSymMap =
+        selectedSymbols
+        |> List.map modifySymbolFunc
+        |> zipSymbols
+
+    let unselectedSymMap =
+        model.Symbols
+        |> Map.filter (fun x _ -> not <| List.contains x compList)
+
+    let addMaps map1 map2 =
+        Map.fold (fun acc k v -> Map.add k v acc) map1 map2
+
+    {model with Symbols = addMaps unselectedSymMap newSelectedSymMap}
+
+/// An alias for transformSelectedSymbols, since this function is used by other modules.
+/// Apply a function to the selected symbols, and return the new model.
+/// compList and selectedSymbols refer to pairs of matching component ids and symbols.
+/// modifySymbolFunc is applied to each selected symbol to get a new symbol.
+//ra2520 (1) function wrapping (just changing order of parameters)
+let groupNewSelectedSymsModel
+        (compList: ComponentId list) 
+        (model: SymbolT.Model) 
+        (selectedSymbols: Symbol list)
+        (modifySymbolFunc)
+        : SymbolT.Model =
+    transformSelectedSymbols compList selectedSymbols modifySymbolFunc model
+
+/// A wrapper for transformSelectedSymbols, specifically for block functions.
+/// modifySymbolFunc takes a block and a symbol as input, and returns the transformed symbol.
+//ra2520 (1/2) helper function + currying (order of modifySymbolFunc parameters)
+let transformBlock
+        (compList: ComponentId list)
+        (modifySymbolFunc: BoundingBox -> Symbol -> Symbol)
+        (model: SymbolT.Model)
+        : SymbolT.Model =
+    let selectedSymbols = findSelectedSymbols compList model
+    let block = getBlock selectedSymbols
+    transformSelectedSymbols compList selectedSymbols (modifySymbolFunc block) model
+
+/// Rotates a block of symbols, returning the new symbol model.
+/// The selected block is given by compList.
+let rotateBlock
+        (compList:ComponentId list)
+        (model:SymbolT.Model)
+        (rotation:Rotation)
+        : SymbolT.Model =
+    printfn "running rotateBlock"
+    let rotateFunc (block: BoundingBox) (symbol: Symbol) : Symbol =
+        rotateSymbolInBlock (invertRotation rotation) (block.Centre()) symbol
+    transformBlock compList rotateFunc model
+
+/// Flips a block of symbols, returning the new symbol model.
+/// The selected block is given by compList.
+let flipBlock
+        (compList:ComponentId list)
+        (model:SymbolT.Model)
+        (flip:FlipType)
+        : SymbolT.Model =
+    let flipFunc (block: BoundingBox) (symbol: Symbol) : Symbol =
+        flipSymbolInBlock flip (block.Centre()) symbol
+    transformBlock compList flipFunc model
 
 /// After every model update this updates the "scaling box" part of the model to be correctly
-/// displayed based on whetehr multiple components are selected and if so what is their "box"
+/// displayed based on whether multiple components are selected, and if so, what is their "box".
 /// In addition to changing the model directly, cmd may contain messages that make further changes.
+//ra2520 lots of renaming/reordering things for clarity
 let postUpdateScalingBox (model:SheetT.Model, cmd) = 
     
     let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
     let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
+    //ra2520 (1) helper function
+    let removeOldScalingBoxCmd (model: SheetT.Model) =
+        [model.ScalingBox.Value.ButtonList |> SymbolT.DeleteSymbols |> symbolCmd;
+         sheetCmd SheetT.UpdateBoundingBoxes]
+        |> List.append [cmd]
+        |> Elmish.Cmd.batch
 
-    if (model.SelectedComponents.Length < 2) then 
+    if model.SelectedComponents.Length <= 1 then 
         match model.ScalingBox with 
-        | None ->  model, cmd
-        | _ -> {model with ScalingBox = None}, 
-                [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                 sheetCmd SheetT.UpdateBoundingBoxes]
-                |> List.append [cmd]
-                |> Elmish.Cmd.batch
+        | None -> model, cmd
+        | _ -> {model with ScalingBox = None}, removeOldScalingBoxCmd model
     else 
         let newBoxBound = 
             model.SelectedComponents
-            |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
+            |> List.map (fun compId -> Map.find compId model.Wire.Symbol.Symbols)
             |> getBlock
         match model.ScalingBox with 
         | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
-        | _ -> 
-            let topleft = newBoxBound.TopLeft
-            let rotateDeg90OffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
-            let rotateDeg270OffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
-            let buttonOffSet: XYPos = {X = newBoxBound.W + 47.5; Y = -47.5}
-            let dummyPos = (topleft + buttonOffSet)
+        | _ ->
+            //ra2520 renamed/reordered things for clarity
+            let topLeft = newBoxBound.TopLeft
+            let scaleOffset: XYPos = {X = newBoxBound.W + 47.5; Y = -47.5}
+            let rotateDeg90Offset: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
+            let rotateDeg270Offset: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
 
             let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
-            let buttonSym = {makeButton ScaleButton dummyPos with Pos = (topleft + buttonOffSet)}
-            let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
-            let rotateDeg90Sym = 
-                makeButton (RotateButton Degree90) (topleft + rotateDeg90OffSet)
-                |> makeRotateSym
-            let rotateDeg270Sym = 
-                {makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet) 
-                    with SymbolT.STransform = {Rotation=Degree90 ; Flipped=false}}
-                |> makeRotateSym
+            let makeRotateSymbol sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
 
-            let newSymbolMap = model.Wire.Symbol.Symbols 
-                                                        |> Map.add buttonSym.Id buttonSym 
-                                                        |> Map.add rotateDeg270Sym.Id rotateDeg270Sym 
-                                                        |> Map.add rotateDeg90Sym.Id rotateDeg90Sym
+            let scaleButton = {makeButton ScaleButton (topLeft + scaleOffset) with Pos = (topLeft + scaleOffset)}
+            let rotateDeg90Button = 
+                makeButton (RotateButton Degree90) (topLeft + rotateDeg90Offset)
+                |> makeRotateSymbol
+            let rotateDeg270Button = 
+                {makeButton (RotateButton Degree270) (topLeft + rotateDeg270Offset) 
+                    with SymbolT.STransform = {Rotation=Degree90 ; Flipped=false}}
+                |> makeRotateSymbol
+
+            let newSymbolMap =
+                model.Wire.Symbol.Symbols 
+                |> Map.add scaleButton.Id scaleButton 
+                |> Map.add rotateDeg270Button.Id rotateDeg270Button 
+                |> Map.add rotateDeg90Button.Id rotateDeg90Button
             let initScalingBox: SheetT.ScalingBox = {
                 ScalingBoxBound = newBoxBound;
-                ScaleButton = buttonSym;
-                RotateDeg90Button = rotateDeg90Sym;
-                RotateDeg270Button = rotateDeg270Sym;
-                ButtonList = [buttonSym.Id; rotateDeg270Sym.Id; rotateDeg90Sym.Id];
+                ScaleButton = scaleButton;
+                RotateDeg90Button = rotateDeg90Button;
+                RotateDeg270Button = rotateDeg270Button;
+                ButtonList = [scaleButton.Id; rotateDeg270Button.Id; rotateDeg90Button.Id];
             }
             let newCmd =
                 match model.ScalingBox with
-                | Some _ -> [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
-                             sheetCmd SheetT.UpdateBoundingBoxes]
-                            |> List.append [cmd]
-                            |> Elmish.Cmd.batch
+                | Some _ -> removeOldScalingBoxCmd model
                 | None -> cmd
             model
             |> Optic.set SheetT.scalingBox_ (Some initScalingBox)

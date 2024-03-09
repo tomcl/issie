@@ -521,6 +521,29 @@ module HLPTick3 =
           |> Result.bind (placeSymbol "G1" (GateN(And, 2)) {X = 1735.16; Y = 1708.99})
           |> getOkOrFail
 
+    let makeTest7Circuit (posRots:XYPos list * int list) =
+        let MUX2Connection1, MUX2Connection2 = swap ((snd posRots)[3]) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = swap ((snd posRots)[4]) "G1" "MUX2" "MUX1"
+
+        initSheetModel
+        |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
+        |> Result.bind (placeSymbol "S2" (Input1(1,None)) ((fst posRots)[1]))
+        |> Result.bind (placeSymbol "MUX1" Mux2 ((fst posRots)[2]))
+        |> Result.bind (placeSymbol "MUX2" Mux2 ((fst posRots)[3]))
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) ((fst posRots)[4]))
+        |> Result.bind (flipRot ((snd posRots)[0]) "S1")
+        |> Result.bind (flipRot ((snd posRots)[1]) "S2")
+        |> Result.bind (flipRot ((snd posRots)[2]) "MUX1")
+        |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
+        |> Result.bind (flipRot ((snd posRots)[4]) "G1")
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+        |> Result.bind (MUX2Connection1)
+        |> Result.bind (MUX2Connection2)
+        |> Result.bind (ANDConnection1)
+        |> Result.bind (ANDConnection2)
+        //|> Result.bind (YOURFUNCTIONNAME)
+        |> getOkOrFail
+
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -568,8 +591,9 @@ module HLPTick3 =
         let countWireSegs (sample: int) (sheet: SheetT.Model) =
             let rightAngles = numOfVisRightAngles sheet
             let wireCount = Map.count sheet.Wire.Wires
-            let avgSegsPerWire = float rightAngles/float wireCount
-            Some <| $"A wire consists of average {avgSegsPerWire} segments"
+            let rightAngs = countWireRightAngles sheet
+            let avgSegsPerWire = float rightAngs/float wireCount
+            Some <| $"There are {rightAngles} right angles,\n A wire consists of average {avgSegsPerWire} segments \n"
         /// Fail on all tests, return the number of crossing wires (with each other) in the sheet.
         let countWireCrossing (sample: int) (sheet: SheetT.Model) =
             let crossingCount = numOfWireRightAngleCrossings sheet
@@ -577,11 +601,12 @@ module HLPTick3 =
         /// Fail on all tests, return both the average segments per wire and number of crossing wires (with each other and components).
         let countWireCrossingAndSegs (sample: int) (sheet: SheetT.Model) =
             let rightAngles = numOfVisRightAngles sheet
+            let segsCount = countWireRightAngles sheet
             let wireCount = Map.count sheet.Wire.Wires
-            let avgSegsPerWire = float rightAngles/float wireCount
+            let avgSegsPerWire = float segsCount/float wireCount
             let compCrossingCount = numOfIntersectSegSym sheet
             let segCrossingCount = numOfWireRightAngleCrossings sheet
-            Some <| $"The sheet contains:\n    {segCrossingCount} wire-wire crossings,\n    {compCrossingCount} wire-component crossings,\n    A wire contains:\n    average {avgSegsPerWire} segments"
+            Some <| $"The sheet contains:\n    {segCrossingCount} wire-wire crossings,\n    {compCrossingCount} wire-component crossings,\n    A wire contains:\n    average {avgSegsPerWire} segments\n    Total {rightAngles} right angles"
 
 
 
@@ -652,7 +677,25 @@ module HLPTick3 =
             //let stuff = Model.GetSelectedComponents
             //printf $"{stuff}"
 
+        let test7 testNum firstSample dispatch =
+            runTestOnSheets
+                "Figure B2: fail on all, random flip rotate"
+                firstSample
+                (randomCompPosVal 5 200 (-200,200) (0,200))
+                makeTest7Circuit
+                Asserts.countWireCrossingAndSegs
+                dispatch
+            |> recordPositionInTest testNum dispatch
 
+        let test8 testNum firstSample dispatch =
+            runTestOnSheets
+                "Figure B2: fail on all, random flip rotate"
+                firstSample
+                (randomCompPosVal 5 200 (-200,200) (0,200))
+                makeTest7Circuit
+                Asserts.countWireCrossingAndSegs
+                dispatch
+            |> recordPositionInTest testNum dispatch
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
@@ -661,11 +704,11 @@ module HLPTick3 =
             [
                 "Test1", test1
                 "Test2", test2
-                "Test3", test3
+                "Test3", test3  
                 "Test4", test4
                 "Test5", test5
                 "Test6", fun _ _ _ -> printf "Test6 not implemented"
-                "Test7", fun _ _ _ -> printf "Test7 not implemented"
+                "Test7", test7
                 "Test8", fun _ _ _ -> printf "Test8 not implemented"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 

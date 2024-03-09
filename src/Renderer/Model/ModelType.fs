@@ -51,6 +51,7 @@ type RightTab =
     | Simulation
     | Build
     | Transition // hack to make a transition from Simulation to Catalog without a scrollbar artifact
+    | DeveloperMode
 
 type SimSubTab =
     | StepSim
@@ -153,7 +154,14 @@ type UICommandType =
     | ViewWaveSim
     | CloseWaveSim
 
+/// Keep track of sampling numbers when calling TestDrawBlock
 type TestState = { LastTestNumber: int; LastTestSampleIndex: int }
+
+/// The level of beautifying the circuit
+type BeautifyLevel =
+    | Level1
+    | Level2
+    | Level3
 
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
@@ -443,6 +451,14 @@ type Msg =
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType: string * item: string * dispatch: (Msg -> unit)
     | UpdateDrawBlockTestState of ((TestState option) -> (TestState option))
+    /// For Dev Mode to set params
+    | SelectBeautifyLevel of BeautifyLevel
+    | ToggleSheetStats
+    | ToggleSymbolInfoTable
+    | ToggleSymbolPortsTable
+    | ToggleWireTable
+    | ToggleWireSegmentsTable
+    | ToggleSymbolPortMapsTable
 
 //================================//
 // Componenents loaded from files //
@@ -602,6 +618,15 @@ type Model =
         /// Used to allow a sequence of errors to be displayed from a test.
         /// Has a value after a test has been run.
         DrawBlockTestState: TestState option
+        /// New feauture: set the level of beautifying the circuit
+        BeautifyLevel: BeautifyLevel
+        SymbolInfoTableExpanded: bool
+        SymbolPortsTableExpanded: bool
+        SymbolPortMapsTableExpanded: bool
+        WireTableExpanded: bool
+        WireSegmentsTableExpanded: bool
+        SheetStatsExpanded: bool
+
     }
 
     member this.WaveSimOrCurrentSheet =

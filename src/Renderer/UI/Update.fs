@@ -318,6 +318,7 @@ let update (msg: Msg) oldModel =
             | Properties
             | Catalogue
             | Simulation
+            | DeveloperMode
             | Build -> editMsgs
             | Transition -> []
         )
@@ -614,6 +615,21 @@ let update (msg: Msg) oldModel =
     | JSDiagramMsg _
     | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
+    | SelectBeautifyLevel level ->
+        match level with
+        | Level1 -> printfn "Set Beautify Level to 1"
+        | Level2 -> printfn "Set Beautify Level to 2"
+        | Level3 -> printfn "Set Beautify Level to 3"
+        { oldModel with BeautifyLevel = level }, Cmd.none
+    | ToggleSymbolInfoTable -> { model with SymbolInfoTableExpanded = not model.SymbolInfoTableExpanded }, Cmd.none
+    | ToggleSymbolPortMapsTable ->
+        { model with
+            SymbolPortMapsTableExpanded = not model.SymbolPortMapsTableExpanded },
+        Cmd.none
+    | ToggleWireTable -> { model with WireTableExpanded = not model.WireTableExpanded }, Cmd.none
+    | ToggleWireSegmentsTable ->
+        { model with WireSegmentsTableExpanded = not model.WireSegmentsTableExpanded }, Cmd.none
+    | ToggleSymbolPortsTable -> { model with SymbolPortsTableExpanded = not model.SymbolPortsTableExpanded }, Cmd.none
 
     // post-processing of update function (Model * Cmd<Msg>)
     |> map fst_ (fun model' -> resetDialogIfSelectionHasChanged model' oldModel)

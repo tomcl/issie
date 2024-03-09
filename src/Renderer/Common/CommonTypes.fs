@@ -1036,9 +1036,7 @@ let loadedComponentOf_ (name: string) =
 type ConnectionsWidth = Map<ConnectionId, int option>
 
 /// Documents user circuit error found during connection width inference
-type WidthInferError =
-    { Msg: string
-      ConnectionsAffected: ConnectionId list } // A list of connection Ids.
+type WidthInferError = { Msg: string; ConnectionsAffected: ConnectionId list } // A list of connection Ids.
 
 /// Messages sent from draw block
 type JSDiagramMsg =

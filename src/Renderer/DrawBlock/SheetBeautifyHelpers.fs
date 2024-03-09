@@ -23,13 +23,12 @@ open BusWire
 let coalesceWire (wire: Wire) : float list =
     let rec coalesceSegLengths (segLengths: float list) =
         match segLengths with
-        | l1::0.0::l2::rest -> coalesceSegLengths ((l1 + l2)::rest)
-        | l::rest -> l::(coalesceSegLengths rest)
+        | l1 :: 0.0 :: l2 :: rest -> coalesceSegLengths ((l1 + l2) :: rest)
+        | l :: rest -> l :: (coalesceSegLengths rest)
         | [] -> []
     wire.Segments
     |> List.map (fun seg -> seg.Length)
     |> coalesceSegLengths
-
 
 // Take a list of wires and group them into their "nets" (i.e same Output Port).
 // Returns a List of nets (where a net = List of wires)
@@ -38,31 +37,29 @@ let groupWiresByNet (wireList: Wire list) : Wire list list =
     |> List.groupBy (fun w -> w.OutputPort) // Group wires by same Net
     |> List.map snd // Don't need the key in fst, just the wires grouped in snd
 
-
 // ---- DEFINITION : Segment Retracement -------------------------------------------------
 // Occurs when 2 consecutive segments in a wire that are:
 // - Non-zero in length
-// - Both parallel 
+// - Both parallel
 // - Move in opposite directions (e.g "up and down" or "left and right")
-let checkTwoSegments (s1: Segment) (s2: Segment): bool =
-    let bothParallel = ((s1.Index % 2 = 0) && (s2.Index % 2 = 0)) || ((s1.Index % 2 = 1) && (s2.Index % 2 = 1))
-    let bothOppositeDir = (s1.Length > 0 && s2.Length < 0) || (s1.Length < 0 && s2.Length > 0)
+let checkTwoSegments (s1: Segment) (s2: Segment) : bool =
+    let bothParallel =
+        ((s1.Index % 2 = 0) && (s2.Index % 2 = 0))
+        || ((s1.Index % 2 = 1) && (s2.Index % 2 = 1))
+    let bothOppositeDir =
+        (s1.Length > 0 && s2.Length < 0)
+        || (s1.Length < 0 && s2.Length > 0)
     bothParallel && bothOppositeDir
-
 
 // Take a sheet and return all Wires on it in a list
 let getAllWires (model: SheetT.Model) : Wire list =
-    model.Wire.Wires
-    |> Map.toList
-    |> List.map snd  
-
+    model.Wire.Wires |> Map.toList |> List.map snd
 
 // lens to set the symbolMap in the model
 let symbolMap_: Lens<SheetT.Model, Map<ComponentId, Symbol>> =
     Lens.create (fun m -> m.Wire.Symbol.Symbols) (fun v m ->
         let updatedSymbol = { m.Wire.Symbol with Symbols = v }
         { m with Wire = { m.Wire with Symbol = updatedSymbol } })
-
 
 /// <summary>
 /// visibleSegments helper provided by Professor.
@@ -316,8 +313,10 @@ let setSymbolFlip (flip: bool) (sym: Symbol) : Symbol =
     match flip with
     | true ->
         match sym.STransform.Rotation with
-        | Degree0 | Degree180 -> SymbolResizeHelpers.flipSymbol FlipHorizontal sym
-        | Degree90 | Degree270 -> SymbolResizeHelpers.flipSymbol FlipVertical sym
+        | Degree0
+        | Degree180 -> SymbolResizeHelpers.flipSymbol FlipHorizontal sym
+        | Degree90
+        | Degree270 -> SymbolResizeHelpers.flipSymbol FlipVertical sym
     | false -> sym
 
 // --------------------------------------------------- //
@@ -335,6 +334,8 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
     List.allPairs boxes boxes
     |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
+    // divide by 2
+    |> (fun x -> x / 2)
 
 // --------------------------------------------------- //
 //                     T2R Functions                   //
@@ -686,48 +687,52 @@ let getApproxVisibleSegmentsLength (model: SheetT.Model) =
 //--------------------------------------------------------------------------------------//
 
 // ---- INITIAL FUNCTION : countVisibleSegmentLength -------------------------------------
-// (1) First sort all wires, on the sheet, into their nets giving a "Segment list list list" 
+// (1) First sort all wires, on the sheet, into their nets giving a "Segment list list list"
 //     where "a net = Segment list list ".
-// (2) List.fold over each net which is fed into a recursive function to find the visible 
+// (2) List.fold over each net which is fed into a recursive function to find the visible
 //     segment length of the net.
 
 // ---- RECURSIVE FUNCTION : netVisibleSegmentLength -------------------------------------
-// (3) The recursive function starts and checks the length of "index 0 Segment" of each 
+// (3) The recursive function starts and checks the length of "index 0 Segment" of each
 //     wire in the net.
-// (4.1) As all the "positive length index 0 Segments" overlap, you take the max (or 0 if 
+// (4.1) As all the "positive length index 0 Segments" overlap, you take the max (or 0 if
 //       "max < 0") (which is added to running total).
-// (4.2) As all the "negative length index 0 Segments" overlap, you take the min (or 0 if 
+// (4.2) As all the "negative length index 0 Segments" overlap, you take the min (or 0 if
 //       "min > 0")(which is added to running total).
-// (5) Next you need to form the subNets, which is done by grouping wires by their "index 
-//     0 Segment length", ( Because this length tells you where the "wire split-off" or 
-//     "corner" will occur for the next index (i.e 1) of that wire. If the 2 wires have 
-//     this same length then they will "corner off" at the same point). You then take the 
+// (5) Next you need to form the subNets, which is done by grouping wires by their "index
+//     0 Segment length", ( Because this length tells you where the "wire split-off" or
+//     "corner" will occur for the next index (i.e 1) of that wire. If the 2 wires have
+//     this same length then they will "corner off" at the same point). You then take the
 //     tail of each wire/Segment List (so only index 1..n of the Segment list).
-// (6) Finally you recursively call the function on the subNets which return a float to sum 
+// (6) Finally you recursively call the function on the subNets which return a float to sum
 //     to the running total.
-// (7) Base case: When subNet only has 1 Wire. Hence just sum the rest of the wire and 
+// (7) Base case: When subNet only has 1 Wire. Hence just sum the rest of the wire and
 //     return the float.
 
 let rec netVisibleSegmentLength (net: Segment list list) : float =
     match net.Length with // Number of wires in the net
     | 1 -> List.sumBy (fun seg -> abs seg.Length) net[0] // If 1 wire left in subnet, sum rest of the segments in the only wire/subnet
-    | n -> 
+    | n ->
         let fstSegLengths = List.map (fun (wire: list<Segment>) -> wire[0].Length) net // Grab first/next segment for each wire in Net/subNet
         let longestPosSeg = fstSegLengths |> List.max |> max 0.0
         let longestNegSeg = fstSegLengths |> List.min |> min 0.0 |> abs
-        let subNets = net
-                      |> List.groupBy (fun wire -> wire[0].Length) // Group wires into subNets
-                      |> List.map snd // Don't need the length in fst, just the wires grouped in snd
-                      |> List.map (fun wireList -> List.map (fun segList -> List.tail segList) wireList) // Take the tail of each Segment list (1..n)
-        longestPosSeg + longestNegSeg + List.fold (fun totalLength wireList -> totalLength + (netVisibleSegmentLength wireList)) 0.0 subNets
+        let subNets =
+            net
+            |> List.groupBy (fun wire -> wire[0].Length) // Group wires into subNets
+            |> List.map snd // Don't need the length in fst, just the wires grouped in snd
+            |> List.map (fun wireList -> List.map (fun segList -> List.tail segList) wireList) // Take the tail of each Segment list (1..n)
+        longestPosSeg
+        + longestNegSeg
+        + List.fold (fun totalLength wireList -> totalLength + (netVisibleSegmentLength wireList)) 0.0 subNets
 
 let countVisibleSegmentLength (model: SheetT.Model) : float =
     // Get all wires on sheet and sort them into their "nets" (same InputPort)
     // (1) netList = list of nets (2) net = list of wires (3) wire = list of segments
-    let netList = model 
-                  |> getAllWires
-                  |> groupWiresByNet
-                  |> List.map (fun lst -> List.map (fun w -> w.Segments) lst)
+    let netList =
+        model
+        |> getAllWires
+        |> groupWiresByNet
+        |> List.map (fun lst -> List.map (fun w -> w.Segments) lst)
     List.fold (fun totalLength wireList -> totalLength + (netVisibleSegmentLength wireList)) 0.0 netList
 
 // --------------------------------------------------- //
@@ -756,44 +761,47 @@ let countVisibleRAngles (model: SheetT.Model) =
 
 // ---- INITIAL FUNCTION : countVisibleBends -------------------------------------------
 // (1) First sort all wires, on the sheet, into their nets giving a "float list list list"
-//     where "a net = float list list ". It's a "float list list" due to the "coalesceWire" 
+//     where "a net = float list list ". It's a "float list list" due to the "coalesceWire"
 //     helper function which converts and coalesces the segments to their lengths.
-// (2) List.fold over each net which is fed into a recursive function to find the visible 
+// (2) List.fold over each net which is fed into a recursive function to find the visible
 //     segment length of the net.
 
 // ---- RECURSIVE FUNCTION : netVisibleBends -------------------------------------------
-// (3) The recursive function starts and checks the "index 0 Segment Length" of each wire 
+// (3) The recursive function starts and checks the "index 0 Segment Length" of each wire
 //     in the net.
-// (4) Next you need to form the subNets, which is done by grouping wires by their "index 0 
-//     Segment Length", ( Because this length tells you where the "wire split-off" or 
-//     "corner" will occur for the next index (i.e 1) of that wire. If the 2 wires have this 
-//     same length then they will "corner off" at the same point). You then take the tail of 
+// (4) Next you need to form the subNets, which is done by grouping wires by their "index 0
+//     Segment Length", ( Because this length tells you where the "wire split-off" or
+//     "corner" will occur for the next index (i.e 1) of that wire. If the 2 wires have this
+//     same length then they will "corner off" at the same point). You then take the tail of
 //     each wire/Segment List (so only index 1..n of the Segment list).
 // (5) The length of the subNets (how many subNets/splitOffs/corners made is the number of
 //     Bends for that iteration).
 // (6) Finally you recursively call the function on the subNets which return an int to sum
 //     to the running total.
-// (7) Base case: When subNet only has 1 Wire. Hence just "sum the rest of the Segments of 
+// (7) Base case: When subNet only has 1 Wire. Hence just "sum the rest of the Segments of
 //     the wire" (List.length) and subtract 1 for the rest of the Bends.
 
 let rec netVisibleBends (net: float list list) : int =
-    match net.Length with 
+    match net.Length with
     | 1 -> (List.length net[0]) - 1
-    | n -> 
-        let subNets = net
-                      |> List.groupBy (fun segList -> segList[0]) // Group wires into subNets
-                      |> List.map snd // Don't need the length in fst, just the wires grouped in snd
-                      |> List.map (fun wireList -> List.map (fun segList -> List.tail segList) wireList) // Take the tail of each Segment list (1..n)
+    | n ->
+        let subNets =
+            net
+            |> List.groupBy (fun segList -> segList[0]) // Group wires into subNets
+            |> List.map snd // Don't need the length in fst, just the wires grouped in snd
+            |> List.map (fun wireList -> List.map (fun segList -> List.tail segList) wireList) // Take the tail of each Segment list (1..n)
 
-        (List.length subNets) + List.fold (fun totalBends wireList -> totalBends + (netVisibleBends wireList)) 0 subNets
+        (List.length subNets)
+        + List.fold (fun totalBends wireList -> totalBends + (netVisibleBends wireList)) 0 subNets
 
 let countVisibleBends (model: SheetT.Model) : int =
     // Get all wires on sheet and sort them into their "nets" (same InputPort)
     // (1) netList = list of nets (2) net = list of wires (3) wire = list of floats/lengths
-    let netList = model 
-                  |> getAllWires
-                  |> groupWiresByNet
-                  |> List.map (fun lst -> List.map (fun w -> coalesceWire w) lst)
+    let netList =
+        model
+        |> getAllWires
+        |> groupWiresByNet
+        |> List.map (fun lst -> List.map (fun w -> coalesceWire w) lst)
     List.fold (fun totalBends wireList -> totalBends + (netVisibleBends wireList)) 0 netList
 
 // --------------------------------------------------- //
@@ -923,3 +931,4 @@ let countUniqRetracingSegmentsAndIntersects (model: SheetT.Model) =
         |> List.length
 
     (uniqRetracingSegments, uniqRetracingSegmentsWithIntersections)
+

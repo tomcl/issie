@@ -179,8 +179,10 @@ let fileMenu (dispatch) =
               (TestDrawBlockD1.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
                |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
                |> List.mapi (fun n (name, _) -> (makeTestItem name n)))
-          makeDebugItem "Test Functions" (Some "CmdOrCtrl+Shift+1") (fun ev ->
+          makeDebugItem "Test Beautify Function" (Some "CmdOrCtrl+Shift+1") (fun ev ->
               dispatch (MenuAction(MenuFunctionTest(TestSheetFunctions.testSheetFunc), dispatch)))
+          makeDebugItem "Load Test Circuit and Test Beautify Function" (Some "CmdOrCtrl+Shift+2") (fun ev ->
+              dispatch (MenuAction(MenuFunctionTest(TestSheetFunctions.testSheetFuncWithCircuit), dispatch)))
           makeWinDebugItem "Trace all" None (fun _ -> debugTraceUI <- Set.ofList [ "update"; "view" ])
           makeWinDebugItem "Trace View function" None (fun _ -> debugTraceUI <- Set.ofList [ "view" ])
           makeWinDebugItem "Trace Update function" None (fun _ -> debugTraceUI <- Set.ofList [ "update" ])

@@ -47,90 +47,11 @@ let test1Circuit =
     |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
     |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
     |> getOkOrFail
-
-let makeTestSheet (initSheetModel: SheetT.Model) : SheetT.Model =
-    // make circuit here
-    initSheetModel
-
-let showSheetInIssieSchematicWithUndo (testSheetModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    // let newModel =
-    //     model
-    //     |> Optic.set sheet_ testSheetModel
-    dispatch
-    <| UpdateModel(Optic.set sheet_ testSheetModel) // set the Sheet component of the Issie model to make a new schematic.
-    sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
-
-let testBeautifyFuncOnSheet
-    (dispatch: Dispatch<Msg>)
-    (model: Model)
-    (sheetChecker: Option<SheetT.Model -> string>)
-    (testFunction: SheetT.Model -> SheetT.Model)
-    =
-    let newSheet = testFunction model.Sheet
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    match sheetChecker with
-    | Some checker -> printf "output: %A" (checker newSheet)
-    | None -> ()
-
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    dispatch
-    <| UpdateModel(fun (model: Model) ->
-        let newUndoList = appendUndoListSheetT model.Sheet.UndoList model.Sheet
-        model
-        |> Optic.set sheet_ newSheet
-        |> Optic.set (sheet_ >-> UndoList_) (newUndoList))
-    sheetDispatch <| SheetT.KeyPress SheetT.CtrlW
-
-let testBeautifyFuncOnSetSheet
-    (dispatch: Dispatch<Msg>)
-    (model: Model)
-    (sheetChecker: Option<SheetT.Model -> string>)
-    (testFunction: SheetT.Model -> SheetT.Model)
-    =
-    let newSheet = test1Circuit |> testFunction
-
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    dispatch
-    <| UpdateModel(fun (model: Model) ->
-        let newUndoList = appendUndoListSheetT model.Sheet.UndoList model.Sheet
-        model
-        |> Optic.set sheet_ newSheet
-        |> Optic.set (sheet_ >-> UndoList_) (newUndoList))
-    sheetDispatch <| SheetT.KeyPress SheetT.CtrlW
-
-    // let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    match sheetChecker with
-    | Some checker -> printf "output: %A" (checker newSheet)
-    | None -> ()
-
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    dispatch
-    <| UpdateModel(fun (model: Model) ->
-        let newUndoList = appendUndoListSheetT model.Sheet.UndoList model.Sheet
-        model
-        |> Optic.set sheet_ newSheet
-        |> Optic.set (sheet_ >-> UndoList_) (newUndoList))
-    sheetDispatch <| SheetT.KeyPress SheetT.CtrlW
-
 let beautifyFunction (sheet: SheetT.Model) : SheetT.Model = sheet
 
 let testSheetFunc (dispatch: Dispatch<Msg>) (model: Model) =
-    printf ""
-
-    // CODE TO PLACE ON SHEET WITH UNDO
-    // (consoleLogBlueBold "Placing On Sheet")
-    // let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    // dispatch
-    // <| UpdateModel(fun (model: Model) ->
-    //     let newUndoList = appendUndoListSheetT model.Sheet.UndoList model.Sheet
-    //     model
-    //     |> Optic.set sheet_ test1Circuit
-    //     |> Optic.set (sheet_ >-> UndoList_) (newUndoList))
-    // sheetDispatch <| SheetT.KeyPress SheetT.CtrlW
-
-    // CODE TO RUN WITH EXISTING SHEET + UNDO
-    // (consoleLogBlueBold "Running Beautify On Sheet")
+    // Code to Run with Existing Sheet + Undo
+    (consoleLogBlueBold "Running Function On Sheet (undo with cmd/ctrl + z)")
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     dispatch
     <| UpdateModel(fun (model: Model) ->
@@ -139,16 +60,25 @@ let testSheetFunc (dispatch: Dispatch<Msg>) (model: Model) =
         |> Optic.set sheet_ (beautifyFunction model.Sheet)
         |> Optic.set (sheet_ >-> UndoList_) (newUndoList))
 
-(*
+let testSheetFuncWithCircuit (dispatch: Dispatch<Msg>) (modelIn: Model) =
+    // Code to Run with New Circuit + Undo
+    (consoleLogBlueBold "Placing and Running Function On Sheet (undo with cmd/ctrl + z twice)")
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    dispatch
+    <| UpdateModel(fun (model: Model) ->
+        let newUndoList = appendUndoListSheetT model.Sheet.UndoList modelIn.Sheet
+        // load test circuit
+        let modelWithCircuit =
+            model
+            // since cannot keypress ctrlw, manually fit interim circuit
+            |> Optic.set sheet_ (fst (fitCircuitToScreenUpdate test1Circuit))
+            |> Optic.set (sheet_ >-> UndoList_) (newUndoList)
+        // make a new UndoList to keep test circuit before beautified
+        let newNewUndoList =
+            appendUndoListSheetT modelWithCircuit.Sheet.UndoList modelWithCircuit.Sheet
+        // update model with beautified test circuit
+        modelWithCircuit
+        |> Optic.set sheet_ (beautifyFunction test1Circuit)
+        |> Optic.set (sheet_ >-> UndoList_) (newNewUndoList))
 
-    Notes to myself:
-    Keypress to LOAD circuit from a function and add model to UNDO list
-
-    Keypress to LOAD
-
-    Another keypress to run a function on the circuit and add to UNDO list, + output any metrics
-
-    Another function that creates a circuit but also obtains a symbol to be passed to the function.
-
-    Another prettyprint function for the wire
-*)
+    sheetDispatch <| SheetT.KeyPress SheetT.CtrlW

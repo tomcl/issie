@@ -630,6 +630,7 @@ let update (msg: Msg) oldModel =
     | ToggleWireSegmentsTable ->
         { model with WireSegmentsTableExpanded = not model.WireSegmentsTableExpanded }, Cmd.none
     | ToggleSymbolPortsTable -> { model with SymbolPortsTableExpanded = not model.SymbolPortsTableExpanded }, Cmd.none
+    | ToggleSheetStats -> { model with SheetStatsExpanded = not model.SheetStatsExpanded }, Cmd.none
 
     // post-processing of update function (Model * Cmd<Msg>)
     |> map fst_ (fun model' -> resetDialogIfSelectionHasChanged model' oldModel)

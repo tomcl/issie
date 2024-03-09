@@ -7,6 +7,7 @@ open DrawModelType
 open Optics
 open Symbol
 open BusWireRoute
+open BusWire
 open Helpers
 open BlockHelpers
 
@@ -119,7 +120,61 @@ let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model)
 //----------------------------------------------------------------------------------------------------//
 
 
+/// The visible segments of a wire, as a list of vectors, from source end to target end.
+/// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
+/// which if present causes the two segments on either side of it to coalesce into a single visible segment.
+/// A wire can have any number of visible segments - even 1.
+let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
+    let wire = model.Wire.Wires[wId] // get wire from model
+
+    /// helper to match even and off integers in patterns (active pattern)
+    let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
+
+    /// Convert seg into its XY Vector (from start to end of segment).
+    /// index must be the index of seg in its containing wire.
+    let getSegmentVector (index:int) (seg: BusWireT.Segment) =
+        // The implicit horizontal or vertical direction  of a segment is determined by 
+        // its index in the list of wire segments and the wire initial direction
+        match index, wire.InitialOrientation with
+        | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
+        | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
+
+    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
+    /// if this is possible, otherwise return segVecs unchanged.
+    /// Index must be in range >= 1
+    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
+        if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
+        then
+            segVecs[0..index-2] @
+            [segVecs[index-1] + segVecs[index+1]] @
+            segVecs[index+2..segVecs.Length - 1]
+        else
+            segVecs
+
+    wire.Segments
+    |> List.mapi getSegmentVector
+    |> (fun segVecs ->
+            (segVecs,[1..segVecs.Length-2])
+            ||> List.fold tryCoalesceAboutIndex)
+
+/// Return a list of tuple containing the start and end position of absolute segments from a wire.
+/// Note that it takes in a single element from BusWireT.Model.Wires in the form of a tuple.
+let absoluteSegments (wire: ConnectionId*BusWireT.Wire) (sheet: SheetT.Model) =
+    /// Return a list of tuple containing the start and end position of absolute segments
+    /// from a list of relative segments.
+    let absSegList (startpos: XYPos) (relativeSegs: XYPos list) : (XYPos*XYPos) list =
+        let folder (state: ((XYPos*XYPos) List) * XYPos) (relativeSeg: XYPos) =
+            List.append (fst state) [(snd state, snd state + relativeSeg)], snd state + relativeSeg
+        (([],startpos),relativeSegs)
+        ||> List.fold folder
+        |> fst
+    absSegList (getInputPortLocation None sheet.Wire.Symbol (snd wire).InputPort) (visibleSegments (fst wire) sheet)
+
+/// Return the total visible length of a wire.
+let visibleWireLength (wId: ConnectionId) (sheet: SheetT.Model) = 
+    visibleSegments wId sheet
+    |> List.fold (fun acc pos -> acc+pos.X+pos.Y) 0.0
 // B1 R
 /// get the outline dimensions of a custom component
 let getCustomCompDims (sym: Symbol) =
@@ -446,8 +501,21 @@ let numOfWireRightAngleCrossings (model: SheetT.Model)  =
     List.allPairs distinctSegs distinctSegs
     |> List.filter (fun (seg1,seg2) -> seg1 > seg2 && isProperCrossing seg1 seg2)
     |> List.length
-     
 
+let countRightAngleCrossingSegs (sheet: SheetT.Model) =
+    let allAbsSegs =
+        sheet.Wire.Wires
+        |> Map.toList
+        |> List.map (fun w -> absoluteSegments w sheet)
+        |> List.concat
+
+    List.allPairs allAbsSegs allAbsSegs
+    |> List.filter (fun ((s1start,s1end),(s2start,s2end)) -> ((s1start,s1end) <> (s2start,s2end))
+                                                          && (getSegmentOrientation s1start s1end) <> (getSegmentOrientation s2start s2end)
+                                                          && ((s1start <> s2start) || (s1start <> s2end) || (s1end <> s2start) || (s1end <> s2end))
+                                                          && overlap2D (s1start,s1end) (s2start,s2end))
+    |> List.length
+    |> (fun x -> x/2)
 //T4 R
 /// Sum the wiring length of all wires in the sheet, only counting once
 /// when N wire segments of the same-net are overlapping.
@@ -472,7 +540,13 @@ let numOfVisRightAngles (model: SheetT.Model) : int =
         |> List.collect (fun (_, net) -> getVisualSegsFromNetWires true model net)
     // every visual segment => right-angle bend except for the first (or last) in a wire
     distinctSegs.Length - numWires
-    
+
+let countWireRightAngles (sheet: SheetT.Model) =
+    sheet.Wire.Wires
+    |> Map.toList
+    |> List.map (fun w -> visibleSegments (fst w) sheet)
+    |> List.concat
+    |> List.length
 
 //T6 R
 /// Returns the retracing segments, and those which intersect symbols.

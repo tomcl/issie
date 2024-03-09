@@ -566,21 +566,21 @@ module HLPTick3 =
         /// Fail on all tests, return the average segents a wire has in the sheet to evaluate 
         /// the effect of straightening up wires.
         let countWireSegs (sample: int) (sheet: SheetT.Model) =
-            let rightAngles = countWireRightAngles sheet
+            let rightAngles = numOfVisRightAngles sheet
             let wireCount = Map.count sheet.Wire.Wires
             let avgSegsPerWire = float rightAngles/float wireCount
             Some <| $"A wire consists of average {avgSegsPerWire} segments"
         /// Fail on all tests, return the number of crossing wires (with each other) in the sheet.
         let countWireCrossing (sample: int) (sheet: SheetT.Model) =
-            let crossingCount = countRightAngleCrossingSegs sheet
+            let crossingCount = numOfWireRightAngleCrossings sheet
             Some <| $"The sheet contains {crossingCount} wire crossings"
         /// Fail on all tests, return both the average segments per wire and number of crossing wires (with each other and components).
         let countWireCrossingAndSegs (sample: int) (sheet: SheetT.Model) =
-            let rightAngles = countWireRightAngles sheet
+            let rightAngles = numOfVisRightAngles sheet
             let wireCount = Map.count sheet.Wire.Wires
             let avgSegsPerWire = float rightAngles/float wireCount
-            let compCrossingCount = countSymbolsVisibleSegsIntersection sheet
-            let segCrossingCount = countRightAngleCrossingSegs sheet
+            let compCrossingCount = numOfIntersectSegSym sheet
+            let segCrossingCount = numOfWireRightAngleCrossings sheet
             Some <| $"The sheet contains:\n    {segCrossingCount} wire-wire crossings,\n    {compCrossingCount} wire-component crossings,\n    A wire contains:\n    average {avgSegsPerWire} segments"
 
 

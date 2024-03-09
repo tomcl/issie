@@ -118,12 +118,12 @@
 
     <Compile Include="GenerateData.fs" />
 
+    <Compile Include="SheetBeautifyD2.fs" />
     <Compile Include="TestDrawBlock.fs" />
     <Compile Include="TestWorker.fs" />
     <Compile Include="Playground.fs" />
 
     <Compile Include="Renderer.fs" />
-    <Compile Include="SheetBeautifyD2.fs" />
   </ItemGroup>
   
   <!-- Dependencies -->

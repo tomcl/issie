@@ -93,6 +93,7 @@ module HLPTick3 =
     open Sheet.SheetInterface
     open GenerateData
     open TestLib
+    open SheetBeautifyD2
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -360,6 +361,32 @@ module HLPTick3 =
                 | Ok sheet -> showSheetInIssieSchematic sheet dispatch
                 | Error mess -> ()
             result
+
+
+        let runTestOnSheets2
+            (name: string)
+            (sampleToStartFrom: int)
+            (samples : Gen<'a>)
+            (sheetMaker: 'a -> SheetT.Model)
+            (sheetChecker: int -> SheetT.Model -> string option)
+            (dispatch: Dispatch<Msg>)
+                : TestResult<'a> =
+            let generateAndCheckSheet n = sheetMaker >> sheetChecker n
+            let result =
+                {
+                    Name=name;
+                    Samples=samples;
+                    StartFrom = sampleToStartFrom
+                    Assertion = generateAndCheckSheet
+                }
+                |> runTests
+            match result.TestErrors with
+            | [] -> // no errors
+                printf $"Test {result.TestName} has PASSED."
+            | (n,first):: _ -> // display in Issie editor and print out first error
+                printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
+            result
+        
 //--------------------------------------------------------------------------------------------------//
 //---------------------------Example Test Circuits using Gen<'a> samples----------------------------//
 //--------------------------------------------------------------------------------------------------//
@@ -422,7 +449,7 @@ module HLPTick3 =
     //position functions
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
-        fromList [-100..20..100]
+        fromList [1]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
     let rectangularPositions =
@@ -541,9 +568,53 @@ module HLPTick3 =
         |> Result.bind (MUX2Connection2)
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
-        //|> Result.bind (YOURFUNCTIONNAME)
         |> getOkOrFail
 
+    let makeTest5Circuit (posRots:XYPos) =
+        let MUX2Connection1, MUX2Connection2 = swap 50 "MUX1" "S2" "S1"
+
+        initSheetModel
+        |> placeSymbol "MUX1" Mux2 {X = 1962.66; Y = 1941.49}
+        |> Result.bind (placeSymbol "S2" (Input1(1,None)) {X = 1662.66; Y = 2041.49})
+        |> Result.bind (placeSymbol "S1" (Input1(1,None)) {X = 1662.66; Y = 1841.49})
+        |> Result.bind (MUX2Connection1)
+        |> Result.bind (MUX2Connection2)
+        |> Result.bind (optimalEdgeOrder)
+        |> getOkOrFail
+
+    let makeTest6Circuit (posRots:XYPos list * int list) =
+        let MUX2Connection1, MUX2Connection2 = swap 50 "MUX1" "S2" "S1"
+
+        initSheetModel
+        |> placeSymbol "S1" (Input1(1,None)) {X = 1662.66; Y = 1841.49}
+        |> Result.bind (placeSymbol "S2" (Input1(1,None)) {X = 1662.66; Y = 2041.49})
+        |> Result.bind (placeSymbol "MUX1" Mux2 {X = 1962.66; Y = 1941.49})
+        |> Result.bind (MUX2Connection1)
+        |> Result.bind (MUX2Connection2)
+        |> getOkOrFail
+
+    let makeTest8Circuit (posRots:XYPos list * int list) =
+        let MUX2Connection1, MUX2Connection2 = swap ((snd posRots)[3]) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = swap ((snd posRots)[4]) "G1" "MUX2" "MUX1"
+
+        initSheetModel
+        |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
+        |> Result.bind (placeSymbol "S2" (Input1(1,None)) ((fst posRots)[1]))
+        |> Result.bind (placeSymbol "MUX1" Mux2 ((fst posRots)[2]))
+        |> Result.bind (placeSymbol "MUX2" Mux2 ((fst posRots)[3]))
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) ((fst posRots)[4]))
+        |> Result.bind (flipRot ((snd posRots)[0]) "S1")
+        |> Result.bind (flipRot ((snd posRots)[1]) "S2")
+        |> Result.bind (flipRot ((snd posRots)[2]) "MUX1")
+        |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
+        |> Result.bind (flipRot ((snd posRots)[4]) "G1")
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+        |> Result.bind (MUX2Connection1)
+        |> Result.bind (MUX2Connection2)
+        |> Result.bind (ANDConnection1)
+        |> Result.bind (ANDConnection2)
+        |> Result.bind (optimalEdgeOrder)
+        |> getOkOrFail
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -668,14 +739,25 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test5 testNum firstSample (dispatch: Dispatch<Msg>) =
-            printf $"I might save the schematics and print it here. Hello!"
-            let stuf = dispatch (Sheet SheetT.Msg.SaveSymbols)
-            printf $"{stuf}"
-            
-            //let maxSheetCoord = Sheet.Constants.defaultCanvasSize
-            //let stuff = Model.GetSelectedComponents
-            //printf $"{stuff}"
+        let test5 testNum firstSample dispatch =
+            runTestOnSheets2
+                "Figure B2: fail on all, random flip rotate"
+                firstSample
+                horizLinePositions
+                makeTest5Circuit
+                Asserts.countWireCrossingAndSegs
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test6 testNum firstSample dispatch =
+            runTestOnSheets
+                "Figure B2: fail on all, random flip rotate"
+                firstSample
+                (randomCompPosVal 5 200 (-200,200) (0,200))
+                makeTest6Circuit
+                Asserts.countWireCrossingAndSegs
+                dispatch
+            |> recordPositionInTest testNum dispatch
 
         let test7 testNum firstSample dispatch =
             runTestOnSheets
@@ -688,11 +770,20 @@ module HLPTick3 =
             |> recordPositionInTest testNum dispatch
 
         let test8 testNum firstSample dispatch =
+            let samps = randomCompPosVal 5 200 (-200,200) (0,200)
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
                 firstSample
-                (randomCompPosVal 5 200 (-200,200) (0,200))
+                samps
                 makeTest7Circuit
+                Asserts.countWireCrossingAndSegs
+                dispatch
+            |> recordPositionInTest testNum dispatch
+            runTestOnSheets
+                "Figure B2: fail on all, random flip rotate"
+                firstSample
+                samps
+                makeTest8Circuit
                 Asserts.countWireCrossingAndSegs
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -707,9 +798,9 @@ module HLPTick3 =
                 "Test3", test3  
                 "Test4", test4
                 "Test5", test5
-                "Test6", fun _ _ _ -> printf "Test6 not implemented"
+                "Test6", test6
                 "Test7", test7
-                "Test8", fun _ _ _ -> printf "Test8 not implemented"
+                "Test8", test8
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]

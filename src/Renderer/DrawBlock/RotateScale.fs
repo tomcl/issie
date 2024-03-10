@@ -37,6 +37,18 @@
     It requires better documentation of teh pasrts now used.
 *)
 
+(* Part 3: hn621
+    List of Improvements (partition lines 266-524):
+    - 275: Renamed "getBlock" function into "getSymbolBlockBoundingBox", the notion of block's type is not clear
+    - 275-294: Applied transformation 1 (functional abstraction) to the "getSymbolBlockBoundingBox" function, reduced the repeated use of List.maxBy and List.minBy and made the code more readable
+    - 506-523: in "rotateBlock", removed the redundant calculation of unselected symbols
+    - 518: changed "newSymbols" to output Map<cid,sym> type (as this is the type of model.Symbols), initially was List<Symbol> which can cause confusion
+    - 522: by doing the above, also simplified the record update line making it much more readable
+    - Changed parameter name in annonymous function to be more meaningful, e.g. (fun x:Symbol -> ...) , changed to (fun sym:Symbol -> ...), Examples in line 509, 517
+    - Changed the documentation of rotation functions: the documentation of rotation states direction can be CW or AntiCW, but the code only supports CW.
+    - Added parameter isClockwise in the "rotatePointAboutBlockCentre", so that the function can support both CW and AntiCW rotation as specified
+*)
+
 (*Part 6: rl3721
 changes are made to the functions flipblock and postUpdateScalingBox
 
@@ -81,6 +93,7 @@ open SymbolResizeHelpers
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.
     It requires better documentation of teh pasrts now used.
 *)
+
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
@@ -341,27 +354,34 @@ let optimiseSymbolDimensions
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
 
+
 //--------------------------------------end of ec1221 section ----------------------------------------//
-//--------------------------------------start of  section ----------------------------------------//
+//--------------------------------------start of hn621 section ----------------------------------------//
+
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
 /// <returns>Bounding Box</returns>
-let getBlock 
-        (symbols:Symbol List) :BoundingBox = 
+let getSymbolBlockBoundingBox (symbols:Symbol List) :BoundingBox = 
+    let getMaxPosByAxis (selectAxis:XYPos->float) (selectDimension:float*float->float) (symbols: Symbol list) = 
+        symbols
+        |> List.map (fun (sym:Symbol) -> selectAxis sym.Pos + selectDimension (getRotatedHAndW sym)) 
+        |> List.max
+        
+    let getMinPosByAxis (selectAxis:XYPos->float) (symbols: Symbol list) = 
+        symbols
+        |> List.map (fun (sym:Symbol) -> selectAxis sym.Pos)
+        |> List.min
 
-    let maxXsym = (List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) symbols)
-    let maxX = maxXsym.Pos.X + (snd (getRotatedHAndW maxXsym))
+    let selectX = (fun (pos: XYPos) -> pos.X)
+    let selectY = (fun (pos: XYPos) -> pos.Y)
 
-    let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
-
-    let maxYsym = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) symbols
-    let maxY = maxYsym.Pos.Y + (fst (getRotatedHAndW maxYsym))
-
-    let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
+    let maxX = getMaxPosByAxis selectX snd symbols
+    let minX = getMinPosByAxis selectX symbols
+    let maxY = getMaxPosByAxis selectY fst symbols
+    let minY = getMinPosByAxis selectY symbols
 
     {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
-
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>
@@ -371,7 +391,8 @@ let getBlock
 let rotatePointAboutBlockCentre 
             (point:XYPos) 
             (centre:XYPos) 
-            (rotation:Rotation) = 
+            (rotation:Rotation) 
+            (isClockwise:bool) = 
     let relativeToCentre = (fun x-> x - centre)
     let rotateAboutCentre (pointIn:XYPos) = 
         match rotation with 
@@ -383,12 +404,15 @@ let rotatePointAboutBlockCentre
             {X = -pointIn.X ; Y = - pointIn.Y}
         | Degree270 ->
             {X = -pointIn.Y ; Y = pointIn.X}
-           
+        
     let relativeToTopLeft = (fun x-> centre - x)
 
     point
     |> relativeToCentre
     |> rotateAboutCentre
+    |> match isClockwise with
+        | true -> id 
+        | false -> (fun x -> {X = -x.X; Y = -x.Y}) // MOD: allow anti-clockwise rotation
     |> relativeToTopLeft
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre</summary>
@@ -407,10 +431,10 @@ let flipPointAboutBlockCentre
         {X = point.X; Y = center.Y - (point.Y - center.Y)}
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been rotated</summary>
-/// <param name="rotation"> Rotated CW or AntiCW</param>
+/// <param name="rotation"> Rotated CW</param>
 /// <param name="h"> Original height of symbol (Before rotation)</param>
 /// <param name="w"> Original width of symbol (Before rotation)</param>
-/// <param name="sym"> Symbol</param>
+/// <param name="pos"> XYPos</param>
 /// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockRotation
         (rotation:Rotation) 
@@ -421,16 +445,16 @@ let adjustPosForBlockRotation
     let posOffset =
         match rotation with
         | Degree0 -> {X = 0; Y = 0}
-        | Degree90 -> {X=(float)h ;Y=0}
-        | Degree180 -> {X= (float)w; Y= -(float)h}
-        | Degree270 -> { X = 0 ;Y = (float)w }
+        | Degree90 -> {X = h; Y =0}
+        | Degree180 -> {X = w; Y = -h}
+        | Degree270 -> {X = 0; Y = w}
     pos - posOffset
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been flipped</summary>
 /// <param name="flip">  Flipped horizontally or vertically</param>
 /// <param name="h"> Original height of symbol (Before flip)</param>
 /// <param name="w"> Original width of symbol (Before flip)</param>
-/// <param name="sym"> Symbol</param>
+/// <param name="pos"> XYPos</param>
 /// <returns>New top left point of the symbol</returns>
 let adjustPosForBlockFlip
         (flip:FlipType) 
@@ -439,13 +463,13 @@ let adjustPosForBlockFlip
         (pos: XYPos) =
     let posOffset =
         match flip with
-        | FlipHorizontal -> {X=(float)w ;Y=0}
-        | FlipVertical -> { X = 0 ;Y = (float)h }
+        | FlipHorizontal -> {X=w ;Y=0}
+        | FlipVertical -> {X=0 ;Y=h}
     pos - posOffset
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.</summary>
 /// <param name="rotation">  Clockwise or Anticlockwise rotation</param>
-/// <param name="block"> Bounding box of selected components</param>
+/// <param name="blockCentre"> Bounding box centre of selected components</param>
 /// <param name="sym"> Symbol to be rotated</param>
 /// <returns>New symbol after rotated about block centre.</returns>
 let rotateSymbolInBlock 
@@ -456,7 +480,7 @@ let rotateSymbolInBlock
     let h,w = getRotatedHAndW sym
 
     let newTopLeft = 
-        rotatePointAboutBlockCentre sym.Pos blockCentre (invertRotation rotation)
+        rotatePointAboutBlockCentre sym.Pos blockCentre (invertRotation rotation) true
         |> adjustPosForBlockRotation (invertRotation rotation) h w
 
     let newComponent = { sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
@@ -488,7 +512,7 @@ let flipSymbolInBlock
     (sym: Symbol) : Symbol =
 
     let h,w = getRotatedHAndW sym
-    //Needed as new symbols and their components need their Pos updated (not done in regular flip symbol)
+    //Needed as new symbols need their Pos and components updated (not done in regular flip symbol)
     let newTopLeft = 
         flipPointAboutBlockCentre sym.Pos blockCentre flip
         |> adjustPosForBlockFlip flip h w
@@ -507,10 +531,8 @@ let flipSymbolInBlock
         {Flipped= not sym.STransform.Flipped;
         Rotation= sym.STransform.Rotation} 
 
-    let newcomponent = {sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
-
     { sym with
-        Component = newcomponent
+        Component = {sym.Component with X=newTopLeft.X; Y=newTopLeft.Y}
         PortMaps = {Order=portOrder;Orientation=portOrientation}
         STransform = newSTransform
         LabelHasDefaultPos = true
@@ -521,7 +543,7 @@ let flipSymbolInBlock
         match flip with
         | FlipHorizontal -> sym
         | FlipVertical -> 
-            let newblock = getBlock [sym]
+            let newblock = getSymbolBlockBoundingBox [sym]
             let newblockCenter = newblock.Centre()
             sym
             |> rotateSymbolInBlock Degree270 newblockCenter 
@@ -551,12 +573,11 @@ let scaleSymbolInBlock
                 {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
 
     let h,w = getRotatedHAndW sym
-    let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
+    let newPos: XYPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
-(*SPLIT*)
 
 /// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
 
@@ -573,24 +594,23 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
 /// <param name="rotation"> Type of rotation to do</param>
 /// <returns>New rotated symbol model</returns>
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
-
     printfn "running rotateBlock"
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+    let SelectedSymbols = List.map (fun cid -> model.Symbols |> Map.find cid) compList
 
     //Get block properties of selected symbols
-    let block = getBlock SelectedSymbols
+    let block = getSymbolBlockBoundingBox SelectedSymbols
 
     //Rotated symbols about the center
     let newSymbols = 
-        List.map (fun x -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) x) SelectedSymbols 
+        List.map (fun sym -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) sym) SelectedSymbols 
+        |> List.map (fun sym -> rotateSymbolByDegree rotation sym)
+        |> List.fold (fun (acc: Map<ComponentId,Symbol>) (sym: Symbol) -> Map.add sym.Id sym acc) model.Symbols 
+        // MOD: changed the type of "newSymbols" to be Map<cid,sym> (as this is the type of model.Symbols)
+        // get the updated Map by using Map.add, instead of creating a new one from selected and unselected
 
     //return model with block of rotated selected symbols, and unselected symbols
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
-
+    {model with Symbols = newSymbols}
+/// ========== Above is SPLIT 4
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
     let maxXSymCentre = 
             selectedSymbols
@@ -627,7 +647,7 @@ let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (ma
 let getScalingFactorAndOffsetCentreGroup
     (matchBBMin:XYPos)
     (matchBBMax:XYPos)
-    (selectedSymbols: Symbol list) : ((float * float) * (float * float)) = 
+    (selectedSymbols: Symbol list) : (((float * float) * (float * float))) = 
     //(compList: ComponentId list)
     //(model: SymbolT.Model)
 
@@ -667,7 +687,7 @@ let getScalingFactorAndOffsetCentreGroup
 
 /// Alter position of one symbol as needed in a scaling operation
 let scaleSymbol
-        (xYSC: (float * float) * (float * float))
+        (xYSC: ((float * float) * (float * float)))
         (sym: Symbol)
         : Symbol = 
     let symCentre =  getRotatedSymbolCentre sym
@@ -694,7 +714,7 @@ let groupNewSelectedSymsModel
     //let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
-    // let block = getBlock SelectedSymbols
+    // let block = getSymbolBlockBoundingBox SelectedSymbols
     // printfn "bbCentreX:%A" (block.Centre()).X
 
     // let newSymbols = List.map (modifySymbolFunc (block.Centre())) SelectedSymbols
@@ -724,6 +744,7 @@ let groupNewSelectedSymsModel
 //                 |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
 //     )}
 
+
 /// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
@@ -733,11 +754,9 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
     let SelectedSymbols = model.Symbols |> Map.filter (fun x _ -> List.contains x compList) (*changed type to map, consistent with UnselectedSymbols to be more intuitive*)
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
     
-    let block =
-        SelectedSymbols
-        |> Map.toList
-        |> List.map snd
-        |> getBlock
+
+    let block = getSymbolBlockBoundingBox SelectedSymbols
+
   
     let newFlippedSymbols = (*rewrote the code with better allignment in pipeline form to be more readable*)
         SelectedSymbols
@@ -833,7 +852,7 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
         let newBoxBound = 
             model.SelectedComponents
             |> List.map (fun id -> Map.find id model.Wire.Symbol.Symbols)
-            |> getBlock
+            |> getSymbolBlockBoundingBox
         match model.ScalingBox with 
         | Some value when value.ScalingBoxBound = newBoxBound -> model, cmd
         | _ -> 

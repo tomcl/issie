@@ -4,6 +4,7 @@ open Elmish
 open RotateScale
 open CommonTypes
 open SheetBeautifyHelpers
+open SheetBeautifyD2
 
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Test Circuits---------------//
@@ -71,7 +72,15 @@ module D2 =
         |> List.allPairs gateFlips 
         |> List.map (fun (g,(f2,s2,f1,s1)) -> (g,f2,s2,f1,s1))
         |> fromList
-    /// demo test circuit consisting of a DFF & And gate
+
+    let getTestMetrics (sheet: SheetT.Model) : SheetT.Model=
+        printf $"Pre correction data, wire crossings:{numOfWireRightAngleCrossings sheet}"
+        // let updatedSheet = sheetOrderFlip sheet
+        printf $"Post correction metrics, wires straightened:{(numOfVisRightAngles sheet) - (numOfVisRightAngles sheet)},\
+        wire crossings:{numOfWireRightAngleCrossings sheet}"
+        sheet
+
+    /// demo test circuit consisting of all components neede fro D2
     let makeD2StarterCircuit (data :SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool) =
         let gateFlip, mux2Flip, mux2Swap, mux1Flip,mux1Swap = data
         let tmpFlip = flipSymbol 
@@ -95,6 +104,7 @@ module D2 =
         |> Result.bind(tmpFlipResult "MUX1" mux1Flip)
         |> Result.bind(tmpSwapResult "MUX2" mux2Swap)
         |> Result.map (reRouteWires)
+        |> Result.map(getTestMetrics)
         |> getOkOrFail
 
 

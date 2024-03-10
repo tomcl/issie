@@ -648,11 +648,9 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
                         | Some compId -> Component compId
                         | None -> Canvas
 
-
+// ec1221 - remove code duplication
 let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
-   model.BoundingBoxes
-   |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox box1 && inputId <> sId)
-   |> Map.isEmpty
+    RotateScale.noSymbolOverlap model.BoundingBoxes box1 inputId
 
 let notIntersectingSelectedComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
    model.BoundingBoxes |> Map.filter (fun sId _ -> List.contains sId model.SelectedComponents)

@@ -19,18 +19,6 @@ postUpdateScalingBox:
 - commented on some ugly use of float literals in the code, unable to tell how the literals are infered
 *)
 
-module RotateScale
-open CommonTypes
-open DrawModelType
-open DrawModelType.SymbolT
-open DrawModelType.BusWireT
-open SymbolUpdate
-open Symbol
-open Optics
-open Operators
-open BlockHelpers
-open SymbolResizeHelpers
-
 (* Improveing RotateScale module - ec1221
     Split lines: 175 - 268
     - Changed nested match cases to make it more readable
@@ -46,6 +34,18 @@ open SymbolResizeHelpers
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.
     It requires better documentation of teh pasrts now used.
 *)
+
+module RotateScale
+open CommonTypes
+open DrawModelType
+open DrawModelType.SymbolT
+open DrawModelType.BusWireT
+open SymbolUpdate
+open Symbol
+open Optics
+open Operators
+open BlockHelpers
+open SymbolResizeHelpers
 
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =

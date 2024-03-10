@@ -16,7 +16,7 @@ open BusWireRoute
 
 // --------------------------------------------------------------
 // --------------------------------------------------------------
-// D2 using only horizontal flips, permuting across every option 
+// Exhaustive Search
 
 /// Function to generate powersets for testing all combinations of flips
 let rec powerSet = function
@@ -136,6 +136,28 @@ let findBestModel (model: SheetT.Model) : SheetT.Model =
 
 //------------------------------------------------------------
 //------------------------------------------------------------
+// Iterated Local Search (ILS)
 
+/// General framework for Iterated Local Search -> Needs fully implementing once we test more complex circuits
+let iteratedLocalSearch (model: SheetT.Model) : SheetT.Model = 
+    let componentsToFlip =
+        model.Wire.Symbol.Symbols
+        |> Map.toList
+        |> List.choose (fun (id, sym) ->
+            match sym.Component.Type with
+            | GateN _ | Mux2 -> Some id
+            | _ -> None)
 
+    let rec search currentBestModel components =
+        match components with
+        | [] -> model                  //-> Introduce purtubation out of local optimum here (e.g. jump to a different cluster)
+        | compId :: tailComponents ->
 
+            let compFlipped = flipAndRerouteComp currentBestModel compId
+            let compNotFlipped = currentBestModel
+
+            let bestModel = evaluateModels compFlipped compNotFlipped
+
+            search bestModel tailComponents
+
+    search model componentsToFlip

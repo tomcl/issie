@@ -157,16 +157,14 @@ let fileMenu (dispatch) =
         makeItem "Write design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
+
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
-        // makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
-        //     TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
-        //     |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
-        //     |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
-        // create shortcuts
-        makeMenuGen (debugLevel > 0) false "Indiv Tests" (
-            TestDrawBlockD2.D2Test.Tests.testsToRunFromSheetMenu // make a submenu from this list
-            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
-            |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
+        makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
+            // yc3821 - modified the logic here to fit tiwh TestDrawBlock
+            TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
+            //|> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
+            |> List.mapi (fun n (name, _) -> (makeTestItem name n)))
+
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
         makeWinDebugItem "Trace View function" None (fun _ ->

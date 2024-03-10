@@ -21,7 +21,15 @@
     -Add some comments describ how well it is structured and readable. 
 *)
 
-(* Improveing RotateScale module - ec1221
+(* Part 2 yc3821:  the improvement is at line 131 - 194 (or search yc3821 to see all improved code)
+    Summary:
+    - Created a DU instead of separate variables for the port pair
+    - Extracted the function getPortInfoPair to improve readability and reusability
+    - improved some variable names
+    - minor pipeline improvements to enhance readability
+*)
+
+(* Part 3: Improveing RotateScale module - ec1221
     Split lines: 175 - 268
     - Changed nested match cases to make it more readable
     - Removed some intermediate variables
@@ -37,7 +45,7 @@
     It requires better documentation of teh pasrts now used.
 *)
 
-(* Part 3: hn621
+(* Part 4: hn621
     List of Improvements (partition lines 266-524):
     - 275: Renamed "getBlock" function into "getSymbolBlockBoundingBox", the notion of block's type is not clear
     - 275-294: Applied transformation 1 (functional abstraction) to the "getSymbolBlockBoundingBox" function, reduced the repeated use of List.maxBy and List.minBy and made the code more readable
@@ -225,42 +233,57 @@ let alignSymbols
         let symbol' = moveSymbol offset symbolToSize
         let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
         BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
+        
+//--------------------------------------end of hj1021 section ----------------------------------------//
+// ----------------------- yc3821: improved parts start here -----------------------
+
+
 
 /// HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
 /// so that the connecting wires are exactly straight
 /// HLP23: It should work out the interconnecting wires (wires) from
 /// the two symbols, wModel.Wires and sModel.Ports
 /// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
+type ResizePortPairInfo = { ResizePortInfo: PortInfo; OtherPortInfo: PortInfo }
+
+/// yc3821: Try to get two ports that are on opposite edges, if none found just use any two ports. (Improvement on "Type" and "Function")
+let getPortInfoPair (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : ResizePortPairInfo =
+    match getOppEdgePortInfo wModel symbolToSize otherSymbol with
+    | None ->
+        // yc3821: moved wires variable here to enhance readability
+        let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
+        let pA, pB = getPortAB wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires[0] }  // yc3821: wire[0] is arbitrary
+        {ResizePortInfo = makePortInfo symbolToSize pA; OtherPortInfo = makePortInfo symbolToSize pB }
+    | Some(pIA, pIB) -> { ResizePortInfo = pIA; OtherPortInfo = pIB }
+
+
 let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
-    let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
-    // Try to get two ports that are on opposite edges, if none found just use any two ports.
-    let resizePortInfo, otherPortInfo =
-        match getOppEdgePortInfo wModel symbolToSize otherSymbol with
-        | None ->
-            let pS, pT = getSourceTargetPorts wModel { sourceSym = symbolToSize; targetSym = otherSymbol; Wire = wires[0] }
-            makePortInfo symbolToSize pS, makePortInfo symbolToSize pT
-        | Some(pIS, pIT) -> (pIS, pIT)
 
-    //hj1021 input wrapping
-    let h, w =
-        match resizePortInfo.side with
+    // yc3821: get the ResizePortPairInfo
+    let portInfoPair = getPortInfoPair wModel symbolToSize otherSymbol
+
+    // yc3821: better naming for h and w
+    let newHeight, newWidth =
+        match portInfoPair.ResizePortInfo.side with
+
         | Left | Right ->
-            otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.gap), resizePortInfo.w
+            portInfoPair.OtherPortInfo.portGap * (portInfoPair.ResizePortInfo.portDimension + 2.0 * portInfoPair.ResizePortInfo.gap), portInfoPair.ResizePortInfo.w
         | Top | Bottom ->
-            resizePortInfo.h, otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.topBottomGap)
+            portInfoPair.ResizePortInfo.h, portInfoPair.OtherPortInfo.portGap * (portInfoPair.ResizePortInfo.portDimension + 2.0 * portInfoPair.ResizePortInfo.topBottomGap)
 
     match symbolToSize.Component.Type with
     | Custom _ ->
-        //hj1021 input wrapping
-        let scaledSymbol = setCustomCompHW h w symbolToSize
-        let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
-        let offset = alignPortsOffset scaledInfo otherPortInfo
+
+        // yc3821: added pipeline to enhance readability
+        let scaledSymbol = symbolToSize |> setCustomCompHW newHeight newWidth 
+        let scaledInfo = makePortInfo scaledSymbol portInfoPair.ResizePortInfo.port
+        let offset = alignPortsOffset scaledInfo portInfoPair.OtherPortInfo
+
         moveSymbol offset scaledSymbol
     | _ -> symbolToSize
 
-//--------------------------------------end of hj1021 section ----------------------------------------//
-//--------------------------------------start of ec1221 section ----------------------------------------//
+
 
 /// For UI to call ResizeSymbol.
 let reSizeSymbolTopLevel
@@ -275,6 +298,10 @@ let reSizeSymbolTopLevel
     let model' = Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
 
+
+
+// ----------------------- yc3821: improved parts end here -----------------------
+//--------------------------------------start of ec1221 section ----------------------------------------//
 
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =

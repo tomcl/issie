@@ -487,7 +487,122 @@ module HLPTick3 =
                 func testIndex 0 dispatch
         
 
+/// a module for testing of the sheetOrderFlip function for Sheet Beautification
+module TestDrawblockD2 =
+    open DrawModelType
+    (* Design:
+    
+    - 3 sheet definitions, each hardcoded according to our specifications
+        - i.e. will sit down with Roshan to decide what the optimal sheet is
+
+    - 1 sheet maker and 1 sheet checker, 
+      to compare the beautified sheets to the exemplar sheets
+
+    - Multiple Sheet distorters, they will get progressively more aggressive
+      in the way that they distort the sheet, from just switching two ports
+      to then maybe randomising port orders and flipping arbitrary symbols
+
+    Process:
+    1. use a sheet maker to generate a circuit from one of the sheet definitions
+    2. use a sheet distorter to distort the circuit
+    3. apply the sheetOrderFlip function to the distorted circuit
+    4. evaluate its performance by seeing how close it got to the original sheet
+    5. repeat steps 2-4 for each of the sheet distorters
+    6. repeat steps 1-5 for each of the sheet definitions
+    *)
+    
+
+    /// a record holding all the information needed by the sheetmaker
+    /// to generate a sheet,\
+    /// with some extra pre-computed information fir use in the evaluation stage
+    type SheetDefinition = {
+        Name: string  // must be unique
+        // continue defining the info that the sheetmaker function will need
+    }
+
+    // TODO: probably move this up to Builders module?
+    /// the sheetmaker that creates the exemplar sheet
+    let createSheet (definition: SheetDefinition) =
+        failwithf "Not Implemented"  // TODO: Implement
+
+
+    // TODO: maybe move this to above Asserts module?
+    /// the sheetchecker that compares the beautified sheet against the exemplar
+    let practicallyEquivalent (sample: int) (sheet: SheetT.Model) =
+        failwithf "Not Implemented"  // TODO: Implement
+
+
+    module Distort =
+        // rotate, flip, alter port order
+        // but no need to alter position or scales of symbols
+        // can merge with work of D1 for that
+
+        /// rotates a symbol to a random orientation
+        let rotateSymbol (symbol: SymbolT.Model) =
+            failwithf "Not Implemented"  // TODO: Implement
+
+        /// flips a symbol to a random orientation
+        let flipSymbol (symbol: SymbolT.Model) =
+            failwithf "Not Implemented"  // TODO: Implement
+
+        /// combines the rotate and flip functions
+        /// to rotate and flip `number` symbols
+        let rotateAndFlipSymbols (model: SheetT.Model) (number: int) =
+            failwithf "Not Implemented"  // TODO: Implement
+
+
+        /// randomly picks two ports on a symbol and switches their order\
+        /// obviously switches if the symbol has only two ports
+        let switchPortOrder (symbol: SymbolT.Symbol) =
+            failwithf "Not Implemented"  // TODO: Implement
+            // for MUX2, make use of lens defined in SBHelpers
+
+        /// randomly picks `number` symbols and switches their ports' orders
+        let switchPortOrders (model: SheetT.Model) (number: int) =
+            failwithf "Not Implemented"  // TODO: Implement
+
+        /// effective on many-port symbols, where a list can be generated,
+        /// randomised, and then applied\
+        /// to yield a fully randomised port edge
+        let randomisePortOrder (symbol: SymbolT.Symbol) =
+            failwithf "Not Implemented"  // TODO: Implement
+
+        /// randomly picks `number` symbols and randomises their ports' orders
+        let portMesserUpper (model: SheetT.Model) (number: int) =
+            failwithf "Not Implemented"  // TODO: Implement
 
     
+    /// a module to evaluate the performance of the beautification function\
+    /// for the samples that fail the initial tests, 
+    /// we can still evaluate how close they came to their target
+    module Evaluate =
+        (* Criteria:
+            Primarily checking for Wire Crossings
+            
+            Can also check for:
+            - Wire Usage
+                - total wire usage should be similar to the examplar sheet,
+                  with a little tolerance, of course
+                - a symbol in a suboptimal orientation will use more wire
+                  than a symbol in an optimal orientation
+            - Wire-Symbol spacing
+                - the distance between a wire and any given symbol
+                  affects how cluttered that area of the sheet looks
+                - the wires from a symbol in a suboptimal orientation
+                  may be routed too close to another symbol
+                - of course, this must be balanced with Wire Usage
+                  to yield a sweet spot for symbol orientation and port order
+        *)
+
+        /// overall evaluation function to be called
+        let evaluateBeautification (exemplar: SheetDefinition) (sheet: SheetT.Model) =
+            failwithf "Not Implemented"  // TODO: Implement
+
+        let wireCrossingsCount = ()  // TODO: grab from SBHelpers
+
+        let wireUsage = ()  // TODO: grab from SBHelpers
+
+        let wireSymbolSpacing (exemplar: SheetDefinition) (sheet: SheetT.Model) =
+            failwithf "Not Implemented"  // TODO: implement 
 
 

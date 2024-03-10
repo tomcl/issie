@@ -115,11 +115,19 @@ open BusWireRoute
 //     bestModel
 
 
-// TESTING GATE SWITCHING ---------------------------------------
 // --------------------------------------------------------------
+// --------------------------------------------------------------
+// D2 using only horizontal flips, permuting across every option 
+
+/// Function to generate powersets for testing all combinations of flips
+let rec powerSet = function
+    | [] -> [[]]
+    | head :: tail ->
+        let tailSubsets = powerSet tail
+        tailSubsets @ (tailSubsets |> List.map (fun subset -> head :: subset))
 
 /// Applies the smartAutoRoute function to all existing wires connected to a symbol
-let rerouteWire (model: SheetT.Model) (symbolId: ComponentId) : SheetT.Model = 
+let rerouteWire (symbolId: ComponentId) (model: SheetT.Model)  : SheetT.Model = 
     let wiresToReroute = 
         model.Wire.Wires
         |> Map.filter (fun _ wire ->
@@ -140,69 +148,96 @@ let rerouteWire (model: SheetT.Model) (symbolId: ComponentId) : SheetT.Model =
 
     updateWireModel
 
-/// Gate permutations (currently just horizontal flip)
-/// TODO: Implement permuations for higher port orders & test if horiontal flip is correct for all orientations
-let flipGatesHorizontally (model: SheetT.Model) : SheetT.Model =
-    let updatedModel, flippedIds = 
-        model.Wire.Symbol.Symbols
-        |> Map.fold (fun (accModel, accIds) id symbol ->
-            match symbol.Component.Type with
-            | GateN _ ->
-                let accModel = flipSymbol (symbol.Component.Label) FlipVertical accModel 
-                accModel, id :: accIds
-            | _ -> accModel, accIds) (model, [])
+/// Flips the specified component before rerouting connected wires
+let flipAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Model =
+    let compLabel =
+        match Map.tryFind compId model.Wire.Symbol.Symbols with
+        | Some sym -> sym.Component.Label
+        | None -> failwith "Component not found in model"
+    
+    printfn "Flipping component: %A" compId
 
-    flippedIds
-    |> List.fold rerouteWire updatedModel
+   
+    flipSymbol compLabel FlipVertical model 
+    |> rerouteWire compId
+    
+    
 
 /// Find the better performing model based off total wire crossings and right angles
-let evaluateModelCrossings (originalCrossings: int) (originalRightAngles: int) (flippedModel: SheetT.Model) (originalModel: SheetT.Model) = 
-    let crossings = numOfWireRightAngleCrossings flippedModel
-    printfn "NewCrossings: %A" crossings
-    let rightAngles = numOfVisRightAngles flippedModel
-    printfn "NewRightAngles: %A" rightAngles
-    if crossings <= originalCrossings && rightAngles <= originalRightAngles then
-        flippedModel
+let evaluateModels (flippedModel: SheetT.Model) (originalModel: SheetT.Model) = 
+    let originalCrossings = numOfWireRightAngleCrossings originalModel
+    let originalRightAngles = numOfVisRightAngles originalModel    
+    let newCrossings = numOfWireRightAngleCrossings flippedModel
+    let newRightAngles = numOfVisRightAngles flippedModel
+
+    // printfn "Running evaluateModelCrossings................."
+    // printfn "originalCrossings: %A" originalCrossings
+    // printfn "originalRightAngles: %A" originalRightAngles
+    // printfn "NewCrossings: %A" newCrossings
+    // printfn "NewRightAngles: %A" newRightAngles
+
+    if newCrossings <= originalCrossings && newRightAngles <= originalRightAngles then    
+        if newCrossings = originalCrossings && newRightAngles = originalRightAngles then
+            // printfn "Kept original model"
+            // printfn "EvaluateModelCrossings complete................"
+            originalModel
+            
+        else
+            // printfn "Changed to new model"
+            // printfn "EvaluateModelCrossings complete................"
+            flippedModel
     else
+        // printfn "Kept original model"
+        // printfn "EvaluateModelCrossings complete................"
         originalModel
 
-// Find model 
-let findBestModel (model: SheetT.Model) = 
-    printf "RUNNING EVALUATION------------------------------------------------------------------------"
-    let originalCrossings = numOfWireRightAngleCrossings model
-    printfn "OriginalCrossings: %A " originalCrossings
-    let originalRightAngles = numOfVisRightAngles model
-    printfn "OriginalRightAngles: %A " originalRightAngles
+/// Perform exhaustive search across all component flips, finding the model with the least total wire crossings and right angles
+let findBestModel (model: SheetT.Model) : SheetT.Model = 
+    let components =
+        model.Wire.Symbol.Symbols
+        |> Map.toList
+        |> List.choose (fun (id, sym) ->
+            match sym.Component.Type with
+            | GateN _ | Mux2 -> Some id
+            | _ -> None)
 
-    // For now just checking if the two input flip improves model quality
-    let flippedModel = flipGatesHorizontally model
+    let flipCombinations = powerSet components
+    // printfn "Flip combinations: %A" flipCombinations
 
-    let flippedModelEval = evaluateModelCrossings originalCrossings originalRightAngles flippedModel model
+    let compareModels (currentBestModel: SheetT.Model) flipCombination = 
+        let flippedModel = 
+            flipCombination |> List.fold (fun accModel compId ->
+                flipAndRerouteComp accModel compId 
+            ) currentBestModel
 
-    flippedModelEval
+        evaluateModels flippedModel currentBestModel 
 
-//------------------------------------------------------------
-//------------------------------------------------------------
-
-
-
-
-
+    flipCombinations |> List.fold compareModels model
 
 
-/// Flips all MUXes on a sheet. Not implemented yet (to be used for options section)
-// let sheetFlipMUX (model: Model) : Model =
-//     let updatedSymbols =
+
+
+
+
+// /// Gate permutations (currently just horizontal flip)
+// /// TODO: Implement permuations for higher port orders & test if horiontal flip is correct for all orientations
+// let flipGatesHorizontally (model: SheetT.Model) : SheetT.Model =
+//     let updatedModel, flippedIds = 
 //         model.Wire.Symbol.Symbols
-//         |> Map.toList
-//         |> List.map (fun (id, symbol) ->
-//             if symbol.Component.Type = Mux2 then
-//                 (id, Optic.set symbolFlipState_ (not symbol.STransform.Flipped) symbol)
-//             else
-//                 (id, symbol))
-//         |> Map.ofList
-//     { model with
-//         Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
+//         |> Map.fold (fun (accModel, accIds) id symbol ->
+//             match symbol.Component.Type with
+//             | GateN _ | Mux2 ->
+//                 let accModel = flipSymbol (symbol.Component.Label) FlipVertical accModel 
+//                 accModel, id :: accIds
+//             | _ -> accModel, accIds) (model, [])
+
+//     flippedIds
+//     |> List.fold rerouteWire updatedModel
+
+
+//------------------------------------------------------------
+//------------------------------------------------------------
+
 
 // let reverseAllMuxInputPorts (model: Model) : Model =
 //     let reverseInputPort symbol =

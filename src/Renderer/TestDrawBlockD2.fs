@@ -140,11 +140,9 @@ let makeCircuit1 (symFlips : FlipType*FlipType*FlipType) =
     let model = 
         initSheetModel
         |> placeSymbol "G1" (GateN(And, 2)) andPosCircuit1
-        |> Result.bind (flipSymbol "G1" flipGate)
         |> Result.bind (placeSymbol "MUX1" Mux2 mux1PosCircuit1)
-        |> Result.bind (flipSymbol "MUX1" flipMUX1)
         |> Result.bind (placeSymbol "MUX2" Mux2 mux2PosCircuit1)
-        |> Result.bind (flipSymbol "MUX2" flipMUX2)
+        |> Result.bind (flipSymbol "MUX2" FlipVertical)
         |> Result.bind (placeSymbol "S1" (Input1(1, Some 1)) input1PosCircuit1)
         |> Result.bind (placeSymbol "S2" (Input1(1, Some 1)) input2PosCircuit1)
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))

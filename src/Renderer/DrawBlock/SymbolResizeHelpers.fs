@@ -9,6 +9,7 @@ open Optic
 open Operators
 
 open SymbolHelpers
+open SymbolView
 open BlockHelpers
 
 
@@ -37,7 +38,7 @@ let rotateSide (rotation: Rotation) (side:Edge) :Edge =
 /// rotates the portMap information left or right as per rotation
 let rotatePortInfo (rotation:Rotation) (portMaps:PortMaps) : PortMaps=
     //need to update portOrientation and portOrder
-    printfn "running rotatePortInfo"
+    // printfn "running rotatePortInfo"
     let newPortOrientation = 
         portMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
 
@@ -57,6 +58,7 @@ let adjustPosForRotation
      : XYPos =
     let posOffset =
         match rotation with
+        | Degree0 | Degree180 -> { X = 0.0; Y = 0.0 }
         | Degree90 | Degree270 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
         | Degree0 -> { X = 0.0; Y = 0.0 } // No adjustment for Degree0
         | Degree180 -> { X = w; Y = h } // Assuming full width and height adjustment for Degree180
@@ -144,7 +146,8 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
         | FlipHorizontal -> sym
         | FlipVertical -> 
             sym
-            |> rotateSymbol Degree180)
+            |> rotateSymbol Degree90
+            |> rotateSymbol Degree90)
 
 let changeSymbolCorners showCorners sym = 
     set (appearance_ >-> showCorners_) showCorners sym

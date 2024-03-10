@@ -149,7 +149,7 @@ let fileMenu (dispatch) =
         makeDebugItem name (Some $"CmdOrCtrl+Alt+{accelNumber+1}") (fun _ -> // Using Cmd+Alt (or Ctrl+Alt)
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD1.testMenuFunc, accelNumber), dispatch)))
     let makeD2TestItem (name:string) (accelNumber:int)  =
-        makeDebugItem name (Some $"CmdOrCtrl+Shift+{accelNumber+1}") (fun _ ->
+        makeDebugItem name (Some $"Alt+{accelNumber+1}") (fun _ ->
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.testMenuFunc, accelNumber), dispatch)))
     let makeD3TestItem (name:string) (accelNumber:int)  =
         makeDebugItem name (Some $"Alt+Shift+{accelNumber+1}") (fun _ -> // Using Alt+Shift

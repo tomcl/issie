@@ -1,5 +1,6 @@
-﻿(*Part 1: hj1021 
+﻿// Due to reformating in merge, line numbers will not match the code in desciption
 
+(*Part 1: hj1021 
     <improvement summary>
     Changes are made to to WireSymbols, getOppEdgePortInfo, alignPortsOffset, alignSymbols and reSizeSymbol
     And add XML comments to each function
@@ -620,6 +621,9 @@ let scaleSymbolInBlock
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
+//--------------------------------------end of hn621 section ----------------------------------------//
+//--------------------------------------start of ll3621 section ----------------------------------------//
+
 ///<summary> Main changes made by ll3621:
 /// Improve readability by seprating complex nested functions into a pipeline
 /// Reduce the complexity of the functions by using more suitable functions/types
@@ -843,7 +847,6 @@ let groupNewSelectedSymsModel
 
 
 //--------------------------------------end of ll3621 section ----------------------------------------//
-
 //--------------------------------------start of rl3721 section ----------------------------------------//
 
 (*Old implementation*) 

@@ -235,12 +235,38 @@ module HLPTick3 =
         
 
         // Rotate a symbol
+        // Rotate a symbol
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+            let componentMap = model.Wire.Symbol.Symbols
+            let findSymbolID map = 
+                map|> Map.filter(fun _ (value:DrawModelType.SymbolT.Symbol) -> value.Component.Label = symLabel)
+            let compList = (findSymbolID componentMap) |> Map.toList |> List.map fst
+            let rotmodel = {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock compList model.Wire.Symbol rotate)}}
+
+            let newModel = {rotmodel with BoundingBoxes = Symbol.getBoundingBoxes rotmodel.Wire.Symbol}
+            
+            let errorComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (Sheet.notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+            {newModel with ErrorComponents = errorComponents}
+
+                
+            
 
         // Flip a symbol
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+            let componentMap = model.Wire.Symbol.Symbols
+            let findSymbolID map = 
+                map|> Map.filter(fun _ (value:DrawModelType.SymbolT.Symbol) -> value.Component.Label = symLabel)
+            let compList = (findSymbolID componentMap) |> Map.toList |> List.map fst
+            let flipmodel = {model with Wire = {model.Wire with Symbol = (RotateScale.flipBlock compList model.Wire.Symbol flip)}}
+
+            let newModel = {flipmodel with BoundingBoxes = Symbol.getBoundingBoxes flipmodel.Wire.Symbol}
+            
+            let errorComponents =
+                newModel.SelectedComponents
+                |> List.filter (fun sId -> not (Sheet.notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
+            {newModel with ErrorComponents = errorComponents}
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.

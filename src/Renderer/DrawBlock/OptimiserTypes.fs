@@ -37,13 +37,18 @@
 
     
     /// example of how to implement the IOptimiser interface using your own functions
-    /// your functions should replace the failwithfs
-    /// note that <int,int> must be replaced with the types you are using for 'LOCS and 'NEIGHBOURS respectively
-    let myCode = {
+    /// your functions should replace the skeleton interface functions defined below.
+    /// note that <int,string> must be replaced with the types you are using for 'LOCS and 'NEIGHBOURS respectively
+    /// your types are likely to be D.U.s
+    let myOptimisationCode = {
 
-        new IOptimise<int,int> with
+        new IOptimise<int,string> with
 
-            member this.ObjectiveFn _ = failwithf "Objective function implementation"
+            member this.ObjectiveFn sheet =
+                // example of how to call any of the interface functions
+                // from anotehr interface function
+                let locs = this.GetLocsFromSheet 
+                failwithf "Objective function implementation"
         
             member this.GetLocsFromSheet sheet = failwithf "get Locs from sheet implementation"
 
@@ -57,4 +62,4 @@
         }
 
     /// example of how to use your functionns via the IOptimiser interface
-    let evalSheet sheet = myCode.ObjectiveFn sheet // use the objective function from the interface
+    let evalSheet sheet = myOptimisationCode.ObjectiveFn sheet // use the objective function from the interface

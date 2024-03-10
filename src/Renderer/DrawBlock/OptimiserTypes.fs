@@ -24,13 +24,16 @@
         abstract GetNeighboursFromLoc: SheetT.Model -> 'LOCS -> 'NEIGHBOURS Set
 
     
-        /// function that can generate a mutated sheet from a specification of all the mutation parameters
+        /// Generate a mutated sheet from a specification of all the mutation parameters
         abstract MutateSheet:  Map<'LOCS,'NEIGHBOURS> -> SheetT.Model -> SheetT.Model
 
         /// function that can extract from a sheet its mutation parameters
         /// as a map from location to the corresponding neighbour value
         /// (e.g. from MUX to the current flip/reverse state of MUX)
         abstract GetSheetLocValues: SheetT.Model -> Map<'LOCS,'NEIGHBOURS>
+
+        /// One-size-fits-all top-lebel beautify function
+        abstract Beautify: SheetT.Model -> SheetT.Model
 
     
     /// example of how to implement the IOptimiser interface using your own functions
@@ -49,6 +52,8 @@
             member this.MutateSheet mutationMap sheet = failwithf "get mutated sheet from sheet and map of mutations"
 
             member this.GetSheetLocValues sheet = failwithf "get Loc values defining sheeet"
+
+            member this.Beautify sheet = sheet // dummy function does nothing
         }
 
     /// example of how to use your functionns via the IOptimiser interface

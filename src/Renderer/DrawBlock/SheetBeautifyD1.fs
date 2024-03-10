@@ -5,6 +5,7 @@
 
 
 open Optics
+open Optics.Operators
 open CommonTypes
 open DrawModelType
 open DrawModelType.SymbolT
@@ -13,30 +14,19 @@ open Helpers
 open Symbol
 open BlockHelpers
 open SheetBeautifyHelpers
-
+open RotateScale
+open BusWire
 module Helpers =
     // SYMBOL/CUSTOM COMPONENT HELPER FUNCTIONS ----------------------------------------------------------------------
 
     // Given D1 we are scaling custom components, we must have r/w to the dimensions
 
-    type CustomComponentLens = {
-        Get: Symbol -> (float * float)
-        Set: float -> float -> Symbol -> Symbol
-    }
-    /// Getter and Setter function to retrive/update Custom Component Height and Width
-    let dimensionsLens = {
-        Get = fun sym -> (sym.Component.H, sym.Component.W)
-        Set = fun h w sym ->
-            let updatedComponent = { sym.Component with H = h; W = w }
-            { sym with Component = updatedComponent }
-    }
-
     /// get list of all Port Positions - This can help in testing with 
     let getAllPortPos (model: SymbolT.Model) =
         model.Ports
         |> Map.toList
-        |> List.map snd
-        |> List.map (fun port -> getPortPos port model)
+        |> List.map fst
+        |> List.map (fun portId -> getPortPos portId model)
 
     //This helper may be useful when aligning same-type components
     /// returns all the Symbols in a sheet grouped by Component Type
@@ -47,6 +37,70 @@ module Helpers =
             |> List.groupBy (fun symbol -> symbol.Component.Type)
         compGroups
 
+    /// returns all singly compoenents with one output xor input port
+    let getSinglyComp (sheet: SheetT.Model): Symbol list =
+        Optic.get symbols_ sheet.Wire.Symbol
+        |> Map.fold (fun acc (sId:ComponentId) (sym:SymbolT.Symbol) ->
+            match getComponentProperties sym.Component.Type sym.Component.Label with
+            | (0, 1, _, _) -> sym :: acc
+            | (1, 0,_,_) -> sym :: acc
+            | _ -> acc) []
+        |> List.rev
+
+    /// returns the ports for a given symbol
+    let getPortSym (model: SymbolT.Model) (sym: Symbol): Map<string,Port>  =
+        let portId = sym ^. (portMaps_ >-> orientation_) |> Map.keys
+        portId
+        |> Seq.fold (fun acc id -> 
+            match Map.tryFind id model.Ports with
+            | Some port -> Map.add id port acc
+            | None -> acc) Map.empty
+
+    /// Finds the corresponding other port(s) for a given port based on connections.
+    /// `port` is the given port to find matches for.
+    /// `connections` is the list of all connections to search through.
+    let findOtherPorts (port: Port) (connections: Connection list): Port list =
+        connections |> List.collect (fun connection ->
+            match connection with
+            | { Source = src; Target = tgt } when src = port -> [tgt] // Port is the source; collect the target
+            | { Source = src; Target = tgt } when tgt = port -> [src] // Port is the target; collect the source
+            | _ -> [] // No match, proceed to the next connection
+        )
+
+    let alignSinglyComp (sheet: SheetT.Model): SheetT.Model =
+        let singlyComp = getSinglyComp sheet
+        let connections = extractConnections sheet.Wire   
+        singlyComp
+        |> List.fold (fun sheet sym ->
+            let portsMap = getPortSym sheet.Wire.Symbol sym
+            // Since it's a singly component, assume there is only one port
+            let portOption = portsMap |> Map.values |> Seq.tryHead  
+            match portOption with
+            | Some port ->
+                let otherPort = findOtherPorts port connections |> List.head
+                let otherSymId = ComponentId otherPort.HostId
+                let otherSym = sheet.Wire.Symbol.Symbols[otherSymId]
+                let wModel' = alignSymbols sheet.Wire sym otherSym
+                let sheet' = Optic.set SheetT.wire_ wModel' sheet
+                sheet'
+            | _ -> sheet // If no port is found, proceed to the next symbol
+        ) sheet
+        
+
+       
+    let inline getOrientationOfEdge (edge: Edge) = 
+     match edge with
+     | CommonTypes.Top | CommonTypes.Bottom -> Vertical
+     | CommonTypes.Left | CommonTypes.Right -> Horizontal
+
+
+
+    /// Filters Ports by Symbol.
+/// HLP23: AUTHOR dgs119
+let filterPortBySym (ports: Port list) (sym: Symbol) =
+    ports |> List.filter (fun port -> ComponentId port.HostId = sym.Id)
+
+        
 
     // WIRE HELPER FUNCTIONS ------------------------------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
@@ -10,7 +10,6 @@
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    
     <!-- Common definitions -->
     <Compile Include="Common\EEExtensions.fs" />
     <Compile Include="Common\Optics.fs" />
@@ -21,9 +20,11 @@
     <Compile Include="Common\Helpers.fs" />
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
-    <!-- UART -->
+
+	  <!-- UART -->
     <Compile Include="UartFiles\BuildUartHelpers.fs" />
-    <!-- simulator -->
+
+	  <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />
@@ -39,6 +40,7 @@
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />
     <Compile Include="Simulator\Simulator.fs" />
+
     <!-- Verilog Component -->
     <Compile Include="VerilogComponent\VerilogTypes.fs" />
     <Compile Include="VerilogComponent\VerilogAST.fs" />
@@ -46,44 +48,48 @@
     <Compile Include="VerilogComponent\ErrorCheckHelpers.fs" />
     <Compile Include="VerilogComponent\ErrorCheckProcedural.fs" />
     <Compile Include="VerilogComponent\ErrorCheck.fs" />
-    <Compile Include="VerilogComponent\SheetCreator.fs" />
-    <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />
+    <Compile Include="VerilogComponent\SheetCreator.fs" /> 
+    <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />   
+
     <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
     <Compile Include="Interface\FilesIO.fs" />
     <Compile Include="Interface\WorkerInterface.fs" />
     <None Include="scss\main.scss" />
-    <!-- Elmish Model -->
+
+	<!-- Elmish Model -->
     <Compile Include="Model\DrawModelType.fs" />
     <Compile Include="Model\ModelType.fs" />
-    <!-- Draw Block -->
-    
-    <Compile Include="DrawBlock\BlockHelpers.fs" />
+	  
+	<!-- Draw Block -->
+	<Compile Include="DrawBlock\BlockHelpers.fs" />
     <Compile Include="DrawBlock\SymbolHelpers.fs" />
     <Compile Include="DrawBlock\PopupHelpers.fs" />
     <Compile Include="DrawBlock\Symbol.fs" />
-    <Compile Include="DrawBlock\SymbolView.fs" />
-    <Compile Include="DrawBlock\SymbolPortHelpers.fs" />
+	<Compile Include="DrawBlock\SymbolView.fs" />
+	<Compile Include="DrawBlock\SymbolPortHelpers.fs" />
     <Compile Include="DrawBlock\SymbolResizeHelpers.fs" />
-    <Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
+	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
-    <Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
-    <Compile Include="DrawBlock\BusWireRoutingHelpers.fs" />
-    <Compile Include="DrawBlock\BusWireRoute.fs" />
-    <Compile Include="DrawBlock\BusWireSeparate.fs" />
+	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
+	<Compile Include="DrawBlock\BusWireRoutingHelpers.fs" />
+	<Compile Include="DrawBlock\BusWireRoute.fs" />
+	<Compile Include="DrawBlock\BusWireSeparate.fs" />
     <Compile Include="DrawBlock\BusWireUpdate.fs" />
     <Compile Include="DrawBlock\RotateScale.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />
     <Compile Include="DrawBlock\SheetSnap.fs" />
     <Compile Include="DrawBlock\SheetDisplay.fs" />
-    <Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
-    <Compile Include="DrawBlock\SheetBeautifyHelpers.fs" />
-    <Compile Include="DrawBlock\SheetBeautify.fs" />
-    <Compile Include="DrawBlock\SheetBeautifyD3.fs" />
+	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
+	<Compile Include="DrawBlock\SheetBeautifyHelpers.fs" />
+  <Compile Include="DrawBlock\SheetBeautifyD1.fs" />
+    <Compile Include="DrawBlock\SheetBeautifyD2.fs" />
+  <Compile Include="DrawBlock\SheetBeautifyD3.fs" />
+	<Compile Include="DrawBlock\SheetBeautify.fs" />
+	<Compile Include="DrawBlock\SheetBeautifyD2.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
-    
     <!-- UI -->
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI\Style.fs" />
@@ -111,13 +117,20 @@
     <Compile Include="UI\ContextMenus.fs" />
     <Compile Include="UI\UpdateHelpers.fs" />
     <Compile Include="UI\Update.fs" />
+
     <Compile Include="VerilogComponent\TestParser.fs" />
+
     <Compile Include="GenerateData.fs" />
+
     <Compile Include="TestDrawBlock.fs" />
+    <Compile Include="TestDrawBlockD2.fs" />
+    <Compile Include="TestDrawBlockD3.fs" />
     <Compile Include="TestWorker.fs" />
     <Compile Include="Playground.fs" />
+
     <Compile Include="Renderer.fs" />
   </ItemGroup>
+  
   <!-- Dependencies -->
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

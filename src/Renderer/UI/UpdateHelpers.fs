@@ -199,7 +199,7 @@ let shortDisplayMsg (msg: Msg) =
     | ToggleSymbolPortMapsTable -> None
     | ToggleWireTable -> None
     | ToggleWireSegmentsTable -> None
-    | ToggleSheetStatsTable -> None
+    | ToggleSheetStats -> None
 
 /// If debugTrace is on print out human readable info on message.
 /// Be careful not to do this on mouse moves (there are too many).

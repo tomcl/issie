@@ -23,6 +23,18 @@ open TestDrawBlockD1.TestLib
 open TestDrawBlockD1.HLPTick3
 open RotateScale
 
+(*
+Purpose of the TestSheetFunctions:
+It is more focused on testing heuristics, helper functions, and beautify functions
+on manually-created circuits. It is also for sub-functions that might not take in
+the whole sheet, but symbols or wires.
+
+TestdrawBlock1 is more for testing  focused on programmatically generating circuits,
+for RotateScale, D1B functions, BeautifySheetHelpers- basically running functions on generated
+sheets followed by basic tests e.g. wire-wire, symbol-symbol, wire-symbol intersection tests.
+Mostly for wire routing tests (from Tick3) and to be used for a majority of D1T.
+*)
+
 // Javascript to print bold blue text to console.log for better readability
 [<Emit("console.log('%c' + $0, 'font-weight: bold; color: blue;')")>]
 let consoleLogBlueBold (message: string) : unit = jsNative
@@ -32,18 +44,6 @@ let initSheetModel = DiagramMainView.init().Sheet
 // redefining so it will not depend on TestDrawBlockD1
 let wire_: Lens<SheetT.Model, BusWireT.Model> =
     Lens.create (fun m -> m.Wire) (fun w m -> { m with Wire = w })
-
-let UndoList_: Lens<SheetT.Model, SheetT.Model List> =
-    Lens.create (fun m -> m.UndoList) (fun w m -> { m with UndoList = w })
-
-let appendUndoListSheetT (undoList: SheetT.Model List) (model_in: SheetT.Model) : SheetT.Model List =
-    let rec removeLast inputLst =
-        inputLst
-        |> List.truncate (max 0 (inputLst.Length - 1))
-
-    match List.length undoList with
-    | n when n < 500 -> model_in :: undoList
-    | _ -> model_in :: (removeLast undoList)
 
 let test1Circuit =
     let andPos = { X = 80.0; Y = 0.0 } + middleOfSheet
@@ -74,7 +74,7 @@ let testSheetFunc (dispatch: Dispatch<Msg>) (model: ModelType.Model) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     dispatch
     <| UpdateModel(fun (model: ModelType.Model) ->
-        let newUndoList = appendUndoListSheetT model.Sheet.UndoList model.Sheet
+        let newUndoList = appendUndoList model.Sheet.UndoList model.Sheet
         model
         |> Optic.set ModelType.sheet_ (testBeautifyFunction model)
         |> Optic.set (ModelType.sheet_ >-> UndoList_) (newUndoList))
@@ -85,7 +85,7 @@ let testSheetFuncWithCircuit (dispatch: Dispatch<Msg>) (modelIn: ModelType.Model
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     dispatch
     <| UpdateModel(fun (model: Model) ->
-        let newUndoList = appendUndoListSheetT model.Sheet.UndoList modelIn.Sheet
+        let newUndoList = appendUndoList model.Sheet.UndoList modelIn.Sheet
         // load test circuit
         let modelWithCircuit =
             model
@@ -94,7 +94,7 @@ let testSheetFuncWithCircuit (dispatch: Dispatch<Msg>) (modelIn: ModelType.Model
             |> Optic.set (ModelType.sheet_ >-> UndoList_) (newUndoList)
         // make a new UndoList to keep test circuit before beautified
         let newNewUndoList =
-            appendUndoListSheetT modelWithCircuit.Sheet.UndoList modelWithCircuit.Sheet
+            appendUndoList modelWithCircuit.Sheet.UndoList modelWithCircuit.Sheet
         // update model with beautified test circuit
         modelWithCircuit
         |> Optic.set ModelType.sheet_ (testBeautifyFunction modelWithCircuit)

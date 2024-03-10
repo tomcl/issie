@@ -8,8 +8,9 @@ open Optics.Operators
 open DrawHelpers
 open Helpers
 open CommonTypes
-open ModelType
 open DrawModelType
+open DrawModelType.BusWireT
+open ModelType
 
 open Sheet.SheetInterface
 open SheetBeautifyHelpers
@@ -20,12 +21,17 @@ open CommonTypes
 open Sheet
 open TestDrawBlockD1.TestLib
 open TestDrawBlockD1.HLPTick3
+open RotateScale
 
 // Javascript to print bold blue text to console.log for better readability
 [<Emit("console.log('%c' + $0, 'font-weight: bold; color: blue;')")>]
 let consoleLogBlueBold (message: string) : unit = jsNative
 
 let initSheetModel = DiagramMainView.init().Sheet
+
+// redefining so it will not depend on TestDrawBlockD1
+let wire_: Lens<SheetT.Model, BusWireT.Model> =
+    Lens.create (fun m -> m.Wire) (fun w m -> { m with Wire = w })
 
 let UndoList_: Lens<SheetT.Model, SheetT.Model List> =
     Lens.create (fun m -> m.UndoList) (fun w m -> { m with UndoList = w })
@@ -47,20 +53,33 @@ let test1Circuit =
     |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
     |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
     |> getOkOrFail
-let beautifyFunction (sheet: SheetT.Model) : SheetT.Model = sheet
 
-let testSheetFunc (dispatch: Dispatch<Msg>) (model: Model) =
+/// Function that will test RotateScale's reSizeSymbolTopLevel
+let testBeautifyFunction (model: ModelType.Model) : SheetT.Model =
+    // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
+    match model.Sheet.Wire.Symbol.Symbols.Count >= 2 with
+    | true ->
+        let symbolToSize, otherSymbol =
+            match model.Sheet.Wire.Symbol.Symbols |> Map.toList with
+            | symbolToSizeInMap :: otherSymbolInMap :: _ -> snd (symbolToSizeInMap), snd (otherSymbolInMap)
+            | _ -> failwith "Not enough elements in symbol list" // will never happen
+        model.Sheet
+        |> Optic.set wire_ (reSizeSymbolTopLevel model.Sheet.Wire symbolToSize otherSymbol)
+
+    | false -> model.Sheet
+
+let testSheetFunc (dispatch: Dispatch<Msg>) (model: ModelType.Model) =
     // Code to Run with Existing Sheet + Undo
     (consoleLogBlueBold "Running Function On Sheet (undo with cmd/ctrl + z)")
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     dispatch
-    <| UpdateModel(fun (model: Model) ->
+    <| UpdateModel(fun (model: ModelType.Model) ->
         let newUndoList = appendUndoListSheetT model.Sheet.UndoList model.Sheet
         model
-        |> Optic.set sheet_ (beautifyFunction model.Sheet)
-        |> Optic.set (sheet_ >-> UndoList_) (newUndoList))
+        |> Optic.set ModelType.sheet_ (testBeautifyFunction model)
+        |> Optic.set (ModelType.sheet_ >-> UndoList_) (newUndoList))
 
-let testSheetFuncWithCircuit (dispatch: Dispatch<Msg>) (modelIn: Model) =
+let testSheetFuncWithCircuit (dispatch: Dispatch<Msg>) (modelIn: ModelType.Model) =
     // Code to Run with New Circuit + Undo
     (consoleLogBlueBold "Placing and Running Function On Sheet (undo with cmd/ctrl + z twice)")
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -71,14 +90,14 @@ let testSheetFuncWithCircuit (dispatch: Dispatch<Msg>) (modelIn: Model) =
         let modelWithCircuit =
             model
             // since cannot keypress ctrlw, manually fit interim circuit
-            |> Optic.set sheet_ (fst (fitCircuitToScreenUpdate test1Circuit))
-            |> Optic.set (sheet_ >-> UndoList_) (newUndoList)
+            |> Optic.set ModelType.sheet_ (fst (fitCircuitToScreenUpdate test1Circuit))
+            |> Optic.set (ModelType.sheet_ >-> UndoList_) (newUndoList)
         // make a new UndoList to keep test circuit before beautified
         let newNewUndoList =
             appendUndoListSheetT modelWithCircuit.Sheet.UndoList modelWithCircuit.Sheet
         // update model with beautified test circuit
         modelWithCircuit
-        |> Optic.set sheet_ (beautifyFunction test1Circuit)
-        |> Optic.set (sheet_ >-> UndoList_) (newNewUndoList))
+        |> Optic.set ModelType.sheet_ (testBeautifyFunction modelWithCircuit)
+        |> Optic.set (ModelType.sheet_ >-> UndoList_) (newNewUndoList))
 
     sheetDispatch <| SheetT.KeyPress SheetT.CtrlW

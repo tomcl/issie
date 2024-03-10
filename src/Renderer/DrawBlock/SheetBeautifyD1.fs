@@ -56,3 +56,36 @@ let perpendicularOverlap2D' ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) 
     let overlapY = overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y)
     (overlapX || overlapY)
     && not (overlapX && overlapY)
+
+(*
+
+//-----------Notes for D1 From Ed-----------//
+----------Dealing With Separation---------
+
+Typically one problem humans find when trying to tidy up schematics is that there is not enough room in some parts of the sheet,
+with components too close,  and everything needs to be rearranged.  Doing this automatically is problematic because changing relative
+positions of components (except for a small amount) is multiply constrained.
+
+Still there is one easy transform in line with "do no harm" which is to scale the whole sheet - already done by rotatescale if you select all components.
+
+What might require scaling the sheet - uniformly magnifying the distances between all components?
+If the "correct" positions of components to straighten connections cause symbol overlaps
+
+If the separation between (parallel) wire segments and component edges, or segments and segments, is too small.
+The wire separation algorithm should ensure that component-wire separation will be equally a problem is wire-wire separation is a problem -
+so you probably need to consider only that. Scaling the whole sheet can make it difficult to see everything - if too much scaling is done -
+so some sort of cap would maybe be necessary.
+
+----------Dealing With Separation---------
+2 quality metrics: no overlapping symbols, try to straighten wires as much as possible
+
+The no overlapping symbols requirement is an extreme form of an enough separation requirement where for two adjacent parallel
+symbol edges separated by distance d with n wires running through. The gap between them the separation  is:
+
+d/(n+1)
+
+Separations close to a defined minimum can be included as penalties in the objective function. Obviously separations below some
+minimum value should not allowed, so a nonlinear dependence of objective function on separation could make sense and allow optimisation
+techniques to be used.
+
+*)

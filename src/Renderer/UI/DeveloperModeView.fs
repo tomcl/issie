@@ -185,8 +185,9 @@ let developerModeView (model: ModelType.Model) dispatch =
                                      | None -> str "VScale: N/A") ] ] ] ])
 
         let createTableFromPorts (portsMap: Map<string, Edge>) =
-            //
             let referencePortTable =
+                // get a list of ports from the selected component. more efficient to search smaller list
+                // than looking of ports in model.Sheet.Wire.Symbol.Symbols
                 symbol.Component.InputPorts
                 @ symbol.Component.OutputPorts
                 |> List.map (fun port -> port.Id, port)

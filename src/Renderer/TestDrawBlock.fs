@@ -1,5 +1,6 @@
 ﻿module TestDrawBlock
 open GenerateData
+open SheetBeautifyHelpers
 open Elmish
 
 
@@ -83,7 +84,9 @@ module HLPTick3 =
 
             numVisibleSegments = getVisibleSegments sheet
 
+
             visibleLength = getVisibleWireLength sheet
+
 
             rightAngleCount = getVisibleWireRightAngles sheet
 
@@ -100,6 +103,22 @@ module HLPTick3 =
 
 
    
+
+        let failOnAllTestsPrintWireSeg (sample: int) (sheet: SheetT.Model) =
+            let wireModel: BusWireT.Model = sheet.Wire
+            let listOfWires = wireModel.Wires |> Map.toList |> List.map (fun (wid: ConnectionId,wire) -> wire.InitialOrientation,wire.StartPos)
+            let listOfSegments = 
+                wireModel.Wires 
+                |> Map.toList 
+                |> List.collect (fun (wid,wire) -> wire.Segments)
+                |> List.map (fun seg -> seg.Index, seg.Length)
+
+            let wireLengths = 
+                wireModel.Wires 
+                |> Map.toList 
+                |> List.map (fun elm -> snd elm |> BlockHelpers.getWireLength) 
+
+            Some $"======== Wires: {listOfWires} ========= Segments: {listOfSegments} ======= {wireLengths} ========="
 
 
 
@@ -124,11 +143,24 @@ module HLPTick3 =
             printfn "Optimized Metrics: %A" optimizedMetrics
 
 
+        /// Example test: Horizontally positioned AND + DFF: fail all tests
+        let test5 testNum firstSample dispatch =
+            runTestOnSheets
+                "Fail all and printing wire, segments"
+                firstSample
+                horizLinePositions
+                makeTest1Circuit
+                Asserts.failOnAllTestsPrintWireSeg 
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu =
             [
+
                 "D1 Test", TestD1Metrics;   // prints metrics of the current and D1 algorithm
+
             ]
 
 

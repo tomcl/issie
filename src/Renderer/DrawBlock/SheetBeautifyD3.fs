@@ -1,5 +1,8 @@
-﻿module SheetBeautify
-// open modules likely to be used
+module SheetBeautifyD3
+//work from ll3621 to make a start on team deliverable D3
+//the functions are not funished, they are a build up to the final D3 deliverable
+//current completed functionalbilities:
+// find long wires, replace them with wire label symbols, adjust the symbols(size, orientation) according to which port they connect to, connect wire labels to port 
 open CommonTypes
 open DrawHelpers
 open DrawModelType
@@ -9,7 +12,7 @@ open DrawModelType.SheetT
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open Optics
-open Optic
+open Optics
 open BlockHelpers
 open System
 open EEExtensions
@@ -39,11 +42,13 @@ let extractIntOption (data: int option) =
     | None ->
         0 // return default int value
 /// constants used by SheetBeautify
+module Constants =
+     //arbitary number 
+    () 
 
 
-//work from ll3621 to make a start on team deliverable D3
 
-//some helper functions
+
 
 /// this function counts over a list of wires and outputs a Wire list from that list that are considered long
 let findLongWires (wires: Wire List)=

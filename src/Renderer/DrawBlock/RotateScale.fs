@@ -1,40 +1,4 @@
-﻿(*rl3721
-changes are made to the functions flipblock and postUpdateScalingBox
-
-flipBlock:
-- changed the type of SelectedSymbols to map to be consistent with UnselectedSymbols
-- added a pipeline to find the boundingBox block to support the above change of type to map
-- renamed newSymbols to newFlippedSymbols to be more intuitive
-- rewrote return logic with additional pipeline to be more readable
-
-postUpdateScalingBox:
-- a new pipeline for the return model, to make the return logic more readable
-- reorderd subfunctions to be more readable
-- rewrote the makeRotateSym function with optics
-- removed use of a dummy variable: dummyPos
-- renamed ButtonSym, rotateDeg90Sym and rotateDeg270Sym to
-    scaleButtonSym, rotateDegButton90Sym and rotateDeg270ButtonSym, to give more information on the purpose
-    also to make the names more "parallel" with each other as they logically are in the code
-- changed vertical allignment of the code to be more readable
-- commented on some ugly use of float literals in the code, unable to tell how the literals are infered
-*)
-
-(* Improveing RotateScale module - ec1221
-    Split lines: 175 - 268
-    - Changed nested match cases to make it more readable
-    - Removed some intermediate variables
-    - Changing match statements to reduce clutter
-    - Changed layout of function to group functions and main body
-    - Changed function parameters to allow better pipeline of functions
-    - Added to function optimizeSymbol name to make it more clear what is being optimized
-    - refactoring of code to remove code duplication (noSymbolOverlap and Sheet.notIntersectingComponents)
-    - comments
-
-    This module contains the code that rotates and scales blocks of components.
-    It was collected from HLP work in 2023 and has some technical debt and also unused functions.
-    It requires better documentation of teh pasrts now used.
-*)
-(* hj1021 
+﻿(*Part 1: hj1021 
 
     <improvement summary>
     Changes are made to to WireSymbols, getOppEdgePortInfo, alignPortsOffset, alignSymbols and reSizeSymbol
@@ -55,8 +19,46 @@ postUpdateScalingBox:
     reSizeSymbol:
     -No changes made, as it is already well structured and readable.
     -Add some comments describ how well it is structured and readable. 
-
 *)
+
+(* Improveing RotateScale module - ec1221
+    Split lines: 175 - 268
+    - Changed nested match cases to make it more readable
+    - Removed some intermediate variables
+    - Changing match statements to reduce clutter
+    - Changed layout of function to group functions and main body
+    - Changed function parameters to allow better pipeline of functions
+    - Added to function optimizeSymbol name to make it more clear what is being optimized
+    - refactoring of code to remove code duplication (noSymbolOverlap and Sheet.notIntersectingComponents)
+    - comments
+
+    This module contains the code that rotates and scales blocks of components.
+    It was collected from HLP work in 2023 and has some technical debt and also unused functions.
+    It requires better documentation of teh pasrts now used.
+*)
+
+(*Part 6: rl3721
+changes are made to the functions flipblock and postUpdateScalingBox
+
+flipBlock:
+- changed the type of SelectedSymbols to map to be consistent with UnselectedSymbols
+- added a pipeline to find the boundingBox block to support the above change of type to map
+- renamed newSymbols to newFlippedSymbols to be more intuitive
+- rewrote return logic with additional pipeline to be more readable
+
+postUpdateScalingBox:
+- a new pipeline for the return model, to make the return logic more readable
+- reorderd subfunctions to be more readable
+- rewrote the makeRotateSym function with optics
+- removed use of a dummy variable: dummyPos
+- renamed ButtonSym, rotateDeg90Sym and rotateDeg270Sym to
+    scaleButtonSym, rotateDegButton90Sym and rotateDeg270ButtonSym, to give more information on the purpose
+    also to make the names more "parallel" with each other as they logically are in the code
+- changed vertical allignment of the code to be more readable
+- commented on some ugly use of float literals in the code, unable to tell how the literals are infered
+*)
+
+
 
 module RotateScale
 open CommonTypes
@@ -230,6 +232,7 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
     | _ -> symbolToSize
 
 //--------------------------------------end of hj1021 section ----------------------------------------//
+//--------------------------------------start of ec1221 section ----------------------------------------//
 
 /// For UI to call ResizeSymbol.
 let reSizeSymbolTopLevel
@@ -244,7 +247,6 @@ let reSizeSymbolTopLevel
     let model' = Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
 
-/// START - SPLIT - ec1221
 
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =
@@ -339,7 +341,8 @@ let optimiseSymbolDimensions
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
 
-/// END - SPLIT - ec1221
+//--------------------------------------end of ec1221 section ----------------------------------------//
+//--------------------------------------start of  section ----------------------------------------//
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>
@@ -703,7 +706,7 @@ let groupNewSelectedSymsModel
     )}
 
 
-(*Split rl3721*)
+//--------------------------------------start of rl3721 section ----------------------------------------//
 
 (*Old implementation*) 
 // let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) = 
@@ -885,3 +888,5 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
                 | None -> cmd
 
             newModel, newCmd
+
+//--------------------------------------end of ec1221 section ----------------------------------------//

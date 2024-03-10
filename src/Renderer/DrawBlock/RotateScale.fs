@@ -31,7 +31,17 @@ open Operators
 open BlockHelpers
 open SymbolResizeHelpers
 
-(* 
+(* Improveing RotateScale module - ec1221
+    Split lines: 175 - 268
+    - Changed nested match cases to make it more readable
+    - Removed some intermediate variables
+    - Changing match statements to reduce clutter
+    - Changed layout of function to group functions and main body
+    - Changed function parameters to allow better pipeline of functions
+    - Added to function optimizeSymbol name to make it more clear what is being optimized
+    - refactoring of code to remove code duplication (noSymbolOverlap and Sheet.notIntersectingComponents)
+    - comments
+
     This module contains the code that rotates and scales blocks of components.
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.
     It requires better documentation of teh pasrts now used.
@@ -188,6 +198,8 @@ let reSizeSymbolTopLevel
     let model' = Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
 
+/// START - SPLIT - ec1221
+
 /// For each edge of the symbol, store a count of how many connections it has to other symbols.
 type SymConnDataT =
     { ConnMap: Map<ComponentId * Edge, int> }
@@ -207,15 +219,14 @@ let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
     { ConnMap = Map.add (cid, edge) count m }
 
 // TODO: this is copied from Sheet.notIntersectingComponents. It requires SheetT.Model, which is not accessible from here. Maybe refactor it.
-let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundingBoxes sym =
-    let symBB = getSymbolBoundingBox sym
-
+// ec1221 - adjusted function to be usable in Sheet.notIntersectingComponents to remove code duplication
+let noSymbolOverlap boundingBoxes box inputId =
     boundingBoxes
-    |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox symBB && sym.Id <> sId)
+    |> Map.filter (fun sId boundingBox -> DrawHelpers.boxesIntersect boundingBox box && inputId <> sId)
     |> Map.isEmpty
 
 /// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
-let optimiseSymbol
+let optimiseSymbolDimensions
     (wModel: BusWireT.Model)
     (symbol: Symbol)
     (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
@@ -224,43 +235,42 @@ let optimiseSymbol
     // If a wire connects the target symbol to another symbol, note which edge it is connected to
     let updateData (symConnData: SymConnDataT) _ (wire: Wire) =
         let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire
+        // symbolSource, symbolTarget
 
-        let otherSymbol =
-            match symS, symT with
-            | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> Some symS
-            | _ when (symS = symbol) && (symT <> symbol) -> Some symT
-            | _ -> None
+        match symS, symT with
+        | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> Some symS
+        | _ when (symS = symbol) && (symT <> symbol) -> Some symT
+        | _ -> None
 
-        match otherSymbol with
-        | Some otherSym ->
-            let edge = tryWireSymOppEdge wModel wire symbol otherSym
+        // ec1221 - changed nested match statements dealing with option variables to use built in Option functions to
+        // reduce clutter and lines. Removed intermediate variable assignments that were not necessary 
+        |> Option.bind (fun otherSym ->
+            tryWireSymOppEdge wModel wire symbol otherSym
+            |> Option.map (fun edge ->
+                updateOrInsert symConnData edge otherSym.Id))
+        |> Option.defaultValue symConnData
 
-            match edge with
-            | Some e -> updateOrInsert symConnData e otherSym.Id
-            | None -> symConnData // should not happen
-        | None -> symConnData 
+    // ec1221 - swapped parameter order to allow better pipelining
+    let tryResize (sym: Symbol) (symCount: ((ComponentId * Edge) * int) array) =
 
-    // Look through all wires to build up SymConnDataT.
-    let symConnData = ({ ConnMap = Map.empty }, wModel.Wires) ||> Map.fold updateData
-
-    let tryResize (symCount: ((ComponentId * Edge) * int) array) sym =
-
+        // align symbol according to other symbols and resize when no overlap
         let alignSym (sym: Symbol) (otherSym: Symbol) =
             let resizedSym = reSizeSymbol wModel sym otherSym
-            let noOverlap = noSymbolOverlap DrawHelpers.boxesIntersect boundingBoxes resizedSym
+            let symBB = getSymbolBoundingBox resizedSym
+            let noOverlap = noSymbolOverlap boundingBoxes symBB resizedSym.Id
+            // ec1221 - changed match to if statement as variable names are good and makes code more readable
+            if noOverlap then (true, resizedSym) else (false, sym)
 
-            match noOverlap with
-            | true -> true, resizedSym
-            | _ -> false, sym
-
+        // Function to fold over symCount and adjust alignment and size
         let folder (hAligned, vAligned, sym) ((cid, edge), _) =
             let otherSym = Optic.get (symbolOf_ cid) wModel       
 
-            match hAligned, vAligned with
-            | false, _ when edge = Top || edge = Bottom ->
+            // ec1221 - added 'edge' to match condition
+            match edge, hAligned, vAligned with
+            | (Top | Bottom), false, _ ->
                 let hAligned', resizedSym = alignSym sym otherSym
                 (hAligned', vAligned, resizedSym)
-            | _, false when edge = Left || edge = Right ->
+            | (Left | Right), _, false ->
                 let vAligned', resizedSym = alignSym sym otherSym
                 (hAligned, vAligned', resizedSym)
             | _ -> (hAligned, vAligned, sym)
@@ -268,16 +278,22 @@ let optimiseSymbol
         let (_, _, sym') = ((false, false, sym), symCount) ||> Array.fold folder
         sym'
 
+    // ec1221 - moved it down to the rest of the main body
+    // Look through all wires to build up SymConnDataT.
+    let symConnData = ({ ConnMap = Map.empty }, wModel.Wires) ||> Map.fold updateData
+
+    // Get the count of connections and resize the symbol
     let scaledSymbol =
-        let symCount =
-            Map.toArray symConnData.ConnMap
-            |> Array.filter (fun (_, count) -> count > 1)
-            |> Array.sortByDescending snd
+        Map.toArray symConnData.ConnMap
+        |> Array.filter (fun (_, count) -> count > 1)
+        |> Array.sortByDescending snd
+        |> tryResize symbol
 
-        tryResize symCount symbol
-
+    // Update the model with the resized symbol and separate wires
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
+
+/// END - SPLIT - ec1221
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols</summary>
 /// <param name="symbols"> Selected symbols list</param>

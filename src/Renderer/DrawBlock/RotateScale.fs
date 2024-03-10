@@ -34,6 +34,29 @@ postUpdateScalingBox:
     It was collected from HLP work in 2023 and has some technical debt and also unused functions.
     It requires better documentation of teh pasrts now used.
 *)
+(* hj1021 
+
+    <improvement summary>
+    Changes are made to to WireSymbols, getOppEdgePortInfo, alignPortsOffset, alignSymbols and reSizeSymbol
+    And add XML comments to each function
+
+    WireSymbols:
+    - Changed the names of the fields to sourceSym and targetSym to make it more readable.
+    - And change all its references to the new names.
+
+    alignPortsOffset:
+    -Extracted the getPortRealPos function from alignPortsOffset and used it as a helper function.
+    -Shortened match cases and increased readability.
+
+    alignSymbols:
+    -No changes made, as it is already well structured and readable.
+    -Add some comments describ how well it is structured and readable.
+
+    reSizeSymbol:
+    -No changes made, as it is already well structured and readable.
+    -Add some comments describ how well it is structured and readable. 
+
+*)
 
 module RotateScale
 open CommonTypes
@@ -47,6 +70,15 @@ open Operators
 open BlockHelpers
 open SymbolResizeHelpers
 
+
+
+//--------------------------------------start of hj1021 section ----------------------------------------//
+
+(* 
+    This module contains the code that rotates and scales blocks of components.
+    It was collected from HLP work in 2023 and has some technical debt and also unused functions.
+    It requires better documentation of teh pasrts now used.
+*)
 /// Record containing all the information required to calculate the position of a port on the sheet.
 type PortInfo =
     { port: Port
@@ -62,13 +94,16 @@ type PortInfo =
 
 /// Type used to record a wire between two symbols.
 type WireSymbols =
-    { SymA: Symbol
-      SymB: Symbol
+    // hj1021 In my point of view symA and symB are bad names
+    // better change them to sourceSym and targetSym
+    { sourceSym: Symbol
+      targetSym: Symbol
       Wire: Wire }
 
 /// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
 /// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
 let makePortInfo (sym: Symbol) (port: Port) =
+    // hj1021 good illustration of input wrapping
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
     let gap = getPortPosEdgeGap sym.Component.Type
@@ -76,12 +111,11 @@ let makePortInfo (sym: Symbol) (port: Port) =
     let portDimension = float ports.Length - 1.0
     let h, w = getRotatedHAndW sym
 
+    //hj1021 shorten the code and increase readability
     let portGap =
         match side with
-        | Left
-        | Right -> float h / (portDimension + 2.0 * gap)
-        | Bottom
-        | Top -> float w / (portDimension + 2.0 * topBottomGap)
+        | Left   | Right -> float h / (portDimension + 2.0 * gap)
+        | Bottom | Top   -> float w / (portDimension + 2.0 * topBottomGap)
 
     { port = port
       sym = sym
@@ -94,11 +128,13 @@ let makePortInfo (sym: Symbol) (port: Port) =
       w = w
       portGap = portGap }
 
-let getPortAB wModel wireSyms =
+// hj1021 rename it from get PortAB to getSourceTargetPorts
+/// Get source and target port of a wire
+let getSourceTargetPorts wModel wireSyms =
     let ports = portsOfWires wModel [ wireSyms.Wire ]
-    let portA = filterPortBySym ports wireSyms.SymA |> List.head
-    let portB = filterPortBySym ports wireSyms.SymB |> List.head
-    portA, portB
+    let sourcePort = filterPortBySym ports wireSyms.sourceSym |> List.head
+    let targetPort = filterPortBySym ports wireSyms.targetSym |> List.head
+    sourcePort, targetPort
 
 /// Try to get two ports that are on opposite edges.
 let getOppEdgePortInfo
@@ -109,35 +145,41 @@ let getOppEdgePortInfo
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
     let tryGetOppEdgePorts wireSyms =
-        let portA, portB = getPortAB wModel wireSyms
-        let edgeA = getSymbolPortOrientation wireSyms.SymA portA
-        let edgeB = getSymbolPortOrientation wireSyms.SymB portB
+        let sourcePort, targetPort = getSourceTargetPorts wModel wireSyms
+        let edgeA = getSymbolPortOrientation wireSyms.sourceSym sourcePort
+        let edgeB = getSymbolPortOrientation wireSyms.targetSym targetPort
 
         match edgeA = edgeB.Opposite with
-        | true -> Some(makePortInfo wireSyms.SymA portA, makePortInfo wireSyms.SymB portB)
+        | true -> Some(makePortInfo wireSyms.sourceSym sourcePort, makePortInfo wireSyms.targetSym targetPort)
         | _ -> None
 
     wires
     |> List.tryPick (fun w ->
         tryGetOppEdgePorts
-            { SymA = symbolToSize
-              SymB = otherSymbol
+            { sourceSym = symbolToSize
+              targetSym = otherSymbol
               Wire = w })
 
-let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
-    let getPortRealPos pInfo =
+// hj1021 Functional (and let value definition) abstraction: 
+// Extract this function from the alignPortsOffset as it seems like a useful helper function
+// that has the potential to be used several times. (DRY)
+let getPortRealPos pInfo =
         getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
+
+
+/// Calculate the position offset needed to align potrs
+let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
 
     let movePortPos = getPortRealPos movePInfo
     let otherPortPos = getPortRealPos otherPInfo
     let posDiff = otherPortPos - movePortPos
 
+    //hj1021 shorten the code and increase readability
     match movePInfo.side with
-    | Top
-    | Bottom -> { X = posDiff.X; Y = 0.0 }
-    | Left
-    | Right -> { X = 0.0; Y = posDiff.Y }
+    | Top  | Bottom -> { X = posDiff.X; Y = 0.0 }
+    | Left | Right  -> { X = 0.0; Y = posDiff.Y }
 
+/// Align symbols by moving it by an offset
 let alignSymbols
     (wModel: BusWireT.Model)
     (symbolToSize: Symbol)
@@ -148,6 +190,7 @@ let alignSymbols
     match getOppEdgePortInfo (wModel:BusWireT.Model) symbolToSize otherSymbol with
     | None -> wModel
     | Some(movePortInfo, otherPortInfo) ->
+        //hj1021 Good illustration of input wrapping
         let offset = alignPortsOffset movePortInfo otherPortInfo
         let symbol' = moveSymbol offset symbolToSize
         let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
@@ -165,10 +208,11 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
     let resizePortInfo, otherPortInfo =
         match getOppEdgePortInfo wModel symbolToSize otherSymbol with
         | None ->
-            let pA, pB = getPortAB wModel { SymA = symbolToSize; SymB = otherSymbol; Wire = wires[0] }
-            makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
-        | Some(pIA, pIB) -> (pIA, pIB)
+            let pS, pT = getSourceTargetPorts wModel { sourceSym = symbolToSize; targetSym = otherSymbol; Wire = wires[0] }
+            makePortInfo symbolToSize pS, makePortInfo symbolToSize pT
+        | Some(pIS, pIT) -> (pIS, pIT)
 
+    //hj1021 input wrapping
     let h, w =
         match resizePortInfo.side with
         | Left | Right ->
@@ -178,12 +222,14 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
 
     match symbolToSize.Component.Type with
     | Custom _ ->
+        //hj1021 input wrapping
         let scaledSymbol = setCustomCompHW h w symbolToSize
         let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
         let offset = alignPortsOffset scaledInfo otherPortInfo
         moveSymbol offset scaledSymbol
-    | _ ->
-        symbolToSize
+    | _ -> symbolToSize
+
+//--------------------------------------end of hj1021 section ----------------------------------------//
 
 /// For UI to call ResizeSymbol.
 let reSizeSymbolTopLevel

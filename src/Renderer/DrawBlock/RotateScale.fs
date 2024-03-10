@@ -845,8 +845,11 @@ let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) 
     let SelectedSymbols = model.Symbols |> Map.filter (fun x _ -> List.contains x compList) (*changed type to map, consistent with UnselectedSymbols to be more intuitive*)
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
     
-
-    let block = getSymbolBlockBoundingBox SelectedSymbols
+    let block =
+        SelectedSymbols
+        |> Map.toList
+        |> List.map snd
+        |> getSymbolBlockBoundingBox
 
   
     let newFlippedSymbols = (*rewrote the code with better allignment in pipeline form to be more readable*)

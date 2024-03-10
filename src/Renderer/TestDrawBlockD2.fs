@@ -23,8 +23,6 @@ module D2 =
     open TestDrawBlock.HLPTick3.Builder
     open TestDrawBlock.TestLib
     open TestDrawBlock.HLPTick3
-/// Sample data based on 11 equidistant points on a horizontal line
-/// 
     let random = System.Random()
 
     let reRouteWires (sheet: SheetT.Model) =
@@ -33,7 +31,6 @@ module D2 =
             sheet.Wire.Wires 
             |> Map.toList
             |> List.map snd
-            |> fun x -> x
             |> List.fold 
                 (fun model wire -> 
                     let updatedWire = (BusWireRoute.smartAutoroute model wire)
@@ -73,10 +70,6 @@ module D2 =
         |> List.map(fun (f2,(s2,f1,s1)) -> (f2,s2,f1,s1))
         |> List.allPairs gateFlips 
         |> List.map (fun (g,(f2,s2,f1,s1)) -> (g,f2,s2,f1,s1))
-        |> fun x -> 
-            printfn "%A" x[0]
-            printfn "%A" x[1]
-            x
         |> fromList
     /// demo test circuit consisting of a DFF & And gate
     let makeD2StarterCircuit (data :SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool) =
@@ -182,14 +175,14 @@ module D2 =
 
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRun : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+        let testDropdown : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "TestD2Starter", testD2Starter // example
-                "Test2", testD2Starter // example
-                "Test3", testD2Starter // example
-                "Test4", testD2Starter 
+                "Test1", test1 // example
+                "Test2", test2
+                "Test3", test3
+                "Test4", test4
                 "Test5", fun _ _ _ -> printf "Test5"// dummy test - delete line or replace by real test as needed
                 "Test6", fun _ _ _ -> printf "Test6" 
                 "Test7", fun _ _ _ -> printf "Test7"
@@ -201,19 +194,19 @@ module D2 =
         /// Display the next error in a previously started test
         let nextError (testName, testFunc) firstSampleToTest dispatch =
             let testNum =
-                testsToRun
+                testDropdown
                 |> List.tryFindIndex (fun (name,_) -> name = testName)
                 |> Option.defaultValue 0
             testFunc testNum firstSampleToTest dispatch
 
         /// common function to execute any test.
-        /// testIndex: index of test in testsToRunFromSheetMenu
+        /// testIndex: index of test in testDropdown
         let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name,func = testsToRun[testIndex] 
+            let name,func = testDropdown[testIndex] 
             printf "%s" name
             match name, model.DrawBlockTestState with
             | "Next Test Error", Some state ->
-                nextError testsToRun[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
+                nextError testDropdown[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
             | "Next Test Error", None ->
                 printf "Test Finished"
                 ()

@@ -116,16 +116,10 @@ let alignSymbols (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
         let model' = Optic.set (symbolOf_ symbolToSize.Id) symbol' wModel
         BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id
 
-// HLP23 reSizeSymbol: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
-// so that the connecting wires are exactly straight
-// HLP23: It should work out the interconnecting wires (wires) from
-// the two symbols, wModel.Wires and sModel.Ports
-// It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
-
 /// HLP23: A helper function for reSizeSymbol that calculates the h,w, the resizedDimensions for a CustomComponent to be resized, ensuring straight wires
-/// This was originally part of reSizeSymbol, but was separated to become more modular.
-/// The logic is also clearer, using inline functions to speed up and properly visualise the difference between
-/// resizing using the gap or topBottomGap.
+// This was originally part of reSizeSymbol, but was separated to become more modular.
+// The logic is also clearer, using inline functions to speed up and properly visualise the difference between
+// resizing using the gap or topBottomGap.
 let calculateResizedDimensions (resizePortInfo: PortInfo) (otherPortInfo: PortInfo) =
     let inline resizedWithGap gapMultiplier =
         otherPortInfo.portGap
@@ -141,10 +135,10 @@ let calculateResizedDimensions (resizePortInfo: PortInfo) (otherPortInfo: PortIn
 /// HLP23: A helper function that takes in two symbols connected by wires, symbolToSize and otherSymbol.
 /// The first symbol must be a Custom component. The function adjusts the size of symbolToSize so that the wires
 /// connecting it with the otherSymbol become exactly straight/
-/// Comments here were improved, and the calculation logic for h and w was moved to calculateResizedDimensions.
-/// In the last part of matching with the Custom type, I removed the occurences of 'lets'
-/// and instead used a pipeline to make the code more readable. This also has the added benefit of showing the
-/// types of the variables at each stage of the pipeline, changing as it goes
+// Comments here were improved, and the calculation logic for h and w was moved to calculateResizedDimensions.
+// In the last part of matching with the Custom type, I removed the occurences of 'lets'
+// and instead used a pipeline to make the code more readable. This also has the added benefit of showing the
+// types of the variables at each stage of the pipeline, changing as it goes
 let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
@@ -161,15 +155,14 @@ let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: S
 
     match symbolToSize.Component.Type with
     | Custom _ ->
-        symbolToSize
-        |> setCustomCompHW h w
-        |> (fun scaledSymbol -> makePortInfo scaledSymbol resizePortInfo.port)
-        |> (fun scaledInfo -> alignPortsOffset scaledInfo otherPortInfo)
-        |> (fun offset -> moveSymbol offset symbolToSize)
+        let scaledSymbol = setCustomCompHW h w symbolToSize
+        let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
+        let offset = alignPortsOffset scaledInfo otherPortInfo
+        moveSymbol offset scaledSymbol
     | _ -> symbolToSize
 
 /// For UI to call ResizeSymbol.
-/// More pipelines were used here to improve readability
+// More pipelines were used here to improve readability
 let reSizeSymbolTopLevel (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 

@@ -55,7 +55,7 @@ let test1Circuit =
     |> getOkOrFail
 
 /// Function that will test RotateScale's reSizeSymbolTopLevel
-let testBeautifyFunction (model: ModelType.Model) : SheetT.Model =
+let testRotateScale1 (model: ModelType.Model) : ModelType.Model =
     // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
     match model.Sheet.Wire.Symbol.Symbols.Count >= 2 with
     | true ->
@@ -63,10 +63,12 @@ let testBeautifyFunction (model: ModelType.Model) : SheetT.Model =
             match model.Sheet.Wire.Symbol.Symbols |> Map.toList with
             | symbolToSizeInMap :: otherSymbolInMap :: _ -> snd (symbolToSizeInMap), snd (otherSymbolInMap)
             | _ -> failwith "Not enough elements in symbol list" // will never happen
-        model.Sheet
-        |> Optic.set wire_ (reSizeSymbolTopLevel model.Sheet.Wire symbolToSize otherSymbol)
+        model
+        |> Optic.set (sheet_ >-> wire_) (reSizeSymbolTopLevel model.Sheet.Wire symbolToSize otherSymbol)
 
-    | false -> model.Sheet
+    | false -> model
+
+let testBeautifyFunction (model: ModelType.Model) = model.Sheet
 
 let testSheetFunc (dispatch: Dispatch<Msg>) (model: ModelType.Model) =
     // Code to Run with Existing Sheet + Undo
@@ -89,7 +91,7 @@ let testSheetFuncWithCircuit (dispatch: Dispatch<Msg>) (modelIn: ModelType.Model
         // load test circuit
         let modelWithCircuit =
             model
-            // since cannot keypress ctrlw, manually fit interim circuit
+            // since dispatching once cannot keypress ctrlw halfway, so manually fit interim circuit
             |> Optic.set ModelType.sheet_ (fst (fitCircuitToScreenUpdate test1Circuit))
             |> Optic.set (ModelType.sheet_ >-> UndoList_) (newUndoList)
         // make a new UndoList to keep test circuit before beautified
@@ -101,3 +103,31 @@ let testSheetFuncWithCircuit (dispatch: Dispatch<Msg>) (modelIn: ModelType.Model
         |> Optic.set (ModelType.sheet_ >-> UndoList_) (newNewUndoList))
 
     sheetDispatch <| SheetT.KeyPress SheetT.CtrlW
+
+let testsToRunFromSheetMenu =
+    // First text is the label that will be shown in the menu
+    // Replace (fun (model: ModelType.Model) -> model) with the function you want to run
+    // All functions should take in a model and return a model.
+    // Be sure to modify the sheet with the sheet_ optic before returning. Undos will be handled automatically.
+    [ "Test 1", testRotateScale1
+      "Test 2", (fun (model: ModelType.Model) -> model)
+      "Test 3", (fun (model: ModelType.Model) -> model)
+      "Test 4", (fun (model: ModelType.Model) -> model)
+      "Test 5", (fun (model: ModelType.Model) -> model)
+      "Test 6", (fun (model: ModelType.Model) -> model)
+      "Test 7", (fun (model: ModelType.Model) -> model)
+      "Test 8", (fun (model: ModelType.Model) -> model)
+      "Test 9", (fun (model: ModelType.Model) -> model) ]
+
+let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
+    let name, (func: ModelType.Model -> ModelType.Model) =
+        testsToRunFromSheetMenu[testIndex]
+    let funcName = nameof func
+    (consoleLogBlueBold $"Running {name} {funcName} (undo with cmd/ctrl + z)")
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    dispatch
+    <| UpdateModel(fun (model: ModelType.Model) ->
+        let newUndoList = appendUndoList model.Sheet.UndoList model.Sheet
+        func model
+        |> Optic.set (ModelType.sheet_ >-> UndoList_) (newUndoList))
+// Run the function on the model

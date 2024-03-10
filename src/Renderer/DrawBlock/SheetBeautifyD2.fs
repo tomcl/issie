@@ -21,6 +21,9 @@ module Constants =
     /// <summary>All edges on a symbol. Listed from 12 o'clock in clockwise order.</summary>
     let edges = [ Top; Right; Bottom; Left ]
 
+    /// <summary>
+    let orientCount = (List.length flipOps + 1) * (List.length rotationOps)
+
     /// <summary>Limit of port permutations to try.
     /// <c>sheetOrderFlip</c> does not check components with permutation count over limit.</summary>
     let portPermLimit = 25
@@ -49,16 +52,15 @@ let factorial (n: int): int =
 let permute<'T> (list: List<'T>): List<List<'T>> =
     /// <summary>Helper to insert element into all possible index of a list.
     /// Returns a list of original list with element inserted at different locations.</summary>
-    let distrubute (elem: 'T) (list: List<'T>): List<List<'T>> =
+    let distribute (elem: 'T) (list: List<'T>): List<List<'T>> =
         [0..(List.length list)-1]
-        |> List.map (fun i -> List.splitAt i list)
-        |> List.map (fun (front, back) -> front @ [ elem ] @ back)
-        |> List.append [ (List.append list [ elem ]) ]
+        |> List.map (fun i -> List.insertAt i elem list)
+        |> fun result -> result @ [ list @ [ elem ] ]
 
-    let rec permute' (list) (result) =
+    let rec permute' (list: List<'T>) (result: List<List<'T>>): List<List<'T>> =
         match list with
         | [] -> result
-        | head :: tail -> permute' tail result |> List.map (distrubute head) |> List.collect id
+        | head :: tail -> permute' tail result |> List.map (distribute head) |> List.collect id
 
     match list with
     | [] -> [ [] ]
@@ -84,7 +86,7 @@ let allPairs3<'T1, 'T2, 'T3>
 /// <returns>List of list of selection, wrapped in option.
 /// Options are return to avoid the case where an empty list is provided.</returns>
 /// <typeparam name="'T">Type of items to select.</typeparam>
-let allPairsNSameType<'T> (list: List<List<'T>>): List<List<Option<'T>>> =
+let allCombinationsOfLists<'T> (list: List<List<'T>>): List<List<Option<'T>>> =
     list
     |> List.map (fun sublist -> List.map (fun item -> Some item) sublist) // wrap items in list with options
     |> List.map (fun sublist -> if List.length sublist = 0 then [ None ] else sublist) // add none to empty lists
@@ -101,36 +103,28 @@ let allPairsNSameType<'T> (list: List<List<'T>>): List<List<Option<'T>>> =
 
 (* --------------------------------------- Implementation --------------------------------------- *)
 
-/// <summary>Get count of possible orientations from list of flip and rotation operations.</summary>
-/// <param name="flipOps">List of flip operations to try.</param>
-/// <param name="rotationOps">List of rotation operations to try.</param>
-/// <returns>Count of symbol's possible orientations.</returns>
-let getSymOrientCount (flipOps: List<SymbolT.FlipType>) (rotationOps: List<Rotation>): int =
-    (List.length flipOps + 1) * (List.length rotationOps)
-
 /// <summary>Get count of possible port configurations of a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Count of port orders possible.</returns>
-/// <remarks>Useful in determining which symbol to try to rotate on sheet.</remarks>
-let getSymPortPermCount (sym: SymbolT.Symbol): int =
+let getPortPermCount (sym: SymbolT.Symbol): int =
     Constants.edges
     |> List.map (fun edge -> Map.tryFind edge sym.PortMaps.Order)
-    |> List.map (fun opt -> if Option.isNone opt then 1 else List.length (Option.get opt))
+    |> List.choose id
+    |> List.map List.length
+    |> List.map factorial
     |> List.fold (*) 1
 
 /// <summary>Get count of possible symbol orientations using specified options and port
 /// configurations of a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Count of symbol orientations times count of port orders possible.</returns>
-/// <remarks>Useful in determining which symbol to try to rotate on sheet.</remarks>
-let getSymOrientAndPortPermCount (sym: SymbolT.Symbol): int =
-    (getSymOrientCount Constants.flipOps Constants.rotationOps) * (getSymPortPermCount sym)
+let getOrientAndPortPermCount (sym: SymbolT.Symbol): int =
+    (Constants.orientCount) * (getPortPermCount sym)
 
 /// <summary>Get all possible PortMaps.Order on a symbol after reordering ports.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>List of all possible <c>PortMaps.Order</c>.</returns>
-/// <remarks>Useful when trying different ordering of the ports of a symbol.</remarks>
-let getSymPortPermData
+let getPortPerm
         (sym: SymbolT.Symbol)
             : List<Map<Edge,List<string>>> =
     Constants.edges
@@ -139,7 +133,7 @@ let getSymPortPermData
         if Option.isNone portListOpt
         then []
         else permute (Option.get portListOpt)) // get list of list of all permutations on all sides
-    |> allPairsNSameType // select one possible ordering from all possible orderings of each side to reconstruct order map
+    |> allCombinationsOfLists // select one possible ordering from all possible orderings of each side to reconstruct order map
     |> List.map (fun selectionOptList -> List.map (Option.defaultValue []) selectionOptList)
     |> List.map (fun portOrder -> List.zip Constants.edges portOrder)
     |> List.map (fun mapList -> Map.ofList mapList)
@@ -147,11 +141,10 @@ let getSymPortPermData
 /// <summary>Get all possible symbol orientation and <c>PortMaps.Order</c> on a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>List of tuples of flip operation, rotate operation, and <c>PortMaps.Order</c>.</returns>
-/// <remarks>Useful when trying different orientation of a symbol or when reordering its ports.</remarks>
-let getSymOrientAndPortPermData
+let getOrientAndPortPerm
         (sym: SymbolT.Symbol)
             : List<SymbolT.FlipType*Rotation*Map<Edge,List<string>>> =
-    allPairs3 Constants.flipOps Constants.rotationOps (getSymPortPermData sym)
+    allPairs3 Constants.flipOps Constants.rotationOps (getPortPerm sym)
 
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -171,16 +164,16 @@ let getSymPortIds (sym: SymbolT.Symbol): List<string> =
 /// <summary>Get all wires connected to a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>List of connected wires.</returns>
-let getSymConnetedWires (sym: SymbolT.Symbol) (sheet: SheetT.Model): List<BusWireT.Wire> =
+let getSymConnectedWires (sym: SymbolT.Symbol) (sheet: SheetT.Model): List<BusWireT.Wire> =
     let symPortIds = getSymPortIds sym
 
     sheet.Wire.Wires
-    |> Map.values
-    |> List.ofSeq
-    |> List.filter
-        (fun wire ->
+    |> Map.filter
+        (fun key wire ->
             List.contains (inputPortStr wire.InputPort) symPortIds ||
             List.contains (outputPortStr wire.OutputPort) symPortIds)
+    |> Map.values
+    |> List.ofSeq
 
 /// <summary>Get the angle of a symbol's bottom right corner from positive x-axis direction.</summary>
 /// <param name="sym">Target symbol.</param>
@@ -199,22 +192,26 @@ let getSymBottomRightAng (sym: SymbolT.Symbol) (sheet: SheetT.Model): float =
 /// <param name="vec">Target vector.</param>
 /// <returns>Angle of range [0, 2 * PI).</returns>
 let vecToAng (vec: XYPos): float =
-    match vec.X >= 0., Math.Atan (vec.Y/vec.X) with
-    | true, rad when rad >= 0. -> rad
-    | true, rad when rad < 0. -> 2. * Math.PI + rad
-    | false, rad when rad >= 0. -> 1. * Math.PI + rad
-    | false, rad when rad < 0. -> 1. * Math.PI + rad
-    | _ -> 0. // impossible case, but give typecheck warnings if not included
+    match vec.X = 0, vec.Y = 0. with
+    | true, true -> 
+        0.
+    | true, false -> 
+        if vec.Y > 0. then Math.PI / 4. else Math.PI * 3. / 4.
+    | false, false | false, true ->
+        match vec.X > 0., Math.Atan (vec.Y/vec.X) with
+        | true, rad when rad >= 0. -> rad
+        | true, rad when rad < 0. -> 2. * Math.PI + rad
+        | false, rad when rad >= 0. -> 1. * Math.PI + rad
+        | false, rad when rad < 0. -> 1. * Math.PI + rad
+        | _ -> 0. // impossible case, but give typecheck warnings if not included
 
-/// <summary>Shift angle anti-clockwise by a degree and normalize to [0, 2 * PI).</summary>
-/// <param name="ang">Base angle, in radians.</param>
-/// <param name="shift">Angle to shift by, in radians.</param>
-/// <returns>Shifted angle.</returns>
-let shiftAng (ang: float) (shift: float) =
-    let result = ang + shift
-    if result > 2. * Math.PI
-    then result - 2. * Math.PI
-    else result
+/// <summary>Normalise angle.</summary>
+/// <param name="ang">Target angle.</param>
+/// <returns>Normalised angle of [0, 2 * PI).</returns>
+let normalise (ang: float)=
+    if ang > 2. * Math.PI
+    then ang - 2. * Math.PI
+    else ang
 
 
 (* --------------------------------------- Implementation --------------------------------------- *)
@@ -226,75 +223,84 @@ let shiftAng (ang: float) (shift: float) =
 /// corner in anti-clockwise direction.</returns>
 let findClockfacePortIdOrder (sym: SymbolT.Symbol) (sheet: SheetT.Model): List<string> =
     let symPortIds = getSymPortIds sym
-    let symCentre = sheet.BoundingBoxes[sym.Id].Centre()
+    let connectedWires = getSymConnectedWires sym sheet
 
-    let connectedWires = getSymConnetedWires sym sheet
+    /// <summary>Get the port ID of one end of the wire, end is specified by <c>isSymSide</c>.</summary>
+    let tryFindOtherEndPortId (isSymSide: bool) (wire: BusWireT.Wire): Option<string> =
+        let isInputSideSym = List.contains (inputPortStr wire.InputPort) symPortIds
+        let isOutputSideSym = List.contains (outputPortStr wire.OutputPort) symPortIds
+        let inputSide = Some (inputPortStr wire.InputPort)
+        let outputSide = Some (outputPortStr wire.OutputPort)
+        match isInputSideSym, isOutputSideSym with
+        | true, false -> if isSymSide then inputSide else outputSide
+        | false, true -> if isSymSide then outputSide else inputSide
+        | _ -> None // also ignoring self-wires
 
-    let connectedPorts = // find the other end of the connected wire
+    /// <summary>Get the wire from the <c>connectedWires</c> list that has one end of port.</summary>
+    let tryFindWireOfPort (port: Port): Option<BusWireT.Wire> =
+        List.tryFind
+            (fun wire -> inputPortStr wire.InputPort = port.Id || outputPortStr wire.OutputPort = port.Id)
+            connectedWires
+
+    let otherPorts = // find the other end of the connected wire
         connectedWires
-        |> List.map
-            (fun wire ->
-                wire,
-                List.contains (inputPortStr wire.InputPort) symPortIds,
-                List.contains (outputPortStr wire.OutputPort) symPortIds)
-        |> List.map
-            (function
-                | wire, true, false -> Some (inputPortStr wire.InputPort)
-                | wire, false, true -> Some (outputPortStr wire.OutputPort)
-                | _ -> None) // obtain the port that is not connected to symbol
+        |> List.map (tryFindOtherEndPortId false)
         |> List.choose id
         |> List.map (fun portId -> Map.tryFind portId sheet.Wire.Symbol.Ports)
         |> List.choose id
 
-    let clockfaceConnectedPortOrder = // sort the other end of the wires
-        connectedPorts
-        |> List.map (fun port -> (getPortPos port.Id sheet.Wire.Symbol, port))
-        |> List.map (fun (pos, port) -> (pos-symCentre, port))
-        |> List.map (fun (vec, port) -> (vecToAng vec, port))
-        |> List.map
-            (fun (ang, port) -> (shiftAng ang (getSymBottomRightAng sym sheet), port)) // shift to start from bottom-right
-        |> List.sortBy (fun (shiftedRad, _) -> shiftedRad)
-        |> List.map snd
+    let otherPortsInClockfaceOrder = // sort the other end of the wires
+        let makePortPos (port: Port) = port, getPortPos port.Id sheet.Wire.Symbol
+        let symCentre = sheet.BoundingBoxes[sym.Id].Centre()
+        let makePortPosVecFromSymCentre (port: Port) (pos: XYPos) = pos-symCentre
+        let makePortAngFromVec (port: Port) (vec: XYPos) = vecToAng vec
+        let bottomRightAng = getSymBottomRightAng sym sheet
+        let makePortAngFromBottomRight (port: Port) (ang: float) = normalise ang+bottomRightAng
 
-    let clockfaceSymPortIdOrder = // find the port id of the symbol end of the wires
-        clockfaceConnectedPortOrder
-        |> List.map
-            (fun port ->
-                List.tryFind
-                    (fun (wire: BusWireT.Wire) ->
-                        inputPortStr wire.InputPort = port.Id || outputPortStr wire.OutputPort = port.Id)
-                    connectedWires) // recover the wire which has the port in the list
-        |> List.choose id
-        |> List.map
-            (fun wire ->
-                if List.contains (inputPortStr wire.InputPort) symPortIds
-                then inputPortStr wire.InputPort
-                else outputPortStr wire.OutputPort) // recover the end that is connect to the symbol
+        otherPorts
+        |> List.map makePortPos
+        |> Map.ofList
+        |> Map.map makePortPosVecFromSymCentre
+        |> Map.map makePortAngFromVec
+        |> Map.map makePortAngFromBottomRight
+        |> Map.toList
+        |> List.sortBy snd // sort by angle
+        |> List.map fst // retrieve port id
 
-    clockfaceSymPortIdOrder
+    otherPortsInClockfaceOrder
+    |> List.map tryFindWireOfPort // recover the wire which has the port in the list
+    |> List.choose id
+    |> List.map (tryFindOtherEndPortId true) // recover the end that is connect to the symbol
+    |> List.choose id
 
 
 (* ---------------------------------------------------------------------------------------------- *)
 (*                                         sheetOrderFlip                                         *)
 (* ---------------------------------------------------------------------------------------------- *)
 
+(* ----------------------------------------- Info Types ----------------------------------------- *)
+
+/// <summary>Record type to track transformations done to a symbol.</summary>
+type OrientAndPortInfo = 
+    { STransform: STransform
+      PortMapsOrder: Map<Edge,List<string>> 
+      InputsReversedState: Option<bool> }
+
+
 (* ------------------------------ [WIP] Clockface Algorithm Helpers ----------------------------- *)
 
 /// <summary>Get current symbol's orientation and port order information.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Tuple of flipped status, rotation, and <c>PortMaps.Order</c></returns>
-let getSymOrientAndPortInfo
-        (sym: SymbolT.Symbol)
-            : bool*Rotation*Map<Edge,List<string>> =
-    sym.STransform.Flipped, sym.STransform.Rotation, sym.PortMaps.Order
+let getSymOrientAndPortInfo (sym: SymbolT.Symbol): OrientAndPortInfo =
+    { STransform = sym.STransform; 
+      PortMapsOrder = sym.PortMaps.Order; 
+      InputsReversedState = sym.ReversedInputPorts }
 
 /// <summary>[DO NOT USE - WIP] Get list of port IDs, in anti-clockwise order from bottom right corner, after rendering.</summary>
 /// <param name="orientAndPortInfo">Tuple of flipped status, rotation, and <c>PortMaps.Order</c>.</param>
 /// <returns>List of port IDs.</returns>
-/// <remarks>Useful when implementing clockface algorithm.</remarks>
-let getPortOrderFromInfo
-        (orientAndPortInfo: bool*Rotation*Map<Edge,List<string>>)
-            : List<string> =
+let getPortOrderFromInfo (orientAndPortInfo: OrientAndPortInfo) : List<string> =
     [] // placeholder to make program type-check
 
 /// <summary>[DO NOT USE - WIP] Count location differences between port order generated by the clockface algorithm
@@ -302,10 +308,9 @@ let getPortOrderFromInfo
 /// <param name="optimalPortOrder">Optimal port order, as generated by the clockface algorithm.</param>
 /// <param name="orientAndPortInfo">Proposed orientation and port order, is tuple of flipped status,
 /// rotation, and <c>PortMaps.Order</c>.</param>
-/// <remarks>Useful for choosing the correct permutation when implementing clockface algorithm.</remarks>
 let countPortOrderMatches
         (optimalPortOrder: List<string>)
-        (orientAndPortInfo: bool*Rotation*Map<Edge,List<string>>)
+        (orientAndPortInfo: OrientAndPortInfo)
             : int =
     getPortOrderFromInfo orientAndPortInfo
     |> List.zip optimalPortOrder
@@ -315,29 +320,15 @@ let countPortOrderMatches
 
 (* ------------------------------------- Symbol Type Filters ------------------------------------ *)
 
-/// <summary>Check if a symbol is of <c>Custom</c> type.</summary>
+/// <summary>Active pattern to categorise types of symbols.</summary>
 /// <param name="sym">Target symbol.</param>
-/// <returns>True if symbol is a custom symbol.</returns>
-let isCustomSym (sym: SymbolT.Symbol): bool =
+/// <returns>Symbol category.</returns>
+let (| CustomSym | MuxSym | GateSym | OtherSym |) (sym: SymbolT.Symbol) =
     match sym.Component.Type with
-    | Custom _ -> true
-    | _ -> false
-
-/// <summary>Check if a symbol is of <c>Mux</c> or <c>Demux</c> type.</summary>
-/// <param name="sym">Target symbol.</param>
-/// <returns>True if symbol is a mux or demux symbol.</returns>
-let isMuxSym (sym: SymbolT.Symbol): bool =
-    match sym.Component.Type with
-    | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> true
-    | _ -> false
-
-/// <summary>Check if a symbol is of <c>Not</c> or <c>GateN</c> type.</summary>
-/// <param name="sym">Target symbol.</param>
-/// <returns>True if symbol is a gate symbol.</returns>
-let isGateSym (sym: SymbolT.Symbol): bool =
-    match sym.Component.Type with
-    | Not | GateN _ -> true
-    | _ -> false
+    | Custom _ -> CustomSym
+    | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> MuxSym
+    | Not | GateN _ -> GateSym
+    | _ -> OtherSym
 
 
 (* --------------------------------- Symbol Transform Operations -------------------------------- *)
@@ -456,23 +447,28 @@ let getBestOrderFlipResultByList<'T>
 /// a) the symbol with most wires are most likely to have crosses, and
 /// b) untangling symbols with more wires reduces dependancy for later symbols.</remarks>
 let findSymCandidates (typefilt: SymbolT.Symbol->bool) (sheet: SheetT.Model): List<SymbolT.Symbol> =
+    /// <summary>Helper to count the number of connections the symbols has.</summary>
+    let countWireConnections sym = sym, getSymConnectedWires sym sheet |> List.length
+
+    /// <summary>Helper to filter symbols with permutations greater than set limit.</summary>
+    let tooManyPerms (sym, _) = (getPortPermCount sym) <= Constants.portPermLimit
+
     sheet.Wire.Symbol.Symbols
     |> Map.toList
     |> List.map snd // get all symbols
     |> List.filter typefilt // filter for symbol type
-    |> List.map (fun sym -> (sym, getSymConnetedWires sym sheet |> List.length))
-    |> List.sortBy (fun (_, wireCount) -> wireCount) // sort number of wires connected
+    |> List.map countWireConnections
+    |> List.sortBy (fun (_, wireCount) -> wireCount) // sort by number of wires connected
     |> List.rev // lowest wire count appear first, so we reverse
-    |> List.filter // remove symbols with too many permutations to do
-        (fun (sym, _) -> (getSymPortPermCount sym) <= Constants.portPermLimit)
+    |> List.filter tooManyPerms // remove symbols with too many permutations to do
     |> List.map fst
 
 /// <summary>Beautify sheet by attempting to orient components differently or to reorder its ports.</summary>
 /// <param name="sheet">Model of sheet to beautify.</param>
 /// <remarks>OFB Starter implemented: function will reverse input order on muxes and reorder ports on gates.</remarks>
 let sheetOrderFlip (sheet: SheetT.Model): SheetT.Model =
-    let muxCandidates = findSymCandidates isMuxSym sheet
-    let gateCandidates = findSymCandidates isGateSym sheet
+    let muxCandidates = findSymCandidates (fun sym -> match sym with | MuxSym -> true | _ -> false) sheet
+    let gateCandidates = findSymCandidates (fun sym -> match sym with | GateSym -> true | _ -> false) sheet
 
     let originalWireBends = numOfVisRightAngles sheet
     /// <summary>Helper to check on more wire bends is created.</summary>
@@ -490,5 +486,5 @@ let sheetOrderFlip (sheet: SheetT.Model): SheetT.Model =
         setSymPortOrder
         numOfWireRightAngleCrossings
         notMoreWireBendsLimiter
-        getSymPortPermData
+        getPortPerm
         gateCandidates // permutate gates

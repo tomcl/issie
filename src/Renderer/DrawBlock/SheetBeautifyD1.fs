@@ -56,16 +56,65 @@ module Helpers =
             | Some port -> Map.add id port acc
             | None -> acc) Map.empty
 
-    /// Finds the corresponding other port(s) for a given port based on connections.
+    /// Finds the corresponding WId(s) and other port(s) for a given Port based on connections.
     /// `port` is the given port to find matches for.
     /// `connections` is the list of all connections to search through.
-    let findOtherPorts (port: Port) (connections: Connection list): Port list =
+    let findOtherPorts (port: Port) (connections: Connection list): (string * Port) list =
         connections |> List.collect (fun connection ->
             match connection with
-            | { Source = src; Target = tgt } when src = port -> [tgt] // Port is the source; collect the target
-            | { Source = src; Target = tgt } when tgt = port -> [src] // Port is the target; collect the source
+            | { Id = id; Source = src; Target = tgt } when src = port -> [(id,tgt)] // Port is the source; collect the target
+            | { Id = id; Source = src; Target = tgt } when tgt = port -> [(id,src)] // Port is the target; collect the source
             | _ -> [] // No match, proceed to the next connection
         )
+    
+    /// return the corresponding Symbol for a given Port
+    let getSym (sheet:SheetT.Model) (port:Port): Symbol =
+        let sym =
+            port.HostId
+            |> ComponentId
+            |> fun id -> sheet.Wire.Symbol.Symbols[id]
+        sym
+
+    /// Chooses other Symbol to align a port based on the condition that they are opposite parallel edges
+    /// and will choose the symbol with the smallest euclidean distance to help avoid symbol overlaps
+    let chooseSymAlign (port: Port) (otherPorts: (string * Port) list) (sheet:SheetT.Model): Symbol Option=
+        if List.length otherPorts >1 then
+            let wModel = sheet.Wire
+            let portPos = getPortLocation None wModel.Symbol port.Id
+            let portOrientation = getSymbolPortOrientation (getSym sheet port) port
+            
+            let filteredAndMappedPorts =
+                otherPorts
+                |> List.map (fun (_, otherPort) ->
+                    let otherPortOrientation = getSymbolPortOrientation (getSym sheet otherPort) otherPort
+                    if portOrientation = otherPortOrientation.Opposite then
+                        let otherPortPos = getPortLocation None wModel.Symbol otherPort.Id
+                        let distance = euclideanDistance portPos otherPortPos
+                        Some (distance, otherPort)
+                    else
+                        None)
+                |> List.choose id // Remove None values and unwrap Some values
+
+            match filteredAndMappedPorts with
+            | [] -> None // No matching ports
+            | _ ->
+                filteredAndMappedPorts
+                |> List.minBy fst
+                |> snd
+                |> fun closestPort ->
+                    closestPort.HostId
+                    |> ComponentId
+                    |> fun id -> Some (sheet.Wire.Symbol.Symbols[id])
+        else
+            let otherSym =
+                otherPorts
+                |> List.tryHead
+                |> Option.map (fun (_,port) -> getSym sheet port)
+            otherSym
+
+           
+
+
 
     let alignSinglyComp (sheet: SheetT.Model): SheetT.Model =
         let singlyComp = getSinglyComp sheet
@@ -77,14 +126,19 @@ module Helpers =
             let portOption = portsMap |> Map.values |> Seq.tryHead  
             match portOption with
             | Some port ->
-                let otherPort = findOtherPorts port connections |> List.head
-                let otherSymId = ComponentId otherPort.HostId
-                let otherSym = sheet.Wire.Symbol.Symbols[otherSymId]
-                let wModel' = alignSymbols sheet.Wire sym otherSym
-                let sheet' = Optic.set SheetT.wire_ wModel' sheet
-                sheet'
+                let otherPorts = findOtherPorts port connections 
+                let otherSymOpt = chooseSymAlign port otherPorts sheet
+                match otherSymOpt with
+                | Some otherSym ->
+                    let wModel' = alignSymbols sheet.Wire sym otherSym
+                    let sheet' = Optic.set SheetT.wire_ wModel' sheet
+                    sheet'
+                | None -> sheet
             | _ -> sheet // If no port is found, proceed to the next symbol
         ) sheet
+
+    
+
         
 
        

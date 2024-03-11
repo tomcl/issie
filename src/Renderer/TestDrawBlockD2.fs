@@ -74,11 +74,12 @@ module D2 =
         |> fromList
 
     let getTestMetrics (sheet: SheetT.Model) : SheetT.Model=
-        printf $"Pre correction data, wire crossings:{numOfWireRightAngleCrossings sheet}"
-        // let updatedSheet = sheetOrderFlip sheet
-        printf $"Post correction metrics, wires straightened:{(numOfVisRightAngles sheet) - (numOfVisRightAngles sheet)},\
-        wire crossings:{numOfWireRightAngleCrossings sheet}"
-        sheet
+        let updatedSheet = sheetOrderFlip sheet
+
+        printf $"Pre-correction: wire crossings = {numOfWireRightAngleCrossings sheet}"
+        printf $"Post-correction: wire crossings = {numOfWireRightAngleCrossings updatedSheet}"
+        
+        updatedSheet
 
     /// demo test circuit consisting of all components neede fro D2
     let makeD2StarterCircuit (data :SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool) =

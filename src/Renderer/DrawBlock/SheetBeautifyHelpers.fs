@@ -513,3 +513,19 @@ let findRetracingSegments (model : SheetT.Model) =
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
 
 
+
+//----------------------------------------------------------------------------------------------//
+//------------------------------------Ezra's Helpers Module-------------------------------------//
+//----------------------------------------------------------------------------------------------//
+
+
+module EzraHelpers =
+    let distinctPairs lst =
+        let indexedList = List.indexed lst
+        List.allPairs indexedList indexedList
+        |> List.filter (fun ((i, _), (j, _)) -> i < j)
+        |> List.map (fun ((_, x), (_, y)) -> (x, y))
+    
+
+    // This is Omar's function
+    let mapValuesToList (map: Map<'a,'b> ) = Seq.toList map.Values

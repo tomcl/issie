@@ -1,6 +1,9 @@
 ﻿module TestDrawBlock
 open GenerateData
 open Elmish
+open BlockHelpers
+open SheetBeautifyHelpers.EzraHelpers
+open Renderer.TestAsserts
 
 
 //-------------------------------------------------------------------------------------------//
@@ -332,9 +335,9 @@ module HLPTick3 =
     let makeTest1Circuit (andPos:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> Result.bind (placeSymbol "DFF" DFFE middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "DFF" 0))
+        |> Result.bind (placeWire (portOf "DFF" 0) (portOf "G1" 0))
         |> getOkOrFail
 
 
@@ -380,8 +383,6 @@ module HLPTick3 =
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
-
-
 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
@@ -430,7 +431,7 @@ module HLPTick3 =
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                countWireSquashedInSheet
                 dispatch
             |> recordPositionInTest testNum dispatch
 

@@ -3,6 +3,7 @@ module TestDrawBlockD2
 open Elmish
 open GenerateData
 open TestDrawBlock
+open TestDrawBlock.
 open TestDrawBlock.TestLib
 open SheetBeautifyHelpers
 

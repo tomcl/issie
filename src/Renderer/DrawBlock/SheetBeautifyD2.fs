@@ -52,9 +52,9 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
 
         // create model with new port layout and evaluate
         let checkSwapFolder ((improvement,model): bool * SheetT.Model) (order: string list)  =
-            let beforeCount = countCrossingWires model
-            let model' = Optic.set symbols_ (Map.add id (setPortOrder model.Wire.Symbol.Symbols[id] edge order) model.Wire.Symbol.Symbols) model
-            let afterCount = countCrossingWires model'
+            let beforeCount = numOfWireRightAngleCrossings model
+            let model' = Optic.set symbols_ (Map.add id (putPortOrder  edge order model.Wire.Symbol.Symbols[id]) model.Wire.Symbol.Symbols) model
+            let afterCount = numOfWireRightAngleCrossings model'
 
             if afterCount < beforeCount then
                 true,model'

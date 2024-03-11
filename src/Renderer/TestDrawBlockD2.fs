@@ -74,14 +74,13 @@ module D2 =
         |> fromList
 
     let getTestMetrics (sheet: SheetT.Model) : SheetT.Model=
-        let updatedSheet = sheetOrderFlip sheet
-
-        printf $"Pre-correction: wire crossings = {numOfWireRightAngleCrossings sheet}"
-        printf $"Post-correction: wire crossings = {numOfWireRightAngleCrossings updatedSheet}"
-        
+        printf $"Pre correction metrics, wire crossings:{rightAngleSegCount sheet}"
+        let updatedSheet = reRouteWires (sheetOrderFlip sheet)
+        printf $"Post correction metrics, wires straightened:{(visibleWireRightAngles updatedSheet) - (visibleWireRightAngles sheet)},\
+         wire crossings:{rightAngleSegCount updatedSheet}"
         updatedSheet
 
-    /// demo test circuit consisting of all components neede fro D2
+    /// demo test circuit consisting of all components neede from D2
     let makeD2StarterCircuit (data :SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool) =
         let gateFlip, mux2Flip, mux2Swap, mux1Flip,mux1Swap = data
         let tmpFlip = flipSymbol 
@@ -106,6 +105,7 @@ module D2 =
         |> Result.bind(tmpSwapResult "MUX2" mux2Swap)
         |> Result.map (reRouteWires)
         |> Result.map(getTestMetrics)
+        |> Result.map (reRouteWires)
         |> getOkOrFail
 
 

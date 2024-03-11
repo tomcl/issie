@@ -37,7 +37,7 @@ let rotateSide (rotation: Rotation) (side:Edge) :Edge =
 /// rotates the portMap information left or right as per rotation
 let rotatePortInfo (rotation:Rotation) (portMaps:PortMaps) : PortMaps=
     //need to update portOrientation and portOrder
-    printfn "running rotatePortInfo"
+    // printfn "running rotatePortInfo"
     let newPortOrientation = 
         portMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
 

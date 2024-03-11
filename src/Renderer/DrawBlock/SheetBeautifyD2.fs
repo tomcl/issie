@@ -169,25 +169,18 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
     let muxSyms = getAllMuxComponents model
     let cusSyms = getAllCusComponents model
 
-    printfn "MADE IT HERE 1"
-
     // First rotationally sort all the ports on the custom components
     //let cusRotatedModel = List.fold rotationallySortCustomSymPorts model cusSyms
 
     // Try different permutations of flips/rotations on Muxes
-    (*
-    let currBends = countVisibleBends cusRotatedModel
-    let currCross = countVisibleSegsPerpendicularCrossings cusRotatedModel
-    let (_, _, optimModel) = List.fold testSymbolFlip (currBends, currCross, cusRotatedModel) muxSyms
-    *)
+    
+    //let currBends = countVisibleBends cusRotatedModel
+    //let currCross = countVisibleSegsPerpendicularCrossings cusRotatedModel
+    //let (_, _, optimModel) = List.fold testSymbolFlip (currBends, currCross, cusRotatedModel) muxSyms
 
     let currBends = countVisibleBends model
     let currCross = countVisibleSegsPerpendicularCrossings model
 
-    printfn "CURRENT BENDS: %A %A" currBends currCross
-
     let (_, _, optimModel) = List.fold testSymbolFlip (currBends, currCross, model) muxSyms
-
-    printfn "MADE IT HERE 4"
 
     optimModel

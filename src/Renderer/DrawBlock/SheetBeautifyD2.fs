@@ -3,6 +3,7 @@ module SheetBeautifyD2
 open BlockHelpers
 open CommonTypes
 open DrawHelpers
+
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
@@ -21,13 +22,13 @@ let sheetOrderFlip (sheet: SheetT.Model) =
     //each time, choose minimum. This is optimal but slow and unscalable.
 
     // get symbols on sheet
-    let symbolLst = 
+    let symbolList = 
         sheet.Wire.Symbol.Symbols
         |> mapValues
         |> Array.toList
 
-    //find all MUX component on sheet
-    let getMuxList (symbolList: Symbol list) = 
+    ///find all MUXesfrom a list of symbol (MUX2)
+    let getMuxList  = 
         symbolList
         |> List.filter (fun symbol -> 
             let componentType = symbol.Component.Type
@@ -36,19 +37,61 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             | _ -> false
             )
 
+    ///find all gates from a list of symbol
+    let getGateList  = 
+        symbolList
+        |> List.filter (fun symbol -> 
+            let componentType = symbol.Component.Type
+            match componentType with 
+            | GateN (gateType, numInputs) -> true 
+            | _ -> false
+            )
+
+
     // swap MUX input, return flipped MUX
-    let swapMuxInput (mux: symbol)=
-        let state = getReverseInputMux mux
-        setReverseInputMux (~state) mux
+    let swapMuxInputOrder (mux: SymbolT.Symbol)=
+        let edge: Edge option = 
+            match mux.Component.Type with
+            |Mux2| Mux4| Mux8 -> Some Left
+            |Demux2|Demux4|Demux8 -> Some Right
+            | _ -> None
+
+        // let portOrder = getPortOrder (Option.isSome edge) mux
+        // let reversePortOrder = List.rev portOrder
+        // putPortOrder edge reversePortOrder mux
+        match edge with
+        |Some side -> 
+            let portOrder = getPortOrder side mux
+            let reversePortOrder = List.rev portOrder
+            putPortOrder side reversePortOrder mux
+        |None -> mux
+    
+    let flipVertical (sym: SymbolT.Symbol) = SymbolResizeHelpers.flipSymbol FlipVertical sym
 
     // flip a MUX and swap input
     let flipAndSwapMux (symbol: Symbol) = 
+        let symbolsMap = sheet.Wire.Symbol.Symbols
         symbol 
-        |> flipSymbol
+        |> flipVertical
+        |> swapMuxInputOrder
+        // let updatedSymbolsMap = Map.add symbol.Id transformed symbolsMap
+        // { sheet with Wire = { sheet.Wire with Symbol = { sheet.Wire.Symbol with Symbols = updatedSymbolsMap } } }
 
     //measure wire crossings
-    let numWireCrossing (sheet: sheetT.Model) = 
-        numSegmentCrossRightAngle sheet
+    let numWireCrossing (sheet: SheetT.Model) = 
+        numOfWireRightAngleCrossings sheet
+
+    let updatedSymbolsMap = 
+        getMuxList 
+        |> List.map flipAndSwapMux
+        |> (fun transformedSym -> 
+            let symbolsMap = sheet.Wire.Symbol.Symbols
+            (symbolsMap, transformedSym)
+            ||> List.fold (fun symMap symToAdd -> Map.add symToAdd.Id symToAdd symMap))
+    
+    { sheet with Wire = { sheet.Wire with Symbol = { sheet.Wire.Symbol with Symbols = updatedSymbolsMap } } }
+    
+
     
     //2. Re-order any custom component ports along any side to reduce crossings
     //3. Change orientation of gates and MUXes and maybe other components to reduce crossings

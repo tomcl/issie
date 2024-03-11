@@ -339,13 +339,23 @@ let optimiseSymbol
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
 
+
+/// a helper module to deal, specifically with tuples of size 2
+module Tuple2 = 
+    /// <summary>maps a given function across a 2-tuple,
+    /// where both elements are of the same type</summary>
+    /// <param name="function">the function to apply across the 2-tuple</param>
+    /// <param name="tuple (a, b)">the 2-tuple to be transformed</param>
+    /// <returns>2-tuple of transformed values</returns>
+    /// <author>HLP24: Pierce Wiegerling</author>
+    let map (f: 'a -> 'b) (a: 'a, b: 'a) = (f a, f b)
+
+
 /// <summary>HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols\
-/// HLP24: modified by Pierce Wiegerling</summary>
+/// HLP 24: modified by Pierce Wiegerling</summary>
 /// <param name="symbols"> Selected symbols list</param>
 /// <returns>Bounding Box</returns>
-let getBlock (symbols:Symbol List) :BoundingBox = 
-    let forEach (f: 'a -> 'b) (a: 'a, b: 'a) = (f a, f b)
-    
+let getBlock (symbols: Symbol List) : BoundingBox =    
     symbols
     |> List.map getSymbolBoundingBox
     |> List.map (fun bb -> (bb.TopLeft, bb.BottomRight()))
@@ -353,14 +363,14 @@ let getBlock (symbols:Symbol List) :BoundingBox =
         [tlVal.X; brVal.X], [tlVal.Y; brVal.Y]  // split into X, Y components
     )
     |> List.unzip  // separate into X and Y lists
-    |> forEach (List.collect id)  // collecting all the BB sublists
+    |> Tuple2.map (List.collect id)  // collecting all the BB sublists
     |> fun (xList, yList) -> 
         let minX = List.min xList
         let minY = List.min yList
         let maxX = List.max xList
         let maxY = List.max yList
 
-        {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
+        {TopLeft = {X = minX; Y = minY}; W = maxX - minX; H = maxY - minY}
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre</summary>
 /// <param name="point"> Original XYPos</param>

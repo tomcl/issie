@@ -414,6 +414,42 @@ let numOfIntersectedSymPairs (sheet: SheetT.Model) =
                             | ((_, box1),(_, box2)) when BlockHelpers.overlap2DBox box1 box2 -> 1
                             | _ -> 0)
 
+let getSymbolBB (symbol: Symbol) =
+    getSymbolBoundingBox symbol
+
+
+let segmentIntersectSymbolCount (sheet: SheetT.Model) =
+
+    let getSegmentVertices (wire: BusWireT.Wire) =
+        let (segVecs : XYPos list) = visibleSegments wire.WId sheet
+        (wire.StartPos, segVecs) ||> List.scan (fun (currVec : XYPos) (nextVec : XYPos) -> 
+                                                {currVec with X = currVec.X+nextVec.X; Y = currVec.Y+nextVec.Y})
+    let segmentIntersectsBB (boundingBox : BoundingBox) (startPos: XYPos) (endPos : XYPos) = 
+        match BlockHelpers.segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+            | Some _ -> true // segment intersects bounding box
+            | None -> false // no intersection
+
+    let symbols = 
+        sheet.Wire.Symbol.Symbols
+        |> Map.toList
+        |> List.map snd
+        |> List.map (getSymbolBB)
+
+    let intersectingSegmentCount =
+        sheet.Wire.Wires
+        |> Map.toList
+        |> List.map snd
+        |> List.map (getSegmentVertices) 
+        |> List.map (List.pairwise)
+        |> List.map(List.allPairs symbols)
+        |> List.map(List.filter (fun (bb, (segStart, segEnd)) -> segmentIntersectsBB bb segStart segEnd))
+        |> List.map(List.map snd)
+        |> List.concat
+        |> List.distinct
+        |> List.length
+
+    intersectingSegmentCount
+
 
 //T2 R
 /// The Number of distinct wire visible segments that intersect with one or more symbols in the sheet.

@@ -601,9 +601,10 @@ let getBestOrderFlipResult<'T>
             (sample, optimiser, limiter)) // find condition sample's results
     |> List.filter (fun (_, _, limiter) -> limiter) // filter out sample if it violates limitation
     |> List.sortBy (fun (_, optimiser, _) -> optimiser) // sort by lowest stats
-    |> List.head
-    |> fun (sample, _, _) -> sample
-    |> fun sample -> transformer sample sym sheet
+    |> List.tryHead
+    |> Option.bind (fun (sample, _, _) -> Some sample)
+    |> Option.bind (fun sample -> Some (transformer sample sym sheet))
+    |> Option.defaultValue sheet
 
 
 /// <summary>Find best sheet after sequentially applying transfoms to a list of symbols with the
@@ -663,7 +664,7 @@ let sheetOrderFlip (sheet: SheetT.Model): SheetT.Model =
     let gateCandidates = findSymCandidates (fun sym -> match sym with | GateSym -> true | _ -> false) sheet
     let customCandidates = findSymCandidates (fun sym -> match sym with | CustomSym -> true | _ -> false) sheet
 
-    let originalWireBends = numOfVisRightAngles sheet
+    let originalWireBends = findRightAngleCount sheet
     /// <summary>Helper to check on more wire bends is created.</summary>
     let notMoreWireBendsLimiter (sheet: SheetT.Model): bool =
         (sheet |> findRightAngleCount) <= originalWireBends

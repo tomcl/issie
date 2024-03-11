@@ -7,12 +7,15 @@ open CommonTypes
 open DrawModelType
 open BlockHelpers
 open DrawHelpers
+open SymbolResizeHelpers
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
+open RotateScale
 
 
 module Constants =
-    /// <summary>Flip operations to try.</summary>
+    /// <summary>Flip operations to try. Should only contain 1 entry,
+    /// which is either <c>FlipHorizontal</c> or <c>FlipVertical</c>.</summary>
     let flipOps = [ SymbolT.FlipHorizontal ]
 
     /// <summary>Rotation operations to try.</summary>
@@ -30,8 +33,113 @@ module Constants =
 
 
 (* ---------------------------------------------------------------------------------------------- *)
+(*                                Additional Sheet Beautify Helpers                               *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+/// <summary>D.U. to describe orientation of a segment.</summary>
+/// <remarks>Noted that BusWireT.Orientation is similar, but wanted to represent <c>Other</c> and <c>Zero</c> type,
+/// although <c>Other</c> is likely not used.</remarks>
+type SegOrientation = | Horizontal | Vertical | Other | Zero
+
+/// <summary>Get a segment's orientation from its start and end position.</summary>
+/// <param name="segStart">Segment start position.</param>
+/// <param name="segEnd">Segment end position.</param>
+/// <returns>Orientation, of <c>SegOrientation</c> type.</returns>
+let segOrientation (segStart: XYPos) (segEnd: XYPos): SegOrientation =
+    match (segEnd.X - segStart.X), (segEnd.Y - segStart.Y) with
+    | dx, dy when dx = 0.0 && dy = 0.0 -> Zero
+    | dx, dy when dx <> 0.0 && dy = 0.0 -> Horizontal
+    | dx, dy when dx = 0.0 && dy <> 0.0 -> Vertical
+    | _ -> Other
+
+/// <summary>Get all wire IDs within a sheet.</summary>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>List of connection IDs of all the wires on the sheet.</returns>
+let getAllWireIds (sheet: SheetT.Model): List<ConnectionId> =
+    sheet.Wire.Wires |> Map.toList |> List.map fst
+
+/// <summary>Get vertices of visible coalesceed segments of a wire.</summary>
+/// <param name="wire">Target wire, of type Wire.</param>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>List of <c>XYPos</c> that represents the visible vertices in a wire.</returns>
+/// <remarks>Function refactored from <c>TestDrawBlock.HLPTick3.visibleSegments</c>.</remarks>
+let getWireVisibleSegVertices (wire: BusWireT.Wire) (sheet): List<XYPos> =
+    SegmentHelpers.visibleSegments wire.WId sheet
+    |> List.mapFold (fun currPos segVec -> segVec+currPos, segVec+currPos) wire.StartPos
+    |> (fun (vertices, _) -> wire.StartPos :: vertices)
+
+/// <summary>Get all visible segments of all wires within a sheet.</summary>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>List of tuple of segments': wire's <c>OutputPortId</c>, start,
+/// and end positions of all segments on the sheet.</returns>
+let getAllWireVisibleSegs (sheet: SheetT.Model): List<OutputPortId*XYPos*XYPos> =
+    /// <summary>Helper to create data of <c>OutputPortId</c>, start, and end position tuples,
+    /// from list of wire vertices.</summary>
+    let makeSegData (sourceId: OutputPortId, posList: List<XYPos>) =
+        List.pairwise posList
+        |> List.map (fun (segStart, segEnd) -> (sourceId, segStart, segEnd))
+
+    getAllWireIds sheet
+    |> List.map (fun wireId -> sheet.Wire.Wires[wireId])
+    |> List.map (fun wire -> (wire.OutputPort, getWireVisibleSegVertices wire sheet))
+    |> List.map makeSegData
+    |> List.collect (fun item -> item)
+
+/// <summary>Get count of visible, perpendicular, non-zero-length, non-same-net,
+/// and non-consecutive segments pairs, that intersects each other.</summary>
+/// <param name="sheet">Target sheet to check.</param>
+/// <returns>Total count of intersecting visible wire segment pairs.</returns>
+/// <remarks> Assumed that "segments on same net on top of each other" is a
+/// superset of "segments same net intersecting at one end".</remarks>
+let numOfWireRightAngleCrossingsInDiffNet (sheet: SheetT.Model): int =
+    /// <summary>Helper to identify perpendicular segment pairs.</summary>
+    let isPerpSegPair (seg1: OutputPortId*XYPos*XYPos, seg2: OutputPortId*XYPos*XYPos): bool =
+        let _, segStart1, segEnd1 = seg1
+        let _, segStart2, segEnd2 = seg2
+
+        match segOrientation segStart1 segEnd1, segOrientation segStart2 segEnd2 with
+        | Horizontal, Vertical | Vertical, Horizontal -> true
+        | _ -> false
+
+    getAllWireVisibleSegs sheet
+    |> List.filter (fun (_, segStart, segEnd) -> segStart <> segEnd) // remove length=0
+    |> (fun list -> List.allPairs list list) // make segment pairs
+    |> List.filter (fun ((inputId1, _, _), (inputId2, _, _)) -> inputId1 <> inputId2) // remove same-net pairs
+    |> List.filter isPerpSegPair // remove non-perpendicular pairs
+    |> List.filter
+        (fun ((_, segStart1, segEnd1), (_, segStart2, segEnd2)) ->
+            overlap2D (segStart1, segEnd1) (segStart2, segEnd2)) // remove non-overlapping pairs
+    |> List.length
+    |> fun count -> count/2 // if using allPairs on same list, will create duplicates
+
+/// <summary>Get count of visible right angles on a sheet by counting coalesced segments.</summary>
+/// <param name="sheet">Target sheet to check.</param>
+/// <returns>Total count of right angles.</returns>
+/// <remarks>Right angles are counted so because zero-length segments have already been
+/// removed within the <c>getWireVisibleSegVertices</c> function.</remarks>
+let findRightAngleCount (sheet: SheetT.Model): int =
+    sheet.Wire.Wires 
+    |> Map.values 
+    |> List.ofSeq
+    |> List.map (fun wire -> getWireVisibleSegVertices wire sheet)
+    |> List.map List.length
+    |> List.map (fun count -> count-2) // excluding start and end, each vertice is a right angle
+    |> List.map (fun count -> if count < 0 then 0 else count) // remove cases where there is no segment
+    |> List.sumBy id
+
+
+(* ---------------------------------------------------------------------------------------------- *)
 (*                                      Permuataion Algorithm                                     *)
 (* ---------------------------------------------------------------------------------------------- *)
+
+(* ----------------------------------------- Info Types ----------------------------------------- *)
+
+/// <summary>Record type to track transformations done to a symbol.</summary>
+type OrientAndPortInfo = 
+    { STransform: STransform
+      PortMaps: SymbolT.PortMaps
+      InputsReversedState: Option<bool> }
+
 
 (* ---------------------------------------- Math Helpers ---------------------------------------- *)
 
@@ -138,13 +246,29 @@ let getPortPerm
     |> List.map (fun portOrder -> List.zip Constants.edges portOrder)
     |> List.map (fun mapList -> Map.ofList mapList)
 
-/// <summary>Get all possible symbol orientation and <c>PortMaps.Order</c> on a symbol.</summary>
+/// <summary>Get all possible orientations and <c>PortMaps.Order</c> on a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
-/// <returns>List of tuples of flip operation, rotate operation, and <c>PortMaps.Order</c>.</returns>
+/// <returns>List of <c>OrientAndPortInfo</c> that contains all posibilities to try.</returns>
 let getOrientAndPortPerm
         (sym: SymbolT.Symbol)
-            : List<SymbolT.FlipType*Rotation*Map<Edge,List<string>>> =
-    allPairs3 Constants.flipOps Constants.rotationOps (getPortPerm sym)
+            : List<OrientAndPortInfo> =
+    allPairs3 [ false; true ] Constants.rotationOps (getPortPerm sym)
+    |> List.map (fun (flip, rotation, portOrder) ->
+        { STransform = { Flipped = flip; Rotation = rotation} 
+          PortMaps = { Orientation = sym.PortMaps.Orientation; Order = portOrder }
+          InputsReversedState = None })
+
+/// <summary>Get all possible orientations and <c>InputReverseState</c> on a mux symbol.</summary>
+/// <param name="sym">Target symbol.</param>
+/// <returns>List of <c>OrientAndPortInfo</c> that contains all posibilities to try.</returns>
+let getMuxOrientAndInputReverseStatePerm
+        (sym: SymbolT.Symbol)
+            : List<OrientAndPortInfo> =
+    allPairs3 [ false; true ] Constants.rotationOps [ Some false; Some true ]
+    |> List.map (fun (flip, rotation, inputReverseState) ->
+        { STransform = { Flipped = flip; Rotation = rotation} 
+          PortMaps = sym.PortMaps
+          InputsReversedState = inputReverseState })
 
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -278,30 +402,51 @@ let findClockfacePortIdOrder (sym: SymbolT.Symbol) (sheet: SheetT.Model): List<s
 (*                                         sheetOrderFlip                                         *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* ----------------------------------------- Info Types ----------------------------------------- *)
-
-/// <summary>Record type to track transformations done to a symbol.</summary>
-type OrientAndPortInfo = 
-    { STransform: STransform
-      PortMapsOrder: Map<Edge,List<string>> 
-      InputsReversedState: Option<bool> }
-
-
-(* ------------------------------ [WIP] Clockface Algorithm Helpers ----------------------------- *)
+(* --------------------------------- Clockface Algorithm Helpers -------------------------------- *)
 
 /// <summary>Get current symbol's orientation and port order information.</summary>
 /// <param name="sym">Target symbol.</param>
 /// <returns>Tuple of flipped status, rotation, and <c>PortMaps.Order</c></returns>
 let getSymOrientAndPortInfo (sym: SymbolT.Symbol): OrientAndPortInfo =
     { STransform = sym.STransform; 
-      PortMapsOrder = sym.PortMaps.Order; 
+      PortMaps = sym.PortMaps; 
       InputsReversedState = sym.ReversedInputPorts }
 
 /// <summary>[DO NOT USE - WIP] Get list of port IDs, in anti-clockwise order from bottom right corner, after rendering.</summary>
 /// <param name="orientAndPortInfo">Tuple of flipped status, rotation, and <c>PortMaps.Order</c>.</param>
 /// <returns>List of port IDs.</returns>
-let getPortOrderFromInfo (orientAndPortInfo: OrientAndPortInfo) : List<string> =
-    [] // placeholder to make program type-check
+let getPortOrderFromInfo (orientAndPortInfo: OrientAndPortInfo): List<string> =
+    /// <summary>Helper to update <c>PortMaps</c> for a horizontal flip.
+    /// Refactored trom <c>RotateScale.flipBlock</c> function.</summary>
+    let flipPortInfo (flipped: bool) (portMaps: SymbolT.PortMaps): SymbolT.PortMaps =
+        if flipped
+        then 
+            let newPortOrientation =
+                portMaps.Orientation
+                |> Map.map (fun _ side -> flipSideHorizontal side)
+
+            let newPortOrder =
+                portMaps.Order
+                |> Map.keys
+                |> List.ofSeq
+                |> List.fold
+                    (fun currPortOrder side -> Map.add (flipSideHorizontal side) portMaps.Order[side] currPortOrder)
+                    Map.empty
+                |> Map.map (fun _ order -> List.rev order)
+            
+            { Order = newPortOrder; Orientation = newPortOrientation }
+        else
+            portMaps
+
+    let updatedPortOrder =
+        orientAndPortInfo.PortMaps
+        |> rotatePortInfo orientAndPortInfo.STransform.Rotation
+        |> flipPortInfo orientAndPortInfo.STransform.Flipped
+        |> (fun portMaps -> portMaps.Order)
+    
+    // port order is rendered in anti-clockwise order
+    updatedPortOrder[Right] @ updatedPortOrder[Top] @ updatedPortOrder[Left] @ updatedPortOrder[Bottom]
+
 
 /// <summary>[DO NOT USE - WIP] Count location differences between port order generated by the clockface algorithm
 /// and the proposed transformation of the symbol.</summary>
@@ -349,11 +494,11 @@ let updateSymToSheet (sym: SymbolT.Symbol) (sheet: SheetT.Model): SheetT.Model =
 /// <param name="sheet">Model of the whole sheet.</param>
 /// <returns>Updated sheet.</returns>
 let setMuxSymReverseState
-        (muxReverseState: bool)
+        (muxReverseState: Option<bool>)
         (sym: SymbolT.Symbol)
         (sheet: SheetT.Model)
             : SheetT.Model =
-    updateSymToSheet (Optic.set reversedInputPorts_ (Some muxReverseState) sym) sheet
+    updateSymToSheet (Optic.set reversedInputPorts_ muxReverseState sym) sheet
 
 /// <summary>Set a symbol's <c>PortMaps.Order</c> in a sheet.</summary>
 /// <param name="sym">Target symbol.</param>
@@ -365,6 +510,53 @@ let setSymPortOrder
         (sheet: SheetT.Model)
             : SheetT.Model =
     updateSymToSheet { sym with PortMaps = { sym.PortMaps with Order = portOrder } } sheet
+
+/// <summary>Set a symbol's orientation in a sheet.</summary>
+/// <param name="orientAndPortInfo">Orientataion and port information.</param>
+/// <param name="sym">Target symbol.</param>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>Updated sheet.</returns>
+let setSymOrient
+        (orientAndPortInfo: OrientAndPortInfo)
+        (sym: SymbolT.Symbol)
+        (sheet: SheetT.Model)
+            : SheetT.Model =
+    sheet
+    |> Optic.get SheetT.symbol_
+    |> rotateBlock' orientAndPortInfo.STransform.Rotation [ sym.Id ]
+    |> (fun model -> 
+        if orientAndPortInfo.STransform.Flipped 
+        then flipBlock' Constants.flipOps[0] [ sym.Id ] model
+        else model)
+    |> (fun model -> Optic.set SheetT.symbol_ model sheet)
+
+/// <summary>Set a mux symbols's orientation and input reverse state in a sheet.</summary>
+/// <param name="orientAndPortInfo">Orientataion and port information.</param>
+/// <param name="sym">Target symbol.</param>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>Updated sheet.</returns>
+let setMuxSymOrientAndInputReverseState
+        (orientAndPortInfo: OrientAndPortInfo)
+        (sym: SymbolT.Symbol)
+        (sheet: SheetT.Model)
+            : SheetT.Model =
+    sheet
+    |> setMuxSymReverseState orientAndPortInfo.InputsReversedState sym
+    |> setSymOrient orientAndPortInfo sym
+
+/// <summary>Set a symbols's orientation and <c>PortMaps.Order</c> in a sheet.</summary>
+/// <param name="orientAndPortInfo">Orientataion and port information.</param>
+/// <param name="sym">Target symbol.</param>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>Updated sheet.</returns>
+let setSymOrientAndPortOrder
+        (orientAndPortInfo: OrientAndPortInfo)
+        (sym: SymbolT.Symbol)
+        (sheet: SheetT.Model)
+            : SheetT.Model =
+    sheet
+    |> setSymPortOrder orientAndPortInfo.PortMaps.Order sym
+    |> setSymOrient orientAndPortInfo sym
 
 
 (* --------------------------------------- Implementation --------------------------------------- *)
@@ -469,22 +661,30 @@ let findSymCandidates (typefilt: SymbolT.Symbol->bool) (sheet: SheetT.Model): Li
 let sheetOrderFlip (sheet: SheetT.Model): SheetT.Model =
     let muxCandidates = findSymCandidates (fun sym -> match sym with | MuxSym -> true | _ -> false) sheet
     let gateCandidates = findSymCandidates (fun sym -> match sym with | GateSym -> true | _ -> false) sheet
+    let customCandidates = findSymCandidates (fun sym -> match sym with | CustomSym -> true | _ -> false) sheet
 
     let originalWireBends = numOfVisRightAngles sheet
     /// <summary>Helper to check on more wire bends is created.</summary>
     let notMoreWireBendsLimiter (sheet: SheetT.Model): bool =
-        (sheet |> numOfVisRightAngles) <= originalWireBends
+        (sheet |> findRightAngleCount) <= originalWireBends
 
     sheet
     |> getBestOrderFlipResultByList
-        setMuxSymReverseState
-        numOfWireRightAngleCrossings
+        setMuxSymOrientAndInputReverseState
+        numOfWireRightAngleCrossingsInDiffNet
         notMoreWireBendsLimiter
-        (fun _ -> [ false; true ]) // two state of mux input ports
-        muxCandidates // change input order of muxes
+        getMuxOrientAndInputReverseStatePerm
+        muxCandidates // permute orientation and input port order of muxes
+    |> getBestOrderFlipResultByList
+        setSymOrientAndPortOrder
+        numOfWireRightAngleCrossingsInDiffNet
+        notMoreWireBendsLimiter
+        getOrientAndPortPerm
+        gateCandidates // permute orientation and port order of muxes
     |> getBestOrderFlipResultByList
         setSymPortOrder
-        numOfWireRightAngleCrossings
+        numOfWireRightAngleCrossingsInDiffNet
         notMoreWireBendsLimiter
         getPortPerm
-        gateCandidates // permutate gates
+        customCandidates // permute custom component port order        
+    |> autoRouteAllWires

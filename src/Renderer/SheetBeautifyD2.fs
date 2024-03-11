@@ -59,3 +59,32 @@ let optimalEdgeOrder (model: SheetT.Model):Result<SheetT.Model, string> =
 
     let bestModel = List.fold (fun minModel newModel -> if ((numOfWireRightAngleCrossings newModel) < (numOfWireRightAngleCrossings minModel)) then newModel else minModel) model possibleModels
     Ok bestModel
+
+let getConfigurations (sym:Symbol): Symbol list
+
+let sheetOrderFlip (model: SheetT.Model):Result<SheetT.Model, string> =
+    let rec cartesian lstlst =
+        match lstlst with
+        | h::[] ->
+            List.fold (fun acc elem -> [elem]::acc) [] h
+        | h::t ->
+            List.fold (fun cacc celem ->
+                (List.fold (fun acc elem -> (elem::celem)::acc) [] h) @ cacc
+                ) [] (cartesian t)
+        | _ -> []
+    
+    // IDList and symList must be the same length.
+    let buildMap (IDList:ComponentId list) (symList:Symbol list):Map<ComponentId,Symbol> =
+        List.zip IDList symList
+        |> Map.ofList
+
+    let idSymbolMap = model.Wire.Symbol.Symbols
+    let IDList: ComponentId list =
+        Map.keys idSymbolMap
+        |> Map.toList
+    let SymbolList: Symbol list =
+        Map.values idSymbolMap
+        |> Map.toList
+    let permutationsOfEachSym = List.map getConfigurations SymbolList
+    let possibleSymPermutations = cartesian permutationsOfEachSym
+    let possibleMaps = List.map (fun symList -> buildMap IDList symList) possibleSymPermutations

@@ -9,6 +9,7 @@ open Optics
 open Optics.Operators
 open Helpers
 open SymbolHelpers
+open SheetBeautifyHelpers
 open BlockHelpers
 open Symbol
 open BusWireRoute
@@ -87,5 +88,132 @@ d/(n+1)
 Separations close to a defined minimum can be included as penalties in the objective function. Obviously separations below some
 minimum value should not allowed, so a nonlinear dependence of objective function on separation could make sense and allow optimisation
 techniques to be used.
+
+*)
+
+/// Constant that decides if a wire can be straightened. This ratio is the majority distance over the maximum minority deviation length.
+let straightenRatioTolerance = 9.0
+
+let detectAlmostStraightWire (wire: BusWireT.Wire) =
+    // Get list of even segments and odd segments of the wire. Note: we get rid of invisible segments
+    let wireWithInvisSegmentsRemoved = (removeSingleWireInvisibleSegments wire)
+    let oddList, evenList =
+        wireWithInvisSegmentsRemoved.Segments
+        |> List.mapi (fun i x -> (i % 2 = 0, x))
+        |> List.partition fst
+        |> fun (odd, even) -> (List.map snd odd, List.map snd even)
+
+    let oddDistance =
+        oddList
+        |> List.sumBy (fun segment -> segment.Length)
+    let evenDistance =
+        evenList
+        |> List.sumBy (fun segment -> segment.Length)
+
+    let majorityDistance, isMajorityDirectionHoriz =
+        if oddDistance >= evenDistance then
+            oddDistance, true
+        else
+            evenDistance, false
+
+    // can't be straightened if there are less than 2 segments OR segment length is even
+    if
+        (wireWithInvisSegmentsRemoved.Segments.Length < 2)
+        || (wireWithInvisSegmentsRemoved.Segments.Length % 2 = 0)
+    then
+        false
+    else
+        match wire.InitialOrientation, isMajorityDirectionHoriz with
+        | horizontal, true -> // first seg horiz, majority horiz, will deviate vertically, which will be the even segments
+            let maxDeviationLength =
+                (evenList
+                 |> List.maxBy (fun segment -> abs (segment.Length)))
+                    .Length
+            let ratio = (abs (oddDistance) / abs (maxDeviationLength))
+            printf "Ratio: %A" ratio
+            ratio > straightenRatioTolerance
+        | _ -> false
+
+/// To show on DeveloperModeView SheetStats
+let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) =
+    let straightWires =
+        sheetModel.Wire.Wires
+        |> Map.filter (fun _ wire -> detectAlmostStraightWire wire)
+    straightWires.Count
+
+(*  Cases for detectAlmostStraightWire
+                                                     __________            __________
+            ______                                  |         | No        |         |
+    _______|     |________ almost straight          |         |           |         |
+                                                                 _________|         |__________
+                    __________________                          |                             | No
+    _______________|      almost straight
+
+    make sure it won't detect edge cases, such as a tall user-generated stepladder wire that moves upwards in small increments.
+    this can be done by checking the length of the list of minority segments
+
+    |               |
+    |               |                                                               _________
+    |               ____                     ____                                           |
+    |_                 |                         |  No            __________                |
+      |                |   almost straight       |                         |                |
+      |                |                         |                         | No             |___________No
+      |            ––––                      ––––
+      |            |
+      |            |
+almost straight
+
+    algo: check whether the wire travels furthest horizontally or vertically. This is the called the majority direction,
+    and the other direction is the minority direction.
+
+    * Not to be confused with the number of segments, e.g. there can be more vertical segments than horizontal segments, but if
+    the horizontal segments travel a greater distance, the majority direction is horizontal.
+
+    Next, calculate he majority distance, which is the sum of the segments in the majority direction.
+
+    After determining majority direction, ake sure the first and last segments are also travelling
+    in the majority direction. Can be done by checking initialOrientation, and then making sure the length is odd.
+    If even, discard, can't straighten a wire that is L-shaped .
+
+    Then, check for the maximum deviation in the minority direction. If the deviation-to-majority-distance
+    ratio is less than a certain threshold, then the wire is almost straight.
+
+*)
+// check if InitialOrientation is horizontal or vertical. If horizontal, check every even segment of wire.Segments and find the max abs length
+
+// calculate endpos of wire, compare to startpos
+
+//Todo: A helper for the project spec D1 Basic Wire Straightening Algo spec4-5:
+// get wires that are almost straight with a single component at one end that is singly connected.
+// (i.e. the comp. has one port only that is connected to that wire)
+
+(*  Cases for detecting Straightenable Wires (note we consider more cases than AlmostStraightWires )
+                                                         __________
+            ______                                      |         | probably not, but is an edge case where ports are vertical (only for custom comps),
+    _______|     |________ can be straightened          |         | plus the first and last segment travel in the minority direction.
+
+                                                          ________________
+                                                         |               |
+                                                         |               |
+                                                _________|               |__________
+                                                |                                   |
+                                                possible!
+                                                This is the case where the initial segments are in minority direction and that its final
+                                                minority displacement is small.
+
+                                                draft algorithm:
+
+    |
+    |
+    ____                                     ____
+        |                                        |  probably not,           __________            __________
+        |   can be straightened                  |                                   |                     |
+        |   uncommon case with vertical          |                                   | impossible          |          _______
+    ––––    ports of custom comps            ––––                                                          |__________|
+    |
+    |                                                                                                       possible!
+
+
+    algo: check whether the wire travels furthest horizontally or vertically. If vertically
 
 *)

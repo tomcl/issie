@@ -117,6 +117,7 @@ let init () =
       UIState = None
       BuildVisible = false
       BeautifyLevel = Level1
+      BeautifyMenuExpanded = true
       SymbolInfoTableExpanded = true
       SymbolPortMapsTableExpanded = true
       WireTableExpanded = true

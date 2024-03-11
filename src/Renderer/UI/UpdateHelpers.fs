@@ -194,6 +194,7 @@ let shortDisplayMsg (msg: Msg) =
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
     | UpdateDrawBlockTestState _ -> None
     | SelectBeautifyLevel _ -> None
+    | ToggleBeautifyMenu -> None
     | ToggleSymbolInfoTable -> None
     | ToggleSymbolPortsTable -> None
     | ToggleSymbolPortMapsTable -> None

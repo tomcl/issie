@@ -25,8 +25,7 @@ open MenuHelpers
 open DiagramStyle
 open BlockHelpers
 open SheetBeautifyHelpers
-
-let selected = "Level 1"
+open SheetBeautifyD1
 
 let developerModeView (model: ModelType.Model) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -39,14 +38,20 @@ let developerModeView (model: ModelType.Model) dispatch =
             [ strong [] [ str menuName ]; p [] [ str description ] ]
 
     let beautificationLevelSelect =
-        Menu.menu
-            []
-            [ Menu.label [] [ str "Beautification Level" ]
-              Menu.list
-                  []
-                  [ menuItem "Level 1: Standard" "Fastest performance" (Level1) dispatch
-                    menuItem "Level 2: Enhanced" "For larger projects" (Level2) dispatch
-                    menuItem "Level 3: Aggressive" "May cause artefacts" (Level3) dispatch ] ]
+        let beautifyMenu =
+            Menu.menu
+                []
+                [ Menu.list
+                      []
+                      [ menuItem "Level 1: Standard" "Fastest performance" (Level1) dispatch
+                        menuItem "Level 2: Enhanced" "For larger projects" (Level2) dispatch
+                        menuItem "Level 3: Aggressive" "May cause artefacts" (Level3) dispatch ] ]
+        details
+            [ Open(model.BeautifyMenuExpanded) ]
+            [ summary
+                  [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleBeautifyMenu)) ]
+                  [ str "Beautification Level " ]
+              p [] [ beautifyMenu ] ]
 
     let instructionText =
         div
@@ -85,13 +90,15 @@ let developerModeView (model: ModelType.Model) dispatch =
                                 Level.title [] [ str ((countVisibleBends model.Sheet).ToString()) ] ] ]
                     Level.item
                         [ Level.Item.HasTextCentered ]
-                        [ div [] [ Level.heading [] [ str "Near-Straight Wires" ]; Level.title [] [ str "TBC" ] ] ] ] ]
+                        [ div
+                              []
+                              [ Level.heading [] [ str "Near-Straight Wires" ]
+                                Level.title [] [ str ((countAlmostStraightWiresOnSheet model.Sheet).ToString()) ] ] ] ] ]
 
     let counterMenu =
         details
-            [ Open(model.SheetStatsExpanded)
-              OnClick(fun _ -> dispatch (ToggleSheetStats)) ]
-            [ summary [ menuLabelStyle ] [ str "Sheet Stats " ]
+            [ Open(model.SheetStatsExpanded) ]
+            [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSheetStats)) ] [ str "Sheet Stats " ]
               p
                   []
                   [ p
@@ -229,18 +236,16 @@ let developerModeView (model: ModelType.Model) dispatch =
                         th [] [ str "Host Id" ] ]
                   yield! tableRows ]
         [ details
-              [ Open(model.SymbolInfoTableExpanded)
-                OnClick(fun _ -> dispatch (ToggleSymbolInfoTable)) ]
-              [ summary [ menuLabelStyle ] [ str "Symbol " ]; p [] [ SymbolTableInfo ] ]
+              [ Open(model.SymbolInfoTableExpanded) ]
+              [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolInfoTable)) ] [ str "Symbol " ]
+                p [] [ SymbolTableInfo ] ]
           details
-              [ Open model.SymbolPortsTableExpanded
-                OnClick(fun _ -> dispatch (ToggleSymbolPortsTable)) ]
-              [ summary [ menuLabelStyle ] [ str "Ports" ]
+              [ Open model.SymbolPortsTableExpanded ]
+              [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolPortsTable)) ] [ str "Ports" ]
                 p [] [ (createTableFromPorts symbol.PortMaps.Orientation) ] ]
           details
-              [ Open model.SymbolPortMapsTableExpanded
-                OnClick(fun _ -> dispatch (ToggleSymbolPortMapsTable)) ]
-              [ summary [ menuLabelStyle ] [ str "PortMaps" ]
+              [ Open model.SymbolPortMapsTableExpanded ]
+              [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolPortMapsTable)) ] [ str "PortMaps" ]
                 p [] [ (createTableFromPortMapsOrder symbol.PortMaps.Order) ] ] ]
 
     let wireToListItem (wire: Wire) =
@@ -316,12 +321,12 @@ let developerModeView (model: ModelType.Model) dispatch =
         let WireSegmentsTableInfo = createTableFromASegments absSegments
 
         [ details
-              [ Open model.WireTableExpanded; OnClick(fun _ -> dispatch (ToggleWireTable)) ]
-              [ summary [ menuLabelStyle ] [ str "Wire " ]; p [] [ WireTableInfo ] ]
+              [ Open model.WireTableExpanded ]
+              [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleWireTable)) ] [ str "Wire " ]
+                p [] [ WireTableInfo ] ]
           details
-              [ Open model.WireSegmentsTableExpanded
-                OnClick(fun _ -> dispatch (ToggleWireSegmentsTable)) ]
-              [ summary [ menuLabelStyle ] [ str "Wire Segments" ]
+              [ Open model.WireSegmentsTableExpanded ]
+              [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleWireSegmentsTable)) ] [ str "Wire Segments" ]
                 p [] [ WireSegmentsTableInfo ] ] ]
 
     let viewComponent =
@@ -349,6 +354,5 @@ let developerModeView (model: ModelType.Model) dispatch =
                       br [] ]
             | None -> null
 
-    let viewComponentWrapper =
-        div [ Style [ Margin "15px 0" ] ] [ p [ menuLabelStyle ] []; viewComponent ]
+    let viewComponentWrapper = div [] [ p [ menuLabelStyle ] []; viewComponent ]
     div [ Style [ Margin "0 0 20px 0" ] ] ([ beautificationLevelSelect; counterMenu; viewComponentWrapper ])

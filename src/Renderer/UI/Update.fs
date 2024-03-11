@@ -621,7 +621,10 @@ let update (msg: Msg) oldModel =
         | Level2 -> printfn "Set Beautify Level to 2"
         | Level3 -> printfn "Set Beautify Level to 3"
         { oldModel with BeautifyLevel = level }, Cmd.none
+    | ToggleBeautifyMenu -> { oldModel with BeautifyMenuExpanded = not oldModel.BeautifyMenuExpanded }, Cmd.none
+    | ToggleSheetStats -> { model with SheetStatsExpanded = not model.SheetStatsExpanded }, Cmd.none
     | ToggleSymbolInfoTable -> { model with SymbolInfoTableExpanded = not model.SymbolInfoTableExpanded }, Cmd.none
+    | ToggleSymbolPortsTable -> { model with SymbolPortsTableExpanded = not model.SymbolPortsTableExpanded }, Cmd.none
     | ToggleSymbolPortMapsTable ->
         { model with
             SymbolPortMapsTableExpanded = not model.SymbolPortMapsTableExpanded },
@@ -629,8 +632,6 @@ let update (msg: Msg) oldModel =
     | ToggleWireTable -> { model with WireTableExpanded = not model.WireTableExpanded }, Cmd.none
     | ToggleWireSegmentsTable ->
         { model with WireSegmentsTableExpanded = not model.WireSegmentsTableExpanded }, Cmd.none
-    | ToggleSymbolPortsTable -> { model with SymbolPortsTableExpanded = not model.SymbolPortsTableExpanded }, Cmd.none
-    | ToggleSheetStats -> { model with SheetStatsExpanded = not model.SheetStatsExpanded }, Cmd.none
 
     // post-processing of update function (Model * Cmd<Msg>)
     |> map fst_ (fun model' -> resetDialogIfSelectionHasChanged model' oldModel)

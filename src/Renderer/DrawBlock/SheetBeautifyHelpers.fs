@@ -13,6 +13,7 @@ open BlockHelpers
 open Symbol
 open BusWireRoute
 open BusWire
+open BusWireUpdateHelpers
 
 // --------------------------------------------------- //
 //                      Helpers                        //
@@ -351,6 +352,10 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
 // This is achieved by utilising existing helper function segmentsToIssieVertices to convert all segments to a list of vertices.
 // It is then very easy to remove duplicate vertices.
 // We can utilise another helper function issieVerticesToSegments to convert vertices back to segments, and create new wires.
+// ########
+// Important Note!!!: this function should only be used for calculations and not modifying the sheet. This is because it causes all wires to lose their nubs
+// (10-length + zero-length) segment pairs, runing a functionality where the wire can no 'grow' additional segments when dragged.
+// see BusWireUpdateHelper for more details. If you must use this, the helper function below  makeAllWiresDraggable to restore the nubs.
 let removeWireInvisibleSegments (wires: Map<ConnectionId, Wire>) =
     wires
     |> Map.map (fun connId wire ->
@@ -364,6 +369,22 @@ let removeWireInvisibleSegments (wires: Map<ConnectionId, Wire>) =
         let newSegments = issieVerticesToSegments connId uniqueVertices
         // for each wire, set the segments to the new segments
         wire |> Optic.set segments_ newSegments)
+
+// note: propose name change to team to have removeWireInvisibleSegments above be renamed with 'wires' instead of 'wire', and
+// rename removeSingleWireInvisibleSegments to just removeWireInvisibleSegments
+let removeSingleWireInvisibleSegments (wire: Wire) =
+    let uniqueVertices =
+        segmentsToIssieVertices wire.Segments wire
+        |> List.distinctBy (fun (x, y, _) -> (x, y))
+    let newSegments = issieVerticesToSegments wire.WId uniqueVertices
+    // for each wire, set the segments to the new segments
+    wire |> Optic.set segments_ newSegments
+
+let makeAllWiresDraggable (wires: Map<ConnectionId, Wire>) =
+    wires
+    |> Map.map (fun connId wire ->
+        wire
+        |> Optic.set segments_ (makeEndsDraggable wire.Segments))
 
 /// <summary>
 /// T2R: The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments.
@@ -931,4 +952,3 @@ let countUniqRetracingSegmentsAndIntersects (model: SheetT.Model) =
         |> List.length
 
     (uniqRetracingSegments, uniqRetracingSegmentsWithIntersections)
-

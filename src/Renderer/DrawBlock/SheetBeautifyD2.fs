@@ -15,6 +15,7 @@ open SheetBeautifyHelpers
 
 /// Optic to access SymbolT.Model from SheetT.Model
 let symbolModel_ = SheetT.symbol_
+let wireModel_ = SheetT.wire_
 
 //--------------------------------------------------------------------------------------//
 //                               Helper Functions for D2                                //
@@ -137,14 +138,19 @@ let getAllMuxComponents (model: SheetT.Model) : Symbol list =
 
 // Fold Function: Test the flip of sym to see how if Visible Bends have decreased, if so return that model
 let testSymbolFlip ((currBends, currCross, currModel): int * int * SheetT.Model) (sym: Symbol) : int * int * SheetT.Model = 
-    let flippedSym = setSymbolFlip (not (getSymbolFlip sym)) sym // Flip the Symbol
-    
+    let flippedSym = setSymbolFlip sym // Flip the Symbol
     let newSymModel = SymbolUpdate.replaceSymbol currModel.Wire.Symbol flippedSym sym.Id // Replace Symbol Model/sheet with newSymbol
-    let newModel = Optic.set symbolModel_ newSymModel currModel // Set the Symbol Model into SheetModel
+    let nModel = Optic.set symbolModel_ newSymModel currModel // Set the Symbol Model into SheetModel
+
+    let newWireModel = BusWireSeparate.routeAndSeparateSymbolWires nModel.Wire sym.Id // Reroutes wires
+    let newModel = Optic.set wireModel_ newWireModel nModel // Set the Wire Model into SheetModel
+
     let newBends = countVisibleBends newModel // Test the new model/sheet by counting Visible Bends
     let newCross = countVisibleSegsPerpendicularCrossings newModel // Test the new model/sheet by counting Visible Crossings
     
-    match newBends <= currBends, newCross <= currCross with
+    printfn "%A %A" newBends newCross
+
+    match newBends <= currBends, newCross < currCross with
     | true, true -> (newBends, newCross, newModel)
     | _, _ -> (currBends, currCross, currModel)
 
@@ -163,11 +169,25 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
     let muxSyms = getAllMuxComponents model
     let cusSyms = getAllCusComponents model
 
+    printfn "MADE IT HERE 1"
+
     // First rotationally sort all the ports on the custom components
-    let cusRotatedModel = List.fold rotationallySortCustomSymPorts model cusSyms
+    //let cusRotatedModel = List.fold rotationallySortCustomSymPorts model cusSyms
 
     // Try different permutations of flips/rotations on Muxes
+    (*
     let currBends = countVisibleBends cusRotatedModel
     let currCross = countVisibleSegsPerpendicularCrossings cusRotatedModel
     let (_, _, optimModel) = List.fold testSymbolFlip (currBends, currCross, cusRotatedModel) muxSyms
+    *)
+
+    let currBends = countVisibleBends model
+    let currCross = countVisibleSegsPerpendicularCrossings model
+
+    printfn "CURRENT BENDS: %A %A" currBends currCross
+
+    let (_, _, optimModel) = List.fold testSymbolFlip (currBends, currCross, model) muxSyms
+
+    printfn "MADE IT HERE 4"
+
     optimModel

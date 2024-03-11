@@ -38,6 +38,7 @@ module D1T =
         |> Result.bind (Builder.placeWire (portOf "FF1" 0) (portOf "DFF1" 0))
         |> getOkOrFail
 
+
     // TODO: Add more assertions to test the circuit
     // TODO: Integrate the completed SheetBeautifyHelpers module to test the circuit, Hence it might change in the Team Phase
     let failOnWiresNotStraight (sample: int) (sheet: SheetT.Model) =

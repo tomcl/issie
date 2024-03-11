@@ -87,6 +87,9 @@
    <!-- <Compile Include="DrawBlock\SheetBeautifyD1.fs" /> -->
     <!-- <Compile Include="DrawBlock\SheetBeautifyD2.fs" /> -->
     <!-- <Compile Include="DrawBlock\SheetBeautifyD3.fs" /> -->
+   <!-- <Compile Include="DrawBlock\SheetBeautifyD1.fs" /> -->
+    <!-- <Compile Include="DrawBlock\SheetBeautifyD2.fs" /> -->
+    <!-- <Compile Include="DrawBlock\SheetBeautifyD3.fs" /> -->
 	<Compile Include="DrawBlock\SheetBeautify.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
@@ -121,10 +124,11 @@
 
     <Compile Include="GenerateData.fs" />
 
+    <Compile Include="TestAsserts.fs" />
     <Compile Include="TestDrawBlock.fs" />
   <!-- <Compile Include="TestDrawBlockD1.fs" /> -->
   <!-- <Compile Include="TestDrawBlockD2.fs" /> -->
-    <Compile Include="TestDrawBlockD3.fs" /> 
+  <!--  <Compile Include="TestDrawBlockD3.fs" /> -->
     <Compile Include="TestWorker.fs" />
     <Compile Include="Playground.fs" />
 
@@ -134,3 +138,4 @@
   <!-- Dependencies -->
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
+

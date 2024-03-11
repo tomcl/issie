@@ -167,8 +167,8 @@ module D3Testing =
             let symLabel = String.toUpper simSymbol.symLabel // make label into its standard casing
             let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) simSymbol.position simSymbol.compType symLabel
             let sym = symModel.Symbols[symId]
-                      |> Optic.set symbolRotationState_ simSymbol.sTransform.Rotation
-                      |> Optic.set symbolFlipState_ simSymbol.sTransform.Flipped
+                      |> Optic.set symbol_rotation_ simSymbol.sTransform.Rotation
+                      |> Optic.set symbol_flipped_ simSymbol.sTransform.Flipped
 
             let symModel' = Optic.set (SymbolT.symbolOf_ symId) sym symModel
             
@@ -433,8 +433,8 @@ module D3Testing =
         /// otherwise, None.
         /// </returns>
         let failOnBeautifyIncreasesRightAngles (sample: int) (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
-            let rAnglesBefore = countVisibleRightAngles sheetBeforeBeautify
-            let rAnglesAfter = countVisibleRightAngles sheetAfterBeautify
+            let rAnglesBefore = numOfVisRightAngles sheetBeforeBeautify
+            let rAnglesAfter = numOfVisRightAngles sheetAfterBeautify
 
             match rAnglesAfter > rAnglesBefore with
                 | true -> Some $"Beautify increased no. right angles in Sample {sample}"

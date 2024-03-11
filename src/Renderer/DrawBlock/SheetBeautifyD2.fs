@@ -10,10 +10,12 @@ open DrawHelpers
 open SymbolResizeHelpers
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
+open RotateScale
 
 
 module Constants =
-    /// <summary>Flip operations to try.</summary>
+    /// <summary>Flip operations to try. Should only contain 1 entry,
+    /// which is either <c>FlipHorizontal</c> or <c>FlipVertical</c>.</summary>
     let flipOps = [ SymbolT.FlipHorizontal ]
 
     /// <summary>Rotation operations to try.</summary>
@@ -130,6 +132,15 @@ let findRightAngleCount (sheet: SheetT.Model): int =
 (*                                      Permuataion Algorithm                                     *)
 (* ---------------------------------------------------------------------------------------------- *)
 
+(* ----------------------------------------- Info Types ----------------------------------------- *)
+
+/// <summary>Record type to track transformations done to a symbol.</summary>
+type OrientAndPortInfo = 
+    { STransform: STransform
+      PortMaps: SymbolT.PortMaps
+      InputsReversedState: Option<bool> }
+
+
 (* ---------------------------------------- Math Helpers ---------------------------------------- *)
 
 /// <summary>Factorial of input number.</summary>
@@ -235,13 +246,29 @@ let getPortPerm
     |> List.map (fun portOrder -> List.zip Constants.edges portOrder)
     |> List.map (fun mapList -> Map.ofList mapList)
 
-/// <summary>Get all possible symbol orientation and <c>PortMaps.Order</c> on a symbol.</summary>
+/// <summary>Get all possible orientations and <c>PortMaps.Order</c> on a symbol.</summary>
 /// <param name="sym">Target symbol.</param>
-/// <returns>List of tuples of flip operation, rotate operation, and <c>PortMaps.Order</c>.</returns>
+/// <returns>List of <c>OrientAndPortInfo</c> that contains all posibilities to try.</returns>
 let getOrientAndPortPerm
         (sym: SymbolT.Symbol)
-            : List<SymbolT.FlipType*Rotation*Map<Edge,List<string>>> =
-    allPairs3 Constants.flipOps Constants.rotationOps (getPortPerm sym)
+            : List<OrientAndPortInfo> =
+    allPairs3 [ false; true ] Constants.rotationOps (getPortPerm sym)
+    |> List.map (fun (flip, rotation, portOrder) ->
+        { STransform = { Flipped = flip; Rotation = rotation} 
+          PortMaps = { Orientation = sym.PortMaps.Orientation; Order = portOrder }
+          InputsReversedState = None })
+
+/// <summary>Get all possible orientations and <c>InputReverseState</c> on a mux symbol.</summary>
+/// <param name="sym">Target symbol.</param>
+/// <returns>List of <c>OrientAndPortInfo</c> that contains all posibilities to try.</returns>
+let getMuxOrientAndInputReverseStatePerm
+        (sym: SymbolT.Symbol)
+            : List<OrientAndPortInfo> =
+    allPairs3 [ false; true ] Constants.rotationOps [ Some false; Some true ]
+    |> List.map (fun (flip, rotation, inputReverseState) ->
+        { STransform = { Flipped = flip; Rotation = rotation} 
+          PortMaps = sym.PortMaps
+          InputsReversedState = inputReverseState })
 
 
 (* ---------------------------------------------------------------------------------------------- *)
@@ -375,15 +402,6 @@ let findClockfacePortIdOrder (sym: SymbolT.Symbol) (sheet: SheetT.Model): List<s
 (*                                         sheetOrderFlip                                         *)
 (* ---------------------------------------------------------------------------------------------- *)
 
-(* ----------------------------------------- Info Types ----------------------------------------- *)
-
-/// <summary>Record type to track transformations done to a symbol.</summary>
-type OrientAndPortInfo = 
-    { STransform: STransform
-      PortMaps: SymbolT.PortMaps
-      InputsReversedState: Option<bool> }
-
-
 (* --------------------------------- Clockface Algorithm Helpers -------------------------------- *)
 
 /// <summary>Get current symbol's orientation and port order information.</summary>
@@ -476,11 +494,11 @@ let updateSymToSheet (sym: SymbolT.Symbol) (sheet: SheetT.Model): SheetT.Model =
 /// <param name="sheet">Model of the whole sheet.</param>
 /// <returns>Updated sheet.</returns>
 let setMuxSymReverseState
-        (muxReverseState: bool)
+        (muxReverseState: Option<bool>)
         (sym: SymbolT.Symbol)
         (sheet: SheetT.Model)
             : SheetT.Model =
-    updateSymToSheet (Optic.set reversedInputPorts_ (Some muxReverseState) sym) sheet
+    updateSymToSheet (Optic.set reversedInputPorts_ muxReverseState sym) sheet
 
 /// <summary>Set a symbol's <c>PortMaps.Order</c> in a sheet.</summary>
 /// <param name="sym">Target symbol.</param>
@@ -492,6 +510,53 @@ let setSymPortOrder
         (sheet: SheetT.Model)
             : SheetT.Model =
     updateSymToSheet { sym with PortMaps = { sym.PortMaps with Order = portOrder } } sheet
+
+/// <summary>Set a symbol's orientation in a sheet.</summary>
+/// <param name="orientAndPortInfo">Orientataion and port information.</param>
+/// <param name="sym">Target symbol.</param>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>Updated sheet.</returns>
+let setSymOrient
+        (orientAndPortInfo: OrientAndPortInfo)
+        (sym: SymbolT.Symbol)
+        (sheet: SheetT.Model)
+            : SheetT.Model =
+    sheet
+    |> Optic.get SheetT.symbol_
+    |> rotateBlock' orientAndPortInfo.STransform.Rotation [ sym.Id ]
+    |> (fun model -> 
+        if orientAndPortInfo.STransform.Flipped 
+        then flipBlock' Constants.flipOps[0] [ sym.Id ] model
+        else model)
+    |> (fun model -> Optic.set SheetT.symbol_ model sheet)
+
+/// <summary>Set a mux symbols's orientation and input reverse state in a sheet.</summary>
+/// <param name="orientAndPortInfo">Orientataion and port information.</param>
+/// <param name="sym">Target symbol.</param>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>Updated sheet.</returns>
+let setMuxSymOrientAndInputReverseState
+        (orientAndPortInfo: OrientAndPortInfo)
+        (sym: SymbolT.Symbol)
+        (sheet: SheetT.Model)
+            : SheetT.Model =
+    sheet
+    |> setMuxSymReverseState orientAndPortInfo.InputsReversedState sym
+    |> setSymOrient orientAndPortInfo sym
+
+/// <summary>Set a symbols's orientation and <c>PortMaps.Order</c> in a sheet.</summary>
+/// <param name="orientAndPortInfo">Orientataion and port information.</param>
+/// <param name="sym">Target symbol.</param>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>Updated sheet.</returns>
+let setSymOrientAndPortOrder
+        (orientAndPortInfo: OrientAndPortInfo)
+        (sym: SymbolT.Symbol)
+        (sheet: SheetT.Model)
+            : SheetT.Model =
+    sheet
+    |> setSymPortOrder orientAndPortInfo.PortMaps.Order sym
+    |> setSymOrient orientAndPortInfo sym
 
 
 (* --------------------------------------- Implementation --------------------------------------- *)
@@ -596,6 +661,7 @@ let findSymCandidates (typefilt: SymbolT.Symbol->bool) (sheet: SheetT.Model): Li
 let sheetOrderFlip (sheet: SheetT.Model): SheetT.Model =
     let muxCandidates = findSymCandidates (fun sym -> match sym with | MuxSym -> true | _ -> false) sheet
     let gateCandidates = findSymCandidates (fun sym -> match sym with | GateSym -> true | _ -> false) sheet
+    let customCandidates = findSymCandidates (fun sym -> match sym with | CustomSym -> true | _ -> false) sheet
 
     let originalWireBends = numOfVisRightAngles sheet
     /// <summary>Helper to check on more wire bends is created.</summary>
@@ -604,15 +670,21 @@ let sheetOrderFlip (sheet: SheetT.Model): SheetT.Model =
 
     sheet
     |> getBestOrderFlipResultByList
-        setMuxSymReverseState
+        setMuxSymOrientAndInputReverseState
         numOfWireRightAngleCrossingsInDiffNet
         notMoreWireBendsLimiter
-        (fun _ -> [ false; true ]) // two state of mux input ports
-        muxCandidates // change input order of muxes
+        getMuxOrientAndInputReverseStatePerm
+        muxCandidates // permute orientation and input port order of muxes
+    |> getBestOrderFlipResultByList
+        setSymOrientAndPortOrder
+        numOfWireRightAngleCrossingsInDiffNet
+        notMoreWireBendsLimiter
+        getOrientAndPortPerm
+        gateCandidates // permute orientation and port order of muxes
     |> getBestOrderFlipResultByList
         setSymPortOrder
         numOfWireRightAngleCrossingsInDiffNet
         notMoreWireBendsLimiter
         getPortPerm
-        gateCandidates // permutate gates
+        customCandidates // permute custom component port order        
     |> autoRouteAllWires

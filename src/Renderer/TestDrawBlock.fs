@@ -343,6 +343,7 @@ module HLPTick3 =
             (sheetChecker: int -> SheetT.Model -> string option)
             (dispatch: Dispatch<Msg>)
                 : TestResult<'a> =
+
             let generateAndCheckSheet n = sheetMaker >> sheetChecker n
             let result =
                 {
@@ -615,6 +616,7 @@ module HLPTick3 =
         |> Result.bind (ANDConnection2)
         |> Result.bind (optimalEdgeOrder)
         |> getOkOrFail
+        |> alignSymbols
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -759,30 +761,21 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test7 testNum firstSample dispatch =
+        let test7 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
                 firstSample
-                (randomCompPosVal 5 200 (-200,200) (0,200))
+                random
                 makeTest7Circuit
                 Asserts.countWireCrossingAndSegs
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test8 testNum firstSample dispatch =
-            let samps = randomCompPosVal 5 200 (-200,200) (0,200)
+        let test8 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
                 firstSample
-                samps
-                makeTest7Circuit
-                Asserts.countWireCrossingAndSegs
-                dispatch
-            |> recordPositionInTest testNum dispatch
-            runTestOnSheets
-                "Figure B2: fail on all, random flip rotate"
-                firstSample
-                samps
+                random
                 makeTest8Circuit
                 Asserts.countWireCrossingAndSegs
                 dispatch
@@ -790,17 +783,18 @@ module HLPTick3 =
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+            let randomized = (randomCompPosVal 5 10 (-200,200) (0,200))
             // Change names and test functions as required
             // delete unused tests from list
             [
                 "Test1", test1
                 "Test2", test2
-                "Test3", test3  
+                "Test3", test3
                 "Test4", test4
                 "Test5", test5
                 "Test6", test6
-                "Test7", test7
-                "Test8", test8
+                "Test7", (fun a b c -> test7 randomized a b c)
+                "Test8", (fun a b c -> test8 randomized a b c)
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]

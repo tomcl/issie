@@ -87,6 +87,9 @@
    <!-- <Compile Include="DrawBlock\SheetBeautifyD1.fs" /> -->
     <!-- <Compile Include="DrawBlock\SheetBeautifyD2.fs" /> -->
     <!-- <Compile Include="DrawBlock\SheetBeautifyD3.fs" /> -->
+   <!-- <Compile Include="DrawBlock\SheetBeautifyD1.fs" /> -->
+    <!-- <Compile Include="DrawBlock\SheetBeautifyD2.fs" /> -->
+    <!-- <Compile Include="DrawBlock\SheetBeautifyD3.fs" /> -->
 	<Compile Include="DrawBlock\SheetBeautify.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->

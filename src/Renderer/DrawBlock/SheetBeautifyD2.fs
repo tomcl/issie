@@ -30,6 +30,102 @@ module Constants =
 
 
 (* ---------------------------------------------------------------------------------------------- *)
+(*                                Additional Sheet Beautify Helpers                               *)
+(* ---------------------------------------------------------------------------------------------- *)
+
+/// <summary>D.U. to describe orientation of a segment.</summary>
+/// <remarks>Noted that BusWireT.Orientation is similar, but wanted to represent <c>Other</c> and <c>Zero</c> type,
+/// although <c>Other</c> is likely not used.</remarks>
+type SegOrientation = | Horizontal | Vertical | Other | Zero
+
+/// <summary>Get a segment's orientation from its start and end position.</summary>
+/// <param name="segStart">Segment start position.</param>
+/// <param name="segEnd">Segment end position.</param>
+/// <returns>Orientation, of <c>SegOrientation</c> type.</returns>
+let segOrientation (segStart: XYPos) (segEnd: XYPos): SegOrientation =
+    match (segEnd.X - segStart.X), (segEnd.Y - segStart.Y) with
+    | dx, dy when dx = 0.0 && dy = 0.0 -> Zero
+    | dx, dy when dx <> 0.0 && dy = 0.0 -> Horizontal
+    | dx, dy when dx = 0.0 && dy <> 0.0 -> Vertical
+    | _ -> Other
+
+/// <summary>Get all wire IDs within a sheet.</summary>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>List of connection IDs of all the wires on the sheet.</returns>
+let getAllWireIds (sheet: SheetT.Model): List<ConnectionId> =
+    sheet.Wire.Wires |> Map.toList |> List.map fst
+
+/// <summary>Get vertices of visible coalesceed segments of a wire.</summary>
+/// <param name="wire">Target wire, of type Wire.</param>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>List of <c>XYPos</c> that represents the visible vertices in a wire.</returns>
+/// <remarks>Function refactored from <c>TestDrawBlock.HLPTick3.visibleSegments</c>.</remarks>
+let getWireVisibleSegVertices (wire: BusWireT.Wire) (sheet): List<XYPos> =
+    SegmentHelpers.visibleSegments wire.WId sheet
+    |> List.mapFold (fun currPos segVec -> segVec+currPos, segVec+currPos) wire.StartPos
+    |> (fun (vertices, _) -> wire.StartPos :: vertices)
+
+/// <summary>Get all visible segments of all wires within a sheet.</summary>
+/// <param name="sheet">Model of the whole sheet.</param>
+/// <returns>List of tuple of segments': wire's <c>OutputPortId</c>, start,
+/// and end positions of all segments on the sheet.</returns>
+let getAllWireVisibleSegs (sheet: SheetT.Model): List<OutputPortId*XYPos*XYPos> =
+    /// <summary>Helper to create data of <c>OutputPortId</c>, start, and end position tuples,
+    /// from list of wire vertices.</summary>
+    let makeSegData (sourceId: OutputPortId, posList: List<XYPos>) =
+        List.pairwise posList
+        |> List.map (fun (segStart, segEnd) -> (sourceId, segStart, segEnd))
+
+    getAllWireIds sheet
+    |> List.map (fun wireId -> sheet.Wire.Wires[wireId])
+    |> List.map (fun wire -> (wire.OutputPort, getWireVisibleSegVertices wire sheet))
+    |> List.map makeSegData
+    |> List.collect (fun item -> item)
+
+/// <summary>Get count of visible, perpendicular, non-zero-length, non-same-net,
+/// and non-consecutive segments pairs, that intersects each other.</summary>
+/// <param name="sheet">Target sheet to check.</param>
+/// <returns>Total count of intersecting visible wire segment pairs.</returns>
+/// <remarks> Assumed that "segments on same net on top of each other" is a
+/// superset of "segments same net intersecting at one end".</remarks>
+let numOfWireRightAngleCrossingsInDiffNet (sheet: SheetT.Model): int =
+    /// <summary>Helper to identify perpendicular segment pairs.</summary>
+    let isPerpSegPair (seg1: OutputPortId*XYPos*XYPos, seg2: OutputPortId*XYPos*XYPos): bool =
+        let _, segStart1, segEnd1 = seg1
+        let _, segStart2, segEnd2 = seg2
+
+        match segOrientation segStart1 segEnd1, segOrientation segStart2 segEnd2 with
+        | Horizontal, Vertical | Vertical, Horizontal -> true
+        | _ -> false
+
+    getAllWireVisibleSegs sheet
+    |> List.filter (fun (_, segStart, segEnd) -> segStart <> segEnd) // remove length=0
+    |> (fun list -> List.allPairs list list) // make segment pairs
+    |> List.filter (fun ((inputId1, _, _), (inputId2, _, _)) -> inputId1 <> inputId2) // remove same-net pairs
+    |> List.filter isPerpSegPair // remove non-perpendicular pairs
+    |> List.filter
+        (fun ((_, segStart1, segEnd1), (_, segStart2, segEnd2)) ->
+            overlap2D (segStart1, segEnd1) (segStart2, segEnd2)) // remove non-overlapping pairs
+    |> List.length
+    |> fun count -> count/2 // if using allPairs on same list, will create duplicates
+
+/// <summary>Get count of visible right angles on a sheet by counting coalesced segments.</summary>
+/// <param name="sheet">Target sheet to check.</param>
+/// <returns>Total count of right angles.</returns>
+/// <remarks>Right angles are counted so because zero-length segments have already been
+/// removed within the <c>getWireVisibleSegVertices</c> function.</remarks>
+let findRightAngleCount (sheet: SheetT.Model): int =
+    sheet.Wire.Wires 
+    |> Map.values 
+    |> List.ofSeq
+    |> List.map (fun wire -> getWireVisibleSegVertices wire sheet)
+    |> List.map List.length
+    |> List.map (fun count -> count-2) // excluding start and end, each vertice is a right angle
+    |> List.map (fun count -> if count < 0 then 0 else count) // remove cases where there is no segment
+    |> List.sumBy id
+
+
+(* ---------------------------------------------------------------------------------------------- *)
 (*                                      Permuataion Algorithm                                     *)
 (* ---------------------------------------------------------------------------------------------- *)
 
@@ -473,18 +569,19 @@ let sheetOrderFlip (sheet: SheetT.Model): SheetT.Model =
     let originalWireBends = numOfVisRightAngles sheet
     /// <summary>Helper to check on more wire bends is created.</summary>
     let notMoreWireBendsLimiter (sheet: SheetT.Model): bool =
-        (sheet |> numOfVisRightAngles) <= originalWireBends
+        (sheet |> findRightAngleCount) <= originalWireBends
 
     sheet
     |> getBestOrderFlipResultByList
         setMuxSymReverseState
-        numOfWireRightAngleCrossings
+        numOfWireRightAngleCrossingsInDiffNet
         notMoreWireBendsLimiter
         (fun _ -> [ false; true ]) // two state of mux input ports
         muxCandidates // change input order of muxes
     |> getBestOrderFlipResultByList
         setSymPortOrder
-        numOfWireRightAngleCrossings
+        numOfWireRightAngleCrossingsInDiffNet
         notMoreWireBendsLimiter
         getPortPerm
         gateCandidates // permutate gates
+    |> autoRouteAllWires

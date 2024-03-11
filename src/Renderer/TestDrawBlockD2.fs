@@ -3,8 +3,11 @@ module TestDrawBlockD2
 open Elmish
 open GenerateData
 open TestDrawBlock
-open TestDrawBlock.
 open TestDrawBlock.TestLib
+open TestDrawBlock.HLPTick3
+open TestDrawBlock.HLPTick3.Tests
+open TestDrawBlock.HLPTick3.Asserts
+open TestDrawBlock.HLPTick3.Builder
 open SheetBeautifyHelpers
 
 module D2Test =
@@ -17,38 +20,6 @@ module D2Test =
     open ModelType
     open DrawModelType
     open Sheet.SheetInterface
-
-    /// create an initial empty Sheet Model 
-    let initSheetModel = DiagramMainView.init().Sheet
-
-    /// Optic to access SheetT.Model from Issie Model
-    let sheetModel_ = sheet_
-
-    /// Optic to access BusWireT.Model from SheetT.Model
-    let busWireModel_ = SheetT.wire_
-
-    /// Optic to access SymbolT.Model from SheetT.Model
-    let symbolModel_ = SheetT.symbol_
-
-    /// allowed max X or y coord of svg canvas
-    let maxSheetCoord = Sheet.Constants.defaultCanvasSize
-    let middleOfSheet = {X=maxSheetCoord/2.;Y=maxSheetCoord/2.}
-
-    /// Used throughout to compare labels since these are case invariant "g1" = "G1"
-    let caseInvariantEqual str1 str2 =
-        String.toUpper str1 = String.toUpper str2
- 
-
-    /// Identify a port from its component label and number.
-    /// Usually both an input and output port will mathc this, so
-    /// the port is only unique if it is known to be input or output.
-    /// used to specify the ends of wires, since tehee are known to be
-    /// connected to outputs (source) or inputs (target).
-    type SymbolPort = { Label: string; PortNumber: int }
-
-    /// convenience function to make SymbolPorts
-    let portOf (label:string) (number: int) =
-        {Label=label; PortNumber = number}
 
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------additional metrics to assess improvements-------------------------------------------//
@@ -63,10 +34,10 @@ module D2Test =
             float (metric sheetAfter - metric sheetBefore)/float (metric sheetBefore)*100.0, metric sheetAfter, metric sheetBefore
         
         let numberOfWireStraightened (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
-            computeMetricDifference sheetAfter sheetBefore countWireRightAngles
+            computeMetricDifference sheetAfter sheetBefore numOfVisRightAngles
 
         let numberOfIntersectionReduced (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
-            computeMetricDifference sheetAfter sheetBefore countSegmentIntersections
+            computeMetricDifference sheetAfter sheetBefore numOfWireRightAngleCrossings
 
         /// number of visible wire segments counted over whole sheet
         let countVisibleSegments (sheetModel : SheetT.Model) : int =
@@ -75,14 +46,14 @@ module D2Test =
 
             wireModel.Wires
             |> Map.toList
-            |> List.map (fun (wid, wire) -> visibleSegments wid sheetModel)
+            |> List.map (fun (wid, wire) -> SegmentHelpers.visibleSegments wid sheetModel)
             |> List.map (fun segs -> segs.Length)
             |> List.sum
 
         // There is already a function to count segment intersections in SheetBeautifyHelpers
         // Additional Metrics
-        let intersectionPerSegment (sheetModel: SheetT.Model): float =
-            let nIntersect = countSegmentIntersections sheetModel
+        let crossingPerSegment (sheetModel: SheetT.Model): float =
+            let nIntersect = numOfWireRightAngleCrossings sheetModel
             let nSeg = 
                 sheetModel.Wire.Wires 
                 |> Map.toList 
@@ -92,7 +63,7 @@ module D2Test =
 
         // wires having right angles are a necessary condition for intersection to exist
         let rightAnglePerWire (sheetModel: SheetT.Model): float =
-            float (countWireRightAngles sheetModel) / float (Map.count sheetModel.Wire.Wires)
+            float (numOfVisRightAngles sheetModel) / float (Map.count sheetModel.Wire.Wires)
 
         // the proportion of visible wiring length to total wiring length
         let visibleToTotalLengthRatio (sheetModel: SheetT.Model): float =
@@ -101,9 +72,8 @@ module D2Test =
                 |> Map.toList 
                 |> List.map (fun (_,wire) -> wire.Segments |> List.fold (fun acc seg -> acc + abs seg.Length) 0.0)
                 |> List.sum
-            let visibleLength = calcVisibleWiringLength sheetModel
+            let visibleLength = calcVisWireLength sheetModel
             visibleLength / totalLength
-
 
 
 //------------------------------------------------------------------------------------------------------------------------//
@@ -133,29 +103,29 @@ module D2Test =
 
         // Diplay Functions: Statistics
         let displayCountSymIntersectSym (sheet: SheetT.Model) : string =
-            displayer "n_sym_intersect_sym" countSymIntersectSym sheet
+            displayer "n_sym_intersect_sym" numOfIntersectedSymPairs sheet
 
         let displayCountSegIntersectSym (sheet: SheetT.Model) : string =
-            displayer "n_seg_intersect_sym" countSegIntersectSym sheet
+            displayer "n_seg_intersect_sym" numOfIntersectSegSym sheet
 
-        let displaySegmentIntersections (sheet: SheetT.Model) : string =
-            displayer "n_intersections" countSegmentIntersections sheet
+        let displaySegmentCrossing (sheet: SheetT.Model) : string =
+            displayer "n_intersections" numOfWireRightAngleCrossings sheet
         
         let displayVisibleSegments (sheet: SheetT.Model) : string =
             displayer "n_visible_segments" countVisibleSegments sheet
 
-        let displayWireRightAngles (sheet: SheetT.Model) : string =
-            displayer "n_wire_right_angles" countWireRightAngles sheet
+        let displayVisRightAngles (sheet: SheetT.Model) : string =
+            displayer "n_vis_right_angles" numOfVisRightAngles sheet
 
         let displayVisibleWiringLength (sheet: SheetT.Model) : string =
-            displayer "visible_wiring_length" calcVisibleWiringLength sheet
+            displayer "visible_wiring_length" calcVisWireLength sheet
 
         let displayRetracingSegments (sheet: SheetT.Model) : string =
-            displayer "n_retracing_segments" getRetracingSegment sheet
+            displayer "n_retracing_segments" findRetracingSegments sheet
 
         // Diplay Functions: Metrics
         let displayIntersectPerSegment =
-            displayer "intersection/seg" intersectionPerSegment
+            displayer "intersection/seg" crossingPerSegment
 
         let displayRightAnglesPerWire =
             displayer "right_angle/wire" rightAnglePerWire
@@ -168,8 +138,8 @@ module D2Test =
         let displayAll = [
             displayComponents; 
             displayCountSegIntersectSym;
-            displaySegmentIntersections; 
-            displayWireRightAngles; 
+            displaySegmentCrossing; 
+            displayVisRightAngles; 
             displayVisibleSegments;
             displayVisibleWiringLength; 
             displayRetracingSegments;
@@ -180,56 +150,7 @@ module D2Test =
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
         open Displays
-        /// Place a new symbol with label symLabel onto the Sheet with given position.
-        /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
-        /// To be safe place components close to (maxSheetCoord/2.0, maxSheetCoord/2.0).
-        /// symLabel - the component label, will be uppercased to make a standard label name
-        /// compType - the type of the component
-        /// position - the top-left corner of the symbol outline.
-        /// model - the Sheet model into which the new symbol is added.
-        let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (model: SheetT.Model) : Result<SheetT.Model, string> =
-            let symLabel = String.toUpper symLabel // make label into its standard casing
-            let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
-            let sym = symModel.Symbols[symId]
-            match position + sym.getScaledDiagonal with
-            | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
-                Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
-            | _ ->
-                model
-                |> Optic.set symbolModel_ symModel
-                |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
-                |> Ok
-
-        /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
-        /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
-        /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
-        let placeCustomSymbol
-                (symLabel: string)
-                (ccSheetName: string)
-                (project: Project)
-                (scale: XYPos)
-                (position: XYPos)
-                (model: SheetT.Model)
-                    : Result<SheetT.Model, string> =
-           let symbolMap = model.Wire.Symbol.Symbols
-           if caseInvariantEqual ccSheetName project.OpenFileName then
-                Error "Can't create custom component with name same as current opened sheet"        
-            elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
-                Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
-            elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
-                Error "Can't create custom component with duplicate Label"
-            else
-                let canvas = model.GetCanvasState()
-                let ccType: CustomComponentType =
-                    {
-                        Name = ccSheetName
-                        InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
-                        OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
-                        Form = None
-                        Description = None
-                    }
-                placeSymbol symLabel (Custom ccType) position model
-            
+        
         let getSymId (symLabel: string) (symModel: SymbolT.Model): ComponentId = 
             mapValues symModel.Symbols
             |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
@@ -272,37 +193,6 @@ module D2Test =
                 | 0 -> Ok SymbolT.FlipHorizontal
                 | _ -> Error SymbolT.FlipVertical // SymbolT.FlipVertical <= this doesn't work and raise exception!!
             
-        /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
-        /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
-        /// The wire created will be smart routed but not separated from other wires: for a nice schematic
-        /// separateAllWires should be run after  all wires are added.
-        /// source, target: respectively the output port and input port to which the wire connects.
-        let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : Result<SheetT.Model,string> =
-            let symbols = model.Wire.Symbol.Symbols
-            let getPortId (portType:PortType) symPort =
-                mapValues symbols
-                |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symPort.Label)
-                |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
-                |> Result.bind (fun sym ->
-                    match portType with
-                    | PortType.Input -> List.tryItem symPort.PortNumber sym.Component.InputPorts
-                    | PortType.Output -> List.tryItem symPort.PortNumber sym.Component.OutputPorts
-                    |> function | Some port -> Ok port.Id
-                                | None -> Error $"Can't find {portType} port {symPort.PortNumber} on component {symPort.Label}")
-            
-            match getPortId PortType.Input target, getPortId PortType.Output source with
-            | Error e, _ | _, Error e -> Error e
-            | Ok inPort, Ok outPort ->
-                let newWire = BusWireUpdate.makeNewWire (InputPortId inPort) (OutputPortId outPort) model.Wire
-                if model.Wire.Wires |> Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) then
-                        // wire already exists
-                        Error "Can't create wire from {source} to {target} because a wire already exists between those ports"
-                else
-                     model
-                     |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
-                     |> Ok
-            
-
         /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
         let separateAllWires (model: SheetT.Model) : SheetT.Model =
             model

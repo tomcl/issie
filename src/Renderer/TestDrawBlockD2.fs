@@ -88,11 +88,11 @@ module D2 =
         let tmpSwap = swapMuxInput
         let tmpSwapResult symLabel sheet swap = if true then Ok (tmpSwap symLabel sheet swap) else Error "Won't happen"
         initSheetModel
-        |> placeSymbol "MUX1" Mux2 {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y - 100.0} 
-        |> Result.bind (placeSymbol "S1" (Input1((1,Some 1))) {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y + 100.0})
-        |> Result.bind (placeSymbol "S2" (Input1(1,Some 1)) {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y + 200.0})
+        |> placeSymbol "MUX1" Mux2 {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y - 200.0} 
+        |> Result.bind (placeSymbol "S1" (Input1((1,Some 1))) {middleOfSheet with X = middleOfSheet.X - 200.0 ; Y = middleOfSheet.Y - 30.0})
+        |> Result.bind (placeSymbol "S2" (Input1(1,Some 1)) {middleOfSheet with X = middleOfSheet.X - 200.0 ; Y = middleOfSheet.Y + 46.0})
         |> Result.bind (placeSymbol "MUX2" Mux2 middleOfSheet)
-        |> Result.bind (placeSymbol "G1" (GateN(And,2)) {middleOfSheet with X = middleOfSheet.X + 100.0 ; Y = middleOfSheet.Y - 100.0})
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) {middleOfSheet with X = middleOfSheet.X + 200.0 ; Y = middleOfSheet.Y - 200.0})
         |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2) )
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 1) )

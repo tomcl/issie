@@ -58,7 +58,7 @@ let countComponentOverlaps (sample: int) (sheet: SheetT.Model) : string option =
 /// <remarks>
 /// This function evaluates each wire segment in the sheet model to determine if it is straight (aligned either horizontally or vertically).
 /// </remarks>
-let countWireStraightInSheet (sample: int) (sheet: SheetT.Model) : string option =
+let countWireStraightInSheet (sheet: SheetT.Model) : int =
 
     let countTransformations (wire: BusWireT.Wire) : int =
         let visibleSegments =
@@ -76,17 +76,11 @@ let countWireStraightInSheet (sample: int) (sheet: SheetT.Model) : string option
         |> List.map countTransformations
         |> List.sum
 
-    if numberOfStraightWires > 0 then
-        Some $"Sample {sample} has {numberOfStraightWires} straight wires."
-    else
-        None
+    numberOfStraightWires
 
-let countWireRoutingLength (sample: int) (sheet: SheetT.Model) : string option =
+let countWireRoutingLength (sheet: SheetT.Model) : float =
     let count = SheetBeautifyHelpers.calcVisWireLength sheet
-    if count > 0 then
-        Some $"Sample {sample} has {count} wire routing lenght"
-    else
-        None
+    count 
 
 let isPointCloseToRectangle (point: XYPos) (box: BoundingBox) distanceThreshold =
     let inRange v minV maxV =
@@ -118,7 +112,7 @@ let isWireSquashed (wire: BusWireT.Wire) (sheet: SheetT.Model) : bool =
     wireSegments
     |> List.exists segmentTooCloseToComponent
 
-let countWireSquashedInSheet (sample: int) (sheet: SheetT.Model) : string option =
+let countWireSquashedInSheet (sheet: SheetT.Model) : int =
     let count =
         sheet.Wire.Wires
         |> Map.toList
@@ -126,11 +120,8 @@ let countWireSquashedInSheet (sample: int) (sheet: SheetT.Model) : string option
         |> List.map (fun w -> isWireSquashed w sheet)
         |> List.filter (fun n -> n = true)
         |> List.length
+    count 
 
-    if count > 0 then
-        Some $"Sample {sample} has {count} squashed wires"
-    else
-        None
 
 //----------------------------------------------------------------------------------------------//
 //------------------------------------D2T Asserts Functions-------------------------------------//
@@ -162,7 +153,7 @@ let checkWireCrossing (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) : bool
 /// <remarks>
 /// This function evaluates all wire segments within the sheet to determine if any intersect with others. It only counts intersections between different wires or non-adjacent segments of the same wire, ignoring overlaps of directly connected segments. The purpose is to identify potential schematic layout issues where wires cross each other, which could indicate design or routing inefficiencies.
 /// </remarks>
-let countWiresOverlapInSheet (sample: int) (sheet: SheetT.Model) : string option =
+let countWiresOverlapInSheet (sheet: SheetT.Model) : int =
     // This function serves general purpose and will consider any overlapping segments, to count proper crossings use countWiresCrossingInSheet
     let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
     let allAbsSegments = allWires |> List.collect getAbsSegments
@@ -174,36 +165,23 @@ let countWiresOverlapInSheet (sample: int) (sheet: SheetT.Model) : string option
             || seg1.Segment.Index <> seg2.Segment.Index)
         |> List.filter (fun (seg1, seg2) -> checkWireCrossing seg1 seg2)
     let numberOfCrossings = crossings.Length / 2
-    if numberOfCrossings > 0 then
-        Some $"Sample {sample} has {numberOfCrossings} wire crossings"
-    else
-        None
-
-let countWiresCrossingInSheet (sample: int) (sheet: SheetT.Model) : string option =
+    numberOfCrossings
+let countWiresCrossingInSheet  (sheet: SheetT.Model) : int  =
     let count = SheetBeautifyHelpers.numOfWireRightAngleCrossings sheet
-    if count > 0 then
-        Some $"Sample {sample} has {count} wire crossings"
-    else
-        None
-
-let countWireIntersectsSymbolInSheet (sample: int) (sheet: SheetT.Model) : string option =
+    count
+   
+let countWireIntersectsSymbolInSheet (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.numOfIntersectSegSym sheet
-    if count > 0 then
-        Some $"Sample {sample} has {count} wire intersects symbol"
-    else
-        None
+    count
 
 //----------------------------------------------------------------------------------------------//
 //------------------------------------D3T Asserts Functions-------------------------------------//
 //----------------------------------------------------------------------------------------------//
 
-let countBendsInSheet (sample: int) (sheet: SheetT.Model) : string option =
+let countBendsInSheet (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.numOfVisRightAngles sheet
-    if count > 0 then
-        Some $"Sample {sample} has {count} bends"
-    else
-        None
-
+    count 
+    
 module D2TestBuild =
     //----------------------------------------------------------------------------------------------//
     //------------------------------------D3T Asserts Functions-------------------------------------//
@@ -293,7 +271,7 @@ module D2TestBuild =
         { SymLabel = sprintf "Comp%d" id
           CompType = compType
           Position = generateRandomPositionInColumn maxCoord numberOfColumns
-          STransform = randomSTransform ()
+          STransform = randomSTransform () //{Degree0, false}
           PortMaps = portMaps }
     let getRandomPort (portMaps: PortMaps) (edge: Edge) : int =
         let ports = portMaps.Order.[edge]

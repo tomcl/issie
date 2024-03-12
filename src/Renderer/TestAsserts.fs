@@ -40,13 +40,10 @@ let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
 //------------------------------------D1T Asserts Functions-------------------------------------//
 //----------------------------------------------------------------------------------------------//
 
-let countComponentOverlaps (sample: int) (sheet: SheetT.Model) : string option =
+let countComponentOverlaps  (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.numOfIntersectedSymPairs sheet
-    if count > 0 then
-        Some $"Sample {sample} has {count} component overlaps"
-    else
-        None
-
+    count 
+    
 /// <summary>
 /// Counts the number of straightened wire segments within a given sheet model.
 /// </summary>
@@ -186,7 +183,7 @@ module D2TestBuild =
     //----------------------------------------------------------------------------------------------//
     //------------------------------------D3T Asserts Functions-------------------------------------//
     //----------------------------------------------------------------------------------------------//
-    open TestDrawBlockD3.D3Testing
+    open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
 
     let rand = Random()
 

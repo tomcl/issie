@@ -1,4 +1,4 @@
-module TestDrawBlockD3
+module TestDrawBlockSimpleSymbol
 open GenerateData
 open Elmish
 
@@ -79,7 +79,7 @@ module TestLib =
    3. Apply check functions to see if the resulting wire routing obeys "good layout" rules.
    4. Output any layouts with anomalous wire routing
 *******************************************************************************************)
-module D3Testing =
+module SimpleSymbolTesting =
     open EEExtensions
     open Optics
     open Optics.Operators

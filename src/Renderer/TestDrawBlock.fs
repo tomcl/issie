@@ -296,23 +296,34 @@ module HLPTick3 =
             <| UpdateModel(Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
             sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
 
-        
-        open TestDrawBlockD3.D3Testing
+        open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
 
-        type testType = 
-                    | RandomTest  of TestModel
-                    | UniTest of list<TestModel>
-        
-        let runTestModelOnSheets 
-            (name: string) 
-            (samples: int) 
-            (testType: testType) 
-            (assertionResult: int -> int -> string option) 
-            (test: SheetT.Model -> int)
-            : (int * TestStatus) list
+        let runTestsWithBeautify
+            (testModel: TestModel)
+            (beautifyFunc: SheetT.Model -> SheetT.Model)
+            (testMetrics: (SheetT.Model -> int) list)
+            (dispatch: Dispatch<Msg>)
+            =
 
+            let sheetModel =
+                try
+                    Builder.placeTestModel testModel
+                with _ ->
+                    failwith "Error placing test model on sheet."
 
+            let beautifiedSheetModel = beautifyFunc sheetModel
 
+            testMetrics
+            |> List.iter (fun metric ->
+                let before = metric sheetModel
+                let after = metric beautifiedSheetModel
+                printfn
+                    "Metric result before beautify: %d, after beautify: %d, Difference: %d"
+                    before
+                    after
+                    (after - before))
+
+            showSheetInIssieSchematic beautifiedSheetModel dispatch
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
         /// 2. Check each ciruit with sheetChecker.
@@ -414,6 +425,8 @@ module HLPTick3 =
     //---------------------------------------------------------------------------------------//
 
     module Tests =
+        open Builder
+        open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
 
         /// Allow test errors to be viewed in sequence by recording the current error
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
@@ -427,6 +440,44 @@ module HLPTick3 =
                 | (numb, _) :: _ ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber = testNumber; LastTestSampleIndex = numb })
+//  PortMaps = { Inputs = [ 0; 1 ]; Outputs = [ 0 ] } }
+        let modelToTest : TestModel = 
+            { SimpleSymbols =
+                [ { SymLabel = "G1"
+                    CompType = GateN(And, 2)
+                    Position = { X = 1638.105; Y = 1671.75 }
+                    STransform = { Rotation = Degree0; Flipped = false } 
+                    PortMaps = { Order = Map.empty; Orientation = Map.empty }}
+                  { SymLabel = "G2"
+                    CompType = GateN(And, 2)
+                    Position = { X = 1874.605; Y = 1858.25 }
+                    STransform = { Rotation = Degree0; Flipped = false }
+                    PortMaps = { Order = Map.empty; Orientation = Map.empty } }
+                  { SymLabel = "MUX1"
+                    CompType = Mux2
+                    Position = { X = 1632.895; Y = 1780.25 }
+                    STransform = { Rotation = Degree0; Flipped = false }
+                    PortMaps = { Order = Map.empty; Orientation = Map.empty } } ]
+              Connections =
+                [ { Source = { Label = "MUX1"; PortNumber = 0 }
+                    Target = { Label = "G2"; PortNumber = 0 } }
+                  { Source = { Label = "G1"; PortNumber = 0 }
+                    Target = { Label = "G2"; PortNumber = 1 } } ] }
+        let testModel
+            (modelToTest: TestModel)
+            (beautifyFunction: SheetT.Model -> SheetT.Model)
+            (testMetrics: list<(SheetT.Model -> int)>)
+            (dispatch: Dispatch<Msg>)
+            =
+            let sheetModel =
+                try
+                    Builder.placeTestModel modelToTest
+                with _ ->
+                    failwith "Error placing test model on sheet."
+
+            showSheetInIssieSchematic sheetModel dispatch
+
+            runTestsWithBeautify modelToTest beautifyFunction testMetrics dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
@@ -457,7 +508,7 @@ module HLPTick3 =
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
-                countWireSquashedInSheet
+                Asserts.failOnSymbolIntersectsSymbol
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -481,7 +532,7 @@ module HLPTick3 =
               "Test2", test2 // example
               "Test3", test3 // example
               "Test4", test4
-              "Test5",
+              "Test5", 
               fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
               "Test6", (fun _ _ _ -> printf "Test6")
               "Test7", (fun _ _ _ -> printf "Test7")
@@ -499,20 +550,27 @@ module HLPTick3 =
                 |> Option.defaultValue 0
             testFunc testNum firstSampleToTest dispatch
 
+
+        let beautifyFunction (sheetModel: SheetT.Model) : SheetT.Model =
+            // Placeholder beautify logic
+            sheetModel
+        
+        let testMetrics: list<(SheetT.Model -> int)> = [
+            countComponentOverlaps;
+            countWireStraightInSheet;
+            ]
+
+        let runUnitTest (dispatch: Dispatch<Msg>) =
+            // Your test function here, simplified without needing to select from a menu
+            testModel modelToTest beautifyFunction testMetrics dispatch
+
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
-        let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name, func = testsToRunFromSheetMenu[testIndex]
-            printf "%s" name
-            match name, model.DrawBlockTestState with
-            | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex + 1) dispatch
-            | "Next Test Error", None ->
-                printf "Test Finished"
-                ()
-            | _ -> func testIndex 0 dispatch
+        let testMenuFunc (dispatch: Dispatch<Msg>) (model: Model) =
+            runUnitTest dispatch
+            printfn "Test completed."
 
-        let runCircuitGenerationTest (model: Model) (dispatch: Dispatch<Msg>) =
-            // model is passed in to match signature in Renderer.fs
-            let sheetModel = buildTestCircuit 50 1000.0 10
-            showSheetInIssieSchematic sheetModel dispatch
+        // let runCircuitGenerationTest (model: Model) (dispatch: Dispatch<Msg>) =
+        //     // model is passed in to match signature in Renderer.fs
+        //     let sheetModel = buildTestCircuit 50 1000.0 10
+        //     showSheetInIssieSchematic sheetModel dispatch

@@ -383,25 +383,20 @@ let makeAllWiresDraggable (wires: Map<ConnectionId, Wire>) =
 
 /// <summary>
 /// T2R: The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments.
+/// Assumes that within one wire at most one segment crosses a symbol boundary. Not always true, but works for a metric
 /// </summary>
 /// <param name="model">The model to count the intersecting wire segments of.</param>
 /// <returns>The number of distinct wire visible segments that intersect with one or more symbols.</returns>
 let countVisibleSegsIntersectingSymbols (model: SheetT.Model) =
 
-    let wireModel = model.Wire
-    wireModel.Wires
+    let wModel = model.Wire
+    wModel.Wires
     |> removeWireInvisibleSegments
-    |> Map.fold
-        // For each wire, define a function that takes an accumulator and a wire
-        (fun acc _ wire ->
-            // Add to the accumulator the count of intersections between the wire and symbols
-            // The count is obtained by calling BusWireRoute.findWireSymbolIntersections, which returns a list of intersections,
-            // and then using List.length to get the count of intersections
-            acc
-            + (BusWireRoute.findWireSymbolIntersections wireModel wire
-               |> List.length))
-        // Initialize the accumulator to 0
-        0
+    |> Map.values
+    |> Seq.map (fun wire -> (findWireSymbolIntersections wModel wire))
+    |> Seq.sumBy (function
+        | [] -> 0
+        | _ -> 1)
 
 // --------------------------------------------------- //
 //                     T3R Functions                   //

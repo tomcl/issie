@@ -513,10 +513,7 @@ let cleanUpAlmostsStraightSinglyConnWires (model: ModelType.Model) =
                     updateSheetWithNewSymbolAndWire currentSheetModel newMovedSymbol newStraightWire
 
                 // check for intersections. If there are none, then return the new model else return the old model
-                if
-                    checkIfGainedIntersections currentSheetModel newSheetModel
-
-                then
+                if (checkIfGainedIntersections currentSheetModel newSheetModel) then
                     newSheetModel
                 else
                     currentSheetModel)

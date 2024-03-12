@@ -68,6 +68,7 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
         let improvement, bestModel = ((false,model), swappedPortsList) ||> List.fold checkSwapFolder 
 
         if improvement then
+            printfn "Swapped a custom component port order"
             swapPortsOnEdge (bestModel,id,symbol) edge
         else
             (bestModel,id,symbol)
@@ -85,6 +86,7 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
         |> Map.toList
 
     let customComponentSymbols = filterCustomComponents symbols
-    let (model') = (model,customComponentSymbols) ||> List.fold swapSymbolEdgePorts 
+    let (model') = (model,customComponentSymbols) ||> List.fold swapSymbolEdgePorts
+    printfn "Beautified"
     model'
 

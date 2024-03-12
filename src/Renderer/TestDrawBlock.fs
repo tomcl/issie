@@ -312,7 +312,7 @@ module HLPTick3 =
             Ok (autoWiresToWireLabels model)
         
         let testWireLabelsToWires (model: SheetT.Model) =
-            Ok (autoWireLabelsToWire model)
+            Ok (autoWireLabelsToWires model)
         
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.

@@ -318,15 +318,12 @@ module HLPTick3 =
                 let before = metric sheetModel
                 let after = metric beautifiedSheetModel
                 printfn
-                    "Metric result before beautify: %d, after beautify: %d, Difference: %d, Function tested is %A"
+                    "Metric result before beautify: %d, after beautify: %d, Difference: %d"
                     before
                     after
                     (after - before)
-                    metric
                     )
-
-                      
-
+    
             showSheetInIssieSchematic beautifiedSheetModel dispatch
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
@@ -444,44 +441,6 @@ module HLPTick3 =
                 | (numb, _) :: _ ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber = testNumber; LastTestSampleIndex = numb })
-//  PortMaps = { Inputs = [ 0; 1 ]; Outputs = [ 0 ] } }
-        let modelToTest : TestModel = 
-            { SimpleSymbols =
-                [ { SymLabel = "G1"
-                    CompType = GateN(And, 2)
-                    Position = { X = 1638.105; Y = 1671.75 }
-                    STransform = { Rotation = Degree0; Flipped = false } 
-                    }
-                  { SymLabel = "G2"
-                    CompType = GateN(And, 2)
-                    Position = { X = 1874.605; Y = 1858.25 }
-                    STransform = { Rotation = Degree0; Flipped = false }
-                    }
-                  { SymLabel = "MUX1"
-                    CompType = Mux2
-                    Position = { X = 1632.895; Y = 1780.25 }
-                    STransform = { Rotation = Degree0; Flipped = false }
-                    } ]
-              Connections =
-                [ { Source = { Label = "MUX1"; PortNumber = 0 }
-                    Target = { Label = "G2"; PortNumber = 0 } }
-                  { Source = { Label = "G1"; PortNumber = 0 }
-                    Target = { Label = "G2"; PortNumber = 1 } } ] }
-        let testModel
-            (modelToTest: TestModel)
-            (beautifyFunction: SheetT.Model -> SheetT.Model)
-            (testMetrics: list<(SheetT.Model -> int)>)
-            (dispatch: Dispatch<Msg>)
-            =
-            let sheetModel =
-                try
-                    Builder.placeTestModel modelToTest
-                with _ ->
-                    failwith "Error placing test model on sheet."
-
-            showSheetInIssieSchematic sheetModel dispatch
-
-            runTestsWithBeautify modelToTest beautifyFunction testMetrics dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
@@ -554,20 +513,6 @@ module HLPTick3 =
                 |> Option.defaultValue 0
             testFunc testNum firstSampleToTest dispatch
 
-
-        let beautifyFunction (sheetModel: SheetT.Model) : SheetT.Model =
-            // Placeholder beautify logic
-            sheetModel
-        
-        let testMetrics: list<(SheetT.Model -> int)> = [
-            countComponentOverlaps;
-            countWiresCrossingInSheet;
-            ]
-
-        let runUnitTest (dispatch: Dispatch<Msg>) =
-            // Your test function here, simplified without needing to select from a menu
-            testModel modelToTest beautifyFunction testMetrics dispatch
-
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
         let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
@@ -581,9 +526,85 @@ module HLPTick3 =
                 ()
             | _ -> func testIndex 0 dispatch
 
-        let runCircuitGenerationTest (model: Model) (dispatch: Dispatch<Msg>) =
+        //////////////////////////////////////////////////////////////////
+        ////////////////// UNIT TESTING PIPELINE SKELETON ////////////////
+        //////////////////////////////////////////////////////////////////
+        
+        
+        let modelToTest : TestModel = 
+            { SimpleSymbols =
+                [ { SymLabel = "G1"
+                    CompType = GateN(And, 2)
+                    Position = { X = 1638.105; Y = 1671.75 }
+                    STransform = { Rotation = Degree0; Flipped = false } 
+                    }
+                  { SymLabel = "G2"
+                    CompType = GateN(And, 2)
+                    Position = { X = 1874.605; Y = 1858.25 }
+                    STransform = { Rotation = Degree0; Flipped = false }
+                    }
+                  { SymLabel = "MUX1"
+                    CompType = Mux2
+                    Position = { X = 1632.895; Y = 1780.25 }
+                    STransform = { Rotation = Degree0; Flipped = false }
+                    } ]
+              Connections =
+                [ { Source = { Label = "MUX1"; PortNumber = 0 }
+                    Target = { Label = "G2"; PortNumber = 0 } }
+                  { Source = { Label = "G1"; PortNumber = 0 }
+                    Target = { Label = "G2"; PortNumber = 1 } } ] }
+        let testModel
+            (modelToTest: TestModel)
+            (beautifyFunction: SheetT.Model -> SheetT.Model)
+            (testMetrics: list<(SheetT.Model -> int)>)
+            (dispatch: Dispatch<Msg>)
+            =
+            let sheetModel =
+                try
+                    Builder.placeTestModel modelToTest
+                with _ ->
+                    failwith "Error placing test model on sheet."
+
+            showSheetInIssieSchematic sheetModel dispatch
+
+            runTestsWithBeautify modelToTest beautifyFunction testMetrics dispatch
+        let testUnit
+            (modelToTest: TestModel)
+            (beautifyFunction: SheetT.Model -> SheetT.Model)
+            (testMetrics: list<(SheetT.Model -> int)>)
+            (dispatch: Dispatch<Msg>)
+            =
+            runTestsWithBeautify modelToTest beautifyFunction testMetrics dispatch
+
+        
+        let beautifyFunction (sheetModel: SheetT.Model) : SheetT.Model =
+            // Placeholder beautify logic
+            sheetModel
+        
+        let testMetrics: list<(SheetT.Model -> int)> = [
+            countWireRoutingLength;
+            countWireStraightInSheet;
+            ]
+
+        let runUnitTest (dispatch: Dispatch<Msg>) =
+            // Your test function here, simplified without needing to select from a menu
+            // CHECK STATE HERE 
+            testUnit modelToTest beautifyFunction testMetrics dispatch
+
+        let showUnitTestOnSheet (model: Model) (dispatch: Dispatch<Msg>) =
+            // model is passed in to match signature in Renderer.fs        
+            let sheetModel =
+                try
+                    Builder.placeTestModel modelToTest
+                with _ ->
+                    failwith "Error placing test model on sheet."
+
+            showSheetInIssieSchematic sheetModel dispatch
+
+        let runUnitTestOnSheet (model: Model) (dispatch: Dispatch<Msg>) =
             // model is passed in to match signature in Renderer.fs
-            // let sheetModel = buildTestCircuit 50 1000.0 10
-            // showSheetInIssieSchematic sheetModel dispatch
-            runUnitTest dispatch
-            printf "Test Finished"
+            let sheetModel = buildTestCircuit 12 1000.0 10
+            showSheetInIssieSchematic sheetModel dispatch
+            // runUnitTest dispatch
+            // printf "Test Finished"
+        

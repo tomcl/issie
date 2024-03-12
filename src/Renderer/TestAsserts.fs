@@ -57,7 +57,7 @@ let countComponentOverlaps  (sheet: SheetT.Model) : int =
 /// This function evaluates each wire segment in the sheet model to determine if it is straight (aligned either horizontally or vertically).
 /// </remarks>
 let countWireStraightInSheet (sheet: SheetT.Model) : int =
-
+    printfn "Testing countWireStraightInSheet"
     let countTransformations (wire: BusWireT.Wire) : int =
         let visibleSegments =
             SheetBeautifyHelpers.SegmentHelpers.visibleSegments wire.WId sheet
@@ -76,9 +76,10 @@ let countWireStraightInSheet (sheet: SheetT.Model) : int =
 
     numberOfStraightWires
 
-let countWireRoutingLength (sheet: SheetT.Model) : float =
+let countWireRoutingLength (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.calcVisWireLength sheet
-    count
+    printfn "Testing countWireRoutingLength"
+    int count 
 
 let isPointCloseToRectangle (point: XYPos) (box: BoundingBox) distanceThreshold =
     let inRange v minV maxV =

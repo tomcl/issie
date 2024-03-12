@@ -473,14 +473,17 @@ let cleanUpAlmostsStraightSinglyConnWires (model: ModelType.Model) =
             (fun currentModel (symbolToMove, wire, offset) ->
                 // create a new straight wire
                 let newStraightWire = (rerouteStraightWire wire symbolToMove offset)
+                // create a new model
+                let newModel =
+                    currentModel
+                    |> Optic.set (symbolOf_ symbolToMove.Id) symbolToMove
 
                 // check for intersections. If there are none, then update the wire and symbol
                 if
-                    (findWireSymbolIntersections currentModel wire)
+                    (findWireSymbolIntersections currentModel newStraightWire)
                     |> List.isEmpty
                 then
-                    currentModel
-                    |> Optic.set (symbolOf_ symbolToMove.Id) symbolToMove
+                    newModel
                     |> Optic.set
                         (wires_)
                         (currentModel.Wires

@@ -9,6 +9,7 @@ open TestDrawBlock.HLPTick3.Tests
 open TestDrawBlock.HLPTick3.Asserts
 open TestDrawBlock.HLPTick3.Builder
 open SheetBeautifyHelpers
+open SheetBeautifyD2
 
 module D2Test =
     open EEExtensions
@@ -306,6 +307,10 @@ module D2Test =
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1) )
         |> getOkOrFail
 
+    let makeTest1CircuitOptimized (andPos:XYPos) =
+        makeTest1Circuit andPos
+        |> optimizePortOrder
+
     let makeTest2Circuit (andPos:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
@@ -381,7 +386,7 @@ module D2Test =
                 "DisplayAll: DFF+AND 2 Wires Same Net"
                 firstSample
                 generator
-                makeTest2Circuit
+                makeTest1CircuitOptimized
                 Asserts.failOnAllTests
                 dispatch
                 displayOnFail

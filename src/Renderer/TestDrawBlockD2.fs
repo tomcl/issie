@@ -309,7 +309,7 @@ module D2Test =
 
     let makeTest1CircuitOptimized (andPos:XYPos) =
         makeTest1Circuit andPos
-        |> optimizePortOrder
+        |> optimizePortOrder        
 
     let makeTest2Circuit (andPos:XYPos) =
         initSheetModel
@@ -368,7 +368,7 @@ module D2Test =
             
         let test1 testNum firstSample dispatch =
             let displayOnFail = displayAll
-            let generator = filteredGridPositions makeTest1Circuit 100
+            let generator = filteredGridPositions makeTest1Circuit 10
             runTestOnSheets
                 "DisplayAll: DFF+AND 2 Wires Different Net"
                 firstSample
@@ -381,7 +381,7 @@ module D2Test =
 
         let test2 testNum firstSample dispatch =
             let displayOnFail = displayAll
-            let generator = filteredGridPositions makeTest2Circuit 100
+            let generator = filteredGridPositions makeTest2Circuit 10
             runTestOnSheets
                 "DisplayAll: DFF+AND 2 Wires Same Net"
                 firstSample

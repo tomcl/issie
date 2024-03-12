@@ -527,17 +527,22 @@ let setSymOrient
         (sheet: SheetT.Model)
             : SheetT.Model =
     sheet
-    |> Optic.get SheetT.symbol_
-    |> rotateBlock' orientAndPortInfo.STransform.Rotation [ sym.Id ]
-    |> (fun model -> Optic.set SheetT.symbol_ model sheet)
     |> (fun sheet -> 
-        if orientAndPortInfo.STransform.Flipped 
-        then flipSymbol sym.Component.Label Constants.flipOps[0] sheet
-        else sheet)
-    // |> Optic.get SheetT.symbol_
-    // |> rotateBlock' Degree90 [ sym.Id ]
-    // |> rotateBlock' Degree270 [ sym.Id ]
-    // |> (fun model -> Optic.set SheetT.symbol_ model sheet)
+        match orientAndPortInfo.STransform.Rotation with
+        | Degree0 ->
+            sheet
+        | _ -> 
+            sheet
+            |> Optic.get SheetT.symbol_ 
+            |> rotateBlock' orientAndPortInfo.STransform.Rotation [ sym.Id ]
+            |> (fun model -> Optic.set SheetT.symbol_ model sheet))
+    |> (fun sheet -> 
+        match orientAndPortInfo.STransform.Flipped with
+        | false ->
+            sheet
+        | _ ->
+            sheet
+            |>  flipSymbol sym.Component.Label Constants.flipOps[0])
 
 /// <summary>Set a mux symbols's orientation and input reverse state in a sheet.</summary>
 /// <param name="orientAndPortInfo">Orientataion and port information.</param>

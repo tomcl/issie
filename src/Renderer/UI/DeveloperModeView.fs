@@ -60,72 +60,36 @@ let developerModeView (model: ModelType.Model) dispatch =
               p [] [ str "Sample Text 2" ]
               p [] [ str "Sample Text 3" ] ]
 
-    let intersectCounter =
-        div
-            [ Style [ Margin "5px 0" ] ]
-            [ Level.level
+    let createCounterItem title value =
+        Level.item
+            [ Level.Item.HasTextCentered ]
+            [ div
                   []
-                  [ Level.item
-                        [ Level.Item.HasTextCentered ]
-                        [ div
-                              []
-                              [ Level.heading [] [ str "Wire-Sym Intersects" ]
-                                strong
-                                    [ Style [ FontSize "20px" ] ]
-                                    [ str ((countVisibleSegsIntersectingSymbols model.Sheet).ToString()) ] ] ]
-                    Level.item
-                        [ Level.Item.HasTextCentered ]
-                        [ div
-                              []
-                              [ Level.heading [] [ str "Wire-Wire Intersects" ]
-                                strong
-                                    [ Style [ FontSize "20px" ] ]
-                                    [ str ((countVisibleSegsPerpendicularCrossings model.Sheet).ToString()) ] ] ] ] ]
-    let statsCounter =
-        div
-            [ Style [ Margin "5px 0" ] ]
-            [ Level.level
-                  []
-                  [ Level.item
-                        [ Level.Item.HasTextCentered ]
-                        [ div
-                              []
-                              [ Level.heading [] [ str "90º Degree Wire Bends" ]
-                                strong
-                                    [ Style [ FontSize "20px" ] ]
-                                    [ str ((countVisibleBends model.Sheet).ToString()) ] ] ]
-                    Level.item
-                        [ Level.Item.HasTextCentered ]
-                        [ div
-                              []
-                              [ Level.heading [] [ str "Near-Straight Wires" ]
-                                strong
-                                    [ Style [ FontSize "20px" ] ]
-                                    [ str ((countAlmostStraightWiresOnSheet model.Sheet).ToString()) ] ] ] ] ]
+                  [ Level.heading [] [ str title ]
+                    strong [ Style [ FontSize "20px" ] ] [ str value ] ] ]
 
-    let level3Counter =
-        div
-            [ Style [ Margin "5px 0" ] ]
-            [ Level.level
-                  []
-                  [ Level.item
-                        [ Level.Item.HasTextCentered ]
-                        [ div
-                              []
-                              [ Level.heading [] [ str "Singly-Conn Wires" ]
-                                strong
-                                    [ Style [ FontSize "20px" ] ]
-                                    [ str ((countSinglyConnectedWires model.Sheet).ToString()) ] ] ]
-                    Level.item
-                        [ Level.Item.HasTextCentered ]
-                        [ div
-                              []
-                              [ Level.heading [] [ str "Vis. Seg. Length" ]
-                                strong
-                                    [ Style [ FontSize "20px" ] ]
-                                    [ str ((countVisibleSegmentLength model.Sheet).ToString("F2")) ] ] ] ] ]
+    let counters =
+        let counterItems =
+            [ ("Wire-Sym Intersects", (countVisibleSegsIntersectingSymbols model.Sheet).ToString())
+              ("Wire-Wire Intersects", (countVisibleSegsPerpendicularCrossings model.Sheet).ToString())
+              ("Sym-Sym Intersects", (countIntersectingSymbolPairs model.Sheet).ToString())
+              ("90º Degree Wire Bends", (countVisibleBends model.Sheet).ToString())
+              ("Near-Straight Wires", (countAlmostStraightWiresOnSheet model.Sheet).ToString())
+              ("Singly-Conn Wires", (countSinglyConnectedWires model.Sheet).ToString())
+              ("Vis. Seg. Length", (countVisibleSegmentLength model.Sheet).ToString("F2"))
+              ("Free Space!!!", ":)") ]
 
-    let counterMenu =
+        counterItems
+        |> List.chunkBySize 2
+        |> List.map (fun chunk ->
+            div
+                [ Style [ Margin "5px 0" ] ]
+                [ Level.level
+                      []
+                      (chunk
+                       |> List.map (fun (title, value) -> createCounterItem title value)) ])
+        |> div []
+    let sheetStatsMenu =
         details
             [ Open(model.SheetStatsExpanded) ]
             [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSheetStats)) ] [ str "Sheet Stats " ]
@@ -141,9 +105,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                     + ", "
                                     + (model.Sheet.LastMousePos.Y.ToString("F2"))
                                 ) ] ]
-                    intersectCounter
-                    statsCounter
-                    level3Counter ] ]
+                    counters ] ]
 
     // for Symbol.PortMaps
     let createTableFromPortMapsOrder (map: Map<Edge, string list>) =
@@ -386,4 +348,4 @@ let developerModeView (model: ModelType.Model) dispatch =
             | None -> null
 
     let viewComponentWrapper = div [] [ p [ menuLabelStyle ] []; viewComponent ]
-    div [ Style [ Margin "0 0 20px 0" ] ] ([ beautificationLevelSelect; counterMenu; viewComponentWrapper ])
+    div [ Style [ Margin "0 0 20px 0" ] ] ([ beautificationLevelSelect; sheetStatsMenu; viewComponentWrapper ])

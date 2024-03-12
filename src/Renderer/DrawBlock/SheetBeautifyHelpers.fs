@@ -196,7 +196,8 @@ let getPortMapsOrder
 /// <returns>The symbol with the new port order set in the Symbol.PortMaps</returns>
 let setPortMapsOrder (sym: Symbol) (newSide: Edge) (newOrder: string list) : Symbol =
     let portMaps = sym.PortMaps
-    let newPortMaps = { portMaps with Order = portMaps.Order |> Map.add newSide newOrder }
+    let newPortMaps =
+        { portMaps with Order = portMaps.Order |> Map.add newSide newOrder }
     { sym with PortMaps = newPortMaps }
 
 // --------------------------------------------------- //
@@ -386,6 +387,7 @@ let makeAllWiresDraggable (wires: Map<ConnectionId, Wire>) =
 /// <param name="model">The model to count the intersecting wire segments of.</param>
 /// <returns>The number of distinct wire visible segments that intersect with one or more symbols.</returns>
 let countVisibleSegsIntersectingSymbols (model: SheetT.Model) =
+
     let wireModel = model.Wire
     wireModel.Wires
     |> removeWireInvisibleSegments

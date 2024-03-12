@@ -308,7 +308,7 @@ shortcut:
 let findSinglyConnectedSymsByWire (wire: Wire) (sheetModel: SheetT.Model) =
     // will return (symbol, true) if the symbol is an input, (symbol, false) if the symbol is an output
     // it is important to distingush between the two, because when correcting the wire bend, inputs are
-    // moved in opposite direction to outputs
+    // moved in opposite direction to outputs, and startpos is modified instead of endpos
     let inputSymbol = getSymbolFromPortID (wire.InputPort.ToString()) sheetModel
     let outputSymbol = getSymbolFromPortID (wire.OutputPort.ToString()) sheetModel
 
@@ -403,24 +403,49 @@ let initialOrientation_: Lens<Wire, Orientation> =
 let startpos_: Lens<Wire, XYPos> =
     Lens.create (fun m -> m.StartPos) (fun s m -> { m with StartPos = s })
 
-/// Function to manually route a wire from a (recently-moved) singly connected symbol
-let rerouteStraightWire (wire: Wire) (symbol: Symbol) (offset: XYPos) =
+/// when straightening/cleaning up wires singly connected to symbols, we need to keep track of:
+/// the symbol to be moved,
+/// the wire that is connected to the symbol,
+/// the offset that needs to be moved by,
+/// and if the connected port is an input. This will determine how to shift the StartPos of the wire
+type CleanUpRecord = { Symbol: Symbol; Wire: Wire; Offset: XYPos; IsPortInput: bool }
+/// Function to manually route a wire from a (recently-moved) singly connected symbol, and also move the symbol by the offset
+let rerouteStraightWireSymbol (cleanUpRecord: CleanUpRecord) =
     let majorityDisplacement, MajorityDirection =
-        (getMajorityDisplacementWireAndOrientation wire)
+        (getMajorityDisplacementWireAndOrientation cleanUpRecord.Wire)
 
-    wire
-    |> Optic.set
-        (segments_)
-        (wire.Segments // make a wire that consists of one big segment in the majority direction, then make nubs
-         |> List.mapi (fun i segment ->
-             match MajorityDirection, i = 0, i = 1 with
-             | Horizontal, true, false -> Some { segment with Length = majorityDisplacement }
-             | Vertical, false, true -> Some { segment with Length = majorityDisplacement }
-             | _, _, _ -> None)
-         |> List.choose id
-         |> makeEndsDraggable)
-    |> Optic.set initialOrientation_ MajorityDirection
-    |> Optic.set startpos_ (wire.StartPos + offset)
+    // just to invert the direction
+    let directionChangeMultiplier =
+        (if cleanUpRecord.IsPortInput then
+             -1.0
+         else
+             1.0)
+
+    let newPortStartPos =
+        if cleanUpRecord.IsPortInput then
+            cleanUpRecord.Wire.StartPos
+        else
+            cleanUpRecord.Wire.StartPos + cleanUpRecord.Offset
+
+    let newWire =
+        cleanUpRecord.Wire
+        |> Optic.set
+            (segments_)
+            (cleanUpRecord.Wire.Segments // make a wire that consists of one big segment in the majority direction, then make nubs
+             |> List.mapi (fun i segment ->
+                 match MajorityDirection, i = 0, i = 1 with
+                 | Horizontal, true, false -> Some { segment with Length = majorityDisplacement }
+                 | Vertical, false, true -> Some { segment with Length = majorityDisplacement }
+                 | _, _, _ -> None)
+             |> List.choose id
+             |> makeEndsDraggable)
+        |> Optic.set initialOrientation_ MajorityDirection
+        |> Optic.set startpos_ newPortStartPos // update startpos ONLY if is input
+
+    let newSymbol =
+        moveSymbol (cleanUpRecord.Offset * directionChangeMultiplier) cleanUpRecord.Symbol
+
+    newWire, newSymbol
 
 /// Function to clean up almost straight singly connected wires
 let cleanUpAlmostsStraightSinglyConnWires (model: ModelType.Model) =
@@ -433,7 +458,10 @@ let cleanUpAlmostsStraightSinglyConnWires (model: ModelType.Model) =
             checkIfSingularlyConnected wire model.Sheet
             && checkAlmostStraightWire wire)
 
-    let symbolsWireOffsetUpdates =
+    /// Produce a list of CleanUpRecords
+    /// Find possible wires and symbols to be straightened out, calculate their offset to fix them, and also keep track if the connections
+    /// occur at an input port or output port
+    let symbolsWireOffsetUpdates: CleanUpRecord list =
         almostStraightSinglyConnectedWires
         |> Map.values
         |> Seq.toList
@@ -447,57 +475,58 @@ let cleanUpAlmostsStraightSinglyConnWires (model: ModelType.Model) =
             else
                 match getMinorityWireDisplacementAndOrientation wire with // if deviating vertically, offset y. Negative if input and positive if output
                 | y, Vertical ->
-                    let offset =
-                        { X = 0.0
-                          Y =
-                            (if symbolsToMove[0] |> snd then
-                                 -y
-                             else
-                                 y) }
-                    let newSymbol = symbolsToMove[0] |> fst |> moveSymbol offset
-                    [ (newSymbol, wire, offset) ]
+                    let offset = { X = 0.0; Y = y }
+                    [ { Symbol = symbolsToMove[0] |> fst
+                        Wire = wire
+                        Offset = offset
+                        IsPortInput = symbolsToMove[0] |> snd } ]
                 | x, Horizontal -> // if deviating horizontally, offset x. Negative if input and positive if output
-                    let offset =
-                        { X =
-                            (if symbolsToMove[0] |> snd then
-                                 -x
-                             else
-                                 x)
-                          Y = 0.0 }
-                    let newSymbol = symbolsToMove[0] |> fst |> moveSymbol offset
-                    [ (newSymbol, wire, offset) ])
+                    let offset = { X = x; Y = 0.0 }
+                    [ { Symbol = symbolsToMove[0] |> fst
+                        Wire = wire
+                        Offset = offset
+                        IsPortInput = symbolsToMove[0] |> snd } ])
 
-    let updatedBusWireTModel: BusWireT.Model =
+    /// helper to update the sheet with the new symbol and wire
+    let updateSheetWithNewSymbolAndWire (sheetModel: SheetT.Model) (symbol: Symbol) (wire: Wire) =
+        let updatedSheetModel: SheetT.Model =
+            sheetModel
+            |> Optic.set (wire_ >-> symbolOf_ symbol.Id) symbol
+            |> Optic.set (wire_ >-> wires_) (sheetModel.Wire.Wires |> Map.add wire.WId wire)
+            |> SheetUpdateHelpers.updateBoundingBoxes // update the bounding boxes for accurate intersection checking
+        updatedSheetModel
+
+    let checkIfGainedIntersections (currentModel: SheetT.Model) (newModel: SheetT.Model) =
+        ((countIntersectingSymbolPairs newModel)
+         <= (countIntersectingSymbolPairs currentModel))
+        && ((countIntersectingSymbolPairs newModel)
+            <= (countIntersectingSymbolPairs currentModel))
+
+    let updatedSheetModel: SheetT.Model =
         symbolsWireOffsetUpdates
         |> List.fold // better way to do this?
-            (fun currentModel (symbolToMove, wire, offset) ->
+            (fun currentSheetModel (cleanUpRecord) ->
                 // create a new straight wire
-                let newStraightWire = (rerouteStraightWire wire symbolToMove offset)
-                // create a new model
-                let newModel =
-                    currentModel
-                    |> Optic.set (symbolOf_ symbolToMove.Id) symbolToMove
+                let newStraightWire, newMovedSymbol = rerouteStraightWireSymbol cleanUpRecord
+                // create a new model with new straightWire and symbol
+                let newSheetModel =
+                    updateSheetWithNewSymbolAndWire currentSheetModel newMovedSymbol newStraightWire
 
-                // check for intersections. If there are none, then update the wire and symbol
+                // check for intersections. If there are none, then return the new model else return the old model
                 if
-                    (findWireSymbolIntersections currentModel newStraightWire)
-                    |> List.isEmpty
+                    checkIfGainedIntersections currentSheetModel newSheetModel
+
                 then
-                    newModel
-                    |> Optic.set
-                        (wires_)
-                        (currentModel.Wires
-                         |> Map.add wire.WId newStraightWire)
+                    newSheetModel
                 else
-                    currentModel)
+                    currentSheetModel)
             // Note: initially tried to use the below:
             // BusWireSeparate.routeAndSeparateSymbolWires model' symbolToMove.Id // somehow causes artefacts.
             // Better to just replace a wire with a manually drawn straight one
             // BusWireSeparate.reRouteWiresFrom [ symbolToMove.Id ] model' also doesn't work
-            model.Sheet.Wire
+            model.Sheet
 
-    model
-    |> Optic.set (sheet_ >-> wire_) (updatedBusWireTModel)
+    model |> Optic.set (sheet_) (updatedSheetModel)
 
 (*  More notes: Cases for detecting Straightenable Wires (note we consider more cases than AlmostStraightWires )
                                                          __________

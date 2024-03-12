@@ -25,23 +25,7 @@ module D2Test =
 //------------------------------additional metrics to assess improvements-------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Metrics =
-        // difference for integer metrics
-        let computeMetricDifference (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->int)  =
-            metric sheetAfter - metric sheetBefore, metric sheetAfter, metric sheetBefore
-        
-        // percentage difference for float metrics
-        let computeMetricPercentageChange (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->float)  =
-            float (metric sheetAfter - metric sheetBefore)/float (metric sheetBefore)*100.0, metric sheetAfter, metric sheetBefore
-        
-        /// number of segments straightened
-        let diffNWireRightAngles (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
-            computeMetricDifference sheetAfter sheetBefore numOfVisRightAngles
-
-        let diffNComponentOverlap (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
-            computeMetricDifference sheetAfter sheetBefore numOfIntersectedSymPairs
-
-        let numOfCrossingsReduced (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
-            computeMetricDifference sheetAfter sheetBefore numOfWireRightAngleCrossings
+        // ----------------------Statistics----------------------
 
         /// number of visible wire segments counted over whole sheet
         let countVisibleSegments (sheetModel : SheetT.Model) : int =
@@ -78,6 +62,26 @@ module D2Test =
                 |> List.sum
             let visibleLength = calcVisWireLength sheetModel
             visibleLength / totalLength
+        
+        // ----------------------Metrics----------------------
+
+        // difference for integer metrics
+        let computeMetricDifference (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->int)  =
+            metric sheetAfter - metric sheetBefore, metric sheetAfter, metric sheetBefore
+        
+        // percentage difference for float metrics
+        let computeMetricPercentageChange (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->float)  =
+            float (metric sheetAfter - metric sheetBefore)/float (metric sheetBefore)*100.0, metric sheetAfter, metric sheetBefore
+
+        /// number of segments straightened
+        let diffNWireRightAngles (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
+            computeMetricDifference sheetAfter sheetBefore numOfVisRightAngles
+
+        let diffNComponentOverlap (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
+            computeMetricDifference sheetAfter sheetBefore numOfIntersectedSymPairs
+
+        let diffNCrossingsReduced (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
+            computeMetricDifference sheetAfter sheetBefore numOfWireRightAngleCrossings
 
 
 //------------------------------------------------------------------------------------------------------------------------//
@@ -154,60 +158,6 @@ module D2Test =
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
         open Displays
-        
-        let getSymId (symLabel: string) (symModel: SymbolT.Model): ComponentId = 
-            mapValues symModel.Symbols
-            |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
-            |> function
-                | Some x -> x.Id
-                | _ -> failwithf "TestDrawBlock.getSymId: symLabel (%A) not found" symLabel
-
-        // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            let symId = getSymId symLabel model.Wire.Symbol
-            let rotateSymbol' = SymbolResizeHelpers.rotateSymbol rotate
-            let symModel: SymbolT.Model = 
-                SymbolUpdate.updateSymbol rotateSymbol' symId model.Wire.Symbol
-
-            model
-            |> Optic.set symbolModel_ symModel
-            |> SheetUpdateHelpers.updateBoundingBoxes
-
-        // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            let symId = getSymId symLabel model.Wire.Symbol
-            let flipSymbol' = 
-                match flip with
-                | SymbolT.FlipType.FlipHorizontal -> 
-                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
-                | SymbolT.FlipType.FlipVertical ->
-                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal 
-                    >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
-            let symModel: SymbolT.Model = 
-                SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
-
-            model
-            |> Optic.set symbolModel_ symModel 
-            |> SheetUpdateHelpers.updateBoundingBoxes
-
-        let randomFlipping () =
-            let randGen = System.Random()
-            randGen.Next(0,2)
-            |> function
-                | 0 -> Ok SymbolT.FlipHorizontal
-                | _ -> Error SymbolT.FlipVertical // SymbolT.FlipVertical <= this doesn't work and raise exception!!
-            
-        /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
-        let separateAllWires (model: SheetT.Model) : SheetT.Model =
-            model
-            |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
-
-        /// Copy testModel into the main Issie Sheet making its contents visible
-        let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
-            let sheetDispatch sMsg = dispatch (Sheet sMsg)
-            dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
-            sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
-
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
         /// 2. Check each ciruit with sheetChecker.
@@ -245,6 +195,43 @@ module D2Test =
                     showSheetInIssieSchematic sheet dispatch
                 | Error mess -> ()
             result // return the entire result
+
+        // ----------------------Circuit Builders Helper----------------------
+        let getSymId (symLabel: string) (symModel: SymbolT.Model): ComponentId = 
+            mapValues symModel.Symbols
+            |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+            |> function
+                | Some x -> x.Id
+                | _ -> failwithf "TestDrawBlock.getSymId: symLabel (%A) not found" symLabel
+
+        // Rotate a symbol
+        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+            let symId = getSymId symLabel model.Wire.Symbol
+            let rotateSymbol' = SymbolResizeHelpers.rotateSymbol rotate
+            let symModel: SymbolT.Model = 
+                SymbolUpdate.updateSymbol rotateSymbol' symId model.Wire.Symbol
+
+            model
+            |> Optic.set symbolModel_ symModel
+            |> SheetUpdateHelpers.updateBoundingBoxes
+
+        // Flip a symbol
+        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
+            let symId = getSymId symLabel model.Wire.Symbol
+            let flipSymbol' = 
+                match flip with
+                | SymbolT.FlipType.FlipHorizontal -> 
+                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
+                | SymbolT.FlipType.FlipVertical ->
+                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal 
+                    >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
+            let symModel: SymbolT.Model = 
+                SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
+
+            model
+            |> Optic.set symbolModel_ symModel 
+            |> SheetUpdateHelpers.updateBoundingBoxes
+        
             
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//

@@ -157,6 +157,7 @@ module D3Testing =
         CompType : ComponentType
         Position: XYPos
         STransform: STransform
+        PortMaps: SymbolT.PortMaps
     }
 
     type SimpleConnection = {

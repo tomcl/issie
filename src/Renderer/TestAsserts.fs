@@ -211,12 +211,26 @@ module D2TestBuild =
     open TestDrawBlockD3.D3Testing
 
     let rand = Random()
+
+    let portInfoByComponentType (compType: ComponentType) : (int * int) = // (numInputs, numOutputs)
+        match compType with
+        | GateN(gateType, numInputs) -> (numInputs, 1) 
+        | Mux2 -> (2, 1)
+        | Mux4 -> (4, 1)
+        | Mux8 -> (8, 1)
+        | Demux2 -> (1, 2)
+        | Demux4 -> (1, 4)
+        | Demux8 -> (1, 8)
+        | DFF
+        | DFFE -> (1, 1) // Simplification !!
+        | _ -> (0, 0) 
+
     let randomGateComponentType () =
         [| And; Or; Xor; Nand; Nor; Xnor |]
         |> Array.item (Random().Next(6))
 
     let randomMuxDemuxType () =
-        let types = [| Mux2; Mux4; Mux8; Demux2; Demux4; Demux8|]
+        let types = [| Mux2; Mux4; Mux8; Demux2; Demux4; Demux8 |]
         // Mux8; Demux2; Demux4; Demux8
         types.[Random().Next(types.Length)]
 
@@ -240,13 +254,13 @@ module D2TestBuild =
     let defineGridParameters (maxCoord: float) (numberOfColumns: int) : float list =
         let columnWidth = maxCoord / float numberOfColumns
         List.init numberOfColumns (fun i -> (float i + 0.5) * columnWidth)
-    
+
     let randomPositionInColumn (maxCoord: float) (columnXPositions: float list) : XYPos =
         let columnIndex = rand.Next(columnXPositions.Length)
         let xPosition = columnXPositions.[columnIndex]
         let yPosition = rand.NextDouble() * maxCoord
         { X = xPosition; Y = yPosition }
-    
+
     let generateRandomPositionInColumn (maxCoord: float) (numberOfColumns: int) : XYPos =
         let columnXPositions = defineGridParameters maxCoord numberOfColumns
         randomPositionInColumn maxCoord columnXPositions
@@ -268,36 +282,49 @@ module D2TestBuild =
                 false }
 
     let createSimpleSymbol (id: int) (maxCoord: float) (numberOfColumns: int) : SimpleSymbol =
+        let compType = randomComponentType ()
+        let numInputs, numOutputs = portInfoByComponentType compType
+        let portMaps =
+            { Order =
+                Map.empty
+                    .Add(Top, List.init numInputs (sprintf "In%d"))
+                    .Add(Bottom, List.init numOutputs (sprintf "Out%d"))
+              Orientation = Map.empty }
         { SymLabel = sprintf "Comp%d" id
-          CompType = randomComponentType ()
+          CompType = compType
           Position = generateRandomPositionInColumn maxCoord numberOfColumns
-          STransform = randomSTransform () }
+          STransform = randomSTransform ()
+          PortMaps = portMaps }
+    let getRandomPort (portMaps: PortMaps) (edge: Edge) : int =
+        let ports = portMaps.Order.[edge]
+        if ports.Length > 0 then
+            rand.Next(ports.Length) // Select a random port if available
+        else
+            0
     let rec generateAndConnectComponents (numComponents: int) (maxCoord: float) (numberOfColumns: int) : TestModel =
-        let components = List.init numComponents (fun id -> createSimpleSymbol id maxCoord numberOfColumns)
+        let components =
+            List.init numComponents (fun id -> createSimpleSymbol id maxCoord numberOfColumns)
+
         let connections =
-            components
-            |> List.mapi (fun idx source ->
-                if idx < List.length components - 1 then
-                    let target = components.[idx + 1]
-                    [{ Source = { Label = source.SymLabel; PortNumber = 0 }; 
-                       Target = { Label = target.SymLabel; PortNumber = 0 } }]
-                else [])
-            |> List.concat
+            List.zip components (List.tail components)
+            |> List.map (fun (source, target) ->
+                { Source = { Label = source.SymLabel; PortNumber = getRandomPort source.PortMaps Bottom }
+                  Target = { Label = target.SymLabel; PortNumber = getRandomPort target.PortMaps Top } })
 
         let testModel = { SimpleSymbols = components; Connections = connections }
 
-        let sheetModel = 
-            try Builder.placeTestModel testModel
-            with 
-            | _ -> failwith "Error placing test model on sheet."
+        let sheetModel =
+            try
+                Builder.placeTestModel testModel
+            with _ ->
+                failwith "Error placing test model on sheet."
 
         if SheetBeautifyHelpers.numOfIntersectedSymPairs sheetModel > 0 then
             generateAndConnectComponents numComponents maxCoord numberOfColumns
         else
             testModel
 
-
-    let buildTestCircuit (numComponents: int) (maxCoord: float) (numberOfColumns: int): SheetT.Model =
+    let buildTestCircuit (numComponents: int) (maxCoord: float) (numberOfColumns: int) : SheetT.Model =
         let testModel = generateAndConnectComponents numComponents maxCoord numberOfColumns
         let sheetModel = Builder.placeTestModel testModel
         sheetModel

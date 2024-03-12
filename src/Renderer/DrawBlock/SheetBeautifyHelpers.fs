@@ -196,8 +196,7 @@ let getPortMapsOrder
 /// <returns>The symbol with the new port order set in the Symbol.PortMaps</returns>
 let setPortMapsOrder (sym: Symbol) (newSide: Edge) (newOrder: string list) : Symbol =
     let portMaps = sym.PortMaps
-    let newPortMaps =
-        { portMaps with Order = portMaps.Order |> Map.add newSide newOrder }
+    let newPortMaps = { portMaps with Order = portMaps.Order |> Map.add newSide newOrder }
     { sym with PortMaps = newPortMaps }
 
 // --------------------------------------------------- //
@@ -310,10 +309,10 @@ let getSymbolFlip (sym: Symbol) : bool = sym.STransform.flipped
 /// <param name="flip">The new flip state of the symbol.</param>
 /// <param name="sym">The symbol to set the flip state of.</param>
 /// <returns>The symbol with the new flip state set.</returns>
-let setSymbolFlip (sym: Symbol) : Symbol =
-    match sym.STransform.Rotation with
-    | Degree0 | Degree180 -> SymbolResizeHelpers.flipSymbol FlipVertical sym
-    | Degree90 | Degree270 -> SymbolResizeHelpers.flipSymbol FlipHorizontal sym
+let setSymbolFlip (sym: Symbol) (newFlip: bool) : Symbol =
+    let sTransform = sym.STransform
+    let newSTransform = { sTransform with flipped = newFlip }
+    { sym with STransform = newSTransform }
 
 // --------------------------------------------------- //
 //                     T1R Function                    //

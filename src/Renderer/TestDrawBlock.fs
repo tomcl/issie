@@ -318,10 +318,14 @@ module HLPTick3 =
                 let before = metric sheetModel
                 let after = metric beautifiedSheetModel
                 printfn
-                    "Metric result before beautify: %d, after beautify: %d, Difference: %d"
+                    "Metric result before beautify: %d, after beautify: %d, Difference: %d, Function tested is %A"
                     before
                     after
-                    (after - before))
+                    (after - before)
+                    metric
+                    )
+
+                      
 
             showSheetInIssieSchematic beautifiedSheetModel dispatch
 
@@ -557,7 +561,7 @@ module HLPTick3 =
         
         let testMetrics: list<(SheetT.Model -> int)> = [
             countComponentOverlaps;
-            countWireStraightInSheet;
+            countWiresCrossingInSheet;
             ]
 
         let runUnitTest (dispatch: Dispatch<Msg>) =
@@ -566,11 +570,20 @@ module HLPTick3 =
 
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
-        let testMenuFunc (dispatch: Dispatch<Msg>) (model: Model) =
-            runUnitTest dispatch
-            printfn "Test completed."
+        let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
+            let name, func = testsToRunFromSheetMenu[testIndex]
+            printf "%s" name
+            match name, model.DrawBlockTestState with
+            | "Next Test Error", Some state ->
+                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex + 1) dispatch
+            | "Next Test Error", None ->
+                printf "Test Finished"
+                ()
+            | _ -> func testIndex 0 dispatch
 
-        // let runCircuitGenerationTest (model: Model) (dispatch: Dispatch<Msg>) =
-        //     // model is passed in to match signature in Renderer.fs
-        //     let sheetModel = buildTestCircuit 50 1000.0 10
-        //     showSheetInIssieSchematic sheetModel dispatch
+        let runCircuitGenerationTest (model: Model) (dispatch: Dispatch<Msg>) =
+            // model is passed in to match signature in Renderer.fs
+            // let sheetModel = buildTestCircuit 50 1000.0 10
+            // showSheetInIssieSchematic sheetModel dispatch
+            runUnitTest dispatch
+            printf "Test Finished"

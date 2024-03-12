@@ -1,4 +1,5 @@
 module TestDrawBlockSimpleSymbol
+open DrawModelType.SymbolT
 open GenerateData
 open Elmish
 
@@ -157,7 +158,6 @@ module SimpleSymbolTesting =
         CompType : ComponentType
         Position: XYPos
         STransform: STransform
-        PortMaps: SymbolT.PortMaps
     }
 
     type SimpleConnection = {
@@ -170,6 +170,13 @@ module SimpleSymbolTesting =
         Connections : SimpleConnection List
     }
 
+    let createSimpleSymbol' (label: string) (compType: ComponentType) (position: XYPos) (sTransform: STransform) =
+        { SymLabel = label;
+        CompType = compType;
+        Position = position;
+        STransform = sTransform }
+
+
     let getShortSymbolName (sym: SymbolT.Symbol) =
         sym.Component.Type
         |> string
@@ -181,7 +188,6 @@ module SimpleSymbolTesting =
             { SymLabel = label
               CompType = symbol.Component.Type
               Position = { X = symbol.Pos.X + float symbol.Component.W / 2.0; Y = symbol.Pos.Y + float symbol.Component.H / 2.0 }
-              PortMaps = Optic.get SymbolT.portMaps_ symbol
               STransform = symbol.STransform }
 
         Optic.get SheetT.symbols_ model
@@ -253,15 +259,6 @@ module SimpleSymbolTesting =
                       |> Optic.set symbol_flipped_ simSymbol.STransform.Flipped
                       |> Optic.set symbol_rotation_ simSymbol.STransform.Rotation
                       |> Optic.set SymbolT.portMaps_ portMaps'
-                    //   |> SymbolResizeHelpers.rotateSymbol simSymbol.STransform.Rotation
-                    //   |> updateSymPos simSymbol.Position // little trick to fix position shift with mux rotation
-
-
-
-            // let portMaps' = SymbolResizeHelpers.rotatePortInfo simSymbol.STransform.Rotation sym.PortMaps
-            //                 |> Optic.set SymbolT.portMaps_
-
-        //    //rotatePortInfo rotation sym.PortMaps
 
             let symModel' = Optic.set (SymbolT.symbolOf_ symId) sym' symModel
 

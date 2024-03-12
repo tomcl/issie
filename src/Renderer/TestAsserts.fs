@@ -1,5 +1,6 @@
 module Renderer.TestAsserts
 
+open CommonTypes.JSONComponent
 open GenerateData
 open EEExtensions
 open Optics
@@ -11,7 +12,7 @@ open DrawModelType.SheetT
 open Operators
 open System
 open SheetBeautifyHelpers.EzraHelpers
-open SheetBeautifyHelpers.Constants
+open BusWidthInferer
 
 //----------------------------------------------------------------------------------------------//
 //-----------------------------------Global Asserts Functions-----------------------------------//
@@ -69,7 +70,7 @@ let countWireStraightInSheet (sheet: SheetT.Model) : int =
     let numberOfStraightWires =
         sheet
         |> Optic.get wires_
-        |> mapValuesToList
+        |> mapValues
         |> List.map countTransformations
         |> List.sum
 
@@ -77,7 +78,7 @@ let countWireStraightInSheet (sheet: SheetT.Model) : int =
 
 let countWireRoutingLength (sheet: SheetT.Model) : float =
     let count = SheetBeautifyHelpers.calcVisWireLength sheet
-    count 
+    count
 
 let isPointCloseToRectangle (point: XYPos) (box: BoundingBox) distanceThreshold =
     let inRange v minV maxV =
@@ -94,7 +95,7 @@ let isSegmentIntersectingOrCloseToBox (segmentStart: XYPos) (segmentEnd: XYPos) 
 let isWireSquashed (wire: BusWireT.Wire) (sheet: SheetT.Model) : bool =
     let componentsBoundingBoxes: BoundingBox list =
         sheet.Wire.Symbol.Symbols
-        |> mapValuesToList
+        |> mapValues
         |> List.map SheetBeautifyHelpers.getSymBoundingBox
 
     let segmentTooCloseToComponent segment =
@@ -117,16 +118,14 @@ let countWireSquashedInSheet (sheet: SheetT.Model) : int =
         |> List.map (fun w -> isWireSquashed w sheet)
         |> List.filter (fun n -> n = true)
         |> List.length
-    count 
+    count
 
 
 //----------------------------------------------------------------------------------------------//
 //------------------------------------D2T Asserts Functions-------------------------------------//
 //----------------------------------------------------------------------------------------------//
 
-/// <summary>
-/// Checks if two wire segments intersect by evaluating their horizontal and vertical overlap.
-/// </summary>
+/// <summary> Checks if two wire segments intersect by evaluating their horizontal and vertical overlap. </summary>
 /// <param name="seg1">The first wire segment to check for intersection.</param>
 /// <param name="seg2">The second wire segment to check for intersection.</param>
 /// <returns>
@@ -166,7 +165,7 @@ let countWiresOverlapInSheet (sheet: SheetT.Model) : int =
 let countWiresCrossingInSheet  (sheet: SheetT.Model) : int  =
     let count = SheetBeautifyHelpers.numOfWireRightAngleCrossings sheet
     count
-   
+
 let countWireIntersectsSymbolInSheet (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.numOfIntersectSegSym sheet
     count
@@ -177,8 +176,8 @@ let countWireIntersectsSymbolInSheet (sheet: SheetT.Model) : int =
 
 let countBendsInSheet (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.numOfVisRightAngles sheet
-    count 
-    
+    count
+
 module D2TestBuild =
     //----------------------------------------------------------------------------------------------//
     //------------------------------------D3T Asserts Functions-------------------------------------//
@@ -189,7 +188,7 @@ module D2TestBuild =
 
     let portInfoByComponentType (compType: ComponentType) : (int * int) = // (numInputs, numOutputs)
         match compType with
-        | GateN(gateType, numInputs) -> (numInputs, 1) 
+        | GateN(gateType, numInputs) -> (numInputs, 1)
         | Mux2 -> (2, 1)
         | Mux4 -> (4, 1)
         | Mux8 -> (8, 1)
@@ -198,7 +197,7 @@ module D2TestBuild =
         | Demux8 -> (1, 8)
         | DFF
         | DFFE -> (1, 1) // Simplification !!
-        | _ -> (0, 0) 
+        | _ -> (0, 0)
 
     let randomGateComponentType () =
         [| And; Or; Xor; Nand; Nor; Xnor |]
@@ -251,48 +250,45 @@ module D2TestBuild =
             | 2 -> Degree180
             | _ -> Degree270
           Flipped =
-            if Random().Next(2) = 0 then
-                true
-            else
-                false }
+            Random().Next(2) = 0 }
 
-    let createSimpleSymbol (id: int) (maxCoord: float) (numberOfColumns: int) : SimpleSymbol =
+
+    let getRandomEdge _ : Edge =
+        match Random().Next(4) with
+        | 0 -> Top
+        | 1 -> Bottom
+        | 2 -> Left
+        | _ -> Right
+
+
+    let createRandomSimpleSymbol (id: int) (maxCoord: float) (numberOfColumns: int) : SimpleSymbol =
         let compType = randomComponentType ()
-        let numInputs, numOutputs = portInfoByComponentType compType
-        let portMaps =
-            { Order =
-                Map.empty
-                    .Add(Top, List.init numInputs (sprintf "In%d"))
-                    .Add(Bottom, List.init numOutputs (sprintf "Out%d"))
-              Orientation = Map.empty }
-        { SymLabel = sprintf "Comp%d" id
-          CompType = compType
-          Position = generateRandomPositionInColumn maxCoord numberOfColumns
-          STransform = randomSTransform () //{Degree0, false}
-          PortMaps = portMaps }
-    let getRandomPort (portMaps: PortMaps) (edge: Edge) : int =
-        let ports = portMaps.Order.[edge]
-        if ports.Length > 0 then
-            rand.Next(ports.Length) // Select a random port if available
-        else
-            0
+        let pos = (generateRandomPositionInColumn maxCoord numberOfColumns)
+        createSimpleSymbol' (sprintf "Comp%d" id) compType pos (randomSTransform ())
+
+
+    let getRandomPort (comp: ComponentType) (portType: PortType) : int =
+        let inputs, outputs = portInfoByComponentType comp
+        match portType with
+        | PortType.Output -> rand.Next(outputs)
+        | PortType.Input -> rand.Next(inputs)
+
     let rec generateAndConnectComponents (numComponents: int) (maxCoord: float) (numberOfColumns: int) : TestModel =
         let components =
-            List.init numComponents (fun id -> createSimpleSymbol id maxCoord numberOfColumns)
+            List.init numComponents (fun id -> createRandomSimpleSymbol id maxCoord numberOfColumns)
 
         let connections =
             List.zip components (List.tail components)
             |> List.map (fun (source, target) ->
-                { Source = { Label = source.SymLabel; PortNumber = getRandomPort source.PortMaps Bottom }
-                  Target = { Label = target.SymLabel; PortNumber = getRandomPort target.PortMaps Top } })
+                { Source = { Label = source.SymLabel; PortNumber = getRandomPort source.CompType PortType.Output }
+                  Target = { Label = target.SymLabel; PortNumber = getRandomPort target.CompType PortType.Input } })
 
         let testModel = { SimpleSymbols = components; Connections = connections }
 
         let sheetModel =
-            try
-                Builder.placeTestModel testModel
-            with _ ->
-                failwith "Error placing test model on sheet."
+            try Builder.placeTestModel testModel
+            with
+            | _ -> failwith "Error placing test model on sheet."
 
         if SheetBeautifyHelpers.numOfIntersectedSymPairs sheetModel > 0 then
             generateAndConnectComponents numComponents maxCoord numberOfColumns

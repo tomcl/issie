@@ -451,17 +451,17 @@ module HLPTick3 =
                     CompType = GateN(And, 2)
                     Position = { X = 1638.105; Y = 1671.75 }
                     STransform = { Rotation = Degree0; Flipped = false } 
-                    PortMaps = { Order = Map.empty; Orientation = Map.empty }}
+                    }
                   { SymLabel = "G2"
                     CompType = GateN(And, 2)
                     Position = { X = 1874.605; Y = 1858.25 }
                     STransform = { Rotation = Degree0; Flipped = false }
-                    PortMaps = { Order = Map.empty; Orientation = Map.empty } }
+                    }
                   { SymLabel = "MUX1"
                     CompType = Mux2
                     Position = { X = 1632.895; Y = 1780.25 }
                     STransform = { Rotation = Degree0; Flipped = false }
-                    PortMaps = { Order = Map.empty; Orientation = Map.empty } } ]
+                    } ]
               Connections =
                 [ { Source = { Label = "MUX1"; PortNumber = 0 }
                     Target = { Label = "G2"; PortNumber = 0 } }

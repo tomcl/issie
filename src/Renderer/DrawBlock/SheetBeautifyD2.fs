@@ -87,3 +87,4 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
     let customComponentSymbols = filterCustomComponents symbols
     let (model') = (model,customComponentSymbols) ||> List.fold swapSymbolEdgePorts 
     model'
+

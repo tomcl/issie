@@ -24,6 +24,7 @@ open TestDrawBlockD1.HLPTick3
 open RotateScale
 open BusWireSeparate
 open BusWireUpdateHelpers
+open SheetBeautifyD1
 
 (*
 Purpose of the TestSheetFunctions:
@@ -145,11 +146,11 @@ let testsToRunFromSheetMenu =
     // Replace (fun (model: ModelType.Model) -> model) with the function you want to run
     // All functions should take in a model and return a model.
     // Be sure to modify the sheet with the sheet_ optic before returning. Undos will be handled automatically.
-    [ "Test 1", testRotateScale1
-      "Test 2", testRemoveWireInvisibleSegments
-      "Test 3", testRemoveWireInvisSegsAndRestoreNubs
+    [ "Test 1: testRotateScale1", testRotateScale1
+      "Test 2: testRemoveWireInvisibleSegments", testRemoveWireInvisibleSegments
+      "Test 3: testRemoveWireInvisSegsAndRestoreNubs", testRemoveWireInvisSegsAndRestoreNubs
       "Test 4", (fun (model: ModelType.Model) -> model)
-      "Test 5", (fun (model: ModelType.Model) -> model)
+      "Test 5: cleanUpAlmostsStraightSinglyConnWires", cleanUpAlmostsStraightSinglyConnWires
       "Test 6", (fun (model: ModelType.Model) -> model)
       "Test 7", (fun (model: ModelType.Model) -> model)
       "Test 8", (fun (model: ModelType.Model) -> model)

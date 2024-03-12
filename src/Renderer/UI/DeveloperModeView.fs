@@ -62,7 +62,7 @@ let developerModeView (model: ModelType.Model) dispatch =
 
     let intersectCounter =
         div
-            [ Style [ Margin "15px 0" ] ]
+            [ Style [ Margin "5px 0" ] ]
             [ Level.level
                   []
                   [ Level.item
@@ -70,16 +70,20 @@ let developerModeView (model: ModelType.Model) dispatch =
                         [ div
                               []
                               [ Level.heading [] [ str "Wire-Sym Intersects" ]
-                                Level.title [] [ str ((countVisibleSegsIntersectingSymbols model.Sheet).ToString()) ] ] ]
+                                strong
+                                    [ Style [ FontSize "20px" ] ]
+                                    [ str ((countVisibleSegsIntersectingSymbols model.Sheet).ToString()) ] ] ]
                     Level.item
                         [ Level.Item.HasTextCentered ]
                         [ div
                               []
-                              [ Level.heading [] [ str "Sym-Sym Intersects" ]
-                                Level.title [] [ str ((countIntersectingSymbolPairs model.Sheet).ToString()) ] ] ] ] ]
+                              [ Level.heading [] [ str "Wire-Wire Intersects" ]
+                                strong
+                                    [ Style [ FontSize "20px" ] ]
+                                    [ str ((countVisibleSegsPerpendicularCrossings model.Sheet).ToString()) ] ] ] ] ]
     let statsCounter =
         div
-            [ Style [ Margin "15px 0" ] ]
+            [ Style [ Margin "5px 0" ] ]
             [ Level.level
                   []
                   [ Level.item
@@ -87,13 +91,39 @@ let developerModeView (model: ModelType.Model) dispatch =
                         [ div
                               []
                               [ Level.heading [] [ str "90º Degree Wire Bends" ]
-                                Level.title [] [ str ((countVisibleBends model.Sheet).ToString()) ] ] ]
+                                strong
+                                    [ Style [ FontSize "20px" ] ]
+                                    [ str ((countVisibleBends model.Sheet).ToString()) ] ] ]
                     Level.item
                         [ Level.Item.HasTextCentered ]
                         [ div
                               []
                               [ Level.heading [] [ str "Near-Straight Wires" ]
-                                Level.title [] [ str ((countAlmostStraightWiresOnSheet model.Sheet).ToString()) ] ] ] ] ]
+                                strong
+                                    [ Style [ FontSize "20px" ] ]
+                                    [ str ((countAlmostStraightWiresOnSheet model.Sheet).ToString()) ] ] ] ] ]
+
+    let level3Counter =
+        div
+            [ Style [ Margin "5px 0" ] ]
+            [ Level.level
+                  []
+                  [ Level.item
+                        [ Level.Item.HasTextCentered ]
+                        [ div
+                              []
+                              [ Level.heading [] [ str "Singly-Conn Wires" ]
+                                strong
+                                    [ Style [ FontSize "20px" ] ]
+                                    [ str ((countSinglyConnectedWires model.Sheet).ToString()) ] ] ]
+                    Level.item
+                        [ Level.Item.HasTextCentered ]
+                        [ div
+                              []
+                              [ Level.heading [] [ str "Vis. Seg. Length" ]
+                                strong
+                                    [ Style [ FontSize "20px" ] ]
+                                    [ str ((countVisibleSegmentLength model.Sheet).ToString("F2")) ] ] ] ] ]
 
     let counterMenu =
         details
@@ -112,7 +142,8 @@ let developerModeView (model: ModelType.Model) dispatch =
                                     + (model.Sheet.LastMousePos.Y.ToString("F2"))
                                 ) ] ]
                     intersectCounter
-                    statsCounter ] ]
+                    statsCounter
+                    level3Counter ] ]
 
     // for Symbol.PortMaps
     let createTableFromPortMapsOrder (map: Map<Edge, string list>) =

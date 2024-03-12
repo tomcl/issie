@@ -203,3 +203,77 @@ let countBendsInSheet (sample: int) (sheet: SheetT.Model) : string option =
         Some $"Sample {sample} has {count} bends"
     else
         None
+
+module D2TestBuild =
+    //----------------------------------------------------------------------------------------------//
+    //------------------------------------D3T Asserts Functions-------------------------------------//
+    //----------------------------------------------------------------------------------------------//
+    open TestDrawBlockD3.D3Testing
+   
+    let rand = Random()
+    let randomGateComponentType () =
+        [| And; Or; Xor; Nand; Nor; Xnor |]
+        |> Array.item (Random().Next(6))
+
+    let randomMuxDemuxType () =
+        let types = [| Mux2; Mux4; Mux8; Demux2; Demux4; Demux8 |]
+        types.[Random().Next(types.Length)]
+
+    let randomFlipFlopType () =
+        [| DFF; DFFE |] |> Array.item (Random().Next(2))
+
+    let randomComponentType () : ComponentType =
+        let choice = Random().Next(100)
+        match choice with
+        | n when n < 50 -> // 50% for GateN
+            GateN(randomGateComponentType (), Random().Next(1, 5)) // Randomly selecting between 1 to 4 inputs
+        | n when n < 80 -> // 30% for Mux/Demux
+            randomMuxDemuxType ()
+        | _ -> // 20% for FlipFlop
+            randomFlipFlopType ()
+
+    let randomFlipType () =
+        let flips = [| FlipHorizontal; FlipVertical |]
+        flips.[rand.Next(flips.Length)]
+    let randomPosition (maxCoord: float) =
+        { X = rand.NextDouble() * maxCoord; Y = rand.NextDouble() * maxCoord }
+
+    let randomSTransform () =
+        { Rotation =
+            match Random().Next(4) with
+            | 0 -> Degree0
+            | 1 -> Degree90
+            | 2 -> Degree180
+            | _ -> Degree270
+          Flipped =
+            if Random().Next(2) = 0 then
+                true
+            else
+                false }
+
+    let createSimpleSymbol (id: int) (maxCoord: float) : SimpleSymbol =
+        { SymLabel = sprintf "Comp%d" id
+          CompType = randomComponentType ()
+          Position = randomPosition maxCoord
+          STransform = randomSTransform () }
+
+    let generateAndConnectComponents (numComponents: int) (maxCoord: float) : TestModel =
+        let components = List.init numComponents (fun id -> createSimpleSymbol id maxCoord)
+        let connections =
+            components
+            |> List.mapi (fun idx source ->
+                if idx < List.length components - 1 then
+                    let target = components.[idx + 1]
+                    [ { Source = { Label = source.SymLabel; PortNumber = 0 } 
+                        Target = { Label = target.SymLabel; PortNumber = 0 } } ]
+                else
+                    []) 
+            |> List.concat
+
+        { SimpleSymbols = components; Connections = connections }
+
+    let buildTestCircuit (numComponents: int) (maxCoord: float) : SheetT.Model =
+        let testModel = generateAndConnectComponents numComponents maxCoord
+        let sheetModel = Builder.placeTestModel testModel 
+        sheetModel 
+      

@@ -4,6 +4,7 @@ open Elmish
 open BlockHelpers
 open SheetBeautifyHelpers.EzraHelpers
 open Renderer.TestAsserts
+open Renderer.TestAsserts.D2TestBuild
 
 
 //-------------------------------------------------------------------------------------------//
@@ -274,7 +275,6 @@ module HLPTick3 =
                      model
                      |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
                      |> Ok
-            
 
         /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
         let separateAllWires (model: SheetT.Model) : SheetT.Model =
@@ -390,6 +390,7 @@ module HLPTick3 =
 
     module Tests =
 
+
         /// Allow test errors to be viewed in sequence by recording the current error
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
         let recordPositionInTest (testNumber: int) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
@@ -485,6 +486,15 @@ module HLPTick3 =
                 ()
             | _ ->
                 func testIndex 0 dispatch
+        
+        let runCircuitGenerationTest (model: Model)  (dispatch: Dispatch<Msg>) =
+            // model is passed in to match signature in Renderer.fs
+            let sheetModel = buildTestCircuit 10 1000.0
+            showSheetInIssieSchematic sheetModel dispatch
+    
+
+
+    
         
 
 

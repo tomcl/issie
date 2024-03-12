@@ -92,13 +92,13 @@ let removeLongWires (model : SheetT.Model) (longWires : BusWireT.Wire list) : Sh
                        |> Map.map (fun _ wire -> removeSegments wire)
 
     { model with Wire = { model.Wire with Wires = updatedWires } }
-     
 
 
-/// Computes the absolute position of the WireLabel to be placed.
-/// Takes as input the port ID, the port's absolute position, the symbol on which the port resides, and the full model.
-// TODO:
-// Need to check for available room before placing the label.
+
+
+
+
+
 let computeLabelPos (portID : string) (portPos : XYPos) (sym : Symbol) (model: SymbolT.Model) : XYPos =
     let orientation = BlockHelpers.getPortOrientationFrmPortIdStr model portID
 
@@ -109,25 +109,19 @@ let computeLabelPos (portID : string) (portPos : XYPos) (sym : Symbol) (model: S
     | Left -> { portPos with X = portPos.X - 30.0 }
     | Right -> { portPos with X = portPos.X + 30.0 }
 
-/// Generates the appropiate label text for the WireLabels to be placed.
-/// Takes as input the Source port ID and the model.
-/// Uses the symbol on which the source port resides' name, and the port number of the port, to make the label.
+
 let generateLabelText (portID : string) (model : SymbolT.Model)=
     let port = BlockHelpers.getPort model portID
     let sym = BlockHelpers.getSymbol model portID
 
     match port.PortNumber with
-    | Some number -> sym.Component.Label + "_" + (string number) // uses symbol's label + port number of the symbol
+    | Some number -> sym.Component.Label + "_" + (string number) 
     | None -> sym.Component.Label + "_0"
 
-/// Produces the model with WireLables placed (on both ends) for a single wire.
-/// Takes as input a wire, and the sheet model.
-/// Adds the labels to both beside the source port and the target port.
-let placeWireLabels (wire : BusWireT.Wire) (sheetModel : SheetT.Model) : SheetT.Model =
 
+let placeWireLabels (wire : BusWireT.Wire) (sheetModel : SheetT.Model) (placedSourceLabels : Set<string>) : SheetT.Model * Set<string> =
     let model = sheetModel.Wire.Symbol
 
-    // sub-function to perform the labl placing operation
     let addLabelBesidePort portID labelText theme symbolsMap =
         let symbol = BlockHelpers.getSymbol model portID
         let portPos = getPortPos portID model
@@ -137,40 +131,68 @@ let placeWireLabels (wire : BusWireT.Wire) (sheetModel : SheetT.Model) : SheetT.
 
     let sourcePortID = BlockHelpers.getOutputPortIdStr wire.OutputPort
     let targetPortID = BlockHelpers.getInputPortIdStr wire.InputPort
-
     let labelText = generateLabelText sourcePortID model
 
-    let sourceSideLabelAdded = addLabelBesidePort sourcePortID labelText model.Theme model.Symbols
+    
+    let sourceSideLabelAdded = if Set.contains sourcePortID placedSourceLabels then
+                                   model.Symbols
+                               else
+                                   addLabelBesidePort sourcePortID labelText model.Theme model.Symbols
 
     let targetSideLabelAdded = addLabelBesidePort targetPortID labelText model.Theme sourceSideLabelAdded
 
-    let updatedSymbolModel = { model with Symbols = targetSideLabelAdded } // updated SymbolT.Model
-    let updatedBusWireTModel = { sheetModel.Wire with Symbol = updatedSymbolModel } // updated BusWireT.Model
+    let updatedPlacedSourceLabels = Set.add sourcePortID placedSourceLabels
 
-    // updated final SheetT.Model
-    { sheetModel with Wire = updatedBusWireTModel} 
+    let updatedSymbolModel = { model with Symbols = targetSideLabelAdded }
+    let updatedBusWireTModel = { sheetModel.Wire with Symbol = updatedSymbolModel }
+    let updatedSheetTModel = { sheetModel with Wire = updatedBusWireTModel }
+
+    (updatedSheetTModel, updatedPlacedSourceLabels)
+
+
+
+
+
+
+
+
 
 
 /// Returns the final model with all long wires removed and WireLabels placed.
 /// Takes as input the initial SheetT.Model.
 let getLabelModeModel (initialModel : SheetT.Model) : SheetT.Model =
-    let longWires = identifyLongWires initialModel.Wire 300.0
+
+    let longWires = identifyLongWires initialModel.Wire 100.0
 
     let modelLongWiresRemoved = removeLongWires initialModel longWires
 
-    let modelWithLabels = longWires
-                        |> List.fold (fun updatedModel wire ->
-                            placeWireLabels wire updatedModel
-                         ) modelLongWiresRemoved
+    let sourcePortIDs = Set.empty
 
+    let modelWithLabels, _ = longWires
+                             |> List.fold (fun (updatedModel, updatedSourcePortIDs) wire ->
+                                  placeWireLabels wire updatedModel updatedSourcePortIDs
+                             ) (modelLongWiresRemoved, sourcePortIDs)
     modelWithLabels
+
+
+
+
+
+
 
   
 // The Main Function
 /// Switches between WIRE_MODE and LABEL_MODE models based on the toggleMode user input (will be updated later)
-let sheetWireLabelSymbol (initialModel : SheetT.Model) (toggleMode: bool) : SheetT.Model =
-    let savedWireModeModel = initialModel
+let sheetWireLabelSymbol (initialModel : SheetT.Model) : SheetT.Model =
 
-    match toggleMode with
-    | true -> getLabelModeModel initialModel // LABEL_MODE
-    | false -> savedWireModeModel // WIRE_MODE
+    let old = initialModel
+
+    let test = getLabelModeModel initialModel 
+
+   // let savedWireModeModel = initialModel
+
+   // match toggleMode with
+  //  | true -> getLabelModeModel initialModel // LABEL_MODE
+ //   | false -> savedWireModeModel // WIRE_MODE
+    test
+    

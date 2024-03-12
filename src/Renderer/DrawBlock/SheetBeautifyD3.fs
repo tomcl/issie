@@ -331,26 +331,23 @@ let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (model:SheetT.Model) =
         |> snd)
 
 
-// Assume that if users would like to manually apply the following function (e.g. by clicking on an menu item),
-// they would tend to include the long wires that they would like to convert into wire labels 
-// in their selection.
-// Hence, here we apply the conversion standard (i.e., longer than threshold) only to the selection,
-// not to the entire nets of the selected wires.
 // This function can apply to a set of selected wires, when called from an electron edit menu item,
 // or to a single selected wire, when called from a right-click context menu item.
 
-/// Identify long wires from selected wires and transform them into wire labels
+/// Transform selected wire nets into wire labels (with no conditions checked)
 let selectedWiresToWireLabels (wireIdList: list<ConnectionId>) (model: SheetT.Model) = 
     wireIdList
     |> List.map (fun wireId -> model.Wire.Wires[wireId])    // all selected wires
-    |> List.filter (fun wire -> (getWireLength wire) > Constants.longSingleWireLength)  // filter out the long ones
     |> List.distinctBy (fun wire -> wire.OutputPort)    // get wires with distinct output ports here
     |> List.fold (fun m wire -> sameNetWiresToWireLabels wire.OutputPort m) model
     
 
 /// Automatically identify long wires and transform them into wire labels (applies to the whole sheet)
 let autoWiresToWireLabels (model:SheetT.Model) = 
-    let allWireIds = mapKeys model.Wire.Wires    // get the list of ConnectionId of all wires on sheet
+    let allWireIds =  // list of ConnectionId of all long wires on sheet
+        model.Wire.Wires
+        |> Map.filter (fun _wId wire -> (getWireLength wire) > Constants.longSingleWireLength)  // filter out the long ones
+        |> mapKeys
     selectedWiresToWireLabels allWireIds model
     
 
@@ -391,13 +388,23 @@ let getAbsDistanceBetweenPorts (port1:string) (port2:string) (model:SheetT.Model
 let getSameNetWireLabelsFromName (labelName: string) (model:SheetT.Model) = 
     mapValues model.Wire.Symbol.Symbols
     |> List.filter (fun sym -> sym.Component.Type = IOLabel && sym.Component.Label = labelName)
-        
+
+
+/// Delete a list of symbols (used for deleting wire labels)
+let deleteSyms (symList:list<Symbol>) (model:SheetT.Model) = 
+    let newSymbolModel =
+        symList
+        |> List.map (fun sym -> sym.Id)
+        |> deleteSymbols model.Wire.Symbol
+    Optic.set symbol_ newSymbolModel model
+    |> updateBoundingBoxes
+
 
 /// For a given wire label name (string),
 /// get the list of wire labels belonging to the same net;
-/// check whether ALL of them are below the threshold of converting into wires;
-/// if ture, perform the conversion to the entire net and return the updated model, otherwise keep the model unchanged.
-let sameNetWireLabelsToWire (wireLabelName: string) (model:SheetT.Model) = 
+/// if applyCond=true, check whether ALL of them are below the threshold of converting into wires;
+/// if yes, perform the conversion to the entire net and return the updated model, otherwise keep the model unchanged.
+let sameNetWireLabelsToWire (wireLabelName: string) (applyCond:bool) (model:SheetT.Model) = 
     // 1. get all same-net wire labels
     let wireLabelList = getSameNetWireLabelsFromName wireLabelName model
     printf $"wire label name: {wireLabelName}"
@@ -430,21 +437,16 @@ let sameNetWireLabelsToWire (wireLabelName: string) (model:SheetT.Model) =
             | InputPortId portIdStr -> portIdStr)
 
     let potentialWiresPortPairs = List.allPairs [sourceSymPort] targetSymPortList
-    let cond =
-        potentialWiresPortPairs     // ports of potential wires
-        |> List.forall (fun (srcPort,tgtPort) ->
-            (getAbsDistanceBetweenPorts srcPort tgtPort model) < Constants.longSingleWireLength)
-    
+    let applyTransform =
+        match applyCond with
+        | true ->   // check whether the net meets the condition for transformation
+            potentialWiresPortPairs     // ports of potential wires
+            |> List.forall (fun (srcPort,tgtPort) ->
+                (getAbsDistanceBetweenPorts srcPort tgtPort model) < Constants.longSingleWireLength)
+        | false -> true     // condition is not applied, no need to check
 
-    // 3. if meet condition, perform wire-labels-to-wires replacement
-    let deleteWireLabels (wireLabelList:list<Symbol>) (model:SheetT.Model) = 
-        let newSymbolModel =
-            wireLabelList
-            |> List.map (fun sym -> sym.Id)
-            |> deleteSymbols model.Wire.Symbol
-        Optic.set symbol_ newSymbolModel model
-
-    match cond with
+    // 3. if condition is met, perform wire-labels-to-wires replacement
+    match applyTransform with
     | false -> model
     | true -> 
         let newModel = 
@@ -452,7 +454,7 @@ let sameNetWireLabelsToWire (wireLabelName: string) (model:SheetT.Model) =
             // delete old wires (deleteSingleWire)
             |> deleteWires wiresInNet
             // delete old wire labels
-            |> deleteWireLabels wireLabelsInNet
+            |> deleteSyms wireLabelsInNet
             // add new wires (placeSingleWire)
             |> placeWires potentialWiresPortPairs
         newModel
@@ -461,21 +463,22 @@ let sameNetWireLabelsToWire (wireLabelName: string) (model:SheetT.Model) =
 // This function can apply to a set of selected wire labels, when called from an electron edit menu item,
 // or to a single selected wire label, when called from a right-click context menu item.
 
-/// Identify selected wire labels' nets that score below threshold and transform them into wires,
-/// all wire labels in the same net as those being selected are taken into consideration
+/// Transform selected wire labels' nets into wires.
+/// If applyCond=true, only transform the nets that meet the threshold condition; otherwise, all selected nets are transformed.
+/// All wire labels in the same net as those being selected are taken into consideration
 /// (i.e., transformation takes place on a per-net level)
-let selectedWireLabelsToWires (compIdList: list<ComponentId>) (model: SheetT.Model) = 
+let selectedWireLabelsToWires (compIdList: list<ComponentId>) (applyCond:bool) (model: SheetT.Model) = 
     compIdList
     |> List.map (fun compId -> model.Wire.Symbol.Symbols[compId])   // get the symbols in the list
     |> List.filter (fun sym -> sym.Component.Type = IOLabel)    // get the wire labels
     |> List.distinctBy (fun sym -> sym.Component.Label)     // get symbols with distinct wire label names
-    |> List.fold (fun m sym -> sameNetWireLabelsToWire sym.Component.Label m) model 
+    |> List.fold (fun m sym -> sameNetWireLabelsToWire sym.Component.Label applyCond m) model 
 
 
-/// Automatically identify same-net wire labels that score below threshold and transform them into wires
+/// Automatically identify same-net wire labels that score below threshold and transform them into wires (applies to the whole sheet)
 let autoWireLabelsToWires (model:SheetT.Model) = 
     let allCompIds = mapKeys model.Wire.Symbol.Symbols    // get the list of ComponentId of all symbols on sheet
-    selectedWireLabelsToWires allCompIds model
+    selectedWireLabelsToWires allCompIds true model
     
 
 /// Add or remove wire labels (swapping between long wires and wire labels) to reduce wiring complexity

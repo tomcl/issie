@@ -209,14 +209,15 @@ module D2TestBuild =
     //------------------------------------D3T Asserts Functions-------------------------------------//
     //----------------------------------------------------------------------------------------------//
     open TestDrawBlockD3.D3Testing
-   
+
     let rand = Random()
     let randomGateComponentType () =
         [| And; Or; Xor; Nand; Nor; Xnor |]
         |> Array.item (Random().Next(6))
 
     let randomMuxDemuxType () =
-        let types = [| Mux2; Mux4; Mux8; Demux2; Demux4; Demux8 |]
+        let types = [| Mux2; Mux4; Mux8; Demux2; Demux4; Demux8|]
+        // Mux8; Demux2; Demux4; Demux8
         types.[Random().Next(types.Length)]
 
     let randomFlipFlopType () =
@@ -235,6 +236,21 @@ module D2TestBuild =
     let randomFlipType () =
         let flips = [| FlipHorizontal; FlipVertical |]
         flips.[rand.Next(flips.Length)]
+
+    let defineGridParameters (maxCoord: float) (numberOfColumns: int) : float list =
+        let columnWidth = maxCoord / float numberOfColumns
+        List.init numberOfColumns (fun i -> (float i + 0.5) * columnWidth)
+    
+    let randomPositionInColumn (maxCoord: float) (columnXPositions: float list) : XYPos =
+        let columnIndex = rand.Next(columnXPositions.Length)
+        let xPosition = columnXPositions.[columnIndex]
+        let yPosition = rand.NextDouble() * maxCoord
+        { X = xPosition; Y = yPosition }
+    
+    let generateRandomPositionInColumn (maxCoord: float) (numberOfColumns: int) : XYPos =
+        let columnXPositions = defineGridParameters maxCoord numberOfColumns
+        randomPositionInColumn maxCoord columnXPositions
+
     let randomPosition (maxCoord: float) =
         { X = rand.NextDouble() * maxCoord; Y = rand.NextDouble() * maxCoord }
 
@@ -251,29 +267,37 @@ module D2TestBuild =
             else
                 false }
 
-    let createSimpleSymbol (id: int) (maxCoord: float) : SimpleSymbol =
+    let createSimpleSymbol (id: int) (maxCoord: float) (numberOfColumns: int) : SimpleSymbol =
         { SymLabel = sprintf "Comp%d" id
           CompType = randomComponentType ()
-          Position = randomPosition maxCoord
+          Position = generateRandomPositionInColumn maxCoord numberOfColumns
           STransform = randomSTransform () }
-
-    let generateAndConnectComponents (numComponents: int) (maxCoord: float) : TestModel =
-        let components = List.init numComponents (fun id -> createSimpleSymbol id maxCoord)
+    let rec generateAndConnectComponents (numComponents: int) (maxCoord: float) (numberOfColumns: int) : TestModel =
+        let components = List.init numComponents (fun id -> createSimpleSymbol id maxCoord numberOfColumns)
         let connections =
             components
             |> List.mapi (fun idx source ->
                 if idx < List.length components - 1 then
                     let target = components.[idx + 1]
-                    [ { Source = { Label = source.SymLabel; PortNumber = 0 } 
-                        Target = { Label = target.SymLabel; PortNumber = 0 } } ]
-                else
-                    []) 
+                    [{ Source = { Label = source.SymLabel; PortNumber = 0 }; 
+                       Target = { Label = target.SymLabel; PortNumber = 0 } }]
+                else [])
             |> List.concat
 
-        { SimpleSymbols = components; Connections = connections }
+        let testModel = { SimpleSymbols = components; Connections = connections }
 
-    let buildTestCircuit (numComponents: int) (maxCoord: float) : SheetT.Model =
-        let testModel = generateAndConnectComponents numComponents maxCoord
-        let sheetModel = Builder.placeTestModel testModel 
-        sheetModel 
-      
+        let sheetModel = 
+            try Builder.placeTestModel testModel
+            with 
+            | _ -> failwith "Error placing test model on sheet."
+
+        if SheetBeautifyHelpers.numOfIntersectedSymPairs sheetModel > 0 then
+            generateAndConnectComponents numComponents maxCoord numberOfColumns
+        else
+            testModel
+
+
+    let buildTestCircuit (numComponents: int) (maxCoord: float) (numberOfColumns: int): SheetT.Model =
+        let testModel = generateAndConnectComponents numComponents maxCoord numberOfColumns
+        let sheetModel = Builder.placeTestModel testModel
+        sheetModel

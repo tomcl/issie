@@ -489,7 +489,7 @@ module HLPTick3 =
         
         let runCircuitGenerationTest (model: Model)  (dispatch: Dispatch<Msg>) =
             // model is passed in to match signature in Renderer.fs
-            let sheetModel = buildTestCircuit 10 1000.0
+            let sheetModel = buildTestCircuit 12 1000.0 10
             showSheetInIssieSchematic sheetModel dispatch
     
 

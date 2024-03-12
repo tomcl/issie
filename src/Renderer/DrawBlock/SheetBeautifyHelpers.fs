@@ -147,14 +147,9 @@ let setCustomComponentSymbolDims (sym: Symbol) (dimensions: XYPos) : Symbol =
 /// <summary> B2W: Modifies to the symbol's position. </summary>
 /// <param name="sym">The symbol to set the position of.</param>
 /// <param name="newPos">The new position of the symbol.</param>
-let setSymbolPos (sym: Symbol) (newPos: XYPos) : Symbol =
-    let comp' = { sym.Component with X = newPos.X; Y = newPos.Y }
-    { sym with
-        Component = comp'
-        Pos = newPos
-        LabelBoundingBox =
-            { sym.LabelBoundingBox with
-                TopLeft = sym.LabelBoundingBox.TopLeft - sym.Pos + newPos } }
+let setSymbolPos (sym: Symbol) (newPos: XYPos) : Symbol = moveSymbol (newPos - sym.Pos) sym
+
+// moveSymbol moves the symbol by an offset. so subtract the original position from the new position to get the offset
 
 /// <summary> B2W: The position of a symbol on the sheet. This modifies the sheet's SymbolMap </summary>
 /// <param name="symID">The ID of the symbol to set the position of.</param>
@@ -167,8 +162,8 @@ let setSymbolPosOnSheet (symID: ComponentId) (pos: XYPos) (model: SheetT.Model) 
         | Some s -> s
         | None -> failwithf "Symbol with id %A not found in model" symID
 
-    let newSym = moveSymbol pos sym // let newSym be the symbol with the new position
-    let newSymbolMap = Map.remove symID symbolMap |> Map.add symID newSym
+    let newSym = setSymbolPos sym pos // let newSym be the symbol with the new position
+    let newSymbolMap = symbolMap |> Map.add symID newSym
     // return the model with the new symbolMap
     model |> Optic.set symbolMap_ newSymbolMap
 

@@ -14,6 +14,7 @@ open Symbol
 open BusWireRoute
 open BusWire
 open BusWireUpdateHelpers
+open SheetUpdateHelpers
 
 // --------------------------------------------------- //
 //                      Helpers                        //
@@ -394,9 +395,8 @@ let makeAllWiresDraggable (wires: Map<ConnectionId, Wire>) =
 /// <returns>The number of distinct wire visible segments that intersect with one or more symbols.</returns>
 let countVisibleSegsIntersectingSymbols (model: SheetT.Model) =
 
-    let wModel = model.Wire
+    let wModel = (updateBoundingBoxes model).Wire // just in case
     wModel.Wires
-    |> removeWireInvisibleSegments
     |> Map.values
     |> Seq.map (fun wire -> (findWireSymbolIntersections wModel wire))
     |> Seq.sumBy (function
@@ -427,8 +427,8 @@ let perpendicularOverlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) :
 /// <returns>The number of distinct pairs of segments that cross each other at right angles.</returns>
 // Corner cases where this won't work: any L shaped crossing that results in a  + style configuration, even though wires do not actually cross at right angles
 let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
-    let wireModel = model.Wire // Get all the wires from the Wire model
-    let wires = Map.toList wireModel.Wires
+    let wireMap = removeWireInvisibleSegments model.Wire.Wires // Get all the wires from the Wire model
+    let wires = Map.toList wireMap
 
     // Get all the absolute segments from each wire
     let segments =

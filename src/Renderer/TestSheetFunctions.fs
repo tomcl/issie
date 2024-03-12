@@ -26,6 +26,8 @@ open BusWireSeparate
 open BusWireUpdateHelpers
 open SheetBeautifyD1
 
+open SheetBeautifyD2
+
 (*
 Purpose of the TestSheetFunctions:
 It is more focused on testing heuristics, helper functions, and beautify functions
@@ -80,6 +82,10 @@ let testRotateScale1 (model: ModelType.Model) : ModelType.Model =
         |> Optic.set (sheet_ >-> wire_) (reSizeSymbolTopLevel model.Sheet.Wire symbolToSize otherSymbol)
 
     | false -> model
+
+let testD2 (model: ModelType.Model) : ModelType.Model =
+    model
+    |> Optic.set sheet_ (sheetOrderFlip model.Sheet)
 
 /// Function to test BeautifySheetHelper's removeWireInvisibleSegments
 let testRemoveWireInvisibleSegments (model: ModelType.Model) : ModelType.Model =
@@ -149,7 +155,7 @@ let testsToRunFromSheetMenu =
     [ "Test 1: testRotateScale1", testRotateScale1
       "Test 2: testRemoveWireInvisibleSegments", testRemoveWireInvisibleSegments
       "Test 3: testRemoveWireInvisSegsAndRestoreNubs", testRemoveWireInvisSegsAndRestoreNubs
-      "Test 4", (fun (model: ModelType.Model) -> model)
+      "Test 4", testD2
       "Test 5: cleanUpAlmostsStraightSinglyConnWires", cleanUpAlmostsStraightSinglyConnWires
       "Test 6", (fun (model: ModelType.Model) -> model)
       "Test 7", (fun (model: ModelType.Model) -> model)

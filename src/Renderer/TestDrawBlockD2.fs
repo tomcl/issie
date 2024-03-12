@@ -33,10 +33,14 @@ module D2Test =
         let computeMetricPercentageChange (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->float)  =
             float (metric sheetAfter - metric sheetBefore)/float (metric sheetBefore)*100.0, metric sheetAfter, metric sheetBefore
         
-        let numberOfWireStraightened (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
+        /// number of segments straightened
+        let diffNWireRightAngles (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
             computeMetricDifference sheetAfter sheetBefore numOfVisRightAngles
 
-        let numberOfIntersectionReduced (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
+        let diffNComponentOverlap (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
+            computeMetricDifference sheetAfter sheetBefore numOfIntersectedSymPairs
+
+        let numOfCrossingsReduced (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
             computeMetricDifference sheetAfter sheetBefore numOfWireRightAngleCrossings
 
         /// number of visible wire segments counted over whole sheet
@@ -109,7 +113,7 @@ module D2Test =
             displayer "n_seg_intersect_sym" numOfIntersectSegSym sheet
 
         let displaySegmentCrossing (sheet: SheetT.Model) : string =
-            displayer "n_intersections" numOfWireRightAngleCrossings sheet
+            displayer "n_crossings" numOfWireRightAngleCrossings sheet
         
         let displayVisibleSegments (sheet: SheetT.Model) : string =
             displayer "n_visible_segments" countVisibleSegments sheet
@@ -351,48 +355,6 @@ module D2Test =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
-//------------------------------------------------------------------------------------------------//
-//-------------------------Example assertions used to test sheets---------------------------------//
-//------------------------------------------------------------------------------------------------//
-
-
-    module Asserts =
-
-        (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
-           It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
-           easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
-
-        /// Ignore sheet and fail on the specified sample, useful for displaying a given sample
-        let failOnSampleNumber (sampleToFail :int) (sample: int) _sheet =
-            if sampleToFail = sample then
-                Some $"Failing forced on Sample {sampleToFail}."
-            else
-                None
-
-        /// Fails all tests: useful to show in sequence all the sheets generated in a test
-        let failOnAllTests (sample: int) _ =
-            Some <| $"Sample {sample}"
-
-        /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
-        let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let wireModel = sheet.Wire
-            wireModel.Wires
-            |> Map.exists (fun _ wire -> BusWireRoute.findWireSymbolIntersections wireModel wire <> [])
-            |> (function | true -> Some $"Wire intersects a symbol outline in Sample {sample}"
-                         | false -> None)
-
-        /// Fail when sheet contains two symbols which overlap
-        let failOnSymbolIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let wireModel = sheet.Wire
-            let boxes =
-                mapValues sheet.BoundingBoxes
-                |> Array.toList
-                |> List.mapi (fun n box -> n,box)
-            List.allPairs boxes boxes 
-            |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
-            |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
-                         | false -> None)
-    
 //-------------------------------------------------------------------------------------//
 //-----------------------------D2 Tests on Draw Block code-----------------------------//
 //-------------------------------------------------------------------------------------//
@@ -464,23 +426,6 @@ module D2Test =
                 dispatch
                 displayOnFail
             |> recordPositionInTest testNum dispatch
-        
-        // let test9 testNum firstSample dispatch =
-        //     let displayOnFail = [displayComponents; displaySegmentIntersections; displayWireRightAngles; displayVisibleWiringLength; displayVisibleSegments]
-        //     display displayOnFail (makeTest1Circuit middleOfSheet)
-
-        // ====================== Tick3 Q7+Q10 Test ======================
-        // Randomly rotate and flip the symbols in the circuit maker
-        let randomFlip =
-            let flip = randomFlipping()
-            match flip with
-            | Ok flip -> 
-                flipSymbol "G1" flip
-            | Error flip -> 
-                // a fix for vertical flip, which uses rotateSymbol with Degree180 that doesn't work
-                flipSymbol "G1" flip
-                >> rotateSymbol "G1" Degree90
-                >> rotateSymbol "G1" Degree90
 
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu

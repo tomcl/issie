@@ -287,10 +287,20 @@ let getSymbolRotation (sym: Symbol) : Rotation = sym.STransform.Rotation
 /// <param name="sym">The symbol to set the rotation state of.</param>
 /// <param name="newRot">The new rotation state of the symbol.</param>
 /// <returns>The symbol with the new rotation state set.</returns>
+/// lens to get Rotation of a STransform
+let rotation_: Lens<STransform, Rotation> =
+    Lens.create (fun s -> s.Rotation) (fun v s -> { s with Rotation = v })
+/// lens to get STransform of a Symbol
+let sTransform_: Lens<Symbol, STransform> =
+    Lens.create (fun s -> s.STransform) (fun v s -> { s with STransform = v })
+
 let setSymbolRotation (sym: Symbol) (newRot: Rotation) : Symbol =
-    let sTransform = sym.STransform
-    let newSTransform = { sTransform with Rotation = newRot }
-    { sym with STransform = newSTransform }
+    let newSTransform = //{ sTransform with Rotation = newRot }
+        sym.STransform |> Optic.set rotation_ newRot
+    // { sym with STransform = newSTransform }
+    sym
+    |> Optic.set sTransform_ newSTransform
+    |> calcLabelBoundingBox
 
 // --------------------------------------------------- //
 //                     B8 Functions                    //

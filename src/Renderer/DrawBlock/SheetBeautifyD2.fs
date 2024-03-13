@@ -11,6 +11,7 @@ open SheetBeautifyHelpers
 open Optics
 open Operators
 open BusWireRoute
+open Symbol
 
 /// <summary>AUTHOR ec1221 - Adjusts port order on custom components, flip components,
 /// flip MUX input order to reduce wire crossings.</summary>
@@ -54,27 +55,50 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
             else
                 []
 
-
-        // create model with new port layout and evaluate
-        let checkSwapFolder (model: SheetT.Model) (order: string list) =
+        let evaluateChange (model: SheetT.Model) (newModel: SheetT.Model) : bool * SheetT.Model =
             let beforeCount = numOfWireRightAngleCrossings model
-            let model' = Optic.set symbols_ (Map.add id (putPortOrder  edge order model.Wire.Symbol.Symbols[id]) model.Wire.Symbol.Symbols) model
-            let wireModel = updateWires model'.Wire [id] {X= 0.0; Y= 0.0}
-            let model'' = {model' with Wire = wireModel}
-            let afterCount = numOfWireRightAngleCrossings model''
-            printfn $"after crossings: {afterCount}, before: {beforeCount}"  
+            let newWireModel = updateWires newModel.Wire [id] {X= 0.0; Y= 0.0}
+            let model' = {newModel with Wire = newWireModel}
+            let afterCount = numOfWireRightAngleCrossings model'
+            printfn $"after crossings: {afterCount}, before: {beforeCount}"
+            (afterCount < beforeCount), model'
 
-            if afterCount < beforeCount then
+
+        // function to create model with new port layout and evaluate
+        let checkSwapFolder (model: SheetT.Model) (order: string list) =
+            let newModel = Optic.set symbols_ (Map.add id (putPortOrder  edge order model.Wire.Symbol.Symbols[id]) model.Wire.Symbol.Symbols) model
+            let improvement,model' = evaluateChange model newModel
+
+            if improvement then
                 printfn "Swapped a custom component port order"
-                model''
+                model'
             else
                 model
-                
+
+        // function to create a model with swapped MUX sel port and evaluate
+        let checkMuxSelSwap model symbol edge =
+            if (isMuxSel symbol edge) then
+                let flipDirection =
+                    match edge with
+                    | (Left | Right) -> FlipHorizontal
+                    | (Top | Bottom) -> FlipVertical
+                let newModel = flipSymbol symbol.Component.Label flipDirection model
+                let improvement,model' = evaluateChange model newModel
+                if improvement then
+                    printfn "Flipped MUX Sel port edge"
+                    model'
+                else
+                    model
+            else
+                model
+
         let swappedPortsList =
             symbol.PortMaps.Order[edge]
             |> generateSwaps
 
-        let bestModel = (model, swappedPortsList) ||> List.fold checkSwapFolder            
+        let bestPortSwap = (model, swappedPortsList) ||> List.fold checkSwapFolder            
+        
+        let bestModel = checkMuxSelSwap bestPortSwap symbol edge
         (bestModel,id,symbol)
 
     // Fold over the port swap combinations to find the one with the least wire crossings for a whole symbol

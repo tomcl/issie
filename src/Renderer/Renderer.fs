@@ -163,7 +163,7 @@ let fileMenu (dispatch) =
             dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.runRandomTest ,dispatch)) 
         makeDebugItem "Load Unit Test" (Some "CmdOrCtrl+L") (fun ev ->
             dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.showUnitTestOnSheetWrapper ,dispatch))
-        makeDebugItem "Beautify Unit Test" (Some "CmdOrCtrl+T") (fun ev ->
+        makeDebugItem "Beautify and Test" (Some "CmdOrCtrl+T") (fun ev ->
             dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.runUnitTestOnSheetWrapper ,dispatch))
         makeDebugItem "Print TestModel Description" (Some "CmdOrCtrl+P") (fun ev ->
             dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.printTestModel, dispatch))

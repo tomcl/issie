@@ -253,17 +253,11 @@ module HLPTick3 =
 
 
         let runTestsWithBeautify
-            (testModel: TestModel)
+            (sheetModel: SheetT.Model)
             (beautifyFunc: SheetT.Model -> SheetT.Model)
             (testMetrics: (SheetT.Model -> int) list)
             (dispatch: Dispatch<Msg>)
             =
-
-            let sheetModel =
-                try
-                    Builder.placeTestModel testModel
-                with _ ->
-                    failwith "Error placing test model on sheet."
 
             let beautifiedSheetModel = beautifyFunc sheetModel
 
@@ -279,6 +273,7 @@ module HLPTick3 =
                 )
     
             showSheetInIssieSchematic beautifiedSheetModel dispatch
+
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
         /// 2. Check each ciruit with sheetChecker.
@@ -312,6 +307,7 @@ module HLPTick3 =
                 | Ok sheet -> showSheetInIssieSchematic sheet dispatch
                 | Error mess -> ()
             result
+
     //--------------------------------------------------------------------------------------------------//
     //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
     //--------------------------------------------------------------------------------------------------//
@@ -496,10 +492,11 @@ module HLPTick3 =
                 let testModelToShow = testModels.[testModelIndex]
                 let sheetModel =
                     try
-                        Builder.placeTestModel testModelToShow
+                        placeTestModel testModelToShow
                     with _ ->
                         failwith "Error placing test model on sheet."
                 showSheetInIssieSchematic sheetModel dispatch
+                dispatch (UpdateUnitTestIndex( (fun _ -> Some(testModelIndex + 1))))
             | Some _ ->
                 printfn "No more tests to show. Resetting to first test."
                 dispatch (UpdateUnitTestIndex (fun _ -> (Some 0)) )
@@ -513,24 +510,16 @@ module HLPTick3 =
 
         let runUnitTestOnSheet
             (model: Model)
-            (testModels: TestModel list)
             (testMetrics: list<(SheetT.Model -> int)>)
             (beautifyFunction: SheetT.Model -> SheetT.Model)
             (dispatch: Dispatch<Msg>)
             =
-            let currentState: int option = model.UnitTestState
-            match currentState with
-            | Some testModelIndex when testModelIndex < List.length testModels ->
-                let testModelToRun = testModels.[testModelIndex]
-                runTestsWithBeautify testModelToRun beautifyFunction testMetrics dispatch
-                dispatch (UpdateUnitTestIndex( (fun _ -> Some(testModelIndex + 1))))
-            | Some _ -> printfn "End of tests."
-            | _ -> failwith "Need to load Test Sheet first"
-
-            printfn "Test Finished"
-
+            let modelToRun = model.Sheet
+            printfn "Running test on current sheet"
+            runTestsWithBeautify modelToRun beautifyFunction testMetrics dispatch
+    
         let runUnitTestOnSheetWrapper (model: Model) (dispatch: Dispatch<Msg>) =
-            runUnitTestOnSheet model modelsUnderTest testMetricsInUse beautifyFunc dispatch
+            runUnitTestOnSheet model testMetricsInUse beautifyFunc dispatch
 
         
         let testRandom

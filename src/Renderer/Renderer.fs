@@ -16,7 +16,7 @@ open ElectronAPI
 open ModelType
 open Fable.SimpleJson
 open JSHelpers
-open Sheet.SheetInterface 
+open Sheet.SheetInterface
 open DrawModelType
 open Optics
 open Optics.Operators
@@ -100,7 +100,7 @@ let makeDebugItem label accelerator option =
 let makeWinDebugItem label accelerator option =
     makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) label accelerator option
 
-/// Make 
+/// Make
 let makeElmItem (label:string) (accelerator : string) (action : unit -> unit) =
     jsOptions<MenuItemConstructorOptions> <| fun item ->
         item.label <- Some label
@@ -142,10 +142,10 @@ let reRouteWires dispatch =
 
 let fileMenu (dispatch) =
     /// generate a menu item from a (name, function) list. See testDrawBlock.testsToRunFromSheetMenu
-    let makeTestItem (name:string) (accelNumber:int)  =
-        // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
-        makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
-            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
+    // let makeTestItem (name:string) (accelNumber:int)  =
+    //     // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
+    //     makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
+    //         dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
     makeMenu false "File" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
@@ -155,18 +155,20 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
-        makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
-            TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
-            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
-            |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
+        // makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
+        //     TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
+        //     |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
+        //     |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
         makeDebugItem "Run Random Test" (Some "CmdOrCtrl+R") (fun ev ->
-            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.runRandomTest ,dispatch)) 
+            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.TestingFramwork.Tests.runRandomTest ,dispatch))
+        makeDebugItem "Run Contrained Random Test" (Some "CmdOrCtrl+E") (fun ev ->
+            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.TestingFramwork.Tests.runRandomConstrainedTest ,dispatch))
         makeDebugItem "Load Unit Test" (Some "CmdOrCtrl+L") (fun ev ->
-            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.showUnitTestOnSheetWrapper ,dispatch))
+            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.TestingFramwork.Tests.showUnitTestOnSheetWrapper ,dispatch))
         makeDebugItem "Beautify and Test" (Some "CmdOrCtrl+T") (fun ev ->
-            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.runUnitTestOnSheetWrapper ,dispatch))
+            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.TestingFramwork.Tests.runUnitTestOnSheetWrapper ,dispatch))
         makeDebugItem "Print TestModel Description" (Some "CmdOrCtrl+P") (fun ev ->
-            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.printTestModel, dispatch))
+            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.TestingFramwork.Tests.printTestModel, dispatch))
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
         makeWinDebugItem "Trace View function" None (fun _ ->
@@ -196,11 +198,11 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
             makeWinDebugItem  "Run performance check" None
                 (fun _ -> Playground.MiscTests.testMaps())
-            makeWinDebugItem  "Print names of static asset files" None 
+            makeWinDebugItem  "Print names of static asset files" None
                 (fun _ -> Playground.MiscTests.testAssets())
-            makeWinDebugItem  "Test Breadcrumbs" None 
+            makeWinDebugItem  "Test Breadcrumbs" None
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testBreadcrumbs,dispatch))
-            makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
+            makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
 
             makeDebugItem "Force Exception" None
@@ -240,9 +242,9 @@ let viewMenu dispatch =
     let wireTypeDispatch = SheetT.WireType >> sheetDispatch
     let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
-    
-    
-    
+
+
+
     let symbolDispatch msg = busWireDispatch (BusWireT.Msg.Symbol msg)
 
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
@@ -259,15 +261,15 @@ let viewMenu dispatch =
         menuSeparator
         makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         makeMenu false "Theme" [
-            makeItem "Grayscale" None (fun ev -> 
+            makeItem "Grayscale" None (fun ev ->
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.White
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.White)
             )
-            makeItem "Light" None (fun ev -> 
+            makeItem "Light" None (fun ev ->
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.Light
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Light)
             )
-            makeItem "Colourful" None (fun ev -> 
+            makeItem "Colourful" None (fun ev ->
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
             )
@@ -313,7 +315,7 @@ let editMenu dispatch' =
                makeElmItem "Rotate Clockwise" "CmdOrCtrl+Right" (fun () -> rotateDispatch CommonTypes.Degree90)
                makeElmItem "Flip Vertically" "CmdOrCtrl+Up" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
                makeElmItem "Flip Horizontally" "CmdOrCtrl+Down" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
-               makeItem "Move Component Ports" None (fun _ -> 
+               makeItem "Move Component Ports" None (fun _ ->
                     dispatch' <| ShowStaticInfoPopup("How to move component ports", SymbolPortHelpers.moveCustomPortsPopup(), dispatch'))
                menuSeparator
                makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
@@ -420,7 +422,7 @@ let keyPressListener initial =
             e.preventDefault()
             //printfn "Context Menu listener sending to main..."
             dispatch (ContextMenuAction e)))
-            
+
 
     let subContextMenuCommand dispatch =
         renderer.ipcRenderer.on("context-menu-command", fun ev args ->
@@ -442,11 +444,11 @@ let keyPressListener initial =
 
 
 
-    
 
 
 
-    
+
+
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"

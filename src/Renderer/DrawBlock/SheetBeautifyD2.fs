@@ -19,15 +19,24 @@ open Symbol
 /// <returns>New sheet model with adjust ports/flip.</returns>
 let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
 
-    let filterMUXandCustomComponents (symbols: (ComponentId * Symbol) list) =
-        symbols |> List.filter (fun (id,symbol) -> match symbol.Component.Type with
-                                                    | Custom _ -> true
-                                                    | (Mux2 | Mux4 | Mux8) -> true
-                                                    | _ -> false)
+    let partitionComponents (symbols: (ComponentId * Symbol) list) =
+        symbols |> List.partition (fun (compId,symbol) -> match symbol.Component.Type with
+                                                            | Custom _ -> true
+                                                            | (Mux2 | Mux4 | Mux8) -> true
+                                                            | _ -> false)
+
+
+    let evaluateChange (model: SheetT.Model) (newModel: SheetT.Model) (compcompId: ComponentId): bool * SheetT.Model =
+        let beforeCount = numOfWireRightAngleCrossings model
+        let newWireModel = updateWires newModel.Wire [compcompId] {X= 0.0; Y= 0.0}
+        let model' = {newModel with Wire = newWireModel}
+        let afterCount = numOfWireRightAngleCrossings model'
+        printfn $"after crossings: {afterCount}, before: {beforeCount}"
+        (afterCount < beforeCount), model'
 
     // Recursion function to keep trying swapping port pairs until no improvement in wire crossing, then returns model.
     // For ports on a single edge 
-    let swapPortsOnEdge ((model,id,symbol): SheetT.Model * ComponentId * Symbol) (edge: Edge) =
+    let swapPortsOnEdge ((model,compId,symbol): SheetT.Model * ComponentId * Symbol) (edge: Edge) =
 
         // Function to generate all possible combinations of port swaps
         let generateSwaps (order: string list) : (string list list) =
@@ -55,19 +64,10 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
             else
                 []
 
-        let evaluateChange (model: SheetT.Model) (newModel: SheetT.Model) : bool * SheetT.Model =
-            let beforeCount = numOfWireRightAngleCrossings model
-            let newWireModel = updateWires newModel.Wire [id] {X= 0.0; Y= 0.0}
-            let model' = {newModel with Wire = newWireModel}
-            let afterCount = numOfWireRightAngleCrossings model'
-            printfn $"after crossings: {afterCount}, before: {beforeCount}"
-            (afterCount < beforeCount), model'
-
-
         // function to create model with new port layout and evaluate
         let checkSwapFolder (model: SheetT.Model) (order: string list) =
-            let newModel = Optic.set symbols_ (Map.add id (putPortOrder  edge order model.Wire.Symbol.Symbols[id]) model.Wire.Symbol.Symbols) model
-            let improvement,model' = evaluateChange model newModel
+            let newModel = Optic.set symbols_ (Map.add compId (putPortOrder  edge order model.Wire.Symbol.Symbols[compId]) model.Wire.Symbol.Symbols) model
+            let improvement,model' = evaluateChange model newModel compId
 
             if improvement then
                 printfn "Swapped a custom component port order"
@@ -83,7 +83,7 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
                     | (Left | Right) -> FlipHorizontal
                     | (Top | Bottom) -> FlipVertical
                 let newModel = flipSymbol symbol.Component.Label flipDirection model
-                let improvement,model' = evaluateChange model newModel
+                let improvement,model' = evaluateChange model newModel compId
                 if improvement then
                     printfn "Flipped MUX Sel port edge"
                     model'
@@ -99,22 +99,40 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
         let bestPortSwap = (model, swappedPortsList) ||> List.fold checkSwapFolder            
         
         let bestModel = checkMuxSelSwap bestPortSwap symbol edge
-        (bestModel,id,symbol)
+        (bestModel,compId,symbol)
+
+    let flipSymbol (model: SheetT.Model) ((compId,symbol): ComponentId * Symbol) =
+        let newModelH = flipSymbol symbol.Component.Label FlipHorizontal model
+        let newModelV = flipSymbol symbol.Component.Label FlipVertical model
+        let newModelVH = flipSymbol symbol.Component.Label FlipVertical (flipSymbol symbol.Component.Label FlipHorizontal model)
+        let improvementH,modelH = evaluateChange model newModelH compId
+        let improvementV,modelV = evaluateChange model newModelV compId
+        let improvementVH,modelVH = evaluateChange model newModelVH compId
+        if (improvementH || improvementV || improvementVH) then
+            printfn "flipped normal component"
+
+        match improvementH, improvementV, improvementVH with
+        | true, _, _ -> modelH
+        | false,true,_ -> modelV
+        | false,false,true -> modelVH
+        | _ -> model
+
 
     // Fold over the port swap combinations to find the one with the least wire crossings for a whole symbol
-    let swapSymbolEdgePorts (model: SheetT.Model) ((id,symbol): ComponentId * Symbol) =
+    let swapSymbolEdgePorts (model: SheetT.Model) ((compId,symbol): ComponentId * Symbol) =
         let edgesWithPorts = 
             [Top;Bottom;Left;Right]
             |> List.filter (fun edge -> Map.containsKey edge symbol.PortMaps.Order)
-        let model',_,_ = ((model,id,symbol), edgesWithPorts) ||> List.fold swapPortsOnEdge
+        let model',_,_ = ((model,compId,symbol), edgesWithPorts) ||> List.fold swapPortsOnEdge
         model'
 
     let symbols =
         model.Wire.Symbol.Symbols
         |> Map.toList
 
-    let customComponentSymbols = filterMUXandCustomComponents symbols
-    let (model') = (model,customComponentSymbols) ||> List.fold swapSymbolEdgePorts
+    let customAndMuxComponents, otherComponents = partitionComponents symbols
+    let swappedPortsModel = (model,customAndMuxComponents) ||> List.fold swapSymbolEdgePorts
+    let model' = (swappedPortsModel,otherComponents) ||> List.fold flipSymbol
     printfn "Beautified"
     model'
     

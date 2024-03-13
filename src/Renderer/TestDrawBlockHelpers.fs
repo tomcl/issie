@@ -1,14 +1,5 @@
 module TestDrawBlockHelpers
 
-(******************************************************************************************
-   This submodule contains a set of functions that enable random data generation
-   for property-based testing of Draw Block wire routing functions.
-   basic idea.
-   1. Generate, in various ways, random circuit layouts
-   2. For each layout apply smartautoroute to regenerate all wires
-   3. Apply check functions to see if the resulting wire routing obeys "good layout" rules.
-   4. Output any layouts with anomalous wire routing
-*******************************************************************************************)
 module SimpleSymbol =
     open EEExtensions
     open Optics

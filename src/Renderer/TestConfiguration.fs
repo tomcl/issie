@@ -1,6 +1,6 @@
 module TestConfiguration
 
-open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
+open TestDrawBlockHelpers.SimpleSymbol
 open TestAsserts
 open CommonTypes
 open DrawModelType

@@ -1,7 +1,4 @@
-module TestDrawBlockSimpleSymbol
-open GenerateData
-open Elmish
-
+module TestDrawBlockHelpers
 
 (******************************************************************************************
    This submodule contains a set of functions that enable random data generation
@@ -12,7 +9,7 @@ open Elmish
    3. Apply check functions to see if the resulting wire routing obeys "good layout" rules.
    4. Output any layouts with anomalous wire routing
 *******************************************************************************************)
-module SimpleSymbolTesting =
+module SimpleSymbol =
     open EEExtensions
     open Optics
     open Optics.Operators

@@ -5,6 +5,7 @@ open Elmish
 open TestAsserts.D2TestBuild
 open TestConfiguration
 open System.Text.RegularExpressions
+open TestDrawBlockHelpers.SimpleSymbol
 
 //-------------------------------------------------------------------------------------------//
 //--------Types to represent tests with (possibly) random data, and results from tests-------//
@@ -295,7 +296,6 @@ module HLPTick3 =
             <| UpdateModel(Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
             sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
 
-        open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
 
         let runTestsWithBeautify
             (testModel: TestModel)
@@ -425,8 +425,6 @@ module HLPTick3 =
     //---------------------------------------------------------------------------------------//
 
     module Tests =
-        open Builder
-        open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
 
         /// Allow test errors to be viewed in sequence by recording the current error
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.

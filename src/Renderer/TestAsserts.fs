@@ -11,7 +11,7 @@ open System
 open SheetBeautifyHelpers
 open SheetBeautifyHelpers.EzraHelpers
 open BusWidthInferer
-open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
+open TestDrawBlockHelpers.SimpleSymbol
 
 //----------------------------------------------------------------------------------------------//
 //------------------------------------D1T Asserts Functions-------------------------------------//

@@ -2,71 +2,6 @@ module TestDrawBlockSimpleSymbol
 open GenerateData
 open Elmish
 
-//-------------------------------------------------------------------------------------------//
-//--------Types to represent tests with (possibly) random data, and results from tests-------//
-//-------------------------------------------------------------------------------------------//
-module TestLib =
-
-    /// convenience unsafe function to extract Ok part of Result or fail if value is Error
-    let getOkOrFail (res: Result<'a,string>) =
-        match res with
-        | Ok x -> x
-        | Error mess ->
-            failwithf "%s" mess
-
-    type TestStatus =
-            | Fail of string
-            | Exception of string
-
-    type Test<'a> = {
-        Name: string
-        Samples: Gen<'a>
-        StartFrom: int
-        /// The 1st argument is the test number: allows assertions that fail on a specific sample
-        /// to display just one sample.
-        /// The return value is None if test passes, or Some message if it fails.
-        Assertion: int -> 'a -> string option
-        }
-
-    type TestResult<'a> = {
-        TestName: string
-        TestData: Gen<'a>
-        FirstSampleTested: int
-        TestErrors: (int * TestStatus) list
-    }
-
-    let catchException name func arg =
-        try
-            Ok (func arg)
-        with
-            | e ->
-                Error ($"Exception when running {name}\n" + e.StackTrace)
-
-    /// Run the Test samples from 0 up to test.Size - 1.
-    /// The return list contains all failures or exceptions: empty list => everything has passed.
-    /// This will always run to completion: use truncate if text.Samples.Size is too large.
-    let runTests (test: Test<'a>) : TestResult<'a>  =
-        [test.StartFrom..test.Samples.Size - 1]
-        |> List.map (fun n ->
-                catchException $"generating test {n} from {test.Name}" test.Samples.Data n
-                |> (fun res -> n,res)
-           )
-        |> List.collect (function
-                            | n, Error mess -> [n, Exception mess]
-                            | n, Ok sample ->
-                                match catchException $"'test.Assertion' on test {n} from 'runTests'" (test.Assertion n) sample with
-                                | Ok None -> []
-                                | Ok (Some failure) -> [n,Fail failure]
-                                | Error (mess) -> [n,Exception mess])
-        |> (fun resL ->
-                {
-                    TestName = test.Name
-                    FirstSampleTested = test.StartFrom
-                    TestData = test.Samples
-                    TestErrors =  resL
-                })
-
-
 
 (******************************************************************************************
    This submodule contains a set of functions that enable random data generation
@@ -81,21 +16,15 @@ module SimpleSymbolTesting =
     open EEExtensions
     open Optics
     open Optics.Operators
-    open DrawHelpers
     open Helpers
     open CommonTypes
     open ModelType
     open DrawModelType
     open Sheet.SheetInterface
-    open GenerateData
-    open TestLib
     open SheetBeautifyHelpers
 
     /// create an initial empty Sheet Model
     let initSheetModel = DiagramMainView.init().Sheet
-
-    /// Optic to access SheetT.Model from Issie Model
-    let sheetModel_ = sheet_
 
     /// Optic to access BusWireT.Model from SheetT.Model
     let busWireModel_ = SheetT.wire_
@@ -105,12 +34,19 @@ module SimpleSymbolTesting =
 
     /// allowed max X or y coord of svg canvas
     let maxSheetCoord = Sheet.Constants.defaultCanvasSize
+    
     let middleOfSheet = {X=maxSheetCoord/2.;Y=maxSheetCoord/2.}
 
     /// Used throughout to compare labels since these are case invariant "g1" = "G1"
     let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
 
+    /// convenience unsafe function to extract Ok part of Result or fail if value is Error
+    let getOkOrFail (res: Result<'a,string>) =
+        match res with
+        | Ok x -> x
+        | Error mess ->
+            failwithf "%s" mess
 
     let flipPortMaps (sym: SymbolT.Symbol) : SymbolT.PortMaps =
         let portOrientation =
@@ -132,10 +68,6 @@ module SimpleSymbolTesting =
     /// used to specify the ends of wires, since tehee are known to be
     /// connected to outputs (source) or inputs (target).
     type SymbolPort = { Label: string; PortNumber: int }
-
-    /// convenience function to make SymbolPorts
-    let portOf (label:string) (number: int) =
-        {Label=label; PortNumber = number}
 
     type SimpleSymbol = {
         SymLabel : string
@@ -291,12 +223,14 @@ module SimpleSymbolTesting =
         /// <param name="simSymbolList">The list of SimpleSymbols to be added to the model.</param>
         let placeSimSymbolList (simSymbolList: List<SimpleSymbol>) (model: SheetT.Model) =
             (Ok model,simSymbolList)
-            ||> List.fold (fun curModel curSimSymbol -> Result.bind (placeSimpleSymbol curSimSymbol) curModel)
+            ||> List.fold (fun curModel curSimSymbol -> 
+                Result.bind (placeSimpleSymbol curSimSymbol) curModel)
 
 
         let placeConnections (conns: List<SimpleConnection>) (model: SheetT.Model) =
             (Ok model,conns)
-            ||> List.fold (fun curModel curConn -> Result.bind (placeWire curConn.Source curConn.Target) curModel)
+            ||> List.fold (fun curModel curConn -> 
+                Result.bind (placeWire curConn.Source curConn.Target) curModel)
 
 
         /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
@@ -362,461 +296,3 @@ module SimpleSymbolTesting =
                         Description = None
                     }
                 placeSymbol symLabel (Custom ccType) position model
-
-
-        // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (Result<SheetT.Model,string>) =
-            let symbolMap = model.Wire.Symbol.Symbols
-            let symbol =
-                mapValues symbolMap
-                |> Array.find (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
-
-            let rotatedSymbol = SymbolResizeHelpers.rotateAntiClockByAng rotate symbol
-
-            let updatedSymbolMap =
-                symbolMap
-                |> Map.change rotatedSymbol.Id (fun x ->
-                    match x with
-                    | Some sym -> Some rotatedSymbol
-                    | None -> None )
-
-            // Optic.set SheetT.symbols_ symLabel
-            model
-            |> Optic.set SheetT.symbols_ updatedSymbolMap
-            |> Ok
-
-
-        // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (Result<SheetT.Model,string>) =
-            let symbolMap = model.Wire.Symbol.Symbols
-            let symbol =
-                mapValues symbolMap
-                |> Array.find (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
-
-            let flippedSymbol = SymbolResizeHelpers.flipSymbol flip symbol
-
-            let updatedSymbolMap =
-                symbolMap
-                |> Map.change flippedSymbol.Id (fun x ->
-                    match x with
-                    | Some sym -> Some flippedSymbol
-                    | None -> None )
-
-            // Optic.set SheetT.symbols_ symLabel
-            model
-            |> Optic.set SheetT.symbols_ updatedSymbolMap
-            |> Ok
-
-
-        /// Copy testModel into the main Issie Sheet making its contents visible
-        let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
-            let sheetDispatch sMsg = dispatch (Sheet sMsg)
-            dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
-            sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
-
-
-        /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
-        /// 2. Check each ciruit with sheetChecker.
-        /// 3. Return a TestResult record with errors those samples for which sheetChecker returns false,
-        /// or where there is an exception.
-        /// If there are any test errors display the first in Issie, and its error message on the console.
-        /// sheetMaker: generates a SheetT.model from the random sample
-        /// sheetChecker n model: n is sample number, model is the genrated model. Return false if test fails.
-        let runTestOnSheets
-            (name: string)
-            (sampleToStartFrom: int)
-            (samples : Gen<'a>)
-            (sheetMaker: 'a -> SheetT.Model)
-            (sheetChecker: int -> SheetT.Model -> string option)
-            (dispatch: Dispatch<Msg>)
-                : TestResult<'a> =
-            let generateAndCheckSheet n = sheetMaker >> sheetChecker n
-            let result =
-                {
-                    Name=name;
-                    Samples=samples;
-                    StartFrom = sampleToStartFrom
-                    Assertion = generateAndCheckSheet
-                }
-                |> runTests
-            match result.TestErrors with
-            | [] -> // no errors
-                printf $"Test {result.TestName} has PASSED."
-            | (n,first):: _ -> // display in Issie editor and print out first error
-                printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
-                match catchException "" sheetMaker (samples.Data n) with
-                | Ok sheet -> showSheetInIssieSchematic sheet dispatch
-                | Error mess -> ()
-            result
-
-
-//------------------------------------------------------------------------------------------------//
-//-------------------------Example assertions used to test sheets---------------------------------//
-//------------------------------------------------------------------------------------------------//
-
-
-    module Asserts =
-
-        (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
-           It returns a boolean indicating (true) that the test passes or (false) that the test fails. The sample numbr is included to make it
-           easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
-
-        /// Ignore sheet and fail on the specified sample, useful for displaying a given sample
-        let failOnSampleNumber (sampleToFail :int) (sample: int) _sheet =
-            if sampleToFail = sample then
-                Some $"Failing forced on Sample {sampleToFail}."
-            else
-                None
-
-        /// Fails all tests: useful to show in sequence all the sheets generated in a test
-        let failOnAllTests (sample: int) _ =
-            Some <| $"Sample {sample}"
-
-        /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline
-        let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let wireModel = sheet.Wire
-            wireModel.Wires
-            |> Map.exists (fun _ wire -> BusWireRoute.findWireSymbolIntersections wireModel wire <> [])
-            |> (function | true -> Some $"Wire intersects a symbol outline in Sample {sample}"
-                         | false -> None)
-
-        /// Fail when sheet contains two symbols which overlap
-        let failOnSymbolIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let boxes =
-                mapValues sheet.BoundingBoxes
-                |> Array.toList
-                |> List.mapi (fun n box -> n,box)
-            List.allPairs boxes boxes
-            |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
-            |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
-                         | false -> None)
-
-
-        /// <summary>
-        /// Assertion that takes 2 sheet models, one before and after beautify.
-        /// If the number of right angles increased by beautification, this is considered a failure.
-        /// If it's the same, it's not considered a failure; other metrics will be used here.
-        /// </summary>
-        /// <param name="sample">The sample number.</param>
-        /// <param name="sheetBeforeBeautify">The sheet model before beautification.</param>
-        /// <param name="sheetAfterBeautify">The sheet model after beautification.</param>
-        /// <returns>
-        /// A failure message if the number of right angles increased in the sample;
-        /// otherwise, None.
-        /// </returns>
-        let failOnBeautifyIncreasesRightAngles (sample: int) (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
-            let rAnglesBefore = numOfVisRightAngles sheetBeforeBeautify
-            let rAnglesAfter = numOfVisRightAngles sheetAfterBeautify
-
-            match rAnglesAfter > rAnglesBefore with
-                | true -> Some $"Beautify increased no. right angles in Sample {sample}"
-                | false -> None
-
-
-//--------------------------------------------------------------------------------------------------//
-//-------------------------------Example Test Circuits using Gen<'a> samples------------------------//
-//--------------------------------------------------------------------------------------------------//
-
-    open Builder
-    /// Sample data based on 11 equidistant points on a horizontal line
-    let horizLinePositions =
-        fromList [-100..20..100]
-        |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
-
-    let vertLinePositions =
-        fromList [-100..20..100]
-        |> map (fun n -> middleOfSheet + {X=0.; Y=float n})
-
-    let randomRotation _ =
-        random.Next(3)
-        |> function
-            | 0 -> Degree0
-            | 1 -> Degree90
-            | 2 -> Degree180
-            | _ -> Degree270
-
-    let randomflip _ =
-        random.Next(1)
-        |> function
-            | 0 -> SymbolT.FlipHorizontal
-            | _ -> SymbolT.FlipVertical
-
-    /// demo test circuit consisting of a DFF & And gate
-    let makeTest1Circuit (andPos:XYPos) =
-        initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-        |> getOkOrFail
-
-    let makeRotatedCircuit (andPos:XYPos) =
-        initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (rotateSymbol "FF1" Degree180)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-        |> getOkOrFail
-
-    let makeFlippedCircuit (andPos:XYPos) =
-        initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (flipSymbol "FF1" SymbolT.FlipVertical)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-        |> getOkOrFail
-
-    let makeRotatedAndFlippedCircuit (posData: XYPos * Rotation * SymbolT.FlipType) =
-        let (pos, rotation, flip) = posData
-        initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) (pos)
-        |> Result.bind (rotateSymbol "G1" rotation)
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (flipSymbol "FF1" flip)
-        |> Result.bind (rotateSymbol "FF1" rotation)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-        |> getOkOrFail
-
-
-    let generateXYPosFromInts (X:int) (Y:int) =
-        middleOfSheet + {X=float X; Y=float Y}
-
-    let checkNoSymbolOverlap (andPos:XYPos) =
-        makeTest1Circuit andPos
-        |>  Asserts.failOnSymbolIntersectsSymbol 1
-        |>  function
-            | None -> true
-            | Some _ -> false
-
-    let checkNoSymbolOverlapFlipRotate (posData: XYPos * Rotation * SymbolT.FlipType) =
-        makeRotatedAndFlippedCircuit posData
-        |>  Asserts.failOnSymbolIntersectsSymbol 1
-        |>  function
-            | None -> true
-            | Some _ -> false
-
-    let gridPositions =
-        let coordRange = fromList [-100..19..100]
-        let initGrid = product generateXYPosFromInts coordRange coordRange
-
-        filter checkNoSymbolOverlap initGrid
-
-    let gridPositionsWithFlipAndRotation =
-        let coordRange = fromList [-100..19..100]
-        let initGrid = product generateXYPosFromInts coordRange coordRange
-        let gridPlusRotation =  initGrid
-                                |> toList
-                                |> List.map (fun x -> (x,randomRotation "", randomflip ""))
-                                |> fromList
-
-        filter checkNoSymbolOverlapFlipRotate gridPlusRotation
-
-
-//---------------------------------------------------------------------------------------//
-//-----------------------------Demo tests on Draw Block code-----------------------------//
-//---------------------------------------------------------------------------------------//
-
-    module Tests =
-
-        /// Allow test errors to be viewed in sequence by recording the current error
-        /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
-        let recordPositionInTest (testNumber: int) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
-            dispatch <| UpdateDrawBlockTestState(fun _ ->
-                match result.TestErrors with
-                | [] ->
-                    printf "Test finished"
-                    None
-                | (numb, _) :: _ ->
-                    printf $"Sample {numb}"
-                    Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
-
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 0
-        let test1 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 0"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 10
-        let test2 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 10"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 10)
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
-        let test3 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on symbols intersect"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnSymbolIntersectsSymbol
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        /// Example test: Horizontally positioned AND + DFF: fail all tests
-        let test4 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail all tests"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        let routingTest testNum firstSample dispatch =
-            runTestOnSheets
-                "Routing Test (Grid Positioned AND + DFF): fail on wire intersects symbol"
-                firstSample
-                gridPositions
-                makeTest1Circuit
-                Asserts.failOnWireIntersectsSymbol
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        let rotateTest testNum firstSample dispatch =
-            runTestOnSheets
-                "Rotate 180 Degrees Test: fail every test"
-                firstSample
-                gridPositions
-                makeRotatedCircuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        let flipTest testNum firstSample dispatch =
-            runTestOnSheets
-                "Flip Vertically Test: fail every test"
-                firstSample
-                gridPositions
-                makeFlippedCircuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        let rotateAndFlipRouting testNum firstSample dispatch =
-            runTestOnSheets
-                "Rotate and Flip Routing: fail on wire intersects symbol"
-                firstSample
-                gridPositionsWithFlipAndRotation
-                makeRotatedAndFlippedCircuit
-                Asserts.failOnWireIntersectsSymbol
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-
-        /// List of tests available which can be run ftom Issie File Menu.
-        /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
-            // Change names and test functions as required
-            // delete unused tests from list
-            [
-                "Test1", test1 // example
-                "Test2", test2 // example
-                "Test3", test3 // example
-                "Test4", test4
-                "Part 7: Routing Test", routingTest // Test for part 7 - auto wire routing
-                "Rotate Test", rotateTest // test 6
-                "Flip Test", flipTest // test 7
-                "Part 10: Rotate and Flip Routing", rotateAndFlipRouting
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
-            ]
-
-        /// Display the next error in a previously started test
-        let nextError (testName, testFunc) firstSampleToTest dispatch =
-            let testNum =
-                testsToRunFromSheetMenu
-                |> List.tryFindIndex (fun (name,_) -> name = testName)
-                |> Option.defaultValue 0
-            testFunc testNum firstSampleToTest dispatch
-
-        /// common function to execute any test.
-        /// testIndex: index of test in testsToRunFromSheetMenu
-        let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name,func = testsToRunFromSheetMenu[testIndex]
-            printf "%s" name
-            match name, model.DrawBlockTestState with
-            | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
-            | "Next Test Error", None ->
-                printf "Test Finished"
-                ()
-            | _ ->
-                func testIndex 0 dispatch
-
-        let testModelGen (model: Model) (dispatch: Dispatch<Msg>) =
-            printfn $"{getTestModel model.Sheet}"
-
-            let test2 : TestModel =
-                { SimpleSymbols =
-                    [ { SymLabel = "G1"
-                        CompType = GateN(And, 2)
-                        Position = { X = 1638.105; Y = 1671.75 }
-                        STransform = { Rotation = Degree0; Flipped = false } }
-                      { SymLabel = "G2"
-                        CompType = GateN(And, 2)
-                        Position = { X = 1874.605; Y = 1858.25 }
-                        STransform = { Rotation = Degree0; Flipped = false } }
-                      { SymLabel = "MUX1"
-                        CompType = Mux2
-                        Position = { X = 1632.895; Y = 1780.25 }
-                        STransform = { Rotation = Degree0; Flipped = false } } ]
-                  Connections =
-                    [ { Source = { Label = "MUX1"; PortNumber = 0 }
-                        Target = { Label = "G2"; PortNumber = 0 } }
-                      { Source = { Label = "G1"; PortNumber = 0 }
-                        Target = { Label = "G2"; PortNumber = 1 } } ] }
-
-            let test3 =
-                { SimpleSymbols =
-                    [ { SymLabel = "MUX1"
-                        CompType = Mux2
-                        Position = { X = 1595.5774438476562; Y = 1801.0249633789062 }
-                        STransform = { Rotation = Degree0; Flipped = false } }
-                      { SymLabel = "G2"
-                        CompType = GateN(And, 2)
-                        Position = { X = 1834.7874438476563; Y = 1886.0249633789062 }
-                        STransform = { Rotation = Degree0; Flipped = false } }
-                      { SymLabel = "ADD1"
-                        CompType = NbitsAdder 3
-                        Position = { X = 1844.4225561523438; Y = 1666.4750366210938 }
-                        STransform = { Rotation = Degree0; Flipped = false } }
-                      { SymLabel = "G1"
-                        CompType = GateN(And, 2)
-                        Position = { X = 1600.7874438476563; Y = 1692.5249633789062 }
-                        STransform = { Rotation = Degree0; Flipped = false } } ]
-                  Connections =
-                    [ { Source = { Label = "ADD1"; PortNumber = 1 }
-                        Target = { Label = "MUX1"; PortNumber = 2 } }
-                      { Source = { Label = "MUX1"; PortNumber = 0 }
-                        Target = { Label = "ADD1"; PortNumber = 1 } }
-                      { Source = { Label = "MUX1"; PortNumber = 0 }
-                        Target = { Label = "G2"; PortNumber = 0 } }
-                      { Source = { Label = "G1"; PortNumber = 0 }
-                        Target = { Label = "G2"; PortNumber = 1 } } ] }
-
-            let test = getTestModel model.Sheet
-
-            let sheet = placeTestModel test3
-
-            showSheetInIssieSchematic sheet dispatch
-
-
-
-
-
-

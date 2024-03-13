@@ -169,8 +169,8 @@ let countBendsInSheet (sheet: SheetT.Model) : int =
 /// If the number of right angles increased by beautification, this is considered a failure.
 /// If it's the same, it's not considered a failure; other metrics will be used here.
 /// </summary>
-/// <param name="rAnglesBefore">The number of right angles before beautification.</param>
-/// <param name="rAnglesAfter">The number of right angles after beautification.</param>
+/// <param name="sheetBeforeBeautify">The sheet model before beautification.</param>
+/// <param name="sheetAfterBeautify">The sheet model after beautification.</param>
 /// <remarks>
 /// Use with 'countBendsInSheet' metric
 /// </remarks>
@@ -335,7 +335,6 @@ module D2TestBuild =
         let xPositions = defineGridParameters gridDimension.X numberOfColumns
         let yPositions = defineGridParameters gridDimension.Y numberOfRows
         List.collect (fun y -> List.map (fun x -> { X = x; Y = y }) xPositions) yPositions
-
 
 
     let randomSTransform () =

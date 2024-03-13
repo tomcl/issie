@@ -883,11 +883,11 @@ module HLPTick3 =
 
     let makeOFTestCircuitDemo1 (beautify: bool) =
         initSheetModel
-        |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -100; Y = -100 })
+        |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -700; Y = -500 })
         |> Result.bind (placeSymbol "MUX2" (Mux2) (middleOfSheet))
         |> Result.bind (placeSymbol "S1" (Input1 (1,None) ) (middleOfSheet + { X = -150; Y = -10 }))
         |> Result.bind (placeSymbol "S2" (Input1 (1,None)) (middleOfSheet + { X = -150; Y = 70 }))
-        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 150; Y = -100 }))
+        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 250; Y = -100 }))
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
         |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 0))
@@ -899,10 +899,10 @@ module HLPTick3 =
 
     let makeOFTestCircuitDemo2 (beautify: bool) =
         initSheetModel
-        |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -150; Y = -90 })
+        |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -600; Y = -300 })
         |> Result.bind (placeSymbol "MUX2" (Mux2) (middleOfSheet))
-        |> Result.bind (placeSymbol "DEMUX2" (Demux2) (middleOfSheet + { X = -150; Y = 66.9 }))
-        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 150; Y = -76 }))
+        |> Result.bind (placeSymbol "DEMUX2" (Demux2) (middleOfSheet + { X = -400; Y = 90 }))
+        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 150; Y = -180 }))
         |> Result.bind (placeSymbol "G2" (GateN (Or,2)) (middleOfSheet + { X = 150; Y = 71.5 }))
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))

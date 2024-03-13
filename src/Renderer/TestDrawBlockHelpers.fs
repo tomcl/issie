@@ -22,7 +22,7 @@ module SimpleSymbol =
 
     /// allowed max X or y coord of svg canvas
     let maxSheetCoord = Sheet.Constants.defaultCanvasSize
-    
+
     let middleOfSheet = {X=maxSheetCoord/2.;Y=maxSheetCoord/2.}
 
     /// Used throughout to compare labels since these are case invariant "g1" = "G1"
@@ -211,13 +211,13 @@ module SimpleSymbol =
         /// <param name="simSymbolList">The list of SimpleSymbols to be added to the model.</param>
         let placeSimSymbolList (simSymbolList: List<SimpleSymbol>) (model: SheetT.Model) =
             (Ok model,simSymbolList)
-            ||> List.fold (fun curModel curSimSymbol -> 
+            ||> List.fold (fun curModel curSimSymbol ->
                 Result.bind (placeSimpleSymbol curSimSymbol) curModel)
 
 
         let placeConnections (conns: List<SimpleConnection>) (model: SheetT.Model) =
             (Ok model,conns)
-            ||> List.fold (fun curModel curConn -> 
+            ||> List.fold (fun curModel curConn ->
                 Result.bind (placeWire curConn.Source curConn.Target) curModel)
 
 

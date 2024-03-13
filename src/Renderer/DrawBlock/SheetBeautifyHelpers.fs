@@ -155,8 +155,10 @@ let updateSymPos (newPos : XYPos) (sym: Symbol)  =
 /// Takes a new X,Y position and the sheet Model.
 /// Returns the Model with the symbol's position updated in Sheet BoundingBoxes
 let updateSymPosInSheet (symId: ComponentId) (newPos : XYPos) (sheet: SheetT.Model) =
+    printfn "ID %A" symId
+    printfn "%A" <| sheet.Wire.Symbol.Symbols
     Optic.map (SheetT.symbolOf_ symId) (updateSymPos newPos) sheet // update symbol & its label bounding box
-    |> Optic.set (SheetT.boundingBoxes_ >-> Optics.Map.valueForce_ "Bounding box not found" symId >-> topLeft_ ) newPos
+    // |> Optic.set (SheetT.boundingBoxes_ >-> Optics.Map.valueForce_ "Bounding box not found" symId >-> topLeft_ ) newPos
 
 
 
@@ -525,7 +527,7 @@ module EzraHelpers =
         List.allPairs indexedList indexedList
         |> List.filter (fun ((i, _), (j, _)) -> i < j)
         |> List.map (fun ((_, x), (_, y)) -> (x, y))
-    
+
 
     // This is Omar's function
     let mapValuesToList (map: Map<'a,'b> ) = Seq.toList map.Values

@@ -3,6 +3,7 @@ module Renderer.TestAsserts
 open CommonTypes.JSONComponent
 open GenerateData
 open EEExtensions
+open ModelType
 open Optics
 open CommonTypes
 open DrawModelType
@@ -13,6 +14,7 @@ open Operators
 open System
 open SheetBeautifyHelpers.EzraHelpers
 open BusWidthInferer
+open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
 
 //----------------------------------------------------------------------------------------------//
 //-----------------------------------Global Asserts Functions-----------------------------------//
@@ -43,8 +45,8 @@ let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
 
 let countComponentOverlaps  (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.numOfIntersectedSymPairs sheet
-    count 
-    
+    count
+
 /// <summary>
 /// Counts the number of straightened wire segments within a given sheet model.
 /// </summary>
@@ -79,7 +81,7 @@ let countWireStraightInSheet (sheet: SheetT.Model) : int =
 let countWireRoutingLength (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.calcVisWireLength sheet
     printfn "Testing countWireRoutingLength"
-    int count 
+    int count
 
 let isPointCloseToRectangle (point: XYPos) (box: BoundingBox) distanceThreshold =
     let inRange v minV maxV =
@@ -183,7 +185,8 @@ module D2TestBuild =
     //----------------------------------------------------------------------------------------------//
     //------------------------------------D3T Asserts Functions-------------------------------------//
     //----------------------------------------------------------------------------------------------//
-    open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
+
+    open CommonTypes
 
     let rand = Random()
 
@@ -226,22 +229,32 @@ module D2TestBuild =
         let flips = [| FlipHorizontal; FlipVertical |]
         flips.[rand.Next(flips.Length)]
 
-    let defineGridParameters (maxCoord: float) (numberOfColumns: int) : float list =
-        let columnWidth = maxCoord / float numberOfColumns
+    let defineGridParameters (gridLength: float) (numberOfColumns: int) : float list =
+        let columnWidth = gridLength / float numberOfColumns
         List.init numberOfColumns (fun i -> (float i + 0.5) * columnWidth)
 
-    let randomPositionInColumn (maxCoord: float) (columnXPositions: float list) : XYPos =
+    let randomPositionInColumn (gridLength: float) (columnXPositions: float list) : XYPos =
         let columnIndex = rand.Next(columnXPositions.Length)
         let xPosition = columnXPositions.[columnIndex]
-        let yPosition = rand.NextDouble() * maxCoord
+        let yPosition = rand.NextDouble() * gridLength
         { X = xPosition; Y = yPosition }
 
     let generateRandomPositionInColumn (maxCoord: float) (numberOfColumns: int) : XYPos =
         let columnXPositions = defineGridParameters maxCoord numberOfColumns
         randomPositionInColumn maxCoord columnXPositions
 
-    let randomPosition (maxCoord: float) =
-        { X = rand.NextDouble() * maxCoord; Y = rand.NextDouble() * maxCoord }
+    let deviatePos (minDev: float) (maxDev: float) (pos: XYPos) =
+        let rand = System.Random()
+        let deviate =  minDev + (maxDev - minDev) * rand.NextDouble()
+        { X = pos.X + deviate; Y = pos.Y + deviate }
+
+
+    let getGridPositions (gridDimension: XYPos) (numberOfColumns: int) (numberOfRows: int) =
+        let xPositions = defineGridParameters gridDimension.X numberOfColumns
+        let yPositions = defineGridParameters gridDimension.Y numberOfRows
+        List.collect (fun y -> List.map (fun x -> { X = x; Y = y }) xPositions) yPositions
+
+
 
     let randomSTransform () =
         { Rotation =
@@ -265,7 +278,7 @@ module D2TestBuild =
     let createRandomSimpleSymbol (id: int) (maxCoord: float) (numberOfColumns: int) : SimpleSymbol =
         let compType = randomComponentType ()
         let pos = (generateRandomPositionInColumn maxCoord numberOfColumns)
-        createSimpleSymbol' (sprintf "Comp%d" id) compType pos (randomSTransform ())
+        createSimpleSymbol (sprintf "Comp%d" id) compType pos (randomSTransform ())
 
 
     let getRandomPort (comp: ComponentType) (portType: PortType) : int =
@@ -274,16 +287,19 @@ module D2TestBuild =
         | PortType.Output -> rand.Next(outputs)
         | PortType.Input -> rand.Next(inputs)
 
+    let createRandomSimpleConnection source target =
+        { Source = { Label = source.SymLabel; PortNumber = getRandomPort source.CompType PortType.Output }
+          Target = { Label = string target.SymLabel; PortNumber = getRandomPort target.CompType PortType.Input } }
+
+    let makeConnections (components: SimpleSymbol list) =
+        List.zip components (List.tail components)
+        |> List.map (fun (source, target) -> createRandomSimpleConnection source target)
+
+
     let rec generateAndConnectComponents (numComponents: int) (maxCoord: float) (numberOfColumns: int) : TestModel =
         let components =
             List.init numComponents (fun id -> createRandomSimpleSymbol id maxCoord numberOfColumns)
-
-        let connections =
-            List.zip components (List.tail components)
-            |> List.map (fun (source, target) ->
-                { Source = { Label = source.SymLabel; PortNumber = getRandomPort source.CompType PortType.Output }
-                  Target = { Label = target.SymLabel; PortNumber = getRandomPort target.CompType PortType.Input } })
-
+        let connections = makeConnections components
         let testModel = { SimpleSymbols = components; Connections = connections }
 
         let sheetModel =
@@ -296,7 +312,44 @@ module D2TestBuild =
         else
             testModel
 
+
+    let getRandomSymbol (simSymbols: SimpleSymbol list) =
+        List.item (rand.Next(simSymbols.Length)) simSymbols
+
+    let createRandomConnection (simSymbols: SimpleSymbol list) =
+        let source = getRandomSymbol simSymbols
+        let target = getRandomSymbol simSymbols
+        createRandomSimpleConnection source target
+
+    let createNRandomConnections (simSymbols: SimpleSymbol list) (n: int) =
+        List.init n (fun _ -> createRandomConnection simSymbols)
+
+
+    let rec buildConstrainedCircuit (minDev: float) (maxDev: float) (numberOfRows: int) (numberOfColumns: int) (gridDimension: XYPos) : Model =
+        let gridPositions = getGridPositions gridDimension numberOfColumns numberOfRows
+
+        let components =
+            gridPositions
+            |> List.map (deviatePos minDev maxDev)
+            |> List.mapi (fun i pos -> createSimpleSymbol (sprintf "Comp%d" i) (randomComponentType ()) pos {Rotation = Degree0; Flipped = false})
+
+        let randomConnections = createNRandomConnections components (components.Length / 2)
+
+        components
+        |> (fun components -> createTestModel components (makeConnections components))
+        |> Optic.map connections_ (fun connections -> randomConnections @ connections |> List.distinct)
+        |> Builder.placeTestModel
+        |> (fun sheet ->
+            match SheetBeautifyHelpers.numOfIntersectedSymPairs sheet  with
+            | 0 -> sheet
+            | _ -> buildConstrainedCircuit minDev maxDev numberOfRows numberOfColumns gridDimension
+        )
+
     let buildTestCircuit (numComponents: int) (maxCoord: float) (numberOfColumns: int) : SheetT.Model =
         let testModel = generateAndConnectComponents numComponents maxCoord numberOfColumns
         let sheetModel = Builder.placeTestModel testModel
         sheetModel
+
+
+
+

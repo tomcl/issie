@@ -41,7 +41,7 @@ module TestLib =
         with
             | e ->
                 Error ($"Exception when running {name}\n" + e.StackTrace)
-            
+
     /// Run the Test samples from 0 up to test.Size - 1.
     /// The return list contains all failures or exceptions: empty list => everything has passed.
     /// This will always run to completion: use truncate if text.Samples.Size is too large.
@@ -50,7 +50,7 @@ module TestLib =
         |> List.map (fun n ->
                 catchException $"generating test {n} from {test.Name}" test.Samples.Data n
                 |> (fun res -> n,res)
-           )           
+           )
         |> List.collect (function
                             | n, Error mess -> [n, Exception mess]
                             | n, Ok sample ->
@@ -58,16 +58,16 @@ module TestLib =
                                 | Ok None -> []
                                 | Ok (Some failure) -> [n,Fail failure]
                                 | Error (mess) -> [n,Exception mess])
-        |> (fun resL ->                
+        |> (fun resL ->
                 {
                     TestName = test.Name
                     FirstSampleTested = test.StartFrom
                     TestData = test.Samples
                     TestErrors =  resL
                 })
- 
- 
-            
+
+
+
 (******************************************************************************************
    This submodule contains a set of functions that enable random data generation
    for property-based testing of Draw Block wire routing functions.
@@ -91,7 +91,7 @@ module SimpleSymbolTesting =
     open TestLib
     open SheetBeautifyHelpers
 
-    /// create an initial empty Sheet Model 
+    /// create an initial empty Sheet Model
     let initSheetModel = DiagramMainView.init().Sheet
 
     /// Optic to access SheetT.Model from Issie Model
@@ -110,21 +110,21 @@ module SimpleSymbolTesting =
     /// Used throughout to compare labels since these are case invariant "g1" = "G1"
     let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
-    
 
-    let flipPortMaps (sym: SymbolT.Symbol) : SymbolT.PortMaps = 
-        let portOrientation = 
+
+    let flipPortMaps (sym: SymbolT.Symbol) : SymbolT.PortMaps =
+        let portOrientation =
             sym.PortMaps.Orientation |> Map.map (fun id side -> SymbolResizeHelpers.flipSideHorizontal side)
 
         let flipPortList currPortOrder side =
             currPortOrder |> Map.add (SymbolResizeHelpers.flipSideHorizontal side ) sym.PortMaps.Order[side]
 
-        let portOrder = 
+        let portOrder =
             (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
-            |> Map.map (fun edge order -> List.rev order)  
+            |> Map.map (fun edge order -> List.rev order)
 
-        {Order=portOrder;Orientation=portOrientation}   
-        
+        {Order=portOrder;Orientation=portOrientation}
+
 
     /// Identify a port from its component label and number.
     /// Usually both an input and output port will mathc this, so
@@ -154,17 +154,21 @@ module SimpleSymbolTesting =
         Connections : SimpleConnection List
     }
 
+    let connections_ = Lens.create (fun m -> m.Connections) (fun v m -> {m with Connections = v})
 
-    let createSimpleSymbol' (label: string) (compType: ComponentType) (position: XYPos) (sTransform: STransform) =
+    let createSimpleSymbol (label: string) (compType: ComponentType) (position: XYPos) (sTransform: STransform) =
         { SymLabel = label;
         CompType = compType;
         Position = position;
         STransform = sTransform }
 
-        
-    let getSimSymbolMap (model: SheetT.Model) : Map<ComponentId, SimpleSymbol> = 
-        let extractValues (label: string) (symbol: SymbolT.Symbol) : SimpleSymbol= 
-            { SymLabel = label 
+    let createTestModel (simpleSymbols: SimpleSymbol List) (connections: SimpleConnection List) =
+        { SimpleSymbols = simpleSymbols
+          Connections = connections }
+
+    let getSimSymbolMap (model: SheetT.Model) : Map<ComponentId, SimpleSymbol> =
+        let extractValues (label: string) (symbol: SymbolT.Symbol) : SimpleSymbol=
+            { SymLabel = label
               CompType = symbol.Component.Type
               Position = { X = symbol.Pos.X + float symbol.Component.W / 2.0; Y = symbol.Pos.Y + float symbol.Component.H / 2.0 }
               STransform = symbol.STransform }
@@ -175,23 +179,23 @@ module SimpleSymbolTesting =
                 let symbol = snd symbolMap
                 (fst symbolMap, extractValues (symbol.Component.Label) symbol))
         |> Map.ofList
-    
 
-    let getSimpleConnections (model: SheetT.Model) (symbolMap: Map<ComponentId, SimpleSymbol>) = 
+
+    let getSimpleConnections (model: SheetT.Model) (symbolMap: Map<ComponentId, SimpleSymbol>) =
         let getSymLabel (hostId: ComponentId) =
             symbolMap
             |> Map.find hostId
             |> fun sym -> sym.SymLabel
-            
-        let getPortIndex (port: Port) (portList: List<Port>) = 
+
+        let getPortIndex (port: Port) (portList: List<Port>) =
             portList
             |> List.findIndex (fun elm -> port.Id = elm.Id)
-        
+
         let getSymbolPort (portType: PortType) (port: Port) =
             let compId = ComponentId port.HostId
             let Symbol = Optic.get (SheetT.symbolOf_ compId) model
 
-            let portNum = 
+            let portNum =
                 match portType with
                     | PortType.Input -> getPortIndex port Symbol.Component.InputPorts
                     | PortType.Output -> getPortIndex port Symbol.Component.OutputPorts
@@ -203,9 +207,9 @@ module SimpleSymbolTesting =
         |> List.map (fun conn ->
              { Source = getSymbolPort PortType.Output conn.Source
                Target = getSymbolPort PortType.Input conn.Target })
-    
-    
-    let getTestModel (model: SheetT.Model) = 
+
+
+    let getTestModel (model: SheetT.Model) =
         let simpleSymbolMap = getSimSymbolMap model
 
         { SimpleSymbols = Map.values simpleSymbolMap |> Array.toList
@@ -216,9 +220,7 @@ module SimpleSymbolTesting =
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
 
-        /// <summary>
-        /// Output a sheet model with a SimpleSymbol added to it.
-        /// </summary>
+        /// <summary> Output a sheet model with a SimpleSymbol added to it. </summary>
         /// <param name="model">The Sheet model into which the new symbol is added.</param>
         /// <param name="simSymbol">The SimpleSymbol to be added to the model.</param>
         let placeSimpleSymbol (simSymbol: SimpleSymbol) (model: SheetT.Model) : Result<SheetT.Model, string> =
@@ -226,21 +228,21 @@ module SimpleSymbolTesting =
             let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) simSymbol.Position simSymbol.CompType symLabel
             let sym = symModel.Symbols[symId]
 
-            let portMaps' = 
-                if simSymbol.STransform.Flipped 
+            let portMaps' =
+                if simSymbol.STransform.Flipped
                 then
                     flipPortMaps sym
                     |> SymbolResizeHelpers.rotatePortInfo simSymbol.STransform.Rotation
                 else
                     SymbolResizeHelpers.rotatePortInfo simSymbol.STransform.Rotation sym.PortMaps
-            
+
             let sym' = sym
                       |> Optic.set symbol_flipped_ simSymbol.STransform.Flipped
                       |> Optic.set symbol_rotation_ simSymbol.STransform.Rotation
                       |> Optic.set SymbolT.portMaps_ portMaps'
 
             let symModel' = Optic.set (SymbolT.symbolOf_ symId) sym' symModel
-            
+
             match simSymbol.Position with
             | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
                 Error $"symbol '{symLabel}' position {simSymbol.Position + sym.getScaledDiagonal} lies outside allowed coordinates"
@@ -249,7 +251,7 @@ module SimpleSymbolTesting =
                 |> Optic.set symbolModel_ symModel'
                 |> SheetUpdateHelpers.updateBoundingBoxes
                 |> Ok
-        
+
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -268,7 +270,7 @@ module SimpleSymbolTesting =
                     | PortType.Output -> List.tryItem symPort.PortNumber sym.Component.OutputPorts
                     |> function | Some port -> Ok port.Id
                                 | None -> Error $"Can't find {portType} port {symPort.PortNumber} on component {symPort.Label}")
-            
+
             match getPortId PortType.Input target, getPortId PortType.Output source with
             | Error e, _ | _, Error e -> Error e
             | Ok inPort, Ok outPort ->
@@ -280,40 +282,35 @@ module SimpleSymbolTesting =
 
                      model
                      |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
-                     |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId])  
+                     |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations [newWire.WId])
                      |> Ok
 
 
-        /// <summary>
-        /// Fold over a list of simple symbols and output a sheet model with all of them added.
-        /// </summary>
+        /// <summary> Fold over a list of simple symbols and output a sheet model with all of them added. </summary>
         /// <param name="model">The Sheet model into which the new symbols are added.</param>
         /// <param name="simSymbolList">The list of SimpleSymbols to be added to the model.</param>
-        let placeSimSymbolList (simSymbolList: List<SimpleSymbol>) (model: SheetT.Model) = 
+        let placeSimSymbolList (simSymbolList: List<SimpleSymbol>) (model: SheetT.Model) =
             (Ok model,simSymbolList)
             ||> List.fold (fun curModel curSimSymbol -> Result.bind (placeSimpleSymbol curSimSymbol) curModel)
-                    // match placeSimpleSymbol curModel curSimSymbol with
-                    // | Ok model -> model
-                    // | Error e -> curModel) // Failed to draw symbol so pass previous model
-            
+
 
         let placeConnections (conns: List<SimpleConnection>) (model: SheetT.Model) =
             (Ok model,conns)
-            ||> List.fold (fun curModel curConn -> Result.bind (placeWire curConn.Source curConn.Target) curModel) 
-        
+            ||> List.fold (fun curModel curConn -> Result.bind (placeWire curConn.Source curConn.Target) curModel)
+
 
         /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
         let separateAllWires (model: SheetT.Model) : SheetT.Model =
             model
             |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
 
-        let placeTestModel (testModel: TestModel) = 
+        let placeTestModel (testModel: TestModel) =
             initSheetModel
             |> placeSimSymbolList testModel.SimpleSymbols
             |> Result.bind (placeConnections testModel.Connections)
             |> Result.map separateAllWires
             |> getOkOrFail
-      
+
 
         /// Place a new symbol with label symLabel onto the Sheet with given position.
         /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
@@ -334,7 +331,7 @@ module SimpleSymbolTesting =
                 |> Optic.set symbolModel_ symModel
                 |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
                 |> Ok
-        
+
 
         /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
         /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
@@ -349,7 +346,7 @@ module SimpleSymbolTesting =
                     : Result<SheetT.Model, string> =
            let symbolMap = model.Wire.Symbol.Symbols
            if caseInvariantEqual ccSheetName project.OpenFileName then
-                Error "Can't create custom component with name same as current opened sheet"        
+                Error "Can't create custom component with name same as current opened sheet"
             elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
                 Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
             elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
@@ -365,18 +362,18 @@ module SimpleSymbolTesting =
                         Description = None
                     }
                 placeSymbol symLabel (Custom ccType) position model
-            
-        
+
+
         // Rotate a symbol
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (Result<SheetT.Model,string>) =
             let symbolMap = model.Wire.Symbol.Symbols
-            let symbol =    
+            let symbol =
                 mapValues symbolMap
                 |> Array.find (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
 
             let rotatedSymbol = SymbolResizeHelpers.rotateAntiClockByAng rotate symbol
-            
-            let updatedSymbolMap = 
+
+            let updatedSymbolMap =
                 symbolMap
                 |> Map.change rotatedSymbol.Id (fun x ->
                     match x with
@@ -386,19 +383,19 @@ module SimpleSymbolTesting =
             // Optic.set SheetT.symbols_ symLabel
             model
             |> Optic.set SheetT.symbols_ updatedSymbolMap
-            |> Ok 
-        
+            |> Ok
+
 
         // Flip a symbol
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (Result<SheetT.Model,string>) =
             let symbolMap = model.Wire.Symbol.Symbols
-            let symbol =    
+            let symbol =
                 mapValues symbolMap
                 |> Array.find (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
 
             let flippedSymbol = SymbolResizeHelpers.flipSymbol flip symbol
-            
-            let updatedSymbolMap = 
+
+            let updatedSymbolMap =
                 symbolMap
                 |> Map.change flippedSymbol.Id (fun x ->
                     match x with
@@ -408,8 +405,8 @@ module SimpleSymbolTesting =
             // Optic.set SheetT.symbols_ symLabel
             model
             |> Optic.set SheetT.symbols_ updatedSymbolMap
-            |> Ok 
-        
+            |> Ok
+
 
         /// Copy testModel into the main Issie Sheet making its contents visible
         let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
@@ -475,7 +472,7 @@ module SimpleSymbolTesting =
         let failOnAllTests (sample: int) _ =
             Some <| $"Sample {sample}"
 
-        /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
+        /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline
         let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
             let wireModel = sheet.Wire
             wireModel.Wires
@@ -489,11 +486,11 @@ module SimpleSymbolTesting =
                 mapValues sheet.BoundingBoxes
                 |> Array.toList
                 |> List.mapi (fun n box -> n,box)
-            List.allPairs boxes boxes 
+            List.allPairs boxes boxes
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
-        
+
 
         /// <summary>
         /// Assertion that takes 2 sheet models, one before and after beautify.
@@ -525,19 +522,19 @@ module SimpleSymbolTesting =
     let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
-    
+
     let vertLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=0.; Y=float n})
-    
+
     let randomRotation _ =
         random.Next(3)
         |> function
             | 0 -> Degree0
             | 1 -> Degree90
             | 2 -> Degree180
-            | _ -> Degree270 
-    
+            | _ -> Degree270
+
     let randomflip _ =
         random.Next(1)
         |> function
@@ -552,7 +549,7 @@ module SimpleSymbolTesting =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
-    
+
     let makeRotatedCircuit (andPos:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
@@ -570,7 +567,7 @@ module SimpleSymbolTesting =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
-    
+
     let makeRotatedAndFlippedCircuit (posData: XYPos * Rotation * SymbolT.FlipType) =
         let (pos, rotation, flip) = posData
         initSheetModel
@@ -582,32 +579,32 @@ module SimpleSymbolTesting =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
-    
-    
+
+
     let generateXYPosFromInts (X:int) (Y:int) =
         middleOfSheet + {X=float X; Y=float Y}
 
     let checkNoSymbolOverlap (andPos:XYPos) =
         makeTest1Circuit andPos
-        |>  Asserts.failOnSymbolIntersectsSymbol 1 
-        |>  function
-            | None -> true
-            | Some _ -> false
-    
-    let checkNoSymbolOverlapFlipRotate (posData: XYPos * Rotation * SymbolT.FlipType) =
-        makeRotatedAndFlippedCircuit posData
-        |>  Asserts.failOnSymbolIntersectsSymbol 1 
+        |>  Asserts.failOnSymbolIntersectsSymbol 1
         |>  function
             | None -> true
             | Some _ -> false
 
-    let gridPositions = 
+    let checkNoSymbolOverlapFlipRotate (posData: XYPos * Rotation * SymbolT.FlipType) =
+        makeRotatedAndFlippedCircuit posData
+        |>  Asserts.failOnSymbolIntersectsSymbol 1
+        |>  function
+            | None -> true
+            | Some _ -> false
+
+    let gridPositions =
         let coordRange = fromList [-100..19..100]
         let initGrid = product generateXYPosFromInts coordRange coordRange
 
         filter checkNoSymbolOverlap initGrid
 
-    let gridPositionsWithFlipAndRotation = 
+    let gridPositionsWithFlipAndRotation =
         let coordRange = fromList [-100..19..100]
         let initGrid = product generateXYPosFromInts coordRange coordRange
         let gridPlusRotation =  initGrid
@@ -616,7 +613,7 @@ module SimpleSymbolTesting =
                                 |> fromList
 
         filter checkNoSymbolOverlapFlipRotate gridPlusRotation
-    
+
 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
@@ -635,7 +632,7 @@ module SimpleSymbolTesting =
                 | (numb, _) :: _ ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
-            
+
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
             runTestOnSheets
@@ -679,7 +676,7 @@ module SimpleSymbolTesting =
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
-        
+
         let routingTest testNum firstSample dispatch =
             runTestOnSheets
                 "Routing Test (Grid Positioned AND + DFF): fail on wire intersects symbol"
@@ -699,7 +696,7 @@ module SimpleSymbolTesting =
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
-        
+
         let flipTest testNum firstSample dispatch =
             runTestOnSheets
                 "Flip Vertically Test: fail every test"
@@ -719,8 +716,8 @@ module SimpleSymbolTesting =
                 Asserts.failOnWireIntersectsSymbol
                 dispatch
             |> recordPositionInTest testNum dispatch
-        
-        
+
+
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
@@ -730,7 +727,7 @@ module SimpleSymbolTesting =
                 "Test1", test1 // example
                 "Test2", test2 // example
                 "Test3", test3 // example
-                "Test4", test4 
+                "Test4", test4
                 "Part 7: Routing Test", routingTest // Test for part 7 - auto wire routing
                 "Rotate Test", rotateTest // test 6
                 "Flip Test", flipTest // test 7
@@ -750,7 +747,7 @@ module SimpleSymbolTesting =
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
         let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name,func = testsToRunFromSheetMenu[testIndex] 
+            let name,func = testsToRunFromSheetMenu[testIndex]
             printf "%s" name
             match name, model.DrawBlockTestState with
             | "Next Test Error", Some state ->
@@ -760,11 +757,11 @@ module SimpleSymbolTesting =
                 ()
             | _ ->
                 func testIndex 0 dispatch
-        
+
         let testModelGen (model: Model) (dispatch: Dispatch<Msg>) =
             printfn $"{getTestModel model.Sheet}"
 
-            let test2 : TestModel = 
+            let test2 : TestModel =
                 { SimpleSymbols =
                     [ { SymLabel = "G1"
                         CompType = GateN(And, 2)
@@ -784,7 +781,7 @@ module SimpleSymbolTesting =
                       { Source = { Label = "G1"; PortNumber = 0 }
                         Target = { Label = "G2"; PortNumber = 1 } } ] }
 
-            let test3 = 
+            let test3 =
                 { SimpleSymbols =
                     [ { SymLabel = "MUX1"
                         CompType = Mux2
@@ -818,8 +815,8 @@ module SimpleSymbolTesting =
 
             showSheetInIssieSchematic sheet dispatch
 
-        
 
 
-    
+
+
 

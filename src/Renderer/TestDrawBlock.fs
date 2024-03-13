@@ -323,7 +323,7 @@ module HLPTick3 =
                     after
                     (after - before)
                     )
-    
+
             showSheetInIssieSchematic beautifiedSheetModel dispatch
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
@@ -495,7 +495,7 @@ module HLPTick3 =
               "Test2", test2 // example
               "Test3", test3 // example
               "Test4", test4
-              "Test5", 
+              "Test5",
               fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
               "Test6", (fun _ _ _ -> printf "Test6")
               "Test7", (fun _ _ _ -> printf "Test7")
@@ -529,14 +529,14 @@ module HLPTick3 =
         //////////////////////////////////////////////////////////////////
         ////////////////// UNIT TESTING PIPELINE SKELETON ////////////////
         //////////////////////////////////////////////////////////////////
-        
-        
-        let modelToTest : TestModel = 
+
+
+        let modelToTest : TestModel =
             { SimpleSymbols =
                 [ { SymLabel = "G1"
                     CompType = GateN(And, 2)
                     Position = { X = 1638.105; Y = 1671.75 }
-                    STransform = { Rotation = Degree0; Flipped = false } 
+                    STransform = { Rotation = Degree0; Flipped = false }
                     }
                   { SymLabel = "G2"
                     CompType = GateN(And, 2)
@@ -576,11 +576,11 @@ module HLPTick3 =
             =
             runTestsWithBeautify modelToTest beautifyFunction testMetrics dispatch
 
-        
+
         let beautifyFunction (sheetModel: SheetT.Model) : SheetT.Model =
             // Placeholder beautify logic
             sheetModel
-        
+
         let testMetrics: list<(SheetT.Model -> int)> = [
             countWireRoutingLength;
             countWireStraightInSheet;
@@ -588,11 +588,11 @@ module HLPTick3 =
 
         let runUnitTest (dispatch: Dispatch<Msg>) =
             // Your test function here, simplified without needing to select from a menu
-            // CHECK STATE HERE 
+            // CHECK STATE HERE
             testUnit modelToTest beautifyFunction testMetrics dispatch
 
         let showUnitTestOnSheet (model: Model) (dispatch: Dispatch<Msg>) =
-            // model is passed in to match signature in Renderer.fs        
+            // model is passed in to match signature in Renderer.fs
             let sheetModel =
                 try
                     Builder.placeTestModel modelToTest
@@ -603,8 +603,10 @@ module HLPTick3 =
 
         let runUnitTestOnSheet (model: Model) (dispatch: Dispatch<Msg>) =
             // model is passed in to match signature in Renderer.fs
-            let sheetModel = buildTestCircuit 12 1000.0 10
+            // let sheetModel = buildTestCircuit 12 1000.0 10
+            let sheetModel = buildConstrainedCircuit -10 10 4 4 {X = 1000; Y = 1000}
+
             showSheetInIssieSchematic sheetModel dispatch
             // runUnitTest dispatch
             // printf "Test Finished"
-        
+

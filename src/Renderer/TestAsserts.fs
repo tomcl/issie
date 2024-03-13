@@ -12,6 +12,7 @@ open DrawModelType.SymbolT
 open DrawModelType.SheetT
 open Operators
 open System
+open SheetBeautifyHelpers
 open SheetBeautifyHelpers.EzraHelpers
 open BusWidthInferer
 open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
@@ -181,10 +182,101 @@ let countBendsInSheet (sheet: SheetT.Model) : int =
     let count = SheetBeautifyHelpers.numOfVisRightAngles sheet
     count
 
+//----------------------------------------------------------------------------------------------//
+//-------------------------------------Comparison Asserts---------------------------------------//
+//----------------------------------------------------------------------------------------------//
+
+/// <summary>
+/// If the number of right angles increased by beautification, this is considered a failure.
+/// If it's the same, it's not considered a failure; other metrics will be used here.
+/// </summary>
+/// <param name="rAnglesBefore">The number of right angles before beautification.</param>
+/// <param name="rAnglesAfter">The number of right angles after beautification.</param>
+/// <remarks>
+/// Use with 'countBendsInSheet' metric
+/// </remarks>
+/// <returns>
+/// A failure message if the number of right angles increased in the sample;
+/// otherwise, None.
+/// </returns>
+let failOnBeautifyIncreasesRightAngles (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
+    let rAnglesBefore = countBendsInSheet sheetBeforeBeautify
+    let rAnglesAfter = countBendsInSheet sheetAfterBeautify
+    match rAnglesAfter > rAnglesBefore with
+        | true -> Some $"FAILURE: Beautify increased no. right angles"
+        | false -> None
+
+/// <remarks>
+/// Use with 'countComponentOverlaps' metric
+/// </remarks>
+let failOnBeautifyCausesSymbolOverlap (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
+    let overlapAfter = countComponentOverlaps sheetAfterBeautify
+    match overlapAfter > 0 with
+        | true -> Some $"FAILURE: Beautify caused symbols to overlap"
+        | false -> None
+
+/// <remarks>
+/// Use with 'countWireIntersectsSymbolInSheet' metric
+/// </remarks>
+let failOnBeautifyIncreasesSegSymIntersect (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
+    let intersectsBefore = countWireIntersectsSymbolInSheet sheetBeforeBeautify
+    let intersectsAfter = countWireIntersectsSymbolInSheet sheetAfterBeautify
+    match intersectsAfter > intersectsBefore with
+        | true -> Some $"FAILURE: Beautify increased no. wire segment/symbol intersections"
+        | false -> None
+
+/// <remarks>
+/// Use with 'countWireStraightInSheet' metric
+/// </remarks>
+let failOnBeautifyDecreasesStraightWires (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
+    let straightWiresBefore = countWireStraightInSheet sheetBeforeBeautify
+    let straightWiresAfter = countWireStraightInSheet sheetAfterBeautify
+    match straightWiresBefore > straightWiresAfter with
+        | true -> Some $"FAILURE: Beautify decreased no. straight wires in sheet"
+        | false -> None
+
+/// <remarks>
+/// Use with 'countWireRoutingLength' metric
+/// </remarks>
+let failOnBeautifyIncreasesWireLength (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
+    let lengthBefore = countWireRoutingLength sheetBeforeBeautify
+    let lengthAfter = countWireRoutingLength sheetAfterBeautify
+    match lengthAfter > lengthBefore with
+        | true -> Some $"FAILURE: Beautify increased visible wire length in sheet"
+        | false -> None
+
+/// <remarks>
+/// Use with 'countWireSquashedInSheet' metric
+/// </remarks>
+let failOnBeautifyIncreasesSquashedWires (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
+    let squashesBefore = countWireSquashedInSheet sheetBeforeBeautify
+    let squashesAfter = countWireSquashedInSheet sheetAfterBeautify
+    match squashesAfter > squashesBefore with
+        | true -> Some $"FAILURE: Beautify increased no. of squased wires in sheet"
+        | false -> None
+
+/// <remarks>
+/// Use with 'countWiresCrossingInSheet' metric
+/// </remarks>
+let failOnBeautifyIncreasesRightAngleCrossings (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
+    let crossingsBefore = countWiresCrossingInSheet sheetBeforeBeautify
+    let crossingsAfter = countWiresCrossingInSheet sheetAfterBeautify
+    match crossingsAfter > crossingsBefore with
+        | true -> Some $"FAILURE: Beautify increased no. of right angle crossings in sheet"
+        | false -> None
+
+/// <remarks>
+/// Use with 'countWiresOverlapInSheet' metric
+/// </remarks>
+let failOnBeautifyIncreasesOverlappingWires (sheetBeforeBeautify: SheetT.Model) (sheetAfterBeautify: SheetT.Model) =
+    let overlapsBefore = countWiresOverlapInSheet sheetBeforeBeautify
+    let overlapsAfter = countWiresOverlapInSheet sheetAfterBeautify
+    match overlapsAfter > overlapsBefore with
+        | true -> Some $"FAILURE: Beautify increased no. of overlapping wires"
+        | false -> None
+
+
 module D2TestBuild =
-    //----------------------------------------------------------------------------------------------//
-    //------------------------------------D3T Asserts Functions-------------------------------------//
-    //----------------------------------------------------------------------------------------------//
 
     open CommonTypes
 

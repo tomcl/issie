@@ -505,6 +505,7 @@ module HLPTick3 =
 
               ]
 
+
         /// Display the next error in a previously started test
         let nextError (testName, testFunc) firstSampleToTest dispatch =
             let testNum =
@@ -512,6 +513,7 @@ module HLPTick3 =
                 |> List.tryFindIndex (fun (name, _) -> name = testName)
                 |> Option.defaultValue 0
             testFunc testNum firstSampleToTest dispatch
+
 
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
@@ -553,6 +555,7 @@ module HLPTick3 =
                     Target = { Label = "G2"; PortNumber = 0 } }
                   { Source = { Label = "G1"; PortNumber = 0 }
                     Target = { Label = "G2"; PortNumber = 1 } } ] }
+
         let testModel
             (modelToTest: TestModel)
             (beautifyFunction: SheetT.Model -> SheetT.Model)
@@ -576,7 +579,31 @@ module HLPTick3 =
             =
             runTestsWithBeautify modelToTest beautifyFunction testMetrics dispatch
 
+        let testRandom
+            (randomSheet: SheetT.Model)
+            (beautifyFunction: SheetT.Model -> SheetT.Model)
+            (testAssert: SheetT.Model -> SheetT.Model -> option<string>)
+            (dispatch: Dispatch<Msg>)
+            =
+            
+            let beautifiedSheet = beautifyFunction randomSheet
 
+
+            // printfn "Showing beautified sheet"
+            // showSheetInIssieSchematic beautifiedSheet dispatch
+
+            testAssert randomSheet beautifiedSheet 
+            |> function 
+             | Some fail -> 
+                    printfn $"{fail}"
+                    printfn "Showing sheet before beautify..."
+                    showSheetInIssieSchematic randomSheet dispatch
+             | None ->
+                    printfn "Showing beautified sheet"
+                    showSheetInIssieSchematic beautifiedSheet dispatch
+                    printfn "Test Succeeded!"
+
+        
         let beautifyFunction (sheetModel: SheetT.Model) : SheetT.Model =
             // Placeholder beautify logic
             sheetModel
@@ -585,6 +612,30 @@ module HLPTick3 =
             countWireRoutingLength;
             countWireStraightInSheet;
             ]
+
+
+        let placeholderList = [
+                failOnBeautifyCausesSymbolOverlap;
+                failOnBeautifyIncreasesSegSymIntersect;
+                failOnBeautifyDecreasesStraightWires;]
+
+        let runRandomTest (model: Model) (dispatch: Dispatch<Msg>) =
+            let randomModel = buildTestCircuit 12 1000.0 10
+            // let sheetModel = Builder.placeTestModel modelToTest
+            // showSheetInIssieSchematic sheetModel dispatch
+
+            placeholderList
+            |> List.map (fun curAssert ->
+                testRandom
+                    randomModel 
+                    beautifyFunction 
+                    curAssert
+                    dispatch )
+            |> ignore
+
+            // let test = getTestModel model.Sheet
+            // printf $"{test}"
+
 
         let runUnitTest (dispatch: Dispatch<Msg>) =
             // Your test function here, simplified without needing to select from a menu

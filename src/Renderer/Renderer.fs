@@ -159,6 +159,8 @@ let fileMenu (dispatch) =
             TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
             |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
+        makeDebugItem "Show Model Before Beautify" (Some "CmdOrCtrl+R") (fun ev ->
+            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.runRandomTest ,dispatch)) 
         makeDebugItem "Show Model Before Beautify" (Some "CmdOrCtrl+L") (fun ev ->
             dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.showUnitTestOnSheet ,dispatch))
         makeDebugItem "Beautify Model" (Some "CmdOrCtrl+T") (fun ev ->

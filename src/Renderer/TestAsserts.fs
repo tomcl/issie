@@ -190,9 +190,19 @@ module D2TestBuild =
 
     let rand = Random()
 
+    let createRandomCustomComponent numInputs =
+        {
+           Name = "Custom"
+           InputLabels = List.init numInputs (fun i -> sprintf "In%d" i, i)
+           OutputLabels = ["Out", 0]
+           Form = None
+           Description = None
+        }
+
+
     let portInfoByComponentType (compType: ComponentType) : (int * int) = // (numInputs, numOutputs)
         match compType with
-        | GateN(gateType, numInputs) -> (numInputs, 1)
+        | GateN(_, numInputs) -> (numInputs, 1)
         | Mux2 -> (2, 1)
         | Mux4 -> (4, 1)
         | Mux8 -> (8, 1)
@@ -222,8 +232,11 @@ module D2TestBuild =
             GateN(randomGateComponentType (), Random().Next(1, 5)) // Randomly selecting between 1 to 4 inputs
         | n when n < 80 -> // 30% for Mux/Demux
             randomMuxDemuxType ()
-        | _ -> // 20% for FlipFlop
+        | n when n < 90 -> // 10% for FlipFlop
             randomFlipFlopType ()
+        | _ -> // 10% for FlipFlop
+            // randomFlipFlopType ()
+            Custom (createRandomCustomComponent (Random().Next(1, 4)))
 
     let randomFlipType () =
         let flips = [| FlipHorizontal; FlipVertical |]
@@ -325,19 +338,23 @@ module D2TestBuild =
         List.init n (fun _ -> createRandomConnection simSymbols)
 
 
+    let updateConnections (newConnections: SimpleConnection list) (model: TestModel)  =
+        let removeIllegalConnections (connections: SimpleConnection list) (newConnections: SimpleConnection list) =
+            connections @ newConnections
+            |> List.distinctBy (fun c -> (c.Target))
+
+        Optic.map connections_ (fun connections -> removeIllegalConnections connections newConnections) model
+
     let rec buildConstrainedCircuit (minDev: float) (maxDev: float) (numberOfRows: int) (numberOfColumns: int) (gridDimension: XYPos) : Model =
         let gridPositions = getGridPositions gridDimension numberOfColumns numberOfRows
-
         let components =
             gridPositions
             |> List.map (deviatePos minDev maxDev)
             |> List.mapi (fun i pos -> createSimpleSymbol (sprintf "Comp%d" i) (randomComponentType ()) pos {Rotation = Degree0; Flipped = false})
 
-        let randomConnections = createNRandomConnections components (components.Length / 2)
-
         components
         |> (fun components -> createTestModel components (makeConnections components))
-        |> Optic.map connections_ (fun connections -> randomConnections @ connections |> List.distinct)
+        |> updateConnections (createNRandomConnections components (components.Length / 2))
         |> Builder.placeTestModel
         |> (fun sheet ->
             match SheetBeautifyHelpers.numOfIntersectedSymPairs sheet  with

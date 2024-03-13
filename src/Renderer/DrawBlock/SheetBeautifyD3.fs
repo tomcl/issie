@@ -392,11 +392,22 @@ let getSameNetWireLabelsFromName (labelName: string) (model:SheetT.Model) =
 
 /// Delete a list of symbols (used for deleting wire labels)
 let deleteSyms (symList:list<Symbol>) (model:SheetT.Model) = 
-    let newSymbolModel =
+    let compIdList = 
         symList
         |> List.map (fun sym -> sym.Id)
+
+    // remove the to-be-deleted symbols from model.SelectedComponents
+    // because they would no longer exist in the selection box
+    let newSelectedComponents = 
+        model.SelectedComponents
+        |> List.filter (fun compId -> not (compIdList |> List.contains compId))
+
+    let newSymbolModel =
+        compIdList
         |> deleteSymbols model.Wire.Symbol
-    Optic.set symbol_ newSymbolModel model
+        
+    {model with Wire = {model.Wire with Symbol = newSymbolModel}
+                SelectedComponents = newSelectedComponents} 
     |> updateBoundingBoxes
 
 

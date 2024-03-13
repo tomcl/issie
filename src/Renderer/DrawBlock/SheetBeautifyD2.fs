@@ -12,6 +12,8 @@ open Helpers
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open Optics
+open BusWireUpdate
+open BusWireRoute
 
 ///Team deliverable D2 implementation <az1221>
 ///Port order on custom components, flip components, flip MUX input order
@@ -22,14 +24,14 @@ let sheetOrderFlip (sheet: SheetT.Model) =
     //each time, choose minimum. This is optimal but slow and unscalable.
 
     // get symbols on sheet
-    let symbolList = 
+    let symbolList (sheet: SheetT.Model) = 
         sheet.Wire.Symbol.Symbols
         |> mapValues
         |> Array.toList
 
     ///find all MUXesfrom a list of symbol (MUX2)
-    let getMuxList  = 
-        symbolList
+    let getMuxList (sheet: SheetT.Model)  = 
+        symbolList sheet
         |> List.filter (fun symbol -> 
             let componentType = symbol.Component.Type
             match componentType with 
@@ -38,8 +40,8 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             )
 
     ///find all gates from a list of symbol
-    let getGateList  = 
-        symbolList
+    let getGateList (sheet: SheetT.Model)  = 
+        symbolList sheet
         |> List.filter (fun symbol -> 
             let componentType = symbol.Component.Type
             match componentType with 
@@ -65,8 +67,11 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             let reversePortOrder = List.rev portOrder
             putPortOrder side reversePortOrder mux
         |None -> mux
-    
-    let flipVertical (sym: SymbolT.Symbol) = SymbolResizeHelpers.flipSymbol FlipVertical sym
+    // flip a symbol vertically, SymbolResizeHelpers.flip Symbol does not work for flip vertical
+    let flipVertical (sym: SymbolT.Symbol) = 
+        sym
+        |> SymbolResizeHelpers.rotateSymbol Degree180
+        |> SymbolResizeHelpers.flipSymbol SymbolT.FlipHorizontal 
 
     // flip a MUX and swap input
     let flipAndSwapMux (symbol: Symbol) = 
@@ -82,14 +87,33 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         numOfWireRightAngleCrossings sheet
 
     let updatedSymbolsMap = 
-        getMuxList 
-        |> List.map flipAndSwapMux
-        |> (fun transformedSym -> 
-            let symbolsMap = sheet.Wire.Symbol.Symbols
-            (symbolsMap, transformedSym)
-            ||> List.fold (fun symMap symToAdd -> Map.add symToAdd.Id symToAdd symMap))
-    
-    { sheet with Wire = { sheet.Wire with Symbol = { sheet.Wire.Symbol with Symbols = updatedSymbolsMap } } }
+        //flip and swap MUX then update Symbol map
+        let updateMuxSymbolMap = 
+            getMuxList sheet
+            |> List.map flipAndSwapMux
+            |> (fun transformedSym -> 
+                    let symbolsMap = sheet.Wire.Symbol.Symbols
+                    (symbolsMap, transformedSym)
+                    ||> List.fold (fun symMap symToAdd -> Map.add symToAdd.Id symToAdd symMap))
+        // vertical flip the gates and update to the modified symbol map
+        let updateGatesSymbolMap = 
+            getGateList sheet
+            |> List.map flipVertical
+            |> (fun gateList ->
+                    (updateMuxSymbolMap, gateList)
+                    ||> List.fold (fun symMap symToAdd -> 
+                        printf "info : %A" symToAdd.Component.SymbolInfo
+                        Map.add symToAdd.Id symToAdd symMap))
+        updateGatesSymbolMap
+        
+    printf "number of wire crossing:  %d" (numWireCrossing sheet)
+    let newSheet = { sheet with Wire = { sheet.Wire with Symbol = { sheet.Wire.Symbol with Symbols = updatedSymbolsMap } } }
+    // reroute wires for modified symbols
+    let wireMap = 
+        newSheet.Wire.Wires
+        |> Map.map (fun cid wire -> smartAutoroute newSheet.Wire wire)
+    {newSheet with Wire = {newSheet.Wire with Wires = wireMap} }
+
     
 
     

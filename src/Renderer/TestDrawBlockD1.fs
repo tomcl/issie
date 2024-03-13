@@ -1,4 +1,5 @@
-﻿module SheetBeautifyD1
+﻿
+module TestDrawBlockD1
 
 open DrawModelType
 open DrawModelType.SymbolT
@@ -64,6 +65,17 @@ module D1TestHelperFunctions =
             (fromList [-100..20..100])
             (fromList [-100..20..100])
 
+    let generateSmallDeviations =
+        let rnd = Random()
+        [-100..20..100]
+        |> List.collect (fun x ->
+            [-100..20..100]
+            |> List.collect (fun y ->
+                let deviationX = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 2.5 in X
+                let deviationY = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 2.5 in Y
+                [{ X = float x + deviationX; Y = float y + deviationY }]))
+
+
     let filterOverlap (pos1: XYPos) =
         // Define the size of the components
         let componentSize = 10.0
@@ -75,13 +87,20 @@ module D1TestHelperFunctions =
         not (overlapX && overlapY)
 
     let filteredSampleData =
-        generateSampleData
+        generateSmallDeviations
         |> GenerateData.filter filterOverlap
 
+    let rnd = Random()
+
+    //Create circuit containing 2 input ports and MUX2
     let makeNearStraightWireCircuit (andPos: XYPos) =
+        
+        let deviationX = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 2.5 in X
+        let deviationY = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 2.5 in Y
+
         initSheetModel
-        |> HLPTick3.Builder.placeSymbol "A" (Input1(1, None)) andPos
-        |> Result.bind (HLPTick3.Builder.placeSymbol "B" (Input1(1, None)) andPos)
+        |> HLPTick3.Builder.placeSymbol "A" (Input1(1, None)) { X = andPos.X + deviationX; Y = andPos.Y + deviationY }
+        |> Result.bind (HLPTick3.Builder.placeSymbol "B" (Input1(1, None)) { X = andPos.X - deviationX; Y = andPos.Y - deviationY })
         |> Result.bind (HLPTick3.Builder.placeSymbol "MUX1" Mux2 middleOfSheet)
         |> Result.bind (HLPTick3.Builder.placeWire (HLPTick3.portOf "A" 0) (HLPTick3.portOf "MUX1" 0))
         |> Result.bind (HLPTick3.Builder.placeWire (HLPTick3.portOf "MUX1" 0) (HLPTick3.portOf "A" 0))
@@ -137,7 +156,7 @@ module D1TestHelperFunctions =
             | true -> Some $"Wire intersects another wire in Sample {sample}"
             | false -> None *)
 
-    module TestD1 =
+  module TestD1 =
 
         let testD1_1 testNum firstSample dispatch =
             HLPTick3.Builder.runTestOnSheets

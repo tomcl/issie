@@ -84,12 +84,9 @@
     <Compile Include="DrawBlock\SheetDisplay.fs" />
 	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
 	<Compile Include="DrawBlock\SheetBeautifyHelpers.fs" />
-   <!-- <Compile Include="DrawBlock\SheetBeautifyD1.fs" /> -->
-    <!-- <Compile Include="DrawBlock\SheetBeautifyD2.fs" /> -->
-    <!-- <Compile Include="DrawBlock\SheetBeautifyD3.fs" /> -->
-   <!-- <Compile Include="DrawBlock\SheetBeautifyD1.fs" /> -->
-    <!-- <Compile Include="DrawBlock\SheetBeautifyD2.fs" /> -->
-    <!-- <Compile Include="DrawBlock\SheetBeautifyD3.fs" /> -->
+  <!-- <Compile Include="DrawBlock\SheetBeautifyD1.fs" /> -->
+  <!-- <Compile Include="DrawBlock\SheetBeautifyD2.fs" /> -->
+  <!-- <Compile Include="DrawBlock\SheetBeautifyD3.fs" /> -->
 	<Compile Include="DrawBlock\SheetBeautify.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
@@ -125,7 +122,7 @@
     <Compile Include="GenerateData.fs" />
     <Compile Include="TestDrawBlockSimpleSymbol.fs" />
     <Compile Include="TestAsserts.fs" />
-    <Compile Include="UnitTestLoader.fs" />
+    <Compile Include="TestConfiguration.fs" />
     <Compile Include="TestDrawBlock.fs" />
   <!-- <Compile Include="TestDrawBlockD1.fs" /> -->
   <!-- <Compile Include="TestDrawBlockD2.fs" /> -->

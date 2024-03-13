@@ -189,6 +189,7 @@ let shortDisplayMsg (msg:Msg) =
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
     | UpdateDrawBlockTestState _ -> None
+    | UpdateUnitTestIndex _ -> None
 
 
 

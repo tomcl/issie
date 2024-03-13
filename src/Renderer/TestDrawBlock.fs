@@ -2,10 +2,9 @@
 
 open GenerateData
 open Elmish
-open BlockHelpers
-open SheetBeautifyHelpers.EzraHelpers
-open Renderer.TestAsserts
-open Renderer.TestAsserts.D2TestBuild
+open TestAsserts.D2TestBuild
+open TestConfiguration
+open System.Text.RegularExpressions
 
 //-------------------------------------------------------------------------------------------//
 //--------Types to represent tests with (possibly) random data, and results from tests-------//
@@ -532,10 +531,9 @@ module HLPTick3 =
         ////////////////// UNIT TESTING PIPELINE SKELETON ////////////////
         //////////////////////////////////////////////////////////////////
 
-        open Renderer.UnitTestLoader
 
         let modelsUnderTest = modelsToTest
-        let testMetricsInUse = testMetrics
+        let testMetricsInUse = unitTestMetrics
         let beautifyFunc = beautifyFunction
         let showUnitTestOnSheet (model: Model) (testModels: TestModel list) (dispatch: Dispatch<Msg>) =
             let currentState: int option = model.UnitTestState
@@ -578,7 +576,10 @@ module HLPTick3 =
 
             printfn "Test Finished"
 
+        let runUnitTestOnSheetWrapper (model: Model) (dispatch: Dispatch<Msg>) =
+            runUnitTestOnSheet model modelsUnderTest testMetricsInUse beautifyFunc dispatch
 
+        
         let testRandom
             (randomSheet: SheetT.Model)
             (beautifyFunction: SheetT.Model -> SheetT.Model)
@@ -587,10 +588,6 @@ module HLPTick3 =
             =
             
             let beautifiedSheet = beautifyFunction randomSheet
-
-
-            // printfn "Showing beautified sheet"
-            // showSheetInIssieSchematic beautifiedSheet dispatch
 
             testAssert randomSheet beautifiedSheet 
             |> function 
@@ -603,28 +600,11 @@ module HLPTick3 =
                     showSheetInIssieSchematic beautifiedSheet dispatch
                     printfn "Test Succeeded!"
 
-        
-        let beautifyFunction (sheetModel: SheetT.Model) : SheetT.Model =
-            // Placeholder beautify logic
-            sheetModel
-
-        let testMetrics: list<(SheetT.Model -> int)> = [
-            countWireRoutingLength;
-            countWireStraightInSheet;
-            ]
-
-
-        let placeholderList = [
-                failOnBeautifyCausesSymbolOverlap;
-                failOnBeautifyIncreasesSegSymIntersect;
-                failOnBeautifyDecreasesStraightWires;]
 
         let runRandomTest (model: Model) (dispatch: Dispatch<Msg>) =
             let randomModel = buildTestCircuit 12 1000.0 10
-            // let sheetModel = Builder.placeTestModel modelToTest
-            // showSheetInIssieSchematic sheetModel dispatch
 
-            placeholderList
+            randomTestAsserts
             |> List.map (fun curAssert ->
                 testRandom
                     randomModel 
@@ -633,13 +613,6 @@ module HLPTick3 =
                     dispatch )
             |> ignore
 
-            // let test = getTestModel model.Sheet
-            // printf $"{test}"
-
-        let runUnitTestOnSheetWrapper (model: Model) (dispatch: Dispatch<Msg>) =
-            runUnitTestOnSheet model modelsUnderTest testMetricsInUse beautifyFunc dispatch
-
-        open System.Text.RegularExpressions
 
         let correctFormat (data: string) : string =
             let replaceFirstGroupToUpper (m: Match) : string =

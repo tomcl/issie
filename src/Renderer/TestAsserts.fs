@@ -1,4 +1,4 @@
-module Renderer.TestAsserts
+module TestAsserts
 
 open Optics
 open CommonTypes
@@ -12,29 +12,6 @@ open SheetBeautifyHelpers
 open SheetBeautifyHelpers.EzraHelpers
 open BusWidthInferer
 open TestDrawBlockSimpleSymbol.SimpleSymbolTesting
-
-//----------------------------------------------------------------------------------------------//
-//-----------------------------------Global Asserts Functions-----------------------------------//
-//----------------------------------------------------------------------------------------------//
-
-/// Ignore sheet and fail on the specified sample, useful for displaying a given sample
-let failOnSampleNumber (sampleToFail: int) (sample: int) _sheet =
-    if sampleToFail = sample then
-        Some $"Failing forced on Sample {sampleToFail}."
-    else
-        None
-/// Fails all tests: useful to show in sequence all the sheets generated in a test
-let failOnAllTests (sample: int) _ = Some <| $"Sample {sample}"
-/// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline
-let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-    let wireModel = sheet.Wire
-    wireModel.Wires
-    |> Map.exists (fun _ wire ->
-        BusWireRoute.findWireSymbolIntersections wireModel wire
-        <> [])
-    |> (function
-    | true -> Some $"Wire intersects a symbol outline in Sample {sample}"
-    | false -> None)
 
 //----------------------------------------------------------------------------------------------//
 //------------------------------------D1T Asserts Functions-------------------------------------//
@@ -280,8 +257,6 @@ let failOnBeautifyIncreasesOverlappingWires (sheetBeforeBeautify: SheetT.Model) 
 
 module D2TestBuild =
 
-    open CommonTypes
-
     let rand = Random()
 
     let createRandomCustomComponent numInputs =
@@ -374,14 +349,6 @@ module D2TestBuild =
             Random().Next(2) = 0 }
 
 
-    let getRandomEdge _ : Edge =
-        match Random().Next(4) with
-        | 0 -> Top
-        | 1 -> Bottom
-        | 2 -> Left
-        | _ -> Right
-
-
     let createRandomSimpleSymbol (id: int) (maxCoord: float) (numberOfColumns: int) : SimpleSymbol =
         let compType = randomComponentType ()
         let pos = (generateRandomPositionInColumn maxCoord numberOfColumns)
@@ -414,7 +381,7 @@ module D2TestBuild =
             with
             | _ -> failwith "Error placing test model on sheet."
 
-        if SheetBeautifyHelpers.numOfIntersectedSymPairs sheetModel > 0 then
+        if numOfIntersectedSymPairs sheetModel > 0 then
             generateAndConnectComponents numComponents maxCoord numberOfColumns
         else
             testModel

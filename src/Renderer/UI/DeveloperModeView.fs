@@ -51,7 +51,7 @@ let developerModeView (model: ModelType.Model) dispatch =
             [ summary
                   [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleBeautifyMenu)) ]
                   [ str "Beautification Level " ]
-              p [] [ beautifyMenu ] ]
+              div [] [ beautifyMenu ] ]
 
     let instructionText =
         div
@@ -77,7 +77,8 @@ let developerModeView (model: ModelType.Model) dispatch =
               ("Near-Straight Wires", (countAlmostStraightWiresOnSheet model.Sheet).ToString())
               ("Singly-Conn Wires", (countSinglyConnectedWires model.Sheet).ToString())
               ("Vis. Seg. Length", (countVisibleSegmentLength model.Sheet).ToString("F2"))
-              ("Free Space!!!", ":)") ]
+              ("Sym-Sym Overlap", (countIntersectingSymbolPairsWithOverlapArea model.Sheet).ToString()) ]
+        //   ("Free Space!!!", ":)") ]
 
         counterItems
         |> List.chunkBySize 2
@@ -225,21 +226,21 @@ let developerModeView (model: ModelType.Model) dispatch =
                       []
                       [ th [] [ str "Port Id" ]
                         th [] [ str "No." ]
-                        th [] [ str "Type" ]
+                        th [] [ str "I/O" ]
                         th [] [ str "Host Id" ] ]
                   yield! tableRows ]
         [ details
               [ Open(model.SymbolInfoTableExpanded) ]
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolInfoTable)) ] [ str "Symbol " ]
-                p [] [ SymbolTableInfo ] ]
+                div [] [ SymbolTableInfo ] ]
           details
               [ Open model.SymbolPortsTableExpanded ]
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolPortsTable)) ] [ str "Ports" ]
-                p [] [ (createTableFromPorts symbol.PortMaps.Orientation) ] ]
+                div [] [ (createTableFromPorts symbol.PortMaps.Orientation) ] ]
           details
               [ Open model.SymbolPortMapsTableExpanded ]
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolPortMapsTable)) ] [ str "PortMaps" ]
-                p [] [ (createTableFromPortMapsOrder symbol.PortMaps.Order) ] ] ]
+                div [] [ (createTableFromPortMapsOrder symbol.PortMaps.Order) ] ] ]
 
     let wireToListItem (wire: Wire) =
         let WireTableInfo =
@@ -316,11 +317,11 @@ let developerModeView (model: ModelType.Model) dispatch =
         [ details
               [ Open model.WireTableExpanded ]
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleWireTable)) ] [ str "Wire " ]
-                p [] [ WireTableInfo ] ]
+                div [] [ WireTableInfo ] ]
           details
               [ Open model.WireSegmentsTableExpanded ]
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleWireSegmentsTable)) ] [ str "Wire Segments" ]
-                p [] [ WireSegmentsTableInfo ] ] ]
+                div [] [ WireSegmentsTableInfo ] ] ]
 
     let viewComponent =
         match model.Sheet.SelectedComponents, model.Sheet.SelectedWires with

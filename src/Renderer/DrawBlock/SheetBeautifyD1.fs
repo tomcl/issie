@@ -16,6 +16,7 @@ open Symbol
 open BusWireRoute
 open BusWire
 open BusWireUpdateHelpers
+open SheetUpdateHelpers
 
 // --------------------------------------------------- //
 //                         INFO!                       //
@@ -185,7 +186,7 @@ let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) =
                     __________________                          |                             | No
     _______________|      almost straight
 
-    make sure it won't detect edge cases, such as a tall user-generated stepladder wire that moves upwards in small increments.
+    Todo: make sure it won't detect edge cases, such as a tall user-generated stepladder wire that moves upwards in small increments.
     this can be done by checking the length of the list of minority segments
 
     |               |
@@ -408,9 +409,16 @@ let startpos_: Lens<Wire, XYPos> =
 /// the wire that is connected to the symbol,
 /// the offset that needs to be moved by,
 /// and if the connected port is an input. This will determine how to shift the StartPos of the wire
-type CleanUpRecord = { Symbol: Symbol; Wire: Wire; Offset: XYPos; IsPortInput: bool }
-/// Function to manually route a wire from a (recently-moved) singly connected symbol, and also move the symbol by the offset
-let rerouteStraightWireSymbol (cleanUpRecord: CleanUpRecord) =
+type CleanUpRecord =
+    { Symbol: Symbol
+      Wire: Wire
+      Offset: XYPos
+      IsPortInput: bool
+      MajorityDisplacementOffset: float }
+
+/// Function to move a symbol according to its cleanUpRecord
+//  smartAutoroute still causes small artefacts so this function manually creates a straight wire, recycling existing WId
+let moveSymbolWireCleanUpRecord (cleanUpRecord: CleanUpRecord) =
     let majorityDisplacement, MajorityDirection =
         (getMajorityDisplacementWireAndOrientation cleanUpRecord.Wire)
 
@@ -431,11 +439,22 @@ let rerouteStraightWireSymbol (cleanUpRecord: CleanUpRecord) =
         cleanUpRecord.Wire
         |> Optic.set
             (segments_)
+            // assume that there are at least two segments, we can discard the rest.
             (cleanUpRecord.Wire.Segments // make a wire that consists of one big segment in the majority direction, then make nubs
              |> List.mapi (fun i segment ->
                  match MajorityDirection, i = 0, i = 1 with
-                 | Horizontal, true, false -> Some { segment with Length = majorityDisplacement }
-                 | Vertical, false, true -> Some { segment with Length = majorityDisplacement }
+                 | Horizontal, true, false ->
+                     Some
+                         { segment with
+                             Length =
+                                 (majorityDisplacement
+                                  + cleanUpRecord.MajorityDisplacementOffset) }
+                 | Vertical, false, true ->
+                     Some
+                         { segment with
+                             Length =
+                                 (majorityDisplacement
+                                  + cleanUpRecord.MajorityDisplacementOffset) }
                  | _, _, _ -> None)
              |> List.choose id
              |> makeEndsDraggable)
@@ -446,9 +465,90 @@ let rerouteStraightWireSymbol (cleanUpRecord: CleanUpRecord) =
         moveSymbol (cleanUpRecord.Offset * directionChangeMultiplier) cleanUpRecord.Symbol
 
     newWire, newSymbol
+// newSymbol
+
+/// Find the bounding box of a segment intersecting a bounding box
+let getSegmentIntersectBBox (box: BoundingBox) segStart segEnd =
+    let topLeft =
+        if lThanEqualPos segStart segEnd then
+            segStart
+        else
+            segEnd
+
+    let segBBox =
+        match abs ((segStart - segEnd).X), abs ((segStart - segEnd).Y) with
+        | x, y when x <= XYPos.epsilon -> Some { TopLeft = topLeft; W = 0.0; H = y }
+        | x, y when y <= XYPos.epsilon -> Some { TopLeft = topLeft; W = x; H = 0.0 }
+        | _, _ -> None // we don't do this for zero length segments
+
+    match segBBox with
+    | Some segBBox -> overlapArea2DBox box segBBox
+    | _ -> None
+
+/// Find the bounding box of of anything that intersects with a symbol
+/// try determine the source of the intersection
+// if it is caused by the newSymbol intersecting another symbol, we can easily move the newSymbol to another place and try again
+// but if it is caused by the newSymbol intersecting another wire, this is a lot more computationally difficult. Existing helpers
+// can help us find if a wire intersects a symbol, and not the other way round. We will have to iterate thru every wire and see if that the bounding
+// box returned by the findWireSymbolIntersections matches our newSymbol's bounding box.
+// then we will have determined the bbox of the intersection, and can move the newSymbol to another place and try again
+let findAllBoundingBoxOfSymbolIntersection (symbol: Symbol) (model: SheetT.Model) =
+
+    let symbolBoundingBox = getBoundingBox model.Wire.Symbol symbol.Id
+    let wModel = (updateBoundingBoxes model).Wire // just in case
+
+    let intersectingWiresBbBoxes =
+        wModel.Wires
+        |> Map.values
+        // findWireSymbolIntersections returns a list of bounding boxes of symbols intersected by wire.
+        |> Seq.map (fun wire -> (wire, (findWireSymbolIntersections wModel wire)))
+        // we have (Wire * BoundingBox list) seq. Now to look through every tuple and get any wire whose bbox list os equal to symbolBoundingBox
+        // we might get more than one wire – so get a list
+        |> Seq.choose (fun (wire, bboxes) ->
+            if
+                bboxes
+                |> List.exists (fun box -> symbolBoundingBox = box)
+            then
+                Some wire
+            else
+                None)
+        |> Seq.toList
+        |> List.collect (fun wire ->
+            // for each wire, we go thru every segment and find the bounding box of the segment that intersects with the symbol
+            let wireVertices =
+                segmentsToIssieVertices wire.Segments wire
+                |> List.map (fun (x, y, _) -> { X = x; Y = y })
+
+            // taken from findWireSymbolIntersections so there is an extra index ignored as _ in List.choose (last line)
+            // might need a condition to disqualify the first and last segments (Done)
+
+            let indexes = List.init ((List.length wireVertices) - 2) (fun i -> i + 1)
+
+            let segVertices =
+                List.pairwise wireVertices.[1 .. wireVertices.Length - 2]
+                |> List.zip indexes // do not consider the nubs
+            segVertices
+
+            |> List.choose (fun (i, (segStart, segEnd)) ->
+                if ((i = 0) || (i = segVertices.Length - 1)) then
+                    None
+                else
+                    (getSegmentIntersectBBox symbolBoundingBox segStart segEnd)))
+
+    let intersectingSymbolBBoxes =
+        model.BoundingBoxes
+        |> Map.values
+        |> Seq.toList
+        // get all boundingBoxes in model not equal to symbolBoundingBox
+        |> List.filter (fun (box) -> not (box =~ symbolBoundingBox))
+        // see if they overlap with the symbolBoundingBox
+        |> List.choose (fun box -> (overlapArea2DBox symbolBoundingBox box))
+
+    intersectingWiresBbBoxes
+    @ intersectingSymbolBBoxes
 
 /// Function to clean up almost straight singly connected wires
-let cleanUpAlmostsStraightSinglyConnWires (model: ModelType.Model) =
+let cleanUpAlmostStraightSinglyConnWires (model: ModelType.Model) =
     // check if wire is singly connected
     // then check if it is almost straight
 
@@ -479,48 +579,110 @@ let cleanUpAlmostsStraightSinglyConnWires (model: ModelType.Model) =
                     [ { Symbol = symbolsToMove[0] |> fst
                         Wire = wire
                         Offset = offset
-                        IsPortInput = symbolsToMove[0] |> snd } ]
-                | x, Horizontal -> // if deviating horizontally, offset x. Negative if input and positive if output
+                        IsPortInput = symbolsToMove[0] |> snd
+                        MajorityDisplacementOffset = 0.0 } ]
+                | x, Horizontal -> // if deviating horizontally, offset x. Negative if it's an input port and positive if it output
                     let offset = { X = x; Y = 0.0 }
                     [ { Symbol = symbolsToMove[0] |> fst
                         Wire = wire
                         Offset = offset
-                        IsPortInput = symbolsToMove[0] |> snd } ])
+                        IsPortInput = symbolsToMove[0] |> snd
+                        MajorityDisplacementOffset = 0.0 } ])
 
-    /// helper to update the sheet with the new symbol and wire
-    let updateSheetWithNewSymbolAndWire (sheetModel: SheetT.Model) (symbol: Symbol) (wire: Wire) =
-        let updatedSheetModel: SheetT.Model =
-            sheetModel
-            |> Optic.set (wire_ >-> symbolOf_ symbol.Id) symbol
-            |> Optic.set (wire_ >-> wires_) (sheetModel.Wire.Wires |> Map.add wire.WId wire)
-            |> SheetUpdateHelpers.updateBoundingBoxes // update the bounding boxes for accurate intersection checking
-        updatedSheetModel
+    /// helper to update the sheet's existing symbol with a new symbol
+    let updateSheetSymWithNewSym (symbol: Symbol) (sheetModel: SheetT.Model) =
+        sheetModel
+        |> Optic.set (wire_ >-> symbolOf_ symbol.Id) symbol
+        |> SheetUpdateHelpers.updateBoundingBoxes // update the bounding boxes for accurate intersection checking
+
+    /// helper to update the sheet's existing wire with a new wire
+    let updateSheetWireWithNewWire (wire: Wire) (sheetModel: SheetT.Model) =
+        sheetModel
+        |> Optic.set (wire_ >-> wires_) (sheetModel.Wire.Wires |> Map.add wire.WId wire)
 
     let checkIfGainedIntersections (currentModel: SheetT.Model) (newModel: SheetT.Model) =
         ((countIntersectingSymbolPairs newModel)
          <= (countIntersectingSymbolPairs currentModel))
-        && ((countIntersectingSymbolPairs newModel)
-            <= (countIntersectingSymbolPairs currentModel))
+        && ((countVisibleSegsIntersectingSymbols newModel)
+            <= (countVisibleSegsIntersectingSymbols currentModel))
 
     let updatedSheetModel: SheetT.Model =
         symbolsWireOffsetUpdates
         |> List.fold // better way to do this?
-            (fun currentSheetModel (cleanUpRecord) ->
+            (fun currentSheetModel (cleanUpRecord: CleanUpRecord) ->
                 // create a new straight wire
-                let newStraightWire, newMovedSymbol = rerouteStraightWireSymbol cleanUpRecord
-                // create a new model with new straightWire and symbol
+                let newStraightWire, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
                 let newSheetModel =
-                    updateSheetWithNewSymbolAndWire currentSheetModel newMovedSymbol newStraightWire
+                    currentSheetModel
+                    |> updateSheetSymWithNewSym newMovedSymbol
+                    // |> (fun modelWithNewSymb ->
+                    //     updateSheetWireWithNewWire
+                    //         (smartAutoroute modelWithNewSymb.Wire cleanUpRecord.Wire)
+                    //         modelWithNewSymb)
+                    |> updateSheetWireWithNewWire newStraightWire
 
                 // check for intersections. If there are none, then return the new model else return the old model
                 if (checkIfGainedIntersections currentSheetModel newSheetModel) then
                     newSheetModel
                 else
-                    currentSheetModel)
-            // Note: initially tried to use the below:
-            // BusWireSeparate.routeAndSeparateSymbolWires model' symbolToMove.Id // somehow causes artefacts.
-            // Better to just replace a wire with a manually drawn straight one
-            // BusWireSeparate.reRouteWiresFrom [ symbolToMove.Id ] model' also doesn't work
+                    printf "another pass with symbol id %A" cleanUpRecord.Symbol.Id
+                    // we do another pass.
+                    let intersectingBBoxes =
+                        findAllBoundingBoxOfSymbolIntersection newMovedSymbol newSheetModel
+                    let newOffset, majorityDisplacementOffset =
+                        match cleanUpRecord.IsPortInput, cleanUpRecord.Wire.InitialOrientation with
+                        | true, Horizontal ->
+                            let addedXOffset =
+                                intersectingBBoxes
+                                |> List.minBy (fun box -> box.TopLeft.X)
+                                |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X)
+                            // can add another condition to set to zero, cancelling the operatio if we have to move the symbol
+                            // too far back
+                            // { X = 10.0; Y = 0.0 }, -10.0
+                            { X = addedXOffset; Y = 0.0 }, -addedXOffset
+                        | false, Horizontal ->
+                            let addedXOffset =
+                                intersectingBBoxes
+                                |> List.maxBy (fun box -> box.TopLeft.X + box.W)
+                                |> (fun box -> box.TopLeft.X - newMovedSymbol.Pos.X)
+                            { X = -addedXOffset; Y = 0.0 }, addedXOffset
+
+                        | true, Vertical ->
+                            let addedYOffset =
+                                intersectingBBoxes
+                                |> List.minBy (fun box -> box.TopLeft.Y)
+                                |> (fun box -> newMovedSymbol.Pos.Y - box.TopLeft.Y)
+                            { X = 0.0; Y = addedYOffset }, -addedYOffset
+                        | false, Vertical ->
+                            let addedYOffset =
+                                intersectingBBoxes
+                                |> List.maxBy (fun box -> box.TopLeft.Y)
+                                |> (fun box -> box.TopLeft.Y - newMovedSymbol.Pos.Y)
+                            { X = 0.0; Y = -addedYOffset }, addedYOffset
+                    let newCleanUpRecord =
+                        { cleanUpRecord with
+                            Offset = newOffset
+                            Symbol = newMovedSymbol
+                            Wire = newStraightWire
+                            MajorityDisplacementOffset = majorityDisplacementOffset }
+                    let newNewStraightWire, newNewMovedSymbol =
+                        moveSymbolWireCleanUpRecord newCleanUpRecord
+                    newSheetModel
+                    |> updateSheetSymWithNewSym newNewMovedSymbol
+                    |> updateSheetWireWithNewWire newNewStraightWire
+
+            // first, calculate how many bends we are saving by straightening CleanUpRecord.Wire
+            // before running currentSheetModel, try determine the source of the intersection
+
+            // if it is caused by the newSymbol intersecting another symbol, we can easily move the newSymbol to another place and try again
+
+            // but if it is caused by the newSymbol intersecting another wire, this is a lot more computationally difficult. Existing helpers
+            // can help us find if a wire intersects a symbol, and not the other way round. We will have to iterate thru every wire and see if that the bounding
+            // box returned by the findWireSymbolIntersections matches our newSymbol's bounding box.
+            // then we will have determined the bbox of the intersection, and can move the newSymbol to another place and try again
+
+            )
+
             model.Sheet
 
     model |> Optic.set (sheet_) (updatedSheetModel)
@@ -553,5 +715,7 @@ let cleanUpAlmostsStraightSinglyConnWires (model: ModelType.Model) =
 
 
 
-
+    Easy heuristic: get vertices of all segements and locate the vertices that are farthest away from the startpos and endpos.
+    One way to do this is to measure perpendicular distance of each vertice from the 'optimal wire' which is a straight line drawn between startpos
+    and endpos. Obviously this straight line isn't an actual wire
 *)

@@ -156,7 +156,7 @@ let testsToRunFromSheetMenu =
       "Test 2: testRemoveWireInvisibleSegments", testRemoveWireInvisibleSegments
       "Test 3: testRemoveWireInvisSegsAndRestoreNubs", testRemoveWireInvisSegsAndRestoreNubs
       "Test 4", testD2
-      "Test 5: cleanUpAlmostsStraightSinglyConnWires", cleanUpAlmostsStraightSinglyConnWires
+      "Test 5: cleanUpAlmostStraightSinglyConnWires", cleanUpAlmostStraightSinglyConnWires
       "Test 6", (fun (model: ModelType.Model) -> model)
       "Test 7", (fun (model: ModelType.Model) -> model)
       "Test 8", (fun (model: ModelType.Model) -> model)

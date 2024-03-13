@@ -339,6 +339,45 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
     // divide by 2
     |> (fun x -> x / 2)
 
+// to do: test if using n1<n2 and not having to divide by 2
+
+/// overlap2DBoxvariant from BlockHelpers. Returns a bounding box of an overlap area between two bounding boxes
+let overlapArea2DBox (bb1: BoundingBox) (bb2: BoundingBox) : BoundingBox option =
+    let xOverlap =
+        max
+            0.0
+            (min (bb1.TopLeft.X + bb1.W) (bb2.TopLeft.X + bb2.W)
+             - max bb1.TopLeft.X bb2.TopLeft.X)
+    let yOverlap =
+        max
+            0.0
+            (min (bb1.TopLeft.Y + bb1.H) (bb2.TopLeft.Y + bb2.H)
+             - max bb1.TopLeft.Y bb2.TopLeft.Y)
+
+    if xOverlap > 0.0 && yOverlap > 0.0 then
+        let overlapTopLeft =
+            { X = max bb1.TopLeft.X bb2.TopLeft.X; Y = max bb1.TopLeft.Y bb2.TopLeft.Y }
+        Some { TopLeft = overlapTopLeft; W = xOverlap; H = yOverlap }
+    else
+        None
+
+/// For debugging purposes. Can get called from either developer mode or from testSheetFunctions. Similar to countIntersectingSymbolPairs but prints out the boxes that intersect
+let countIntersectingSymbolPairsWithOverlapArea (model: SheetT.Model) =
+    let boxes =
+        mapValues model.BoundingBoxes
+        |> Array.toList
+        |> List.mapi (fun n box -> n, box)
+
+    let bBoxes =
+        List.allPairs boxes boxes
+        |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 < n2) && BlockHelpers.overlap2DBox box1 box2)
+        |> List.map (fun ((n1, box1), (n2, box2)) -> overlapArea2DBox box1 box2)
+        |> List.choose id
+
+    bBoxes
+    // |> List.map (fun box -> printf "Box: %A" box)
+    |> List.length
+
 // --------------------------------------------------- //
 //                     T2R Functions                   //
 // --------------------------------------------------- //

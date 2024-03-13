@@ -30,6 +30,7 @@ open DrawModelType
 open Sheet.SheetInterface
 open GenerateData
 open SheetBeautifyHelpers
+open SheetBeautifyD3
 
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
@@ -92,8 +93,21 @@ let makeTest1Circuit (x:XYPos)=
     |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
     |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
     |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
+    |> Result.bind (autoGenerateWireLabels)
     |> getOkOrFail
 
+let makeTest2Circuit (x:XYPos)=
+    let Mux1Pos = middleOfSheet + {X=150. ; Y=0.}
+    let Mux2Pos = middleOfSheet + {X=300. ; Y=300.}
+    initSheetModel
+    |> placeSymbol "DM1" Demux4 middleOfSheet
+    |> Result.bind(placeSymbol "MUX1" Mux4 Mux1Pos)
+    |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
+    |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
+    |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
+    |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
+    |> Result.bind (autoGenerateWireLabels)
+    |> getOkOrFail
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -119,12 +133,22 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum dispatch
 
+    let D3Test2 testNum firstSample dispatch =
+        runTestOnSheets
+            "two custom components with random offset: fail all tests"
+            firstSample
+            offsetXY
+            makeTest2Circuit
+            Asserts.failOnAllTests
+            dispatch
+        |> recordPositionInTest testNum dispatch
+
     let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
         // Change names and test functions as required
         // delete unused tests from list
         [
             "Test1", D3Test1 // example
-            "Test2", D3Test1 // example
+            "Test2", D3Test2 // example
         ]
     
     let nextError (testName, testFunc) firstSampleToTest dispatch =

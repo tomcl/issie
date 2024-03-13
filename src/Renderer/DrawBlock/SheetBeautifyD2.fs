@@ -58,17 +58,16 @@ module D2Helpers =
 
     let muxInputPortsPermute sym = 
         let inputPortsEdge = 
-            match Optic.get rotationOfSymbol_ sym with
+            match Optic.get symbol_rotation_ sym with
             | Degree0 -> Edge.Left
             | Degree90 -> Edge.Bottom
             | Degree180 -> Edge.Right
             | Degree270 -> Edge.Top
 
-        Optic.get (orderOfPortsBySide_ inputPortsEdge) sym
+        getPortOrder inputPortsEdge sym
         |> permutateList
         |> List.map (fun newOrder -> 
-            (newOrder, sym)
-            ||> Optic.set (orderOfPortsBySide_ inputPortsEdge) )
+            putPortOrder inputPortsEdge newOrder sym)
 
 
     // stolen from findWireSymbolIntersections in BusWireRoute
@@ -105,7 +104,7 @@ module D2Helpers =
 
     let evaluateFlip ( sheet : SheetT.Model ) ( newSyms : Map<ComponentId,Symbol> ) = 
         updateSymbolsInSheet sheet newSyms
-        |> countVisibleSegmentIntersection
+        |> numOfWireRightAngleCrossings
 
 open D2Helpers
 

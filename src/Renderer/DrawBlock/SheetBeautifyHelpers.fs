@@ -531,3 +531,92 @@ module EzraHelpers =
 
     // This is Omar's function
     let mapValuesToList (map: Map<'a,'b> ) = Seq.toList map.Values
+
+     // This is Diego's function
+
+    /// <summary>Counts the number of intersections between horizontal and vertical wire segments on the sheet.
+    /// Does not double count intersections where multiple overlapping wires in the same net intersect other wires.</summary>
+    /// <param name="sheet">The sheet with the wires where intersections will be counted</param>
+    /// <returns>An integer representing the number of visible wire intersections in this sheet</returns>
+    let visibleWireIntersections (sheet: SheetT.Model): int =
+      /// CAUTION: This function only counts intersections when the first segment is horizontal
+      /// and the second is vertical. This is to prevent multiple counting of the same intersection
+      let absSegmentsIntersect (h: BusWireT.ASegment) (v: BusWireT.ASegment): XYPos option =
+          match h.Orientation, v.Orientation with
+          | BusWireT.Horizontal, BusWireT.Vertical ->
+            let ymin, ymax = min v.Start.Y v.End.Y, max v.Start.Y v.End.Y
+            let xmin, xmax = min h.Start.X h.End.X, max h.Start.X h.End.X 
+            
+            if (h.Start.Y < ymax && h.Start.Y > ymin) && (v.Start.X < xmax && v.Start.X > xmin)
+            then Some {X = v.Start.X; Y = h.Start.Y}
+            else None
+          | _ -> None
+    
+      let wires = 
+        sheet.Wire.Wires
+        |> Helpers.mapValues
+        |> Seq.toList
+    
+      (wires, wires)
+      ||> List.allPairs
+      |> List.fold (fun intersections (firstWire, secondWire) ->
+        (BlockHelpers.getNonZeroAbsSegments firstWire, BlockHelpers.getNonZeroAbsSegments secondWire)
+        ||> List.allPairs
+        |> List.map (fun (seg1, seg2) -> absSegmentsIntersect seg1 seg2)
+        |> List.choose id
+        |> List.distinct
+        |> (@) intersections
+      ) []
+      |> List.distinct
+      // |> printInline
+      |> List.length
+
+    // This is Jake's function
+
+    let getWiresWithVisibleSegmentVectors (model: SheetT.Model) = 
+        model.Wire.Wires
+        |> Map.toList
+        |> List.map (fun (cId,wire) ->
+            visibleSegments cId model
+            |> (fun visSegmentVectors -> (cId, wire, visSegmentVectors)))
+
+    let getAbsVisibleSegments (wire: BusWireT.Wire) (visSegmentVectors: List<XYPos>) = 
+        ([(wire.StartPos, wire.StartPos)], visSegmentVectors)
+        ||> List.fold (fun posTupleList curVec -> 
+                let (_, curPos) = List.head posTupleList
+                let newPos = curPos + curVec
+                (curPos, newPos) :: posTupleList) 
+        |> List.rev // Reverse the list to get the correct order
+        |> List.tail // Remove first element which is just start pos
+    let getWiresWithAbsVisibleSegments (model: SheetT.Model) = 
+        getWiresWithVisibleSegmentVectors model
+        |> List.map (fun (cId, wire, visSegmentVectors) ->
+            (cId, wire, getAbsVisibleSegments wire visSegmentVectors))
+    
+    type SegmentDirection =
+    | Up
+    | Down
+    | Left
+    | Right
+
+    let calculateSegDirection (startPos: XYPos) (endPos: XYPos) =
+        if startPos.X = endPos.X then 
+            if startPos.Y < endPos.Y then Some Up
+            else Some Down 
+        elif startPos.Y = endPos.Y then 
+            if startPos.X < endPos.X then Some Right
+            else Some Left
+        else None // Shouldn't h
+
+    let countVisibleRightAngles (model: SheetT.Model) =
+        getWiresWithAbsVisibleSegments model
+        |> List.collect (fun (_,_,absVisSegements) ->
+            absVisSegements
+            |> List.tail // remove first since vertex taken would be on symbol
+            |> List.map (fun (vertex, endPos) ->
+                (vertex, calculateSegDirection vertex endPos)))
+        |> List.distinct
+        |> List.length
+    
+
+

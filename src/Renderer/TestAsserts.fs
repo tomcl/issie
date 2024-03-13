@@ -1,9 +1,5 @@
 module Renderer.TestAsserts
 
-open CommonTypes.JSONComponent
-open GenerateData
-open EEExtensions
-open ModelType
 open Optics
 open CommonTypes
 open DrawModelType
@@ -45,6 +41,7 @@ let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
 //----------------------------------------------------------------------------------------------//
 
 let countComponentOverlaps  (sheet: SheetT.Model) : int =
+    printfn "Testing countComponentOverlaps"
     let count = SheetBeautifyHelpers.numOfIntersectedSymPairs sheet
     count
 
@@ -80,9 +77,9 @@ let countWireStraightInSheet (sheet: SheetT.Model) : int =
     numberOfStraightWires
 
 let countWireRoutingLength (sheet: SheetT.Model) : int =
-    let count = SheetBeautifyHelpers.calcVisWireLength sheet
     printfn "Testing countWireRoutingLength"
-    int count
+    let count = SheetBeautifyHelpers.calcVisWireLength sheet
+    int count 
 
 let isPointCloseToRectangle (point: XYPos) (box: BoundingBox) distanceThreshold =
     let inRange v minV maxV =
@@ -115,6 +112,7 @@ let isWireSquashed (wire: BusWireT.Wire) (sheet: SheetT.Model) : bool =
     |> List.exists segmentTooCloseToComponent
 
 let countWireSquashedInSheet (sheet: SheetT.Model) : int =
+    printfn "Testing countWireSquashedInSheet"
     let count =
         sheet.Wire.Wires
         |> Map.toList
@@ -154,6 +152,7 @@ let checkWireCrossing (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) : bool
 /// This function evaluates all wire segments within the sheet to determine if any intersect with others. It only counts intersections between different wires or non-adjacent segments of the same wire, ignoring overlaps of directly connected segments. The purpose is to identify potential schematic layout issues where wires cross each other, which could indicate design or routing inefficiencies.
 /// </remarks>
 let countWiresOverlapInSheet (sheet: SheetT.Model) : int =
+    printfn "Testing countWiresOverlapInSheet"
     // This function serves general purpose and will consider any overlapping segments, to count proper crossings use countWiresCrossingInSheet
     let allWires = sheet.Wire.Wires |> Map.toList |> List.map snd
     let allAbsSegments = allWires |> List.collect getAbsSegments
@@ -167,10 +166,12 @@ let countWiresOverlapInSheet (sheet: SheetT.Model) : int =
     let numberOfCrossings = crossings.Length / 2
     numberOfCrossings
 let countWiresCrossingInSheet  (sheet: SheetT.Model) : int  =
-    let count = SheetBeautifyHelpers.numOfWireRightAngleCrossings sheet
+    printfn "Testing countWiresCrossingInSheet"
+    let count = visibleWireIntersections sheet
     count
 
 let countWireIntersectsSymbolInSheet (sheet: SheetT.Model) : int =
+    printfn "Testing countWireIntersectsSymbolInSheet"
     let count = SheetBeautifyHelpers.numOfIntersectSegSym sheet
     count
 
@@ -179,7 +180,8 @@ let countWireIntersectsSymbolInSheet (sheet: SheetT.Model) : int =
 //----------------------------------------------------------------------------------------------//
 
 let countBendsInSheet (sheet: SheetT.Model) : int =
-    let count = SheetBeautifyHelpers.numOfVisRightAngles sheet
+    printfn "Testing countBendsInSheet"
+    let count = countVisibleRightAngles sheet
     count
 
 //----------------------------------------------------------------------------------------------//

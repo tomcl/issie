@@ -638,3 +638,32 @@ module HLPTick3 =
 
         let runUnitTestOnSheetWrapper (model: Model) (dispatch: Dispatch<Msg>) =
             runUnitTestOnSheet model modelsUnderTest testMetricsInUse beautifyFunc dispatch
+
+        open System.Text.RegularExpressions
+
+        let correctFormat (data: string) : string =
+            let replaceFirstGroupToUpper (m: Match) : string =
+                m.Groups.[1].Value + m.Groups.[2].Value.ToUpper()
+            
+            let addSemicolonToEnd (line: string) : string =
+                if not (line.EndsWith(";")) && line <> "" then line + ";"
+                else line
+            
+            let data = Regex.Replace(data, @"(GateN \()([a-z])", new MatchEvaluator(replaceFirstGroupToUpper))
+            let data = Regex.Replace(data, @"(Mux)(\d)", "$1$2")
+            let data = Regex.Replace(data, @"(Label = )([^\s]+)", "$1\"$2\"")
+
+            let lines = data.Split([|'\n'|])
+            let processedLines = lines |> Array.map addSemicolonToEnd
+            let data = System.String.Join("\n", processedLines)
+            
+            if data.Length > 2 then
+                data.Substring(0, data.Length - 1)
+            else
+                data
+
+
+        let printTestModel (model: Model) (dispatch: Dispatch<Msg>) =
+            let testModel = getTestModel model.Sheet
+            let testModelString = correctFormat(sprintf "%A" testModel)
+            printfn $"{testModelString}"

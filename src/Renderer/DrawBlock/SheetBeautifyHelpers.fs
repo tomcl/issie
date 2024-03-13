@@ -513,4 +513,3 @@ let findRetracingSegments (model : SheetT.Model) =
 
     {| RetraceSegs =retracingSegs;
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
-    

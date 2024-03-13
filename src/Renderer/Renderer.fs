@@ -317,6 +317,8 @@ let editMenu dispatch' =
                makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
                makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
                menuSeparator
+               makeElmItem "Beautify" "CmdOrCtrl+B" (fun () -> dispatch SheetT.KeyboardMsg.CtrlB)
+               menuSeparator
                makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
             |]

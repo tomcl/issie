@@ -7,7 +7,6 @@ open Operators
 open RotateScale
 open BusWireSeparate
 open SheetUpdateHelpers
-open SheetBeautifyHelpers
 open System
 
 
@@ -40,15 +39,57 @@ let sheetScore
     let visibleLengthNorm = 1.0
     let numRightAnglesNorm = 1.0
 
-    let numCrossingsSq = float (numRightAngleSegCrossings sheet) ** 2.0
-    let visibleLengthSq = float (visibleWireLength sheet) ** 2.0
-    let numRightAnglesSq = float (numWireRightAngles sheet) ** 2.0
+    let numCrossingsSq = float (SheetBeautifyHelpers2.numRightAngleSegCrossings sheet) ** 2.0
+    let visibleLengthSq = float (SheetBeautifyHelpers2.visibleWireLength sheet) ** 2.0
+    let numRightAnglesSq = float (SheetBeautifyHelpers2.numWireRightAngles sheet) ** 2.0
 
     // Square and add metrics to encourage optimisation algorithms to make them all moderately small,
     // as opposed to sacrificing one in order to make the others very small.
     // Same concept as L1 vs L2 regularisation in neural networks (?).
-    numCrossingsSq*numCrossingsNorm + visibleLengthSq*visibleLengthNorm + numRightAnglesSq*numRightAnglesNorm
+    //numCrossingsSq*numCrossingsNorm + visibleLengthSq*visibleLengthNorm + numRightAnglesSq*numRightAnglesNorm
+    numCrossingsSq*numCrossingsNorm
 
+// The following four functions are from my original helpers, more useful for a particular context.
+// TODO consider moving them back to SheetBeautifyHelpers? If others agree.
+
+/// B3R Returns a list of ordered ports for a given side of a symbol.
+let getOrderedPorts
+        (model: SymbolT.Model)
+        (symbol: SymbolT.Symbol)
+        (edge: Edge)
+        : Port list =
+    symbol.PortMaps.Order[edge]
+    |> List.map (fun portId -> model.Ports[portId])
+
+/// B3W Sets the list of ordered ports for a given side of a symbol.
+/// The provided list of ports must be a reordering of the existing list of ports
+/// (i.e. this function can only change order).
+let setOrderedPorts
+        (symbol: SymbolT.Symbol)
+        (edge: Edge)
+        (ports: Port list)
+        : SymbolT.Symbol =
+    let getId (port: Port) = port.Id // To deal with weird type error
+    let portIds = List.map getId ports
+    symbol.PortMaps.Order
+    |> Map.add edge portIds
+    |> fun map -> Optic.set (SymbolT.portMaps_ >-> SymbolT.order_) map symbol
+
+/// B4W Toggle the 'reversed input' state of a MUX.
+let toggleReversedInputs
+        (symbol: SymbolT.Symbol)
+        : SymbolT.Symbol =
+    match symbol.ReversedInputPorts with
+    | Some rev -> Optic.set SheetBeautifyHelpers2.reversedInputPorts_ (Some (not rev)) symbol
+    | None -> symbol // Don't change the state of an old MUX
+
+// This might be useful as well.
+/// B8W Flip a symbol.
+let flipSymbol
+        (flip: SymbolT.FlipType)
+        (symbol: SymbolT.Symbol)
+        : SymbolT.Symbol =
+    flipSymbolInBlock flip (Symbol.getRotatedSymbolCentre symbol) symbol
 
 
 ////////// Algorithm 1: Brute force //////////
@@ -69,8 +110,8 @@ let rec bruteForceOptimise
         let flippedSym =
             match sym.STransform.Rotation with
             | Rotation.Degree0 | Rotation.Degree180 ->
-                flipSymbol SymbolT.FlipHorizontal sym
-            | _ -> flipSymbol SymbolT.FlipVertical sym
+                flipSymbol SymbolT.FlipVertical sym
+            | _ -> flipSymbol SymbolT.FlipHorizontal sym
 
         let symbolChoices =
             match sym.Component.Type with
@@ -129,8 +170,8 @@ let getNormPortDiff
         (port1: Port)
         (port2: Port)
         : XYPos =
-    let pos1 = getPortSheetPos model port1
-    let pos2 = getPortSheetPos model port2
+    let pos1 = SheetBeautifyHelpers2.getPortSheetPos model port1
+    let pos2 = SheetBeautifyHelpers2.getPortSheetPos model port2
     let delta = pos2 - pos1
     let mag = sqrt ((delta.X**2) + (delta.Y**2))
     {X = delta.X/mag; Y = delta.Y/mag}
@@ -333,10 +374,15 @@ let beautifyCluster
 let sheetOrderFlip
         (sheet: SheetT.Model)
         : SheetT.Model =
+    printf "Applying sheetOrderFlip"
+    printf "%A" (SheetBeautifyHelpers.numOfWireRightAngleCrossings sheet)
+    printf "%A" (SheetBeautifyHelpers2.numRightAngleSegCrossings sheet)
     // k is the number of components in each cluster; clusters are individually optimised.
     // Since beautification has exponential time complexity (using brute force), clusters
     // must be kept fairly small.
     let k = 8
     let partitions = partitionCircuit k sheet
-    (sheet, partitions)
-    ||> List.fold beautifyCluster
+    let sheet' =
+        (sheet, partitions)
+        ||> List.fold beautifyCluster
+    {sheet' with UndoList = appendUndoList sheet.UndoList sheet}

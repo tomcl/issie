@@ -19,6 +19,7 @@ open FSharp.Core
 open Fable.Core.JsInterop
 open BuildUartHelpers
 open Node
+open SheetBeautifyD2
 
 module node = Node.Api
 
@@ -89,6 +90,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         Cmd.batch [ sheetCmd UpdateBoundingBoxes; symbolCmd SymbolT.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
     // HLP 23: AUTHOR Khoury & Ismagilov
     // Gets bounding box dimentions and creates the necessary symbol buttons
+
+    | KeyPress CtrlB ->
+        sheetOrderFlip model,
+        Cmd.none
 
     | KeyPress AltShiftZ ->
         TimeHelpers.printStats()

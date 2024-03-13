@@ -52,6 +52,7 @@ let viewOnDiagramButtons model dispatch =
 
 
 let init() = {
+    UnitTestState = Some 0
     DrawBlockTestState = None
     SpinnerPayload = None
     Spinner = None

@@ -435,6 +435,9 @@ type Msg =
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
     | UpdateDrawBlockTestState of ((TestState option) -> (TestState option))
+    //////////////////////////////////
+    | UpdateUnitTestIndex of (int option -> int option)
+    //////////////////////////////////
 
 
 
@@ -589,6 +592,8 @@ type Model = {
     /// Used to allow a sequence of errors to be displayed from a test.
     /// Has a value after a test has been run.
     DrawBlockTestState: TestState option
+
+    UnitTestState: int option 
 } 
 
     with member this.WaveSimOrCurrentSheet =
@@ -614,6 +619,7 @@ let userData_ = Lens.create (fun a -> a.UserData) (fun s a -> {a with UserData =
 let uISheetTrail_ = Lens.create (fun a -> a.UISheetTrail) (fun s a -> {a with UISheetTrail = s})
 let drawBlockTestState_ = Lens.create (fun a -> a.DrawBlockTestState) (fun s a -> {a with DrawBlockTestState = s})
 
+let unitTestState_ = Lens.create (fun a -> a.UnitTestState) (fun s a -> {a with UnitTestState = s})
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_

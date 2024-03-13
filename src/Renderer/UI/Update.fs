@@ -580,6 +580,11 @@ let update (msg : Msg) oldModel =
         model
         |> Optic.map ModelType.drawBlockTestState_ func
         |> withNoMsg
+    
+    | UpdateUnitTestIndex func -> 
+        model
+        |> Optic.map ModelType.unitTestState_ func
+        |> withNoMsg
 
     | ExecutePendingMessages n ->
         executePendingMessagesF n model

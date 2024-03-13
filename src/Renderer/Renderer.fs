@@ -162,9 +162,9 @@ let fileMenu (dispatch) =
         makeDebugItem "Show Model Before Beautify" (Some "CmdOrCtrl+R") (fun ev ->
             dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.runRandomTest ,dispatch)) 
         makeDebugItem "Show Model Before Beautify" (Some "CmdOrCtrl+L") (fun ev ->
-            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.showUnitTestOnSheet ,dispatch))
+            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.showUnitTestOnSheetWrapper ,dispatch))
         makeDebugItem "Beautify Model" (Some "CmdOrCtrl+T") (fun ev ->
-            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.runUnitTestOnSheet ,dispatch))
+            dispatch <| Msg.ExecFuncInMessage(TestDrawBlock.HLPTick3.Tests.runUnitTestOnSheetWrapper ,dispatch))
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
         makeWinDebugItem "Trace View function" None (fun _ ->

@@ -322,8 +322,8 @@ module HLPTick3 =
                     before
                     after
                     (after - before)
-                    )
-
+                )
+    
             showSheetInIssieSchematic beautifiedSheetModel dispatch
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
@@ -532,52 +532,52 @@ module HLPTick3 =
         ////////////////// UNIT TESTING PIPELINE SKELETON ////////////////
         //////////////////////////////////////////////////////////////////
 
+        open Renderer.UnitTestLoader
 
-        let modelToTest : TestModel =
-            { SimpleSymbols =
-                [ { SymLabel = "G1"
-                    CompType = GateN(And, 2)
-                    Position = { X = 1638.105; Y = 1671.75 }
-                    STransform = { Rotation = Degree0; Flipped = false }
-                    }
-                  { SymLabel = "G2"
-                    CompType = GateN(And, 2)
-                    Position = { X = 1874.605; Y = 1858.25 }
-                    STransform = { Rotation = Degree0; Flipped = false }
-                    }
-                  { SymLabel = "MUX1"
-                    CompType = Mux2
-                    Position = { X = 1632.895; Y = 1780.25 }
-                    STransform = { Rotation = Degree0; Flipped = false }
-                    } ]
-              Connections =
-                [ { Source = { Label = "MUX1"; PortNumber = 0 }
-                    Target = { Label = "G2"; PortNumber = 0 } }
-                  { Source = { Label = "G1"; PortNumber = 0 }
-                    Target = { Label = "G2"; PortNumber = 1 } } ] }
+        let modelsUnderTest = modelsToTest
+        let testMetricsInUse = testMetrics
+        let beautifyFunc = beautifyFunction
+        let showUnitTestOnSheet (model: Model) (testModels: TestModel list) (dispatch: Dispatch<Msg>) =
+            let currentState: int option = model.UnitTestState
+            match currentState with
+            | Some testModelIndex when testModelIndex < List.length testModels ->
+                printfn "Showing state of test %d" testModelIndex
+                let testModelToShow = testModels.[testModelIndex]
+                let sheetModel =
+                    try
+                        Builder.placeTestModel testModelToShow
+                    with _ ->
+                        failwith "Error placing test model on sheet."
+                showSheetInIssieSchematic sheetModel dispatch
+            | Some _ ->
+                printfn "No more tests to show. Resetting to first test."
+                dispatch (UpdateUnitTestIndex (fun _ -> (Some 0)) )
+            | None ->
+                printfn "Initializing test state to first test."
+                dispatch (UpdateUnitTestIndex (fun _ -> (Some 0)))
 
-        let testModel
-            (modelToTest: TestModel)
-            (beautifyFunction: SheetT.Model -> SheetT.Model)
+ 
+        let showUnitTestOnSheetWrapper (model: Model) (dispatch: Dispatch<Msg>) =
+            showUnitTestOnSheet model modelsUnderTest dispatch
+
+        let runUnitTestOnSheet
+            (model: Model)
+            (testModels: TestModel list)
             (testMetrics: list<(SheetT.Model -> int)>)
+            (beautifyFunction: SheetT.Model -> SheetT.Model)
             (dispatch: Dispatch<Msg>)
             =
-            let sheetModel =
-                try
-                    Builder.placeTestModel modelToTest
-                with _ ->
-                    failwith "Error placing test model on sheet."
+            let currentState: int option = model.UnitTestState
+            match currentState with
+            | Some testModelIndex when testModelIndex < List.length testModels ->
+                let testModelToRun = testModels.[testModelIndex]
+                runTestsWithBeautify testModelToRun beautifyFunction testMetrics dispatch
+                dispatch (UpdateUnitTestIndex( (fun _ -> Some(testModelIndex + 1))))
+            | Some _ -> printfn "End of tests."
+            | _ -> failwith "Need to load Test Sheet first"
 
-            showSheetInIssieSchematic sheetModel dispatch
+            printfn "Test Finished"
 
-            runTestsWithBeautify modelToTest beautifyFunction testMetrics dispatch
-        let testUnit
-            (modelToTest: TestModel)
-            (beautifyFunction: SheetT.Model -> SheetT.Model)
-            (testMetrics: list<(SheetT.Model -> int)>)
-            (dispatch: Dispatch<Msg>)
-            =
-            runTestsWithBeautify modelToTest beautifyFunction testMetrics dispatch
 
         let testRandom
             (randomSheet: SheetT.Model)
@@ -636,28 +636,5 @@ module HLPTick3 =
             // let test = getTestModel model.Sheet
             // printf $"{test}"
 
-
-        let runUnitTest (dispatch: Dispatch<Msg>) =
-            // Your test function here, simplified without needing to select from a menu
-            // CHECK STATE HERE
-            testUnit modelToTest beautifyFunction testMetrics dispatch
-
-        let showUnitTestOnSheet (model: Model) (dispatch: Dispatch<Msg>) =
-            // model is passed in to match signature in Renderer.fs
-            let sheetModel =
-                try
-                    Builder.placeTestModel modelToTest
-                with _ ->
-                    failwith "Error placing test model on sheet."
-
-            showSheetInIssieSchematic sheetModel dispatch
-
-        let runUnitTestOnSheet (model: Model) (dispatch: Dispatch<Msg>) =
-            // model is passed in to match signature in Renderer.fs
-            // let sheetModel = buildTestCircuit 12 1000.0 10
-            let sheetModel = buildConstrainedCircuit -10 10 4 4 {X = 1000; Y = 1000}
-
-            showSheetInIssieSchematic sheetModel dispatch
-            // runUnitTest dispatch
-            // printf "Test Finished"
-
+        let runUnitTestOnSheetWrapper (model: Model) (dispatch: Dispatch<Msg>) =
+            runUnitTestOnSheet model modelsUnderTest testMetricsInUse beautifyFunc dispatch

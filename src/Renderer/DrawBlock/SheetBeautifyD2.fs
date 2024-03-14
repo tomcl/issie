@@ -17,7 +17,7 @@ open Symbol
 /// flip MUX input order to reduce wire crossings.</summary>
 /// <param name="model">  sheet model with components to optimize</param>
 /// <returns>New sheet model with adjust ports/flip.</returns>
-let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
+let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
 
     let partitionComponents (symbols: (ComponentId * Symbol) list) =
         symbols |> List.partition (fun (compId,symbol) -> match symbol.Component.Type with
@@ -25,7 +25,7 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
                                                             | (Mux2 | Mux4 | Mux8) -> true
                                                             | _ -> false)
 
-
+    // Evaluate change in wire crossings after adjustments
     let evaluateChange (model: SheetT.Model) (newModel: SheetT.Model) (compcompId: ComponentId): bool * SheetT.Model =
         let beforeCount = numOfWireRightAngleCrossings model
         let newWireModel = updateWires newModel.Wire [compcompId] {X= 0.0; Y= 0.0}
@@ -45,12 +45,9 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
                 let swapElementsAtIndexes index1 index2 list =
                     list
                     |> List.mapi (fun i x ->
-                        if i = index1 then
-                            List.item index2 list
-                        elif i = index2 then
-                            List.item index1 list
-                        else
-                            x
+                        if i = index1 then List.item index2 list
+                        elif i = index2 then List.item index1 list
+                        else x
                     )
 
                 order
@@ -61,12 +58,13 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
                     else
                         swapElementsAtIndexes i 0 order
                 )
-            else
-                []
+            else []
 
-        // function to create model with new port layout and evaluate
+        // create model with new port layout and evaluate
         let checkSwapFolder (model: SheetT.Model) (order: string list) =
-            let newModel = Optic.set symbols_ (Map.add compId (putPortOrder  edge order model.Wire.Symbol.Symbols[compId]) model.Wire.Symbol.Symbols) model
+            let newModel =
+                model
+                |> Optic.set symbols_ (Map.add compId (putPortOrder  edge order model.Wire.Symbol.Symbols[compId]) model.Wire.Symbol.Symbols)
             let improvement,model' = evaluateChange model newModel compId
 
             if improvement then
@@ -75,7 +73,7 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
             else
                 model
 
-        // function to create a model with swapped MUX sel port and evaluate
+        // create a model with swapped MUX sel port and evaluate
         let checkMuxSelSwap model symbol edge =
             if (isMuxSel symbol edge) then
                 let flipDirection =
@@ -96,11 +94,14 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
             symbol.PortMaps.Order[edge]
             |> generateSwaps
 
-        let bestPortSwap = (model, swappedPortsList) ||> List.fold checkSwapFolder            
+        let bestPortSwap =
+            (model, swappedPortsList)
+            ||> List.fold checkSwapFolder            
         
         let bestModel = checkMuxSelSwap bestPortSwap symbol edge
         (bestModel,compId,symbol)
 
+    // Flip symbol horizontally, vertically, or both based on improvement
     let flipSymbol (model: SheetT.Model) ((compId,symbol): ComponentId * Symbol) =
         let newModelH = flipSymbol symbol.Component.Label FlipHorizontal model
         let newModelV = flipSymbol symbol.Component.Label FlipVertical model
@@ -118,22 +119,35 @@ let optimizePortOrder (model: SheetT.Model) : SheetT.Model =
         | _ -> model
 
 
-    // Fold over the port swap combinations to find the one with the least wire crossings for a whole symbol
+    // Swap ports on all edges of a symbol
     let swapSymbolEdgePorts (model: SheetT.Model) ((compId,symbol): ComponentId * Symbol) =
         let edgesWithPorts = 
             [Top;Bottom;Left;Right]
             |> List.filter (fun edge -> Map.containsKey edge symbol.PortMaps.Order)
-        let model',_,_ = ((model,compId,symbol), edgesWithPorts) ||> List.fold swapPortsOnEdge
+        let model',_,_ =
+            ((model,compId,symbol), edgesWithPorts)
+            ||> List.fold swapPortsOnEdge
         model'
+
+    let initialCrossings = numOfWireRightAngleCrossings model
 
     let symbols =
         model.Wire.Symbol.Symbols
         |> Map.toList
 
     let customAndMuxComponents, otherComponents = partitionComponents symbols
-    let swappedPortsModel = (model,customAndMuxComponents) ||> List.fold swapSymbolEdgePorts
-    let model' = (swappedPortsModel,otherComponents) ||> List.fold flipSymbol
-    printfn "Beautified"
-    model'
+    let portSwapOptimized =
+        (model,customAndMuxComponents)
+        ||> List.fold swapSymbolEdgePorts
+    let flipOptimized =
+        (portSwapOptimized,otherComponents)
+        ||> List.fold flipSymbol
+    let model' = portSwapOptimized
+    let improvement = (numOfWireRightAngleCrossings model' < initialCrossings)
+    if improvement then
+        optimizePortOrder model'
+    else
+        printfn "Beautified"
+        model'
     
 

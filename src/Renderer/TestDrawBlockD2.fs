@@ -157,6 +157,36 @@ module D2Test =
     module Builder =
         open Displays
 
+        let placeCustomSymbol
+                (symLabel: string)
+                (ccSheet : SheetT.Model)
+                (ccSheetName: string)
+                (model: Model)
+                (scale: XYPos)
+                (position: XYPos)
+                (sheetModel: SheetT.Model)
+                    : Result<SheetT.Model, string> =
+           let symbolMap = sheetModel.Wire.Symbol.Symbols
+           let project = Option.get model.CurrentProj
+           if caseInvariantEqual ccSheetName project.OpenFileName then
+                Error "Can't create custom component with name same as current opened sheet"        
+            elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
+                Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
+            elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
+                Error "Can't create custom component with duplicate Label"
+            else
+                // MOD sheetModel -> model, TODO: change this to the custom sheet's model
+                let canvas = ccSheet.GetCanvasState()
+                let ccType: CustomComponentType =
+                    {
+                        Name = ccSheetName
+                        InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
+                        OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
+                        Form = None
+                        Description = None
+                    }
+                placeSymbol symLabel (Custom ccType) position sheetModel
+
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
         /// 2. Check each ciruit with sheetChecker.
         /// 3. Return a TestResult record with errors those samples for which sheetChecker returns false,
@@ -326,31 +356,32 @@ module D2Test =
             |> List.map (fun ldc -> ldc.Name)
             |> List.filter (fun name -> name <> curSheetName)
 
-        // let ccEmptySheet = DiagramMainView.init().Sheet
-        // let ccSheet: SheetT.Model =
-        //     [
-        //         placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.};
-        //         placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y};
-        //         placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y+100.};
-        //         placeSymbol "MUX1" Mux2 {X=middleOfSheet.X-100.;Y=middleOfSheet.Y-100.};
-        //         placeSymbol "MUX2" Mux2 middleOfSheet;
-        //         flipSymbol "MUX2" SymbolT.FlipType.FlipVertical >> Ok;
-        //         placeWire (portOf "S2" 0) (portOf "MUX2" 2);
-        //         placeWire (portOf "MUX1" 0) (portOf "MUX2" 0);
-        //         placeWire (portOf "S1" 0) (portOf "MUX2" 1);
-        //         placeWire (portOf "MUX2" 0) (portOf "G1" 0);
-        //         placeWire (portOf "MUX1" 0) (portOf "G1" 1);
-        //     ]
-        //     |> minimalDSL ccEmptySheet
-        //     |> getOkOrFail
+        let ccEmptySheet = DiagramMainView.init().Sheet
+        let ccSheet: SheetT.Model =
+            [
+                placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y};
+                placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+100.};
+                placeSymbol "S3" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+200.};
+                placeSymbol "S4" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+300.};
+                placeSymbol "X1" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y};
+                placeSymbol "X2" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+10.};
+                placeSymbol "X3" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+20.};
+                placeSymbol "X4" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+300.};
+            ]
+            |> minimalDSL ccEmptySheet
+            |> getOkOrFail
         let ccSheetName = "custom" // sheetNames.Head
         
-        CustomCompPorts.printSheetNames model
-        printfn $"{ccSheetName}"
+        // CustomCompPorts.printSheetNames model
+        // printfn $"{ccSheetName}"
 
         [
-            placeCustomSymbol "CC1" ccSheetName  project {X=1.0; Y=1.0} {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-300.}
-            placeCustomSymbol "CC2" ccSheetName  project {X=1.0; Y=1.0} {X=middleOfSheet.X+100.;Y=middleOfSheet.Y+300.}
+            placeCustomSymbol "CC1" ccSheet ccSheetName  model {X=1.0; Y=1.0} {X=middleOfSheet.X-150.;Y=middleOfSheet.Y} // andPos
+            placeCustomSymbol "CC2" ccSheet ccSheetName  model {X=1.0; Y=1.0}  {X=middleOfSheet.X+150.;Y=middleOfSheet.Y}
+            placeWire (portOf "CC1" 0) (portOf "CC2" 3);
+            placeWire (portOf "CC1" 1) (portOf "CC2" 2);
+            placeWire (portOf "CC1" 2) (portOf "CC2" 0);
+            placeWire (portOf "CC1" 3) (portOf "CC2" 1);
         ]
         |> minimalDSL initSheetModel
         |> getOkOrFail
@@ -437,8 +468,8 @@ module D2Test =
             |> recordPositionInTest testNum dispatch
 
         let test2 testNum firstSample dispatch model =
-            let displayOnFail = displayMetric
-            let generator = filteredGridPositions makeTest3Circuit 100
+            let displayOnFail = displayAll
+            let generator = filteredGridPositions makeTest3Circuit 10
             runTestOnSheets
                 "DisplayAll: Custom Symbol"
                 firstSample

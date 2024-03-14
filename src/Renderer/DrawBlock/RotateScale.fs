@@ -39,6 +39,12 @@ type MinMax =
     | Min
     | Max
 
+// Helper function to calculate port gap based on the side.
+let calculatePortGap side h w portDimension gap topBottomGap =
+    match side with
+    | Left | Right -> float h / (portDimension + 2.0 * gap)
+    | Bottom | Top -> float w / (portDimension + 2.0 * topBottomGap)
+
 /// TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
 /// Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
 let makePortInfo (sym: Symbol) (port: Port) =
@@ -49,23 +55,20 @@ let makePortInfo (sym: Symbol) (port: Port) =
     let portDimension = float ports.Length - 1.0
     let h, w = getRotatedHAndW sym
 
-    let portGap =
-        match side with
-        | Left
-        | Right -> float h / (portDimension + 2.0 * gap)
-        | Bottom
-        | Top -> float w / (portDimension + 2.0 * topBottomGap)
+    let portGap = calculatePortGap side h w portDimension gap topBottomGap
 
-    { port = port
-      sym = sym
-      side = side
-      ports = ports
-      gap = gap
-      topBottomGap = topBottomGap
-      portDimension = portDimension
-      h = h
-      w = w
-      portGap = portGap }
+    {
+        port = port
+        sym = sym
+        side = side
+        ports = ports
+        gap = gap
+        topBottomGap = topBottomGap
+        portDimension = portDimension
+        h = h
+        w = w
+        portGap = portGap
+    }
 
 let getPortAB wModel wireSyms =
     let ports = portsOfWires wModel [ wireSyms.Wire ]
@@ -97,19 +100,26 @@ let getOppEdgePortInfo
               SymB = otherSymbol
               Wire = w })
 
+///Helper function to calculate real position of port on a Symbol
+///Adds the position of the port relative to symbol's original position
+let calculatePortRealPos (pInfo: PortInfo) =
+    getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
+
+///Helper function to calculate offset between two port positions
+let calculateOffset (otherPortPos: XYPos) (movePortPos: XYPos) =
+    { X = otherPortPos.X - movePortPos.X; Y = otherPortPos.Y - movePortPos.Y }
+
+///Helper function to determine direction of the offset based on side of symbol where port is located
+let determineOffsetDirection (side: Edge) (posDiff: XYPos) =
+    match side with
+    | Top | Bottom -> { X = posDiff.X; Y = 0.0 }
+    | Left | Right -> { X = 0.0; Y = posDiff.Y }
+
+///calculates the offset needed to move the moving port to align it with the other port
 let alignPortsOffset (movePInfo: PortInfo) (otherPInfo: PortInfo) =
-    let getPortRealPos pInfo =
-        getPortPos pInfo.sym pInfo.port + pInfo.sym.Pos
-
-    let movePortPos = getPortRealPos movePInfo
-    let otherPortPos = getPortRealPos otherPInfo
-    let posDiff = otherPortPos - movePortPos
-
-    match movePInfo.side with
-    | Top
-    | Bottom -> { X = posDiff.X; Y = 0.0 }
-    | Left
-    | Right -> { X = 0.0; Y = posDiff.Y }
+    calculatePortRealPos movePInfo
+    |> calculateOffset (calculatePortRealPos otherPInfo)
+    |> determineOffsetDirection movePInfo.side
 
 let alignSymbols
     (wModel: BusWireT.Model)
@@ -482,43 +492,62 @@ let scaleSymbolInBlock
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
-
-/// HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
-
-let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
-    let pos = {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 }
-    match degree with
-    | Degree0 -> sym
-    | _ ->  rotateSymbolInBlock degree pos sym
+// General function to be used when applying a function on a selected group of symbols
+let updateSymbolGroup
+    (compList: ComponentId list)
+    (model: SymbolT.Model)
+    (transformFunc: XYPos -> Symbol -> Symbol) =
     
+    let selectedSymbols =
+        compList
+        |> List.map (fun x -> model.Symbols |> Map.find x)
 
-/// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>
+    let block = getBlock selectedSymbols
+    let blockCentre = block.Centre()
+
+    let selectedSymbolsMap =
+        selectedSymbols
+        |> List.map (fun sym -> sym.Id, transformFunc blockCentre sym)
+
+    let unselectedSymbolsMap =
+        model.Symbols
+        |> Map.filter (fun x _ -> not (List.contains x compList))
+
+    let updatedSymbolMap =
+        (Map.ofList selectedSymbolsMap)
+        |> Map.fold (fun acc k v -> Map.add k v acc) unselectedSymbolsMap
+
+    { model with Symbols = updatedSymbolMap}
+
+
+/// <summary>Rotates a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
 /// <param name="rotation"> Type of rotation to do</param>
 /// <returns>New rotated symbol model</returns>
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
+    let rotateSymBlock blockCentre sym = rotateSymbolInBlock (invertRotation rotation) blockCentre sym
+    updateSymbolGroup compList model rotateSymBlock
 
-    printfn "running rotateBlock"
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
-
-    //Get block properties of selected symbols
-    let block = getBlock SelectedSymbols
-
-    //Rotated symbols about the center
-    let newSymbols = 
-        List.map (fun x -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) x) SelectedSymbols 
-
-    //return model with block of rotated selected symbols, and unselected symbols
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
-
+/// <summary> Determines if all selected symbol (centres) align either vertically or horizontally </summary>
+/// <returns> True if all symbols align vertically or horizontally; otherwise, false. </returns>
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
-    let maxXSymCentre, maxYSymCentre = getMinMax selectedSymbols Max |> (fun (maxX, maxY) -> getRotatedSymbolCentre maxX, getRotatedSymbolCentre maxY)
-    let minXSymCentre, minYSymCentre = getMinMax selectedSymbols Min |> (fun (minX, minY) -> getRotatedSymbolCentre minX, getRotatedSymbolCentre minY)
+    let maxXSymCentre = 
+            selectedSymbols
+            |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
+            |> getRotatedSymbolCentre
+    let minXSymCentre =
+            selectedSymbols
+            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
+            |> getRotatedSymbolCentre
+    let maxYSymCentre = 
+            selectedSymbols
+            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
+            |> getRotatedSymbolCentre
+    let minYSymCentre =
+            selectedSymbols
+            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
+            |> getRotatedSymbolCentre
     (maxXSymCentre.X = minXSymCentre.X) || (maxYSymCentre.Y = minYSymCentre.Y)
     
 
@@ -526,13 +555,12 @@ let findSelectedSymbols (compList: ComponentId list) (model: SymbolT.Model) =
     List.map (fun x -> model.Symbols |> Map.find x) compList
 
 let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
-    let scaleFact = 
-        if min = max || matchMax <= matchMin then 1. 
-        else (matchMin - matchMax) / (min - max)
-    let offsetC = 
-        if scaleFact = 1. then 0.
-        else (matchMin - min * scaleFact) / (1.-scaleFact)
-    (scaleFact, offsetC)
+    match min = max || matchMax <= matchMin with
+    | true -> (1.0, 0.0)
+    | false ->
+        let scaleFact = (matchMin - matchMax) / (min - max)
+        let offsetC = (matchMin - min * scaleFact) / (1.0 - scaleFact)
+        (scaleFact, offsetC)
 
 /// Return set of floats that define how a group of components is scaled
 let getScalingFactorAndOffsetCentreGroup
@@ -594,25 +622,14 @@ let groupNewSelectedSymsModel
     )}
 
 
-/// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
+/// <summary>Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
 /// <param name="flip"> Type of flip to do</param>
 /// <returns>New flipped symbol model</returns>
 let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) = 
-    //Similar structure to rotateBlock, easy to understand
-    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
-    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
-    
-    let block = getBlock SelectedSymbols
-  
-    let newSymbols = 
-        List.map (fun x -> flipSymbolInBlock flip (block.Centre()) x ) SelectedSymbols
-
-    {model with Symbols = 
-                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
-                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
-    )}
+    let flipSymBlock blockCentre sym = flipSymbolInBlock flip blockCentre sym
+    updateSymbolGroup compList model flipSymBlock
 
 /// After every model update this updates the "scaling box" part of the model to be correctly
 /// displayed based on whetehr multiple components are selected and if so what is their "box"

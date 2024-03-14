@@ -60,8 +60,40 @@ let optimalEdgeOrder (model: SheetT.Model):Result<SheetT.Model, string> =
     let bestModel = List.fold (fun minModel newModel -> if ((numOfWireRightAngleCrossings newModel) < (numOfWireRightAngleCrossings minModel)) then newModel else minModel) model possibleModels
     Ok bestModel
 
+let getInputReversalList (sym:Symbol): Symbol list =
+    let reverseSetter = snd reversedInputPorts_
+    [sym; (reverseSetter (Some true) sym)]
+
+let getFlipList (sym:Symbol): Symbol list =
+    let flipSetter = snd symbol_flipped_
+    [sym; (flipSetter true sym)]
+
+let getRotationList (sym:Symbol): Symbol list =
+    let rotationSetter = snd symbol_rotation_
+    [sym; (rotationSetter Degree90 sym); (rotationSetter Degree180 sym); (rotationSetter Degree270 sym)]
+
+// Configs due to input reversal, flipping and rotation.
+let getMuxConfigs (sym:Symbol): Symbol list =
+    getInputReversalList sym
+    |> List.map getFlipList
+    |> List.concat
+    |> List.map getRotationList
+    |> List.concat
+
+let getGateConfigs (sym:Symbol): Symbol list =
+    getFlipList sym
+
+let getAdderConfigs (sym:Symbol): Symbol list =
+    getInputReversalList sym
+    |> List.map getFlipList
+    |> List.concat
+
 let getConfigurations (sym:Symbol): Symbol list =
-    List.replicate 3 sym
+    match sym.Component.Type with
+    | Mux2 -> getMuxConfigs sym
+    | GateN _ -> getGateConfigs sym
+    | NbitsAnd _ -> getAdderConfigs sym
+    | _ -> [sym]
 
 let sheetOrderFlip (model: SheetT.Model):Result<SheetT.Model, string> =
     let rec cartesian lstlst =
@@ -86,9 +118,11 @@ let sheetOrderFlip (model: SheetT.Model):Result<SheetT.Model, string> =
     let SymbolList: Symbol list =
         Map.values idSymbolMap
         |> Seq.toList
-    let permutationsOfEachSym = List.map getConfigurations SymbolList
-    let possibleSymPermutations = cartesian permutationsOfEachSym
-    let possibleMaps = List.map (fun symList -> buildMap IDList symList) possibleSymPermutations
+
+    let possibleMaps =
+        List.map getConfigurations SymbolList
+        |> cartesian
+        |> List.map (fun symList -> buildMap IDList symList)
 
     let symbolsSetter = snd symbols_
 

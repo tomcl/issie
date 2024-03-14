@@ -72,7 +72,7 @@
                                   |> Array.take variableLen
                                   |> Array.toList)
             |> fromList
-            
+
 
 //------------------------Combinators to transform and combine random sequences-----------------//
 
@@ -87,6 +87,9 @@
     /// Map three sequences elementwise to make a fourth using f to combine them.
     let map3 (f: 'a1 -> 'a2 -> 'a3 -> 'b) (g1: Gen<'a1>) (g2: Gen<'a2>) (g3: Gen<'a3>): Gen<'b> =
         {Data = (fun i -> f (g1.Data i) (g2.Data i) (g3.Data i)); Size = g1.Size}
+
+    let map4 (f: 'a1 -> 'a2 -> 'a3 -> 'a4 -> 'b) (g1: Gen<'a1>) (g2: Gen<'a2>) (g3: Gen<'a3>) (g4: Gen<'a4>): Gen<'b> =
+        {Data = (fun i -> f (g1.Data i) (g2.Data i) (g3.Data i) (g4.Data i)); Size = g1.Size}
 
     /// Cartesian product: output sequence cycles through all combinations of the two inputs, combined by f
     /// All elements in g1 are used in order combined with the first element of g2, then the 2nd, etc.

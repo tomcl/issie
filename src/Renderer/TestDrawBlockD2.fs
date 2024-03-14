@@ -280,12 +280,6 @@ module HLPTick3 =
 
             | _ -> model
         
-        
-        let flipVertical (sym: SymbolT.Symbol) = 
-            sym
-            |> SymbolResizeHelpers.rotateSymbol Degree180
-            |> SymbolResizeHelpers.flipSymbol SymbolT.FlipHorizontal 
-
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
         /// The wire created will be smart routed but not separated from other wires: for a nice schematic

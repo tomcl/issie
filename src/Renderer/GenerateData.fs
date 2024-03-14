@@ -18,10 +18,11 @@
     // Generate a seed from current time
     // Seed generated & displayed to allow repeatable random testing
     let seed = int (System.DateTime.Now.Ticks % int64 System.Int32.MaxValue)
-    printfn "Random seed: %d" seed
-
+    
     // Use the seed to create the random number generator
-    let random = System.Random(seed)
+    let random = 
+        printfn "Random seed: %d" seed
+        System.Random(seed)
 
     /// Fischer-Yates shuffle algorithm
     /// Returns a random shuffled array without changing the input array

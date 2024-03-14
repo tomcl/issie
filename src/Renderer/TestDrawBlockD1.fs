@@ -30,6 +30,7 @@ open DrawModelType
 open Sheet.SheetInterface
 open GenerateData
 open SheetBeautifyHelpers
+open BlockHelpers
 
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
@@ -41,8 +42,8 @@ module Builder =
     let mainCC: ComponentType =
         Custom {
                     Name = "MAIN";
-                    InputLabels = [("A", 0); ("B", 1); ("S2", 2); ("S3", 3)];
-                    OutputLabels =  [("E", 4); ("F", 5); ("G", 6)];
+                    InputLabels = [("A", 1); ("B", 1); ("S2", 1); ("S3", 1)];
+                    OutputLabels = [("E", 1); ("F", 1); ("G", 1)];
                     Form = None
                     Description = None
                }
@@ -52,8 +53,8 @@ module Builder =
     let smallMainCC: ComponentType =
         Custom {
                     Name = "MAIN";
-                    InputLabels = [("A", 0); ("B", 1)];
-                    OutputLabels =  [("E", 4); ("F", 5)];
+                    InputLabels = [("A", 1); ("B", 1)];
+                    OutputLabels = [("E", 1); ("F", 1)];
                     Form = Some ProtectedTopLevel
                     Description = None
                }
@@ -62,11 +63,35 @@ module Builder =
     let ctrlPathCC: ComponentType =
         Custom {
                     Name = "CONTROLPATH";
-                    InputLabels = [("A", 0); ("B", 1)];
-                    OutputLabels =  [("E", 4); ("F", 5)];
+                    InputLabels = [("CPEN", 1); ("ND", 1); ("ZD", 1); ("CD", 1); ("VD", 1); ("MEMDATA", 16); ("RA", 16); ("IMMEXT", 16)];
+                    OutputLabels = [("FLAGC", 1); ("INS", 16); ("RETADDR", 16); ("MEMADDR", 16)];
                     Form = Some ProtectedTopLevel
                     Description = None
                }
+
+    // ac2021: Intro Lecture Shape
+    let dataPathCC: ComponentType =
+        Custom {
+                    Name = "DATAPATH";
+                    InputLabels = [("PCIN", 16); ("INS", 16); ("FLAGCIN", 1); ("DPEN", 1); ("MEMDOUT", 16)];
+                    OutputLabels = [("FLAGN", 1); ("FLAGZ", 1); ("FLAGC", 1); ("FLAGV", 1); ("IMMEXT", 16); ("RAOUT", 16); ("MEMADDR", 16); ("MEMDIN", 16); ("MEMWEN", 1)];
+                    Form = Some ProtectedTopLevel
+                    Description = None
+               }
+
+    let exampleMem1 =
+        {
+            Init = FromData
+            AddressWidth = 16
+            WordWidth = 16
+            Data = Map [(0,0)]
+        }
+
+    let exampleAROM = 
+        AsyncROM1 exampleMem1
+
+    let exampleARAM = 
+        AsyncRAM1 exampleMem1
 
     /// Count how many segments connected to sym
     let segsConnectedToSym (sheet: SheetT.Model) (sym: SymbolT.Symbol) =
@@ -94,14 +119,55 @@ module Builder =
         let componentID = Map.findKey (fun _ (sym: SymbolT.Symbol) -> sym.Component.Label = symLabel) symbolMap
         symbolMap[componentID]
 
-    let scaleSym (lbl) scale (sheet: SheetT.Model) =
+    let scaleSym (lbl: string) (scale: XYPos) (sheet: SheetT.Model) : Result<SheetT.Model, string> =
         let sym = getSymFromLbl lbl sheet
         let dims = getCustomCompDims sym
-        let newDims = {X = dims.X * scale; Y = dims.Y * scale}
-        putCustomCompDims newDims sym
+        let newDims = {X = dims.X * scale.X; Y = dims.Y * scale.Y}
+    
+        sheet
+        |> Optic.map (SheetT.symbolOf_ sym.Id) (putCustomCompDims newDims)
+        |> Ok
+
+    let getPortIdFromName lbl portType (sheet: SheetT.Model) portNum =
+        let syms = sheet.Wire.Symbol.Symbols
+        printfn "getting portId"
+        portOf lbl portNum
+        |> getPortId syms portType
+
+
+    /// Changes the port order of a symbol based on its label
+    let orderSymPorts (symLbl: string) (portType: PortType) edge order (sheet: SheetT.Model) : Result<SheetT.Model, string> =
+        printfn "started"
+        let sym = 
+            getSymFromLbl symLbl sheet
+        let portIdResults = List.map (getPortIdFromName symLbl portType sheet) order
+        
+        let portIdOkToPortId portIdOk =
+            match portIdOk with
+            | Ok portId -> portId
+            | _ -> failwithf "non-Ok portId passed into portIdOkToPortId"
+
+        let isOk result =
+            match result with
+            | Ok result -> true
+            | _ -> false
+
+        let oks, errors = List.partition isOk portIdResults
+        match oks, errors with
+        | _, (Error msg)::_ -> Error msg
+        | _, (Ok _)::_ -> failwithf "What? error not found when found error"
+        | portIdOks, [] ->
+            // Change result into Oks
+            let portIds = List.map portIdOkToPortId portIdOks
+            // Change sym
+            let editSym = putPortOrder edge portIds sym
+            Optic.set (SheetT.symbolOf_ sym.Id) editSym sheet
+            |> Ok
+
+
 
     //--------------------------------------------------------------------------------------------------//
-    //----------------------------------------DEBUG-----------------------------------------------------//
+    //----------------------------------------DEV-------------------------------------------------------//
     //--------------------------------------------------------------------------------------------------//
 
     let printId x =
@@ -174,7 +240,7 @@ let DimsAndOffsetXY scaleRandOpts offRandOpts =
 let pos x y = 
     middleOfSheet + {X= x; Y= y}
 
-/// Adds wire to curried model.
+/// Adds symbol to curried model.
 /// x,y are relative to the sheet middle
 let addSymToSheet lbl compType x y =
     Result.bind (placeSymbol lbl compType (pos x y))
@@ -183,20 +249,24 @@ let addSymToSheet lbl compType x y =
 let addWireToSheet (lbl1, num1) (lbl2, num2) =
     Result.bind (placeWire (portOf lbl1 num1) (portOf lbl2 num2))
 
+/// Edit dimensions of symbol in curried model
+let scaleSymInSheet lbl scale =
+    Result.bind (scaleSym lbl scale)
+
 // ac2021: Figure A1 circuit
 /// circuit to test alignment with multiple cascading connections
 /// 2x MUX2
 /// 4x inputs
 /// 1x output
-let makeA1Circuit =
+let makeA1Circuit _ =
     initSheetModel
     |> placeSymbol "A" (Input1 (1, None)) middleOfSheet
-    |> addSymToSheet "B" (Input1 (1, None)) 0 -20
-    |> addSymToSheet "S2" (Input1 (1, None)) 10 -30
-    |> addSymToSheet "S1" (Input1 (1, None)) 40 -40
-    |> addSymToSheet "MUX1" Mux2 40 -10
-    |> addSymToSheet "MUX2" Mux2 80 -20
-    |> addSymToSheet "C" (Output 1) 120 -20
+    |> addSymToSheet "B" (Input1 (1, None)) 0 200
+    |> addSymToSheet "S2" (Input1 (1, None)) 100 300
+    |> addSymToSheet "S1" (Input1 (1, None)) 400 400
+    |> addSymToSheet "MUX1" Mux2 400 100
+    |> addSymToSheet "MUX2" Mux2 800 200
+    |> addSymToSheet "C" (Output 1) 1200 200
     |> addWireToSheet ("A", 0) ("MUX1", 0)
     |> addWireToSheet ("B", 0) ("MUX1", 1)
     |> addWireToSheet ("MUX1", 0) ("MUX2", 0)
@@ -220,15 +290,15 @@ let makeA1Circuit =
 /// 2x MUX2
 /// 4x inputs
 /// 1x MUX output
-let makeA3Circuit =
+let makeA3Circuit _ =
     initSheetModel
     |> placeSymbol "A" (Input1 (1, None)) middleOfSheet
-    |> addSymToSheet "B" (Input1 (1, None)) 0 -20
-    |> addSymToSheet "S2" (Input1 (1, None)) 10 -30
-    |> addSymToSheet "S1" (Input1 (1, None)) 40 -40
-    |> addSymToSheet "MUX1" Mux2 40 -10
-    |> addSymToSheet "MUX2" Mux2 80 -20
-    |> addSymToSheet "MUX3" Mux2 120 -20
+    |> addSymToSheet "B" (Input1 (1, None)) 0 200
+    |> addSymToSheet "S2" (Input1 (1, None)) 100 300
+    |> addSymToSheet "S1" (Input1 (1, None)) 400 400
+    |> addSymToSheet "MUX1" Mux2 400 100
+    |> addSymToSheet "MUX2" Mux2 800 200
+    |> addSymToSheet "MUX3" Mux2 1200 200
     |> addWireToSheet ("A", 0) ("MUX1", 0)
     |> addWireToSheet ("B", 0) ("MUX1", 1)
     |> addWireToSheet ("S2", 0) ("MUX2", 2)
@@ -242,15 +312,63 @@ let makeA3Circuit =
 // ac2021: Figure A4 circuit
 /// circuit to test alignment between two custom components
 /// 1x mainCC at [middle of sheet]
-/// 1x mainCC at [middle + 60 ± random offset]
-let makeA4Circuit ((offsetXY:XYPos)) =
+/// 1x mainCC at [middle + 160 ± random offset]
+let makeA4Circuit (offsetXY: XYPos) =
     initSheetModel
     |> placeSymbol "MAIN1" mainCC middleOfSheet
     |> addSymToSheet "MAIN2" mainCC (160.+offsetXY.X) (0.+offsetXY.Y)
-    // |> Result.bind (putCustomCompDims dims (getSymFromLbl "MAIN1"))
     |> addWireToSheet ("MAIN1", 0) ("MAIN2", 0)
     |> addWireToSheet ("MAIN1", 1) ("MAIN2", 1)
     |> addWireToSheet ("MAIN1", 2) ("MAIN2", 2)
+    |> getOkOrFail
+
+
+// ac2021: Figure A5 circuit
+/// circuit to test alignment between two custom components
+/// 1x mainCC at [middle of sheet]
+/// 1x mainCC at [middle + 160] with random scaling
+let makeA5Circuit (scale: XYPos) =
+    initSheetModel
+    |> placeSymbol "MAIN1" mainCC middleOfSheet
+    |> addSymToSheet "MAIN2" mainCC 160. 0.
+    |> scaleSymInSheet "MAIN2" scale
+    |> addWireToSheet ("MAIN1", 0) ("MAIN2", 0)
+    |> addWireToSheet ("MAIN1", 1) ("MAIN2", 1)
+    |> addWireToSheet ("MAIN1", 2) ("MAIN2", 2)
+    |> getOkOrFail
+
+// ac2021: Intro lecture circuit for sheetAlignScale
+let makeLargeCircuit _ =
+    printfn "Build Large Circuit"
+    initSheetModel
+    |> placeSymbol "CONTROLPATH" ctrlPathCC middleOfSheet
+    |> addSymToSheet "DATAPATH" dataPathCC 0 400
+    |> addSymToSheet "DATAMEM" exampleARAM 450 0
+    |> addSymToSheet "CODEMEM" exampleAROM 450 400
+    |> addSymToSheet "C1" (Input1 (1, None)) -450 -20
+    |> addSymToSheet "C2" (Input1 (1, None)) -450 400
+    // |> Result.bind (orderSymPorts "CONTROLPATH" PortType.Input Left [0])
+    // |> Result.bind (orderSymPorts "CONTROLPATH" PortType.Input Bottom [1; 2; 3; 4])
+    // |> Result.bind (orderSymPorts "CONTROLPATH" PortType.Input Right [5; 6; 7])
+
+
+    |> addWireToSheet ("C1", 0) ("CONTROLPATH", 0)
+    |> addWireToSheet ("C2", 0) ("DATAPATH", 3)
+    |> addWireToSheet ("CONTROLPATH", 0) ("DATAPATH", 2)
+    |> addWireToSheet ("CONTROLPATH", 1) ("DATAPATH", 1)
+    |> addWireToSheet ("CONTROLPATH", 2) ("DATAPATH", 0)
+    |> addWireToSheet ("CONTROLPATH", 3) ("CODEMEM", 0)
+    |> addWireToSheet ("CODEMEM", 0) ("CONTROLPATH", 5)
+    |> addWireToSheet ("DATAPATH", 0) ("CONTROLPATH", 1)
+    |> addWireToSheet ("DATAPATH", 1) ("CONTROLPATH", 2)
+    |> addWireToSheet ("DATAPATH", 2) ("CONTROLPATH", 3)
+    |> addWireToSheet ("DATAPATH", 3) ("CONTROLPATH", 4)
+    |> addWireToSheet ("DATAPATH", 4) ("CONTROLPATH", 7)
+    |> addWireToSheet ("DATAPATH", 5) ("CONTROLPATH", 6)
+    |> addWireToSheet ("DATAPATH", 6) ("DATAMEM", 0)
+    |> addWireToSheet ("DATAPATH", 7) ("DATAMEM", 1)
+    |> addWireToSheet ("DATAPATH", 8) ("DATAMEM", 2)
+    |> addWireToSheet ("DATAMEM", 0) ("DATAPATH", 4)
     |> getOkOrFail
 
 //------------------------------------------------------------------------------------------------//
@@ -265,26 +383,24 @@ module Asserts =
         easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
 
     // ac2021: May not be true as complexity increases, but still could be a useful helper
-    /// Fail when there are greater than 4 right angles in a wire.
+    /// Fail when there are greater than 4 right angles in a singular wire.
     /// This should be the ideal maximum number of corners in all cases.
-    let failOnTooManyWireTurns (sample: int) (sheet: SheetT.Model) =
+    let failOn5WireTurns (sample: int) (sheet: SheetT.Model) =
         let wIds = 
             sheet.Wire.Wires
             |> mapKeys
             |> Array.toList
 
-        let subOne n = n - 1
-
-        let moreThan4Turns (wId: ConnectionId) =
+        let turnsInWire (wId: ConnectionId) =
             visibleSegments wId sheet
             |> List.length
-            |> subOne
-            |> (fun n -> n > 4)
+            |> (fun n -> n - 1)
 
         wIds
-        |> List.tryFind moreThan4Turns
+        |> List.map turnsInWire
+        |> List.tryFind (fun n -> n > 4)
         |> function 
-            | Some _ -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
+            | Some _ -> Some $"More wire turns than necessary in sample {sample}"
             | None -> None
 
 
@@ -316,21 +432,126 @@ module Asserts =
             | Some _ -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
             | None -> None
 
+    /// Combine multiple checks into one for a circuit.
+    /// Returns the first error message found.
+    let combineSheetChecker (check1: int ->SheetT.Model->option<string>) (check2: int ->SheetT.Model->option<string>) sample sheet =
+        check1 sample sheet
+        |> Option.orElse (check2 sample sheet)
 
+//---------------------------------------------------------------------------------------//
+//-----------------------------Evaluation------------------------------------------------//
+//---------------------------------------------------------------------------------------//
+// Evaluation of the circuit will be calulated after the sheetChecker is run successfully. 
+// Each evaluation metric returns score between [0, 1].
+// The larger the score, the more 'beautiful' the beautified sheet is 
+// relative to ideal beautification.
+
+module Evaluations =
+
+    /// Proportion of component overlap 
+    let compOverlap (sheet: SheetT.Model) : float =
+        failwithf "Not implemented"
+
+    /// Calculates the proportion of wire bends compared to the ideal solution
+    let wireBendIdealProp (sheet: SheetT.Model) =
+        let wires = mapValues sheet.Wire.Wires
+        let symMap = sheet.Wire.Symbol
+
+        // Ideal min turn with no position constraints
+        let wireMinTurns (wire: BusWireT.Wire) =
+            let inpEdge = getInputPortOrientation symMap wire.InputPort
+            let outEdge = getOutputPortOrientation symMap wire.OutputPort
+            match inpEdge, outEdge with
+            | edge1, edge2 when edge1 = edge2 -> 2
+            | Left, Right | Right, Left | Top, Bottom | Bottom, Top -> 0
+            | _ -> 1
+
+        let rightAngs = numOfVisRightAngles sheet
+        let idealRightAngs =
+            wires
+            |> Array.map wireMinTurns
+            |> Array.sum
+        float idealRightAngs / float rightAngs
+
+    let wireSquashProp (sheet: SheetT.Model) =
+        failwithf "Not implemented"
+    
+    type Config =
+        {
+            compOverlapWeight: float
+            wireBendWeight: float
+            wireCrossWeight: float // numOfWireRightAngleCrossings
+            wireSquashWeight: float
+            wireLengthWeight: float // calcVisWireLength
+            failPenalty: float // -1
+        }
+
+    /// Combines all evaluations into one score
+    let evaluateD1 (c: Config) (sheet: SheetT.Model) : float =
+        c.compOverlapWeight * (compOverlap sheet)
+        |> (+) (c.wireBendWeight * (wireBendIdealProp sheet))
+        |> (+) (c.wireCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
+        |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
 //---------------------------------------------------------------------------------------//
 
 module Tests =
+    open Asserts
+    open Evaluations
+
+    let testA1 testNum firstSample dispatch =
+        runTestOnSheets
+            "Figure A1 circuit from hlp2024 brief"
+            firstSample
+            (randXY {min=(-30); step=3; max=30})
+            makeA1Circuit
+            failOnAllTests
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum dispatch
+
+    let testA3 testNum firstSample dispatch =
+        runTestOnSheets
+            "Figure A3 circuit from hlp2024 brief"
+            firstSample
+            (randXY {min=(-30); step=3; max=30})
+            makeA3Circuit
+            failOnAllTests
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum dispatch
 
     let testA4 testNum firstSample dispatch =
         runTestOnSheets
-            "two custom components with random offset: fail all tests"
+            "two custom components with random offset"
             firstSample
-            // (DimsAndOffsetXY {min=0.5; step=0.5; max=2} {min=(-2); step=0.1; max=2})
-            (randXY {min=(-30); step=3; max=30})
+            (randXY {min=(-50); step=5; max=50})
             makeA4Circuit
-            Asserts.failOnAllTests
+            failOnAllTests
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum dispatch
+
+    let testA5 testNum firstSample dispatch =
+        runTestOnSheets
+            "two custom components with random scaling"
+            firstSample
+            (randXY {min=(0.5); step=0.5; max=3})
+            makeA5Circuit
+            failOnAllTests
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum dispatch
+
+    let testLargeCircuit testNum firstSample dispatch =
+        runTestOnSheets
+            "Large circuit"
+            firstSample
+            (randXY {min=(0.5); step=0.5; max=3})
+            makeLargeCircuit
+            failOnAllTests
+            Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch

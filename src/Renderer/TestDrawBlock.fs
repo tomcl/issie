@@ -17,8 +17,8 @@ module TestLib =
 
 
     type TestStatus =
-            | Fail of string
-            | Exception of string
+        | Fail of string
+        | Exception of string
 
     type Test<'a> = {
         Name: string
@@ -28,13 +28,15 @@ module TestLib =
         /// to display just one sample.
         /// The return value is None if test passes, or Some message if it fails.
         Assertion: int -> 'a -> string option
+        Evaluation: int -> 'a -> float
         }
 
     type TestResult<'a> = {
         TestName: string
         TestData: Gen<'a>
         FirstSampleTested: int
-        TestErrors: (int * TestStatus) list
+        firstTestError: option<int * TestStatus>
+        Scores: float list
     }
 
     let catchException name func arg =
@@ -48,25 +50,49 @@ module TestLib =
     /// The return list contains all failures or exceptions: empty list => everything has passed.
     /// This will always run to completion: use truncate if text.Samples.Size is too large.
     let runTests (test: Test<'a>) : TestResult<'a>  =
+        printfn $"{test.StartFrom} / {test.Samples.Size}"
+        let getTestOutput (n, res) : option<int * TestStatus> =
+            match n, res with
+                | n, Error mess -> Some (n, Exception mess)
+                | n, Ok sample ->
+                    match catchException $"'test.Assertion' on test {n} from 'runTests'" (test.Assertion n) sample with
+                    | Ok None -> None
+                    | Ok (Some failure) -> Some (n,Fail failure)
+                    | Error (mess) -> Some (n,Exception mess)
+
         [test.StartFrom..test.Samples.Size - 1]
         |> List.map (fun n ->
                 catchException $"generating test {n} from {test.Name}" test.Samples.Data n
                 |> (fun res -> n,res)
-           )           
-        |> List.collect (function
-                            | n, Error mess -> [n, Exception mess]
-                            | n, Ok sample ->
-                                match catchException $"'test.Assertion' on test {n} from 'runTests'" (test.Assertion n) sample with
-                                | Ok None -> []
-                                | Ok (Some failure) -> [n,Fail failure]
-                                | Error (mess) -> [n,Exception mess])
-        |> (fun resL ->                
+           )
+        |> List.tryFind (Option.isSome << getTestOutput)
+        |> (function 
+                | None -> None
+                | Some (n,res) -> getTestOutput (n,res))
+        // |> Option.map getTestOutput
+        |> (fun resL ->
                 {
                     TestName = test.Name
                     FirstSampleTested = test.StartFrom
                     TestData = test.Samples
-                    TestErrors =  resL
+                    firstTestError = resL
+                    Scores = [1]
                 })
+        // |> List.collect (function
+        //                     | n, Error mess -> [n, Exception mess]
+        //                     | n, Ok sample ->
+        //                         match catchException $"'test.Assertion' on test {n} from 'runTests'" (test.Assertion n) sample with // TODO: add evaluation here
+        //                         | Ok None -> [] // TODO: add evaluate success
+        //                         | Ok (Some failure) -> [n,Fail failure] // TODO: add penalty error
+        //                         | Error (mess) -> [n,Exception mess])
+        // |> (fun resL ->                
+        //         {
+        //             TestName = test.Name
+        //             FirstSampleTested = test.StartFrom
+        //             TestData = test.Samples
+        //             TestErrors = resL
+        //             Scores = [1] // TODO: implemente real evaluation
+        //         })
  
  
             
@@ -91,6 +117,7 @@ module HLPTick3 =
     open Sheet.SheetInterface
     open GenerateData
     open TestLib
+    open PopupHelpers
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -149,23 +176,21 @@ module HLPTick3 =
             | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
             | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
 
-        /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-        /// if this is possible, otherwise return segVecs unchanged.
-        /// Index must be in range 1..segVecs
-        let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-            if segVecs[index] =~ XYPos.zero
-            then
+        /// Return the list of segment vectors with 3 vectors coalesced into one visible equivalent
+        /// wherever this is possible
+        let rec coalesce (segVecs: XYPos list)  =
+            match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with          
+            | Some zeroVecIndex -> 
+                let index = zeroVecIndex + 1 // base index onto full segVecs
                 segVecs[0..index-2] @
                 [segVecs[index-1] + segVecs[index+1]] @
                 segVecs[index+2..segVecs.Length - 1]
-            else
-                segVecs
-
+                |> coalesce // recurse as long as more coalescing might be possible
+            | None -> segVecs // end when there are no inner zero-length segment vectors
+     
         wire.Segments
         |> List.mapi getSegmentVector
-        |> (fun segVecs ->
-                (segVecs,[1..segVecs.Length-2])
-                ||> List.fold tryCoalesceAboutIndex)
+        |> coalesce
 
 
 //------------------------------------------------------------------------------------------------------------------------//
@@ -216,7 +241,7 @@ module HLPTick3 =
                     : Result<SheetT.Model, string> =
            let symbolMap = model.Wire.Symbol.Symbols
            if caseInvariantEqual ccSheetName project.OpenFileName then
-                Error "Can't create custom component with name same as current opened sheet"        
+                Error "Can't create custom component with name same as current opened sheet"
             elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
                 Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
             elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
@@ -263,14 +288,8 @@ module HLPTick3 =
             let symModel = SymbolResizeHelpers.flipSymbol flip symbolMap[componentID]
             updatedModel componentID symModel model
 
-        /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
-        /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
-        /// The wire created will be smart routed but not separated from other wires: for a nice schematic
-        /// separateAllWires should be run after  all wires are added.
-        /// source, target: respectively the output port and input port to which the wire connects.
-        let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : Result<SheetT.Model,string> =
-            let symbols = model.Wire.Symbol.Symbols
-            let getPortId (portType:PortType) symPort =
+        /// Get PortId from symPort
+        let getPortId (symbols: Map<ComponentId, SymbolT.Symbol>) (portType:PortType) symPort  =
                 mapValues symbols
                 |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symPort.Label)
                 |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
@@ -281,7 +300,16 @@ module HLPTick3 =
                     |> function | Some port -> Ok port.Id
                                 | None -> Error $"Can't find {portType} port {symPort.PortNumber} on component {symPort.Label}")
             
-            match getPortId PortType.Input target, getPortId PortType.Output source with
+        /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
+        /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
+        /// The wire created will be smart routed but not separated from other wires: for a nice schematic
+        /// separateAllWires should be run after  all wires are added.
+        /// source, target: respectively the output port and input port to which the wire connects.
+        let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : Result<SheetT.Model,string> =
+            let symbols = model.Wire.Symbol.Symbols
+            let getPortIdInSheet = getPortId symbols
+
+            match getPortIdInSheet PortType.Input target, getPortIdInSheet PortType.Output source with
             | Error e, _ | _, Error e -> Error e
             | Ok inPort, Ok outPort ->
                 let newWire = BusWireUpdate.makeNewWire (InputPortId inPort) (OutputPortId outPort) model.Wire
@@ -305,6 +333,19 @@ module HLPTick3 =
             dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
             sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
 
+        /// Popup shown after test evaluation
+        let evaluationPopup (model:Model) dispatch =
+            // let title = sprintf "SCORE" 
+            // let beforeInt =
+            //     fun _ -> str "How wide should the register be (in bits)?"
+            // let intDefault = model.LastUsedDialogWidth
+            // let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+            // let buttonText = "Add"
+            // let buttonAction = dispatch ClosePopup
+            // let isDisabled =
+            //     fun (model': Model) -> getInt model'.PopupDialogData < 1
+            // dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+            confirmationPopup
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
         /// 2. Check each ciruit with sheetChecker.
@@ -319,24 +360,30 @@ module HLPTick3 =
             (samples : Gen<'a>)
             (sheetMaker: 'a -> SheetT.Model)
             (sheetChecker: int -> SheetT.Model -> string option)
+            (sheetScorer: int -> SheetT.Model -> float)
             (dispatch: Dispatch<Msg>)
                 : TestResult<'a> =
             let generateAndCheckSheet n = sheetMaker >> sheetChecker n
+            let generateAndScoreSheet n = sheetMaker >> sheetScorer n
             let result =
                 {
                     Name=name;
                     Samples=samples;
                     StartFrom = sampleToStartFrom
                     Assertion = generateAndCheckSheet
+                    Evaluation = generateAndScoreSheet
                 }
                 |> runTests
-            match result.TestErrors with
-            | [] -> // no errors
+            match result.firstTestError with
+            | None -> // no errors
                 printf $"Test {result.TestName} has PASSED."
-            | (n,first):: _ -> // display in Issie editor and print out first error
+                printf $"SCORE: {List.average result.Scores}"
+                // evaluationPopup
+            | Some (n,first) -> // display in Issie editor and print out first error
                 printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
                 match catchException "" sheetMaker (samples.Data n) with
-                | Ok sheet -> showSheetInIssieSchematic sheet dispatch
+                | Ok sheet -> 
+                    showSheetInIssieSchematic sheet dispatch
                 | Error mess -> ()
             result
 //--------------------------------------------------------------------------------------------------//
@@ -402,8 +449,20 @@ module HLPTick3 =
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
 
+//---------------------------------------------------------------------------------------//
+//-----------------------------Evaluation------------------------------------------------//
+//---------------------------------------------------------------------------------------//
+// Evaluation of the circuit will be calulated after the sheetChecker is run successfully. 
+// Each evaluation metric returns score between [0, 1].
+// The larger the score, the more 'beautiful' the beautified sheet is 
+// relative to ideal beautification.
 
+    module Evaluations =
+        open DrawModelType
 
+        /// Evaluates sheet to 0
+        let nullEvaluator (sample: int) (sheet: SheetT.Model) : float =
+            0
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
 //---------------------------------------------------------------------------------------//
@@ -414,11 +473,11 @@ module HLPTick3 =
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
         let recordPositionInTest (testNumber: int) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
             dispatch <| UpdateDrawBlockTestState(fun _ ->
-                match result.TestErrors with
-                | [] ->
+                match result.firstTestError with
+                | None ->
                     printf "Test finished"
                     None
-                | (numb, _) :: _ ->
+                | Some (numb, _) ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
             
@@ -430,6 +489,7 @@ module HLPTick3 =
                 horizLinePositions
                 makeTest1Circuit
                 (Asserts.failOnSampleNumber 0)
+                Evaluations.nullEvaluator
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -441,6 +501,7 @@ module HLPTick3 =
                 horizLinePositions
                 makeTest1Circuit
                 (Asserts.failOnSampleNumber 10)
+                Evaluations.nullEvaluator
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -452,6 +513,7 @@ module HLPTick3 =
                 horizLinePositions
                 makeTest1Circuit
                 Asserts.failOnSymbolIntersectsSymbol
+                Evaluations.nullEvaluator
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -463,6 +525,7 @@ module HLPTick3 =
                 horizLinePositions
                 makeTest1Circuit
                 Asserts.failOnAllTests
+                Evaluations.nullEvaluator
                 dispatch
             |> recordPositionInTest testNum dispatch
 

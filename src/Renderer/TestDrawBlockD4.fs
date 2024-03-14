@@ -34,10 +34,10 @@ module Tests =
             "Test2", test2 // example
             "Test3", test3 // example
             "Test4", test4 
-            "Test5", TestDrawBlockD1.Tests.testA4 // dummy test - delete line or replace by real test as needed
-            "Test6", fun _ _ _ -> printf "Test6"
-            "Test7", fun _ _ _ -> printf "Test7"
-            "Test8", fun _ _ _ -> printf "Test8"
+            "Test5", TestDrawBlockD1.Tests.testA4
+            "Test6", TestDrawBlockD1.Tests.testA5
+            "Test7", TestDrawBlockD1.Tests.testA3
+            "Test8", TestDrawBlockD1.Tests.testLargeCircuit
             "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
         ]

@@ -660,33 +660,24 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
             let topleft = newBoxBound.TopLeft
             let rotateDeg90OffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
             let rotateDeg270OffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
-            let dummyPos = (topleft + {X = newBoxBound.W + 47.5; Y = -47.5})
+            let buttonOffSet: XYPos = {X = newBoxBound.W + 47.5; Y = -47.5}
+            let dummyPos = (topleft + buttonOffSet)
 
-            // Helper to create a button
             let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
-            
-            // Helper to rotate a symbol and update STransform/Component Height/Width
-            let rotateSym rotation offset sTransformDegree = 
-                // Lenses to update Component height, width, Stransform Rotation, Flipped
-                let sTransform_ = Lens.create (fun (s: SymbolT.Symbol) -> s.STransform) (fun a s -> {s with STransform=a})
-                let rotation_ = Lens.create (fun (s: STransform) -> s.Rotation) (fun a s -> {s with Rotation=a})
-                let flipped_ = Lens.create (fun (s: STransform) -> s.Flipped) (fun a s -> {s with Flipped=a})
-                makeButton (RotateButton rotation) (topleft + offset)
-                |> Optic.set (Compose.lens sTransform_ rotation_) rotation
-                |> Optic.set (Compose.lens sTransform_ flipped_) false 
-                |> Optic.set (Compose.lens component_ h_ ) 25.
-                |> Optic.set (Compose.lens component_ w_) 25.
+            let buttonSym = {makeButton ScaleButton dummyPos with Pos = (topleft + buttonOffSet)}
+            let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}
+            let rotateDeg90Sym = 
+                makeButton (RotateButton Degree90) (topleft + rotateDeg90OffSet)
+                |> makeRotateSym
+            let rotateDeg270Sym = 
+                {makeButton (RotateButton Degree270) (topleft + rotateDeg270OffSet) 
+                    with SymbolT.STransform = {Rotation=Degree90 ; Flipped=false}}
+                |> makeRotateSym
 
-            let buttonSym = {makeButton ScaleButton dummyPos with Pos = dummyPos}
-            let rotateDeg90Sym = rotateSym Degree90 rotateDeg90OffSet Degree0
-            let rotateDeg270Sym = rotateSym Degree270 rotateDeg270OffSet Degree90
-
-            let newSymbolMap = 
-                model.Wire.Symbol.Symbols 
-                |> Map.add buttonSym.Id buttonSym 
-                |> Map.add rotateDeg270Sym.Id rotateDeg270Sym 
-                |> Map.add rotateDeg90Sym.Id rotateDeg90Sym
-            
+            let newSymbolMap = model.Wire.Symbol.Symbols 
+                                                        |> Map.add buttonSym.Id buttonSym 
+                                                        |> Map.add rotateDeg270Sym.Id rotateDeg270Sym 
+                                                        |> Map.add rotateDeg90Sym.Id rotateDeg90Sym
             let initScalingBox: SheetT.ScalingBox = {
                 ScalingBoxBound = newBoxBound;
                 ScaleButton = buttonSym;
@@ -694,10 +685,14 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
                 RotateDeg270Button = rotateDeg270Sym;
                 ButtonList = [buttonSym.Id; rotateDeg270Sym.Id; rotateDeg90Sym.Id];
             }
-
-            let newModel = 
-                model
-                |> Optic.set SheetT.scalingBox_ (Some initScalingBox)
-                |> Optic.set SheetT.symbols_ newSymbolMap
-
-            returnModelAndCommand newModel newModel
+            let newCmd =
+                match model.ScalingBox with
+                | Some _ -> [symbolCmd (SymbolT.DeleteSymbols (model.ScalingBox.Value).ButtonList);
+                             sheetCmd SheetT.UpdateBoundingBoxes]
+                            |> List.append [cmd]
+                            |> Elmish.Cmd.batch
+                | None -> cmd
+            model
+            |> Optic.set SheetT.scalingBox_ (Some initScalingBox)
+            |> Optic.set SheetT.symbols_ newSymbolMap, 
+            newCmd

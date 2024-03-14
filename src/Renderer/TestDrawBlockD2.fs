@@ -480,6 +480,19 @@ module D2Test =
                 displayOnFail
             |> recordPositionInTest testNum dispatch
 
+        let test2Opt testNum firstSample dispatch model =
+            let displayOnFail = displayAll
+            let generator = filteredGridPositions makeTest3Circuit 10
+            runTestOnSheets
+                "DisplayAll: Custom Symbol"
+                firstSample
+                generator
+                (makeTest2Circuit model >> optimizePortOrder)
+                Asserts.failOnAllTests
+                dispatch
+                displayOnFail
+            |> recordPositionInTest testNum dispatch
+
         let test4 testNum firstSample dispatch model =
             let displayOnFail = displayMetric
             let generator = flipOnlySamples
@@ -508,7 +521,7 @@ module D2Test =
                 "Test1: MUX Original", test1
                 "Test1: Optimised", test1Opt
                 "Test2: CC Original", test2
-                "Test2: CC Optimised", test2
+                "Test2: CC Optimised", test2Opt
                 // "Test4: Random Flip", test4
                 "Display Sheet Info", displayCurProj
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test

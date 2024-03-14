@@ -139,10 +139,7 @@ module D2Test =
         let displayRightAnglesPerWire =
             displayer "right_angle/wire" rightAnglePerWire
 
-        let displayMetric = [
-            displayIntersectPerSegment;
-            displayRightAnglesPerWire;
-        ]
+        let displayMetric = []
 
         let displayAll = [
             displayComponents; 
@@ -151,7 +148,7 @@ module D2Test =
             displayVisRightAngles; 
             displayVisibleSegments;
             displayVisibleWiringLength; 
-            displayRetracingSegments;
+            // displayRetracingSegments;
             ]
 
 //------------------------------------------------------------------------------------------------------------------------//
@@ -321,6 +318,7 @@ module D2Test =
         |> optimizePortOrder    
 
     let makeTest2Circuit (model:Model) (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
+        // TODO: fix the custom component placing, currently missing the ports
         let project = Option.get model.CurrentProj
         let curSheetName = project.OpenFileName
         let sheetNames = 
@@ -328,34 +326,34 @@ module D2Test =
             |> List.map (fun ldc -> ldc.Name)
             |> List.filter (fun name -> name <> curSheetName)
 
-        let ccEmptySheet = DiagramMainView.init().Sheet
-        let ccSheet: SheetT.Model =
-            [
-                placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.};
-                placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y};
-                placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y+100.};
-                placeSymbol "MUX1" Mux2 {X=middleOfSheet.X-100.;Y=middleOfSheet.Y-100.};
-                placeSymbol "MUX2" Mux2 middleOfSheet;
-                flipSymbol "MUX2" SymbolT.FlipType.FlipVertical >> Ok;
-                placeWire (portOf "S2" 0) (portOf "MUX2" 2);
-                placeWire (portOf "MUX1" 0) (portOf "MUX2" 0);
-                placeWire (portOf "S1" 0) (portOf "MUX2" 1);
-                placeWire (portOf "MUX2" 0) (portOf "G1" 0);
-                placeWire (portOf "MUX1" 0) (portOf "G1" 1);
-            ]
-            |> minimalDSL ccEmptySheet
-            |> getOkOrFail
-        let ccSheetName = sheetNames.Head
+        // let ccEmptySheet = DiagramMainView.init().Sheet
+        // let ccSheet: SheetT.Model =
+        //     [
+        //         placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.};
+        //         placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y};
+        //         placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y+100.};
+        //         placeSymbol "MUX1" Mux2 {X=middleOfSheet.X-100.;Y=middleOfSheet.Y-100.};
+        //         placeSymbol "MUX2" Mux2 middleOfSheet;
+        //         flipSymbol "MUX2" SymbolT.FlipType.FlipVertical >> Ok;
+        //         placeWire (portOf "S2" 0) (portOf "MUX2" 2);
+        //         placeWire (portOf "MUX1" 0) (portOf "MUX2" 0);
+        //         placeWire (portOf "S1" 0) (portOf "MUX2" 1);
+        //         placeWire (portOf "MUX2" 0) (portOf "G1" 0);
+        //         placeWire (portOf "MUX1" 0) (portOf "G1" 1);
+        //     ]
+        //     |> minimalDSL ccEmptySheet
+        //     |> getOkOrFail
+        let ccSheetName = "custom" // sheetNames.Head
         
         CustomCompPorts.printSheetNames model
         printfn $"{ccSheetName}"
 
         [
-            // placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
-            placeCustomSymbol "CC1" ccSheetName  project {X=1.0; Y=1.0} {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
+            placeCustomSymbol "CC1" ccSheetName  project {X=1.0; Y=1.0} {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-300.}
+            placeCustomSymbol "CC2" ccSheetName  project {X=1.0; Y=1.0} {X=middleOfSheet.X+100.;Y=middleOfSheet.Y+300.}
         ]
-        |> minimalDSL model.Sheet
-        |> getOkOrFail    
+        |> minimalDSL initSheetModel
+        |> getOkOrFail
 
     let makeTest5Circuit (andPos:XYPos) =
         initSheetModel
@@ -465,15 +463,23 @@ module D2Test =
                 displayOnFail
             |> recordPositionInTest testNum dispatch
 
+        /// This test is to display info on the current model as it is in Issie
+        let displayCurProj testNum firstSample dispatch model =
+            display displayAll model.Sheet
+            ()
+
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Model -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1: 2 diff net", test1
-                "Test2: 2 same net", test1Opt
-                "Test4: Random Flip", test2
+                "Test1: MUX Original", test1
+                "Test1: Optimised", test1Opt
+                "Test2: CC Original", test2
+                "Test2: CC Optimised", test2
+                // "Test4: Random Flip", test4
+                "Display Sheet Info", displayCurProj
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]
 

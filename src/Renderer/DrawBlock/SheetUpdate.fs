@@ -19,7 +19,6 @@ open FSharp.Core
 open Fable.Core.JsInterop
 open BuildUartHelpers
 open Node
-open SheetBeautifyD2
 
 module node = Node.Api
 
@@ -92,7 +91,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     // Gets bounding box dimentions and creates the necessary symbol buttons
 
     | KeyPress CtrlB ->
-        sheetOrderFlip model,
+        SheetBeautify.beautifySheet model,
         Cmd.none
 
     | KeyPress AltShiftZ ->

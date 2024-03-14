@@ -32,5 +32,8 @@ module Constants =
     () // dummy to make skeleton type check - remove when other content exists
 
 
-
-    
+let beautifySheet
+        (sheet: SheetT.Model)
+        : SheetT.Model =
+    SheetBeautifyD2.sheetOrderFlip sheet
+    // TODO add D1 and D3

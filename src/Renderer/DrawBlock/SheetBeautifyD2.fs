@@ -49,47 +49,8 @@ let sheetScore
     //numCrossingsSq*numCrossingsNorm + visibleLengthSq*visibleLengthNorm + numRightAnglesSq*numRightAnglesNorm
     numCrossingsSq*numCrossingsNorm
 
-// The following four functions are from my original helpers, more useful for a particular context.
-// TODO consider moving them back to SheetBeautifyHelpers? If others agree.
+let inline (%!) a b = (a % b + b) % b
 
-/// B3R Returns a list of ordered ports for a given side of a symbol.
-let getOrderedPorts
-        (model: SymbolT.Model)
-        (symbol: SymbolT.Symbol)
-        (edge: Edge)
-        : Port list =
-    symbol.PortMaps.Order[edge]
-    |> List.map (fun portId -> model.Ports[portId])
-
-/// B3W Sets the list of ordered ports for a given side of a symbol.
-/// The provided list of ports must be a reordering of the existing list of ports
-/// (i.e. this function can only change order).
-let setOrderedPorts
-        (symbol: SymbolT.Symbol)
-        (edge: Edge)
-        (ports: Port list)
-        : SymbolT.Symbol =
-    let getId (port: Port) = port.Id // To deal with weird type error
-    let portIds = List.map getId ports
-    symbol.PortMaps.Order
-    |> Map.add edge portIds
-    |> fun map -> Optic.set (SymbolT.portMaps_ >-> SymbolT.order_) map symbol
-
-/// B4W Toggle the 'reversed input' state of a MUX.
-let toggleReversedInputs
-        (symbol: SymbolT.Symbol)
-        : SymbolT.Symbol =
-    match symbol.ReversedInputPorts with
-    | Some rev -> Optic.set SheetBeautifyHelpers2.reversedInputPorts_ (Some (not rev)) symbol
-    | None -> symbol // Don't change the state of an old MUX
-
-// This might be useful as well.
-/// B8W Flip a symbol.
-let flipSymbol
-        (flip: SymbolT.FlipType)
-        (symbol: SymbolT.Symbol)
-        : SymbolT.Symbol =
-    flipSymbolInBlock flip (Symbol.getRotatedSymbolCentre symbol) symbol
 
 
 ////////// Algorithm 1: Brute force //////////
@@ -110,8 +71,8 @@ let rec bruteForceOptimise
         let flippedSym =
             match sym.STransform.Rotation with
             | Rotation.Degree0 | Rotation.Degree180 ->
-                flipSymbol SymbolT.FlipVertical sym
-            | _ -> flipSymbol SymbolT.FlipHorizontal sym
+                SheetBeautifyHelpers2.flipSymbol SymbolT.FlipVertical sym
+            | _ -> SheetBeautifyHelpers2.flipSymbol SymbolT.FlipHorizontal sym
 
         let symbolChoices =
             match sym.Component.Type with
@@ -119,9 +80,9 @@ let rec bruteForceOptimise
                 [sym; flippedSym]
             | Mux2 | Mux4 | Mux8 ->
                 [sym;
-                 toggleReversedInputs sym;
+                 SheetBeautifyHelpers2.toggleReversedInputs sym;
                  flippedSym;
-                 toggleReversedInputs flippedSym]
+                 SheetBeautifyHelpers2.toggleReversedInputs flippedSym]
             | _ -> [sym]
 
         symbolChoices
@@ -162,29 +123,29 @@ let getVectorAngle
         : float =
     let delta = {v with Y = (-v.Y)} // Switch to +y = up coord system
     let angle = Math.Atan2 (delta.Y, delta.X)
-    angle % (2.0 * Math.PI)
+    angle %! (2.0 * Math.PI)
 
-/// Get the normalised vector difference in position between two ports.
+/// Get the normalised vector difference in position between a symbol and a port.
 let getNormPortDiff
         (model: SymbolT.Model)
-        (port1: Port)
-        (port2: Port)
+        (symbol: SymbolT.Symbol)
+        (port: Port)
         : XYPos =
-    let pos1 = SheetBeautifyHelpers2.getPortSheetPos model port1
-    let pos2 = SheetBeautifyHelpers2.getPortSheetPos model port2
+    let pos1 = Symbol.getRotatedSymbolCentre symbol
+    let pos2 = SheetBeautifyHelpers2.getPortSheetPos model port
     let delta = pos2 - pos1
     let mag = sqrt ((delta.X**2) + (delta.Y**2))
     {X = delta.X/mag; Y = delta.Y/mag}
 
-/// Returns the average angle between a port and a list of ports it's connected to,
+/// Returns the average angle between a symbol and a list of ports,
 /// relative to the +x axis (anticlockwise).
 let getAveragePortAngle
         (model: SymbolT.Model)
-        (sourcePort: Port)
+        (symbol: SymbolT.Symbol)
         (portList: Port list)
         : float =
     portList
-    |> List.map (getNormPortDiff model sourcePort)
+    |> List.map (getNormPortDiff model symbol)
     |> List.fold (+) XYPos.zero
     |> getVectorAngle
 
@@ -195,22 +156,22 @@ let offsetPortAngle
         (angle: float)
         : float =
     match edge with
-    | Top -> (angle + Math.PI/2.) % (2.*Math.PI)
+    | Top -> (angle + Math.PI/2.) %! (2.*Math.PI)
     | Left -> angle
-    | Bottom -> (angle - Math.PI/2.) % (2.*Math.PI)
-    | Right -> (angle + Math.PI) % (2.*Math.PI)
+    | Bottom -> (angle - Math.PI/2.) %! (2.*Math.PI)
+    | Right -> (angle + Math.PI) %! (2.*Math.PI)
 
 /// Reorder the ports of a custom component along a single edge
 /// according to the clock face algorithm.
 let reorderCustomPorts
         (model: BusWireT.Model)
+        (symbol: SymbolT.Symbol)
         (edge: Edge)
-        (ports: Port list)
         : Port list =
-    ports
+    SheetBeautifyHelpers2.getOrderedPorts model.Symbol symbol edge
     |> List.map (fun port -> port, getConnectedPorts model port)
-    |> List.map (fun (source, lst) -> source, getAveragePortAngle model.Symbol source lst)
-    |> List.map (fun (source, angle) -> source, offsetPortAngle edge angle)
+    |> List.map (fun (port, lst) -> port, getAveragePortAngle model.Symbol symbol lst)
+    |> List.map (fun (port, angle) -> port, offsetPortAngle edge angle)
     |> List.sortBy snd
     |> List.map fst
 
@@ -221,12 +182,9 @@ let customCompClockFace
         (symbol: SymbolT.Symbol)
         : SymbolT.Symbol =
     let edges = [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
-    let ports = List.map (getOrderedPorts model.Symbol symbol) edges
-    let reorderedPorts =
-        (edges, ports)
-        ||> List.map2 (reorderCustomPorts model)
+    let reorderedPorts = List.map (reorderCustomPorts model symbol) edges
     (symbol, edges, reorderedPorts)
-    |||> List.fold2 setOrderedPorts
+    |||> List.fold2 SheetBeautifyHelpers2.setOrderedPorts
 
 
 
@@ -267,6 +225,16 @@ let rec bfsKComponents
             ||> List.fold (fun (v, q) -> enqueueAndVisit v q)
         bfsKComponents graph k visited' queue'
 
+/// Removes a node from a graph.
+let removeNode
+        (graph: Graph)
+        (node: ComponentId)
+        : Graph =
+    Map.remove node graph
+    |> Map.map (fun _ lst ->
+        List.filter (fun x -> x <> node) lst
+    )
+
 /// Partition a graph into subsets of no more than k components each using BFS.
 /// Passes of BFS proceed from left to right in the circuit.
 /// Clusters that are close together are prioritised (approximately) via DFS.
@@ -280,10 +248,10 @@ let rec getGraphPartitions
         Map.toList graph
         |> List.map fst
         |> List.minBy (fun compId -> symbolMap[compId].Pos.X)
-    let cluster = bfsKComponents graph k Set.empty [startNode]
+    let cluster = bfsKComponents graph k (set [startNode]) [startNode]
     let graph' =
         (graph, cluster)
-        ||> List.fold (fun g node -> Map.remove node g)
+        ||> List.fold removeNode
     match Map.isEmpty graph' with
     | true -> [cluster]
     | false -> getGraphPartitions symbolMap graph' k @ [cluster]
@@ -364,6 +332,9 @@ let beautifyCluster
             |> replaceSymbol sheet
         | _ -> currSheet
     )
+    //|> Optic.set DrawModelType.SheetT.wire_ (reRouteWiresFrom compIds sheet'.Wire)
+    // TODO why exactly doesn't this work?
+    |> fun sheet'' -> {sheet'' with Wire = reRouteWiresFrom compIds sheet''.Wire}
 
 
 
@@ -375,8 +346,8 @@ let sheetOrderFlip
         (sheet: SheetT.Model)
         : SheetT.Model =
     printf "Applying sheetOrderFlip"
-    printf "%A" (SheetBeautifyHelpers.numOfWireRightAngleCrossings sheet)
-    printf "%A" (SheetBeautifyHelpers2.numRightAngleSegCrossings sheet)
+    printf "Clarke: %A" (SheetBeautifyHelpers.numOfVisRightAngles sheet)
+    printf "Roshan: %A" (SheetBeautifyHelpers2.numWireRightAngles sheet)
     // k is the number of components in each cluster; clusters are individually optimised.
     // Since beautification has exponential time complexity (using brute force), clusters
     // must be kept fairly small.

@@ -227,7 +227,7 @@ let flipped_ =
     let set (flip: bool) (symbol: SymbolT.Symbol) : SymbolT.Symbol =
         match symbol.STransform.Flipped = flip with
         | true -> symbol
-        | false -> flipSymbolInBlock SymbolT.FlipHorizontal symbol.CentrePos symbol
+        | false -> flipSymbolInBlock SymbolT.FlipHorizontal (getRotatedSymbolCentre symbol) symbol
     Lens.create get set
 
 // This might be useful as well.
@@ -236,7 +236,7 @@ let flipSymbol
         (flip: SymbolT.FlipType)
         (symbol: SymbolT.Symbol)
         : SymbolT.Symbol =
-    flipSymbolInBlock flip symbol.CentrePos symbol
+    flipSymbolInBlock flip (getRotatedSymbolCentre symbol) symbol
 
 /// T1R Returns the number of pairs of symbols that intersect each other.
 let numPairsIntersectingSymbols

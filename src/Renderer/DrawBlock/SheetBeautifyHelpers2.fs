@@ -215,9 +215,23 @@ let rotation_ =
             | 2 -> Rotation.Degree180
             | 3 -> Rotation.Degree270
             | _ -> failwithf "Impossible - result is modulo division by 4"
-        rotateSymbolByDegree requiredRotation symbol
-        // TODO is this definitely fine instead of using rotateSymbolInBlock?
+        rotateSymbolInBlock requiredRotation (getRotatedSymbolCentre symbol) symbol
+        // TODO this probably doesn't work - see rotateSymbol below.
     Lens.create get set
+
+/// This is probably useful as well.
+/// B7W Rotate a symbol.
+let rotateSymbol
+        (rotation: Rotation)
+        (symbol: SymbolT.Symbol)
+        : SymbolT.Symbol =
+    match rotation with
+    | Degree0 -> symbol
+    | Degree90 | Degree270 -> rotateSymbolInBlock rotation (getRotatedSymbolCentre symbol) symbol
+    | Degree180 ->
+        symbol
+        |> rotateSymbolInBlock Degree90 (getRotatedSymbolCentre symbol)
+        |> rotateSymbolInBlock Degree90 (getRotatedSymbolCentre symbol)
 
 /// B8RW A lens for the flip state of a symbol. Note that toggling the flip state
 /// while keeping rotation constant implements horizontal flipping.

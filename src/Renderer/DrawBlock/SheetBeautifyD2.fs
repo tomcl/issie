@@ -13,6 +13,24 @@ open System
 
 ////////// Helper functions //////////
 
+/// Optimisation weights.
+type D2WeightsT = {
+    NumCrossingsNorm: float;
+    VisibleLengthNorm: float;
+    RightAnglesNorm: float;
+    Rotate90Penalty: float;
+    Rotate180Penalty: float;
+}
+
+// TODO figure out what these weights should be through testing.
+let D2Weights = {
+    NumCrossingsNorm = 1.0;
+    VisibleLengthNorm = 1.0;
+    RightAnglesNorm = 1.0;
+    Rotate90Penalty = 1.0;
+    Rotate180Penalty = 1.0
+}
+
 // TODO consider moving these to SheetBeautifyHelpers (if useful to others?)
 
 /// Given a modified symbol and a sheet, find the original symbol in the sheet
@@ -33,12 +51,6 @@ let sheetScore
         (sheet: SheetT.Model)
         : float =
 
-    // Normalisation factors for each of the three components.
-    // TODO figure out what these should be - tester can help with this
-    let numCrossingsNorm = 1.0
-    let visibleLengthNorm = 1.0
-    let numRightAnglesNorm = 1.0
-
     let numCrossingsSq = float (SheetBeautifyHelpers2.numRightAngleSegCrossings sheet) ** 2.0
     let visibleLengthSq = float (SheetBeautifyHelpers2.visibleWireLength sheet) ** 2.0
     let numRightAnglesSq = float (SheetBeautifyHelpers2.numWireRightAngles sheet) ** 2.0
@@ -47,13 +59,45 @@ let sheetScore
     // as opposed to sacrificing one in order to make the others very small.
     // Same concept as L1 vs L2 regularisation in neural networks (?).
     //numCrossingsSq*numCrossingsNorm + visibleLengthSq*visibleLengthNorm + numRightAnglesSq*numRightAnglesNorm
-    numCrossingsSq*numCrossingsNorm
+    numCrossingsSq*D2Weights.NumCrossingsNorm
 
 let inline (%!) a b = (a % b + b) % b
 
 
 
 ////////// Algorithm 1: Brute force //////////
+
+/// Takes a symbol and returns the two possible flips of that symbol.
+/// Penalty weights are zero.
+let generateFlips
+        (symbol: SymbolT.Symbol, penalty: float)
+        : (SymbolT.Symbol*float) list =
+    match symbol.STransform.Rotation with
+    | Rotation.Degree0 | Rotation.Degree180 ->
+        [symbol, penalty + 0.0;
+         SheetBeautifyHelpers2.flipSymbol SymbolT.FlipVertical symbol, penalty + 0.0]
+    | _ ->
+        [symbol, penalty + 0.0;
+         SheetBeautifyHelpers2.flipSymbol SymbolT.FlipHorizontal symbol, penalty + 0.0]
+
+/// Takes a symbol and returns all possible rotations of that symbol,
+/// with associated penalty weights.
+let generateRotations
+        (symbol: SymbolT.Symbol, penalty: float)
+        : (SymbolT.Symbol*float) list =
+    [symbol, penalty + 0.0;
+     SheetBeautifyHelpers2.rotateSymbol Degree90 symbol, penalty + D2Weights.Rotate90Penalty;
+     SheetBeautifyHelpers2.rotateSymbol Degree180 symbol, penalty + D2Weights.Rotate180Penalty;
+     SheetBeautifyHelpers2.rotateSymbol Degree270 symbol, penalty + D2Weights.Rotate90Penalty;
+    ]
+
+/// Takes a MUX and returns the two possible symbols from choosing whether to reverse inputs.
+/// Penalty weights are zero.
+let generateRevInputs
+        (symbol: SymbolT.Symbol, penalty: float)
+        : (SymbolT.Symbol*float) list =
+    [symbol, penalty + 0.0;
+     SheetBeautifyHelpers2.toggleReversedInputs symbol, penalty + 0.0]
 
 /// Takes a sheet and a list of symbols to manipulate (flip, reverse inputs and reorder ports),
 /// and returns a new sheet with the changed symbols (optimising for the beautify function),
@@ -68,33 +112,36 @@ let rec bruteForceOptimise
 
     match symbols with
     | sym::remSyms ->
-        let flippedSym =
-            match sym.STransform.Rotation with
-            | Rotation.Degree0 | Rotation.Degree180 ->
-                SheetBeautifyHelpers2.flipSymbol SymbolT.FlipVertical sym
-            | _ -> SheetBeautifyHelpers2.flipSymbol SymbolT.FlipHorizontal sym
 
         let symbolChoices =
             match sym.Component.Type with
             | Not | GateN (_, _) ->
-                [sym; flippedSym]
+                [sym, 0.0]
+                |> List.collect generateFlips
+                |> List.collect generateRotations
             | Mux2 | Mux4 | Mux8 ->
-                [sym;
-                 SheetBeautifyHelpers2.toggleReversedInputs sym;
-                 flippedSym;
-                 SheetBeautifyHelpers2.toggleReversedInputs flippedSym]
-            | _ -> [sym]
+                [sym, 0.0]
+                |> List.collect generateFlips
+                |> List.collect generateRevInputs
+                |> List.collect generateRotations
+            | _ -> [sym, 0.0]
 
         symbolChoices
-        |> List.map (fun sym -> replaceSymbol sheet sym)
-        |> List.map (bruteForceOptimise remSyms compIds)
-        |> List.minBy (fun result -> result.Score)
+        |> List.map (fun (sym, penalty) -> replaceSymbol sheet sym, penalty)
+        |> List.filter (fun (sheet, _) ->
+            let sheet' = updateBoundingBoxes sheet
+            SheetBeautifyHelpers2.numPairsIntersectingSymbols sheet' = 0
+            // Immediately reject solutions with overlapping symbols.
+        )
+        |> List.map (fun (sheet, penalty) -> bruteForceOptimise remSyms compIds sheet, penalty)
+        |> List.minBy (fun (result, penalty) -> result.Score + penalty)
+        |> fun (result, _) -> result
 
     | [] ->
+
         sheet.Wire
         |> reRouteWiresFrom compIds
         |> fun wire -> Optic.set SheetT.wire_ wire sheet
-        |> updateBoundingBoxes
         |> fun newSheet -> {|OptimisedSheet = newSheet; Score = sheetScore newSheet|}
 
 
@@ -346,14 +393,22 @@ let sheetOrderFlip
         (sheet: SheetT.Model)
         : SheetT.Model =
     printf "Applying sheetOrderFlip"
-    printf "Clarke: %A" (SheetBeautifyHelpers.numOfVisRightAngles sheet)
-    printf "Roshan: %A" (SheetBeautifyHelpers2.numWireRightAngles sheet)
+    printf "Clarke: %A" (SheetBeautifyHelpers.numOfWireRightAngleCrossings sheet)
+    printf "Roshan: %A" (SheetBeautifyHelpers2.numRightAngleSegCrossings sheet)
     // k is the number of components in each cluster; clusters are individually optimised.
     // Since beautification has exponential time complexity (using brute force), clusters
     // must be kept fairly small.
-    let k = 8
+    let k = 3
     let partitions = partitionCircuit k sheet
     let sheet' =
         (sheet, partitions)
         ||> List.fold beautifyCluster
     {sheet' with UndoList = appendUndoList sheet.UndoList sheet}
+
+//let sheetOrderFlip (sheet: SheetT.Model) : SheetT.Model =
+//    sheet.Wire.Symbol.Symbols
+//    |> Map.toList
+//    |> (fun lst -> snd lst[0])
+//    |> SheetBeautifyHelpers2.rotateSymbol Degree270
+//    |> replaceSymbol sheet
+//    |> fun sheet -> {sheet with UndoList = appendUndoList sheet.UndoList sheet}

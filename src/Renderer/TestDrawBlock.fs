@@ -91,6 +91,11 @@ module HLPTick3 =
     open Sheet.SheetInterface
     open GenerateData
     open TestLib
+    open SheetBeautifyD2
+    open SymbolResizeHelpers
+    open Symbol
+    open BlockHelpers
+    open SheetUpdate
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -235,13 +240,52 @@ module HLPTick3 =
             
         
 
+        // // Rotate a symbol
+        // let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+        //     failwithf "Not Implemented"
+
+        // // Flip a symbol
+        // let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
+        //     failwithf "Not Implemented"
+        /// Rotate the symbol given by symLabel by an amount rotate.
+        /// Takes in a symbol label, a rotate fixed amount, and a sheet containing the symbol.
+        /// Return the sheet with the rotated symbol.
         // Rotate a symbol
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+            let symbols = model.Wire.Symbol.Symbols
+            let getSym = 
+                mapValues symbols
+                |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+                |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symLabel}'"
+            let syms = getSym 
+
+            match syms with 
+            |Ok sym -> 
+                let rotatedSymbol = rotateSymbol rotate sym // rotateSymbol given rotation and symbol(DrawModelType.SymbolT.Symbol)
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ rotatedSymbol.Id ) rotatedSymbol
+                |> SheetUpdate.updateBoundingBoxes
+
+            |Error err -> model 
+            //update rotated symbol to Model return type = SheetT.Model
 
         // Flip a symbol
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+            let symbols = model.Wire.Symbol.Symbols
+            let getSym = 
+                mapValues symbols
+                |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+                |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symLabel}'"
+            let syms = getSym 
+
+            match syms with 
+            |Ok sym -> 
+                let flippedSymbol = flipSymbol flip sym // rotateSymbol given rotation and symbol(DrawModelType.SymbolT.Symbol)
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ flippedSymbol.Id ) flippedSymbol
+                |> SheetUpdate.updateBoundingBoxes
+
+            |Error err -> model 
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -338,7 +382,43 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
+    let makeD2circuit (andPos: XYPos) = 
 
+        initSheetModel
+        |> placeSymbol "S2" (Input1(1,None)) andPos
+        |> Result.bind (placeSymbol "G2" (GateN(And,2)) middleOfSheet)
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X; Y=middleOfSheet.Y - 100.})
+        |> Result.bind (placeSymbol "MUX1" Mux2 {X=middleOfSheet.X + 200.; Y=middleOfSheet.Y - 100.})
+        |> Result.bind (placeSymbol "MUX2" Mux2 {X=middleOfSheet.X + 200.; Y=middleOfSheet.Y + 50.})
+        |> Result.bind (placeSymbol "S1" (Input1(1,None)) {X=middleOfSheet.X - 100.; Y=middleOfSheet.Y - 150.})
+        |> getOkOrFail
+        |> placeWire (portOf "S2" 0) (portOf "G1" 0)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
+        |> Result.bind (placeWire (portOf "G2" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "G2" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+        |> getOkOrFail
+        |> sheetOrderFlip
+
+    let makeTestCircuit3 (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "S1" (Input1(1,None)) {X=middleOfSheet.X - 150.; Y=andPos.Y}
+        |> Result.bind (placeSymbol "MUX2" Mux2 middleOfSheet)
+        |> Result.bind (placeSymbol "S2" (Input1(1,None)) {X=middleOfSheet.X - 150.; Y=middleOfSheet.Y + 55.})
+        |> Result.bind (placeSymbol "MUX1" Mux2 {X=middleOfSheet.X - 100.; Y=middleOfSheet.Y - 150.})
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X + 100.; Y=middleOfSheet.Y - 100.})
+        |> getOkOrFail
+        // |> rotateSymbol "MUX2" Degree180
+        // |> flipSymbol "MUX2" SymbolT.FlipType.FlipHorizontal
+        |> separateAllWires
+        |> placeWire (portOf "S1" 0) (portOf "MUX2" 0)
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0))
+        |> getOkOrFail
+        |> sheetOrderFlip
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -408,7 +488,7 @@ module HLPTick3 =
                 "Horizontally positioned AND + DFF: fail on sample 0"
                 firstSample
                 horizLinePositions
-                makeTest1Circuit
+                makeD2circuit
                 (Asserts.failOnSampleNumber 0)
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -419,8 +499,8 @@ module HLPTick3 =
                 "Horizontally positioned AND + DFF: fail on sample 10"
                 firstSample
                 horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 10)
+                makeTestCircuit3
+                (Asserts.failOnSampleNumber 0)
                 dispatch
             |> recordPositionInTest testNum dispatch
 

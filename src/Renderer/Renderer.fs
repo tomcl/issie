@@ -144,11 +144,13 @@ let fileMenu (dispatch) =
     let makeTestItem (name:string) (accelNumber:int)  =
         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
         makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
-            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
-    let makeTestItemD3 (name:string) (accelNumber:int)  =
-        // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
-        makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
-            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD3.Tests.testMenuFunc, accelNumber), dispatch)))
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD4.Tests.testMenuFunc, accelNumber), dispatch)))
+//             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
+//     let makeTestItemD3 (name:string) (accelNumber:int)  =
+//         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
+//         makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
+//             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD3.Tests.testMenuFunc, accelNumber), dispatch)))
+
     makeMenu false "File" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))

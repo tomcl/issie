@@ -206,7 +206,7 @@ module HLPTick3 =
         /// The wire created will be smart routed but not separated from other wires: for a nice schematic
         /// separateAllWires should be run after  all wires are added.
         /// source, target: respectively the output port and input port to which the wire connects.
-        let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : Result<SheetT.Model,string> =
+        let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : (Result<SheetT.Model,string>) =
             let symbols = model.Wire.Symbol.Symbols
             let getPortId (portType:PortType) symPort =
                 mapValues symbols
@@ -238,6 +238,7 @@ module HLPTick3 =
             |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
 
         /// Copy testModel into the main Issie Sheet making its contents visible
+        /// HERE: using dispatch to update higher Issie model
         let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
             let sheetDispatch sMsg = dispatch (Sheet sMsg)
             dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.

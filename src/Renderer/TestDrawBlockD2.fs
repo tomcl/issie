@@ -320,12 +320,39 @@ module D2Test =
         makeTest1Circuit andPos
         |> optimizePortOrder    
 
-    let makeTest2Circuit (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
-        let model: Model = DiagramMainView.init()
+    let makeTest2Circuit (model:Model) (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
+        let project = Option.get model.CurrentProj
+        let curSheetName = project.OpenFileName
+        let sheetNames = 
+            project.LoadedComponents 
+            |> List.map (fun ldc -> ldc.Name)
+            |> List.filter (fun name -> name <> curSheetName)
+
+        let ccEmptySheet = DiagramMainView.init().Sheet
+        let ccSheet: SheetT.Model =
+            [
+                placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.};
+                placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y};
+                placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y+100.};
+                placeSymbol "MUX1" Mux2 {X=middleOfSheet.X-100.;Y=middleOfSheet.Y-100.};
+                placeSymbol "MUX2" Mux2 middleOfSheet;
+                flipSymbol "MUX2" SymbolT.FlipType.FlipVertical >> Ok;
+                placeWire (portOf "S2" 0) (portOf "MUX2" 2);
+                placeWire (portOf "MUX1" 0) (portOf "MUX2" 0);
+                placeWire (portOf "S1" 0) (portOf "MUX2" 1);
+                placeWire (portOf "MUX2" 0) (portOf "G1" 0);
+                placeWire (portOf "MUX1" 0) (portOf "G1" 1);
+            ]
+            |> minimalDSL ccEmptySheet
+            |> getOkOrFail
+        let ccSheetName = sheetNames.Head
+        
+        CustomCompPorts.printSheetNames model
+        printfn $"{ccSheetName}"
 
         [
-            placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
-            // placeCustomSymbol "G1" "customSheet"  model 0.0 {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
+            // placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
+            placeCustomSymbol "CC1" ccSheetName  project {X=1.0; Y=1.0} {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
         ]
         |> minimalDSL model.Sheet
         |> getOkOrFail    
@@ -385,7 +412,7 @@ module D2Test =
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
             
-        let test1 testNum firstSample dispatch =
+        let test1 testNum firstSample dispatch model =
             let displayOnFail = displayAll
             let generator = filteredGridPositions makeTest1Circuit 10
             runTestOnSheets
@@ -398,9 +425,9 @@ module D2Test =
                 displayOnFail
             |> recordPositionInTest testNum dispatch
 
-        let test2 testNum firstSample dispatch =
+        let test1Opt testNum firstSample dispatch model =
             let displayOnFail = displayAll
-            let generator = filteredGridPositions makeTest2Circuit 10
+            let generator = filteredGridPositions makeTest1Circuit 10
             runTestOnSheets
                 "DisplayAll: MUX+AND Optimized"
                 firstSample
@@ -411,20 +438,20 @@ module D2Test =
                 displayOnFail
             |> recordPositionInTest testNum dispatch
 
-        let test3 testNum firstSample dispatch =
+        let test2 testNum firstSample dispatch model =
             let displayOnFail = displayMetric
             let generator = filteredGridPositions makeTest3Circuit 100
             runTestOnSheets
                 "DisplayAll: Custom Symbol"
                 firstSample
                 generator
-                makeTest3Circuit
+                (makeTest2Circuit model)
                 Asserts.failOnAllTests
                 dispatch
                 displayOnFail
             |> recordPositionInTest testNum dispatch
 
-        let test4 testNum firstSample dispatch =
+        let test4 testNum firstSample dispatch model =
             let displayOnFail = displayMetric
             let generator = flipOnlySamples
             let myRandomSample = shuffleAGen <| Random(1)
@@ -440,15 +467,14 @@ module D2Test =
 
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Model -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
                 "Test1: 2 diff net", test1
-                "Test2: 2 same net", test2
-                "Test3: 2 same + 1 diff", test3
-                "Test4: Random Flip", test4
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+                "Test2: 2 same net", test1Opt
+                "Test4: Random Flip", test2
+                "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]
 
         /// Display the next error in a previously started test
@@ -466,9 +492,9 @@ module D2Test =
             printf "%s" name
             match name, model.DrawBlockTestState with
             | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
+                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch model
             | "Next Test Error", None ->
                 printf "Test Finished"
                 ()
             | _ ->
-                func testIndex 0 dispatch
+                func testIndex 0 dispatch model

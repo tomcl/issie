@@ -13,22 +13,26 @@ open System
 
 ////////// Helper functions //////////
 
-/// Optimisation weights.
-type D2WeightsT = {
+/// Optimisation parameters.
+type D2ParamsT = {
     NumCrossingsNorm: float;
     VisibleLengthNorm: float;
     RightAnglesNorm: float;
     Rotate90Penalty: float;
     Rotate180Penalty: float;
+    k: int;
+    ILSIterations: int
 }
 
 // TODO figure out what these weights should be through testing.
-let D2Weights = {
+let D2Params = {
     NumCrossingsNorm = 1.0;
     VisibleLengthNorm = 1.0;
     RightAnglesNorm = 1.0;
     Rotate90Penalty = 1.0;
-    Rotate180Penalty = 1.0
+    Rotate180Penalty = 1.0;
+    k = 3;
+    ILSIterations = 5
 }
 
 // TODO consider moving these to SheetBeautifyHelpers (if useful to others?)
@@ -59,7 +63,7 @@ let sheetScore
     // as opposed to sacrificing one in order to make the others very small.
     // Same concept as L1 vs L2 regularisation in neural networks (?).
     //numCrossingsSq*numCrossingsNorm + visibleLengthSq*visibleLengthNorm + numRightAnglesSq*numRightAnglesNorm
-    numCrossingsSq*D2Weights.NumCrossingsNorm
+    numCrossingsSq*D2Params.NumCrossingsNorm
 
 let inline (%!) a b = (a % b + b) % b
 
@@ -86,9 +90,9 @@ let generateRotations
         (symbol: SymbolT.Symbol, penalty: float)
         : (SymbolT.Symbol*float) list =
     [symbol, penalty + 0.0;
-     SheetBeautifyHelpers2.rotateSymbol Degree90 symbol, penalty + D2Weights.Rotate90Penalty;
-     SheetBeautifyHelpers2.rotateSymbol Degree180 symbol, penalty + D2Weights.Rotate180Penalty;
-     SheetBeautifyHelpers2.rotateSymbol Degree270 symbol, penalty + D2Weights.Rotate90Penalty;
+     SheetBeautifyHelpers2.rotateSymbol Degree90 symbol, penalty + D2Params.Rotate90Penalty;
+     SheetBeautifyHelpers2.rotateSymbol Degree180 symbol, penalty + D2Params.Rotate180Penalty;
+     SheetBeautifyHelpers2.rotateSymbol Degree270 symbol, penalty + D2Params.Rotate90Penalty;
     ]
 
 /// Takes a MUX and returns the two possible symbols from choosing whether to reverse inputs.
@@ -338,7 +342,6 @@ let updateGraphWithWire
 /// Returns partitions of circuit into clusters of no more than k components each.
 /// Partitions are given as list of component ids.
 let partitionCircuit
-        (k: int)
         (sheet: SheetT.Model)
         : ComponentId list list =
     let initGraph: Graph =
@@ -356,12 +359,13 @@ let partitionCircuit
         ({CurrGraph = initGraph; DiscoveredEdges = Set.empty}, wires)
         ||> List.fold (fun graphBuilder wire ->
                         updateGraphWithWire graphBuilder sheet.Wire.Symbol wire)
-    getGraphPartitions sheet.Wire.Symbol.Symbols graph k
+    getGraphPartitions sheet.Wire.Symbol.Symbols graph D2Params.k
 
 
 
 ////////// Helpers for top level //////////
 
+/// Beautify a single cluster, returns the sheet with altered symbols.
 let beautifyCluster
         (sheet: SheetT.Model)
         (compIds: ComponentId list)
@@ -383,6 +387,24 @@ let beautifyCluster
     // TODO why exactly doesn't this work?
     |> fun sheet'' -> {sheet'' with Wire = reRouteWiresFrom compIds sheet''.Wire}
 
+/// Beautify the sheet using ILS.
+let rec beautifyILS
+        (sheet: SheetT.Model)
+        (partitions: ComponentId list list)
+        (iterationsLeft: int)
+        : SheetT.Model =
+    match iterationsLeft with
+    | 0 -> sheet
+    | _ ->
+        let scoreBefore = sheetScore sheet
+        let sheet' =
+            (sheet, partitions)
+            ||> List.fold beautifyCluster
+        let scoreAfter = sheetScore sheet'
+        match abs (scoreBefore - scoreAfter) < XYPos.epsilon with
+        | true -> sheet'
+        | false -> beautifyILS sheet' partitions (iterationsLeft - 1)
+
 
 
 ////////// TOP LEVEL //////////
@@ -398,12 +420,8 @@ let sheetOrderFlip
     // k is the number of components in each cluster; clusters are individually optimised.
     // Since beautification has exponential time complexity (using brute force), clusters
     // must be kept fairly small.
-    let k = 3
-    let partitions = partitionCircuit k sheet
-    let sheet' =
-        (sheet, partitions)
-        ||> List.fold beautifyCluster
-    {sheet' with UndoList = appendUndoList sheet.UndoList sheet}
+    let partitions = partitionCircuit sheet
+    beautifyILS sheet partitions D2Params.ILSIterations
 
 //let sheetOrderFlip (sheet: SheetT.Model) : SheetT.Model =
 //    sheet.Wire.Symbol.Symbols

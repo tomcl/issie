@@ -37,3 +37,4 @@ let beautifySheet
         : SheetT.Model =
     SheetBeautifyD2.sheetOrderFlip sheet
     // TODO add D1 and D3
+    |> fun sheet' -> {sheet' with UndoList = appendUndoList sheet.UndoList sheet}

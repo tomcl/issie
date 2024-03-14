@@ -232,18 +232,25 @@ module D2Test =
             model
             |> Optic.set symbolModel_ symModel 
             |> SheetUpdateHelpers.updateBoundingBoxes
+
+        // ----------------------Circuit Builders DSL----------------------
+        let minimalDSL (initSheetModel: SheetT.Model) (placers: (SheetT.Model -> Result<SheetT.Model,'a>) list) : Result<SheetT.Model,'a> = 
+            (Ok initSheetModel, placers)
+            ||> List.fold (fun circuitRes placer -> Result.bind placer circuitRes)
         
             
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
 //--------------------------------------------------------------------------------------------------//
     open Builder
+
+    // ====================== Positions Generator ======================
+
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
-    // ====================== Positions Generator ======================
     let gridPositions n : Gen<XYPos> =
         let genX = fromList [-n..20..n]
         let genY = fromList [-n..20..n]
@@ -293,25 +300,37 @@ module D2Test =
 
     // ====================== Fixed Circuit Generator ======================
     let makeTest1Circuit (andPos:XYPos) =
-        initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
-        |> Result.bind (placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y})
-        |> Result.bind (placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y+100.})
-        |> Result.bind (placeSymbol "MUX1" Mux2 {X=middleOfSheet.X-100.;Y=middleOfSheet.Y-100.})
-        |> Result.bind (placeSymbol "MUX2" Mux2 middleOfSheet)
-        |> Result.map (flipSymbol "MUX2" SymbolT.FlipType.FlipVertical)
-        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0) )
-        |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1) )
-        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0) )
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1) )
+        [
+            placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.};
+            placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y};
+            placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.;Y=middleOfSheet.Y+100.};
+            placeSymbol "MUX1" Mux2 {X=middleOfSheet.X-100.;Y=middleOfSheet.Y-100.};
+            placeSymbol "MUX2" Mux2 middleOfSheet;
+            flipSymbol "MUX2" SymbolT.FlipType.FlipVertical >> Ok;
+            placeWire (portOf "S2" 0) (portOf "MUX2" 2);
+            placeWire (portOf "MUX1" 0) (portOf "MUX2" 0);
+            placeWire (portOf "S1" 0) (portOf "MUX2" 1);
+            placeWire (portOf "MUX2" 0) (portOf "G1" 0);
+            placeWire (portOf "MUX1" 0) (portOf "G1" 1);
+        ]
+        |> minimalDSL initSheetModel
         |> getOkOrFail
 
     let makeTest1CircuitOptimized (andPos:XYPos) =
         makeTest1Circuit andPos
-        |> optimizePortOrder        
+        |> optimizePortOrder    
 
-    let makeTest2Circuit (andPos:XYPos) =
+    let makeTest2Circuit (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
+        let model: Model = DiagramMainView.init()
+
+        [
+            placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
+            // placeCustomSymbol "G1" "customSheet"  model 0.0 {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.}
+        ]
+        |> minimalDSL model.Sheet
+        |> getOkOrFail    
+
+    let makeTest5Circuit (andPos:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet)
@@ -370,7 +389,7 @@ module D2Test =
             let displayOnFail = displayAll
             let generator = filteredGridPositions makeTest1Circuit 10
             runTestOnSheets
-                "DisplayAll: DFF+AND 2 Wires Different Net"
+                "DisplayAll: MUX+AND Unoptimized"
                 firstSample
                 generator
                 makeTest1Circuit
@@ -383,7 +402,7 @@ module D2Test =
             let displayOnFail = displayAll
             let generator = filteredGridPositions makeTest2Circuit 10
             runTestOnSheets
-                "DisplayAll: DFF+AND 2 Wires Same Net"
+                "DisplayAll: MUX+AND Optimized"
                 firstSample
                 generator
                 makeTest1CircuitOptimized
@@ -396,7 +415,7 @@ module D2Test =
             let displayOnFail = displayMetric
             let generator = filteredGridPositions makeTest3Circuit 100
             runTestOnSheets
-                "DisplayAll: DFF+AND 2 Wires Same Net + 1 Different Net"
+                "DisplayAll: Custom Symbol"
                 firstSample
                 generator
                 makeTest3Circuit

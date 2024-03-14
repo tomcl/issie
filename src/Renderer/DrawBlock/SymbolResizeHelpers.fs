@@ -57,7 +57,7 @@ let adjustPosForRotation
     let posOffset =
         match rotation with
         | Degree90 | Degree270 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-        | _ ->  failwithf "Can't encounter Degree0 or Degree180 here in SymbolResizeHelpers/adjustPosForRotation function"
+        | _ ->  {X=0. ; Y=0.}//failwithf "Can't encounter Degree0 or Degree180 here in SymbolResizeHelpers/adjustPosForRotation function"
     pos - posOffset
 
 

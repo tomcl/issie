@@ -186,7 +186,6 @@ let sheetAlignScale (sheet: SheetT.Model) =
         
     // count number of ports on both symbol edges and their current dimensions to find scale factor
     // set vscale correspondingly
-    // TODO: same with hscale
     let scaledSyms = 
         customSymbolPairs
         |> List.map findSymbolsEdgeConns 
@@ -198,13 +197,17 @@ let sheetAlignScale (sheet: SheetT.Model) =
             )
         |> List.map (fun ((edg1, edg2), (sym1, sym2)) -> 
             match edg1, edg2 with
-            | Right, Left | Left, Right -> ((getPortOrder edg1 sym1).Length, (getCustomCompDims sym1).Y), ((getPortOrder edg2 sym2).Length, (getCustomCompDims sym2).Y)
-            | Top, Bottom | Bottom, Top -> ((getPortOrder edg1 sym1).Length, (getCustomCompDims sym1).X), ((getPortOrder edg2 sym2).Length, (getCustomCompDims sym2).X)
-            | _ -> (0, 0.), (0, 0.) // shouldn't happen
+            | Right, Left | Left, Right -> ((getPortOrder edg1 sym1).Length, (getCustomCompDims sym1).Y), ((getPortOrder edg2 sym2).Length, (getCustomCompDims sym2).Y),true
+            | Top, Bottom | Bottom, Top -> ((getPortOrder edg1 sym1).Length, (getCustomCompDims sym1).X), ((getPortOrder edg2 sym2).Length, (getCustomCompDims sym2).X), false
+            | _ -> (0, 0.), (0, 0.), false // shouldn't happen
         )
         // convert to scaling factor applied to second component
-        |> List.map (fun (sym1info, sym2info) -> ((snd sym1info)/(float) (fst sym1info))/((snd sym2info)/(float) (fst sym2info)) )
-        |> List.mapi (fun i scale -> {snd customSymbolPairs[i] with VScale=Some scale} )
+        |> List.map (fun (sym1info, sym2info, horv) -> ((snd sym1info)/(float) (fst sym1info))/((snd sym2info)/(float) (fst sym2info)), horv )
+        |> List.mapi (fun i (scale, horv) -> 
+            match horv with 
+            | true -> {snd customSymbolPairs[i] with VScale=Some scale} 
+            | false -> {snd customSymbolPairs[i] with HScale=Some scale} 
+        )
 
     
     // 2/7. Do not overlap components
@@ -223,6 +226,7 @@ let sheetAlignScale (sheet: SheetT.Model) =
         |> Optic.set symbols_
         <| alignedSheet
 
+    // TODO: change to revert to previous improvement to at least have some improvement
     let newSymbolBoundingBoxes = 
         scaledSymSheet.BoundingBoxes
         |> Map.toList

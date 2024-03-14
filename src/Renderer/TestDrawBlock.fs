@@ -69,7 +69,6 @@ module TestLib =
         |> (function 
                 | None -> None
                 | Some (n,res) -> getTestOutput (n,res))
-        // |> Option.map getTestOutput
         |> (fun resL ->
                 {
                     TestName = test.Name
@@ -78,23 +77,6 @@ module TestLib =
                     firstTestError = resL
                     Scores = [1]
                 })
-        // |> List.collect (function
-        //                     | n, Error mess -> [n, Exception mess]
-        //                     | n, Ok sample ->
-        //                         match catchException $"'test.Assertion' on test {n} from 'runTests'" (test.Assertion n) sample with // TODO: add evaluation here
-        //                         | Ok None -> [] // TODO: add evaluate success
-        //                         | Ok (Some failure) -> [n,Fail failure] // TODO: add penalty error
-        //                         | Error (mess) -> [n,Exception mess])
-        // |> (fun resL ->                
-        //         {
-        //             TestName = test.Name
-        //             FirstSampleTested = test.StartFrom
-        //             TestData = test.Samples
-        //             TestErrors = resL
-        //             Scores = [1] // TODO: implemente real evaluation
-        //         })
- 
- 
             
 (******************************************************************************************
    This submodule contains a set of functions that enable random data generation

@@ -448,12 +448,9 @@ module Asserts =
 
 module Evaluations =
 
-    /// Proportion of component overlap 
-    let compOverlap (sheet: SheetT.Model) : float =
-        failwithf "Not implemented"
-
-    /// Calculates the proportion of wire bends compared to the ideal solution
-    let wireBendIdealProp (sheet: SheetT.Model) =
+    /// Calculates the proportion of wire bends compared to the ideal solution.
+    /// Same as evaluating the number of visual segments
+    let wireBendProp (sheet: SheetT.Model) =
         let wires = mapValues sheet.Wire.Wires
         let symMap = sheet.Wire.Symbol
 
@@ -471,14 +468,33 @@ module Evaluations =
             wires
             |> Array.map wireMinTurns
             |> Array.sum
-        float idealRightAngs / float rightAngs
 
+        match rightAngs with
+        | 0 -> 1.
+        | _ -> float idealRightAngs / float rightAngs
+
+    /// Evaluates number of wires compared to number of visual segments
+    let visualSegmentProp (sheet: SheetT.Model) =
+        failwithf "Not implemented"
+
+    /// Evaluates number of crosses of wires compared to number of wires in sheet
+    let wireCrossProp (sheet: SheetT.Model) =
+        failwithf "Not implemented"
+
+    /// Evaluates wire squashing between symbols
     let wireSquashProp (sheet: SheetT.Model) =
         failwithf "Not implemented"
-    
+
+    /// Evaluates length of wires compared to ideal minimum
+    let wireLengthProp (sheet: SheetT.Model) =
+        failwithf "Not implemented"
+
+    /// Evaluates symbol alignment
+    let symCentreAlignmentProp (sheet: SheetT.Model) =
+        failwithf "Not implemented"
+
     type Config =
         {
-            compOverlapWeight: float
             wireBendWeight: float
             wireCrossWeight: float // numOfWireRightAngleCrossings
             wireSquashWeight: float
@@ -488,9 +504,9 @@ module Evaluations =
 
     /// Combines all evaluations into one score
     let evaluateD1 (c: Config) (sheet: SheetT.Model) : float =
-        c.compOverlapWeight * (compOverlap sheet)
-        |> (+) (c.wireBendWeight * (wireBendIdealProp sheet))
+        c.wireBendWeight * (wireBendProp sheet)
         |> (+) (c.wireCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
+        |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
         |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
 
 //---------------------------------------------------------------------------------------//

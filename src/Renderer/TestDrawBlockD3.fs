@@ -116,6 +116,7 @@ module Tests =
             offsetXY
             makeTest1Circuit
             Asserts.failOnAllTests
+            Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch
 

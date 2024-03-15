@@ -139,7 +139,7 @@ let reRouteWires dispatch =
 let selWiresToWireLabels dispatch = 
     dispatch <| UpdateModel (fun model ->
         model
-        |> Optic.map sheet_ (selectedWiresToWireLabels model.Sheet.SelectedWires)
+        |> Optic.map sheet_ (selectedWiresToWireLabels model.Sheet.SelectedWires false)
     )
 
 let selWireLabelsToWires dispatch = 

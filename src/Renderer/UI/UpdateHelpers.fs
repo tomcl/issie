@@ -506,7 +506,7 @@ let processContextMenuClick
     
     | DBWire (wire, aSeg), "Same-Net Wires to Wire Labels" ->
         model
-        |> map sheet_ (selectedWiresToWireLabels [wire.WId])
+        |> map sheet_ (selectedWiresToWireLabels [wire.WId] false)
         |> withNoCmd
 
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->

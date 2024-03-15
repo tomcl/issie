@@ -182,63 +182,63 @@ let updateSymFlipState (flipState: bool) (sym: Symbol) =
 let symFlipState_ = Lens.create getSymFlipState updateSymFlipState
 
 
-// -------------------------------------------------------------------------------------------------------
+// --------------------following code is adapted and corrected from individual-phase model answer--------------------------
+module Constants =
+    /// determines how close segment starting positions must be for them to be in the same bucket
+    /// segment overlaps are determined by checking are segment starts in the same bucket
+    /// this is faster than clustering based in euclidean distance
+    /// Two very close segments will sometimes map to different buckets if on a bucket boundary
+    /// for the use here this potential error is likley very unusual and deemed OK
+    let bucketSpacing = 0.1
+
+//----------------------------------------------------------------------------------------------//
+//-----------------------------------SegmentHelpers Submodel------------------------------------//
+//----------------------------------------------------------------------------------------------//
+
+/// Helpers to work with visual segments and nets
+/// Includes functions to remove overlapping same-net segments
+/// We can assume different-net segments never overlap.
+module SegmentHelpers =
+
+    /// The visible segments of a wire, as a list of vectors, from source end to target end.
+    /// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
+    /// which if present causes the two segments on either side of it to coalesce into a single visible segment.
+    /// A wire can have any number of visible segments - even 1.
+    let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
+
+        let wire = model.Wire.Wires[wId] // get wire from model
+
+        /// helper to match even and off integers in patterns (active pattern)
+        let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
+
+        /// Convert seg into its XY Vector (from start to end of segment).
+        /// index must be the index of seg in its containing wire.
+        let getSegmentVector (index:int) (seg: BusWireT.Segment) =
+            // The implicit horizontal or vertical direction  of a segment is determined by 
+            // its index in the list of wire segments and the wire initial direction
+            match index, wire.InitialOrientation with
+            | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
+            | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
+
+        /// Return the list of segment vectors with 3 vectors coalesced into one visible equivalent
+        /// wherever this is possible
+        let rec coalesce (segVecs: XYPos list)  =
+            match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with          
+            | Some zeroVecIndex ->
+                let index = zeroVecIndex + 1 // base index as it should be on full segVecs
+                segVecs[0..index-2] @
+                [segVecs[index-1] + segVecs[index+1]] @
+                segVecs[index+2..segVecs.Length - 1]
+                |> coalesce
+            | None -> segVecs
+     
+        wire.Segments
+        |> List.mapi getSegmentVector
+        |> coalesce
 
 
-// T1R
-/// Count the number of pairs of symbols that intersect each other. Count over all pairs of symbols.
-let countSymIntersectSym (sheet: SheetT.Model)  =
-    let boxes =
-        mapValues sheet.BoundingBoxes
-        |> Array.toList
-        |> List.mapi (fun n box -> n,box)
-    List.allPairs boxes boxes 
-    |> List.filter (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
-    |> List.length     
-
-
-// (Copied from TestDrawBlock.HLPTick3.visibleSegments as a helper.)
-/// The visible segments of a wire, as a list of vectors, from source end to target end.
-/// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
-/// which if present causes the two segments on either side of it to coalesce into a single visible segment.
-/// A wire can have any number of visible segments - even 1.
-let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
-
-    let wire = model.Wire.Wires[wId] // get wire from model
-
-    /// helper to match even and off integers in patterns (active pattern)
-    let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
-
-    /// Convert seg into its XY Vector (from start to end of segment).
-    /// index must be the index of seg in its containing wire.
-    let getSegmentVector (index:int) (seg: BusWireT.Segment) =
-        // The implicit horizontal or vertical direction  of a segment is determined by 
-        // its index in the list of wire segments and the wire initial direction
-        match index, wire.InitialOrientation with
-        | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
-        | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
-
-    /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-    /// if this is possible, otherwise return segVecs unchanged.
-    /// Index must be in range >= 1
-    let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-        if index < segVecs.Length - 1 && segVecs[index] =~ XYPos.zero
-        then
-            segVecs[0..index-2] @
-            [segVecs[index-1] + segVecs[index+1]] @
-            segVecs[index+2..segVecs.Length - 1]
-        else
-            segVecs
-
-    wire.Segments
-    |> List.mapi getSegmentVector
-    |> (fun segVecs ->
-            (segVecs,[1..segVecs.Length-2])
-            ||> List.fold tryCoalesceAboutIndex)
-
-// T2R
-/// Count the number of distinct wire visible segments that intersect with one or more symbols. Count over all visible wire segments.
-let countWireSegIntersectSym (sheet: SheetT.Model) = 
+    // Return the segments of a wire as list of (start,end) vertices,
+    // based on the given wire's StartPos and the its segment XYPos list (output of visibleSegments).
     let getSegStartEndPos (wire: Wire) (segXYPosList: list<XYPos>) = 
         // code adapted from BlockHelpers.segmentsToIssieVertices 
         let segVertices =
@@ -256,6 +256,174 @@ let countWireSegIntersectSym (sheet: SheetT.Model) =
             List.zip lstStartPos lstEndPos
         segStartEndPosList
 
+
+    (* These functions make ASSUMPTIONS about the wires they are used on:
+       - Distinct net segments never overlap
+       - Same-net segments overlap from source onwards and therefore overlapping segments
+         must have same start position
+       - Overlap determination may very occasionally fail, so that overlapped
+         wires are seen as not overlapped. This allows a much faster overlap check
+    *)
+
+    /// visible segments in a wire as a pair (start,end) of vertices.
+    /// start is the segment end nearest the wire Source.
+    let visibleSegsWithVertices (wire:BusWireT.Wire) (model: SheetT.Model) =
+        visibleSegments wire.WId model
+        // |> List.map (fun segV -> wire.StartPos, wire.StartPos + segV)    // wrong
+        |> getSegStartEndPos wire
+
+
+    /// Input must be a pair of visula segment vertices (start, end).
+    /// Returns segment orientation
+    let visSegOrientation ((vSegStart, vSegEnd): XYPos * XYPos) =
+        match abs (vSegStart.X - vSegEnd.X) > abs (vSegStart.Y - vSegEnd.Y) with
+        | true -> Horizontal
+        | false -> Vertical
+
+
+    /// Filter visSegs so that if they overlap with common start only the longest is kept.
+    /// ASSUMPTION: in a connected Net this will remove all overlaps
+    let distinctVisSegs (visSegs: (XYPos * XYPos) list) =
+        /// convert float to integer buckt number
+        let pixBucket (pixel:float) = int(pixel / Constants.bucketSpacing)
+
+        /// convert XYPos to pair of bucket numbers
+        let posBucket (pos:XYPos) = pixBucket pos.X, pixBucket pos.Y
+
+        visSegs
+        // first sort segments so longest (which we want to keep) are first
+        |> List.sortByDescending (fun (startOfSeg, endOfSeg) -> euclideanDistance startOfSeg endOfSeg)
+        // then discard duplicates (the later = shorter ones will be discarded)
+        // Two segments are judged the same if X & y starting coordinates map to the same "buckets"
+        // This will very rarely mean that very close but not identical position segments are viewed as different
+        |> List.distinctBy (fun ((startOfSeg, _) as vSeg) -> posBucket startOfSeg, visSegOrientation vSeg)
+
+
+    /// Filter visSegs so that if they overlap with common start only the longest is kept.
+    /// More accurate version of distinctVisSegs.
+    /// Use if the accuracy is needed.
+    let distinctVisSegsPrecision (visSegs: (XYPos * XYPos) list) =
+        // This implementation clusters the segments, so cannot go wrong
+        // It still uses the assumption that overlapped segments have common start position.
+        // Without that, the code is slower and longer
+
+        /// Turn segs into a distinctSegs list, losing shorter overlapped segments.
+        /// All of segs must be the same orientation.
+        let clusterSegments segs =
+
+            /// Add a segment to distinctSegs unless it overlaps.
+            /// In that case replace seg in distinctSegs if seg is longer than the segment it overlaps.
+            /// If seg overlaps and is shorter, there is no change to distinctSegs.
+            /// seg and all segments in distinctSegs must have same orientation.
+            let addOrientedSegmentToClusters (distinctSegs:(XYPos*XYPos) list) (seg:XYPos*XYPos) =
+                let len (seg: XYPos*XYPos) = euclideanDistance (fst seg) (snd seg)
+                let segStart = fst seg
+                distinctSegs
+                |> List.tryFindIndex (fun dSeg -> euclideanDistance (fst dSeg) segStart < Constants.bucketSpacing / 2.)
+                |> function
+                        | Some index when len distinctSegs[index] < len seg ->
+                            List.updateAt index seg distinctSegs
+                        | Some index ->
+                            distinctSegs // can do nothing
+                        | _ ->
+                            seg :: distinctSegs // add seg to the list of distinct (non-overlapped) segments
+
+            ([], segs)
+            ||> List.fold addOrientedSegmentToClusters
+        visSegs
+        |> List.partition (visSegOrientation >> (=) Horizontal) // separate into the two orientations
+        |> (fun (hSegs, vSegs) -> clusterSegments hSegs @ clusterSegments vSegs) // cluster each orientation separately
+
+
+    /// input is a list of all the wires in a net.
+    /// output a list of the visual segments.
+    /// isDistinct = true => remove overlapping shorter segments
+    let getVisualSegsFromNetWires (isDistinct: bool) (model: SheetT.Model) netWires =
+        netWires
+        |> List.collect (fun wire -> visibleSegsWithVertices wire model)
+        |> (if isDistinct then distinctVisSegs else id) // comment this to test the preision implementation
+        // |> (if isDistinct then distinctVisSegsPrecision else id) // uncomment this to test the preision implementation
+
+
+    /// Returns true if two segments (seg1, seg2) cross in the middle (e.g. not a T junction).
+    /// Segment crossings very close to being a T junction will be counted. That however should not happen?
+    /// Seg1, seg2 are represented as pair of start and end vertices
+    let isProperCrossing (seg1: XYPos*XYPos) (seg2: XYPos*XYPos) =
+        /// return true if mid is in between a & b, where the order of a & b does not matter.
+        /// this is an open interval: if mid is close to an endpoint return false.
+        // rewrite inMiddleOf here with larger tolerance if this is needed.
+        let isBetween a mid b =
+            match a > b with
+            | true -> inMiddleOf b mid a
+            | false -> inMiddleOf a mid b
+
+        let properCrossingHV (hSeg:XYPos*XYPos) (vSeg:XYPos*XYPos) =
+            let startH, endH = hSeg
+            let startV, endV = vSeg
+            isBetween startH.X startV.X endH.X &&
+            isBetween startV.Y startH.Y endV.Y
+
+        match visSegOrientation seg1, visSegOrientation seg2 with
+        | BusWireT.Orientation.Horizontal,Vertical -> properCrossingHV seg1 seg2
+        | Vertical,Horizontal -> properCrossingHV seg2 seg1
+        | _ -> false
+
+
+    /// visible segments in a Net defined as a pair (start,end) of vertices.
+    /// source: the source port driving the Net
+    /// start is the segment end nearest the wire Source.
+    /// isDistinct = true => filter visible segments so they do not overlap
+    /// where segments overlap only the longest is taken
+    /// ASSUMPTION: all overlaps are on segments with same starting point
+    let visibleSegsInNetWithVertices (isDistinct: bool) (source: OutputPortId) (model: SheetT.Model) =
+        let wModel = model.Wire
+        let wires = wModel.Wires
+        let netWires =
+            wires
+            |> Map.filter (fun wid netWire -> netWire.OutputPort = source) // source port is same as wire
+            |> Map.toList
+            |> List.map snd
+
+        netWires
+        |> getVisualSegsFromNetWires isDistinct model
+
+    /// return a list of all the wire Nets in the model
+    /// Each element has form (source port Id, list of wires driven by port)   
+    let allWireNets (model: SheetT.Model) =
+        model.Wire.Wires
+        |> mapValues
+        |> Array.toList
+        |> List.groupBy (fun wire -> wire.OutputPort)
+
+    /// return a lits of all the distinct visible segments
+    /// visible segments in a Net are defined as a pair (start,end) of vertices.
+    /// Filter visible segments so they do not overlap
+    /// where segments overlap only the longest is taken
+    /// ASSUMPTION: all overlaps are on segments with same starting point
+    let distinctVisibleSegsInNet = visibleSegsInNetWithVertices true
+
+//--------------------------------end of SegmentHelpers----------------------------------//
+
+// ---------------------above code is adapted and corrected from individual-phase model answer-----------------------------
+
+
+open SegmentHelpers
+
+// T1R
+/// Count the number of pairs of symbols that intersect each other. Count over all pairs of symbols.
+let countSymIntersectSym (sheet: SheetT.Model)  =
+    let boxes =
+        mapValues sheet.BoundingBoxes
+        |> Array.toList
+        |> List.mapi (fun n box -> n,box)
+    List.allPairs boxes boxes 
+    |> List.filter (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
+    |> List.length     
+
+
+// T2R
+/// Count the number of distinct wire visible segments that intersect with one or more symbols. Count over all visible wire segments.
+let countWireSegIntersectSym (sheet: SheetT.Model) = 
     let boundingBoxs = 
         // code adapted from BusWireRoute.findWireSymbolIntersections 
         mapValues sheet.BoundingBoxes
@@ -375,6 +543,26 @@ let countWireSegRightAngleIntersect (sheet: SheetT.Model) =
     |> Array.filter (fun (seg1,seg2) -> segsCrossRightAngle seg1.Pos seg2.Pos)
     |> Array.distinct  // should already be distinct but just to guarantee it
     |> Array.length
+
+
+// ---------------- adapted from T3R model answer ---------------
+/// The number of distinct right-angle crosses the given net's visible wire segments have with all visible wire segments on the sheet.
+/// Returns the number right angle intersections between wire segments.
+/// Does not include crossings that are "T junction".
+/// Counts segments that overlap only once.
+/// ASSUMPTION: overlapping segments are in same Net and have same starting point.
+let numOfWireNetRightAngleCrossingsWithAllWires (net: list<Wire>) (model: SheetT.Model)  =
+    let netDistinctSegs = getVisualSegsFromNetWires true model net
+    // printfn $"net's distinct segments: {netDistinctSegs}"    // debug
+    let allNets = allWireNets model
+    let allDistinctSegs =
+        allNets
+        |> List.collect (fun (_, net) -> getVisualSegsFromNetWires true model net)
+    List.allPairs  allDistinctSegs netDistinctSegs
+    |> List.filter (fun (seg1,seg2) -> isProperCrossing seg1 seg2)
+    |> List.length
+
+// -----------------------------------------------------------------
 
 
 // T4R

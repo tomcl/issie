@@ -42,6 +42,8 @@ module Constants =
     // user-variable threshold
     // for classifying a single wire as long enough to be replaced by wire labels
     let longSingleWireLength = 200.
+    // for classifying a net of wires as complex enough to be replaced by wire labels
+    let intersectionCountTolerance = 5
 
     // minimum distance between two adjacent symbols
     let minCompDistance = 14.
@@ -297,14 +299,25 @@ let deriveWireLabelFromSrcPort (sourcePortStr:string) (model:SheetT.Model) =
     | "" -> symLabel+"_"+"OUT"   // TODO: add support for "SplitWire" & "SplitN" (multiple possible outputs)
     | _ -> symLabel+"_"+portLabel
 
-/// Replace the net of wires corresponding to the given source port with a set of wire labels, return the updated model
-let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (model:SheetT.Model) = 
+
+/// Replace the net of wires corresponding to the given source port with a set of wire labels, return the updated model;
+/// if applyCond=true, check whether the wiring complexity of the net 
+/// (the number of intersections it has with wires on sheet) is above tolerance before applying the transformation.
+let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (applyCond:bool) (model:SheetT.Model) = 
     let srcPortStr, srcPos = 
         match sourcePortId with
         | OutputPortId str -> str, getPortPosOnSheet str model
 
     let sameNetWires = 
         getSameNetWires sourcePortId model
+
+    let numOfIntersects = numOfWireNetRightAngleCrossingsWithAllWires sameNetWires model
+    printfn $"net's wire intersection count: {numOfIntersects}"  // debug
+
+    let applyTransform =
+        match applyCond with
+        | true -> (numOfIntersects>Constants.intersectionCountTolerance)    // apply transform only if the tolerance is exceeded
+        | false -> true     // condition is not applied, no need to check
 
     let givenLabel = deriveWireLabelFromSrcPort srcPortStr model
     let newSameNetWires, labelName, modelWithSrcWireLabel = 
@@ -315,40 +328,45 @@ let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (model:SheetT.Model) =
                 |> List.filter (fun wire -> wire.InputPort<>wireLabelPortId) // remove the wire connecting to the wire label from list
             sameNetWires,label,model
         | None ->   // add the source wire label
-            let label,model = 
+            let label,m = 
                 (givenLabel,model)
                 ||> addIOLabelAtPortAndPlaceWire srcPortStr srcPos true // add the source wire label
-            sameNetWires,label,model
+            sameNetWires,label,m
     
-    (modelWithSrcWireLabel, newSameNetWires)
-    ||> List.fold (fun model  wire ->
-        let tgtPortStr, tgtPos = 
-            match wire.InputPort with
-            | InputPortId str -> str, getPortPosOnSheet str model
-        model
-        |> deleteSingleWire wire
-        |> addIOLabelAtPortAndPlaceWire tgtPortStr tgtPos false labelName   // add a target wire label
-        |> snd)
+    match applyTransform with
+    | true -> 
+        (modelWithSrcWireLabel, newSameNetWires)
+        ||> List.fold (fun m  wire ->
+            let tgtPortStr, tgtPos = 
+                match wire.InputPort with
+                | InputPortId str -> str, getPortPosOnSheet str m
+            m
+            |> deleteSingleWire wire
+            |> addIOLabelAtPortAndPlaceWire tgtPortStr tgtPos false labelName   // add a target wire label
+            |> snd)
+    | false -> model
 
 
 // This function can apply to a set of selected wires, when called from an electron edit menu item,
 // or to a single selected wire, when called from a right-click context menu item.
 
-/// Transform selected wire nets into wire labels (with no conditions checked)
-let selectedWiresToWireLabels (wireIdList: list<ConnectionId>) (model: SheetT.Model) = 
+/// Transform selected wire nets into wire labels (with no conditions checked);
+/// if applyCond=true, check whether the wiring complexity of the net 
+/// (the number of intersections it has with wires on sheet) is above tolerance before applying the transformation.
+let selectedWiresToWireLabels (wireIdList: list<ConnectionId>) (applyCond:bool) (model: SheetT.Model) = 
     wireIdList
     |> List.map (fun wireId -> model.Wire.Wires[wireId])    // all selected wires
     |> List.distinctBy (fun wire -> wire.OutputPort)    // get wires with distinct output ports here
-    |> List.fold (fun m wire -> sameNetWiresToWireLabels wire.OutputPort m) model
+    |> List.fold (fun m wire -> sameNetWiresToWireLabels wire.OutputPort applyCond m) model
     
 
-/// Automatically identify long wires and transform them into wire labels (applies to the whole sheet)
+/// Automatically identify long and complex enough nets of wires and transform them into wire labels (applies to the whole sheet)
 let autoWiresToWireLabels (model:SheetT.Model) = 
     let allWireIds =  // list of ConnectionId of all long wires on sheet
         model.Wire.Wires
         |> Map.filter (fun _wId wire -> (getWireLength wire) > Constants.longSingleWireLength)  // filter out the long ones
         |> mapKeys
-    selectedWiresToWireLabels allWireIds model
+    selectedWiresToWireLabels allWireIds true model
     
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------

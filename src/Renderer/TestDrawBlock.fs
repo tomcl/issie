@@ -135,7 +135,7 @@ module HLPTick3 =
     /// A wire can have any number of visible segments - even 1.
     let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
-        let wire = model.Wire.Wires[wId] // get wire from model
+        let wire = model.Wire.Wires[wId] // get wire from model 
 
         /// helper to match even and off integers in patterns (active pattern)
         let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
@@ -171,13 +171,6 @@ module HLPTick3 =
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
-
-
-                
-
-            
-
-
 
         /// Place a new symbol with label symLabel onto the Sheet with given position.
         /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
@@ -232,15 +225,32 @@ module HLPTick3 =
                     }
                 placeSymbol symLabel (Custom ccType) position model
             
-        
-
-        // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+        // Rotate a symbol     
+        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : Result<SheetT.Model, string> =
+            let symLabel = String.toUpper symLabel
+            let symbols = model.Wire.Symbol.Symbols
+            match mapValues symbols |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+            | Some sym ->
+                let rotatedSymbol = SymbolResizeHelpers.rotateSymbol rotate sym
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) rotatedSymbol
+                |> SheetUpdateHelpers.updateBoundingBoxes
+                |> Ok
+            | None -> Result.Error("Symbol not found.")
+            
 
         // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : Result<SheetT.Model, string> =
+            let symLabel = String.toUpper symLabel
+            let symbols = model.Wire.Symbol.Symbols
+            match mapValues symbols |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+            | Some sym ->
+                let flippedSymbol = SymbolResizeHelpers.flipSymbol flip sym
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) flippedSymbol
+                |> SheetUpdateHelpers.updateBoundingBoxes
+                |> Ok
+            | None -> Result.Error("Symbol not found")
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -323,6 +333,7 @@ module HLPTick3 =
 //--------------------------------------------------------------------------------------------------//
 
     open Builder
+
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
         fromList [-100..20..100]
@@ -337,6 +348,62 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
+    let makeTest2Circuit (andPos: XYPos) (*(andRotation: Rotation) (andFlip: SymbolT.FlipType) (dffRotation: Rotation) (dffFlip: SymbolT.FlipType)*) =
+        let randomSelection arr = 
+            let shuffledArray = shuffleA arr
+            shuffledArray.[0] // Take the first element from the shuffled array
+
+        // Define the arrays of all possible rotations and flips
+        let allRotations = [|Degree90;  Degree270|]
+        let allFlips = [|SymbolT.FlipHorizontal|]
+        // Use shuffleA to randomly select a rotation and flip
+        let andRotation = randomSelection allRotations
+        let dffRotation = randomSelection allRotations
+        let andFlip = randomSelection allFlips
+        let dffFlip = randomSelection allFlips
+
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (rotateSymbol "G1" andRotation)
+        |> Result.bind (flipSymbol "G1" andFlip)
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (rotateSymbol "FF1" dffRotation)
+        |> Result.bind (flipSymbol "FF1" dffFlip)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
+        |> getOkOrFail
+
+    let doesModelHaveOverlaps (sheet: SheetT.Model) : bool =
+        let boxes =
+            (*Symbol.getBoundingBox(GateN(And, 2))*)
+            mapValues sheet.BoundingBoxes
+            |> Array.toList
+            |> List.mapi (fun n box -> n, box)
+        List.allPairs boxes boxes 
+        |> List.exists (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
+
+    let createTempSheetForPosition (andPos: XYPos) : SheetT.Model =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+        
+    let gridGenerator =
+        let genX = GenerateData.fromList [-100..10..100] |> GenerateData.map float
+        let genY = GenerateData.fromList [-100..10..100] |> GenerateData.map float
+
+        // Adjust the product function to add the middleOfSheet position to each combination of x and y
+        GenerateData.product (fun x y -> {X = middleOfSheet.X + x; Y = middleOfSheet.Y + y}) genX genY
+
+    let filteredGridGenerator =
+        GenerateData.filter (fun pos ->
+        // Create a temporary sheet model for this position.
+        let tempSheet = createTempSheetForPosition pos
+        // Check if the temporary sheet has any overlapping symbols.
+        not (doesModelHaveOverlaps tempSheet)
+        ) gridGenerator
 
 
 //------------------------------------------------------------------------------------------------//
@@ -403,12 +470,16 @@ module HLPTick3 =
             
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
+            [0 .. int(horizLinePositions.Size) - 1]
+            |> List.iter (fun i ->
+                let pos = horizLinePositions.Data i
+                printfn "Filtered Position %d: X = %f, Y = %f" i pos.X pos.Y)
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 0"
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
+                (Asserts.failOnAllTests)
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -434,14 +505,47 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail all tests
+        /// Test routing between two components (Unfiltered)
         let test4 testNum firstSample dispatch =
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail all tests"
+                "Grid positioned AND + DFF: fail on wire intersect symbol (Unfiltered)"
                 firstSample
-                horizLinePositions
+                gridGenerator
                 makeTest1Circuit
-                Asserts.failOnAllTests
+                Asserts.failOnWireIntersectsSymbol  
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        // Test routing between two components (Filtered)
+        let test5 testNum firstSample dispatch =
+            // Example of immediate feedback
+            [0 .. int(gridGenerator.Size) - 1]
+            |> List.map gridGenerator.Data
+            |> List.iteri (fun i pos -> 
+                let tempSheet = createTempSheetForPosition pos
+                let overlaps = doesModelHaveOverlaps tempSheet
+                printfn "Position %d: X = %f, Y = %f, Overlaps: %b" i pos.X pos.Y overlaps)
+            [0 .. int(filteredGridGenerator.Size) - 1]
+            |> List.iter (fun i ->
+                let pos = filteredGridGenerator.Data i
+                printfn "Filtered Position %d: X = %f, Y = %f" i pos.X pos.Y)
+
+            runTestOnSheets
+                "Grid positioned AND + DFF: fail on wire intersect symbol"
+                firstSample
+                filteredGridGenerator // Directly use the Gen<XYPos> grid generator
+                makeTest1Circuit 
+                Asserts.failOnWireIntersectsSymbol  
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test6 testNum firstSample dispatch =
+            runTestOnSheets
+                "Grid positioned AND + DFF: fail on wire intersect symbol"
+                firstSample
+                filteredGridGenerator // Directly use the Gen<XYPos> grid generator
+                makeTest2Circuit 
+                Asserts.failOnWireIntersectsSymbol  
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -455,8 +559,8 @@ module HLPTick3 =
                 "Test2", test2 // example
                 "Test3", test3 // example
                 "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
+                "Test5", test5 // dummy test - delete line or replace by real test as needed
+                "Test6", test6
                 "Test7", fun _ _ _ -> printf "Test7"
                 "Test8", fun _ _ _ -> printf "Test8"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test

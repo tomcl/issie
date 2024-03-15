@@ -1,6 +1,9 @@
 ﻿module TestDrawBlock
 open GenerateData
 open Elmish
+open System
+open SheetBeautifyHelpers
+
 
 
 //-------------------------------------------------------------------------------------------//
@@ -198,7 +201,7 @@ module HLPTick3 =
             | _ ->
                 model
                 |> Optic.set symbolModel_ symModel
-                |> SheetUpdate.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
+                |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
                 |> Ok
         
 
@@ -245,7 +248,7 @@ module HLPTick3 =
                 let rotatedSymbol = SymbolResizeHelpers.rotateSymbol rotate sym
                 model
                 |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) rotatedSymbol
-                |> SheetUpdate.updateBoundingBoxes
+                |> SheetUpdateHelpers.updateBoundingBoxes
             | None -> model
 
 
@@ -258,7 +261,7 @@ module HLPTick3 =
                 let flippedSymbol = SymbolResizeHelpers.flipSymbol flip sym
                 model
                 |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) flippedSymbol
-                |> SheetUpdate.updateBoundingBoxes
+                |> SheetUpdateHelpers.updateBoundingBoxes
             | None -> model
 
 
@@ -343,19 +346,32 @@ module HLPTick3 =
 //--------------------------------------------------------------------------------------------------//
 
     open Builder
+
+    let findStraightWireSeg (model: SheetT.Model) (wire: BusWireT.Wire) : bool =
+        let segments = SegmentHelpers.visibleSegments wire.WId model
+        List.length segments = 1
+
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
 
-    //Q7
+    //==================================GENERATE COORDINATES====================================//
     let generateSampleData =
         product (fun x y -> middleOfSheet + {X = float x; Y = float y})
             (fromList [-100..20..100])
             (fromList [-100..20..100])
-            
 
+    let generateSmallDeviations : Gen<XYPos> =
+        let rnd = Random()
+        product (fun x y ->
+                    let deviationX = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 10.0 in X
+                    let deviationY = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 10.0 in Y
+                    { X = float x + deviationX; Y = float y + deviationY})
+                (fromList [-20..2..20])
+                (fromList [-20..2..20])
+            
     let filterOverlap (pos1: XYPos) =
         // Define the size of the components
         let componentSize = 10.0
@@ -369,9 +385,16 @@ module HLPTick3 =
     let filteredSampleData =
         generateSampleData
         |> GenerateData.filter filterOverlap
-    //Q7
 
-    //Q10
+    let filteredSampleDataWithDeviation =
+        generateSmallDeviations
+        |> GenerateData.filter filterOverlap
+
+    let rnd = Random()
+
+    //==================================GENERATE COORDINATES ==============================//
+
+    //---------------TICK 3 Q10---------------------------------------------
     let randomSel arr =
         let shuffledArray = shuffleA arr
         shuffledArray.[0] //first element from shuffled array
@@ -385,9 +408,9 @@ module HLPTick3 =
     let dffRotation = randomSel Rotations
     let andFlip = randomSel Flips
     let dffFlip = randomSel Flips
-    //Q10
+    //-----------------TICK 3 Q10------------------------------------------
 
-
+    //-----------------TESTS-----------------------------------------------
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -395,7 +418,7 @@ module HLPTick3 =
         |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
         |> getOkOrFail
 
     let makeTest5Circuit (andPos: XYPos) =
@@ -406,48 +429,68 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
         |> getOkOrFail
 
-    let makeNearStraightWireCircuit (andPos: XYPos) =
-        initSheetModel
-        |> placeSymbol "A" (Input1(1, None)) andPos
-        |> Result.bind (Builder.placeSymbol "B" (Input1(1, None)) andPos)
-        |> Result.bind (Builder.placeSymbol "MUX1" Mux2 middleOfSheet)
-        |> Result.bind (Builder.placeWire (portOf "A" 0) (portOf "MUX1" 0))
-        |> Result.bind (Builder.placeWire (portOf "MUX1" 0) (portOf "A" 0))
-        |> Result.bind (Builder.placeWire (portOf "B" 0) (portOf "MUX1" 1))
-        |> Result.bind (Builder.placeWire (portOf "MUX1" 1) (portOf "B" 0))
-        |> TestLib.getOkOrFail
+//========================================================PROJECT WORK===========================================================================
 
+    ///D.U for symbol pos
+    type SymbolPositions = {
+        APos: XYPos
+        BPos: XYPos
+        CPos: XYPos
+    }
 
+    /// function to set symbol positions
+    let setSymbolPositions (andPos: XYPos) =
+
+        let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = 0.0}
+        let aPos = middleOfSheet + { X = -80.0; Y = -50.0 } + {X = andPos.X ; Y = 0.0}
+        let bPos = middleOfSheet + { X = -80.0; Y = 50.0 } + {X = andPos.X; Y = andPos.Y}
+
+        { APos = aPos; BPos = bPos; CPos = cPos }
+
+        /// Returns the number of straight wires in a sheet   
+    let numOfStraightWires (sheet: SheetT.Model) : int =
+            let wModel = sheet.Wire
+            let allWires = sheet.Wire.Wires |> Map.values
+
+            let straightWiresCount =
+                allWires
+                |> Seq.filter(fun wire ->
+                    match findStraightWireSeg sheet wire with
+                    | true -> true
+                    | _ -> false)
+                |> Seq.length
+            straightWiresCount
+
+    ///Create circuit containing 2 input ports and MUX2
     let makeTest6Circuit (andPos: XYPos) =
-        let randomSel arr =
-            let shuffledArray = shuffleA arr
-            shuffledArray.[0] //first element from shuffled array
+        let symbolPositions = setSymbolPositions andPos
 
-        let Rotations =
-            [|Degree90; Degree270|]
+        let findNumDiff (test1: int) (test2: int) : int =
+            test1 - test2
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "C" (Output(1)) symbolPositions.CPos) 
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "C" 0) ) 
+            |> getOkOrFail
 
-        let Flips = [|SymbolT.FlipHorizontal|]
+        let testPreAlign = numOfStraightWires model
 
-        let andRotation = randomSel Rotations
-        let dffRotation = randomSel Rotations
-        let andFlip = randomSel Flips
-        let dffFlip = randomSel Flips
-  
-        
-        initSheetModel
-        |> placeSymbol "Component1" (GateN(And,2)) andPos
-        |> Result.map (rotateSymbol "Component1" andRotation)
-        |> Result.map (flipSymbol "Component1" andFlip)
-        |> Result.bind (placeSymbol "Component2" DFF middleOfSheet)
-        |> Result.map (rotateSymbol "Component2" dffRotation)
-        |> Result.map (flipSymbol "Component2" dffFlip)
-        |> Result.bind (placeWire (portOf "Component1" 0) (portOf "Component2" 0))
-        |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
-        |> getOkOrFail
+        // @Martin add whatever function for sheetAlign here
 
-        
+        let testPostAlign = numOfStraightWires model
+        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        printf "Number of straightened wires: %d" straightenedWires
+
+        model
         
 
+        
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -455,10 +498,6 @@ module HLPTick3 =
 
 
     module Asserts =
-
-        (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
-           It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
-           easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
 
         /// Ignore sheet and fail on the specified sample, useful for displaying a given sample
         let failOnSampleNumber (sampleToFail :int) (sample: int) _sheet =
@@ -490,6 +529,7 @@ module HLPTick3 =
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
+
 
 
 
@@ -567,12 +607,12 @@ module HLPTick3 =
 
         let test6 testNum firstSample dispatch =
             runTestOnSheets
-                 "Test Near Straight Wire"
-                 firstSample
-                 filteredSampleData
-                 makeTest6Circuit
-                 Asserts.failOnWireIntersectsSymbol
-                 dispatch
+                "Test Near Straight Wire"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeTest6Circuit
+                Asserts.failOnSymbolIntersectsSymbol
+                dispatch
             |> recordPositionInTest testNum dispatch
 
             
@@ -589,7 +629,7 @@ module HLPTick3 =
                 "Test3", test3 // example
                 "Test4", test4 
                 "Test5", test5 // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
+                "Test6", test6
                 "Test7", fun _ _ _ -> printf "Test7"
                 "Test8", fun _ _ _ -> printf "Test8"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test

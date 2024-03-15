@@ -497,7 +497,7 @@ let mDragUpdate
         
         let selectedSymbols = RotateScale.findSelectedSymbols (modelBeforeUpdate.SelectedComponents) (modelBeforeUpdate.Wire.Symbol)
 
-        let xYSC = RotateScale.getScaleFactorAndOffsetCentreGroup newBBMin newBBMax selectedSymbols
+        let xYSC = RotateScale.getScalingFactorAndOffsetCentreGroup newBBMin newBBMax selectedSymbols
         let scaleSymFunc = RotateScale.scaleSymbol xYSC
         let newSymModel = RotateScale.groupNewSelectedSymsModel (modelBeforeUpdate.SelectedComponents) (modelBeforeUpdate.Wire.Symbol) selectedSymbols scaleSymFunc
         let newModel = {{model with Wire = {model.Wire with Symbol = newSymModel}} with BoundingBoxes = Symbol.getBoundingBoxes {model with Wire = {model.Wire with Symbol = newSymModel}}.Wire.Symbol}

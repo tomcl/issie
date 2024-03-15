@@ -1,5 +1,4 @@
-﻿﻿
-module SheetBeautifyHelpers
+﻿module SheetBeautifyHelpers
 
 open EEExtensions
 open CommonTypes

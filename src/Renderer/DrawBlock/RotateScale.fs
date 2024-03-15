@@ -1,5 +1,5 @@
-﻿﻿
-module RotateScale
+﻿module RotateScale
+
 open CommonTypes
 open DrawModelType
 open DrawModelType.SymbolT

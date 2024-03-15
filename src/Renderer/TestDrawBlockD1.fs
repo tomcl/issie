@@ -1,5 +1,4 @@
-﻿
-module TestDrawBlockD1
+﻿module TestDrawBlockD1
 
 open DrawModelType
 open DrawModelType.SymbolT
@@ -18,6 +17,7 @@ open RotateScale
 open SheetBeautifyHelpers
 open TestDrawBlock
 open GenerateData
+open System
 
 
 
@@ -50,6 +50,30 @@ module D1TestHelperFunctions =
     let maxSheetCoord = Sheet.Constants.defaultCanvasSize
     let middleOfSheet = {X=maxSheetCoord/2.;Y=maxSheetCoord/2.}
 
+    let findStraightWireSeg (model: SheetT.Model) (wire: BusWireT.Wire) : bool =
+        let segments = SegmentHelpers.visibleSegments wire.WId model
+        List.length segments = 1
+
+    /// Returns the number of straight wires in a sheet   
+    let numOfStraightWires (model: SheetT.Model): string =
+        let wModel = model.Wire
+        let allWires = model.Wire.Wires
+                       |> Map.values
+        allWires
+        |> Seq.filter(fun wire ->
+            match findStraightWireSeg model wire with
+            | true -> true
+            | _ -> false)
+        |> Seq.length
+        |> string
+
+        
+
+    let numInTest (model: Model) =
+        numOfStraightWires
+
+    let findNumDiff (test1: int) (test2: int) : int =
+        test2 - test1
 
     let horizLinePositions =
         fromList [-100..20..100]
@@ -65,15 +89,14 @@ module D1TestHelperFunctions =
             (fromList [-100..20..100])
             (fromList [-100..20..100])
 
-    let generateSmallDeviations =
+    let generateSmallDeviations : Gen<XYPos> =
         let rnd = Random()
-        [-100..20..100]
-        |> List.collect (fun x ->
-            [-100..20..100]
-            |> List.collect (fun y ->
-                let deviationX = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 2.5 in X
-                let deviationY = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 2.5 in Y
-                [{ X = float x + deviationX; Y = float y + deviationY }]))
+        product (fun x y ->
+                    let deviationX = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 2.5 in X
+                    let deviationY = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 2.5 in Y
+                    { X = middleOfSheet.X + float x + deviationX; Y = middleOfSheet.Y + float y + deviationY })
+                (fromList [-100..20..100])
+                (fromList [-100..20..100])
 
 
     let filterOverlap (pos1: XYPos) =
@@ -132,42 +155,49 @@ module D1TestHelperFunctions =
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
 
-  (*      // Fail when sheet contains 2 different wires that intersect
+        /// Returns the number of straight wires in a sheet   
+        let numOfStraightWires (sample: int) (sheet: SheetT.Model) : string option =
+            let wModel = sheet.Wire
+            let allWires = sheet.Wire.Wires |> Map.values
+
+            let straightWiresCount =
+                allWires
+                |> Seq.filter(fun wire ->
+                    match findStraightWireSeg sheet wire with
+                    | true -> true
+                    | _ -> false)
+                |> Seq.length
+
+            match straightWiresCount with
+            | 0 -> None
+            | _ -> Some $"Number of straight wires in Sample {sample}: {straightWiresCount}"
+            
+  (*
+        // Fail when sheet contains 2 different wires that intersect
         let failOnWireIntersectsWire (sample: int) (sheet: SheetT.Model) =
             let wireModel = sheet.Wire.Wires
             let absSegments =
                 Map.toList wireModel
                 |> List.map (fun (id, wire) -> id, getAbsSegments wire)
 
-            let intersectingSegments (segs1: ASegment list) (segs2: ASegment list) =
-                segs1 |> List.exists (fun seg1 ->
-                    segs2 |> List.exists (fun seg2 ->
-                        overlap1D (seg1.Start.X, seg1.End.X) (seg2.Start.X, seg2.End.X) &&
-                        overlap1D (seg1.Start.Y, seg1.End.Y) (seg2.Start.Y, seg2.End.Y)
-                    )
-                )
-            absSegments
-            |> List.allPairs
-            |> List.filter (fun ((id1, _), (id2, _)) -> id1 <> id2)
-            |> List.exists (fun ((_, segs1), (_, segs2)) ->
-                intersectingSegments segs1 segs2
-            )
-            |> function
-            | true -> Some $"Wire intersects another wire in Sample {sample}"
-            | false -> None *)
+  *)
+        
 
-  module TestD1 =
+    module TestD1 =
 
+        
         let testD1_1 testNum firstSample dispatch =
             HLPTick3.Builder.runTestOnSheets
                 "Test Near Straight Wire"
                 firstSample
                 filteredSampleData
                 makeNearStraightWireCircuit
-                Asserts.failOnSymbolIntersectsSymbol
+                Asserts.numOfStraightWires
                 dispatch
             |> HLPTick3.Tests.recordPositionInTest testNum dispatch
 
+
+        
 
 
 

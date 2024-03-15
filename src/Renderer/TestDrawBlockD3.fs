@@ -30,6 +30,8 @@ open DrawModelType
 open Sheet.SheetInterface
 open GenerateData
 open SheetBeautifyHelpers
+open BusWireUpdate
+
 
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
@@ -94,6 +96,24 @@ let makeTest1Circuit (x:XYPos)=
     |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
     |> getOkOrFail
 
+let makeTest2Circuit (x:XYPos)=
+
+    let Pos1 = middleOfSheet + {X=150. ; Y=0.}
+    let Pos2 = Pos1 + {X=150. ; Y=0.}
+    let Pos3 = Pos2 + {X=150. ; Y=0.}
+    let model =
+        initSheetModel
+        |> placeSymbol "C1" (Constant1( Width=8 , ConstValue=0 , DialogTextValue="0" )) middleOfSheet
+        |> Result.bind(placeSymbol "SN1" (SplitN(3,[2;3;3],[0;1;2])) Pos1)
+        |> Result.bind(placeSymbol "MN1" (MergeN(3)) Pos2)
+        |> Result.bind(placeSymbol "B" (Output(8)) Pos3)
+        |> Result.bind (placeWire (portOf "C1" 0) (portOf "SN1" 0))
+        |> Result.bind (placeWire (portOf "SN1" 0) (portOf "MN1" 0))
+        |> Result.bind (placeWire (portOf "SN1" 1) (portOf "MN1" 1))
+        |> Result.bind (placeWire (portOf "SN1" 2) (portOf "MN1" 2))
+        |> Result.bind (placeWire (portOf "MN1" 0) (portOf "B" 0))
+        |> getOkOrFail
+    {model with Wire = model.Wire |>calculateBusWidths |>fst}
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -111,10 +131,21 @@ module Tests =
     
     let D3Test1 testNum firstSample dispatch =
         runTestOnSheets
-            "two custom components with random offset: fail all tests"
+            "Mux conected to 2 demux"
             firstSample
             offsetXY
             makeTest1Circuit
+            Asserts.failOnAllTests
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum dispatch
+    
+    let D3Test2 testNum firstSample dispatch =
+        runTestOnSheets
+            "Test for label placement"
+            firstSample
+            offsetXY
+            makeTest2Circuit
             Asserts.failOnAllTests
             Evaluations.nullEvaluator
             dispatch
@@ -125,7 +156,7 @@ module Tests =
         // delete unused tests from list
         [
             "Test1", D3Test1 // example
-            "Test2", D3Test1 // example
+            "Test2", D3Test2 // example
         ]
     
     let nextError (testName, testFunc) firstSampleToTest dispatch =

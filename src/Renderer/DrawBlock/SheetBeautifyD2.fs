@@ -142,12 +142,12 @@ let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
     let flipOptimized =
         (portSwapOptimized,otherComponents)
         ||> List.fold flipSymbol
-    let model' = portSwapOptimized
+    let model' = flipOptimized
     let improvement = (numOfWireRightAngleCrossings model' < initialCrossings)
     if improvement then
         optimizePortOrder model'
     else
         printfn "Beautified"
-        model'
+        model
     
 

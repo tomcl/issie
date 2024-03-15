@@ -42,19 +42,16 @@ module D2Helpers =
 
     let flipPermute flip sym =
         let pos = {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 }
+        printf "%A" pos;
         [sym ; flipSymbolInBlock flip pos sym]
 
-    let permutateList lst=
-        let removeFromL rmVal = 
-            List.filter (fun v' -> v' <> rmVal)
-
-        let rec rPermutate (inL : 'a list) (outL: 'a list) =
-            match inL with
-            | [] -> [outL]
-            // | head::tail when tail = [] -> List.append outL [head]
-            | l -> List.collect (fun v -> rPermutate (removeFromL v l) (List.append outL [v])) l
-
-        rPermutate lst []
+    let rec permute lst =
+        lst
+        |> List.mapi (fun n xn ->
+            let lst' = List.removeAt n lst
+            permute lst'
+            |> List.map (fun permL -> xn :: permL))
+        |> List.concat
 
     let muxInputPortsPermute sym = 
         let inputPortsEdge = 
@@ -65,7 +62,7 @@ module D2Helpers =
             | Degree270 -> Edge.Top
 
         getPortOrder inputPortsEdge sym
-        |> permutateList
+        |> permute
         |> List.map (fun newOrder -> 
             putPortOrder inputPortsEdge newOrder sym)
 
@@ -83,7 +80,7 @@ module D2Helpers =
         symbol
         |> flipPermute FlipVertical
         |> List.collect rotationPermute
-        |> List.collect muxInputPortsPermute
+        // |> List.collect muxInputPortsPermute
 
     /// combine a list of symbol permutations into a list of all possible symbol permutations with each other
     let combinePermutations ( allPerms ) = 
@@ -100,7 +97,9 @@ module D2Helpers =
 
         let newSymbols = Map.fold (fun old cid sym -> Map.add cid sym old) oldSymbols newSyms
 
-        Optic.set symbols_ newSymbols sheet
+        sheet
+        |> Optic.set symbols_ newSymbols 
+        |> Optic.map SheetT.wire_ (BusWireSeparate.reRouteWiresFrom (newSymbols.Keys |> Seq.toList))
 
     let evaluateFlip ( sheet : SheetT.Model ) ( newSyms : Map<ComponentId,Symbol> ) = 
         updateSymbolsInSheet sheet newSyms
@@ -119,5 +118,11 @@ let sheetOrderFlip ( sheet : SheetT.Model ) =
     |> Map.filter (fun _cid sym -> componentIsMux <| Optic.get component_ sym)
     |> Map.map (fun _cid sym -> permutateMux sym)
     |> combinePermutations
-    |> List.minBy (evaluateFlip sheet)
-    |> updateSymbolsInSheet sheet    
+    |> List.mapi (fun i newSyms -> 
+        let newSheet = updateSymbolsInSheet sheet newSyms
+        let numCrossing = numOfWireRightAngleCrossings newSheet
+        printfn "%d crossings num: %d"  i numCrossing;
+        (numCrossing,newSheet))
+    |> List.minBy (fun (num, sheet) -> num)
+    |> snd
+    // |> updateSymbolsInSheet sheet

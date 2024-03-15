@@ -229,7 +229,7 @@ module TestingFramwork =
                     (after - before)
                 )
 
-            showSheetInIssieSchematic beautifiedSheetModel dispatch
+            showSheetInIssieSchematic {beautifiedSheetModel with UndoList= SheetUpdateHelpers.appendUndoList sheetModel.UndoList sheetModel} dispatch
 
     module Tests =
         //////////////////////////////////////////////////////////////////
@@ -272,6 +272,7 @@ module TestingFramwork =
             =
             let modelToRun = model.Sheet
             printfn "Running test on current sheet"
+            // add to undo list
             runTestsWithBeautify modelToRun beautifyFunction testMetrics dispatch
 
         let runUnitTestOnSheetWrapper (model: Model) (dispatch: Dispatch<Msg>) =

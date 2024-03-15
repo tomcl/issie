@@ -493,6 +493,7 @@ let processContextMenuClick
 
     | DBComp sym, "Same-Name Wire Labels to Wires" -> 
         model
+        |> map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
         |> map sheet_ (selectedWireLabelsToWires [sym.Id] false)
         |> withNoCmd
     
@@ -506,6 +507,7 @@ let processContextMenuClick
     
     | DBWire (wire, aSeg), "Same-Net Wires to Wire Labels" ->
         model
+        |> map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
         |> map sheet_ (selectedWiresToWireLabels [wire.WId] false)
         |> withNoCmd
 

@@ -18,6 +18,7 @@ open BlockHelpers
 open Browser
 open Optics
 open Operators
+open SheetUpdateHelpers
 
 //-----------------Module for beautify Helper functions--------------------------//
 // Typical candidates: all individual code library functions.
@@ -634,4 +635,9 @@ let getRetracingSegs (sheet:SheetT.Model) =
     mapValues sheet.Wire.Wires
     |> Array.map getRetracingSegsOfWire
     |> Array.fold (fun (li1,li2) (segLi1,segLi2) -> (List.append li1 segLi1, List.append li2 segLi2)) ([],[])
+
+
+/// Return a SheetT.Model which has itself added onto its UndoList
+let appendUndoListModel (model:SheetT.Model) = 
+    {model with UndoList = appendUndoList model.UndoList model}
 

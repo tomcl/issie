@@ -20,7 +20,7 @@ open Symbol
 let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
 
     let partitionComponents (symbols: (ComponentId * Symbol) list) =
-        symbols |> List.partition (fun (compId,symbol) -> match symbol.Component.Type with
+        symbols |> List.filter (fun (compId,symbol) -> match symbol.Component.Type with
                                                             | Custom _ -> true
                                                             | (Mux2 | Mux4 | Mux8) -> true
                                                             | _ -> false)
@@ -135,12 +135,12 @@ let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
         model.Wire.Symbol.Symbols
         |> Map.toList
 
-    let customAndMuxComponents, otherComponents = partitionComponents symbols
+    let customAndMuxComponents = partitionComponents symbols
     let portSwapOptimized =
         (model,customAndMuxComponents)
         ||> List.fold swapSymbolEdgePorts
     let flipOptimized =
-        (portSwapOptimized,otherComponents)
+        (portSwapOptimized,symbols)
         ||> List.fold flipSymbol
     let model' = flipOptimized
     let improvement = (numOfWireRightAngleCrossings model' < initialCrossings)

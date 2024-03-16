@@ -358,17 +358,24 @@ let getBlock
 let rotatePointAboutCentre (point: XYPos) (centre: XYPos) (rotation: Rotation) : XYPos =
     // Refactored point rotation logic to be more concise and clear.
     // Maintained mathematical integrity while simplifying conditional structures.
-    let deltaX = point.X - centre.X
-    let deltaY = point.Y - centre.Y
-    
-    let newX, newY =
-        match rotation with
-        | Degree0 -> (deltaX, deltaY)
-        | Degree90 -> (-deltaY, deltaX)
-        | Degree180 -> (-deltaX, -deltaY)
-        | Degree270 -> (deltaY, -deltaX) 
+    let relativeToCentre = (fun x-> x - centre)
+    let rotateAboutCentre (pointIn:XYPos) = 
+        match rotation with 
+        | Degree0 -> 
+            pointIn
+        | Degree90 ->
+            {X = pointIn.Y ; Y = -pointIn.X}
+        | Degree180 -> 
+            {X = -pointIn.X ; Y = - pointIn.Y}
+        | Degree270 ->
+            {X = -pointIn.Y ; Y = pointIn.X}
+           
+    let relativeToTopLeft = (fun x-> centre - x)
 
-    { X = centre.X + newX; Y = centre.Y + newY }
+    point
+    |> relativeToCentre
+    |> rotateAboutCentre
+    |> relativeToTopLeft
 
 /// <summary>
 /// Flips a point about a specified center point either horizontally or vertically.

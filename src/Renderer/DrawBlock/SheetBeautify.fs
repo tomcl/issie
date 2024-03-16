@@ -176,8 +176,28 @@ let optimizeFlipForComponents (model: SheetT.Model): SheetT.Model =
 
 
 // test function
+
+let printSymbolScript (script: symbolScript) =
+    printfn "Flipped: %b" script.Flipped
+    printfn "ReversedInput: %b" script.ReversedInput
+    printfn "PortEdge: %A" script.PortEdge
+    printfn "PortOrder: %A" script.PortOrder
+    1
+
+let printModelScript (script: modelScript) =
+    let a = 
+        script
+        |> List.map snd
+        |> List.map printSymbolScript
+    1
+
+
 let randomPossibleModels (model: SheetT.Model) = 
     let scripts = generateModelScript model
+    
+    printModelScript scripts.[0]
+    |> ignore
+
 
     let models = 
         scripts

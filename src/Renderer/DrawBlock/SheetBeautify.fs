@@ -1,4 +1,4 @@
-﻿module SheetBeautifyD2
+﻿module SheetBeautify
 
 //-----------------------------------------------------------------------------------------//
 //----------Module for top-level beautify functions making (mostly) whole-sheet changes----//
@@ -165,8 +165,30 @@ let optimizeFlipForComponents (model: SheetT.Model): SheetT.Model =
         |> List.minBy snd
         |> fst
     
-    bestModel
+    let bestScore = 
+        modelsWithScores
+        |> List.minBy snd
+        |> snd
     
+    printfn "Best score: %A" bestScore
+
+    bestModel
+
+
+// test function
+let randomPossibleModels (model: SheetT.Model) = 
+    let scripts = generateModelScript model
+
+    let models = 
+        scripts
+        |> List.map (applyScriptToModel model)
+    
+
+    let random = System.Random()
+    let randomElement = models.[random.Next(models.Length)]
+
+    randomElement
+
 
 // Heuristic Algorithm
 // Use a heuristic to partition components into independent connected groups

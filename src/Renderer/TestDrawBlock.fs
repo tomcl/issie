@@ -2,6 +2,7 @@
 open GenerateData
 open Elmish
 open SheetBeautifyHelpers
+open SheetBeautify
 
 //-------------------------------------------------------------------------------------------//
 //--------Types to represent tests with (possibly) random data, and results from tests-------//
@@ -424,12 +425,32 @@ module HLPTick3 =
                 else
                     None
 
+            let tester =
+                let xrange = fromList [-100]
+                let yrange = fromList [-100]
+                GenerateData.product (fun x y -> x,y) xrange yrange
+                |> map (fun n -> middleOfSheet + {X=float (fst n); Y=float (snd n)})
+            
+            let makethisTest (andPos:XYPos) =
+                initSheetModel
+                |> placeSymbol "G1" (GateN(And,2)) andPos
+                |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+                |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+                |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+                |> getOkOrFail
+                |> randomPossibleModels
+
+            let display sheet = 
+                showSheetInIssieSchematic sheet dispatch
+            
+            
+            
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 0"
+                "beautify2d test test test"
                 firstSample
-                horizLinePositions
-                makeTest1Circuit
-                testTotalWireLength
+                tester
+                makethisTest
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 

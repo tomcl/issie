@@ -194,7 +194,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
     let numWireCrossing (sheet: SheetT.Model) = 
         numSegmentCrossRightAngle sheet
         //numOfWireRightAngleCrossings sheet
-    printf "inital cross number: %A" (numWireCrossing sheet)
+    // printf "inital cross number: %A" (numWireCrossing sheet)
     // let updatedSymbolsMap = 
     //     //flip and swap MUX then update Symbol map
     //     let updateMuxSymbolMap = 
@@ -265,13 +265,13 @@ let sheetOrderFlip (sheet: SheetT.Model) =
                 )
     let getOptimalCombination = 
         let optimalIndex = 
-            printf "%A" getNumWireCrossingForAllCombination
+            //printf "%A" getNumWireCrossingForAllCombination
             getNumWireCrossingForAllCombination
             |> List.mapi (fun i x -> (i, x))
             |> List.minBy snd
             |> fst
         List.item optimalIndex allCombinationList
-    printf "%A" getOptimalCombination
+    //printf "%A" getOptimalCombination
     getOptimalCombination
     |> fun (combMux, combGate) -> 
             let updateMuxSymbolMap = 

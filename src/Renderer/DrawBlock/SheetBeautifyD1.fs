@@ -43,8 +43,8 @@ let isParallel(model: SheetT.Model)(wId: ConnectionId) =
     // Start checking from the beginning without a predefined direction
     aux "" segments
 
-// find the singly connected component on the sheet
-let findSinglyConnectedComponents (model:SheetT.Model) =
+// find the singly connected Ports on the sheet
+let findSinglyConnectedPorts (model:SheetT.Model) =
     // Get all the connected wires of the model
     let singlyConnectedWires = 
         model.Wire.Wires
@@ -81,6 +81,29 @@ let findSinglyConnectedComponents (model:SheetT.Model) =
     |> Map.filter (fun _ count -> count = 1)
     |> Map.toList
     |> List.map fst
+
+
+// find the singly connected component on the sheet
+let findSinglyConnectedComponents (model: SheetT.Model) : ComponentId list =
+    // Utilize the previously defined function to find singly connected ports
+    let singlyConnectedPorts = findSinglyConnectedPorts model
+    
+    // For each singly connected port, find the corresponding component it belongs to
+    let singlyConnectedComponents =
+        singlyConnectedPorts
+        |> List.map (fun portId ->
+            // Find the component that this port belongs to by matching portId with component's ports
+            model.Wire.Symbol.Ports
+            |> Map.filter (fun _ port -> port.Id = portId)
+            |> Map.toList
+            |> List.map (fun (_, port) ->
+                ComponentId(port.HostId) // Wrap the HostId in the ComponentId constructor
+            )
+        )
+        |> List.concat // Flatten the list of lists into a single list of ComponentIds
+        |> List.distinct // Remove duplicates to ensure each component is listed once
+
+    singlyConnectedComponents
 
     
 ///----------------------------------------processing-more-than-one-connections----------------------------------------///

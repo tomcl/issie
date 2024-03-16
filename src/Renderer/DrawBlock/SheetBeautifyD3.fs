@@ -25,9 +25,9 @@ let getWireListFromSheet (sheet: SheetT.Model) = sheet.Wire.Wires |> Map.toList
 // |> List.map snd
 
 /// Return a list of wires that are long which can potentially be replaced with wire labels
-let getLongWires (wireLengthlimit: float) (wireList: List<ConnectionId * BusWireT.Wire>) =
+let getLongWires (wireLengthlimit: float) (wireList: List<BusWireT.Wire>) =
     wireList
-    |> List.filter (fun (id, wire) -> (getWireLength wire > wireLengthlimit))
+    |> List.filter (fun wire -> (getWireLength wire > wireLengthlimit))
 
 let findWireLabelRoomAtSource (wire: BusWireT.Wire ) (distance: float)= 
     let asegList =  wire |> getAbsSegments 
@@ -62,7 +62,7 @@ let getMovedSymbolBB (move: XYPos) (sym: SymbolT.Symbol) : BoundingBox =
 
 let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) = 
     let originalPos = wireLabelSym.Pos
-    let adjustmentAmount = 70.0
+    let adjustmentAmount = 40.0
     let boxes =
         sheet.BoundingBoxes
         |> Map.toList
@@ -76,23 +76,22 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
         let newWireLabelSymBB = getMovedSymbolBB moveAmount wireLabelSym
         not (checkIfIntersect newWireLabelSymBB)
 
-    let tryAdjust =
-        if tryMoveWireLabel {X = 0.; Y = adjustmentAmount} then
-            Some {X=0.; Y=adjustmentAmount}
+    let rec tryAdjust adjustmentAmount attemptCounter =
+        if attemptCounter >= 10 then
+            None  // Terminate recursion after 10 tries
+        elif tryMoveWireLabel {X = 0.; Y = adjustmentAmount} then
+            Some {X = 0.; Y = adjustmentAmount}
         elif tryMoveWireLabel {X = 0.; Y = -adjustmentAmount} then
-            Some {X=0.; Y = -adjustmentAmount}
-        // if tryMoveWireLabel {X = adjustmentAmount; Y = 0.} then
-        //     Some {X=adjustmentAmount; Y = 0.}
-        // elif tryMoveWireLabel {X = -adjustmentAmount; Y = 0.} then
-        //     Some {X=adjustmentAmount; Y = 0.}
+            Some {X = 0.; Y = -adjustmentAmount}
         else
-            None
+            tryAdjust (adjustmentAmount + 40.) (attemptCounter + 1)
+
     let newPos (moveAmount: XYPos) =
         {originalPos with X = originalPos.X + moveAmount.X; Y = originalPos.Y + moveAmount.Y}
 
     if checkIfIntersect wireLabelSym.SymbolBoundingBox
     then 
-        match tryAdjust with
+        match tryAdjust adjustmentAmount 0 with
         | Some moveAmount -> Some (newPos moveAmount)
         | None -> None
     else 
@@ -112,22 +111,24 @@ let getWiresNeedLabels (sheet: SheetT.Model) (wireLengthlimit: float) =
     let longWires =
         singleWires
         |> flattenList
+        |> List.map snd
         |> getLongWires wireLengthlimit
     
     wireInNet 
     |> flattenList
+    |> List.map snd
     |> List.append longWires
 
-let deleteWire (wire: ConnectionId) (sheet: SheetT.Model) =
+let deleteWire (wireCID: ConnectionId) (sheet: SheetT.Model) =
     let newWires =
         sheet.Wire.Wires
-        |> Map.filter (fun id _ -> not (id = wire))
+        |> Map.filter (fun id wire -> not (wire.WId = wireCID))
     { sheet with Wire = { sheet.Wire with Wires = newWires } }
 
 /// generate wire label for a wire connected between source symbol and target symbol
 /// or keep the wires if not enough room for label
-let generateWireLabel (sheet: SheetT.Model) (wireWithCID: ConnectionId * BusWireT.Wire) =
-    let connectionID, wire = wireWithCID
+let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
+    let connectionID = wire.WId
     let startSym = getSourceSymbol sheet.Wire wire
     let sourceSymPort = getSourcePort sheet.Wire wire
     let inputPortNumber = sourceSymPort.PortNumber
@@ -166,18 +167,17 @@ let generateWireLabel (sheet: SheetT.Model) (wireWithCID: ConnectionId * BusWire
         let adjustLabelOnSheet = 
             match adjustWireLabelPos labelSym sheetWithWireLabelAdded with
             | Some newPos -> 
-                printf "newpos %.2f, %.2f " newPos.X newPos.Y
-                printf "oldpos %.2f, %.2f" pos.X pos.Y
-                updateSymPosInSheet labelID newPos sheetWithWireLabelAdded
+                // printf "newpos %.2f, %.2f " newPos.X newPos.Y
+                // printf "oldpos %.2f, %.2f" pos.X pos.Y
+                let adjustedSheet = updateSymPosInSheet labelID newPos sheetWithWireLabelAdded
+                let newWireModel, _ = 
+                    BusWireUpdate.newWire (inputPortIDstr) (outputPortIdstr) adjustedSheet.Wire
+                adjustedSheet
+                |> Optic.set busWireModel_ newWireModel
             | None -> 
-                printf "no room"
-                sheetWithWireLabelAdded
-
-        let newWireModel, _ =
-            BusWireUpdate.newWire (inputPortIDstr) (outputPortIdstr) adjustLabelOnSheet.Wire
-
+                // printf "no room"
+                sheet
         adjustLabelOnSheet
-        |> Optic.set busWireModel_ newWireModel
 
     let sheetCheckedForNetWires = 
         if sheet.Wire.Symbol.Symbols
@@ -241,5 +241,5 @@ let autoGenerateWireLabels (sheet: SheetT.Model) =
     let limit = 50. // need clarify how long a wire is considered too long
     let wiresNeedLabels = getWiresNeedLabels sheet limit
     (sheet, wiresNeedLabels)
-    ||> List.fold (fun sheet wire -> generateWireLabel sheet wire)
+    ||> List.fold (fun sheet wire -> generateWireLabel wire sheet)
     |> Ok

@@ -498,6 +498,11 @@ let processContextMenuClick
         |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
         |> withNoCmd
     
+    | DBWire (wire, aSeg), "Convert to Wire Label" ->
+        model 
+        |> map (sheet_ ) (SheetBeautifyD3.generateWireLabel wire) 
+        |> withNoCmd
+
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
         rotateDispatch Degree90
         model 

@@ -333,31 +333,20 @@ let optimiseSymbol
 /// <remarks>
 /// The function iterates through all symbols in the list to find the extreme values (min and max) for both X and Y coordinates, adjusted by each symbol's width and height post-rotation and scale. This approach ensures the bounding box accurately represents the spatial extent of all symbols, including any transformations they have undergone.
 /// </remarks>
+let getBlock 
+        (symbols:Symbol List) :BoundingBox = 
 
-let getBlock (symbols: Symbol list) : BoundingBox =
-    // Added exception handling to ensure the symbol list is not empty.
-    if List.isEmpty symbols then
-        failwith "[ROTATESCALE - getBlock] : Symbol list is empty."
-    else
-        let firstSymbol = List.head symbols
-        let initialWidth, initialHeight = getRotatedHAndW firstSymbol
-        let initialMaxX = firstSymbol.Pos.X + initialWidth
-        let initialMinX = firstSymbol.Pos.X
-        let initialMaxY = firstSymbol.Pos.Y + initialHeight
-        let initialMinY = firstSymbol.Pos.Y
+    let maxXsym = (List.maxBy (fun (x:Symbol) -> x.Pos.X+(snd (getRotatedHAndW x))) symbols)
+    let maxX = maxXsym.Pos.X + (snd (getRotatedHAndW maxXsym))
 
-        let minX, maxX, minY, maxY =
-            symbols
-            |> List.fold
-                (fun (minX, maxX, minY, maxY) symbol ->
-                    let width, height = getRotatedHAndW symbol
-                    let symbolMaxX = symbol.Pos.X + width
-                    let symbolMaxY = symbol.Pos.Y + height
+    let minX = (List.minBy (fun (x:Symbol) -> x.Pos.X) symbols).Pos.X
 
-                    (min minX symbol.Pos.X, max maxX symbolMaxX, min minY symbol.Pos.Y, max maxY symbolMaxY))
-                (initialMinX, initialMaxX, initialMinY, initialMaxY)
+    let maxYsym = List.maxBy (fun (x:Symbol) -> x.Pos.Y+(fst (getRotatedHAndW x))) symbols
+    let maxY = maxYsym.Pos.Y + (fst (getRotatedHAndW maxYsym))
 
-        { TopLeft = { X = minX; Y = minY }; W = maxX - minX; H = maxY - minY }
+    let minY = (List.minBy (fun (x:Symbol) -> x.Pos.Y) symbols).Pos.Y
+
+    {TopLeft = {X = minX; Y = minY}; W = maxX-minX; H = maxY-minY}
 
 /// <summary>
 /// Rotates a point around the center of a block by the specified rotation angle.

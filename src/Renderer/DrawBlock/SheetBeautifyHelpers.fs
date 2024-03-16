@@ -178,6 +178,12 @@ let putPortOrder edge newList symbol =
     symbol
     |> Optic.map (portMaps_ >-> order_) (Map.add edge newList)
 
+/// Replaces or adds the edge of a port in PortMaps.Orientation
+let putPortOrientation edge symbol portId =
+    symbol
+    |> Optic.map (portMaps_ >-> orientation_) (Map.add portId edge)
+
+
 //B4 RW
 /// A lens for accessing the reversed input ports state of a MUX2 from its symbol
 let reversedInputPorts_ =

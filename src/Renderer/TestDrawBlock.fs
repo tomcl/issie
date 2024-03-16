@@ -101,8 +101,11 @@ module HLPTick3 =
     open TestLib
     open PopupHelpers
 
-    /// create an initial empty Sheet Model 
-    let initSheetModel = DiagramMainView.init().Sheet
+    /// create an initial empty Model 
+    let initModel = DiagramMainView.init()
+
+    /// create an initial empty Sheet Model
+    let initSheetModel = initModel.Sheet
 
     /// Optic to access SheetT.Model from Issie Model
     let sheetModel_ = sheet_
@@ -244,7 +247,7 @@ module HLPTick3 =
 
         /// Finds the componentID of a symbol with symLabel
         /// returns symbolMap and componentID
-        let getSymbolMapCopmonentId symLabel (model:SheetT.Model) =
+        let getSymMapCompId symLabel (model:SheetT.Model) =
             let symbolMap = model.Wire.Symbol.Symbols
             let componentID = Map.findKey (fun _ (sym: SymbolT.Symbol) -> sym.Component.Label = symLabel) symbolMap
             (symbolMap, componentID)
@@ -260,13 +263,13 @@ module HLPTick3 =
 
         /// Rotate a symbol given its label
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            let symbolMap, componentID = getSymbolMapCopmonentId symLabel model
+            let symbolMap, componentID = getSymMapCompId symLabel model
             let symModel = SymbolResizeHelpers.rotateAntiClockByAng rotate symbolMap[componentID]
             updatedModel componentID symModel model
 
         /// Flip a symbol given its label
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            let symbolMap, componentID = getSymbolMapCopmonentId symLabel model
+            let symbolMap, componentID = getSymMapCompId symLabel model
             let symModel = SymbolResizeHelpers.flipSymbol flip symbolMap[componentID]
             updatedModel componentID symModel model
 

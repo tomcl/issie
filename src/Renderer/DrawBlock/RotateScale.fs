@@ -660,9 +660,9 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
             let topleft = newBoxBound.TopLeft
             let rotateDeg90OffSet: XYPos = {X = newBoxBound.W+57.; Y = (newBoxBound.H/2.)-12.5}
             let rotateDeg270OffSet: XYPos = {X = -69.5; Y = (newBoxBound.H/2.)-12.5}
-            let dummyPos = (topleft + {X = newBoxBound.W + 47.5; Y = -47.5})
+            let buttonOffSet: XYPos = {X = newBoxBound.W + 47.5; Y = -47.5}
+            let dummyPos = (topleft + buttonOffSet)
 
-            // Helper to create a button
             let makeButton = SymbolUpdate.createAnnotation ThemeType.Colourful
             let buttonSym = {makeButton ScaleButton dummyPos with Pos = (topleft + buttonOffSet)}
             let makeRotateSym sym = {sym with Component = {sym.Component with H = 25.; W=25.}}

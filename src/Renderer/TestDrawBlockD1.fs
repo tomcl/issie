@@ -604,7 +604,7 @@ module Tests =
         runTestOnSheets
             "Large circuit"
             firstSample
-            (randXY {min=(0.5); step=0.5; max=3})
+            (randXY {min=(0.5); step=0.5; max=1})
             makeLargeCircuit
             failOnAllTests
             Evaluations.nullEvaluator

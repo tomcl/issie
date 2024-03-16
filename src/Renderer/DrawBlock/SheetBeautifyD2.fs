@@ -56,7 +56,7 @@ module mySheetBeautifyHelpers =
             | _ -> ([], coalescedSegs)
 
         wire
-        |> getAbsSegments
+        |> BlockHelpers.getAbsSegments
         |> (fun segVecs ->
                 ((segVecs,[]),segVecs)
                 ||> List.fold tryCoalesceAboutIndex)
@@ -208,7 +208,7 @@ module D2Helpers =
         // for each port-reorder flip the select port
         [symbol; changeReversedInputs symbol]
         |> List.collect (flipPermute FlipVertical)
-        // |> List.collect (flipPermute FlipHorizontal)
+        |> List.collect (flipPermute FlipHorizontal)
         // |> List.collect rotationPermute
 
     /// combine a list of symbol permutations into a list of all possible symbol permutations with each other

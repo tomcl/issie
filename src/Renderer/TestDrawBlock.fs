@@ -15,10 +15,14 @@ module TestLib =
         | Error mess ->
             failwithf "%s" mess
 
-
     type TestStatus =
         | Fail of string
         | Exception of string
+
+    type Evaluator<'a> = {
+        EvalFunc: 'a -> float
+        Penalty: float
+    }
 
     type Test<'a> = {
         Name: string
@@ -28,16 +32,16 @@ module TestLib =
         /// to display just one sample.
         /// The return value is None if test passes, or Some message if it fails.
         Assertion: int -> 'a -> string option
-        Evaluation: int -> 'a -> float
-        }
+        Evaluation: Evaluator<'a>
+    }
 
     type TestResult<'a> = {
         TestName: string
         TestData: Gen<'a>
         FirstSampleTested: int
         firstTestError: option<int * TestStatus>
-        Scores: float list
     }
+
 
     let catchException name func arg =
         try
@@ -49,13 +53,13 @@ module TestLib =
     /// Run the Test samples from 0 up to test.Size - 1.
     /// The return list contains all failures or exceptions: empty list => everything has passed.
     /// This will always run to completion: use truncate if text.Samples.Size is too large.
-    let runTests (test: Test<'a>) : TestResult<'a>  =
-        printfn $"{test.StartFrom} / {test.Samples.Size}"
-        let getTestOutput (n, res) : option<int * TestStatus> =
+    let runTestsTillFail (test: Test<'a>) : TestResult<'a> =
+        printfn $"[{test.StartFrom}/{test.Samples.Size}]"
+        let getTestFail (n, res) : option<int * TestStatus> =
             match n, res with
                 | n, Error mess -> Some (n, Exception mess)
                 | n, Ok sample ->
-                    match catchException $"'test.Assertion' on test {n} from 'runTests'" (test.Assertion n) sample with
+                    match catchException $"'test.Assertion' on test {n} from 'runTestsTillFail'" (test.Assertion n) sample with
                     | Ok None -> None
                     | Ok (Some failure) -> Some (n,Fail failure)
                     | Error (mess) -> Some (n,Exception mess)
@@ -65,18 +69,38 @@ module TestLib =
                 catchException $"generating test {n} from {test.Name}" test.Samples.Data n
                 |> (fun res -> n,res)
            )
-        |> List.tryFind (Option.isSome << getTestOutput)
+        |> List.tryFind (Option.isSome << getTestFail)
         |> (function 
                 | None -> None
-                | Some (n,res) -> getTestOutput (n,res))
+                | Some (n,res) -> getTestFail (n,res)) // re-executes test if fail to get message
         |> (fun resL ->
                 {
                     TestName = test.Name
                     FirstSampleTested = test.StartFrom
                     TestData = test.Samples
                     firstTestError = resL
-                    Scores = [1]
                 })
+
+    /// Run the Test samples from 0 up to test.Size - 1.
+    /// The return list contains all failures or exceptions: empty list => everything has passed.
+    /// This will always run to completion: use truncate if text.Samples.Size is too large.
+    let calcEval (test: Test<'a>) : float =
+        [1..test.Samples.Size - 1]
+        |> List.map (fun n ->
+                catchException $"generating test {n} from {test.Name}" test.Samples.Data n
+                |> (fun res -> n,res)
+           )           
+        |> List.collect (function
+                            | _, Error _ -> [test.Evaluation.Penalty]
+                            | n, Ok sample ->
+                                match catchException $"'test.Assertion' on test {n} from 'runTests'" (test.Assertion n) sample with
+                                | Ok None -> [(test.Evaluation.EvalFunc) sample]
+                                | Ok (Some failure) -> [test.Evaluation.Penalty]
+                                | Error (mess) -> [test.Evaluation.Penalty])
+        // |> (fun x ->
+        //             printfn "%A" x
+        //             x)
+        |> List.average
             
 (******************************************************************************************
    This submodule contains a set of functions that enable random data generation
@@ -345,24 +369,31 @@ module HLPTick3 =
             (samples : Gen<'a>)
             (sheetMaker: 'a -> SheetT.Model)
             (sheetChecker: int -> SheetT.Model -> string option)
-            (sheetScorer: int -> SheetT.Model -> float)
+            (sheetScorer: Evaluator<SheetT.Model>)
             (dispatch: Dispatch<Msg>)
                 : TestResult<'a> =
             let generateAndCheckSheet n = sheetMaker >> sheetChecker n
-            let generateAndScoreSheet n = sheetMaker >> sheetScorer n
-            let result =
+            let generateAndScoreSheet = sheetMaker >> sheetScorer.EvalFunc
+
+            let test =
                 {
                     Name=name;
                     Samples=samples;
                     StartFrom = sampleToStartFrom
                     Assertion = generateAndCheckSheet
-                    Evaluation = generateAndScoreSheet
+                    Evaluation = {
+                        EvalFunc = generateAndScoreSheet
+                        Penalty = sheetScorer.Penalty
+                    }
                 }
-                |> runTests
+            let result = runTestsTillFail test
+
             match result.firstTestError with
             | None -> // no errors
                 printf $"Test {result.TestName} has PASSED."
-                printf $"SCORE: {List.average result.Scores}"
+                printf "----------"
+                printf $" SCORE: {calcEval test}"
+                printf "----------"
                 // evaluationPopup
             | Some (n,first) -> // display in Issie editor and print out first error
                 printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
@@ -414,6 +445,10 @@ module HLPTick3 =
         let failOnAllTests (sample: int) _ =
             Some <| $"Sample {sample}"
 
+        /// Fails no tests: useful for evaluation when only need to compare to pre-changes
+        let failOnNoTests (_: int) _ =
+            None
+
         /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
         let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
             let wireModel = sheet.Wire
@@ -446,8 +481,12 @@ module HLPTick3 =
         open DrawModelType
 
         /// Evaluates sheet to 0
-        let nullEvaluator (sample: int) (sheet: SheetT.Model) : float =
-            0
+        let nullEvaluator : Evaluator<SheetT.Model> =
+            {
+                EvalFunc = (fun _ -> 1.)
+                Penalty = 0
+            }
+
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
 //---------------------------------------------------------------------------------------//

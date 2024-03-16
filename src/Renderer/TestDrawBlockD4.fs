@@ -30,16 +30,15 @@ module Tests =
         // Change names and test functions as required
         // delete unused tests from list
         [
-            "Test1", test1 // example
-            "Test2", test2 // example
-            "Test3", test3 // example
-            "Test4", test4 
-            "Test5", TestDrawBlockD1.Tests.testA4
-            "Test6", TestDrawBlockD1.Tests.testA5
-            "Test7", TestDrawBlockD1.Tests.testA3
-            "Test8", TestDrawBlockD1.Tests.testLargeCircuit
+            "Test1", fun _ _ _ -> printf "Test1" // RANDOM TEST
+            "Test2", fun _ _ _ -> printf "Test2"
+            "Test3", fun _ _ _ -> printf "Test3"
+            "Test4", fun _ _ _ -> printf "Test4"
+            "Test5", fun _ _ _ -> printf "Test5"
+            "Test6", fun _ _ _ -> printf "Test6"
+            "Test7", fun _ _ _ -> printf "Test5"
+            "Test8", fun _ _ _ -> printf "Test5"
             "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
         ]
 
     /// Display the next error in a previously started test

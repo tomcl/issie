@@ -32,6 +32,8 @@ open GenerateData
 open SheetBeautifyHelpers
 open BlockHelpers
 
+open SheetBeautifyD1
+
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
@@ -155,6 +157,13 @@ module Builder =
                     x)
         Optic.set (SheetT.symbolOf_ sym.Id) editSym sheet
         |> Ok
+
+    let rerouteAllWires (sheet: SheetT.Model) : Result<SheetT.Model,string> =
+        let comps = mapKeys sheet.Wire.Symbol.Symbols |> Array.toList
+        let newWModel = List.fold (BusWireSeparate.routeAndSeparateSymbolWires) sheet.Wire comps
+        Optic.set (SheetT.wire_) newWModel sheet
+        |> Ok
+
         
 
 
@@ -341,6 +350,8 @@ let makeA5Circuit (scale: XYPos) =
     |> addWireToSheet ("MAIN1", 0) ("MAIN2", 0)
     |> addWireToSheet ("MAIN1", 1) ("MAIN2", 1)
     |> addWireToSheet ("MAIN1", 2) ("MAIN2", 2)
+    |> Result.bind (Ok << sheetAlignScale)
+    |> Result.bind (rerouteAllWires)
     |> getOkOrFail
 
 // ac2021: Intro lecture circuit for sheetAlignScale
@@ -380,6 +391,8 @@ let makeLargeCircuit _ =
     |> addWireToSheet ("DATAPATH", 7) ("DATAMEM", 1)
     |> addWireToSheet ("DATAPATH", 8) ("DATAMEM", 2)
     |> addWireToSheet ("DATAMEM", 0) ("DATAPATH", 4)
+    |> Result.bind (Ok << sheetAlignScale)
+    |> Result.bind (rerouteAllWires)
     |> getOkOrFail
 
 
@@ -516,7 +529,7 @@ module Evaluations =
         
         /// Scores how aligned two symbols are
         let calcAlignment (symA: SymbolT.Symbol) (symB: SymbolT.Symbol) =
-            getSymBoundingBox
+            // getSymBoundingBox
             failwithf "not implemented"
 
         Array.allPairs syms syms
@@ -610,3 +623,52 @@ module Tests =
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch
+
+
+
+
+
+
+    /// List of tests available which can be run ftom Issie File Menu.
+    /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
+    let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+        // Change names and test functions as required
+        // delete unused tests from list
+        [
+            "Position", testA4
+            "Scale", testA5
+            "MUX", testA3
+            "Large", testLargeCircuit 
+            "Test5", fun _ _ _ -> printf "Test5"
+            "Test6", fun _ _ _ -> printf "Test6"
+            "Test7", fun _ _ _ -> printf "Test5"
+            "Test8", fun _ _ _ -> printf "Test5"
+            "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+        ]
+
+    /// Display the next error in a previously started test
+    let nextError (testName, testFunc) firstSampleToTest dispatch =
+        let testNum =
+            testsToRunFromSheetMenu
+            |> List.tryFindIndex (fun (name,_) -> name = testName)
+            |> Option.defaultValue 0
+        testFunc testNum firstSampleToTest dispatch
+
+    /// common function to execute any test.
+    /// testIndex: index of test in testsToRunFromSheetMenu
+    let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
+        let name,func = testsToRunFromSheetMenu[testIndex] 
+        printf "%s" name
+        match name, model.DrawBlockTestState with
+        | "Next Test Error", Some state ->
+            nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
+        | "Next Test Error", None ->
+            printf "Test Finished"
+            ()
+        | _ ->
+            func testIndex 0 dispatch
+    
+
+
+    
+

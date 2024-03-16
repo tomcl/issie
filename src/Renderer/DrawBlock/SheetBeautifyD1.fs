@@ -17,30 +17,7 @@ open SheetBeautifyHelpers
 open RotateScale
 open BusWire
     module D1Helpers =
-        // SYMBOL/CUSTOM COMPONENT HELPER FUNCTIONS ----------------------------------------------------------------------
-    
-        /// Returns the offset of two ports relative to portA
-        let getPortOffset (sModel: SymbolT.Model) (portA: Port) (portB:Port): XYPos =
-            {
-                X = (getPortLocation None sModel portB.Id).X - (getPortLocation None sModel portA.Id).X;
-                Y = (getPortLocation None sModel portB.Id).Y - (getPortLocation None sModel portA.Id).Y
-            }
-
-        /// get list of all Port Positions - This can help in testing with 
-        let getAllPortPos (model: SymbolT.Model) =
-            model.Ports
-            |> Map.toList
-            |> List.map fst
-            |> List.map (fun portId -> getPortPos portId model)
-    
-        //This helper may be useful when aligning same-type components
-        /// returns all the Symbols in a sheet grouped by Component Type
-        let getSameTypeSymbol (sheet: SheetT.Model) =
-            let allSymbols = sheet.Wire.Symbol.Symbols |> Map.toList |> List.map snd
-            let compGroups = 
-                allSymbols
-                |> List.groupBy (fun symbol -> symbol.Component.Type)
-            compGroups
+        // D1 HELPER FUNCTIONS ----------------------------------------------------------------------
     
         /// returns all singly compoenents with one output xor input port
         let getSinglyComp (sheet: SheetT.Model): Symbol list =
@@ -91,7 +68,7 @@ open BusWire
                 |> fun id -> sheet.Wire.Symbol.Symbols[id]
             sym
 
-
+        /// For a given symbol and edge, will return the number of ports on that edge
         let getPortCount (sym: Symbol) (edge: Edge): int =
             sym 
             |> Optic.get portMaps_
@@ -99,6 +76,39 @@ open BusWire
             |> (fun orderMap -> Map.find edge orderMap)
             |> List.length
 
+        /// Returns the offset of two ports relative to portA
+        let getPortOffset (sheet:SheetT.Model) (portA: Port) (portB:Port): XYPos =
+            let symA = getSym sheet portA
+            let symB = getSym sheet portB
+            let offset =
+                {
+                    X = (calculatePortRealPos (makePortInfo symB portB)).X - (calculatePortRealPos (makePortInfo symA portA)).X;
+                    Y = (calculatePortRealPos (makePortInfo symB portB)).Y - (calculatePortRealPos (makePortInfo symA portA)).Y
+                }
+            offset
+
+        /// For Components with multiple output ports, will return the most suitable Port to align
+        let choosePortAlign (sheet:SheetT.Model) (ports: Port list): Port * Port =
+            let connections = extractConnections sheet.Wire
+            let portPair =
+                ports
+                |> List.collect (fun port -> 
+                    let portOrientation = getSymbolPortOrientation (getSym sheet port) port
+                    findOtherPorts port connections
+                    |> List.choose (fun (_, otherPort) ->
+                        let otherPortOrientation = getSymbolPortOrientation (getSym sheet otherPort) otherPort
+                        if portOrientation = otherPortOrientation.Opposite then
+                            let offsetXY = getPortOffset sheet port otherPort
+                            let offset = match portOrientation with
+                                         | Top | Bottom -> offsetXY.X
+                                         | Left | Right -> offsetXY.Y
+                            Some (offset, (port, otherPort))
+                        else
+                            None))
+                |> List.minBy fst
+                |> snd
+            portPair
+        
 
         /// Chooses other Symbol to align a port based on the condition that they are opposite parallel edges
         /// and will choose the symbol with the smallest euclidean distance to help avoid symbol overlaps
@@ -109,29 +119,24 @@ open BusWire
                 
                 let filteredAndMappedPorts =
                     otherPorts
-                    |> List.map (fun (_, otherPort) ->
+                    |> List.choose (fun (_, otherPort) ->
                         let otherPortOrientation = getSymbolPortOrientation (getSym sheet otherPort) otherPort
                         if portOrientation = otherPortOrientation.Opposite then //check if the other component port are on opposite edges
-                            let offsetXY = getPortOffset sheet.Wire.Symbol port otherPort
+                            let offsetXY = getPortOffset sheet port otherPort
                             let offset =
                                 match portOrientation with
                                 | Top | Bottom -> offsetXY.X
                                 | Left | Right -> offsetXY.Y
                             Some (offset, otherPort)
                         else
-                            None)
-                    |> List.choose id // Remove None values and unwrap Some values
-    
+                            None) 
                 match filteredAndMappedPorts with
                 | [] -> None // No matching ports
                 | _ ->
                     filteredAndMappedPorts
                     |> List.minBy fst //Choose the port with the smallest offset (X Y Is chosen depending on orientation)
                     |> snd
-                    |> fun closestPort ->
-                        closestPort.HostId
-                        |> ComponentId
-                        |> fun id -> Some (sheet.Wire.Symbol.Symbols[id])
+                    |> (fun sym -> Some (getSym sheet sym))
             else
                 let otherSym =
                     otherPorts
@@ -143,62 +148,30 @@ open BusWire
         /// If SymA and SymB have multiple Parallel lines connected, Will resize either SymA or SymB to align ports
         /// This will only work for custom components
         let scaleMultiplyComp (wModel: BusWireT.Model) (syma: Symbol) (edgea:Edge) (symb: Symbol) (edgeb:Edge) : BusWireT.Model =
-        
             // Determine scaleSym and otherSym based on port counts
             let scaleSym, otherSym =
                 if (getPortCount syma edgea < getPortCount symb edgeb) then symb, syma else syma, symb
-            
             let scaleSym' = reSizeSymbol wModel scaleSym otherSym
             let wModel' = Optic.set (symbolOf_ scaleSym.Id) scaleSym' wModel
             BusWireSeparate.routeAndSeparateSymbolWires wModel' scaleSym.Id
-    
-        let alignMultiplyComp (wModel: BusWireT.Model) (syma: Symbol) (symb: Symbol): BusWireT.Model =
-            wModel
 
-    
-        
-
-
-
-
-    (*    /// Filters Ports by Symbol.
-    /// HLP23: AUTHOR dgs119
-    let filterPortBySym (ports: Port list) (sym: Symbol) =
-        ports |> List.filter (fun port -> ComponentId port.HostId = sym.Id)
-    
-        // WIRE HELPER FUNCTIONS ------------------------------------------------------------------------------------------------
-    
-        // from Derek Lai's code. These helpers will be used to detect segment crossings
-        /// Returns true if two 1D line segments intersect
-        let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
-            let a_min, a_max = min a1 a2, max a1 a2
-            let b_min, b_max = min b1 b2, max b1 b2
-            a_max >= b_min && b_max >= a_min
-        /// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
-        let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
-            (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
-    
-        // May be useful when handingling wire/segment intersections
-        /// Returns a list of all the wires in the given model 
-        let getWireList (model: Model) =
-            model.Wires
-            |> Map.toList
-            |> List.map snd
-    
-        // The XYPos of segments will be a useful helper for tracking segment locations on the sheet 
-        /// Convert a wire and its segment displacement into actual segment start and end positions
-        let getSegmentPositions (sheet:SheetT.Model) wire =
-            let startPos = wire.StartPos
-            SegmentHelpers.visibleSegments wire.WId sheet
-            |> List.fold (fun (acc, lastPos) seg ->
-                let newPos = lastPos + seg
-                ((lastPos, newPos) :: acc, newPos) // Prepend to list for efficiency
-            ) ([], startPos)
-            |> fst
-            |> List.rev // Reverse the list to maintain original order*)
-    
-
-    
+        let alignMultiplyComp (sheet: SheetT.Model) (syms: Symbol list): BusWireT.Model =
+            syms
+            |> List.fold (fun wModel' sym ->
+                // Assuming getPortSym returns Map<string,Port> and we only look at output ports
+                let outputPorts = getPortSym wModel'.Symbol sym
+                                 |> Map.filter (fun _ port -> port.PortType = PortType.Output)
+                                 |> Map.values
+                                 |> Seq.toList
+                match outputPorts with
+                | [] -> wModel' // If there are no output ports, return the sheet as is
+                | _ -> 
+                    let portPair = choosePortAlign sheet outputPorts
+                    let otherPort = snd portPair
+                    let otherSym = getSym sheet (snd portPair)
+                    alignSymbols wModel' sym otherSym
+             ) sheet.Wire
+               
 
     module Beautify =
         open D1Helpers
@@ -224,13 +197,23 @@ open BusWire
                 | _ -> sheet // If no port is found, proceed to the next symbol
             ) sheet
     
-        (*/// Handles scaling and aligning for non-singly components
-        let alignScaleComp (sheet: SheetT.Model): SheetT.Model =
-            let multiplyComp = getMultiplyComp sheet
-            let connections = extractConnections sheet.Wire*)
+        /// Handles scaling and aligning for non-singly components
+        let alignScaleComp (sheet: SheetT.Model): BusWireT.Model =
+            let multiplySyms = getMultiplyComp sheet
+            let connections = extractConnections sheet.Wire
+            let alignSyms, customSyms = List.partition (fun sym -> sym.Component.Type = Custom) multiplySyms
+            let sheetScale =
+                customSyms List.fold (wModel sym ->
+                                        let wModel' = scaleMultiplyComp wModel
+                                        
+            
+
+
     
     
         let sheetAlignScale (sheet: SheetT.Model): SheetT.Model =
-        // let sheetMultiply = alignScaleComp sheet
-            let sheetSingly = alignSinglyComp sheet
-            sheetSingly
+            let multiplyModel = alignScaleComp sheet
+            let multiplySheet = Optic.set SheetT.wire_ multiplyModel sheet
+            let singlyModel = alignSinglyComp multiplySheet
+            let sheet' = Optic.set SheetT.wire_ singlyModel multiplySheet
+            sheet'

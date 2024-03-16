@@ -133,36 +133,29 @@ module Builder =
         printfn "getting portId"
         portOf lbl portNum
         |> getPortId syms portType
+        |> function
+              | Ok result -> result
+              | _ -> failwithf "Invalid portNum. PortId not found"
 
 
     /// Changes the port order of a symbol based on its label
-    let orderSymPorts (symLbl: string) (portType: PortType) edge order (sheet: SheetT.Model) : Result<SheetT.Model, string> =
+    let orderSymPorts (symLbl: string) edge orderIn orderOut (sheet: SheetT.Model) : Result<SheetT.Model, string> =
         printfn "started"
-        let sym = 
-            getSymFromLbl symLbl sheet
-        let portIdResults = List.map (getPortIdFromName symLbl portType sheet) order
+        let sym = getSymFromLbl symLbl sheet
+        let portIds = 
+            List.map (getPortIdFromName symLbl PortType.Input sheet) orderIn
+            @ List.map (getPortIdFromName symLbl PortType.Output sheet) orderOut
+
+        // Edit PortMap's Order & Orientation 
+        let editSym =
+            List.fold (putPortOrientation edge) sym portIds
+            |> putPortOrder edge portIds
+            |> (fun x ->
+                    printfn "%A" x.PortMaps
+                    x)
+        Optic.set (SheetT.symbolOf_ sym.Id) editSym sheet
+        |> Ok
         
-        let portIdOkToPortId portIdOk =
-            match portIdOk with
-            | Ok portId -> portId
-            | _ -> failwithf "non-Ok portId passed into portIdOkToPortId"
-
-        let isOk result =
-            match result with
-            | Ok result -> true
-            | _ -> false
-
-        let oks, errors = List.partition isOk portIdResults
-        match oks, errors with
-        | _, (Error msg)::_ -> Error msg
-        | _, (Ok _)::_ -> failwithf "What? error not found when found error"
-        | portIdOks, [] ->
-            // Change result into Oks
-            let portIds = List.map portIdOkToPortId portIdOks
-            // Change sym
-            let editSym = putPortOrder edge portIds sym
-            Optic.set (SheetT.symbolOf_ sym.Id) editSym sheet
-            |> Ok
 
 
 
@@ -252,6 +245,19 @@ let addWireToSheet (lbl1, num1) (lbl2, num2) =
 /// Edit dimensions of symbol in curried model
 let scaleSymInSheet lbl scale =
     Result.bind (scaleSym lbl scale)
+
+
+let orderSymPortsInSheet
+    lbl
+    leftIn leftOut
+    bottomIn bottomOut
+    rightIn rightOut
+    topIn topOut 
+    sheet =
+    Result.bind (orderSymPorts lbl Left leftIn leftOut) sheet
+    |> Result.bind (orderSymPorts lbl Bottom bottomIn bottomOut)
+    |> Result.bind (orderSymPorts lbl Right rightIn rightOut)
+    |> Result.bind (orderSymPorts lbl Top topIn topOut)
 
 // ac2021: Figure A1 circuit
 /// circuit to test alignment with multiple cascading connections
@@ -343,15 +349,20 @@ let makeLargeCircuit _ =
     initSheetModel
     |> placeSymbol "CONTROLPATH" ctrlPathCC middleOfSheet
     |> addSymToSheet "DATAPATH" dataPathCC 0 400
-    |> addSymToSheet "DATAMEM" exampleARAM 450 0
-    |> addSymToSheet "CODEMEM" exampleAROM 450 400
+    |> addSymToSheet "DATAMEM" exampleARAM 450 400
+    |> addSymToSheet "CODEMEM" exampleAROM 450 0
     |> addSymToSheet "C1" (Input1 (1, None)) -450 -20
     |> addSymToSheet "C2" (Input1 (1, None)) -450 400
-    // |> Result.bind (orderSymPorts "CONTROLPATH" PortType.Input Left [0])
-    // |> Result.bind (orderSymPorts "CONTROLPATH" PortType.Input Bottom [1; 2; 3; 4])
-    // |> Result.bind (orderSymPorts "CONTROLPATH" PortType.Input Right [5; 6; 7])
-
-
+    |> orderSymPortsInSheet "CONTROLPATH"
+                            [0] [0;1;2]
+                            [1;2;3;4] []
+                            [5;6;7] [3]
+                            [] []
+    |> orderSymPortsInSheet "DATAPATH"
+                        [0;1;2;3] []
+                        [] []
+                        [4] [8;7;6;5;4]
+                        [] [3;2;1;0]
     |> addWireToSheet ("C1", 0) ("CONTROLPATH", 0)
     |> addWireToSheet ("C2", 0) ("DATAPATH", 3)
     |> addWireToSheet ("CONTROLPATH", 0) ("DATAPATH", 2)
@@ -370,6 +381,9 @@ let makeLargeCircuit _ =
     |> addWireToSheet ("DATAPATH", 8) ("DATAMEM", 2)
     |> addWireToSheet ("DATAMEM", 0) ("DATAPATH", 4)
     |> getOkOrFail
+
+
+
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -399,9 +413,7 @@ module Asserts =
         wIds
         |> List.map turnsInWire
         |> List.tryFind (fun n -> n > 4)
-        |> function 
-            | Some _ -> Some $"More wire turns than necessary in sample {sample}"
-            | None -> None
+        |> Option.bind (fun _ -> Some $"More wire turns than necessary in sample {sample}")
 
 
     // For each pair of nets
@@ -438,6 +450,9 @@ module Asserts =
         check1 sample sheet
         |> Option.orElse (check2 sample sheet)
 
+
+
+
 //---------------------------------------------------------------------------------------//
 //-----------------------------Evaluation------------------------------------------------//
 //---------------------------------------------------------------------------------------//
@@ -448,12 +463,9 @@ module Asserts =
 
 module Evaluations =
 
-    /// Proportion of component overlap 
-    let compOverlap (sheet: SheetT.Model) : float =
-        failwithf "Not implemented"
-
-    /// Calculates the proportion of wire bends compared to the ideal solution
-    let wireBendIdealProp (sheet: SheetT.Model) =
+    /// Calculates the proportion of wire bends compared to the ideal solution.
+    /// Same as evaluating the number of visual segments
+    let wireBendProp (sheet: SheetT.Model) =
         let wires = mapValues sheet.Wire.Wires
         let symMap = sheet.Wire.Symbol
 
@@ -471,14 +483,49 @@ module Evaluations =
             wires
             |> Array.map wireMinTurns
             |> Array.sum
-        float idealRightAngs / float rightAngs
 
+        match rightAngs with
+        | 0 -> 1.
+        | _ -> float idealRightAngs / float rightAngs
+
+    /// Evaluates number of wires compared to number of visual segments
+    let visualSegmentProp (sheet: SheetT.Model) =
+        failwithf "Not implemented"
+
+    /// Evaluates number of crosses of wires compared to number of wires in sheet
+    let wireCrossProp (sheet: SheetT.Model) =
+        failwithf "Not implemented"
+
+    /// Evaluates wire squashing between symbols
     let wireSquashProp (sheet: SheetT.Model) =
         failwithf "Not implemented"
-    
-    type Config =
+        // getWiresInBox
+
+    /// Evaluates length of wires compared to ideal minimum
+    let wireLengthProp (sheet: SheetT.Model) =    
+        let minWireLen wire =
+            BusWireRoute.getWireVertices
+        failwithf "Not implemented"
+
+    // For each symbol in sheet
+    // evaluates alignment with all other symbols
+    // getSymbolPos
+    /// Evaluates symbol alignment with all other symbols
+    let symCentreAlignmentProp (sheet: SheetT.Model) : float =
+        let syms = mapValues sheet.Wire.Symbol.Symbols
+        
+        /// Scores how aligned two symbols are
+        let calcAlignment (symA: SymbolT.Symbol) (symB: SymbolT.Symbol) =
+            getSymBoundingBox
+            failwithf "not implemented"
+
+        Array.allPairs syms syms
+        |> Array.sumBy (function | (symA,symB) when symA.Id <= symB.Id -> calcAlignment symA symB
+                                 | _ -> 0.)
+        |> (fun x -> x / (float (Array.length syms))) // Scales to lots of symbols
+
+    type ConfigD1 =
         {
-            compOverlapWeight: float
             wireBendWeight: float
             wireCrossWeight: float // numOfWireRightAngleCrossings
             wireSquashWeight: float
@@ -486,12 +533,20 @@ module Evaluations =
             failPenalty: float // -1
         }
 
+    let combEval evalA weightA evalB weightB (sheet: SheetT.Model) =
+        weightA * (evalA sheet) + weightB * (evalB sheet)
+
     /// Combines all evaluations into one score
-    let evaluateD1 (c: Config) (sheet: SheetT.Model) : float =
-        c.compOverlapWeight * (compOverlap sheet)
-        |> (+) (c.wireBendWeight * (wireBendIdealProp sheet))
+    let evaluateD1 (c: ConfigD1) (sheet: SheetT.Model) : float =
+        c.wireBendWeight * (wireBendProp sheet)
         |> (+) (c.wireCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
         |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
+        |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
+
+
+
+
+
 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//

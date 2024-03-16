@@ -100,6 +100,13 @@ module D2Test =
                 |> List.map (fun f -> f sheet)
                 |> String.concat "\n"
             printfn $"== Display: \n{displays}"
+
+        let metricDisplay (displayFuncs: (SheetT.Model -> SheetT.Model -> string) list) (sheetAfter: SheetT.Model) (sheetBefore: SheetT.Model)  =
+            let displays = 
+                displayFuncs
+                |> List.map (fun f -> f sheetAfter sheetBefore)
+                |> String.concat "\n"
+            printfn $"== Display: \n{displays}"
         
         /// <summary> Display information on all symbols' position and transform state </summary>
         let displayComponents (sheet: SheetT.Model) : string =
@@ -110,6 +117,9 @@ module D2Test =
 
         let displayer (name: string) (f: SheetT.Model -> 'a) (sheet: SheetT.Model) =
             sheet |> f |> sprintf "> %s = %A" name
+
+        let metricDisplayer (name: string) (f: SheetT.Model -> SheetT.Model -> 'a) (sheetAfter: SheetT.Model) (sheetBefore: SheetT.Model) =
+            (sheetAfter, sheetBefore) ||> f |> sprintf "> %s = %A" name
 
         // Diplay Functions: Statistics
         let displayCountSymIntersectSym (sheet: SheetT.Model) : string =
@@ -134,15 +144,24 @@ module D2Test =
             displayer "n_retracing_segments" findRetracingSegments sheet
 
         // Diplay Functions: Metrics
+        let displayDiffNCrossingsReduced sheetAfter sheetBefore =
+            metricDisplayer "diff_n_sym_intersect_sym" diffNCrossingsReduced  sheetAfter sheetBefore
+
+        let displayDiffNWireRightAngles sheetAfter sheetBefore=
+            metricDisplayer "diff_n_wire_right_angles" diffNWireRightAngles  sheetAfter sheetBefore
+
         let displayIntersectPerSegment =
             displayer "intersection/seg" crossingPerSegment
 
         let displayRightAnglesPerWire =
             displayer "right_angle/wire" rightAnglePerWire
 
-        let displayMetric = []
+        let displayMetrics: (SheetT.Model -> SheetT.Model -> string) list = [
+            displayDiffNCrossingsReduced
+            displayDiffNWireRightAngles
+        ]
 
-        let displayAll = [
+        let displayAll: (SheetT.Model -> string) list = [
             displayComponents; 
             displayCountSegIntersectSym;
             displaySegmentCrossing; 
@@ -427,10 +446,6 @@ module D2Test =
         |> minimalDSL initSheetModel
         |> getOkOrFail
 
-    let makeTest1CircuitOptimized (andPos:XYPos) =
-        makeTest1Circuit andPos
-        |> optimizePortOrder    
-
     let makeTest2Circuit (model:Model) (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
         // TODO: fix the custom component placing, currently missing the ports
         let project = Option.get model.CurrentProj
@@ -477,7 +492,8 @@ module D2Test =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "MUX1" 2))
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 0) )
         |> getOkOrFail
-
+    
+    // ====================== Random Sheet Generator ======================
     let makeRandomCircuit (model:Model) (samples: {| Comp: TestCompType; Pos: XYPos; Flip: SymbolT.FlipType option |} array) =
         let folder acc (sample: {| Comp: TestCompType; Pos: XYPos; Flip: SymbolT.FlipType option |}) = 
             let (sheetModel, idx) = acc
@@ -486,7 +502,8 @@ module D2Test =
                 [
                     symPlacerDSL idx comp pos model;
                     flipSymbol (sprintf "S%d" idx) flip >> Ok;
-                    if idx > 0 then wirePlacerDSL (sprintf "S%d" (idx)) (sprintf "S%d" (idx-1)) 0 0
+                    if idx > 0 then 
+                        wirePlacerDSL (sprintf "S%d" (idx-1)) (sprintf "S%d" (idx)) 0 0
                     else id >> Ok;
                 ]
                 |> minimalDSL sheetModel
@@ -497,7 +514,6 @@ module D2Test =
         |> Array.fold folder (initSheetModel, 0)
         |> fst
 
-    // ====================== Random Flip Generator ======================
     let makeTest4Circuit (sample: {|
         Flip1: SymbolT.FlipType option;
         Flip2: SymbolT.FlipType option;
@@ -549,13 +565,14 @@ module D2Test =
             |> recordPositionInTest testNum dispatch
 
         let test1Opt testNum firstSample dispatch model =
+            let sheetMaker = makeTest1Circuit >> optimizePortOrder   
             let displayOnFail = displayAll
             let generator = filteredGridPositions makeTest1Circuit 10
             runTestOnSheets
                 "DisplayAll: MUX+AND Optimized"
                 firstSample
                 generator
-                makeTest1CircuitOptimized
+                sheetMaker
                 Asserts.failOnAllTests
                 dispatch
                 displayOnFail
@@ -601,7 +618,7 @@ module D2Test =
             groupNElementsHelper [] [] lst
 
         let test4 testNum firstSample dispatch model =
-            let displayOnFail = displayMetric
+            let displayOnFail = displayAll
             let myRandomSample = shuffleAGen <| Random(1)
             let generator = 
                 flipOnlySamples
@@ -643,9 +660,15 @@ module D2Test =
                 displayOnFail
             |> recordPositionInTest testNum dispatch
 
+        /// This test is to apply beautification and calculate metric
+        let applyBeautify testNum firstSample dispatch model =
+            let sheetAfter = optimizePortOrder model.Sheet
+            
+            metricDisplay displayMetrics sheetAfter model.Sheet
+            showSheetInIssieSchematic sheetAfter dispatch
 
         /// This test is to display info on the current model as it is in Issie
-        let displayCurProj testNum firstSample dispatch model =
+        let displayCurSheet testNum firstSample dispatch model =
             display displayAll model.Sheet
             ()
 
@@ -660,7 +683,8 @@ module D2Test =
                 "Test2: CC Original", test2
                 "Test2: CC Optimised", test2Opt
                 "Test: Random Components", testRandomComp
-                "Display Sheet Info", displayCurProj
+                "Apply Beautify", applyBeautify
+                "Display Sheet Info", displayCurSheet
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]
 

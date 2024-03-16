@@ -85,25 +85,92 @@ let findSinglyConnectedPorts (model:SheetT.Model) =
 
 // find the singly connected component on the sheet
 let findSinglyConnectedComponents (model: SheetT.Model) : ComponentId list =
-    // Utilize the previously defined function to find singly connected ports
     let singlyConnectedPorts = findSinglyConnectedPorts model
-    
-    // For each singly connected port, find the corresponding component it belongs to
-    let singlyConnectedComponents =
-        singlyConnectedPorts
-        |> List.map (fun portId ->
-            // Find the component that this port belongs to by matching portId with component's ports
-            model.Wire.Symbol.Ports
-            |> Map.filter (fun _ port -> port.Id = portId)
-            |> Map.toList
-            |> List.map (fun (_, port) ->
-                ComponentId(port.HostId) // Wrap the HostId in the ComponentId constructor
-            )
-        )
-        |> List.concat // Flatten the list of lists into a single list of ComponentIds
-        |> List.distinct // Remove duplicates to ensure each component is listed once
 
-    singlyConnectedComponents
+    // Collecting ComponentIds from singly connected ports
+    let singlyConnectedComponentIds =
+        model.Wire.Symbol.Ports
+        |> Map.toList
+        |> List.choose (fun (portId, port) ->
+            if List.contains port.Id singlyConnectedPorts then
+                // Finding the symbol that contains the port
+                let symbolOption = 
+                    model.Wire.Symbol.Symbols
+                    |> Map.filter (fun _ symbol -> 
+                        symbol.PortMaps.Orientation |> Map.containsKey portId)
+                    |> Map.tryPick (fun _ symbol -> Some(symbol.Id))
+                match symbolOption with
+                | Some(componentId) -> Some(componentId)
+                | None -> None
+            else None
+        )
+        |> List.distinct
+
+    singlyConnectedComponentIds
+
+type SegVector = {Start: XYPos; Dir: XYPos} // A segment vector with absolute start and direction
+
+// Function to transform wire segments into a map of wire ID to a list of segments with absolute start and direction
+let transformWireSegmentsToAbsoluteMap (model: SheetT.Model) =
+    model.Wire.Wires
+    |> Map.fold (fun accMap wId wire ->
+        let origin = wire.StartPos
+        let vectors = visibleSegments wId model
+
+        // Transform the list of vectors into a list of segments with absolute start and direction
+        let segments, _ = 
+            vectors
+            |> List.fold (fun (acc: SegVector list, lastPos: XYPos) vector -> 
+                let newPos = lastPos + vector
+                let segment = { Start = lastPos; Dir = vector }
+                (acc @ [segment], newPos)
+            ) ([], origin)
+
+        // Add the wire ID and its segments to the map
+        Map.add wId segments accMap
+    ) Map.empty
+
+
+
+// Function to adjust the position of singly-connected components
+let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
+    // Find all singly connected components
+    let singlyConnectedComponents = findSinglyConnectedComponents model
+
+    // Define a function to determine the orientation of the parallel wire connecting to a component
+    let wireOrientation (wId: ConnectionId) : string =
+        // This involve looking at the wire's segments and determining if they are mostly horizontal or vertical
+        // Return "Horizontal", "Vertical", or None if it cannot be determined
+        let segments = visibleSegments wId model
+    
+        // Sum up the number of the x and y components of the vectors
+        let (sumX, sumY) =
+            segments
+            |> List.fold (fun (accX, accY) segment ->
+                // Increment the accumulator by segment's X if Y is zero, and vice versa
+                if segment.Y = 0.0 then (accX + 1, accY)
+                else (accX, accY + 1)
+            ) (0, 0)
+    
+        // Determine the orientation based on whether the sum of the absolute x or y components is greater
+        if sumX > sumY then "Horizontal" else "Vertical"
+
+    // Define a function to adjust the component's position based on the wire's orientation
+    let adjustComponentPosition (componentId: ComponentId) (orientation: string) : unit =
+        // Implementation depends on how you can adjust component positions within the model
+        // This involves calculating a new position that aligns with the wire's other endpoint
+        // and then updating the model accordingly
+        ()
+
+    // Iterate over each singly connected component, determine the wire's orientation, and adjust the component's position
+    singlyConnectedComponents |> List.iter (fun componentId ->
+        match wireOrientation componentId with
+        | Some(orientation) -> adjustComponentPosition componentId orientation
+        | None -> () // Do nothing if the wire's orientation cannot be determined
+    )
+
+    // Return the updated model with aligned components
+    model
 
     
 ///----------------------------------------processing-more-than-one-connections----------------------------------------///

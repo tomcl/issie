@@ -310,7 +310,7 @@ let moveWires (offset: XYPos)  (model: Model)  =
 /// Returns the center coordinates of a Symbol
 let getSymbolPos (symbolModel: SymbolT.Model) compId = //makes sense or should we have getSymbol?
     let symbol = Map.find compId symbolModel.Symbols
-    symbol.Pos
+    symbol.CentrePos
 
 /// Interface function to get componentIds of the copied symbols
 let getCopiedSymbols (symModel: SymbolT.Model) : (ComponentId list) =

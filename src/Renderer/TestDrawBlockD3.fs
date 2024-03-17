@@ -30,6 +30,7 @@ open DrawModelType
 open Sheet.SheetInterface
 open GenerateData
 open SheetBeautifyHelpers
+open SheetBeautifyHelpers.SegmentHelpers
 open SheetBeautifyD3
 open BusWireUpdate
 open RotateScale
@@ -172,8 +173,9 @@ module Tests =
             "Mux conected to 2 demux"
             firstSample
             offsetXY
+            None
             makeTest1Circuit
-            Asserts.failOnAllTests
+            (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch
@@ -183,8 +185,9 @@ module Tests =
             "Test for label placement"
             firstSample
             test2Builder
+            None
             makeTest2Circuit
-            Asserts.failOnAllTests
+            (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch

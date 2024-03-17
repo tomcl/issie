@@ -30,6 +30,7 @@ open DrawModelType
 open Sheet.SheetInterface
 open GenerateData
 open SheetBeautifyHelpers
+open SheetBeautifyHelpers.SegmentHelpers
 open BlockHelpers
 
 open SheetBeautifyD1
@@ -132,7 +133,6 @@ module Builder =
 
     let getPortIdFromName lbl portType (sheet: SheetT.Model) portNum =
         let syms = sheet.Wire.Symbol.Symbols
-        printfn "getting portId"
         portOf lbl portNum
         |> getPortId syms portType
         |> function
@@ -142,7 +142,6 @@ module Builder =
 
     /// Changes the port order of a symbol based on its label
     let orderSymPorts (symLbl: string) edge orderIn orderOut (sheet: SheetT.Model) : Result<SheetT.Model, string> =
-        printfn "started"
         let sym = getSymFromLbl symLbl sheet
         let portIds = 
             List.map (getPortIdFromName symLbl PortType.Input sheet) orderIn
@@ -152,17 +151,9 @@ module Builder =
         let editSym =
             List.fold (putPortOrientation edge) sym portIds
             |> putPortOrder edge portIds
-            |> (fun x ->
-                    printfn "%A" x.PortMaps
-                    x)
         Optic.set (SheetT.symbolOf_ sym.Id) editSym sheet
         |> Ok
 
-    let rerouteAllWires (sheet: SheetT.Model) : Result<SheetT.Model,string> =
-        let comps = mapKeys sheet.Wire.Symbol.Symbols |> Array.toList
-        let newWModel = List.fold (BusWireSeparate.routeAndSeparateSymbolWires) sheet.Wire comps
-        Optic.set (SheetT.wire_) newWModel sheet
-        |> Ok
 
         
 
@@ -350,13 +341,10 @@ let makeA5Circuit (scale: XYPos) =
     |> addWireToSheet ("MAIN1", 0) ("MAIN2", 0)
     |> addWireToSheet ("MAIN1", 1) ("MAIN2", 1)
     |> addWireToSheet ("MAIN1", 2) ("MAIN2", 2)
-    |> Result.bind (Ok << sheetAlignScale)
-    |> Result.bind (rerouteAllWires)
     |> getOkOrFail
 
 // ac2021: Intro lecture circuit for sheetAlignScale
 let makeLargeCircuit _ =
-    printfn "Build Large Circuit"
     initSheetModel
     |> placeSymbol "CONTROLPATH" ctrlPathCC middleOfSheet
     |> addSymToSheet "DATAPATH" dataPathCC 0 400
@@ -391,8 +379,6 @@ let makeLargeCircuit _ =
     |> addWireToSheet ("DATAPATH", 7) ("DATAMEM", 1)
     |> addWireToSheet ("DATAPATH", 8) ("DATAMEM", 2)
     |> addWireToSheet ("DATAMEM", 0) ("DATAPATH", 4)
-    |> Result.bind (Ok << sheetAlignScale)
-    |> Result.bind (rerouteAllWires)
     |> getOkOrFail
 
 
@@ -574,8 +560,9 @@ module Tests =
             "Figure A1 circuit from hlp2024 brief"
             firstSample
             (randXY {min=(-30); step=3; max=30})
+            None
             makeA1Circuit
-            failOnAllTests
+            (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch
@@ -585,8 +572,9 @@ module Tests =
             "Figure A3 circuit from hlp2024 brief"
             firstSample
             (randXY {min=(-30); step=3; max=30})
+            None
             makeA3Circuit
-            failOnAllTests
+            (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch
@@ -596,8 +584,9 @@ module Tests =
             "two custom components with random offset"
             firstSample
             (randXY {min=(-50); step=5; max=50})
+            None
             makeA4Circuit
-            failOnAllTests
+            (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch
@@ -607,8 +596,9 @@ module Tests =
             "two custom components with random scaling"
             firstSample
             (randXY {min=(0.5); step=0.5; max=3})
+            None
             makeA5Circuit
-            failOnAllTests
+            (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch
@@ -618,8 +608,9 @@ module Tests =
             "Large circuit"
             firstSample
             (randXY {min=(0.5); step=0.5; max=1})
+            (Some sheetAlignScale)
             makeLargeCircuit
-            failOnAllTests
+            (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch

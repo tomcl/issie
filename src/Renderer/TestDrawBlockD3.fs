@@ -30,6 +30,7 @@ open DrawModelType
 open Sheet.SheetInterface
 open GenerateData
 open SheetBeautifyHelpers
+open SheetBeautifyD3
 open BusWireUpdate
 open RotateScale
 
@@ -119,6 +120,7 @@ let makeTest1Circuit (x:XYPos)=
     |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
     |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
     |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
+    |> Result.bind (autoGenerateWireLabels)
     |> getOkOrFail
 
 let makeTest2Circuit (rotation: Rotation)=
@@ -148,6 +150,7 @@ let makeTest2Circuit (rotation: Rotation)=
         |> getOkOrFail
 
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
+
 
     
 //------------------------------------------------------------------------------------------------//
@@ -183,6 +186,16 @@ module Tests =
             makeTest2Circuit
             Asserts.failOnAllTests
             Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum dispatch
+
+    let D3Test2 testNum firstSample dispatch =
+        runTestOnSheets
+            "two custom components with random offset: fail all tests"
+            firstSample
+            offsetXY
+            makeTest2Circuit
+            Asserts.failOnAllTests
             dispatch
         |> recordPositionInTest testNum dispatch
 

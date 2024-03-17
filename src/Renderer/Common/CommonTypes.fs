@@ -45,6 +45,10 @@ module CommonTypes
     let inline euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
         let vec = pos1 - pos2
         sqrt(vec.X**2 + vec.Y**2)
+
+    let inline manhattanDistance (pos1: XYPos) (pos2:XYPos) =
+        let vec = pos1 - pos2 
+        abs(vec.X) + abs(vec.Y)
     
     /// example use of comparison operator: note that F# type inference will not work without at least
     /// one of the two operator arguments having a known XYPos type.

@@ -31,6 +31,9 @@ open Sheet.SheetInterface
 open GenerateData
 open SheetBeautifyHelpers
 open SheetBeautifyD3
+open BusWireUpdate
+open RotateScale
+
 
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
@@ -68,6 +71,30 @@ module Builder =
 open Builder
 
 /// small offsets in X&Y axis
+
+let dSelect (model:SheetT.Model) = 
+    { model with
+        SelectedComponents = []
+        SelectedWires = []
+    }
+let selectA (model:SheetT.Model) = 
+    let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map fst
+    let wires = model.Wire.Wires |> Map.toList |> List.map fst
+    { model with
+        SelectedComponents = symbols
+        SelectedWires = wires
+    }
+let test2Builder = 
+    let intToRot (x: int)= 
+        match x with
+        | 0 -> Degree90
+        | 1 -> Degree90
+        | 2 -> Degree180
+        | 3 -> Degree270
+        | _ -> Degree0
+    randomInt 0 1 3
+    |> GenerateData.map intToRot 
+
 let offsetXY =
     let offsetX = randomFloat -2. 0.1 2.
     let offsetY = randomFloat -2. 0.1 2.
@@ -96,19 +123,36 @@ let makeTest1Circuit (x:XYPos)=
     |> Result.bind (autoGenerateWireLabels)
     |> getOkOrFail
 
-let makeTest2Circuit (x:XYPos)=
-    let Mux1Pos = middleOfSheet + {X=150. ; Y=0.}
-    let Mux2Pos = middleOfSheet + {X=300. ; Y=300.}
-    initSheetModel
-    |> placeSymbol "DM1" Demux4 middleOfSheet
-    |> Result.bind(placeSymbol "MUX1" Mux4 Mux1Pos)
-    |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
-    |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
-    |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
-    |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
-    |> Result.bind (autoGenerateWireLabels)
-    |> getOkOrFail
+let makeTest2Circuit (rotation: Rotation)=
+    printf "Test 2 rotation: %A" rotation
+    let Pos1 = middleOfSheet + {X=150. ; Y=0.}
+    let Pos2 = Pos1 + {X=150. ; Y=0.}
+    let Pos3 = Pos2 + {X=150. ; Y=0.}
+    let noWireModel =
+        initSheetModel
+        |> placeSymbol "C1" (Constant1( Width=8 , ConstValue=0 , DialogTextValue="0" )) middleOfSheet
+        |> Result.bind(placeSymbol "SN1" (SplitN(3,[2;3;3],[0;1;2])) Pos1)
+        |> Result.bind(placeSymbol "MN1" (MergeN(3)) Pos2)
+        |> Result.bind(placeSymbol "B" (Output(8)) Pos3)
+        |> getOkOrFail
+        |> selectA
+    let rotModel = 
+        match rotation with
+        |Degree0 -> noWireModel
+        |_ -> Optic.set symbolModel_ (rotateBlock noWireModel.SelectedComponents noWireModel.Wire.Symbol rotation) noWireModel
+    let model =
+        rotModel
+        |> placeWire (portOf "C1" 0) (portOf "SN1" 0)
+        |> Result.bind (placeWire (portOf "SN1" 0) (portOf "MN1" 0))
+        |> Result.bind (placeWire (portOf "SN1" 1) (portOf "MN1" 1))
+        |> Result.bind (placeWire (portOf "SN1" 2) (portOf "MN1" 2))
+        |> Result.bind (placeWire (portOf "MN1" 0) (portOf "B" 0))
+        |> getOkOrFail
 
+    {model with Wire = model.Wire |>calculateBusWidths |>fst}
+
+
+    
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
 //------------------------------------------------------------------------------------------------//
@@ -125,11 +169,23 @@ module Tests =
     
     let D3Test1 testNum firstSample dispatch =
         runTestOnSheets
-            "two custom components with random offset: fail all tests"
+            "Mux conected to 2 demux"
             firstSample
             offsetXY
             makeTest1Circuit
             Asserts.failOnAllTests
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum dispatch
+    
+    let D3Test2 testNum firstSample dispatch =
+        runTestOnSheets
+            "Test for label placement"
+            firstSample
+            test2Builder
+            makeTest2Circuit
+            Asserts.failOnAllTests
+            Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum dispatch
 

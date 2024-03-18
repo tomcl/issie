@@ -76,6 +76,8 @@ module TestLib =
     let calcEvalDiff (sample: 'a) (evalComp: EvaluatorCompare<'a>) =
         let baseEval = evalComp.BaseFunc sample
         let testEval = evalComp.TestFunc sample
+        printfn $"baseEval = {baseEval}"
+        printfn $"testEval = {testEval}"
         testEval - baseEval
 
     /// Run the Test samples from 0 up to test.Size - 1.
@@ -116,7 +118,7 @@ module TestLib =
                         if (calcEvalDiff sample test.Evaluation > 0) then
                             None
                         else
-                            Some (n,Fail "Test function made sheet worse!")
+                            Some (n,Fail "Test function made sheet worse or no improvement!")
 
                     | AssertFunc assertion ->
                         match catchException $"'test.Assertion' on test {n} from 'runTestsTillFail'" (assertion n) sample with
@@ -384,7 +386,7 @@ module HLPTick3 =
             let generateAndScoreBaseSheet = sheetMaker >> sheetScorer.EvalFunc
             let generateAndScoreTestSheet = 
                 match targetFunc with
-                | Some sheetFunc                    -> sheetMaker >> sheetFunc >> sheetScorer.EvalFunc
+                | Some sheetFunc                    -> sheetMaker >> sheetFunc >> rerouteAllWires >> sheetScorer.EvalFunc
                 | None                              -> sheetMaker >> sheetScorer.EvalFunc // Workaround to targetFunc testing & normal assertion
 
             let test =
@@ -404,9 +406,10 @@ module HLPTick3 =
 
             match result.firstTestError with
             | None -> // no errors
+                let score = calcEval test
                 printf $"Test {result.TestName} has PASSED."
                 printf "----------"
-                printf $" SCORE: {calcEval test}"
+                printf $" SCORE: {score}"
                 printf "----------"
                 // evaluationPopup
             | Some (n,first) -> // display in Issie editor and print out first error

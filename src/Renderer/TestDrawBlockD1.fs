@@ -615,6 +615,21 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum dispatch
 
+    let testLargeCompareD1 testNum firstSample dispatch =
+        runTestOnSheets
+            "Large circuit"
+            firstSample
+            (randXY {min=(0.5); step=0.5; max=1})
+            (Some sheetAlignScale)
+            makeLargeCircuit
+            TargetFuncWorse
+            { 
+                EvalFunc = wireBendProp
+                Penalty = -1
+            }
+            dispatch
+        |> recordPositionInTest testNum dispatch
+
 
 
 
@@ -628,9 +643,9 @@ module Tests =
         [
             "Position", testA4
             "Scale", testA5
-            "MUX", testA3
+            "MUX",   testA3
             "Large", testLargeCircuit 
-            "Test5", fun _ _ _ -> printf "Test5"
+            "compareOnLarge", testLargeCompareD1
             "Test6", fun _ _ _ -> printf "Test6"
             "Test7", fun _ _ _ -> printf "Test5"
             "Test8", fun _ _ _ -> printf "Test5"

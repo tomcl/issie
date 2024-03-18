@@ -944,7 +944,7 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
         if wiresToRoute = [] then
             model // do nothing
         else
-            printfn "Separating all segments!"
+            // printfn "Separating all segments!"
             // Currently: separate all wires - not just those (in wiresToRoute) that
             // have changed. This prevents unrouted segments from pinning new segments.
             // TODO: see whetehr something better can be worked out, and whether routing segments
@@ -988,8 +988,8 @@ let updateWireSegmentJumpsAndSeparations wires model  =
 /// Uses partial routing if possible.
 let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
     let wires = filterWiresByCompMoved model [compId]
-    printfn "Routing and separating symbol wires:\n\
-        %d inputs, %d outputs, %d both" wires.Inputs.Length wires.Outputs.Length wires.Both.Length
+    // printfn "Routing and separating symbol wires:\n\
+        // %d inputs, %d outputs, %d both" wires.Inputs.Length wires.Outputs.Length wires.Both.Length
     let newWires =
         model.Wires
         |> Map.toList

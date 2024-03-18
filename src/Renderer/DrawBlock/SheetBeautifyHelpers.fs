@@ -255,6 +255,21 @@ module SegmentHelpers =
         |> List.mapi getSegmentVector
         |> coalesce
 
+    let getVisibleSegOnSheet (sheet: SheetT.Model) = 
+        let getSegments (wireModel: ConnectionId * BusWireT.Wire) = 
+                let cId = fst wireModel
+                let wire = snd wireModel
+                visibleSegments cId sheet
+                |> List.scan (+) (wire.StartPos)
+                |> List.pairwise
+
+        //get visible segments from all wires on sheet with actual position
+        
+        sheet.Wire.Wires
+        |> Map.toList
+        |> List.map getSegments
+        |> List.concat
+
 
     (* These functions make ASSUMPTIONS about the wires they are used on:
        - Distinct net segments never overlap
@@ -515,3 +530,61 @@ let findRetracingSegments (model : SheetT.Model) =
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
     
 
+// ----------------az1221 T3 WORKING CODE --------------------------
+let getVisibleSegOnSheet (sheet: SheetT.Model) = 
+    let getSegments (wireModel: ConnectionId * BusWireT.Wire) = 
+            let cId = fst wireModel
+            let wire = snd wireModel
+            visibleSegments cId sheet
+            |> List.scan (+) (wire.StartPos)
+            |> List.pairwise
+
+    //get visible segments from all wires on sheet with actual position
+    
+    sheet.Wire.Wires
+    |> Map.toList
+    |> List.map getSegments
+    |> List.concat
+
+let dotProduct (x1, y1) (x2, y2) = x1 * x2 + y1 * y2
+
+let vectorLength (x, y) = sqrt (x * x + y * y)
+
+let isRightAngle (seg1: XYPos*XYPos) (seg2: XYPos*XYPos) =
+    let startPosS1, endPosS1 = seg1
+    let startPosS2, endPosS2 = seg2
+    let vector1 = ( endPosS1.X -  startPosS1.X, endPosS1.Y -  startPosS1.Y)
+    let vector2 = ( endPosS2.X -  startPosS2.X,  endPosS2.Y -  startPosS2.Y)
+    let dotProd = dotProduct vector1 vector2
+    let mag1 = vectorLength vector1
+    let mag2 = vectorLength vector2
+    abs(dotProd) < 1e-9 && abs(mag1) > 1e-9 && abs(mag2) > 1e-9
+//T3R
+///The number of distinct pairs of segments that cross each other at right angles. 
+///Does not include 0 length segments or segments on same net intersecting at one end, or
+///segments on same net on top of each other. Count over whole sheet.
+let numSegmentCrossRightAngle (sheet: SheetT.Model) = 
+
+    let realIntersect1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
+        let a_min, a_max = min a1 a2, max a1 a2
+        let b_min, b_max = min b1 b2, max b1 b2
+        a_max > b_min && b_max > a_min
+
+    //if the intersection is at the end of one or both of the segments, this is a T junction not counted as an intersection
+    let realIntersect2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
+        (realIntersect1D (a1.X, a2.X) (b1.X, b2.X)) && (realIntersect1D (a1.Y, a2.Y) (b1.Y, b2.Y))
+    
+    let checkSegmentCross (seg1: XYPos*XYPos) (seg2: XYPos*XYPos) = 
+        (seg1 <> seg2) && (isRightAngle seg1 seg2) && (realIntersect2D seg1 seg2) 
+
+    // filter out 0 length segments using visible segments
+    let nonZeroSeg = getVisibleSegOnSheet sheet
+ 
+    nonZeroSeg
+    |> List.allPairs nonZeroSeg
+    |> List.map (fun (segA, segB) -> checkSegmentCross segA segB)
+    |> List.fold ( fun num bool -> 
+                                match bool with
+                                |true -> num+1
+                                |_ -> num ) 0
+    |> (fun num -> num/2)  //remove repeated pairs with self

@@ -1,6 +1,7 @@
 module TestDrawBlockD2
 
 open Elmish
+open TimeHelpers
 open GenerateData
 open TestDrawBlock
 open TestDrawBlock.TestLib
@@ -321,7 +322,6 @@ module D2Test =
             | TInput -> placeSymbol (sprintf "S%d" idx) (Input1(1, None)) pos sheetModel
             | TOutput -> placeSymbol (sprintf "S%d" idx) (Output(1)) pos sheetModel
             | TCustomComp -> placeCustomSymbol (sprintf "S%d" idx) initCCSheet "custom" model {X=1.0; Y=1.0} pos sheetModel
-            | _ -> Ok sheetModel // do nothing
             // TODO: input and output symbols have only one of input/output port
             // need an algorithm to conenct them
 
@@ -352,7 +352,7 @@ module D2Test =
             tmpA
 
         /// Chunk the generator into smaller arrays of equal lengths
-        let chunkShuffledGen (length: int) (seed: int) (gen: Gen<'a>)  =
+        let chunkShuffledGen (gen: Gen<'a>) (seed: int) (length: int) =
             gen
             |> toArray
             |> shuffleAGen (Random seed) // random by test number
@@ -408,12 +408,12 @@ module D2Test =
                 |})
 
         // Gen samples incorporating a set of components
-        let randomComponentSamples: Gen<{| Comp: TestCompType; Flip: SymbolT.FlipType option; Pos: XYPos |}> =
+        let randomComponentSamples : Gen<{| Comp: TestCompType; Flip: SymbolT.FlipType option; Pos: XYPos |}> =
             let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
             let comps = fromList [TAnd; TOr; TNot; TMux2; TMux4; TCustomComp] // TODO: TInput; TOutput; not yet supported
 
             let tupleCompPosFlip: Gen<{| Comp: TestCompType; Pos: XYPos; Flip: SymbolT.FlipType option |}> =
-                (gridPosGen 200 100, flips)
+                (gridPosGen 400 100, flips)
                 ||> product makeTuple
                 |> product makeTuple comps
                 |> map (fun (comp, (pos, flip)) -> 
@@ -553,7 +553,7 @@ module D2Test =
             
         let test1 testNum firstSample dispatch model =
             let displayOnFail = displayAll
-            let generator = filteredGridPositions makeTest1Circuit 10
+            let generator = gridPosGen 1 2
             runTestOnSheets
                 "DisplayAll: MUX+AND Unoptimized"
                 firstSample
@@ -567,7 +567,7 @@ module D2Test =
         let test1Opt testNum firstSample dispatch model =
             let sheetMaker = makeTest1Circuit >> optimizePortOrder   
             let displayOnFail = displayAll
-            let generator = filteredGridPositions makeTest1Circuit 10
+            let generator = gridPosGen 1 2
             runTestOnSheets
                 "DisplayAll: MUX+AND Optimized"
                 firstSample
@@ -581,7 +581,7 @@ module D2Test =
         let test2 testNum firstSample dispatch model =
             let sheetMaker = makeTest2Circuit model
             let displayOnFail = displayAll
-            let generator = filteredGridPositions sheetMaker 10
+            let generator = gridPosGen 1 2
             runTestOnSheets
                 "DisplayAll: Custom Symbol"
                 firstSample
@@ -595,7 +595,7 @@ module D2Test =
         let test2Opt testNum firstSample dispatch model =
             let sheetMaker = makeTest2Circuit model
             let displayOnFail = displayAll
-            let generator = filteredGridPositions sheetMaker 10
+            let generator = gridPosGen 1 2
             runTestOnSheets
                 "DisplayAll: Custom Symbol"
                 firstSample
@@ -605,17 +605,6 @@ module D2Test =
                 dispatch
                 displayOnFail
             |> recordPositionInTest testNum dispatch
-
-
-        let rec groupNElements n (lst: 'a list) =
-            let rec groupNElementsHelper acc currList remainingList =
-                match currList, remainingList with
-                | _, [] -> List.rev acc // Reverse the accumulator to maintain the order
-                | _, remainder when List.length remainder < n -> List.rev (remainder :: acc) // Add the remaining elements to the accumulator and reverse it
-                | _, _ ->
-                    let group, rest = List.splitAt n remainingList // Split the remaining list into a group of size n and the rest
-                    groupNElementsHelper (group :: acc) group rest // Recur with the updated accumulator and remaining list
-            groupNElementsHelper [] [] lst
 
         let test4 testNum firstSample dispatch model =
             let displayOnFail = displayAll
@@ -641,7 +630,7 @@ module D2Test =
         let testRandomComp testNum firstSample dispatch model =
             let sheetMaker = makeRandomCircuit model
             let displayOnFail = displayAll
-            let generator = chunkShuffledGen 4 1 randomComponentSamples
+            let generator = chunkShuffledGen (randomComponentSamples) 1 12
             // this assertion fails on all tests without symbol intersection!
             let assertion (sample: int) (sheetModel: SheetT.Model) = 
                 sheetModel
@@ -655,10 +644,36 @@ module D2Test =
                 firstSample
                 generator
                 sheetMaker
-                assertion
+                Asserts.failOnAllTests
                 dispatch
                 displayOnFail
             |> recordPositionInTest testNum dispatch
+
+        /// <summary>AUTHOR hn621 - Prints out the average time to beautify a sheet of n components, where n is in range [5..5..25]</summary>
+        let testBeautifyTimePerformance testNum firstSample dispatch model =
+            let sheetMaker = makeRandomCircuit model
+            let beautifier = optimizePortOrder
+            let nGenerator = chunkShuffledGen (randomComponentSamples) 1
+            let nComponents = [5..5..25]
+
+            printfn $"Now testing Beautify Time Performance..."
+
+            nComponents
+            |> List.map nGenerator
+            |> List.map (fun gen -> gen.Data 0)
+            |> List.map sheetMaker // prepare the sheetModel before beautify
+            |> List.mapi (
+                fun idx elm -> 
+                    recordExecutionTimeStats (sprintf "n_component=%d" (nComponents.[idx])) beautifier elm |> ignore
+                )
+            |> ignore
+
+            executionStats
+            |> Map.toList
+            |> List.map (fun (key, value) -> (printfn "%s, avg_time=%.3f ms" key value.Av))
+            |> ignore
+
+            executionStats <- Map []
 
         /// This test is to apply beautification and calculate metric
         let applyBeautify testNum firstSample dispatch model =
@@ -684,6 +699,7 @@ module D2Test =
                 "Test2: CC Optimised", test2Opt
                 "Test: Random Components", testRandomComp
                 "Apply Beautify", applyBeautify
+                "Print Beautify Time", testBeautifyTimePerformance
                 "Display Sheet Info", displayCurSheet
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]

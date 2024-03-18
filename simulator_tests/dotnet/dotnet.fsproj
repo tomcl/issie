@@ -6,6 +6,7 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\..\src\Renderer\fable_modules\Fable.React.8.0.1\Fable.React.Helpers.fs" />
     <ProjectReference Include="..\..\src\Renderer\Renderer.fsproj" />
     <Compile Include="Program.fs" />
   </ItemGroup>

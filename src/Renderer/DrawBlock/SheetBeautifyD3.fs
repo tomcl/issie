@@ -62,6 +62,9 @@ let symbolModel_ = SheetT.symbol_
 
 // ---------------------------------- D3 ---------------------------------------------------------
 
+
+//------------------------ Start wires-to-wire-labels part -------------------------------
+
 /// Check whether the given output port is already connected to a wire label, if true, return the label name and its InputPortId
 let checkOutputPortConnectedToWireLabel (portId: OutputPortId) (model:SheetT.Model) : Option<string*InputPortId> =
     let tryFindWireLabelWithInputPort (portId:InputPortId) = 
@@ -367,10 +370,10 @@ let autoWiresToWireLabels (model:SheetT.Model) =
         |> Map.filter (fun _wId wire -> (getWireLength wire) > Constants.longSingleWireLength)  // filter out the long ones
         |> mapKeys
     selectedWiresToWireLabels allWireIds true model
-    
 
-//-----------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------ End wires-to-wire-labels part ---------------------------------
 
+//------------------------ Start wire-labels-to-wires part -------------------------------
 
 /// Try to find the wire connected to the given port and return them both, return None if not found
 let tryFindWireWithPort (portId:string) (model:SheetT.Model) = 
@@ -509,7 +512,12 @@ let autoWireLabelsToWires (model:SheetT.Model) =
     let allCompIds = mapKeys model.Wire.Symbol.Symbols    // get the list of ComponentId of all symbols on sheet
     selectedWireLabelsToWires allCompIds true model
     
+//------------------------ End wire-labels-to-wires part ---------------------------------
 
+// D3 unified
 /// Add or remove wire labels (swapping between long wires and wire labels) to reduce wiring complexity
 let sheetWireLabelSymbol (model:SheetT.Model) = 
-    ()
+    model
+    |> autoWireLabelsToWires
+    |> autoWiresToWireLabels
+

@@ -150,6 +150,10 @@ let fileMenu (dispatch) =
         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
         makeDebugItem name (Some $"Alt+{accelNumber+1}") (fun _ ->
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD1.Tests.testMenuFunc, accelNumber), dispatch)))
+    let makeTestItemD2 (name:string) (accelNumber:int)  =
+        // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
+        makeDebugItem name (Some $"CmdOrCtrl+Shift+{accelNumber+1}") (fun _ ->
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.Tests.testMenuFunc, accelNumber), dispatch)))
     let makeTestItemD3 (name:string) (accelNumber:int)  =
         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
         makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
@@ -176,6 +180,10 @@ let fileMenu (dispatch) =
             TestDrawBlockD1.Tests.testsToRunFromSheetMenu // make a submenu from this list
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
             |> List.mapi (fun n (name,_) -> (makeTestItemD1 name n)))
+        makeMenuGen (debugLevel > 0) false "D2 Tests" (
+            TestDrawBlockD2.Tests.testsToRunFromSheetMenu // make a submenu from this list
+            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
+            |> List.mapi (fun n (name,_) -> (makeTestItemD2 name n)))
         makeMenuGen (debugLevel > 0) false "D3 Tests" (
             TestDrawBlockD3.Tests.testsToRunFromSheetMenu // make a submenu from this list
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes

@@ -44,11 +44,20 @@ let alignTopPorts (targetPortPos: XYPos) (currentSymbol: Symbol) edge =
     let numPorts = (float) (getPortOrder edge currentSymbol).Length
     let portSep = 
         match edge with
-        | Right | Left -> currentSymbol.Component.H / (numPorts*(Option.defaultValue 1. currentSymbol.VScale)+1.)
-        | Top | Bottom -> currentSymbol.Component.W / (numPorts*(Option.defaultValue 1. currentSymbol.HScale)+1.)
-    match edge with
-    | Right | Left -> updateSymPos {X=currentSymbol.Component.X; Y=targetPortPos.Y+(0.5*numPorts+0.5)*portSep} currentSymbol
-    | Top | Bottom -> updateSymPos {X=targetPortPos.X+(0.5*numPorts+0.5)*portSep; Y=currentSymbol.Component.Y} currentSymbol
+        | Right | Left -> currentSymbol.Component.H*(Option.defaultValue 1. currentSymbol.VScale) / (numPorts+1.)
+        | Top | Bottom -> currentSymbol.Component.W*(Option.defaultValue 1. currentSymbol.HScale) / (numPorts+1.)
+    // printfn "ALIGNING: CURRENT SYMBOL LABEL, targetPortPos.Y"
+    // printfn "%A" currentSymbol.Component.Label
+    // printfn "%A" targetPortPos.Y
+    // printfn "%A" currentSymbol.Component.Y
+    let portSepConst = 1. // 0.825 // not exact for some reason, need this to scale properly
+    match edge, currentSymbol.Component.Type with
+    // | Right | Left -> updateSymPos {X=currentSymbol.Component.X; Y=targetPortPos.Y+(0.5*numPorts+0.5)*portSep-currentSymbol.Component.H*(Option.defaultValue 1. currentSymbol.VScale)} currentSymbol
+    // | Top | Bottom -> updateSymPos {X=targetPortPos.X+(0.5*numPorts+0.5)*portSep-currentSymbol.Component.W*(Option.defaultValue 1. currentSymbol.HScale); Y=currentSymbol.Component.Y} currentSymbol
+    | Right, Custom _ | Left, Custom _ -> updateSymPos {X=currentSymbol.Component.X; Y=targetPortPos.Y-portSep*portSepConst} currentSymbol
+    | Top, Custom _ | Bottom, Custom _ -> updateSymPos {X=targetPortPos.X-portSepConst*portSep; Y=currentSymbol.Component.Y} currentSymbol
+    | Right, _ | Left, _ -> updateSymPos {X=currentSymbol.Component.X; Y=targetPortPos.Y-portSep} currentSymbol
+    | Top, _ | Bottom, _ -> updateSymPos {X=targetPortPos.X-portSep; Y=currentSymbol.Component.Y} currentSymbol
 
 /// Update symbols in sheet according to a new list of symbols to update
 /// Returns updated sheet
@@ -75,33 +84,71 @@ let updateAllComponents targetPorts (sourcePorts: Edge list) priorSheet=
 /// Given a sheet and source port-symbol pair, returns the target port (the port the source port is connected to)
 /// And the original symbol as a tuple. If not connected, returns None and original symbol
 let getConnectingPort (sheet: SheetT.Model) portAndSym = 
-    let port = fst portAndSym
+    let (port: string) = fst portAndSym    
+    // printfn "GETCONNECTINGPORT: LIST OF WIRES CONNECTED TO PORT"
+    // printfn "%A" <| fst portAndSym
+    // printfn "%A" (sheet.Wire.Wires |>  (mapValues >> Seq.toList) |> List.filter (fun wire -> (string wire.OutputPort)=port || (string wire.InputPort)=port))
     sheet.Wire.Wires
     |> (mapValues >> Seq.toList)
     |> List.filter (
         fun wire -> 
-            (getSourcePort sheet.Wire wire).Id=port
+            (string wire.OutputPort)=port || (string wire.InputPort)=port
     )
     |> List.tryItem 0
     |> function
     | None -> None, snd portAndSym
-    | Some wire ->Some (getTargetPort sheet.Wire wire).Id, snd portAndSym
+    | Some wire ->
+        match (string wire.OutputPort)=port with 
+        | true -> Some (string wire.InputPort), snd portAndSym
+        | false -> Some (string wire.OutputPort), snd portAndSym
+    
+
+// Gets the output ports of the symbol, unless the target port of the output port is on the opposite side of the output port
+// e.g. output (source) port on the right side of symbol and target port to the left of the symbol
+// In that case, we get the input ports of the symbol
+let getCorrectSide sheet sym = 
+    let potentialPort = 
+        match sym.STransform.Flipped, sym.STransform.Rotation with // assuming flipped means flipped along y axis of symbol
+            | false, Degree0 | true, Degree180->  sym.PortMaps.Order[Right][0], sym
+            | false, Degree90 | true, Degree270 -> sym.PortMaps.Order[Top][0], sym
+            | false, Degree180 | true, Degree0 -> sym.PortMaps.Order[Left][0], sym
+            | false, Degree270 | true, Degree90 -> sym.PortMaps.Order[Bottom][0], sym
+    
+    let connectingPort = getConnectingPort sheet potentialPort
+    
+    let connectingPortPos = 
+        match connectingPort with 
+        | Some port, _ -> getPortPos port sheet.Wire.Symbol
+        | None, _ -> sym.Pos
+    
+    let ret = 
+        match sym.STransform.Flipped, sym.STransform.Rotation with // assuming flipped means flipped along y axis of symbol
+            | false, Degree0 | true, Degree180 when connectingPortPos.X > sym.Pos.X ->  sym.PortMaps.Order[Right], sym
+            | false, Degree0 | true, Degree180 when connectingPortPos.X < sym.Pos.X ->  sym.PortMaps.Order[Left], sym
+            | false, Degree90 | true, Degree270 when connectingPortPos.Y < sym.Pos.Y -> sym.PortMaps.Order[Top], sym
+            | false, Degree90 | true, Degree270 when connectingPortPos.Y > sym.Pos.Y -> sym.PortMaps.Order[Bottom], sym
+            | false, Degree180 | true, Degree0 when connectingPortPos.X < sym.Pos.X -> sym.PortMaps.Order[Left], sym
+            | false, Degree180 | true, Degree0 when connectingPortPos.X > sym.Pos.X -> sym.PortMaps.Order[Right], sym
+            | false, Degree270 | true, Degree90 when connectingPortPos.Y < sym.Pos.Y -> sym.PortMaps.Order[Bottom], sym
+            | false, Degree270 | true, Degree90 when connectingPortPos.Y > sym.Pos.Y -> sym.PortMaps.Order[Top], sym
+            | _ -> sym.PortMaps.Order[Right], sym
+    ret
+        
+
 
 /// Get all target ports and their source port symbols across a given set of symbols
 /// Returns list of tuples of target port and the source port's symbol
 let getCaseTargetPorts sheet comparer symbolList= 
     symbolList
+    |> List.map (fun sym -> getCorrectSide sheet sym)
+    |> List.filter (fun (portList, _) -> comparer portList)
     |> List.map (
-        // find output edge's ports
-        fun sym -> 
-            match sym.STransform.Flipped, sym.STransform.Rotation with // assuming flipped means flipped along y axis of symbol
-            | false, Degree0 | true, Degree180->  sym.PortMaps.Order[Right], sym
-            | false, Degree90 | true, Degree270 -> sym.PortMaps.Order[Top], sym
-            | false, Degree180 | true, Degree0 -> sym.PortMaps.Order[Left], sym
-            | false, Degree270 | true, Degree90 -> sym.PortMaps.Order[Bottom], sym
+        fun (portList, sym: Symbol) -> 
+            let potential = List.tryLast portList
+            match potential with 
+            | Some s -> s, sym
+            | None -> "", sym
     )
-    |> List.filter (fun (portList, _) ->  comparer portList)
-    |> List.map (fun (portList, sym) -> portList[0], sym)
     |> List.map (getConnectingPort sheet) 
     |> List.filter (fun port -> (fst port).IsSome)
     |> List.map (fun (tPort, sym) -> Option.get tPort, sym)
@@ -110,21 +157,14 @@ let getCaseTargetPorts sheet comparer symbolList=
 /// If the source port doesn't have an associated target port, it is not included (match with getCaseTargetPorts)
 let getCaseSourcePorts sheet comparer symbolList = 
     symbolList
-    |> List.map (
-        fun sym -> 
-            match sym.STransform.Flipped, sym.STransform.Rotation with // assuming flipped means flipped along y axis of symbol
-            | false, Degree0 | true, Degree180->  sym.PortMaps.Order[Right], sym
-            | false, Degree90 | true, Degree270 -> sym.PortMaps.Order[Top], sym
-            | false, Degree180 | true, Degree0 -> sym.PortMaps.Order[Left], sym
-            | false, Degree270 | true, Degree90 -> sym.PortMaps.Order[Bottom], sym
-    )
-    |> List.filter (fun (portList, _) ->  comparer portList)
+    |> List.map (fun sym -> getCorrectSide sheet sym)
+    |> List.filter (fun (portList, _) -> comparer portList)
     |> List.map (fun (portList, sym) -> portList[0], sym)
     |> List.filter (
         fun (sPort, sym) -> 
             let connPort = getConnectingPort sheet (sPort,sym)
             match connPort with 
-            | Some _, _ -> true
+            | Some _, _-> true
             | None, _ -> false
     )
     |> List.map (fun (port, sym) -> Map.find port sym.PortMaps.Orientation)
@@ -213,7 +253,7 @@ let sheetAlignScale (sheet: SheetT.Model) =
     // This case is complicated and not easy to align correctly, so it is ignored
     // Case 2 used as heuristic to perform ASB 6 - aligning arrays of components
 
-    // Separates into case 1, 2, 3, 4
+    // Separates into case 1, 2, 3
     let case1Comparer portList = 
         let portConnectedSymbols = 
             portList
@@ -243,10 +283,12 @@ let sheetAlignScale (sheet: SheetT.Model) =
             portList
             |> List.map (fun port -> port, 1)
             |> List.map (getConnectedSymbols sheet) 
+        // printfn "Port connected symbols"
+        // printfn "%A" portConnectedSymbols
         match portConnectedSymbols.Length with 
         | 1 -> false
         | _ -> 
-            match (List.distinct portList).Length with 
+            match (List.distinct (List.collect id portConnectedSymbols)).Length with 
             | 1 -> true
             | _ -> false
     
@@ -258,18 +300,28 @@ let sheetAlignScale (sheet: SheetT.Model) =
         match portConnectedSymbols.Length with 
         | 1 -> false
         | _ -> 
-            match (List.distinct portList).Length with 
+            match (List.distinct (List.collect id portConnectedSymbols)).Length with 
             | 1 -> false
             | _ -> true
         
 
-
+        
     let case1TargetPort = getCaseTargetPorts sheet case1Comparer multiplyConnected
     let case2TargetPort = getCaseTargetPorts sheet case2Comparer multiplyConnected
     let case3TargetPort = getCaseTargetPorts sheet case3Comparer multiplyConnected 
-    
+    let case4TargetPort = getCaseTargetPorts sheet case4Comparer multiplyConnected
     let case1SourcePort = getCaseSourcePorts sheet case1Comparer multiplyConnected
     let case3SourcePort = getCaseSourcePorts sheet case3Comparer multiplyConnected
+
+    printfn "Case 1 length"
+    printfn "%A" case1TargetPort
+    printfn "Case 2 length"
+    printfn "%A" case2TargetPort
+    printfn "Case 3 length"
+    printfn "%A" <| List.map (fun symport -> fst symport |> getPortPos <| sheet.Wire.Symbol) case3TargetPort
+    printfn "Case 4 length"
+    printfn "%A" case4TargetPort
+
 
 
     // 6. Include, where this is worthwhile (heuristic) aligning arrays of components. Note that
@@ -366,55 +418,68 @@ let sheetAlignScale (sheet: SheetT.Model) =
     
     // 4. Scale custom symbols to reduce wire bends in parallel wires between two custom components
     // get custom symbols and the custom symbols they are connected to
+
     let customSymbolPairs = 
-        sheet.Wire
-        |> getConnSyms
-        |> List.filter (
-            fun (sym1, sym2) -> 
-                match sym1.Component.Type, sym2.Component.Type with
-                | Custom _, Custom _ -> true
-                | _, _ -> false
-        )
+            sheet.Wire
+            |> getConnSyms
+            |> List.filter (
+                fun (sym1, sym2) -> 
+                    match sym1.Component.Type, sym2.Component.Type with
+                    | Custom _, Custom _ -> true
+                    | _, _ -> false
+            )
+    let scaledSyms = 
+            customSymbolPairs
+            |> List.map (findSymbolsEdgeConns sheet) 
+            |> List.filter (
+                fun (edges, _) -> 
+                    match (fst edges), (snd edges) with 
+                    | Right, Left | Left, Right | Top, Bottom | Bottom, Top -> true
+                    | _ -> false
+                )
+            |> List.map (fun ((edg1, edg2), (sym1, sym2)) -> 
+                match edg1, edg2 with
+                | Right, Left | Left, Right -> ((getPortOrder edg1 sym1).Length, sym1.Component.H*(Option.defaultValue 1. sym1.VScale)), ((getPortOrder edg2 sym2).Length, sym2.Component.H),true
+                | Top, Bottom | Bottom, Top -> ((getPortOrder edg1 sym1).Length, sym1.Component.W*(Option.defaultValue 1. sym1.HScale)), ((getPortOrder edg2 sym2).Length, sym2.Component.W), false
+                | _ -> (0, 0.), (0, 0.), false // shouldn't happen
+            )
+            // convert to scaling factor applied to second component
+            // formula: want port separations of both components to be equal
+            // let l_i = length of component i, n_i = number of ports on component i
+            // then l_1/(n_1+1) = l_2/(n_2+1) => l2=l1 * (n2+1)/(n1+1)
+            // only modify scale, not height => scale_2 = l2/h2, where h2 is component height
+            |> List.map (fun ((n1, l1), (n2, h2), horv) -> l1/h2 * (float) (n2+1)/(float) (n1+1), horv)
+            |> List.mapi (fun i (scale, horv) -> 
+                let scaleConst = 1. // 1.03
+                match horv, (fst customSymbolPairs[i]).Component.Type with 
+                | true, Custom _ ->
+                    {snd customSymbolPairs[i] with VScale=Some (scaleConst*scale)} // 1.03 is hardcoded scale modifier since this isn't exact
+                | false, Custom _ -> 
+                    {snd customSymbolPairs[i] with HScale=Some (scaleConst*scale)} 
+                | true, _ -> 
+                    {snd customSymbolPairs[i] with VScale=Some scale}
+                | false, _ -> {snd customSymbolPairs[i] with HScale=Some scale} 
+            )
     
     // count number of ports on both symbol edges and their current dimensions to find scale factor
     // set hscale/vscale correspondingly
-    let scaledSyms = 
-        customSymbolPairs
-        |> List.map (findSymbolsEdgeConns sheet) 
-        |> List.filter (
-            fun (edges, _) -> 
-                match (fst edges), (snd edges) with 
-                | Right, Left | Left, Right | Top, Bottom | Bottom, Top -> true
-                | _ -> false
-            )
-        |> List.map (fun ((edg1, edg2), (sym1, sym2)) -> 
-            match edg1, edg2 with
-            | Right, Left | Left, Right -> ((getPortOrder edg1 sym1).Length, (getCustomCompDims sym1).Y), ((getPortOrder edg2 sym2).Length, (getCustomCompDims sym2).Y),true
-            | Top, Bottom | Bottom, Top -> ((getPortOrder edg1 sym1).Length, (getCustomCompDims sym1).X), ((getPortOrder edg2 sym2).Length, (getCustomCompDims sym2).X), false
-            | _ -> (0, 0.), (0, 0.), false // shouldn't happen
-        )
-        // convert to scaling factor applied to second component
-        |> List.map (fun (sym1info, sym2info, horv) -> ((snd sym1info)/(float) (fst sym1info))/((snd sym2info)/(float) (fst sym2info)), horv )
-        |> List.mapi (fun i (scale, horv) -> 
-            match horv with 
-            | true -> {snd customSymbolPairs[i] with VScale=Some scale} 
-            | false -> {snd customSymbolPairs[i] with HScale=Some scale} 
-        )
+    
     
     // 2/7. Do not overlap components
     // Go through updated sheet and check which symbols overlap
     // if they overlap, move the symbol to its old position in the original sheet
     
-    let scaledSymSheet = 
+    let updatedSheet = 
         sheet
+        |> updateSymbols scaledSyms
         |> updateAllComponents case1TargetPort case1SourcePort
         |> updateSymbols case2UpdatedSymbols
         |> updateAllComponents case3TargetPort case3SourcePort
         |> updateAllComponents singlyConnectedTargetPort singlyConnectedSourcePort
-        |> updateSymbols scaledSyms
+        |> updateBoundingBoxes
 
     let newSymbolBoundingBoxes = 
-        scaledSymSheet.BoundingBoxes
+        updatedSheet.BoundingBoxes
         |> Map.toList
     
     let overlappingComponents = 
@@ -425,11 +490,11 @@ let sheetAlignScale (sheet: SheetT.Model) =
         |> List.collect (fun tup -> [fst tup; snd tup])
         |> List.map (fun (cid, bb) -> cid)
     
-    let noSymbolOverlapSheet = 
-        (scaledSymSheet.Wire.Symbol.Symbols, overlappingComponents)
-        ||> List.fold (fun acc cid -> Map.add cid sheet.Wire.Symbol.Symbols[cid] acc)
-        |> Optic.set symbols_
-        <| scaledSymSheet 
+    // let noSymbolOverlapSheet = 
+    //     (scaledSymSheet.Wire.Symbol.Symbols, overlappingComponents)
+    //     ||> List.fold (fun acc cid -> Map.add cid sheet.Wire.Symbol.Symbols[cid] acc)
+    //     |> Optic.set symbols_
+    //     <| scaledSymSheet 
     
-    noSymbolOverlapSheet
+    updatedSheet
     

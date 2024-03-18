@@ -84,7 +84,6 @@
     <Compile Include="DrawBlock\SheetBeautifyD2.fs" />
     <Compile Include="DrawBlock\SheetBeautifyD3.fs" />
     <Compile Include="DrawBlock\TestDrawBlockD1.fs" />
-    <Compile Include="DrawBlock\TestDrawBlockD2.fs" />
     <Compile Include="DrawBlock\TestDrawBlockD3.fs" />
 
     <!-- UI -->
@@ -119,6 +118,7 @@
     
     <Compile Include="GenerateData.fs" />
     <Compile Include="TestDrawBlockD1.fs" />
+    <Compile Include="TestDrawBlockD2.fs" />
     <Compile Include="TestSheetFunctions.fs" />
     
     <Compile Include="TestWorker.fs" />

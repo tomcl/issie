@@ -377,7 +377,7 @@ module HLPTick3 =
                 : TestResult<'a> =
             let generateAndCheckSheet: Assertion<'a> = 
                 match sheetChecker, targetFunc with
-                | AssertFunc func, Some sheetFunc   -> AssertFunc (fun n -> sheetMaker >> sheetFunc >> (func n))
+                | AssertFunc func, Some sheetFunc   -> AssertFunc (fun n -> sheetMaker >> sheetFunc >> rerouteAllWires >> (func n))
                 | AssertFunc func, None             -> AssertFunc (fun n -> sheetMaker >> (func n))
                 | TargetFuncWorse, Some _           -> TargetFuncWorse
                 | TargetFuncWorse, None             -> failwithf "Evaluating target func without specifying target func"

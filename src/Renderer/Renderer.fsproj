@@ -125,6 +125,7 @@
     <Compile Include="TestDrawBlockD1.fs" />
     <Compile Include="TestDrawBlockD2.fs" />
     <Compile Include="TestDrawBlockD3.fs" />
+    <Compile Include="TestDrawBlockD4.fs" />
     <Compile Include="TestWorker.fs" />
     <Compile Include="Playground.fs" />
 

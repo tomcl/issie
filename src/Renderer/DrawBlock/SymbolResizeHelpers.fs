@@ -141,7 +141,7 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
         | FlipHorizontal -> sym
         | FlipVertical -> 
             sym
-            |> rotateSymbol Degree180)
+            |> rotateAntiClockByAng Degree180)
 
 let changeSymbolCorners showCorners sym = 
     set (appearance_ >-> showCorners_) showCorners sym

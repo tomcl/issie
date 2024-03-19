@@ -104,6 +104,40 @@ let testRotateScale1 (model: ModelType.Model) : ModelType.Model =
 
     | false -> model
 
+let testResizeSymbolTopLevelImproved (model: ModelType.Model) : ModelType.Model =
+    // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
+    match model.Sheet.Wire.Symbol.Symbols.Count >= 2 with
+    | true ->
+        // let symbolToSize, otherSymbol =
+        //     match model.Sheet.Wire.Symbol.Symbols |> Map.toList with
+        //     | symbolToSizeInMap :: otherSymbolInMap :: _ -> snd (symbolToSizeInMap), snd (otherSymbolInMap)
+        //     | _ -> failwith "Not enough elements in symbol list" // will never happen
+        let customSymbolsPairs =
+            model.Sheet.Wire.Symbol.Symbols
+            |> Map.values
+            |> Array.toList
+            |> List.filter (fun sym ->
+                match sym.Component.Type with
+                | Custom _ -> true
+                | _ -> false)
+            |> List.mapi (fun i sym -> (i, sym))
+            |> (fun customSymbols ->
+                List.allPairs customSymbols customSymbols
+                |> List.filter (fun ((i1, _), (i2, _)) -> i1 < i2))
+
+        let newWire =
+            customSymbolsPairs
+            |> List.fold
+                (fun accWModel (pairOne, pairTwo) ->
+                    let symbolToSize = snd pairOne
+                    let otherSymbol = snd pairTwo
+                    (reSizeSymbolImprovedTopLevel accWModel symbolToSize otherSymbol))
+                model.Sheet.Wire
+
+        model |> Optic.set (sheet_ >-> wire_) (newWire)
+
+    | false -> model
+
 let testD2 (model: ModelType.Model) : ModelType.Model =
     model
     |> Optic.set sheet_ (sheetOrderFlip model.Sheet)
@@ -179,7 +213,7 @@ let testsToRunFromSheetMenu =
       "Test 4", testD2
       "Test 5: cleanUpAlmostStraightSinglyConnWires", cleanUpAlmostStraightSinglyConnWires
       "Test 6: tryGeneralCleanup", tryGeneralCleanUp
-      "Test 7", (fun (model: ModelType.Model) -> model)
+      "Test 7: testResizeSymbolTopLevelImproved", testResizeSymbolTopLevelImproved
       "Test 8", (fun (model: ModelType.Model) -> model)
       "Test 9", (fun (model: ModelType.Model) -> model) ]
 

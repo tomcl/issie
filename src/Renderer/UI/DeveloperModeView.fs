@@ -26,6 +26,99 @@ open DiagramStyle
 open BlockHelpers
 open SheetBeautifyHelpers
 open SheetBeautifyD1
+open SheetUpdateHelpers
+open Symbol
+open Optics
+open BusWireRoute
+open BusWireRoutingHelpers.Constants
+open BusWireRoutingHelpers
+open Sheet
+
+/// returns the an string ID with extra formatting of a hovered wire, symbol, or port
+let findHoveredID (pos: XYPos) (model: SheetT.Model) =
+    let dummySymbolId: ComponentId = ComponentId "dummy"
+    // we add a 'dummy symbol' to the model to represent the mouse position
+    // solely for calculation purposes, it will not be added to the actual model
+    let h, w = 30.0, 30.0
+    let mouseComponentDummy =
+        { Id = "dummy"
+          Type = Not
+          Label = "dummy"
+          InputPorts = List.empty
+          OutputPorts = List.empty
+          X = pos.X - float w / 2.0
+          Y = pos.Y - float h / 2.0
+          H = float h
+          W = float w
+          SymbolInfo = None }
+    let mouseSymbolDummy: Symbol =
+        { (createNewSymbol [] pos NotConnected "" White) with
+            Component = mouseComponentDummy }
+    let dummyModel =
+        model
+        |> Optic.set (SheetT.symbols_) (Map.add dummySymbolId mouseSymbolDummy model.Wire.Symbol.Symbols)
+        |> updateBoundingBoxes // just in case
+
+    let mouseBoundingBox = getSymbolBoundingBox mouseSymbolDummy
+
+    let intersectingWiresInfo =
+        dummyModel.Wire.Wires
+        |> Map.values
+        // findWireSymbolIntersections returns a list of bounding boxes of symbols intersected by wire.
+        |> Seq.map (fun wire -> (wire, (findWireSymbolIntersections dummyModel.Wire wire)))
+        // we have (Wire * BoundingBox list) seq. Now to look through every tuple and get any wire whose bbox list contains symbolBoundingBox
+        // we might get more than one wire – so get a list
+        |> Seq.choose (fun (wire, bboxes) ->
+
+            if
+                bboxes
+                |> List.exists (fun box ->
+
+                    // findWireSymbolIntersections returns bounding boxes that have been enlarged with minWireSeparation
+                    let correctedBox =
+                        { W = box.W - minWireSeparation * 2.
+                          H = box.H - minWireSeparation * 2.
+                          TopLeft =
+                            box.TopLeft
+                            |> updatePos Right_ minWireSeparation
+                            |> updatePos Down_ minWireSeparation }
+                    // printf "cBox: %A mouseBBox: %A" correctedBox mouseBoundingBox
+                    mouseBoundingBox = correctedBox)
+            then
+                Some(wire.WId.ToString())
+
+            else
+                None)
+        |> Seq.toList
+        // return the first element if it exists else None
+        |> List.tryHead
+
+    let intersectingSymbolInfo =
+        model.BoundingBoxes
+        |> Map.toList
+        // get all boundingBoxes in model not equal to symbolBoundingBox
+        |> List.filter (fun (compId, box) -> not (box =~ mouseBoundingBox))
+        // see if they overlap with the symbolBoundingBox, if they do, return the compId
+        |> List.choose (fun (compId, box) ->
+            match (overlapArea2DBox mouseBoundingBox box) with
+            | Some area -> Some(compId.ToString())
+            | None -> None)
+        |> List.tryHead
+
+    // inpisred by Sheet.mouseOn
+    match intersectingWiresInfo, intersectingSymbolInfo with
+    | _, Some symbolId ->
+        let inputPorts, outputPorts =
+            Symbol.getPortLocations model.Wire.Symbol [ ComponentId symbolId ]
+            |> fun (x, y) -> Map.toList x, Map.toList y
+        match mouseOnPort inputPorts pos 2.5 with
+        | Some(portId, portLoc) -> "InputPort: ", portId.ToString()
+        | None ->
+            match mouseOnPort outputPorts pos 2.5 with
+            | Some(portId, portLoc) -> "OutputPort: ", portId.ToString()
+            | None -> "Symbol: ", symbolId.ToString()
+    | Some wireId, _ -> "Wire: ", wireId.ToString()
+    | _ -> "Component: ", "Nothing Selected"
 
 let developerModeView (model: ModelType.Model) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -90,22 +183,30 @@ let developerModeView (model: ModelType.Model) dispatch =
                       (chunk
                        |> List.map (fun (title, value) -> createCounterItem title value)) ])
         |> div []
+    let hoveredType, hoveredId = findHoveredID model.Sheet.LastMousePos model.Sheet
     let sheetStatsMenu =
         details
             [ Open(model.SheetStatsExpanded) ]
             [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSheetStats)) ] [ str "Sheet Stats " ]
-              p
+              div
                   []
-                  [ p
-                        []
-                        [ str ("MousePos: ")
+                  [ div
+                        [ Style [ MarginBottom "10px" ] ]
+                        [ strong [] [ str ("Mouse Position: ") ]
+                          br []
                           code
                               []
                               [ str (
                                     (model.Sheet.LastMousePos.X.ToString("F2"))
                                     + ", "
                                     + (model.Sheet.LastMousePos.Y.ToString("F2"))
-                                ) ] ]
+                                ) ]
+
+                          br []
+                          strong [] [ str ("Hovered " + hoveredType) ]
+                          br []
+                          code [] [ str (hoveredId) ] ]
+
                     counters ] ]
 
     // for Symbol.PortMaps

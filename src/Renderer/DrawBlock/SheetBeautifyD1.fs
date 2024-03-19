@@ -17,6 +17,7 @@ open BusWireRoute
 open BusWire
 open BusWireUpdateHelpers
 open SheetUpdateHelpers
+open RotateScale
 
 // --------------------------------------------------- //
 //                         INFO!                       //
@@ -560,7 +561,7 @@ let getSegmentIntersectBBox (box: BoundingBox) segStart segEnd =
 // can help us find if a wire intersects a symbol, and not the other way round. We will have to iterate thru every wire and see if that the bounding
 // box returned by the findWireSymbolIntersections matches our newSymbol's bounding box.
 // then we will have determined the bbox of the intersection, and can move the newSymbol to another place and try again
-let findAllBoundingBoxOfSymbolIntersection (symbol: Symbol) (model: SheetT.Model) =
+let findAllBoundingBoxesOfSymIntersections (symbol: Symbol) (model: SheetT.Model) =
 
     let symbolBoundingBox = getBoundingBox model.Wire.Symbol symbol.Id
     let wModel = (updateBoundingBoxes model).Wire // just in case
@@ -695,7 +696,7 @@ let cleanUpAlmostStraightSinglyConnWires (model: ModelType.Model) =
                     printf "another pass with symbol id %A" cleanUpRecord.Symbol.Id
                     // we do another pass.
                     let intersectingBBoxes =
-                        findAllBoundingBoxOfSymbolIntersection newMovedSymbol newSheetModel
+                        findAllBoundingBoxesOfSymIntersections newMovedSymbol newSheetModel
                     let newOffset, majorityDisplacementOffset =
                         match
                             cleanUpRecord.IsPortInput,
@@ -887,7 +888,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                     printf "another pass with symbol id %A" cleanUpRecord.Symbol.Id
                     // we do another pass.
                     let intersectingBBoxes =
-                        findAllBoundingBoxOfSymbolIntersection newMovedSymbol newSheetModel
+                        findAllBoundingBoxesOfSymIntersections newMovedSymbol newSheetModel
                     let newOffset, majorityDisplacementOffset =
                         match
                             cleanUpRecord.IsPortInput,
@@ -960,6 +961,34 @@ let tryGeneralCleanUp (model: ModelType.Model) =
 
     model |> Optic.set (sheet_) (updatedSheetModel)
 
+// let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolA : Symbol) (symbolB : Symbol)
+// algo: take in two symbols
+// find which symbol has least ports/wires connected, that is symbol B to be resized. Symbol A is the other symbol
+// use existing helpers to get a list of ports on Symbol B connected to ports on the other, then sort by edge
+// ideally they should all share one edge, but if not, choose only ports on the edge that is shared by the majority of the ports
+// Get the ports on Symbol A as well, that are connected to B, and that are on the same majority edge
+
+// sort the ports by the edge
+// find the longest contiguous segment of ports on the edge of a and b that are connected to each other
+// if that segment length is just one, then just align and skip (call reSizeSymbol)
+// get the port distances on Symbol A, call it x
+// get the port distances on Symbol B, call it y
+//
+
+let reSizeSymbolImprovedTopLevel
+    (wModel: BusWireT.Model)
+    (symbolToSize: Symbol)
+    (otherSymbol: Symbol)
+    : BusWireT.Model
+    =
+    printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
+
+    let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
+
+    wModel
+    |> Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol
+    |> (fun model' -> BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id)
+
 (*  More notes: Cases for detecting Straightenable Wires (note we consider more cases than AlmostStraightWires )
                                                          __________
             ______                                      |         | probably not, but is an edge case where ports are vertical (only for custom comps),
@@ -1010,7 +1039,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
 //     else
 //         printfn "Pass %d with symbol id %A" passCount cleanUpRecord.Symbol.Id
 //         let intersectingBBoxes =
-//             findAllBoundingBoxOfSymbolIntersection newMovedSymbol newSheetModel // find intersecting boxes
+//             findAllBoundingBoxesOfSymIntersections newMovedSymbol newSheetModel // find intersecting boxes
 //         let newOffset, majorityDisplacementOffset =
 //             match
 //                 cleanUpRecord.IsPortInput,

@@ -18,12 +18,11 @@ open BusWireRoute
 // --------------------------------------------------------------
 // Exhaustive Search
 
-type ComponentState = {
-    ComponentId: ComponentId
-    Flipped: bool
-    Rotation: Rotation
-    InputsReversed: bool
-}
+type ComponentState =
+    { ComponentId: ComponentId
+      Flipped: bool
+      Rotation: Rotation
+      InputsReversed: bool }
 
 /// Function to generate powersets for testing all combinations of flips
 let rec powerSet =
@@ -36,11 +35,13 @@ let rec powerSet =
            |> List.map (fun subset -> head :: subset))
 
 let generateComponentStates (compId: ComponentId) : ComponentState list =
-    [ for flipped in [true; false] do
-        for rotation in [Degree0; Degree90; Degree180; Degree270] do
-            for inputsReversed in [true; false] do
-                { ComponentId = compId; Flipped = flipped; Rotation = rotation; InputsReversed = inputsReversed } ]
-
+    [ for flipped in [ true; false ] do
+          for rotation in [ Degree0; Degree90; Degree180; Degree270 ] do
+              for inputsReversed in [ true; false ] do
+                  { ComponentId = compId
+                    Flipped = flipped
+                    Rotation = rotation
+                    InputsReversed = inputsReversed } ]
 
 /// Applies the smartAutoRoute function to all existing wires connected to a symbol
 let rerouteWire (symbolId: ComponentId) (model: SheetT.Model) : SheetT.Model =
@@ -107,17 +108,25 @@ let reverseMuxAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : Sheet
             Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
     newModel |> rerouteWire compId
 
-
 let applyStateToModel (model: SheetT.Model) (state: ComponentState) : SheetT.Model =
-    model
-
+    let updatedFlipModel =
+        if state.Flipped = true then
+            flipAndRerouteComp model state.ComponentId
+        else
+            model
+    let updatedInputsReversedModel =
+        if state.InputsReversed = true then
+            reverseMuxAndRerouteComp updatedFlipModel state.ComponentId
+        else
+            updatedFlipModel
+    rotateAndRerouteComp updatedInputsReversedModel state.ComponentId state.Rotation
 
 /// Find the better performing model based off total wire crossings and right angles
-let evaluateModels (flippedModel: SheetT.Model) (originalModel: SheetT.Model) : SheetT.Model =
+let evaluateModels (changedModel: SheetT.Model) (originalModel: SheetT.Model) : SheetT.Model =
     let originalCrossings = numOfWireRightAngleCrossings originalModel
     let originalRightAngles = numOfVisRightAngles originalModel
-    let newCrossings = numOfWireRightAngleCrossings flippedModel
-    let newRightAngles = numOfVisRightAngles flippedModel
+    let newCrossings = numOfWireRightAngleCrossings changedModel
+    let newRightAngles = numOfVisRightAngles changedModel
 
     // printfn "Running evaluateModelCrossings................."
     // printfn "originalCrossings: %A" originalCrossings
@@ -126,10 +135,12 @@ let evaluateModels (flippedModel: SheetT.Model) (originalModel: SheetT.Model) : 
     // printfn "NewRightAngles: %A" newRightAngles
 
     if
-        newCrossings <= originalCrossings && newRightAngles <= originalRightAngles
+        newCrossings <= originalCrossings
+        && newRightAngles <= originalRightAngles
     then
         if
-            newCrossings = originalCrossings && newRightAngles = originalRightAngles
+            newCrossings = originalCrossings
+            && newRightAngles = originalRightAngles
         then
             // printfn "Kept original model"
             // printfn "EvaluateModelCrossings complete................"
@@ -137,30 +148,25 @@ let evaluateModels (flippedModel: SheetT.Model) (originalModel: SheetT.Model) : 
         else
             // printfn "Changed to new model"
             // printfn "EvaluateModelCrossings complete................"
-            flippedModel
+            changedModel
     else
         // printfn "Kept original model"
         // printfn "EvaluateModelCrossings complete................"
         originalModel
-
-
-
 
 let evaluateAllCombinations (model: SheetT.Model) (components: ComponentId list) : SheetT.Model =
     let allStates = components |> List.collect generateComponentStates
     let powerSetOfStates = powerSet allStates
 
     powerSetOfStates
-    |> List.fold (fun currentBestModel statesCombination ->
-        let modelForCombination = 
-            statesCombination
-            |> List.fold applyStateToModel model
+    |> List.fold
+        (fun currentBestModel statesCombination ->
+            let modelForCombination =
+                statesCombination
+                |> List.fold applyStateToModel model
 
-        evaluateModels modelForCombination currentBestModel
-    ) model
-
-
-
+            evaluateModels modelForCombination currentBestModel)
+        model
 
 /// Perform exhaustive search across all component flips, finding the model with the least total wire crossings and right angles
 let findBestModel (model: SheetT.Model) : SheetT.Model =
@@ -211,7 +217,8 @@ let iteratedLocalSearch (model: SheetT.Model) : SheetT.Model =
         |> Map.toList
         |> List.choose (fun (id, sym) ->
             match sym.Component.Type with
-            | GateN _ | Mux2 -> Some id
+            | GateN _
+            | Mux2 -> Some id
             | _ -> None)
 
     let rec search currentBestModel components =

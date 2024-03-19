@@ -9,6 +9,7 @@ open DrawModelType.SheetT
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open Optics
+open BusWireRoute
 
 module Constants =
     ()
@@ -122,75 +123,121 @@ let findSinglyConnectedWiresAndShifts (model:SheetT.Model) =
         (wire.WId, shiftRequired))
     |> Map.ofList
 
+// find the connection ids of a symbol id
+let findConnectionIdsOfSymbol (model:SheetT.Model) (symbolId: string) =
 
+// find all ports of a symbol id
+    let findPortsOfSymbol (model:SheetT.Model) (symbolId: string) =
+        model.Wire.Symbol.Ports
+        |> Map.toList
+        |> List.filter (fun (_, port) -> port.HostId = symbolId)
+        |> List.map fst
 
+    // find all the connection ids of a port
+    let findConnectionIdsOfPort (model:SheetT.Model) (portId: string) =
+        let inputConnectionIds = 
+            model.Wire.Wires
+            |> Map.toList
+            |> List.filter (fun (_, wire) -> 
+                match wire.InputPort with
+                | InputPortId id -> id = portId
+                | _ -> false)
+            |> List.map (fun (id, _) -> id)
+        let outputConnectionIds = 
+            model.Wire.Wires
+            |> Map.toList
+            |> List.filter (fun (_, wire) -> 
+                match wire.OutputPort with
+                | OutputPortId id -> id = portId
+                | _ -> false)
+            |> List.map (fun (id, _) -> id)
+        inputConnectionIds @ outputConnectionIds
+    // First, find all ports of the given symbol
+    let portsOfSymbol = findPortsOfSymbol model symbolId
+    
+    // Then, for each port, find all associated connection IDs
+    let connectionIds = 
+        portsOfSymbol
+        |> List.collect (fun portId -> findConnectionIdsOfPort model portId)
+        |> List.distinct // Remove duplicates if any
 
+    connectionIds
 
+// Function to find how much each symbol needs to be shifted to align singly connected wires
+let findAlignment (model: SheetT.Model) =
+    // Find all singly connected components ids
+    let singlyConnectedComponents = findSinglyConnectedComponents model
+    // Find all singly connected wire ids and their required shifts
+    let singlyConnectedWiresAndShifts = findSinglyConnectedWiresAndShifts model
+    // Find map of singly connected symbol id to connection ids
+    let singlyConnectedSymbolToConnectionIds = 
+        singlyConnectedComponents
+        |> List.map (fun symbolId -> (symbolId, findConnectionIdsOfSymbol model symbolId))
+        |> Map.ofList
+    // Find all singly connected wire ids
+    let allSinglyConnectedWires = 
+        singlyConnectedWiresAndShifts
+        |> Map.toList
+        |> List.map fst
+    
+    let findSymbolIdForConnectionId connectionId =
+        singlyConnectedSymbolToConnectionIds
+        |> Map.toList
+        |> List.tryFind (fun (_, connIds) -> List.contains connectionId connIds)
+        |> Option.map fst
 
+    let findShiftForSymbol symbolId =
+        allSinglyConnectedWires
+        |> List.choose (fun wireId ->
+            match findSymbolIdForConnectionId wireId with
+            | Some id when id = symbolId -> Some wireId
+            | _ -> None)
+        |> List.tryPick (fun wireId -> Map.tryFind wireId singlyConnectedWiresAndShifts)
+
+    singlyConnectedComponents
+    |> List.map (fun symbolId -> (symbolId, findShiftForSymbol symbolId))
+    |> List.choose (fun (symbolId, shiftOpt) ->
+        match shiftOpt with
+        | Some shift -> Some (symbolId, shift)
+        | None -> None)
+    |> Map.ofList
+    
 
 // Function to adjust the position of singly-connected components
-// let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
-//     // Find all singly connected components
-//     let singlyConnectedComponents = findSinglyConnectedComponents model
+let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
+    let alignmentString = findAlignment model
 
-//     // Define a function to determine the orientation of the parallel wire connecting to a component
-//     let wireOrientation (wId: ConnectionId) : string =
-//         // This involve looking at the wire's segments and determining if they are mostly horizontal or vertical
-//         // Return "Horizontal", "Vertical", or None if it cannot be determined
-//         let segments = visibleSegments wId model
-    
-//         // Sum up the number of the x and y components of the vectors
-//         let (sumX, sumY) =
-//             segments
-//             |> List.fold (fun (accX, accY) segment ->
-//                 // Increment the accumulator by segment's X if Y is zero, and vice versa
-//                 if segment.Y = 0.0 then (accX + 1, accY)
-//                 else (accX, accY + 1)
-//             ) (0, 0)
-    
-//         // Determine the orientation based on whether the sum of the absolute x or y components is greater
-//         if sumX > sumY then "Horizontal" else "Vertical"
+    // Convert map keys from string to ComponentId
+    let alignment = 
+        alignmentString
+        |> Map.toList
+        |> List.map (fun (keyStr, shift) -> (ComponentId keyStr, shift))
+        |> Map.ofList
 
-//     // Define a function to adjust the component's position based on the wire's orientation
-//     let adjustComponentPosition (model: SheetT.Model) (dx: float) (dy: float) : SheetT.Model =
-//         // Find singly connected component IDs
-//         let singlyConnectedComponentIds = findSinglyConnectedComponents model
+    // Function to adjust the position of a symbol based on the provided shift (XYPos)
+    let adjustSymbolPosition (symbol: Symbol) (shift: XYPos) : Symbol =
+        let newPos = { X = symbol.Pos.X + shift.X; Y = symbol.Pos.Y + shift.Y }
+        { symbol with Pos = newPos }
 
-//         // Map to update each symbol's position if it's in the list of singly connected component IDs
-//         let updatedSymbols = model.Wire.Symbol.Symbols |> Map.map (fun compId symbol ->
-//             if List.contains compId singlyConnectedComponentIds then
-//                 // If the symbol's component ID is in the list, adjust its position
-//                 let newPos = { symbol.Pos with X = symbol.Pos.X + dx; Y = symbol.Pos.Y + dy }
-//                 { symbol with Pos = newPos }
-//             else
-//                 // Otherwise, leave the symbol unchanged
-//                 symbol
-//         )
+    // Convert ComponentId to string for matching
+    let componentIdToString (ComponentId s) = s
 
-//         // Construct a new model with the updated symbols
-//         let updatedModel = {
-//             model with
-//             Wire = {
-//                 model.Wire with
-//                 Symbol = {
-//                     model.Wire.Symbol with
-//                     Symbols = updatedSymbols
-//                 }
-//             }
-//         }
+    // Adjust the positions of all singly-connected symbols
+    let adjustedSymbols =
+        model.Wire.Symbol.Symbols
+        |> Map.map (fun cid sym ->
+            let cidStr = componentIdToString cid
+            match Map.tryFind cid alignment with
+            | Some shift -> adjustSymbolPosition sym shift
+            | None -> sym)
 
-//         // Return the updated model
-//         updatedModel
+    // Return a new model with the adjusted symbols
+    { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = adjustedSymbols } } }
 
-//     // Iterate over each singly connected component, determine the wire's orientation, and adjust the component's position
-//     // singlyConnectedComponents |> List.iter (fun componentId ->
-//     //     match wireOrientation componentId with
-//     //     | Some(orientation) -> adjustComponentPosition componentId orientation
-//     //     | None -> () // Do nothing if the wire's orientation cannot be determined
-//     // )
 
-//     // Return the updated model with aligned components
-//     model
+    // { model with Wire = Symbol = { model.Wire.Symbol with Symbols = adjustedSymbols }}
+
+
 
     
 ///----------------------------------------processing-more-than-one-connections----------------------------------------///

@@ -324,6 +324,7 @@ module HLPTick3 =
 //--------------------------------------------------------------------------------------------------//
 
     open Builder
+    open SheetBeautifyD1
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
         fromList [100..20..100]
@@ -344,6 +345,15 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         // |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
+
+    let makeTest1CircuitBeautify (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) {X=2000.;Y=1500.}
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        // |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+        |> alignSinglyConnectedComponents
         
 
 
@@ -417,7 +427,8 @@ module HLPTick3 =
             Some <| $"Sample {sample}"
         
         let failOnAllTestsD1 (sample: int) (sheet: SheetT.Model) =
-            let singlyConnected = findSinglyConnectedWiresAndShifts sheet
+            // let singlyConnectedComponents = findSinglyConnectedComponents sheet
+            let singlyConnected = findAlignment sheet
             printfn "singly connected symbol, %A" singlyConnected
             Some <| $"Sample {sample}"
         
@@ -498,10 +509,10 @@ module HLPTick3 =
         /// test B function getter
         let test1 testNum firstSample dispatch =
             runTestOnSheets
-                "getter functions test"
+                "Beautify functions test"
                 firstSample
                 horizLinePositions
-                makeTest1Circuit
+                makeTest1CircuitBeautify
                 Asserts.failOnAllTestsBgetter
                 dispatch
             |> recordPositionInTest testNum dispatch

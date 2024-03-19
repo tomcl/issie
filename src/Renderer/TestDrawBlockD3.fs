@@ -173,8 +173,8 @@ let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
     |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
     |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
     |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
-    |> Result.bind (autoGenerateWireLabels)
     |> getOkOrFail
+    |> autoGenerateWireLabels
 
 let makeTest2Circuit (data: float*Rotation)=
     let rotation = snd data

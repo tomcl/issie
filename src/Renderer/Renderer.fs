@@ -135,6 +135,12 @@ let reRouteWires dispatch =
         |> Optic.map (sheet_ >->  SheetT.wire_) (BusWireSeparate.reRouteWiresFrom model.Sheet.SelectedComponents)
     )
 
+let convertWiresToLabels dispatch =
+    dispatch <| UpdateModel (fun model ->
+        model 
+        |> Optic.map (sheet_ ) (SheetBeautifyD3.autoGenerateWireLabels) 
+    )
+
 //-----------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------FILE MENU---------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------//
@@ -353,6 +359,7 @@ let editMenu dispatch' =
                menuSeparator
                makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
+               makeItem "Convert Wires into Wire Labels" None (fun _ -> convertWiresToLabels dispatch')
             |]
             |> ResizeArray
             |> U2.Case1

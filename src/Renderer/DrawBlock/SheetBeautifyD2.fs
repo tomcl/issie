@@ -47,20 +47,29 @@ let rerouteWire (symbolId: ComponentId) (model: SheetT.Model)  : SheetT.Model =
 
     updateWireModel
 
-/// Flips the specified component before rerouting connected wires
-let flipAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Model =
-    let compLabel =
-        match Map.tryFind compId model.Wire.Symbol.Symbols with
+/// Find a component label from its Id
+let findComponent (compId: ComponentId) (model: SheetT.Model) : string = 
+    match Map.tryFind compId model.Wire.Symbol.Symbols with
         | Some sym -> sym.Component.Label
         | None -> failwith "Component not found in model"
+
+/// Flips the specified component before rerouting connected wires
+let flipAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Model =
+    let compLabel = findComponent compId model
     
     printfn "Flipping component: %A" compId
-
-   
+    
     flipSymbol compLabel FlipVertical model 
     |> rerouteWire compId
+
+let rotateAndRerouteComp (model: SheetT.Model) (compId: ComponentId) (rotate: Rotation) : SheetT.Model = 
+    let compLabel = findComponent compId model
     
-    
+    printfn "Rotating component: %A"  compId
+
+    rotateSymbol compLabel rotate model
+    |> rerouteWire compId
+
 
 /// Find the better performing model based off total wire crossings and right angles
 let evaluateModels (flippedModel: SheetT.Model) (originalModel: SheetT.Model) : SheetT.Model = 
@@ -80,7 +89,6 @@ let evaluateModels (flippedModel: SheetT.Model) (originalModel: SheetT.Model) : 
             // printfn "Kept original model"
             // printfn "EvaluateModelCrossings complete................"
             originalModel
-            
         else
             // printfn "Changed to new model"
             // printfn "EvaluateModelCrossings complete................"
@@ -106,7 +114,7 @@ let findBestModel (model: SheetT.Model) : SheetT.Model =
     let compareModels (currentBestModel: SheetT.Model) flipCombination = 
         let flippedModel = 
             flipCombination |> List.fold (fun accModel compId ->
-                flipAndRerouteComp accModel compId 
+                rotateAndRerouteComp accModel compId Degree90
             ) currentBestModel
 
         evaluateModels flippedModel currentBestModel 

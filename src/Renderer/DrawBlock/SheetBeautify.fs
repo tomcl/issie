@@ -70,42 +70,46 @@ type modelScript = list<ComponentId * symbolScript>
 
 let rec combinations list =
     match list with
-    | [] -> [[]] // The only combination of an empty list is a list with an empty list
-    | head :: tail ->
-        let recSubsets = combinations tail
-        recSubsets @ (recSubsets |> List.map (fun subset -> head :: subset))
+    | [] -> [[]] // The only permutation of an empty list is a list containing an empty list
+    | _ -> 
+        list |> List.collect (fun head ->
+            let tail = list |> List.filter (fun x -> x <> head)
+            combinations tail |> List.map (fun perm -> head :: perm))
+
 
 let generateSymbolScript (symbol: SymbolT.Symbol) =
     let flips = [Some FlipHorizontal; Some FlipVertical; None]
     let reversedInputs = [true; false]
-    let portEdges = [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
-    
-    let portOrderCombs = 
-        portEdges
-        |> List.map (fun edge -> (edge, symbol.PortMaps.Order[edge]))
-        |> combinations
-    
-    let edgePermutations = 
-        symbol.PortMaps.Order
-        |> Map.map (fun _ orderList -> combinations orderList)
-    
-    let portOrderCombs2 = 
-        edgePermutations[Edge.Left] |> List.collect (fun leftConfig ->
-            edgePermutations[Edge.Right] |> List.collect (fun rightConfig ->
-                edgePermutations[Edge.Top] |> List.collect (fun topConfig ->
-                    edgePermutations[Edge.Bottom] |> List.map (fun bottomConfig ->
-                        Map.ofList [
-                            (Edge.Left, leftConfig);
-                            (Edge.Right, rightConfig);
-                            (Edge.Top, topConfig);
-                            (Edge.Bottom, bottomConfig)
-                        ]
+    // let portEdges = [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
+
+    let generatePortOrderCombs (symbol: SymbolT.Symbol) =
+        match symbol.Component.Type with
+        | Custom _ -> 
+            let edgePermutations = 
+                symbol.PortMaps.Order
+                |> Map.map (fun _ orderList -> combinations orderList)
+            
+            let portOrderCombs = 
+                edgePermutations[Edge.Left] |> List.collect (fun leftConfig ->
+                    edgePermutations[Edge.Right] |> List.collect (fun rightConfig ->
+                        edgePermutations[Edge.Top] |> List.collect (fun topConfig ->
+                            edgePermutations[Edge.Bottom] |> List.map (fun bottomConfig ->
+                                Map.ofList [
+                                    (Edge.Left, leftConfig);
+                                    (Edge.Right, rightConfig);
+                                    (Edge.Top, topConfig);
+                                    (Edge.Bottom, bottomConfig)
+                                ]
+                            )
+                        )
                     )
                 )
-            )
-        )
-    
+            portOrderCombs
+        
+        | _ ->
+            [symbol.PortMaps.Order]
 
+    let portOrderCombs = generatePortOrderCombs symbol
 
     let allCombs =
         List.collect (fun flipped ->
@@ -116,10 +120,9 @@ let generateSymbolScript (symbol: SymbolT.Symbol) =
                         ReversedInput = reversedInput
                         PortOrder = portOrder
                     }
-                ) portOrderCombs2
+                ) portOrderCombs
             ) reversedInputs
         ) flips
-    
     allCombs
 
 let generateModelScript (model: SheetT.Model): list<modelScript> =
@@ -153,33 +156,10 @@ let generateModelScript (model: SheetT.Model): list<modelScript> =
 
 
 
-
-
-// let getSymId (symLabel: string) (symModel: SymbolT.Model) =
-//     mapValues symModel.Symbols
-//     |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
-//     |> function | Some x -> x.Id | None -> failwith "Can't find symbol with label '{symPort.Label}'"
-
-
-// let flipSymbol (symId) (model: SheetT.Model): (SheetT.Model) =
-//     // let symId = getSymId symLabel model.Wire.Symbol
-//     let flipver (model: SheetT.Model) = 
-//         let flipSymbol' = SymbolResizeHelpers.flipSymbol SymbolT.FlipVertical
-//         let symModel: SymbolT.Model = 
-//             SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
-
-//         model
-//         |> Optic.set symbolModel_ symModel
-//         |> SheetUpdateHelpers.updateBoundingBoxes
-    
-//     model
-//     |> flipver
-            
-
 // update a symbol with a symbolScript
 let applyScriptToSymbol (script: symbolScript) =
     
-    let a_, updatePortOrder = reversedInputPorts_
+    let a_, updateMuxFlip = reversedInputPorts_
 
     let handleFlip (flip: SymbolT.FlipType option) =
 
@@ -199,19 +179,15 @@ let applyScriptToSymbol (script: symbolScript) =
         |> putPortOrder Edge.Top script.PortOrder.[Edge.Top]
         |> putPortOrder Edge.Bottom script.PortOrder.[Edge.Bottom]
 
-        // [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
-        // |> putPortOrder script.PortEdge script.PortOrder
-
     let handleMux2InputOrder = 
-        updatePortOrder (Some script.ReversedInput)
+        updateMuxFlip (Some script.ReversedInput)
 
     let updateSymbol (symbol: SymbolT.Symbol): SymbolT.Symbol = 
         symbol
         |> handleFlip script.Flipped
-        |> handlePortOrder
         |> handleMux2InputOrder
+        |> handlePortOrder
 
-        
     updateSymbol
 
 // TODO: Apply the script to each symbol

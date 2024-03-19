@@ -496,6 +496,49 @@ module HLPTick3 =
             
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
         let test3 testNum firstSample dispatch =
+
+            let mockSymbol =
+                Map.ofList [
+                    (Edge.Left, ["1"; "2"]);
+                    (Edge.Right, ["3"; "4"]);
+                    (Edge.Top, ["5"]);
+                    (Edge.Bottom, ["6"; "7"])
+                ]
+            
+
+            let generatePortOrderCombs (map: Map<Edge, string list>) =
+                let edgePermutations = 
+                    map
+                    |> Map.map (fun _ orderList -> combinations orderList)
+                
+                let portOrderCombs = 
+                    edgePermutations[Edge.Left] |> List.collect (fun leftConfig ->
+                        edgePermutations[Edge.Right] |> List.collect (fun rightConfig ->
+                            edgePermutations[Edge.Top] |> List.collect (fun topConfig ->
+                                edgePermutations[Edge.Bottom] |> List.map (fun bottomConfig ->
+                                    Map.ofList [
+                                        (Edge.Left, leftConfig);
+                                        (Edge.Right, rightConfig);
+                                        (Edge.Top, topConfig);
+                                        (Edge.Bottom, bottomConfig)
+                                    ]
+                                )
+                            )
+                        )
+                    )
+        
+                portOrderCombs
+            
+            let result = generatePortOrderCombs mockSymbol
+            result |>  List.iter (fun map ->
+                map |> Map.iter (fun key value ->
+                    printfn "%A: %A" key value
+                )
+                printfn "------" // Separator for clarity
+            )
+
+
+
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on symbols intersect"
                 firstSample

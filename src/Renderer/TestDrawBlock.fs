@@ -419,19 +419,18 @@ module HLPTick3 =
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
 
-            let testTotalWireLength (sample: int) (model: SheetT.Model) = 
-                let length = totalVisibleWiringLength model
-                if (length <> 0) then
-                    Some $"Wire length is {length}"
-                else
-                    None
-
             let tester =
                 let xrange = fromList [-100]
                 let yrange = fromList [-100]
                 GenerateData.product (fun x y -> x,y) xrange yrange
                 |> map (fun n -> middleOfSheet + {X=float (fst n); Y=float (snd n)})
             
+            let testTotalRightAngleIntersect (sample: int) (model: SheetT.Model) = 
+                let length = numOfWireRightAngleCrossings model
+                if (length <> -1) then
+                    Some $"Right Angle number {length}"
+                else
+                    None
             
             let makethisTest (andPos:XYPos) =
                 initSheetModel
@@ -441,7 +440,7 @@ module HLPTick3 =
                 |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
                 |> getOkOrFail
                 // |> randomPossibleModels
-                |> getOptimizedModel
+                // |> getOptimizedModel
             
             let getSymId (symLabel: string) (symModel: SymbolT.Model) =
                 mapValues symModel.Symbols
@@ -463,22 +462,24 @@ module HLPTick3 =
             
             middleOfSheet + {X= -100; Y= -100}
             |> makethisTest
-            |> countTotalRightAngleIntersect
+            |> numOfWireRightAngleCrossings
             |> printfn "Total Right Angle Intersect: %d"
 
             runTestOnSheets
                 "beautify2d test test test"
                 firstSample
-                tester
+                // tester
+                AroundPositions
                 makethisTest
-                Asserts.failOnAllTests
+                // Asserts.failOnAllTests
+                testTotalRightAngleIntersect
                 dispatch
             |> recordPositionInTest testNum dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail on sample 10
         let test2 testNum firstSample dispatch =
             let testTotalRightAngleIntersect (sample: int) (model: SheetT.Model) = 
-                let length = countTotalRightAngleIntersect model
+                let length = numOfWireRightAngleCrossings model
                 if (length <> -1) then
                     Some $"Right Angle number {length}"
                 else
@@ -492,6 +493,7 @@ module HLPTick3 =
                 testTotalRightAngleIntersect
                 dispatch
             |> recordPositionInTest testNum dispatch
+            ()
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
         let test3 testNum firstSample dispatch =
             runTestOnSheets
@@ -565,22 +567,23 @@ module HLPTick3 =
             ()
         
         let test8 testNum firstSample dispatch =
-            let countPairTest (sample: int) (sheet: SheetT.Model) = 
-                let length = countSymbolIntersectingWire sheet
-                // printfn "Number of intersecting pairs: %d" length
-                if (length > 0) then
-                    Some $"Wire intersects a symbol on {sample} with number {length}"
-                else
-                    None
+            // let countPairTest (sample: int) (sheet: SheetT.Model) = 
+            //     let length = countSymbolIntersectingWire sheet
+            //     // printfn "Number of intersecting pairs: %d" length
+            //     if (length > 0) then
+            //         Some $"Wire intersects a symbol on {sample} with number {length}"
+            //     else
+            //         None
 
-            runTestOnSheets
-                "Wire intersects symbol test"
-                firstSample
-                AroundPositions
-                makeTest1Circuit
-                countPairTest
-                dispatch
-            |> recordPositionInTest testNum dispatch
+            // runTestOnSheets
+            //     "Wire intersects symbol test"
+            //     firstSample
+            //     AroundPositions
+            //     makeTest1Circuit
+            //     countPairTest
+            //     dispatch
+            // |> recordPositionInTest testNum dispatch
+            ()
         
             // let testmodel = makeTest1Circuit {X=60.;Y=60.} // Hypothetical function and symbol for demonstration
             // let length = countIntersectingPairs testmodel

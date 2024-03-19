@@ -246,7 +246,7 @@ let applyScriptToModel (model: SheetT.Model) (modelScript: modelScript): SheetT.
 
 // Count the number of right angle intersections
 let evaluateModel (model: SheetT.Model) =
-    countTotalRightAngleIntersect model
+    numOfWireRightAngleCrossings model
 
 // Get optimized model
 let getOptimizedModel (model: SheetT.Model): SheetT.Model =

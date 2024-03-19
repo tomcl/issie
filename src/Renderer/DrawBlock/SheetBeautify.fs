@@ -58,10 +58,11 @@ module Constants =
 
 // script to describe a symbol
 type symbolScript = {
-    Flipped: bool
+    Flipped: SymbolT.FlipType option
     ReversedInput: bool
-    PortEdge: Edge
-    PortOrder: list<string>
+    PortOrder: Map<Edge, string list>
+    // PortEdge: Edge
+    // PortOrder: list<string>
 }
 
 // script to describe a model
@@ -75,26 +76,47 @@ let rec combinations list =
         recSubsets @ (recSubsets |> List.map (fun subset -> head :: subset))
 
 let generateSymbolScript (symbol: SymbolT.Symbol) =
-    let flips = [true; false]
+    let flips = [Some FlipHorizontal; Some FlipVertical; None]
     let reversedInputs = [true; false]
     let portEdges = [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
     
     let portOrderCombs = 
         portEdges
-        |> List.map (fun edge -> symbol.PortMaps.Order[edge])
+        |> List.map (fun edge -> (edge, symbol.PortMaps.Order[edge]))
         |> combinations
     
+    let edgePermutations = 
+        symbol.PortMaps.Order
+        |> Map.map (fun _ orderList -> combinations orderList)
+    
+    let portOrderCombs2 = 
+        edgePermutations[Edge.Left] |> List.collect (fun leftConfig ->
+            edgePermutations[Edge.Right] |> List.collect (fun rightConfig ->
+                edgePermutations[Edge.Top] |> List.collect (fun topConfig ->
+                    edgePermutations[Edge.Bottom] |> List.map (fun bottomConfig ->
+                        Map.ofList [
+                            (Edge.Left, leftConfig);
+                            (Edge.Right, rightConfig);
+                            (Edge.Top, topConfig);
+                            (Edge.Bottom, bottomConfig)
+                        ]
+                    )
+                )
+            )
+        )
+    
+
+
     let allCombs =
         List.collect (fun flipped ->
             List.collect (fun reversedInput ->
-                List.map (fun (portEdge, portOrder) ->
+                List.map (fun portOrder ->
                     {
                         Flipped = flipped
                         ReversedInput = reversedInput
-                        PortEdge = portEdge
-                        PortOrder = []
+                        PortOrder = portOrder
                     }
-                ) (List.zip portEdges portOrderCombs)
+                ) portOrderCombs2
             ) reversedInputs
         ) flips
     
@@ -165,14 +187,12 @@ let applyScriptToSymbol (script: symbolScript) =
     // // |> updateMux2InputOrder script.ReversedInput
     // |> updateFlip script.Flipped
 
-    let handleFlip (flip: SymbolT.FlipType option) (symbol: SymbolT.Symbol) =
-        // match flip with
-        // | true ->
-        //     symbol
-        //     |> SymbolResizeHelpers.flipSymbol SymbolT.FlipVertical
-        // | false -> symbol
-        // let flipSymbol' = 
-        
+    
+    let a_, updatePortOrder = reversedInputPorts_
+
+
+    let handleFlip (flip: SymbolT.FlipType option) =
+
         match flip with
         | Some SymbolT.FlipType.FlipHorizontal -> 
             SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
@@ -181,12 +201,26 @@ let applyScriptToSymbol (script: symbolScript) =
             >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
         | None -> id
     
+    
+    let handlePortOrder (symbol: SymbolT.Symbol): SymbolT.Symbol =
+        symbol
+        |> putPortOrder Edge.Left script.PortOrder.[Edge.Left]
+        |> putPortOrder Edge.Right script.PortOrder.[Edge.Right]
+        |> putPortOrder Edge.Top script.PortOrder.[Edge.Top]
+        |> putPortOrder Edge.Bottom script.PortOrder.[Edge.Bottom]
+
+        // [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
+        // |> putPortOrder script.PortEdge script.PortOrder
+
     let handleMux2InputOrder = 
-        ()
+        updatePortOrder (Some script.ReversedInput)
 
     let updateSymbol (symbol: SymbolT.Symbol): SymbolT.Symbol = 
         symbol
         |> handleFlip script.Flipped
+        // |> handlePortOrder
+        |> handleMux2InputOrder
+
         
     updateSymbol
 
@@ -241,19 +275,22 @@ let optimizeFlipForComponents (model: SheetT.Model): SheetT.Model =
 
 // test function
 
-// let printSymbolScript (script: symbolScript) =
-//     printfn "Flipped: %b" script.Flipped
-//     printfn "ReversedInput: %b" script.ReversedInput
-//     printfn "PortEdge: %A" script.PortEdge
-//     printfn "PortOrder: %A" script.PortOrder
-//     1
-
 let printSymbolScript (script: symbolScript) =
+    let flippedMessage = match script.Flipped with
+                         | Some flipType -> sprintf "Some(%A)" flipType
+                         | None -> "None"
+    let portOrderStr = 
+        script.PortOrder 
+        |> Map.toList 
+        |> List.map (fun (edge, orders) ->
+            sprintf "%A: [%s]" edge (String.concat "; " orders)) // Adjusted to use String.concat
+        |> String.concat ", "
     let message = 
-        sprintf "Flipped: %b, ReversedInput: %b, PortEdge: %A, PortOrder: %A." 
-            script.Flipped script.ReversedInput script.PortEdge script.PortOrder
+        sprintf "Flipped: %s, ReversedInput: %b, PortOrder: {%s}" 
+            flippedMessage script.ReversedInput portOrderStr
     printfn "%s" message
     1
+
 
 
 let printModelScript (script: modelScript) =

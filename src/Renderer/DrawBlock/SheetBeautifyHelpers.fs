@@ -104,40 +104,53 @@ let moveSymbolToPosition (symbol: SymbolT.Symbol) (newPos: XYPos): SymbolT.Symbo
 /// lens for getting and setting port order on a specified side of a symbol
 /// </summary>
 
-let getPortOrder (side: Edge) (symbol: SymbolT.Symbol) =
-    Map.tryFind side symbol.PortMaps.Order
+// let getPortOrder (side: Edge) (symbol: SymbolT.Symbol) =
+//     Map.tryFind side symbol.PortMaps.Order
 
-let setPortOrder (side: Edge) (newPortOrder: string list option) (symbol: SymbolT.Symbol) =
-    match newPortOrder with
-    | Some (newOrder: string list) ->
-        let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
-        { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
-    | None -> symbol
+// let setPortOrder (side: Edge) (newPortOrder: string list option) (symbol: SymbolT.Symbol) =
+//     match newPortOrder with
+//     | Some (newOrder: string list) ->
+//         let updatedPortOrder = Map.add side newOrder symbol.PortMaps.Order
+//         { symbol with PortMaps = { symbol.PortMaps with Order = updatedPortOrder } }
+//     | None -> symbol
 
-let symPortOrder_ side = Lens.create (getPortOrder side) (setPortOrder side)
+// let symPortOrder_ side = Lens.create (getPortOrder side) (setPortOrder side)
 
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-//-------------------------------------------------------------------------------------------------//
-// B4 The reverses state of the inputs of a MUX2 
+// //-------------------------------------------------------------------------------------------------//
+// //-------------------------------------------------------------------------------------------------//
+// //-------------------------------------------------------------------------------------------------//
+// // B4 The reverses state of the inputs of a MUX2 
 
-/// <summary>
-/// lens for getting and setting the reversed state of the inputs of a MUX2
-/// </summary>
+// /// <summary>
+// /// lens for getting and setting the reversed state of the inputs of a MUX2
+// /// </summary>
 
-let getreverseMux2Input (symbol: SymbolT.Symbol): bool = 
+// let getreverseMux2Input (symbol: SymbolT.Symbol): bool = 
         
-        let InputPort: option<bool> = symbol.ReversedInputPorts
+//         let InputPort: option<bool> = symbol.ReversedInputPorts
         
-        match InputPort with
-        | Some state -> state
-        | None -> false
+//         match InputPort with
+//         | Some state -> state
+//         | None -> false
         
-let setreverseMux2Input (newState: bool) (symbol: SymbolT.Symbol): SymbolT.Symbol =
+// let setreverseMux2Input (newState: bool) (symbol: SymbolT.Symbol): SymbolT.Symbol =
 
-    { symbol with ReversedInputPorts = Some newState }
+//     { symbol with ReversedInputPorts = Some newState }
 
-let reverseMux2Input_ = Lens.create getreverseMux2Input setreverseMux2Input        
+// let reverseMux2Input_ = Lens.create getreverseMux2Input setreverseMux2Input        
+
+
+// 
+let putPortOrder edge newList symbol =
+    symbol
+    |> Optic.map (portMaps_ >-> order_) (Map.add edge newList)
+
+//B4 RW
+/// A lens for accessing the reversed input ports state of a MUX2 from its symbol
+let reversedInputPorts_ =
+    Lens.create (fun (symbol: SymbolT.Symbol) -> symbol.ReversedInputPorts)
+                (fun newState (symbol: SymbolT.Symbol) -> {symbol with ReversedInputPorts = newState})
+
 
 
 //-------------------------------------------------------------------------------------------------//

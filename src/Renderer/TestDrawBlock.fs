@@ -94,6 +94,7 @@ module HLPTick3 =
     open GenerateData
     open TestLib
     open SheetBeautifyD2
+    open SheetBeautify
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -580,7 +581,7 @@ module HLPTick3 =
         |> Result.bind (placeSymbol "S1" (Input1(1,None)) {X = 1662.66; Y = 1841.49})
         |> Result.bind (MUX2Connection1)
         |> Result.bind (MUX2Connection2)
-        |> Result.bind (optimalEdgeOrder)
+        //|> Result.bind (optimalEdgeOrder)
         |> getOkOrFail
 
     let makeTest6Circuit (posRots:XYPos list * int list) =
@@ -614,7 +615,7 @@ module HLPTick3 =
         |> Result.bind (MUX2Connection2)
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
-        |> Result.bind (optimalEdgeOrder)
+        //|> Result.bind (optimalEdgeOrder)
         |> getOkOrFail
         |> alignSymbols
 

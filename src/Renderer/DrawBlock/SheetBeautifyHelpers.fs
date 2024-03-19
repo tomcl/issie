@@ -429,6 +429,49 @@ let countTotalRightAngleIntersect (model: SheetT.Model): int =
     |> countRightAngleIntersect
 
 
+// model answer
+// let visibleSegsWithVertices (wire:BusWireT.Wire) (model: SheetT.Model) =
+//         visibleSegments wire.WId model
+//         |> List.map (fun segV -> wire.StartPos, wire.StartPos + segV)
+
+// let distinctVisSegs (visSegs: (XYPos * XYPos) list) =
+//         /// convert float to integer buckt number
+//         let pixBucket (pixel:float) = int(pixel / Constants.bucketSpacing)
+
+//         /// convert XYPos to pair of bucket numbers
+//         let posBucket (pos:XYPos) = pixBucket pos.X, pixBucket pos.Y
+
+//         visSegs
+//         // first sort segments so longest (which we want to keep) are first
+//         |> List.sortByDescending (fun (startOfSeg, endOfSeg) -> euclideanDistance startOfSeg endOfSeg)
+//         // then discard duplicates (the later = shorter ones will be discarded)
+//         // Two segments are judged the same if X & y starting coordinates map to the same "buckets"
+//         // This will very rarely mean that very close but not identical position segments are viewed as different
+//         |> List.distinctBy (fun ((startOfSeg, _) as vSeg) -> posBucket startOfSeg, visSegOrientation vSeg)
+
+// let allWireNets (model: SheetT.Model) =
+//         model.Wire.Wires
+//         |> Map.values
+//         |> Array.toList
+//         |> List.groupBy (fun wire -> wire.OutputPort)
+
+// let getVisualSegsFromNetWires (isDistinct: bool) (model: SheetT.Model) netWires =
+//         netWires
+//         |> List.collect (fun wire -> visibleSegsWithVertices wire model)
+//         |> (if isDistinct then distinctVisSegs else id) // comment this to test the preision implementation
+//         //|> (if isDistinct then distinctVisSegsPrecision else id) // uncomment this to test the preision implementation
+
+// let numOfWireRightAngleCrossings (model: SheetT.Model)  =
+
+//     let nets = allWireNets model
+//     let distinctSegs =
+//         nets
+//         |> List.collect (fun (_, net) -> getVisualSegsFromNetWires true model net)
+//     List.allPairs distinctSegs distinctSegs
+//     |> List.filter (fun (seg1,seg2) -> seg1 > seg2 && isProperCrossing seg1 seg2)
+//     |> List.length
+
+
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------------------------------------------------------------------//

@@ -440,7 +440,8 @@ module HLPTick3 =
                 |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
                 |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
                 |> getOkOrFail
-                |> randomPossibleModels
+                // |> randomPossibleModels
+                |> getOptimizedModel
             
             let getSymId (symLabel: string) (symModel: SymbolT.Model) =
                 mapValues symModel.Symbols
@@ -453,13 +454,17 @@ module HLPTick3 =
                 model.Wire.Symbol.Symbols[symId]
                 
 
+            // middleOfSheet + {X= -100; Y= -100}
+            // |> makethisTest
+            // |> findSymByName "G1"
+            // |> generateSymbolScript
+            // |> List.map printSymbolScript
+            // |> ignore
+            
             middleOfSheet + {X= -100; Y= -100}
             |> makethisTest
-            |> findSymByName "G1"
-            |> generateSymbolScript
-            |> List.map printSymbolScript
-            |> ignore
-
+            |> countTotalRightAngleIntersect
+            |> printfn "Total Right Angle Intersect: %d"
 
             runTestOnSheets
                 "beautify2d test test test"

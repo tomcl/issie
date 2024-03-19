@@ -249,7 +249,7 @@ let evaluateModel (model: SheetT.Model) =
     countTotalRightAngleIntersect model
 
 // Get optimized model
-let optimizeFlipForComponents (model: SheetT.Model): SheetT.Model =
+let getOptimizedModel (model: SheetT.Model): SheetT.Model =
     // Convert symbol map to list
     let scripts = generateModelScript model
 

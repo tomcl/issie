@@ -24,6 +24,8 @@ open PopupHelpers
 open Optics.Optic
 open Optics.Operators
 open EEExtensions
+open SheetBeautifyD3
+open SheetBeautify
 
 module Constants =
     let memoryUpdateCheckTime = 300.
@@ -489,6 +491,12 @@ let processContextMenuClick
             else model
         model  
         |> withMsg (Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlC))
+
+    | DBComp sym, "Same-Name Wire Labels to Wires" -> 
+        model
+        |> map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
+        |> map sheet_ (selectedWireLabelsToWires [sym.Id] false)
+        |> withNoCmd
     
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
@@ -498,6 +506,12 @@ let processContextMenuClick
         |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
         |> withNoCmd
     
+    | DBWire (wire, aSeg), "Same-Net Wires to Wire Labels" ->
+        model
+        |> map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
+        |> map sheet_ (selectedWiresToWireLabels [wire.WId] false)
+        |> withNoCmd
+
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
         rotateDispatch Degree90
         model 
@@ -560,6 +574,12 @@ let processContextMenuClick
     | WaveSimHelp, feature ->
         UIPopups.viewWaveInfoPopup dispatch feature
         withNoCmd model
+
+    | DBCanvas _, "Beautify current sheet" ->
+        model
+        |> map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
+        |> map sheet_ sheetBeautify
+        |> withNoCmd
 
     | DBCanvas _, "Properties" ->
         model

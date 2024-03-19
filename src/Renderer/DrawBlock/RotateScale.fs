@@ -572,8 +572,12 @@ let rotateBlock (compIdList:ComponentId list) (model:SymbolT.Model) (rotation:Ro
     let selectedSymbols =
         compIdList 
         |> List.map (fun compId -> model.Symbols[compId])
+    let selectedSymbols =
+        compIdList 
+        |> List.map (fun compId -> model.Symbols[compId])
 
     //Get block properties of selected symbols
+    let block = getBlock selectedSymbols
     let block = getBlock selectedSymbols
 
     //Rotated symbols about the center
@@ -581,12 +585,18 @@ let rotateBlock (compIdList:ComponentId list) (model:SymbolT.Model) (rotation:Ro
         selectedSymbols
         |> List.map (fun sym -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) sym) 
         |> List.zip compIdList
+    let newSelectedSymbolsMap = 
+        selectedSymbols
+        |> List.map (fun sym -> rotateSymbolInBlock (invertRotation rotation) (block.Centre()) sym) 
+        |> List.zip compIdList
 
+    //Return updated model with block of rotated selected symbols
     //Return updated model with block of rotated selected symbols
     {model with Symbols = 
                 (model.Symbols, newSelectedSymbolsMap)
                 ||> List.fold (fun prevMap (compId,sym) -> Map.add compId sym prevMap)
     }
+
 
 //*dy321: add a helper function to be used in oneCompBoundsBothEdges and getScalingFactorAndOffsetCentreGroup.
 /// Return the requested symbol boundary (4 cases: left-x, right-x, top-y, bottom-y)
@@ -683,12 +693,12 @@ let getScalingFactorAndOffsetCentreGroup
 
 /// Alter position of one symbol as needed in a scaling operation
 let scaleSymbol
-        (xYSC: (float * float) * (float * float))
+        (xYScaleOffset: (float * float) * (float * float))
         (sym: Symbol)
         : Symbol = 
     let symCentre = sym |> getRotatedSymbolCentre    // improved readability
     let translateFunc scaleFact offsetC coordinate = (coordinate - offsetC) * scaleFact + offsetC
-    let xSC, ySC = xYSC
+    let xSC, ySC = xYScaleOffset
     let newX = symCentre.X |> translateFunc (fst xSC) (snd xSC)
     let newY = symCentre.Y |> translateFunc (fst ySC) (snd ySC)
 
@@ -698,6 +708,11 @@ let scaleSymbol
     let newComp = {sym.Component with X = newTopLeftPos.X;  Y = newTopLeftPos.Y}
 
     {sym with Pos = newTopLeftPos; Component = newComp; LabelHasDefaultPos = true}
+
+
+//------------------------------------------------------------------------------------------------------------------------------
+//                                      Code Improvement by dy321 Ends
+//------------------------------------------------------------------------------------------------------------------------------
 
 /// Part of the rotate and scale code       
 let groupNewSelectedSymsModel

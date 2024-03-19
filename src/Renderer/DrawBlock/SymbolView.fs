@@ -11,6 +11,7 @@ open DrawModelType.SymbolT
 open SymbolHelpers
 open Symbol
 open Browser.Types
+open BlockHelpers
 
 // // HLP23 AUTHOR: BRYAN TAN
 // open SmartHelpers
@@ -48,6 +49,34 @@ let addText (pos: XYPos) name alignment weight size =
 /// Text adding function using text record
 let addStyledText (pos: XYPos) text name =
     makeText pos.X pos.Y name text
+
+
+let moveLegendToNonOverlap (pos: XYPos) (legendBoundingBox: BoundingBox) (sym: Symbol) = 
+    let compBoundingBox = sym.SymbolBoundingBox
+    let overlap = overlap2DBox compBoundingBox legendBoundingBox
+    match overlap with
+    | false -> pos
+    | true -> 
+        // printf $"adjusting postion of the legend of {sym.Component.Label} at {pos}"   // debug
+        let moveOffset = 
+            match sym.STransform.Rotation with
+            | Degree0 | Degree180 -> // symbol is horizontally placed
+                let xOffset = 
+                    match compBoundingBox.Centre(),legendBoundingBox.Centre() with
+                    | cA,cT when cA.X<cT.X ->  // symbol centre is on the left of bit legend centre
+                        compBoundingBox.RightEdge()-legendBoundingBox.TopLeft.X    // move bit legend to the right
+                    | _ ->                                    // symbol centre is on the right of bit legend centre
+                        compBoundingBox.TopLeft.X-legendBoundingBox.RightEdge()    // move bit legend to the left
+                {X=xOffset;Y=2.}
+            | Degree90 | Degree270 -> // symbol is vertically placed
+                let yOffset = 
+                    match compBoundingBox.Centre(),legendBoundingBox.Centre() with
+                    | cA,cT when cA.Y<cT.Y -> // symbol centre is above bit legend centre
+                        compBoundingBox.BottomEdge()-legendBoundingBox.TopLeft.Y    // move bit legend downwards
+                    | _ ->                                    // symbol centre is below bit legend centre
+                        compBoundingBox.TopLeft.Y-legendBoundingBox.BottomEdge()-legendBoundingBox.H    // move bit legend upwards
+                {X=(-legendBoundingBox.W/2.);Y=yOffset}
+        pos + moveOffset
 
 
 /// Add one or two lines of text, two lines are marked by a . delimiter
@@ -238,7 +267,9 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         
         addText pos text "middle" "bold" Constants.mergeSplitTextSize
 
-    let mergeSplitNLine (compType: ComponentType)(portType: PortType) pos msb lsb =
+    let mergeSplitNLine (sym: Symbol)(portType: PortType) pos msb lsb =
+        let compType = sym.Component.Type
+        // printfn $"{sym.Pos}"
         let text = 
             match msb = lsb, msb >= lsb with
             | _, false -> ""
@@ -256,18 +287,23 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
 
         let textStyle =
             {defaultText with TextAnchor = "middle"; FontWeight = "bold"; FontSize = Constants.mergeSplitTextSize}
-        let posNew = 
-            match compType with
-            | MergeN _ -> 
-                match portType with 
-                | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -4.}
-                | PortType.Output -> pos + {X = (textMeasureWidth textStyle text)/2.; Y = 4.}
-            | SplitN _ -> 
-                match portType with 
-                | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -4.}
-                | PortType.Output -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = 5.}
-            | _ -> pos
-        
+        // let posNew = 
+        //     match compType with
+        //     | MergeN _ -> 
+        //         match portType with 
+        //         | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -4.}
+        //         | PortType.Output -> pos + {X = (textMeasureWidth textStyle text)/2.; Y = 4.}
+        //     | SplitN _ -> 
+        //         match portType with 
+        //         | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -4.}
+        //         | PortType.Output -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = 5.}
+        //     | _ -> pos
+        let legendH = 10.   // Constants.mergeSplitTextSize
+        let legendW = textMeasureWidth textStyle text
+        let legendTopLeft = pos-{X=legendW/2.;Y=legendH/2.}
+        let legendBoundingBox = {TopLeft = sym.Pos+legendTopLeft; H = legendH; W = legendW}
+        let posNew = moveLegendToNonOverlap pos legendBoundingBox sym
+
         addText posNew text "middle" "bold" Constants.mergeSplitTextSize
 
     let busSelectLine msb lsb  =
@@ -415,9 +451,9 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                         List.rev ranges
                     let valuesOutput = [(fst (List.last valuesInput),0)]
                     let inputEls = List.fold2 (fun og pos value -> 
-                        og @ mergeSplitNLine comp.Type PortType.Input pos (fst value) (snd value)) [] (Array.toList inputTextPoints) valuesInput
+                        og @ mergeSplitNLine symbol PortType.Input pos (fst value) (snd value)) [] (Array.toList inputTextPoints) valuesInput
                     let outputEls = List.fold2 (fun og pos value -> 
-                        og @ mergeSplitNLine comp.Type PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints) valuesOutput
+                        og @ mergeSplitNLine symbol PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints) valuesOutput
                     inputEls @ outputEls
                 | true -> []
             | None -> []
@@ -455,9 +491,9 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 List.fold2 (fun acc lsb msb -> 
                     List.append acc [(msb, lsb)]) [] lsbs msbs
             let inputEls = List.fold2 (fun og pos value -> 
-                        og @ mergeSplitNLine comp.Type PortType.Input pos (fst value) (snd value)) [] (Array.toList inputTextPoints) [inputValue]
+                        og @ mergeSplitNLine symbol PortType.Input pos (fst value) (snd value)) [] (Array.toList inputTextPoints) [inputValue]
             let outputEls = List.fold2 (fun og pos value -> 
-                        og @ mergeSplitNLine comp.Type PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints)outputValues
+                        og @ mergeSplitNLine symbol PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints)outputValues
             outputEls @ inputEls
             
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 

@@ -22,6 +22,8 @@ open Optics
 open Optics.Operators
 open TestParser
 open ContextMenus
+open SheetBeautifyD3
+open SheetBeautify
 
 importSideEffects "./scss/main.css"
 
@@ -133,6 +135,27 @@ let reRouteWires dispatch =
     dispatch <| UpdateModel (fun model ->
         model
         |> Optic.map (sheet_ >->  SheetT.wire_) (BusWireSeparate.reRouteWiresFrom model.Sheet.SelectedComponents)
+    )
+
+let selWiresToWireLabels dispatch = 
+    dispatch <| UpdateModel (fun model ->
+        model
+        |> Optic.map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
+        |> Optic.map sheet_ (selectedWiresToWireLabels model.Sheet.SelectedWires false)
+    )
+
+let selWireLabelsToWires dispatch = 
+    dispatch <| UpdateModel (fun model ->
+        model
+        |> Optic.map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
+        |> Optic.map sheet_ (selectedWireLabelsToWires model.Sheet.SelectedComponents false)
+    )
+
+let applySheetBeautify dispatch = 
+    dispatch <| UpdateModel (fun model ->
+        model
+        |> Optic.map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
+        |> Optic.map sheet_ sheetBeautify
     )
 
 //-----------------------------------------------------------------------------------------------------------//
@@ -319,6 +342,9 @@ let editMenu dispatch' =
                menuSeparator
                makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
+               makeItem "Replace Selected Wire Nets by Wire Labels" None  (fun _ -> selWiresToWireLabels dispatch')
+               makeItem "Replace Selected Wire Label Sets by Wires" None  (fun _ -> selWireLabelsToWires dispatch')
+               makeItem "Beautify Current Sheet" None  (fun _ -> applySheetBeautify dispatch')
             |]
             |> ResizeArray
             |> U2.Case1

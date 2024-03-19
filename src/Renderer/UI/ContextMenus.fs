@@ -24,9 +24,9 @@ let contextMenus = [
         "SheetMenuBreadcrumb", ["Rename"; "Delete"]
         "CustomComponent", ["Go to sheet" ; "Properties"]
         "ScalingBox", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)"; "Delete Box (DEL)"; "Copy Box (Ctrl+C)"; "Move Box (Drag any component)"]
-        "Component", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Properties"]
-        "Canvas", ["Zoom-in (Alt+Up) and centre" ; "Zoom-out (Alt+Down)" ; "Fit to window (Ctrl+W)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
-        "Wire", ["Unfix Wire"]
+        "Component", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Same-Name Wire Labels to Wires"; "Properties"]
+        "Canvas", ["Zoom-in (Alt+Up) and centre" ; "Zoom-out (Alt+Down)" ; "Fit to window (Ctrl+W)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Beautify current sheet"; "Properties"]
+        "Wire", ["Unfix Wire"; "Same-Net Wires to Wire Labels"]
         "WaveSimHelp", ["Waveform and RAM selection"; "Waveform Operations"; "Miscellaneous"]
         "", [] // Empty string for no context menu.
     ]

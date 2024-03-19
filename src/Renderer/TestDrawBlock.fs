@@ -338,21 +338,58 @@ module HLPTick3 =
         fromList positions
 
     /// demo test circuit consisting of a DFF & And gate
-    let makeTest1Circuit (andPos:XYPos) =
+    let makeTest1Circuit (muxPos:XYPos) =       
+        let muxPos2 ={X = muxPos.X + 150.0; Y = muxPos.Y + 28.0}
+        let s1Pos = {X = muxPos.X - 50.0; Y = muxPos.Y + 150.0}  
+        let s2Pos = {X = muxPos.X - 100.0; Y = muxPos.Y + 110.0}
+        let APos ={X = muxPos.X - 150.0; Y = muxPos.Y - 280.0} 
+        let BPos ={X = muxPos.X - 150.0; Y = muxPos.Y + 280.0} 
+        let CPos = { X = muxPos2.X + 150.0; Y = muxPos2.Y + 0.0}
+
         initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) {X=2000.;Y=1500.}
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        // |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        // Place a MUX on the sheet at the specified position.
+        |> placeSymbol "MUX1" Mux2 muxPos
+        |> Result.bind (placeSymbol "MUX2" Mux2 muxPos2) 
+        |> Result.bind (placeSymbol "InputA" (GateN(And, 1)) APos) // S1 can be any type of component
+        |> Result.bind (placeSymbol "InputB" (GateN(And, 1)) BPos) // S1 can be any type of component
+        |> Result.bind (placeSymbol "S1" (GateN(And, 1)) s1Pos) 
+        |> Result.bind (placeSymbol "S2" (GateN(And, 1)) s2Pos) 
+        |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
         |> getOkOrFail
 
-    let makeTest1CircuitBeautify (andPos:XYPos) =
+    let makeTest1CircuitBeautify (muxPos:XYPos) =
+        let muxPos2 ={X = muxPos.X + 150.0; Y = muxPos.Y + 28.0}
+        let s1Pos = {X = muxPos.X - 50.0; Y = muxPos.Y + 150.0}  
+        let s2Pos = {X = muxPos.X - 100.0; Y = muxPos.Y + 110.0}
+        let APos ={X = muxPos.X - 150.0; Y = muxPos.Y - 280.0} 
+        let BPos ={X = muxPos.X - 150.0; Y = muxPos.Y + 280.0} 
+        let CPos = { X = muxPos2.X + 150.0; Y = muxPos2.Y + 0.0}
+
         initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) {X=2000.;Y=1500.}
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        // |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        // Place a MUX on the sheet at the specified position.
+        |> placeSymbol "MUX1" Mux2 muxPos
+        |> Result.bind (placeSymbol "MUX2" Mux2 muxPos2) 
+        |> Result.bind (placeSymbol "InputA" (GateN(And, 1)) APos) // S1 can be any type of component
+        |> Result.bind (placeSymbol "InputB" (GateN(And, 1)) BPos) // S1 can be any type of component
+        |> Result.bind (placeSymbol "S1" (GateN(And, 1)) s1Pos) 
+        |> Result.bind (placeSymbol "S2" (GateN(And, 1)) s2Pos) 
+        |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
         |> getOkOrFail
+        |> alignSinglyConnectedComponents
         |> alignSinglyConnectedComponents
         
 
@@ -428,7 +465,7 @@ module HLPTick3 =
         
         let failOnAllTestsD1 (sample: int) (sheet: SheetT.Model) =
             // let singlyConnectedComponents = findSinglyConnectedComponents sheet
-            let singlyConnected = findSinglyConnectedWiresAndShifts sheet
+            let singlyConnected = findAlignment sheet
             printfn "singly connected symbol, %A" singlyConnected
             Some <| $"Sample {sample}"
         

@@ -75,6 +75,7 @@ let XYPosToRadians (xyPos: XYPos) : double =
     let angleFromHorizontal = atan2 (abs xyPos.Y) (abs xyPos.X)
     let angleFromVertical = (Pi/2.0 - angleFromHorizontal)
 
+    (*
     let bearingFromNorth = match xyPos.X, xyPos.Y with
                            | x, y when x >= 0.0 && y <= 0.0 -> angleFromVertical // Quadrant 1
                            | x, y when x >= 0.0 && y >= 0.0 -> angleFromHorizontal + Pi/2.0 // Quadrant 2
@@ -83,6 +84,13 @@ let XYPosToRadians (xyPos: XYPos) : double =
                            | _ -> 0.0 // Should never happen
     let bearingFromTopLeft = (bearingFromNorth + Pi/4.0) % (2.0 * Pi)
     bearingFromTopLeft
+    *)
+    match xyPos.X, xyPos.Y with
+    | x, y when x >= 0.0 && y <= 0.0 -> angleFromVertical // Quadrant 1
+    | x, y when x >= 0.0 && y >= 0.0 -> angleFromHorizontal + Pi/2.0 // Quadrant 2
+    | x, y when x <= 0.0 && y >= 0.0 -> angleFromVertical + Pi // Quadrant 3
+    | x, y when x <= 0.0 && y <= 0.0 -> angleFromHorizontal + Pi*3.0/2.0 // Quadrant 4
+    | _ -> 0.0 // Should never happen
 
  // Get all MUX Components on sheet to for the flipping to reducing wire bends
 let getAllCusComponents (model: SheetT.Model) : Symbol list =
@@ -106,12 +114,9 @@ let getAllMuxComponents (model: SheetT.Model) : Symbol list =
 // Top, Right, Bottom, Left (in that order).
 let applyPorts ((order, orient, sortedPorts): Map<Edge, list<string>> * Map<string, Edge> * list<string>) ((edge, amount): Edge * int) =
     let head, tail = List.splitAt amount sortedPorts
-    let newHead = match edge with
-                    | Left | Bottom -> List.rev head
-                    | Top | Right -> head
 
-    let newOrder = order |> Map.add edge newHead
-    let newOrient = (orient, newHead) ||> List.fold (fun orient portId -> Map.add portId edge orient)
+    let newOrder = order |> Map.add edge (List.rev head)
+    let newOrient = (orient, (List.rev head)) ||> List.fold (fun orient portId -> Map.add portId edge orient)
     newOrder, newOrient, tail
 
 // Returns you all ports of a symbol as a string list
@@ -127,51 +132,20 @@ let flipPerpindicular (sym: Symbol) : Symbol =
     | Degree0 | Degree180 -> SymbolResizeHelpers.flipSymbol FlipVertical sym // Facing horizontally
     | Degree90 | Degree270 -> SymbolResizeHelpers.flipSymbol FlipHorizontal sym // Facing vertically
 
+let test (topAmount: int) (lst: string list) : string list =
+    let head, tail = List.splitAt (lst.Length - topAmount/2) lst
+    tail @ head
+
 //--------------------------------------------------------------------------------------//
 //                                     D2 Function                                      //
 //--------------------------------------------------------------------------------------//
 
-let rotationallySortCustomSymPorts (model: SheetT.Model) (sym: Symbol) : SheetT.Model =
-
-    let allPorts = allPorts sym
-
-    let connPortDistances = model 
-                            |> getAllWires // Get all Wires on the sheet
-                            |> List.choose (getSymOppPortDistances sym model.Wire) // (sym's portId, XY distance to other port)
-                            |> List.groupBy (fun (portId, _) -> portId) // Group wires that have same source port
-                            |> List.map (fun (portId, lst) -> portId, averageXYPos lst) // Average the XY distance for grouped Wires
-
-    let notConnPortDistances = 
-        let connPorts = connPortDistances |> List.map fst
-        allPorts
-        |> List.filter (fun portId -> not (List.contains portId connPorts ) ) // If portId does not exist in the connected ports
-        |> List.map (fun portId -> portId, distFromSymCentreToPort portId model sym) // Likewise, get distance to non-connected port
-    
-    let sortedPorts = (connPortDistances @ notConnPortDistances)
-                      |> List.map (fun (portId, xyPos) -> portId, XYPosToRadians xyPos) // Convert XY distance to radians from north
-                      |> List.sortBy (fun (_, angle) -> angle) // Sort by Angle
-                      |> List.map fst // List of sorted ports from Top, Right, Bottom, Left
-
-    let portAmount = getSymEdgePortAmount sym // Amount of ports on edges Top, Right, Bottom, Left of a symbol, in order
-    let newOrder, newOrient, _ = List.fold applyPorts (Map.empty, Map.empty, sortedPorts) portAmount // Create new PortMap with new sortedPorts
-    let newSym = { sym with PortMaps = { Order = newOrder; Orientation = newOrient } } // replace sym with new PortMap
-
-    // Replace Symbol Model/sheet with newSym
-    let newSymModel = SymbolUpdate.replaceSymbol model.Wire.Symbol newSym sym.Id
-
-    // Set the Symbol Model into SheetModel, then reroute all the wires of flippedSym
-    rerouteSymbolWires (Optic.set symbolModel_ newSymModel model) newSym // Set the Symbol Model into SheetModel
-
-
-// Fold Function: Test the flip of sym to see if visible bends/crossings have decreased, if so return that model.
-let testSymbolFlip ((currBends, currCross, currModel): int * int * SheetT.Model) (sym: Symbol) : int * int * SheetT.Model = 
-    let flippedSym = (flipPerpindicular sym) // Flip the Symbol
-
+let testNewSym (newSym: Symbol) (currSym: Symbol) (currModel: SheetT.Model) (currBends: int) (currCross: int) = 
     // Replace Symbol Model/sheet with the flipped symbol (flippedSym)
-    let newSymModel = SymbolUpdate.replaceSymbol currModel.Wire.Symbol flippedSym sym.Id 
-
-    // Set the Symbol Model into SheetModel, then reroute all the wires of flippedSym
-    let newModel = rerouteSymbolWires (Optic.set symbolModel_ newSymModel currModel) flippedSym
+    let newSymModel = SymbolUpdate.replaceSymbol currModel.Wire.Symbol newSym currSym.Id 
+    
+    // Set the Symbol Model into SheetModel, then reroute all the wires of newSym
+    let newModel = rerouteSymbolWires (Optic.set symbolModel_ newSymModel currModel) newSym
 
     let newBends = countVisibleBends newModel // Test the new model/sheet by counting Visible Bends
     let newCross = countVisibleSegsPerpendicularCrossings newModel // Test the new model/sheet by counting Visible Crossings
@@ -179,6 +153,44 @@ let testSymbolFlip ((currBends, currCross, currModel): int * int * SheetT.Model)
     match newBends <= currBends, newCross < currCross with
     | true, true -> (newBends, newCross, newModel)
     | _, _ -> (currBends, currCross, currModel)
+
+
+
+let rotationallySortCustomSymPorts ((currBends, currCross, currModel): int * int * SheetT.Model) (sym: Symbol) : int * int * SheetT.Model =
+
+    let allPorts = allPorts sym
+
+    let connPortDistances = currModel 
+                            |> getAllWires // Get all Wires on the sheet
+                            |> List.choose (getSymOppPortDistances sym currModel.Wire) // (sym's portId, XY distance to other port)
+                            |> List.groupBy (fun (portId, _) -> portId) // Group wires that have same source port
+                            |> List.map (fun (portId, lst) -> portId, averageXYPos lst) // Average the XY distance for grouped Wires
+
+    let notConnPortDistances = 
+        let connPorts = connPortDistances |> List.map fst
+        allPorts
+        |> List.filter (fun portId -> not (List.contains portId connPorts ) ) // If portId does not exist in the connected ports
+        |> List.map (fun portId -> portId, distFromSymCentreToPort portId currModel sym) // Likewise, get distance to non-connected port
+    
+    let sortedPorts = (connPortDistances @ notConnPortDistances)
+                      |> List.map (fun (portId, xyPos) -> portId, XYPosToRadians xyPos) // Convert XY distance to radians from north
+                      |> List.sortBy (fun (_, angle) -> angle) // Sort by Angle
+                      |> List.map fst // List of sorted ports from Top, Right, Bottom, Left
+                      |> test sym.PortMaps.Order[Top].Length
+
+    let portAmount = getSymEdgePortAmount sym // Amount of ports on edges Top, Right, Bottom, Left of a symbol, in order
+    let newOrder, newOrient, _ = List.fold applyPorts (Map.empty, Map.empty, sortedPorts) portAmount // Create new PortMap with new sortedPorts
+    let newSym = { sym with PortMaps = { Order = newOrder; Orientation = newOrient } } // replace sym with new PortMap
+
+    testNewSym newSym sym currModel currBends currCross
+
+
+
+// Fold Function: Test the flip of sym to see if visible bends/crossings have decreased, if so return that model.
+let testSymbolFlip ((currBends, currCross, currModel): int * int * SheetT.Model) (sym: Symbol) : int * int * SheetT.Model = 
+    let flippedSym = (flipPerpindicular sym) // Flip the Symbol
+    testNewSym flippedSym sym currModel currBends currCross
+
 
 
 // Main Function Call for the D2 Deliverable. 
@@ -189,12 +201,12 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
     let muxSyms, cusSyms = getAllMuxComponents model, getAllCusComponents model
 
     // First rotationally sort the ports of all the custom components
-    let cusRotatedModel = List.fold rotationallySortCustomSymPorts model cusSyms
+    let currBends = countVisibleBends model
+    let currCross = countVisibleSegsPerpendicularCrossings model
+    let (newBends, newCross, cusRotatedModel) = List.fold rotationallySortCustomSymPorts (currBends, currCross, model) [cusSyms[0]]
 
     // Try different permutations of flips/rotations on Muxes
-    let currBends = countVisibleBends cusRotatedModel
-    let currCross = countVisibleSegsPerpendicularCrossings cusRotatedModel
-    let (_, _, optimModel) = List.fold testSymbolFlip (currBends, currCross, cusRotatedModel) muxSyms
+    let (_, _, optimModel) = List.fold testSymbolFlip (newBends, newCross, cusRotatedModel) muxSyms
 
     // Return the optimal model
     optimModel

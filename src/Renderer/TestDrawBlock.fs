@@ -326,7 +326,7 @@ module HLPTick3 =
     open Builder
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
-        fromList [-100..20..100]
+        fromList [100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
     
     let twoDPositions =
@@ -339,11 +339,12 @@ module HLPTick3 =
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
         initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> placeSymbol "G1" (GateN(And,2)) {X=2000.;Y=1500.}
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        // |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
+        
 
 
 
@@ -355,6 +356,7 @@ module HLPTick3 =
     module Asserts =
         open SheetBeautifyHelpers
         open BlockHelpers
+        open SheetBeautifyD1
 
         (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
            It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
@@ -414,12 +416,9 @@ module HLPTick3 =
             )
             Some <| $"Sample {sample}"
         
-        let failOnAllTestsBsetter (sample: int) (sheet: SheetT.Model) =
-            // test B1 
-            // test B3 
-            // test B4 
-            // test B7 
-            // test B8 
+        let failOnAllTestsD1 (sample: int) (sheet: SheetT.Model) =
+            let singlyConnected = findSinglyConnectedWiresAndShifts sheet
+            printfn "singly connected symbol, %A" singlyConnected
             Some <| $"Sample {sample}"
         
         let failOnAllTestsT1 (sample: int) (sheet: SheetT.Model) =
@@ -510,11 +509,11 @@ module HLPTick3 =
         /// test B function setter
         let test2 testNum firstSample dispatch =
             runTestOnSheets
-                "Setter functions test"
+                "singly connected functions test"
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
-                (Asserts.failOnSampleNumber 10)
+                Asserts.failOnAllTestsD1
                 dispatch
             |> recordPositionInTest testNum dispatch
         

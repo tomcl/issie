@@ -418,6 +418,7 @@ module HLPTick3 =
             
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
+
             let testTotalWireLength (sample: int) (model: SheetT.Model) = 
                 let length = totalVisibleWiringLength model
                 if (length <> 0) then
@@ -431,6 +432,7 @@ module HLPTick3 =
                 GenerateData.product (fun x y -> x,y) xrange yrange
                 |> map (fun n -> middleOfSheet + {X=float (fst n); Y=float (snd n)})
             
+            
             let makethisTest (andPos:XYPos) =
                 initSheetModel
                 |> placeSymbol "G1" (GateN(And,2)) andPos
@@ -439,12 +441,26 @@ module HLPTick3 =
                 |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
                 |> getOkOrFail
                 |> randomPossibleModels
+            
+            let getSymId (symLabel: string) (symModel: SymbolT.Model) =
+                mapValues symModel.Symbols
+                |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+                |> function | Some x -> x.Id | None -> failwith "Can't find symbol with label '{symPort.Label}'"
 
-            let display sheet = 
-                showSheetInIssieSchematic sheet dispatch
-            
-            
-            
+            let findSymByName (symLabel: string) (model: SheetT.Model) =
+                let symId = getSymId symLabel model.Wire.Symbol
+
+                model.Wire.Symbol.Symbols[symId]
+                
+
+            middleOfSheet + {X= -100; Y= -100}
+            |> makethisTest
+            |> findSymByName "G1"
+            |> generateSymbolScript
+            |> List.map printSymbolScript
+            |> ignore
+
+
             runTestOnSheets
                 "beautify2d test test test"
                 firstSample

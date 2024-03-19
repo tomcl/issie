@@ -26,6 +26,22 @@ open DrawModelType.SheetT
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open Optics
+open EEExtensions
+open Optics
+open Optics.Operators
+open DrawHelpers
+open Helpers
+open CommonTypes
+open ModelType
+open DrawModelType
+open Sheet.SheetInterface
+
+let symbolModel_ = SheetT.symbol_
+
+let inline mapValues (map:Map<'a,'b>) = map |> Map.toArray |> Array.map snd 
+
+let caseInvariantEqual str1 str2 =
+    String.toUpper str1 = String.toUpper str2
 
 /// constants used by SheetBeautify
 module Constants =
@@ -115,16 +131,64 @@ let generateModelScript (model: SheetT.Model): list<modelScript> =
 
 
 
-// update a symbol with a symbolScript
-let applyScriptToSymbol (script: symbolScript) (symbol: SymbolT.Symbol) =
-    let _, updatePortOrder = symPortOrder_ script.PortEdge
-    let _, updateMux2InputOrder = reverseMux2Input_
-    let _, updateFlip = symbolFlipped_
 
-    symbol
-    |> updatePortOrder (Some script.PortOrder) 
-    |> updateMux2InputOrder script.ReversedInput
-    |> updateFlip script.Flipped
+
+// let getSymId (symLabel: string) (symModel: SymbolT.Model) =
+//     mapValues symModel.Symbols
+//     |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+//     |> function | Some x -> x.Id | None -> failwith "Can't find symbol with label '{symPort.Label}'"
+
+
+// let flipSymbol (symId) (model: SheetT.Model): (SheetT.Model) =
+//     // let symId = getSymId symLabel model.Wire.Symbol
+//     let flipver (model: SheetT.Model) = 
+//         let flipSymbol' = SymbolResizeHelpers.flipSymbol SymbolT.FlipVertical
+//         let symModel: SymbolT.Model = 
+//             SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
+
+//         model
+//         |> Optic.set symbolModel_ symModel
+//         |> SheetUpdateHelpers.updateBoundingBoxes
+    
+//     model
+//     |> flipver
+            
+
+// update a symbol with a symbolScript
+let applyScriptToSymbol (script: symbolScript) =
+    // let _, updatePortOrder = symPortOrder_ script.PortEdge
+    // let _, updateMux2InputOrder = reverseMux2Input_
+    // let _, updateFlip = symbolFlipped_
+
+    // symbol
+    // // |> updatePortOrder (Some script.PortOrder) 
+    // // |> updateMux2InputOrder script.ReversedInput
+    // |> updateFlip script.Flipped
+
+    let handleFlip (flip: SymbolT.FlipType option) (symbol: SymbolT.Symbol) =
+        // match flip with
+        // | true ->
+        //     symbol
+        //     |> SymbolResizeHelpers.flipSymbol SymbolT.FlipVertical
+        // | false -> symbol
+        // let flipSymbol' = 
+        
+        match flip with
+        | Some SymbolT.FlipType.FlipHorizontal -> 
+            SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
+        | Some SymbolT.FlipType.FlipVertical ->
+            SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal 
+            >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
+        | None -> id
+    
+    let handleMux2InputOrder = 
+        ()
+
+    let updateSymbol (symbol: SymbolT.Symbol): SymbolT.Symbol = 
+        symbol
+        |> handleFlip script.Flipped
+        
+    updateSymbol
 
 // TODO: Apply the script to each symbol
 let applyScriptToModel (model: SheetT.Model) (modelScript: modelScript): SheetT.Model =
@@ -177,12 +241,20 @@ let optimizeFlipForComponents (model: SheetT.Model): SheetT.Model =
 
 // test function
 
+// let printSymbolScript (script: symbolScript) =
+//     printfn "Flipped: %b" script.Flipped
+//     printfn "ReversedInput: %b" script.ReversedInput
+//     printfn "PortEdge: %A" script.PortEdge
+//     printfn "PortOrder: %A" script.PortOrder
+//     1
+
 let printSymbolScript (script: symbolScript) =
-    printfn "Flipped: %b" script.Flipped
-    printfn "ReversedInput: %b" script.ReversedInput
-    printfn "PortEdge: %A" script.PortEdge
-    printfn "PortOrder: %A" script.PortOrder
+    let message = 
+        sprintf "Flipped: %b, ReversedInput: %b, PortEdge: %A, PortOrder: %A." 
+            script.Flipped script.ReversedInput script.PortEdge script.PortOrder
+    printfn "%s" message
     1
+
 
 let printModelScript (script: modelScript) =
     let a = 
@@ -208,6 +280,21 @@ let randomPossibleModels (model: SheetT.Model) =
     let randomElement = models.[random.Next(models.Length)]
 
     randomElement
+
+
+let certainModel (model: SheetT.Model) = 
+
+    let scripts = generateModelScript model
+    
+    printModelScript scripts.[0]
+    |> ignore
+
+
+    let models = 
+        scripts
+        |> List.map (applyScriptToModel model)
+    
+    models[0]
 
 
 // Heuristic Algorithm

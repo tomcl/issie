@@ -232,10 +232,12 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
             | None -> sym)
 
     // Return a new model with the adjusted symbols
-    { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = adjustedSymbols } } }
+    let newWire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = adjustedSymbols } }
+    let symList = alignment|> Map.keys |> Seq.toList
+    let newModel = updateWires newWire  symList {X=0;Y=0}
 
 
-    // { model with Wire = Symbol = { model.Wire.Symbol with Symbols = adjustedSymbols }}
+    { model with Wire = newModel }
 
 
 

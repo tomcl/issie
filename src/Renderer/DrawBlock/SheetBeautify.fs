@@ -33,7 +33,8 @@ open SheetBeautifyHelpers.SegmentHelpers
 open Optics
 open BlockHelpers
 open BusWireRoute
-
+open RotateScale
+open Symbol
 /// constants used by SheetBeautify
 //module Constants =
 //    () // dummy to make skeleton type check - remove when other content exists
@@ -43,7 +44,7 @@ open BusWireRoute
 // - direction ie left, right, up, down
 // - symbolClassification ie input, output
 
-type Directions = Left | Right | Up | Down
+type Directions = DIR_Left | DIR_Right | DIR_Up | DIR_Down
 type SymbolClassification = ClassInput | ClassOutput
 type StraightWireDirection = Horizontal | Vertical | Unknown | NotStraight
 
@@ -57,8 +58,8 @@ let checkWiresToBeStraightened (model: SheetT.Model) =
             |> List.filter (fun segs -> not (segs =~ XYPos.zero))
         match wireVertices with
         | [a; b; c] -> Some [a; b; c] // Explicitly match a list with 3 elements
-        //| [a ;b ; c ;d] -> Some [a; b; c; d]
-        //| [a; b; c; d; e] -> Some [a; b; c; d; e]
+        | [a ;b ; c ;d] -> Some [a; b; c; d]
+        | [a; b; c; d; e] -> Some [a; b; c; d; e]
         | _ -> None
 
     let wireSegments =
@@ -107,7 +108,7 @@ let findOutputSymbol (model: SheetT.Model) (wire: BusWireT.Wire, segments:XYPos 
     | Some (_, symbol) ->
         Some (wire, segments, symbol, ClassOutput)
     | None -> None
-// not combined with the above function as later in the code only one of these function is called whilst in order places both are called
+// not combined with the above function as later in the code only one of these function is called whilst in other places both are called
 /// Finds the destination port of the wire and returns a tuple of the wire, segments and the symbol
 let findInputSymbol (model: SheetT.Model) (wire: BusWireT.Wire, segments:XYPos list) : (BusWireT.Wire * XYPos list * SymbolT.Symbol*SymbolClassification) Option =
     // need to identif the symbol or component and move it by the amount stated by the second segment
@@ -125,6 +126,77 @@ let findInputSymbol (model: SheetT.Model) (wire: BusWireT.Wire, segments:XYPos l
         Some (wire, segments, symbol, ClassInput)
     | None -> None
 
+let simplifyMovements (movements: (Directions * float) list) =
+    // Count the occurrences of each direction
+    let counts = 
+        movements 
+        |> List.fold (fun (left, right, up, down) (direction, _) ->
+            match direction with
+            | DIR_Left -> (left + 1, right, up, down)
+            | DIR_Right -> (left, right + 1, up, down)
+            | DIR_Up -> (left, right, up + 1, down)
+            | DIR_Down -> (left, right, up, down + 1)
+        ) (0, 0, 0, 0)
+
+    let (countLeft, countRight, countUp, countDown) = counts
+
+    // Check for equal counts in opposing directions
+    if countLeft = countRight || countUp = countDown then
+        movements
+    else
+        let summedMovements = 
+            movements
+            |> List.fold (fun (left, right, up, down) (direction, distance) ->
+                match direction with
+                | DIR_Left -> (left + distance, right, up, down)
+                | DIR_Right -> (left, right + distance, up, down)
+                | DIR_Up -> (left, right, up + distance, down)
+                | DIR_Down -> (left, right, up, down + distance)
+            ) (0.0, 0.0, 0.0, 0.0)
+        
+        let (sumLeft, sumRight, sumUp, sumDown) = summedMovements
+        
+        // Combine movements in the same direction and subtract opposing movements
+        [
+            if sumLeft > sumRight then Some (DIR_Left, sumLeft - sumRight) else None
+            if sumRight > sumLeft then Some (DIR_Right, sumRight - sumLeft) else None
+            if sumUp > sumDown then Some (DIR_Up, sumUp - sumDown) else None
+            if sumDown > sumUp then Some (DIR_Down, sumDown - sumUp) else None
+        ]
+        |> List.choose id
+
+/// Checks that the input and output ports of the wire are opposite to each other and returns true if they are
+let checkInOutPortOpp (model: SheetT.Model) (wire: BusWireT.Wire) =
+    // find the input symbol
+    let inputSymbol =
+        match findInputSymbol model (wire, visibleSegments wire.WId model) with
+        | Some (wire, segments, symbol, symbolType) -> Some symbol
+        | _ -> None
+    // find the output symbol
+    let outputSymbol =
+        match findOutputSymbol model (wire, visibleSegments wire.WId model) with
+        | Some (wire, segments, symbol, symbolType) -> Some symbol
+        | _ -> None
+    match inputSymbol, outputSymbol with
+    | Some inputSymbol, Some outputSymbol ->
+        let inputPort, outputPort = getPortAB  model.Wire {SymA = inputSymbol; SymB = outputSymbol; Wire = wire}
+
+        let inputPortOrientation = getSymbolPortOrientation inputSymbol inputPort
+        let outputPortOrientation = getSymbolPortOrientation outputSymbol outputPort
+
+        match (inputPortOrientation: Edge), (outputPortOrientation: Edge) with
+        | Left , Right -> true
+        | Right, Left -> true
+        | Top, Bottom -> true
+        | Bottom, Top -> true
+        | _ -> false
+    | _, _ -> false 
+
+
+
+
+
+
 /// calculates the movements required to straighten the wire
 /// returns the steps required to straighten the wire in a list of tuples of direction and distance as well as the symbol and wire
 /// Returns an option type
@@ -132,39 +204,47 @@ let calcMovementsToStraightenWire (model: SheetT.Model) (wire: BusWireT.Wire, se
     let absSegments = segments |> List.scan (fun acc relativePos -> acc + relativePos) wire.StartPos
     let middleAbsSegments = absSegments[1..(absSegments.Length - 2)]
 
-    // Function to determine direction and magnitude of movement between two points
-    let determineMovement (startPos: XYPos) (endPos: XYPos) =
-        let deltaX = endPos.X - startPos.X
-        let deltaY = endPos.Y - startPos.Y
-        match symbolType with
-        | ClassOutput ->
-            if abs deltaX > abs deltaY then
-                if deltaX > 0.0 then (Right, abs deltaX) else (Left, abs deltaX)
-            else
-                if deltaY > 0.0 then (Down, abs deltaY) else (Up, abs deltaY)
-        | ClassInput ->
-            if abs deltaX > abs deltaY then
-                if deltaX > 0.0 then (Left, abs deltaX) else (Right, abs deltaX)  // Reversed directions for deltaX
-            else
-                if deltaY > 0.0 then (Up, abs deltaY) else (Down, abs deltaY)  // Reversed directions for deltaY
+    match checkInOutPortOpp model wire with
+    | false ->
+        printfn "Symbol: %A, Input and output ports are not opposite" symbol.Component.Label
+        None
+    | true ->
+        // Function to determine direction and magnitude of movement between two points
+        let determineMovement (startPos: XYPos) (endPos: XYPos) =
+            let deltaX = endPos.X - startPos.X
+            let deltaY = endPos.Y - startPos.Y
+            match symbolType with
+            | ClassOutput ->
+                if abs deltaX > abs deltaY then
+                    if deltaX > 0.0 then (DIR_Right, abs deltaX) else (DIR_Left, abs deltaX)
+                else
+                    if deltaY > 0.0 then (DIR_Down, abs deltaY) else (DIR_Up, abs deltaY)
+            | ClassInput ->
+                if abs deltaX > abs deltaY then
+                    if deltaX > 0.0 then (DIR_Left, abs deltaX) else (DIR_Right, abs deltaX)  // Reversed directions for deltaX
+                else
+                    if deltaY > 0.0 then (DIR_Up, abs deltaY) else (DIR_Down, abs deltaY)  // Reversed directions for deltaY
 
 
-    // Use List.pairwise to get pairs of points (segments) and then fold to accumulate movements
-    let movements =
-        middleAbsSegments
-        |> List.pairwise
-        |> List.fold (fun acc (startPos, endPos) ->
-            let move = determineMovement startPos endPos
-            if List.isEmpty acc || fst (List.last acc) <> fst move then acc @ [move]  // Avoid duplicating direction if consecutive segments suggest the same movement
-            else 
-                let lastMove = List.last acc
-                let updatedLastMove = (fst lastMove, snd lastMove + snd move)  // Combine movements in the same direction
-                List.init (List.length acc - 1) (fun i -> List.item i acc) @ [updatedLastMove]
-        ) []
-
-    match movements with
-    | [] -> None
-    | _ -> Some (symbol, wire, movements)
+        // Use List.pairwise to get pairs of points (segments) and then fold to accumulate movements
+        let movements =
+            middleAbsSegments
+            |> List.pairwise
+            |> List.fold (fun acc (startPos, endPos) ->
+                let move = determineMovement startPos endPos
+                if List.isEmpty acc || fst (List.last acc) <> fst move then acc @ [move]  // Avoid duplicating direction if consecutive segments suggest the same movement
+                else 
+                    let lastMove = List.last acc
+                    let updatedLastMove = (fst lastMove, snd lastMove + snd move)  // Combine movements in the same direction
+                    List.init (List.length acc - 1) (fun i -> List.item i acc) @ [updatedLastMove]
+            ) []
+            //|> simplifyMovements
+        //printfn "Symbol: %A, Movements: %A, Length of movements: %A" symbol.Component.Label  movements (List.length movements)
+        //printfn "Symbol: %A, Movements: %A, Length of simplified movements: %A" symbol.Component.Label  (simplifyMovements movements) (List.length (simplifyMovements movements))
+    
+        match simplifyMovements movements with
+        | [] -> None
+        | _ -> Some (symbol, wire, simplifyMovements movements)
 
 /// Checks if the symbol is singly connected 
 //let singlyConnectedSymbols (model: SheetT.Model) =
@@ -281,8 +361,8 @@ let decideOnStraightening (symbol: SymbolT.Symbol, wireRef:BusWireT.Wire, moveme
 
     match List.exists (fun dir -> dir = Horizontal) straightDirectionList, List.exists (fun dir -> dir = Vertical) straightDirectionList with
     | true , true -> false
-    | true, false -> movementList |> List.forall (fun (dir, _) -> dir = Left || dir = Right)
-    | false, true -> movementList |> List.forall (fun (dir, _) -> dir = Up || dir = Down)
+    | true, false -> movementList |> List.forall (fun (dir, _) -> dir = DIR_Left || dir = DIR_Right)
+    | false, true -> movementList |> List.forall (fun (dir, _) -> dir = DIR_Up || dir = DIR_Down)
     | false, false -> true
 
   
@@ -348,10 +428,23 @@ let nonSinglyConnectedSymbols (model: SheetT.Model) =
             | _ -> None
         )
 
-    // Here we keep the input wires commented out as per your original function.
-    // If you decide to include input wires, you can uncomment and adjust as necessary.
+//    // removed from code for now as it is untested
+    let inputWiresToBeStraightenedUnchecked =
+        checkWiresToBeStraightened model
+        |> List.choose (fun wireAndSegments -> 
+            match findInputSymbol model wireAndSegments with
+            | Some (wire, segments, symbol, symbolType) when not (isSymbolSinglyConnected symbol model) -> 
+                Some (wire, segments, symbol, symbolType)
+            | _ -> None
+        )
+    // Extract Wire IDs from outputWiresToBeStraightened
+    let outputWireIDs = outputWiresToBeStraightened |> List.map (fun (wire, _, _, _) -> wire.WId)
 
-    let wiresToBeStraightened = outputWiresToBeStraightened
+    // Filter inputWiresToBeStraightened to exclude wires present in outputWiresToBeStraightened
+    let inputWiresToBeStraightened =
+        inputWiresToBeStraightenedUnchecked
+        |> List.filter (fun (wire, _, _, _) -> not (List.contains wire.WId outputWireIDs))
+    let wiresToBeStraightened = outputWiresToBeStraightened @ inputWiresToBeStraightened
 
     let filteredWires = 
         wiresToBeStraightened
@@ -374,10 +467,10 @@ let calculateNewCoordinates (symbol: SymbolT.Symbol, movementList: (Directions*f
     let symOriginalPos: XYPos = symbol.Pos
     movementList |> List.fold (fun (acc: XYPos) (dir, dist) ->
         match dir with
-        | Up -> { acc with Y = acc.Y - dist }
-        | Down -> { acc with Y = acc.Y + dist }
-        | Left -> { acc with X = acc.X - dist }
-        | Right -> { acc with X = acc.X + dist }
+        | DIR_Up -> { acc with Y = acc.Y - dist }
+        | DIR_Down -> { acc with Y = acc.Y + dist }
+        | DIR_Left -> { acc with X = acc.X - dist }
+        | DIR_Right -> { acc with X = acc.X + dist }
         | _ -> acc
     ) symOriginalPos
 
@@ -386,10 +479,10 @@ let calculateNewCoordinatesTest (symbol: SymbolT.Symbol, movementList: (Directio
     let symOriginalPos: XYPos = symbol.Pos
     movementList |> List.fold (fun (acc: XYPos) (dir, dist:float) ->
         match dir with
-        | Up -> { acc with Y = acc.Y - dist  }
-        | Down -> { acc with Y = acc.Y + dist }
-        | Left -> { acc with X = acc.X - dist }
-        | Right -> { acc with X = acc.X + dist }
+        | DIR_Up -> { acc with Y = acc.Y - dist  }
+        | DIR_Down -> { acc with Y = acc.Y + dist }
+        | DIR_Left -> { acc with X = acc.X - dist }
+        | DIR_Right -> { acc with X = acc.X + dist }
         | _ -> acc
     ) symOriginalPos
 

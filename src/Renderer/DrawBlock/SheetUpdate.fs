@@ -19,6 +19,7 @@ open FSharp.Core
 open Fable.Core.JsInterop
 open BuildUartHelpers
 open Node
+open SheetBeautifyHelpers
 
 module node = Node.Api
 
@@ -33,6 +34,9 @@ importReadUart
 let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<ModelType.Msg> =
     /// In this module model = Sheet model
     let model = issieModel.Sheet
+
+    printfn "sheet updated"
+    printfn "Number of intersected symbols: %A" (numOfIntersectedSymPairs model)
 
     /// check things that might not have been correctly completed in the last update and if so do them
     /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than

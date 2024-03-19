@@ -34,14 +34,19 @@ let rec powerSet =
         @ (tailSubsets
            |> List.map (fun subset -> head :: subset))
 
+/// Generates records for the specified component, for every single state combination
 let generateComponentStates (compId: ComponentId) : ComponentState list =
-    [ for flipped in [ true; false ] do
-          for rotation in [ Degree0; Degree90; Degree180; Degree270 ] do
-              for inputsReversed in [ true; false ] do
-                  { ComponentId = compId
-                    Flipped = flipped
-                    Rotation = rotation
-                    InputsReversed = inputsReversed } ]
+    let flipStates = [true; false]
+    let rotationStates = [Degree0; Degree90; Degree180; Degree270]
+    let inputReversalStates = [true; false]
+
+    flipStates
+    |> List.collect (fun flip ->
+        rotationStates
+        |> List.collect (fun rotation ->
+            inputReversalStates
+            |> List.map (fun reversedInput ->
+                { ComponentId = compId; Flipped = flip; Rotation = rotation; InputsReversed = reversedInput })))
 
 /// Applies the smartAutoRoute function to all existing wires connected to a symbol
 let rerouteWire (symbolId: ComponentId) (model: SheetT.Model) : SheetT.Model =

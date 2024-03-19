@@ -428,7 +428,7 @@ module HLPTick3 =
         
         let failOnAllTestsD1 (sample: int) (sheet: SheetT.Model) =
             // let singlyConnectedComponents = findSinglyConnectedComponents sheet
-            let singlyConnected = findAlignment sheet
+            let singlyConnected = findSinglyConnectedWiresAndShifts sheet
             printfn "singly connected symbol, %A" singlyConnected
             Some <| $"Sample {sample}"
         
@@ -513,7 +513,7 @@ module HLPTick3 =
                 firstSample
                 horizLinePositions
                 makeTest1CircuitBeautify
-                Asserts.failOnAllTestsBgetter
+                Asserts.failOnAllTestsD1
                 dispatch
             |> recordPositionInTest testNum dispatch
 

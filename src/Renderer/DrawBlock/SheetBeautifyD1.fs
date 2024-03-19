@@ -78,25 +78,64 @@ let findSinglyConnectedComponents (model:SheetT.Model) =
     |> List.map fst
 
 // calculate how much to shift the wire to remove the parallel feature
+// let calculateShiftForSimplification (segments: XYPos list) : XYPos =
+//     let inline sign x = if x < 0. then -1. else if x > 0. then 1. else 0.
+
+//     let rec aux (accX, accY) segments =
+//         match segments with
+//         | ({X = x1; Y = 0.} :: {X = 0.; Y = y} :: {X = x2; Y = 0.} :: rest) when sign x1 = sign x2 ->
+//             // Simplify H-V-H to a single vertical shift, continue with the rest
+//             aux (accX, accY + y) rest
+//         | ({X = 0.; Y = y1} :: {X = x; Y = 0.} :: {X = 0.; Y = y2} :: rest) when sign y1 = sign y2 ->
+//             // Simplify V-H-V to a single horizontal shift, continue with the rest
+//             aux (accX + x, accY) rest
+//         | _ :: rest ->
+//             // Non-simplifiable pattern or single segment left, just skip it
+//             aux (accX, accY) rest
+//         | [] ->
+//             // Return total accumulated shifts in x and y as an XYPos
+//             {X = accX; Y = accY}
+
+//     aux (0.0, 0.0) segments
+
+
+
 let calculateShiftForSimplification (segments: XYPos list) : XYPos =
-    let inline sign x = if x < 0. then -1. else if x > 0. then 1. else 0.
+    let inline sign x = if x < 0. then -1. elif x > 0. then 1. else 0.
 
-    let rec aux (accX, accY) segments =
-        match segments with
-        | ({X = x1; Y = 0.} :: {X = 0.; Y = y} :: {X = x2; Y = 0.} :: rest) when sign x1 = sign x2 ->
-            // Simplify H-V-H to a single vertical shift, continue with the rest
-            aux (accX, accY + y) rest
-        | ({X = 0.; Y = y1} :: {X = x; Y = 0.} :: {X = 0.; Y = y2} :: rest) when sign y1 = sign y2 ->
-            // Simplify V-H-V to a single horizontal shift, continue with the rest
-            aux (accX + x, accY) rest
-        | _ :: rest ->
-            // Non-simplifiable pattern or single segment left, just skip it
-            aux (accX, accY) rest
-        | [] ->
-            // Return total accumulated shifts in x and y as an XYPos
-            {X = accX; Y = accY}
+    // Function to process segments and return updated segments and their shift
+    let rec processSegments segments (accShift: XYPos) =
+        let rec reduceSegments acc processed rest =
+            match rest with
+            | ({X = x1; Y = 0.} as first) :: ({X = 0.; Y = y} as second) :: ({X = x3; Y = 0.} as third) :: tail when sign x1 = sign x3 ->
+                // Simplify H-V-H by shifting subsequent segments
+                let newAccShift = {X = accShift.X; Y = accShift.Y + y}
+                let newProcessed = processed @ [first; {X = x1 + x3; Y = 0.}]
+                let adjustedTail = tail |> List.map (fun seg -> {X = seg.X; Y = seg.Y - y})
+                reduceSegments newAccShift newProcessed (adjustedTail)
+            | ({X = 0.; Y = y1} as first) :: ({X = x; Y = 0.} as second) :: ({X = 0.; Y = y3} as third) :: tail when sign y1 = sign y3 ->
+                // Simplify V-H-V by shifting subsequent segments
+                let newAccShift = {X = accShift.X + x; Y = accShift.Y}
+                let newProcessed = processed @ [{X = 0.; Y = y1 + y3}]
+                let adjustedTail = tail |> List.map (fun seg -> {X = seg.X - x; Y = seg.Y})
+                reduceSegments newAccShift newProcessed (adjustedTail)
+            | head :: tail ->
+                reduceSegments acc (processed @ [head]) tail
+            | [] ->
+                (acc, processed)
 
-    aux (0.0, 0.0) segments
+        let (newShift, newSegments) = reduceSegments {X = 0.; Y = 0.} [] segments
+        if newSegments = segments then
+            (segments, {X = accShift.X + newShift.X; Y = accShift.Y + newShift.Y})
+        else
+            processSegments newSegments {X = accShift.X + newShift.X; Y = accShift.Y + newShift.Y}
+
+    let (_, totalShift) = processSegments segments {X = 0.0; Y = 0.0}
+    totalShift
+
+
+
+
 
 
 // find the singly connected Wires on the sheet

@@ -440,7 +440,7 @@ module HLPTick3 =
                 |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
                 |> getOkOrFail
                 // |> randomPossibleModels
-                // |> getOptimizedModel
+                |> getOptimizedModel
             
             let getSymId (symLabel: string) (symModel: SymbolT.Model) =
                 mapValues symModel.Symbols
@@ -460,18 +460,16 @@ module HLPTick3 =
             // |> List.map printSymbolScript
             // |> ignore
             
-            middleOfSheet + {X= -100; Y= -100}
-            |> makethisTest
-            |> numOfWireRightAngleCrossings
-            |> printfn "Total Right Angle Intersect: %d"
+            // middleOfSheet + {X= -100; Y= -100}
+            // |> makethisTest
+            // |> numOfWireRightAngleCrossings
+            // |> printfn "Total Right Angle Intersect: %d"
 
             runTestOnSheets
                 "beautify2d test test test"
                 firstSample
-                // tester
-                AroundPositions
+                tester
                 makethisTest
-                // Asserts.failOnAllTests
                 testTotalRightAngleIntersect
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -480,10 +478,12 @@ module HLPTick3 =
         let test2 testNum firstSample dispatch =
             let testTotalRightAngleIntersect (sample: int) (model: SheetT.Model) = 
                 let length = numOfWireRightAngleCrossings model
-                if (length <> -1) then
-                    Some $"Right Angle number {length}"
-                else
-                    None
+                Some $"Right Angle number {length}"
+                // if (length <> -1) then
+                //     Some $"Right Angle number {length}"
+                // else
+                //     None
+
 
             runTestOnSheets
                 "totalRightAngleIntersect"
@@ -493,7 +493,7 @@ module HLPTick3 =
                 testTotalRightAngleIntersect
                 dispatch
             |> recordPositionInTest testNum dispatch
-            ()
+            
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
         let test3 testNum firstSample dispatch =
             runTestOnSheets

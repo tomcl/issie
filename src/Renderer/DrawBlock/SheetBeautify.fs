@@ -35,7 +35,7 @@ open CommonTypes
 open ModelType
 open DrawModelType
 open Sheet.SheetInterface
-
+open BusWireRoute
 let symbolModel_ = SheetT.symbol_
 
 let inline mapValues (map:Map<'a,'b>) = map |> Map.toArray |> Array.map snd 
@@ -178,18 +178,8 @@ let generateModelScript (model: SheetT.Model): list<modelScript> =
 
 // update a symbol with a symbolScript
 let applyScriptToSymbol (script: symbolScript) =
-    // let _, updatePortOrder = symPortOrder_ script.PortEdge
-    // let _, updateMux2InputOrder = reverseMux2Input_
-    // let _, updateFlip = symbolFlipped_
-
-    // symbol
-    // // |> updatePortOrder (Some script.PortOrder) 
-    // // |> updateMux2InputOrder script.ReversedInput
-    // |> updateFlip script.Flipped
-
     
     let a_, updatePortOrder = reversedInputPorts_
-
 
     let handleFlip (flip: SymbolT.FlipType option) =
 
@@ -218,7 +208,7 @@ let applyScriptToSymbol (script: symbolScript) =
     let updateSymbol (symbol: SymbolT.Symbol): SymbolT.Symbol = 
         symbol
         |> handleFlip script.Flipped
-        // |> handlePortOrder
+        |> handlePortOrder
         |> handleMux2InputOrder
 
         
@@ -238,7 +228,9 @@ let applyScriptToModel (model: SheetT.Model) (modelScript: modelScript): SheetT.
             |> Optic.set symbol_ newSymModel
             |> updateBoundingBoxes
         
-        newModel
+        {newModel with Wire =  (updateWires newModel.Wire [symId] {X = 0.0; Y = 0.0})}
+        
+        
     
     modelScript
     |> List.fold (fun model (symId, symScript) -> updateOneSymbol symScript symId model) model
@@ -314,9 +306,11 @@ let randomPossibleModels (model: SheetT.Model) =
     
 
     let random = System.Random()
-    let randomElement = models.[random.Next(models.Length)]
+    let randomModel = models.[random.Next(models.Length)]
+    
+    printfn "Best score: %A" (evaluateModel randomModel)
 
-    randomElement
+    randomModel
 
 
 let certainModel (model: SheetT.Model) = 

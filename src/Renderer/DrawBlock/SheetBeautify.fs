@@ -189,8 +189,10 @@ let checkInOutPortOpp (model: SheetT.Model) (wire: BusWireT.Wire) =
         | Right, Left -> true
         | Top, Bottom -> true
         | Bottom, Top -> true
-        | _ -> false
-    | _, _ -> false 
+        | _ ->
+            printfn "Symbol IN: %A, and Symbol OUT: %A Input and output ports are not opposite" inputSymbol.Component.Label outputSymbol.Component.Label
+            false
+    | _, _ ->   false 
 
 
 
@@ -206,7 +208,6 @@ let calcMovementsToStraightenWire (model: SheetT.Model) (wire: BusWireT.Wire, se
 
     match checkInOutPortOpp model wire with
     | false ->
-        printfn "Symbol: %A, Input and output ports are not opposite" symbol.Component.Label
         None
     | true ->
         // Function to determine direction and magnitude of movement between two points
@@ -305,6 +306,7 @@ let singlyConnectedSymbols (model: SheetT.Model) =
                     match List.length movements with
                     | 1 -> Some (symbol, movements)
                     | 2 -> Some (symbol, movements)
+                    | 3 -> Some (symbol, movements)
                     | _ -> None
 
             | _ -> None
@@ -429,22 +431,22 @@ let nonSinglyConnectedSymbols (model: SheetT.Model) =
         )
 
 //    // removed from code for now as it is untested
-    let inputWiresToBeStraightenedUnchecked =
-        checkWiresToBeStraightened model
-        |> List.choose (fun wireAndSegments -> 
-            match findInputSymbol model wireAndSegments with
-            | Some (wire, segments, symbol, symbolType) when not (isSymbolSinglyConnected symbol model) -> 
-                Some (wire, segments, symbol, symbolType)
-            | _ -> None
-        )
-    // Extract Wire IDs from outputWiresToBeStraightened
-    let outputWireIDs = outputWiresToBeStraightened |> List.map (fun (wire, _, _, _) -> wire.WId)
+    //let inputWiresToBeStraightenedUnchecked =
+    //    checkWiresToBeStraightened model
+    //    |> List.choose (fun wireAndSegments -> 
+    //        match findInputSymbol model wireAndSegments with
+    //        | Some (wire, segments, symbol, symbolType) when not (isSymbolSinglyConnected symbol model) -> 
+    //            Some (wire, segments, symbol, symbolType)
+    //        | _ -> None
+    //    )
+    //// Extract Wire IDs from outputWiresToBeStraightened
+    //let outputWireIDs = outputWiresToBeStraightened |> List.map (fun (wire, _, _, _) -> wire.WId)
 
     // Filter inputWiresToBeStraightened to exclude wires present in outputWiresToBeStraightened
-    let inputWiresToBeStraightened =
-        inputWiresToBeStraightenedUnchecked
-        |> List.filter (fun (wire, _, _, _) -> not (List.contains wire.WId outputWireIDs))
-    let wiresToBeStraightened = outputWiresToBeStraightened @ inputWiresToBeStraightened
+    //let inputWiresToBeStraightened =
+    //    inputWiresToBeStraightenedUnchecked
+    //    |> List.filter (fun (wire, _, _, _) -> not (List.contains wire.WId outputWireIDs))
+    let wiresToBeStraightened = outputWiresToBeStraightened //@ inputWiresToBeStraightened
 
     let filteredWires = 
         wiresToBeStraightened
@@ -454,6 +456,7 @@ let nonSinglyConnectedSymbols (model: SheetT.Model) =
                 match List.length movements with
                 | 1 -> Some (symbol, movements)
                 | 2 -> Some (symbol, movements)
+                | 3 -> Some (symbol, movements)
                 | _ -> None
             | _ -> None
         )
@@ -571,6 +574,8 @@ let alignSymbols (model: SheetT.Model) : SheetT.Model =
     match nonSinglyConnected.Length with
     | 0 -> modelWithAlignedSinglyConnected
     | _ -> let nonSinglyCnnectedModel = updateModelWithNonSinglyConnected modelWithAlignedSinglyConnected firstNonSinglyConnected
+           //let nonsinglyConnected2 = updateModelWithNonSinglyConnected nonSinglyCnnectedModel (nonSinglyConnectedSymbols nonSinglyCnnectedModel)
            let newSinglyConnected =  singlyConnectedSymbols nonSinglyCnnectedModel // cals singly connected symbols again to check if any wires have been unstraightened
            updateModelWithSinglyConnected nonSinglyCnnectedModel newSinglyConnected
            //nonSinglyCnnectedModel
+

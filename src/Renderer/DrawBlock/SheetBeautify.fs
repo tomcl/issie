@@ -181,9 +181,7 @@ let applyScriptToSymbol (script: symbolScript) =
             |> putPortOrder Edge.Top script.PortOrder.[Edge.Top]
             |> putPortOrder Edge.Bottom script.PortOrder.[Edge.Bottom]
         | _ -> 
-            symbol
-            
-        
+            symbol     
 
     let handleMux2InputOrder(symbol: SymbolT.Symbol): SymbolT.Symbol = 
         match symbol.Component.Type with

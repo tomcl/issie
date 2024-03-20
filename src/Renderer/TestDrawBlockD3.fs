@@ -72,7 +72,25 @@ module Builder =
 open Builder
 
 /// small offsets in X&Y axis
+let rnd=System.Random()
 
+let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (rotation:Rotation) (flip:option<SymbolT.FlipType>) (model: SheetT.Model) : Result<SheetT.Model, string> =
+        let symLabel = String.toUpper symLabel // make label into its standard casing
+        let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
+        let rotateModel = RotateScale.rotateBlock [symId] symModel rotation
+        let flipModel = 
+            match flip with
+            |None -> rotateModel
+            |Some f -> RotateScale.flipBlock [symId] rotateModel f 
+        let sym = flipModel.Symbols[symId]
+        match position + sym.getScaledDiagonal with
+        | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
+            Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
+        | _ ->
+            model
+            |> Optic.set symbolModel_ flipModel
+            |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
+            |> Ok
 let dSelect (model:SheetT.Model) = 
     { model with
         SelectedComponents = []
@@ -93,8 +111,42 @@ let test2Builder =
         | 2 -> Degree180
         | 3 -> Degree270
         | _ -> Degree0
-    randomInt 0 1 3
-    |> GenerateData.map intToRot 
+    let ints = GenerateData.map intToRot (randomInt 0 1 3)
+    let floats = randomFloat 100 20 200
+    List.allPairs (GenerateData.toList floats) (GenerateData.toList ints)
+    |> List.toArray
+    |> GenerateData.shuffleA
+    |> GenerateData.fromArray
+    
+
+let test1Builder = 
+    let getRotation x=  
+            match x with
+                |1  -> Degree0
+                |2  -> Degree90
+                |3  -> Degree180
+                |4  -> Degree270
+                |_  -> Degree0
+
+
+    let getFlip x=
+        match x with
+            |1  -> Some SymbolT.FlipHorizontal
+            |2  -> Some SymbolT.FlipVertical
+            |3  -> None
+    let thing = 0
+    let allFlip = List.map getFlip [1..3]
+    let allRot = List.map getRotation [1..4] 
+    let combinations lst =
+        [ for x in lst do
+            for y in lst do
+                for z in lst do
+                    yield [x; y; z] ]
+    List.allPairs allRot allFlip
+    |>combinations 
+    |>fromList
+
+
 
 let offsetXY =
     let offsetX = randomFloat -2. 0.1 2.
@@ -106,17 +158,17 @@ let offsetXY =
 let pos x y = 
     middleOfSheet + {X=float x; Y=float y}
 
-let makeTest1Circuit (x:XYPos)=
+let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
     let Mux1Pos = middleOfSheet + {X=300. ; Y=0.}
     let Mux2Pos = middleOfSheet + {X=300. ; Y=300.}
     initSheetModel
-    |> placeSymbol "DM1" Demux4 middleOfSheet
-    |> Result.bind(placeSymbol "MUX1" Mux4 Mux1Pos)
+    |> placeSymbol "DM1" Demux4 middleOfSheet  (fst ori[0]) (snd ori[0])
+    |> Result.bind(placeSymbol "MUX1" Mux4 Mux1Pos (fst ori[1]) (snd ori[1]))
     |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
     |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
     |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
     |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
-    |> Result.bind(placeSymbol "MUX2" Mux4 Mux2Pos)
+    |> Result.bind(placeSymbol "MUX2" Mux4 Mux2Pos (fst ori[2]) (snd ori[2]))
     |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX2" 0))
     |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
     |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
@@ -124,17 +176,20 @@ let makeTest1Circuit (x:XYPos)=
     |> Result.bind (autoGenerateWireLabels)
     |> getOkOrFail
 
-let makeTest2Circuit (rotation: Rotation)=
+let makeTest2Circuit (data: float*Rotation)=
+    let rotation = snd data
+    let gap = fst data
     printf "Test 2 rotation: %A" rotation
-    let Pos1 = middleOfSheet + {X=150. ; Y=0.}
-    let Pos2 = Pos1 + {X=150. ; Y=0.}
-    let Pos3 = Pos2 + {X=150. ; Y=0.}
+    printf "Test 2 gap: %A" gap
+    let Pos1 = middleOfSheet + {X=gap ; Y=0.}
+    let Pos2 = Pos1 + {X=gap ; Y=0.}
+    let Pos3 = Pos2 + {X=gap ; Y=0.}
     let noWireModel =
         initSheetModel
-        |> placeSymbol "C1" (Constant1( Width=8 , ConstValue=0 , DialogTextValue="0" )) middleOfSheet
-        |> Result.bind(placeSymbol "SN1" (SplitN(3,[2;3;3],[0;1;2])) Pos1)
-        |> Result.bind(placeSymbol "MN1" (MergeN(3)) Pos2)
-        |> Result.bind(placeSymbol "B" (Output(8)) Pos3)
+        |> placeSymbol "C1" (Constant1( Width=8 , ConstValue=0 , DialogTextValue="0" )) middleOfSheet Degree0 None
+        |> Result.bind(placeSymbol "SN1" (SplitN(3,[2;3;3],[0;1;2])) Pos1 Degree0 None)
+        |> Result.bind(placeSymbol "MN1" (MergeN(3)) Pos2 Degree0 None)
+        |> Result.bind(placeSymbol "B" (Output(8)) Pos3 Degree0 None)
         |> getOkOrFail
         |> selectA
     let rotModel = 
@@ -172,7 +227,7 @@ module Tests =
         runTestOnSheets
             "Mux conected to 2 demux"
             firstSample
-            offsetXY
+            test1Builder
             None
             makeTest1Circuit
             (AssertFunc failOnAllTests)
@@ -210,6 +265,7 @@ module Tests =
         [
             "Test1", D3Test1 // example
             "Test2", D3Test2 // example
+            "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
     
     let nextError (testName, testFunc) firstSampleToTest dispatch =

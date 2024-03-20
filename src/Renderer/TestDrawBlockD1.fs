@@ -572,7 +572,7 @@ module Tests =
             "Figure A3 circuit from hlp2024 brief"
             firstSample
             (randXY {min=(-30); step=3; max=30})
-            None
+            (Some sheetAlignScale)
             makeA3Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
@@ -584,7 +584,7 @@ module Tests =
             "two custom components with random offset"
             firstSample
             (randXY {min=(-50); step=5; max=50})
-            None
+            (Some sheetAlignScale)
             makeA4Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
@@ -596,7 +596,7 @@ module Tests =
             "two custom components with random scaling"
             firstSample
             (randXY {min=(0.5); step=0.5; max=3})
-            None
+            (Some sheetAlignScale)
             makeA5Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator

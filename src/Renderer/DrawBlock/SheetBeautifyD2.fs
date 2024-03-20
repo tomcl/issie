@@ -222,8 +222,8 @@ module D2Helpers =
     //     | Mux2 | Mux4 | Mux8 -> true
     //     | _ -> false
 
-    let permuteMux ( symbol : SymbolT.Symbol ) = 
-        [1.0, symbol; 1.0, changeReversedInputs symbol]
+    let permuteMux ( symbolL : (float * SymbolT.Symbol) list ) = 
+        symbolL
         |> List.collect (flipPermute FlipVertical 1.1)
         |> List.collect (flipPermute FlipHorizontal 2.5)
         |> List.collect (rotationPermute 3.0)
@@ -257,9 +257,9 @@ module D2Helpers =
     //     |> countVisibleSegmentIntersection
 
     /// Given a Symbol and Sheet Exhaustively search through all permutations of the symbol to find the configuration which minimises the wire crossing heuristic
-    let optimisePermuteSymbol ( sheet: SheetT.Model ) ((cid,sym : SymbolT.Symbol) ) =
+    let optimisePermuteSymbol ( sheet: SheetT.Model ) cid symL  =
         let prevCrossings = countVisibleSegmentIntersection sheet
-        sym
+        symL
         |> permuteMux
         |> List.map (fun (scale,newSym) -> 
             let newSheet = updateSymbolInSheet sheet (cid,newSym)
@@ -274,9 +274,9 @@ module D2Helpers =
             |> (fun (diffs, scales, sheets) ->
                 let minDiff = List.min diffs
                 let biasedDiffs = List.map ((+) (minDiff * -1.0 + 1.0)) diffs
-                printf "%A" biasedDiffs;
+                // printf "%A" biasedDiffs;
                 let weights = List.zip biasedDiffs scales |> List.map (fun (x,y) -> x*y);
-                printf "%A" weights;
+                // printf "%A" weights;
                 (weights, sheets)
                 ||> List.zip
             )
@@ -297,7 +297,8 @@ module D2Helpers =
     /// Given a Symbol and a Sheet return a Sheet where the symbol has been modified to reduce the number of wire crossings
     let reduceWireCrossings ( sheet: SheetT.Model ) ((cid,sym : SymbolT.Symbol)) = 
         match sym.Component.Type with
-        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> optimisePermuteSymbol sheet (cid,sym)
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> optimisePermuteSymbol sheet cid [1.0, sym; 1.0, changeReversedInputs sym]
+        | GateN _ -> optimisePermuteSymbol sheet cid [1.0, sym]
         | _ -> sheet
 
 open D2Helpers

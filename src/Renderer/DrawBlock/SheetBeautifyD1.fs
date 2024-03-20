@@ -201,6 +201,26 @@ let findConnectionIdsOfSymbol (model:SheetT.Model) (symbolId: string) =
 
     connectionIds
 
+// Decide if a connection id is the Input of a symbol
+let isInputOfSymbol (model: SheetT.Model) (symbolId: string) (connectionId: ConnectionId) =
+    match model.Wire.Wires.TryFind(connectionId) with
+    | Some(wire) ->
+    // Get the output port id of the wire
+        let outputPortId = 
+            match wire.InputPort with
+            | InputPortId id -> id
+        // Find all ports of a the symbol id
+        let allPorts = 
+            model.Wire.Symbol.Ports
+            |> Map.toList
+            |> List.map snd
+            |> List.filter (fun port -> port.PortType = PortType.Input && port.HostId = symbolId)
+        let fin = allPorts |> List.exists (fun port -> port.Id = outputPortId)
+        fin
+    | None -> false
+    
+        
+
 // Function to find how much each symbol needs to be shifted to align singly connected wires
 let findAlignment (model: SheetT.Model) =
     // Find all singly connected components ids
@@ -232,13 +252,30 @@ let findAlignment (model: SheetT.Model) =
             | _ -> None)
         |> List.tryPick (fun wireId -> Map.tryFind wireId singlyConnectedWiresAndShifts)
 
-    singlyConnectedComponents
-    |> List.map (fun symbolId -> (symbolId, findShiftForSymbol symbolId))
-    |> List.choose (fun (symbolId, shiftOpt) ->
-        match shiftOpt with
-        | Some shift -> Some (symbolId, shift)
-        | None -> None)
-    |> Map.ofList
+    let alignmentMap = 
+        singlyConnectedComponents
+        |> List.map (fun symbolId -> (symbolId, findShiftForSymbol symbolId))
+        |> List.choose (fun (symbolId, shiftOpt) ->
+            match shiftOpt with
+            | Some shift -> Some (symbolId, shift)
+            | None -> None)
+        |> Map.ofList
+
+    // Additional logic to check if the component is the input of any connection ID
+    // and to negate the Y value if true
+    let updatedAlignmentMap =
+        alignmentMap
+        |> Map.map (fun symbolId xyPos ->
+            let isInput = 
+                allSinglyConnectedWires
+                |> List.exists (fun wireId -> isInputOfSymbol model symbolId wireId)
+            
+            if isInput then
+                { X = xyPos.X ; Y = -xyPos.Y }
+            else
+                xyPos)
+
+    updatedAlignmentMap
     
 
 // Function to adjust the position of singly-connected components

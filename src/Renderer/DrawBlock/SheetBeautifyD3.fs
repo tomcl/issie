@@ -29,31 +29,76 @@ let getLongWires (wireLengthlimit: float) (wireList: List<BusWireT.Wire>) =
     wireList
     |> List.filter (fun wire -> (getWireLength wire > wireLengthlimit))
 
-let findWireLabelRoomAtSource (wire: BusWireT.Wire ) (distance: float)= 
+let findWireLabelRoomAtSource (wire: BusWireT.Wire ) (distance: float) = 
     let asegList =  wire |> getAbsSegments 
     let firstSeg = asegList |> List.head
     match firstSeg.Orientation with
     | BusWireT.Horizontal -> 
         if firstSeg.End.X - firstSeg.Start.X < 0 
-        then {firstSeg.End with X = firstSeg.End.X - distance; Y = firstSeg.End.Y }
-        else { firstSeg.End with X = firstSeg.End.X + distance; Y = firstSeg.End.Y }
+        then 
+            let pos = {firstSeg.End with X = firstSeg.End.X - distance; Y = firstSeg.End.Y }
+            pos, Degree180
+        else 
+            let pos = { firstSeg.End with X = firstSeg.End.X + distance; Y = firstSeg.End.Y }
+            pos, Degree0
     | BusWireT.Vertical -> 
         if firstSeg.End.Y - firstSeg.Start.Y < 0 
-        then {firstSeg.End with X = firstSeg.End.X; Y = firstSeg.End.Y - distance}
-        else { firstSeg.End with X = firstSeg.End.X; Y = firstSeg.End.Y + distance}
+        then 
+            let pos = {firstSeg.End with X = firstSeg.End.X; Y = firstSeg.End.Y - distance}
+            pos, Degree90
+        else 
+            let pos = { firstSeg.End with X = firstSeg.End.X; Y = firstSeg.End.Y + distance}
+            pos, Degree270
 
-let findWireLabelRoomAtTarget (wire: BusWireT.Wire ) (distance: float) = 
+// let findWireLabelRoomAtTarget (wire: BusWireT.Wire) (symModel: SymbolT.Model) (sheet) (distance: float) = 
+//     let inputPort = wire.InputPort
+//     let portPos = getInputPortLocation None symModel inputPort
+//     let asegList =  sheet |> SegmentHelpers.visibleSegsWithVertices wire
+//     let lastSeg = asegList |> List.last
+//     let segStart, segEnd = lastSeg
+//     match SegmentHelpers.visSegOrientation lastSeg with
+//     | BusWireT.Horizontal -> 
+//         if segEnd.X - segStart.X < 0 
+//         then 
+//             let pos = {segEnd with X = segEnd.X + distance; Y = segEnd.Y }
+//             pos, Degree180
+//         else 
+//             let pos = { segEnd with X = segEnd.X - distance; Y = segEnd.Y }
+//             pos, Degree0
+//     | BusWireT.Vertical -> 
+//         if segEnd.Y - segStart.Y < 0 
+//         then 
+//             let pos = {segEnd with X = segEnd.X; Y = segEnd.Y + distance}
+//             printf "portpos %.2f, %.2f " portPos.X portPos.Y
+//             pos, Degree90
+//         else 
+//             printf "portpos %.2f, %.2f " portPos.X portPos.Y
+//             let pos = { portPos with X = segEnd.X; Y = segEnd.Y - distance}
+//             pos, Degree270
+let findWireLabelRoomAtTarget (wire: BusWireT.Wire) (symModel: SymbolT.Model) (distance: float) = 
+    let inputPort = wire.InputPort
+    let portPos = getInputPortLocation None symModel inputPort
     let asegList =  wire |> getAbsSegments 
     let lastSeg = asegList |> List.last
     match lastSeg.Orientation with
     | BusWireT.Horizontal -> 
         if lastSeg.End.X - lastSeg.Start.X < 0 
-        then {lastSeg.Start with X = lastSeg.Start.X + distance; Y = lastSeg.Start.Y }
-        else { lastSeg.Start with X = lastSeg.Start.X - distance; Y = lastSeg.Start.Y }
+        then 
+            let pos = {lastSeg.End with X = lastSeg.End.X + distance; Y = lastSeg.End.Y }
+            pos, Degree180
+        else 
+            let pos = { lastSeg.End with X = lastSeg.End.X - distance; Y = lastSeg.End.Y }
+            pos, Degree0
     | BusWireT.Vertical -> 
         if lastSeg.End.Y - lastSeg.Start.Y < 0 
-        then {lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y + distance}
-        else { lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y + distance}
+        then 
+            let pos = {lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y + distance}
+            printf "portpos %.2f, %.2f " lastSeg.Start.X (lastSeg.Start.Y - distance)
+            pos, Degree90
+        else 
+            printf "portpos %.2f, %.2f " lastSeg.Start.X (lastSeg.Start.Y - distance)
+            let pos = { lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y - distance}
+            pos, Degree270
 
 let getMovedSymbolBB (move: XYPos) (sym: SymbolT.Symbol) : BoundingBox =
     {sym.LabelBoundingBox with
@@ -92,7 +137,9 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
     if checkIfIntersect wireLabelSym.SymbolBoundingBox
     then 
         match tryAdjust adjustmentAmount 0 with
-        | Some moveAmount -> Some (newPos moveAmount)
+        | Some moveAmount -> 
+            //Some (newPos moveAmount)
+            Some originalPos
         | None -> None
     else 
         Some originalPos
@@ -130,6 +177,9 @@ let deleteWire (wireCID: ConnectionId) (sheet: SheetT.Model) =
 let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
     let connectionID = wire.WId
     let startSym = getSourceSymbol sheet.Wire wire
+    let endSym = getTargetSymbol sheet.Wire wire
+    let symbolModel = sheet.Wire.Symbol
+
     let sourceSymPort = getSourcePort sheet.Wire wire
     let inputPortNumber = sourceSymPort.PortNumber
     let wireLabelName =
@@ -139,11 +189,12 @@ let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
 
     let inputPort, outputPort = wire.InputPort, wire.OutputPort
 
-    let wireLabelSourcePos = findWireLabelRoomAtSource wire 40.0
-    let wireLabelTargetPos = findWireLabelRoomAtTarget wire 40.0
+    let wireLabelSourcePos, rotationSource = findWireLabelRoomAtSource wire 40.0
+    let wireLabelTargetPos, rotationTarget = findWireLabelRoomAtTarget wire symbolModel 40.0
 
     let addWireLabelAndConnectWire
         (pos)
+        (rotation)
         (labelName)
         (compType)
         (isAtSource: bool)
@@ -153,22 +204,25 @@ let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
         =
         let labelModel, labelID =
             SymbolUpdate.addSymbol [] (sheet.Wire.Symbol) pos compType labelName
+
         let labelSym = labelModel.Symbols[labelID]
+        let rotatedLabelModel = updateSymbol (SymbolResizeHelpers.rotateSymbol rotation) labelID labelModel 
         let inputPortIDstr, outputPortIdstr =
             if isAtSource then
-                (InputPortId labelModel.Symbols[labelID].Component.InputPorts.[0].Id), toLabelFromPortID
+                (InputPortId rotatedLabelModel.Symbols[labelID].Component.InputPorts.[0].Id), toLabelFromPortID
             else
-                fromLabelToPortID, (OutputPortId labelModel.Symbols[labelID].Component.OutputPorts.[0].Id)
+                fromLabelToPortID, (OutputPortId rotatedLabelModel.Symbols[labelID].Component.OutputPorts.[0].Id)
         let sheetWithWireLabelAdded = 
             sheet
-            |> Optic.set symbolModel_ labelModel
+            |> Optic.set symbolModel_ rotatedLabelModel
             |> SheetUpdateHelpers.updateBoundingBoxes
+            //|> updateSymPosInSheet labelID pos
 
         let adjustLabelOnSheet = 
             match adjustWireLabelPos labelSym sheetWithWireLabelAdded with
             | Some newPos -> 
                 // printf "newpos %.2f, %.2f " newPos.X newPos.Y
-                // printf "oldpos %.2f, %.2f" pos.X pos.Y
+                printf "labelpos %s, %.2f, %.2f" labelName labelSym.Component.X labelSym.Component.Y
                 let adjustedSheet = updateSymPosInSheet labelID newPos sheetWithWireLabelAdded
                 let newWire = 
                     BusWireUpdate.makeNewWire (inputPortIDstr) (outputPortIdstr) adjustedSheet.Wire
@@ -183,10 +237,11 @@ let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
         if sheet.Wire.Symbol.Symbols
             |> Map.exists (fun _ sym -> caseInvariantEqual sym.Component.Label wireLabelName) // if wire in a net then this would be true
         then sheet // Don't want to duplicate wirel Label at net inputPort
-        else sheet
-            |> addWireLabelAndConnectWire wireLabelSourcePos wireLabelName IOLabel true inputPort outputPort
+        else 
+            sheet
+            |> addWireLabelAndConnectWire wireLabelSourcePos rotationSource wireLabelName IOLabel true inputPort outputPort
     sheetCheckedForNetWires
-    |> addWireLabelAndConnectWire wireLabelTargetPos wireLabelName IOLabel false inputPort outputPort
+    |> addWireLabelAndConnectWire wireLabelTargetPos rotationTarget wireLabelName IOLabel false inputPort outputPort 
     |> deleteWire connectionID
 
 let autoGenerateWireLabels (sheet: SheetT.Model) =

@@ -365,12 +365,17 @@ module HLPTick3 =
 
     let generateSmallDeviations : Gen<XYPos> =
         let rnd = Random()
+        let beginningSeq = -40
+        let endSeq = beginningSeq * -1
         product (fun x y ->
-                    let deviationX = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 10.0 in X
-                    let deviationY = rnd.NextDouble() * 5.0 - 2.5 // Random deviation up to 10.0 in Y
+                    if x = -40 && y = -40 then
+                        { X = 0.0; Y = 0.0 } // Zero case for first set of values
+                    else
+                    let deviationX = rnd.NextDouble() * 15.0 - 10.0 // Random deviation up to 10.0 in X
+                    let deviationY = rnd.NextDouble() * 15.0 - 10.0 // Random deviation up to 10.0 in Y
                     { X = float x + deviationX; Y = float y + deviationY})
-                (fromList [-20..2..20])
-                (fromList [-20..2..20])
+                (fromList [beginningSeq..2..endSeq])
+                (fromList [beginningSeq..2..endSeq])
             
     let filterOverlap (pos1: XYPos) =
         // Define the size of the components
@@ -441,9 +446,9 @@ module HLPTick3 =
     /// function to set symbol positions
     let setSymbolPositions (andPos: XYPos) =
 
-        let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = 0.0}
-        let aPos = middleOfSheet + { X = -80.0; Y = -50.0 } + {X = andPos.X ; Y = 0.0}
-        let bPos = middleOfSheet + { X = -80.0; Y = 50.0 } + {X = andPos.X; Y = andPos.Y}
+        let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = andPos.Y}
+        let aPos = middleOfSheet + { X = -100.0; Y = -50.0 } + {X = andPos.X ; Y = andPos.Y}
+        let bPos = middleOfSheet + { X = -100.0; Y = 50.0 } + {X = andPos.X; Y = -andPos.Y}
 
         { APos = aPos; BPos = bPos; CPos = cPos }
 
@@ -467,6 +472,7 @@ module HLPTick3 =
 
         let findNumDiff (test1: int) (test2: int) : int =
             test1 - test2
+
         let model = 
             initSheetModel
             |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
@@ -529,8 +535,6 @@ module HLPTick3 =
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
-
-
 
 
 //---------------------------------------------------------------------------------------//
@@ -611,7 +615,7 @@ module HLPTick3 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeTest6Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 

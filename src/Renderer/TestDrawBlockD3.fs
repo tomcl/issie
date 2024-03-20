@@ -159,23 +159,34 @@ let pos x y =
     middleOfSheet + {X=float x; Y=float y}
 
 let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
+    printf "MUX1 rotation: %A" (fst ori[0])
+    printf "MUX1 flipType: %A" ((snd ori[0]))
+    printf "MUX2 rotation: %A" (fst ori[1])
+    printf "MUX2 flipType: %A" ((snd ori[1]))
+    printf "MUX3 rotation: %A" (fst ori[2])
+    printf "MUX3 flipType: %A" ((snd ori[2]))
     let Mux1Pos = middleOfSheet + {X=300. ; Y=0.}
     let Mux2Pos = middleOfSheet + {X=300. ; Y=300.}
-    initSheetModel
-    |> placeSymbol "DM1" Demux4 middleOfSheet  (fst ori[0]) (snd ori[0])
-    |> Result.bind(placeSymbol "MUX1" Mux4 Mux1Pos (fst ori[1]) (snd ori[1]))
-    |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
-    |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
-    |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
-    |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
-    |> Result.bind(placeSymbol "MUX2" Mux4 Mux2Pos (fst ori[2]) (snd ori[2]))
-    |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX2" 0))
-    |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
-    |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
-    |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
-    |> Result.bind (autoGenerateWireLabels)
-    |> getOkOrFail
-
+    let finalModel = 
+        initSheetModel
+        |> placeSymbol "DM1" Demux4 middleOfSheet  (fst ori[0]) (snd ori[0])
+        |> Result.bind(placeSymbol "MUX1" Mux4 Mux1Pos (fst ori[1]) (snd ori[1]))
+        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
+        |> Result.bind(placeSymbol "MUX2" Mux4 Mux2Pos (fst ori[2]) (snd ori[2]))
+        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
+        |> Result.bind (autoGenerateWireLabels)
+        |> getOkOrFail
+    finalModel.Wire.Symbol.Symbols.Values
+    |> Seq.cast
+    |> List.ofSeq
+    |>List.map (fun (x:SymbolT.Symbol) -> printf "%A STransform : %A" x.Component.Label x.STransform )
+    finalModel
 let makeTest2Circuit (data: float*Rotation)=
     let rotation = snd data
     let gap = fst data

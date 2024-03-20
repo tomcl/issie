@@ -126,4 +126,47 @@ let modelsToTest: TestModel list =
   PortNumber = 0 } }; { Source = { Label = "G1";
   PortNumber = 0 };
   Target = { Label = "MUX1";
-  PortNumber = 2 } }] }]
+  PortNumber = 2 } }] };
+  
+  { SimpleSymbols = [{ SymLabel = "T";
+  CompType = Input1 (1, Some 0);
+  Position = { X = 1507.111328125;
+  Y = 1827.813720703125 };
+  STransform = { Rotation = Degree0;
+  Flipped = false } }; { SymLabel = "MUX1";
+  CompType = Mux2;
+  Position = { X = 1563.111328125;
+  Y = 1644.186279296875 };
+  STransform = { Rotation = Degree0;
+  Flipped = false } }; { SymLabel = "MUX2";
+  CompType = Mux2;
+  Position = { X = 1824.111328125;
+  Y = 1830.813720703125 };
+  STransform = { Rotation = Degree0;
+  Flipped = false } }; { SymLabel = "T1";
+  CompType = Input1 (1, Some 0);
+  Position = { X = 1509.111328125;
+  Y = 1915.813720703125 };
+  STransform = { Rotation = Degree0;
+  Flipped = false } }; { SymLabel = "G1";
+  CompType = GateN (And, 2);
+  Position = { X = 2003.833251953125;
+  Y = 1659.50244140625 };
+  STransform = { Rotation = Degree0;
+  Flipped = false } }];
+  Connections = [{ Source = { Label = "T";
+  PortNumber = 0 };
+  Target = { Label = "MUX2";
+  PortNumber = 1 } }; { Source = { Label = "T1";
+  PortNumber = 0 };
+  Target = { Label = "MUX2";
+  PortNumber = 0 } }; { Source = { Label = "MUX1";
+  PortNumber = 0 };
+  Target = { Label = "G1";
+  PortNumber = 1 } }; { Source = { Label = "MUX1";
+  PortNumber = 0 };
+  Target = { Label = "MUX2";
+  PortNumber = 2 } }; { Source = { Label = "MUX2";
+  PortNumber = 0 };
+  Target = { Label = "G1";
+  PortNumber = 0 } }] }]

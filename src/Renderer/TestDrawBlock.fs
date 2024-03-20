@@ -1,6 +1,8 @@
 ﻿module TestDrawBlock
 open GenerateData
 open Elmish
+open BusWireRoute
+open BusWireSeparate
 
 
 //-------------------------------------------------------------------------------------------//
@@ -233,8 +235,27 @@ module HLPTick3 =
             failwithf "Not Implemented"
 
         // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+        let getSymId (symLabel: string) (symModel: SymbolT.Model) =
+            mapValues symModel.Symbols
+            |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+            |> function | Some x -> x.Id | None -> failwithf "Can't find symbol with label '{symLabel}'"
+    
+        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model)  =
+            let symId = getSymId symLabel model.Wire.Symbol
+            let flipSymbol' = 
+                match flip with
+                | SymbolT.FlipType.FlipHorizontal -> 
+                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
+                | SymbolT.FlipType.FlipVertical ->
+                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal 
+                    >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
+            let symModel: SymbolT.Model = 
+                SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
+
+            model
+            |> Optic.set symbolModel_ symModel 
+            |> SheetUpdateHelpers.updateBoundingBoxes
+            |> Ok
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -258,13 +279,16 @@ module HLPTick3 =
             | Error e, _ | _, Error e -> Error e
             | Ok inPort, Ok outPort ->
                 let newWire = BusWireUpdate.makeNewWire (InputPortId inPort) (OutputPortId outPort) model.Wire
+                // let newWire = updateWire model.Wire newWire true 
+                let separateAllWiresOnSheet (model:BusWireT.Model) = separateAndOrderModelSegments (Array.toList (mapKeys model.Wires)) model
                 if model.Wire.Wires |> Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) then
                         // wire already exists
                         Error "Can't create wire from {source} to {target} because a wire already exists between those ports"
                 else
                      model
                      |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
-                     |> Ok
+                     |> Optic.map busWireModel_ separateAllWiresOnSheet
+                     |> Ok 
             
 
         /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
@@ -319,7 +343,7 @@ module HLPTick3 =
     open Builder
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
-        fromList [-100..20..100]
+        fromList [300..400..301]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
     /// demo test circuit consisting of a DFF & And gate

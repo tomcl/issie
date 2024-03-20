@@ -18,6 +18,9 @@ open Symbol
 /// <param name="model">  sheet model with components to optimize</param>
 /// <returns>New sheet model with adjust ports/flip.</returns>
 let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
+    // Other notes: current implementation works well on unrotated blocks which the majority are,
+    // where their inputs/outputs are on left or right side. However, possible improvement could be to test rotating
+    // blocks that are in close proximity, as these are mainly the cases that could reduce some wire crossings.
 
     let partitionComponents (symbols: (ComponentId * Symbol) list) =
         symbols |> List.filter (fun (compId,symbol) -> match symbol.Component.Type with

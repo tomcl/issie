@@ -203,21 +203,8 @@ open BusWire
                 | _ -> wModel' // If no port is found, proceed to the next symbol
             ) wModel
     
-        /// Handles scaling and aligning for non-singly components
-        (*let alignScaleComp (wModel: BusWireT.Model): BusWireT.Model =
-            let multiplySyms = getMultiplyComp wModel
-            let connPairs = getConnSyms wModel
-            let custPairs = filterCustomComp connPairs
-            let custEdges =
-                let (portInfoA, portInfoB) = getOppEdgePortInfo wModel (fst custPairs) (snd custPairs)
-                (portInfoA.side, portInfoB.side)
-            let wModel' = scaleMultiplyComp wModel (fst custPairs) (fst custEdges) (snd custPairs) (snd custEdges)
-            let customSymbols = List.unzip custPairs |> fun (a, b) -> a @ b // Unzip and concatenate to get a list of symbols
-            let alignSyms = List.filter (fun sym -> not (List.contains sym customSymbols)) multiplySyms // filter out custom symbols from multiply list    
-            let wModel'' = alignMultiplyComp wModel' alignSyms
-            wModel''*)
 
-        (*let alignScaleComp (wModel: BusWireT.Model): BusWireT.Model =
+        let alignScaleComp (wModel: BusWireT.Model): BusWireT.Model =
             let multiplySyms = getMultiplyComp wModel
             let connPairs = getConnSyms wModel
             let custPairs = filterCustomComp connPairs
@@ -225,32 +212,33 @@ open BusWire
             let alignSyms = List.filter (fun sym -> not (List.contains sym customSymbols)) multiplySyms
             
             // Iterate over each pair in custPairs for processing
-            let wModel' = List.fold (fun wModel' (symA, symB) -> 
-                let Some (portInfoA, portInfoB) = getOppEdgePortInfo wModel' symA symB
-                let custEdges = (portInfoA.side, portInfoB.side)
-                scaleMultiplyComp wModel' symA (fst custEdges) symB (snd custEdges)
-            ) wModel custPairs
+            let wModel' =
+                List.fold (fun wModel' (symA, symB) -> 
+                    match getOppEdgePortInfo wModel' symA symB with
+                    | Some (portInfoA, portInfoB) ->
+                        let custEdges = (portInfoA.side, portInfoB.side)
+                        scaleMultiplyComp wModel' symA (fst custEdges) symB (snd custEdges)                   
+                    | None -> wModel'
+                ) wModel custPairs
+
             
             let wModel'' = alignMultiplyComp wModel' alignSyms
             // Return the final model after adjustments
-            wModel''*)
+            wModel''
 
+        let sheetSingly (sheet: SheetT.Model): SheetT.Model =
+            let singlyModel = alignSinglyComp sheet.Wire
+            let sheet' = Optic.set SheetT.wire_ singlyModel sheet
+            sheet'
+
+        let sheetMultiply (sheet: SheetT.Model): SheetT.Model =
+            let multiplyModel = alignScaleComp sheet.Wire
+            let multiplySheet = Optic.set SheetT.wire_ multiplyModel sheet
+            multiplySheet
 
         let sheetAlignScale (sheet: SheetT.Model): SheetT.Model =
-           //let multiplyModel = alignScaleComp sheet
-          // let multiplySheet = Optic.set SheetT.wire_ multiplyModel sheet
-           let singlyModel = alignSinglyComp sheet.Wire
-           let sheet' = Optic.set SheetT.wire_ singlyModel sheet
+           let multiplyModel = alignScaleComp sheet.Wire
+           let multiplySheet = Optic.set SheetT.wire_ multiplyModel sheet
+           let singlyModel = alignSinglyComp multiplySheet.Wire
+           let sheet' = Optic.set SheetT.wire_ singlyModel multiplySheet
            sheet'  
-                                        
-            
-
-
-    
-    
-        (*let sheetAlignScale (sheet: SheetT.Model): SheetT.Model =
-            //let multiplyModel = alignScaleComp sheet
-           // let multiplySheet = Optic.set SheetT.wire_ multiplyModel sheet
-            let singlyModel = alignSinglyComp sheet.Wire
-            let sheet' = Optic.set SheetT.wire_ singlyModel multiplySheet
-            sheet'*)

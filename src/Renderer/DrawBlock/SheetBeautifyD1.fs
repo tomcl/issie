@@ -280,6 +280,18 @@ let findAlignment (model: SheetT.Model) =
 
 // Function to adjust the position of singly-connected components
 let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
+    let moveSymbol (move: XYPos) (sym: Symbol) : Symbol =
+        {sym with
+            Moving = true
+            Pos = sym.Pos + move
+            Component = {sym.Component with
+                            X = sym.Component.X + move.X
+                            Y = sym.Component.Y + move.Y
+                        }
+            LabelBoundingBox = {sym.LabelBoundingBox with
+                                    TopLeft =  sym.LabelBoundingBox.TopLeft + move}
+        }
+    
     let alignmentString = findAlignment model
 
     // Convert map keys from string to ComponentId
@@ -291,8 +303,8 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
 
     // Function to adjust the position of a symbol based on the provided shift (XYPos)
     let adjustSymbolPosition (symbol: Symbol) (shift: XYPos) : Symbol =
-        let newPos = { X = symbol.Pos.X + shift.X; Y = symbol.Pos.Y + shift.Y }
-        { symbol with Pos = newPos }
+        // let newPos = { X = symbol.Pos.X + shift.X; Y = symbol.Pos.Y + shift.Y }
+        moveSymbol shift symbol
 
     // Convert ComponentId to string for matching
     let componentIdToString (ComponentId s) = s

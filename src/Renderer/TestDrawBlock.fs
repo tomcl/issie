@@ -344,7 +344,7 @@ module HLPTick3 =
         let s2Pos = {X = muxPos.X - 100.0; Y = muxPos.Y + 110.0}
         let APos ={X = muxPos.X - 150.0; Y = muxPos.Y - 280.0} 
         let BPos ={X = muxPos.X - 150.0; Y = muxPos.Y + 280.0} 
-        let CPos = { X = muxPos2.X + 150.0; Y = muxPos2.Y + 0.0}
+        let CPos = { X = muxPos2.X + 150.0; Y = muxPos2.Y + 10.0}
 
         initSheetModel
         // Place a MUX on the sheet at the specified position.
@@ -370,7 +370,7 @@ module HLPTick3 =
         let s2Pos = {X = muxPos.X - 100.0; Y = muxPos.Y + 110.0}
         let APos ={X = muxPos.X - 150.0; Y = muxPos.Y - 280.0} 
         let BPos ={X = muxPos.X - 150.0; Y = muxPos.Y + 280.0} 
-        let CPos = { X = muxPos2.X + 150.0; Y = muxPos2.Y + 0.0}
+        let CPos = { X = muxPos2.X + 150.0; Y = muxPos2.Y + 10.0}
 
         initSheetModel
         // Place a MUX on the sheet at the specified position.
@@ -391,6 +391,7 @@ module HLPTick3 =
         |> getOkOrFail
         |> alignSinglyConnectedComponents
         |> alignSinglyConnectedComponents
+        // |> alignSinglyConnectedComponents
         
 
 

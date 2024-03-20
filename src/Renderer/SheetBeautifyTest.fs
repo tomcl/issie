@@ -43,6 +43,7 @@ open SymbolUpdate
 open SymbolResizeHelpers
 open BusWidthInferer
 open BusWireSeparate
+open BusWireRoute
 open RotateScale
 open CanvasStateAnalyser
 open System 
@@ -317,7 +318,6 @@ module T123 =
         let s2Pos = {X = muxPos.X - 100.0; Y = muxPos.Y + 110.0}
         initSheetModel
         |> placeSymbol "Decode"Decode4 muxPos
-        
         |> Result.bind (placeSymbol "InputA" (Input1 (1,None)) APos)
         |> Result.bind (placeSymbol "InputB" (Input1 (1,None)) BPos)
         |> Result.bind (placeSymbol "OutputC" (GateN(And, 4)) CPos)
@@ -327,7 +327,6 @@ module T123 =
         |> Result.bind (placeWire (portOf "Decode" 1) (portOf "OutputC" 1))
         |> Result.bind (placeWire (portOf "Decode" 2) (portOf "OutputC" 2))
         |> Result.bind (placeWire (portOf "Decode" 3) (portOf "OutputC" 3))
-  
         |> getOkOrFail
 
     // ---------------------------- T2 -----------------------------
@@ -361,7 +360,6 @@ module T123 =
         // Add more custom or specific components as needed
     ]
 
-
     // Function to generate a random position
     let randomXYPos (rnd: Random) (maxX: float) (maxY: float) : XYPos =
         { X = rnd.NextDouble() * maxX; Y = rnd.NextDouble() * maxY }
@@ -376,7 +374,6 @@ module T123 =
         sprintf "%s%d" basee id
 
     // Generating a random circuit
-
     let makeRandomCircuit_improve (andPos:XYPos) =
         let initModel = initSheetModel
         let maxX, maxY = 800.0, 600.0 // Define bounds for component placement
@@ -426,7 +423,6 @@ module T123 =
         |> Result.bind (applyOptimizedModel)
         |> getOkOrFail
         
-
     let makeRandomCircuit_ (andPos:XYPos) =
         let initModel = initSheetModel
         let maxX, maxY = 800.0, 600.0 // Define bounds for component placement
@@ -475,9 +471,6 @@ module T123 =
         |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 0))
         //|> Result.bind (SheetBeautify.getOptimizedModel )
         |> getOkOrFail
-
-        
-
 
     let makeRandomCircuit_improve_random (andPos:XYPos) =
         let initModel = initSheetModel
@@ -531,6 +524,14 @@ module T123 =
         |> Result.bind applySheetWireLabelSymbol
         |> getOkOrFail
 
+    let showTestCircuit_1 (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) (andPos+{X=1000.;Y=0.})
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+
     let makeTestCircuit_1 (andPos:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) (andPos+{X=1000.;Y=0.})
@@ -538,6 +539,18 @@ module T123 =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> Result.bind applySheetWireLabelSymbol
+        |> getOkOrFail
+
+    let showTestCircuit_2 (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "I0" IOLabel (andPos+{X=60.;Y=60.}))
+        |> Result.bind (placeSymbol "I1" IOLabel (middleOfSheet+{X=60.;Y=30.}))
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "I0" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "I1" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
         |> getOkOrFail
 
     let makeTestCircuit_2 (andPos:XYPos) =
@@ -553,7 +566,38 @@ module T123 =
         |> Result.bind applySheetWireLabelSymbol
         |> getOkOrFail
 
-    let makeTestCircuit_3 (andPos:XYPos) =
+    let showTestCircuit_3 (dmPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "DM1" Demux4 middleOfSheet
+        |> Result.bind (placeSymbol "MUX1" Mux4 (middleOfSheet+{X=600.;Y=0.}))
+        |> Result.bind (placeSymbol "MUX2" Mux4 (middleOfSheet+{X=600.;Y=300.}))
+        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
+        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
+        |> getOkOrFail
+
+    let makeTestCircuit_3 (dmPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "DM1" Demux4 middleOfSheet
+        |> Result.bind (placeSymbol "MUX1" Mux4 (middleOfSheet+{X=600.;Y=0.}))
+        |> Result.bind (placeSymbol "MUX2" Mux4 (middleOfSheet+{X=600.;Y=300.}))
+        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
+        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
+        |> Result.bind applySheetWireLabelSymbol
+        |> getOkOrFail
+
+    let showTestCircuit_alt (andPos:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "FF1" DFF (middleOfSheet-{X=0.;Y=100.}))
@@ -562,7 +606,6 @@ module T123 =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF2" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF3" 0))
-        |> Result.bind applySheetWireLabelSymbol
         |> getOkOrFail
 
     let makeTestCircuit_alt (andPos:XYPos) =
@@ -848,7 +891,7 @@ module T123 =
                 "SheetBeautifyT3: fail when port connected to more than 1 label"
                 firstSample
                 horizLinePositions
-                makeTestCircuit_2
+                makeTestCircuit_0
                 Asserts.failOnMoreThan1Label
                 dispatch
             |> recordPositionInTest testNum dispatch 
@@ -892,6 +935,46 @@ module T123 =
                     Asserts.failOnLabelOverlap
                     dispatch
                 |> recordPositionInTest testNum dispatch 
+
+        let showCircuit1 testNum firstSample dispatch = 
+            runTestOnSheets
+                "SheetBeautifyT3: fail when label not added"
+                firstSample
+                horizLinePositions
+                showTestCircuit_1
+                Asserts.failOnLabelNotPlaced
+                dispatch
+            |> recordPositionInTest testNum dispatch 
+
+        let showCircuit2 testNum firstSample dispatch = 
+            runTestOnSheets
+                    "SheetBeautifyT3: fail when label not removed"
+                    firstSample
+                    horizLinePositions
+                    showTestCircuit_2
+                    Asserts.failOnLabelNotRemoved
+                    dispatch
+                |> recordPositionInTest testNum dispatch 
+
+        let showCircuit3 testNum firstSample dispatch = 
+            runTestOnSheets
+                    "SheetBeautifyT3: fail when connection info not maintained"
+                    firstSample
+                    horizLinePositions
+                    showTestCircuit_3
+                    Asserts.failOnWrongConnection
+                    dispatch
+                |> recordPositionInTest testNum dispatch 
+        
+        let showCircuit4 testNum firstSample dispatch = 
+            runTestOnSheets
+                    "SheetBeautifyT3: fail when components overlaps"
+                    firstSample
+                    horizLinePositions
+                    showTestCircuit_alt
+                    Asserts.failOnLabelOverlap
+                    dispatch
+                |> recordPositionInTest testNum dispatch 
                 
         let testSheetWireLabelSymbol testNum firstSample dispatch = 
             runTestOnSheets
@@ -906,24 +989,28 @@ module T123 =
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             [   
                 // ------------------------ t1 -----------------
-                "D1 A2 without", test1 
+                "D1 A2 original", test1 
                 "D1 A2 beautify", test2 
-                "D1 A3 without", test3 
+                "D1 A3 original", test3 
                 "D1 A3 beautify", test4 
-                "D1 A2 random ", makeA2TestCase
+                "D1 A2 random original ", makeA2TestCase
                 "D1 A2 beautify random", makeA2BeautifyTestCase
-                "D1 A5", makeA5TestCase
+                "D1 A5 original", makeA5TestCase
                 "D1 A5 beautify", makeA5BeautifyTestCase
                 // ------------------------ t2 ------------------
-                "D2 Test without", test_origin 
+                "D2 Test original", test_origin 
                 "D2 Test beautify", test_improve 
                 "D2 Automated Testing", automated_T2
                 // ------------------------ t3 -------------------
-                "T3 test 0 : No port connected to more than 1 label", testLabelNumber // always PASS
-                "T3 test 1 : Wire to label", testWireToLabel
-                "T3 test 2 : Label to wire", testLabelToWire
-                "T3 test 3 : Connection check", testConnection
-                "T3 test 4 : Overlap check", testOverlap
+                "D3 test 0 : No port connected to more than 1 label", testLabelNumber // always PASS
+                "D3 show test 1", showCircuit1
+                "D3 test 1 beautify : Wire to label", testWireToLabel
+                "D3 show test 2", showCircuit2
+                "D3 test 2 beautify : Label to wire", testLabelToWire
+                "D3 show test 3", showCircuit3
+                "D3 test 3 beautify : Connection check", testConnection
+                "D3 show test 4", showCircuit4
+                "D3 test 4 beautify : Overlap check", testOverlap
                 "(Dummy Test : FailAllTests)", testSheetWireLabelSymbol
             ]
 

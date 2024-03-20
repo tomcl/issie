@@ -1,6 +1,8 @@
 ﻿module TestDrawBlock
 open GenerateData
 open Elmish
+open BusWireRoute
+open BusWireSeparate
 
 
 //-------------------------------------------------------------------------------------------//
@@ -277,13 +279,16 @@ module HLPTick3 =
             | Error e, _ | _, Error e -> Error e
             | Ok inPort, Ok outPort ->
                 let newWire = BusWireUpdate.makeNewWire (InputPortId inPort) (OutputPortId outPort) model.Wire
+                // let newWire = updateWire model.Wire newWire true 
+                let separateAllWiresOnSheet (model:BusWireT.Model) = separateAndOrderModelSegments (Array.toList (mapKeys model.Wires)) model
                 if model.Wire.Wires |> Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) then
                         // wire already exists
                         Error "Can't create wire from {source} to {target} because a wire already exists between those ports"
                 else
                      model
                      |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
-                     |> Ok
+                     |> Optic.map busWireModel_ separateAllWiresOnSheet
+                     |> Ok 
             
 
         /// Run the global wire separation algorithm (should be after all wires have been placed and routed)

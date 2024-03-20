@@ -24,6 +24,7 @@ open TestDrawBlock.HLPTick3.Builder
 open TestDrawBlock.HLPTick3.Tests
 open TestLib
 open SheetBeautifyD2
+open SheetBeautifyD3
 
 // Define a new type that combines an XYPos with an optional FlipType
 type posFlipPair = {
@@ -141,7 +142,7 @@ let makeGrid (offsetX: float) (offsetY: float) =
 
 // Placeholder for actual implementation
 let beautify (model : SheetT.Model) : SheetT.Model = 
-    findBestModel model
+    replaceLongWiresWithLabels model 250
 
 /// <summary> Beautifies the given sheet within the model then updates and displays the new sheet. Prints metrics before and after changes. </summary>
 /// <param name="model">The model containing the sheet to be beautified.</param>

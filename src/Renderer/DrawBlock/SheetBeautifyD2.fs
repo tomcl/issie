@@ -7,6 +7,7 @@ open Operators
 open RotateScale
 open BusWireSeparate
 open SheetUpdateHelpers
+open Helpers
 open System
 
 
@@ -24,22 +25,20 @@ type D2ParamsT = {
     ILSIterations: int
 }
 
-// TODO figure out what these weights should be through testing.
 let D2Params = {
-    NumCrossingsNorm = 1.0;
+    NumCrossingsNorm = 250_000.0;
     VisibleLengthNorm = 1.0;
-    RightAnglesNorm = 1.0;
-    Rotate90Penalty = 1.0;
-    Rotate180Penalty = 1.0;
-    k = 3;
-    ILSIterations = 5
+    RightAnglesNorm = 10_000.0;
+    Rotate90Penalty = 50_000.0;
+    Rotate180Penalty = 100_000.0;
+    k = 1;
+    ILSIterations = 3
 }
 
 // TODO consider moving these to SheetBeautifyHelpers (if useful to others?)
 
-/// Given a modified symbol and a sheet, find the original symbol in the sheet
-/// (by component id) and replace it with the new symbol, returning the new sheet.
-/// Does not update bounding boxes or wiring - symbol only!
+/// Replacing a symbol in the sheet with the new symbol.
+/// Does not update bounding boxes or wiring.
 let replaceSymbol
         (sheet: SheetT.Model)
         (symbol: SymbolT.Symbol)
@@ -47,6 +46,21 @@ let replaceSymbol
     sheet.Wire.Symbol.Symbols
     |> Map.add symbol.Id symbol
     |> fun symbolMap -> Optic.set SheetT.symbols_ symbolMap sheet
+
+/// Replace a symbol in the sheet with the new symbol, also updating it's bounding box.
+/// Does not update wiring.
+let replaceSymbolAndBB
+        (sheet: SheetT.Model)
+        (symbol: SymbolT.Symbol)
+        : SheetT.Model =
+    Symbol.calcLabelBoundingBox symbol
+    |> replaceSymbol sheet
+    |> Optic.set SheetT.boundingBoxes_ (Map.add symbol.Id (Symbol.getSymbolBoundingBox symbol) sheet.BoundingBoxes)
+
+let mutable totalCrossings = 0.
+let mutable totalLength = 0.
+let mutable totalAngles = 0.
+let mutable totalIts = 0.
 
 /// Returns a score for the given sheet, based on how well it satisfies the given
 /// beautify criteria e.g. fewer wire crossings, fewer right-angles etc.
@@ -58,14 +72,29 @@ let sheetScore
     let numCrossingsSq = float (SheetBeautifyHelpers2.numRightAngleSegCrossings sheet) ** 2.0
     let visibleLengthSq = float (SheetBeautifyHelpers2.visibleWireLength sheet) ** 2.0
     let numRightAnglesSq = float (SheetBeautifyHelpers2.numWireRightAngles sheet) ** 2.0
+    totalCrossings <- totalCrossings + numCrossingsSq
+    totalLength <- totalLength + visibleLengthSq
+    totalAngles <- totalAngles + numRightAnglesSq
+    totalIts <- totalIts + 1.
 
     // Square and add metrics to encourage optimisation algorithms to make them all moderately small,
     // as opposed to sacrificing one in order to make the others very small.
     // Same concept as L1 vs L2 regularisation in neural networks (?).
-    //numCrossingsSq*numCrossingsNorm + visibleLengthSq*visibleLengthNorm + numRightAnglesSq*numRightAnglesNorm
-    numCrossingsSq*D2Params.NumCrossingsNorm
+    numCrossingsSq*D2Params.NumCrossingsNorm +
+    visibleLengthSq*D2Params.VisibleLengthNorm +
+    numRightAnglesSq*D2Params.RightAnglesNorm
 
 let inline (%!) a b = (a % b + b) % b
+
+/// Returns true if the given symbol does not intersect any other symbol in the sheet.
+let noSymbolIntersections
+        (sheet: SheetT.Model)
+        (symbol: SymbolT.Symbol)
+        : bool =
+    let symbolBox = Symbol.getSymbolBoundingBox symbol
+    sheet.BoundingBoxes
+    |> Map.exists (fun compId box -> compId <> symbol.Id && BlockHelpers.overlap2DBox box symbolBox)
+    |> not
 
 
 
@@ -86,12 +115,23 @@ let generateFlips
 
 /// Takes a symbol and returns all possible rotations of that symbol,
 /// with associated penalty weights.
-let generateRotations
+let generateAllRotations
         (symbol: SymbolT.Symbol, penalty: float)
         : (SymbolT.Symbol*float) list =
     [symbol, penalty + 0.0;
      SheetBeautifyHelpers2.rotateSymbol Degree90 symbol, penalty + D2Params.Rotate90Penalty;
      SheetBeautifyHelpers2.rotateSymbol Degree180 symbol, penalty + D2Params.Rotate180Penalty;
+     SheetBeautifyHelpers2.rotateSymbol Degree270 symbol, penalty + D2Params.Rotate90Penalty;
+    ]
+
+// TODO think about all rotations vs limited rotations
+/// Takes a symbol and returns all possible rotations of that symbol except for 180 degrees,
+/// with associated penalty weights.
+let generateLimitedRotations
+        (symbol: SymbolT.Symbol, penalty: float)
+        : (SymbolT.Symbol*float) list =
+    [symbol, penalty + 0.0;
+     SheetBeautifyHelpers2.rotateSymbol Degree90 symbol, penalty + D2Params.Rotate90Penalty;
      SheetBeautifyHelpers2.rotateSymbol Degree270 symbol, penalty + D2Params.Rotate90Penalty;
     ]
 
@@ -119,24 +159,38 @@ let rec bruteForceOptimise
 
         let symbolChoices =
             match sym.Component.Type with
-            | Not | GateN (_, _) ->
-                [sym, 0.0]
-                |> List.collect generateFlips
-                |> List.collect generateRotations
-            | Mux2 | Mux4 | Mux8 ->
+            // MUXes
+            | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 ->
                 [sym, 0.0]
                 |> List.collect generateFlips
                 |> List.collect generateRevInputs
-                |> List.collect generateRotations
-            | _ -> [sym, 0.0]
+                |> List.collect generateLimitedRotations
+            // Flip and rotate
+            | GateN _ | MergeWires | SplitWire _ ->
+                [sym, 0.0]
+                |> List.collect generateFlips
+                |> List.collect generateLimitedRotations
+            // Rotate-only (typically single input / single output)
+            | Not | Input1 _ | Output _ | Viewer _ | BusCompare1 _ | BusSelection _
+            | Constant1 _ | NbitSpreader _ ->
+                [sym, 0.0]
+                |> List.collect generateLimitedRotations
+            // Flip-only (typically larger units like adders)
+            | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _
+            | NbitsXor _ | NbitsAnd _ | NbitsOr _ | NbitsNot _ | MergeN _ | SplitN _
+            | DFF | DFFE | Register _ | RegisterE _ | Counter _ | CounterNoLoad _
+            | CounterNoEnable _ | CounterNoEnableLoad _ | AsyncROM1 _ | ROM1 _ | RAM1 _
+            | AsyncRAM1 _ ->
+                [sym, 0.0]
+                |> List.collect generateFlips
+            // Everything else: do not transform (includes custom components and legacy components)
+            | _ ->
+                [sym, 0.0]
 
         symbolChoices
-        |> List.map (fun (sym, penalty) -> replaceSymbol sheet sym, penalty)
-        |> List.filter (fun (sheet, _) ->
-            let sheet' = updateBoundingBoxes sheet
-            SheetBeautifyHelpers2.numPairsIntersectingSymbols sheet' = 0
-            // Immediately reject solutions with overlapping symbols.
-        )
+        |> List.filter (fun (sym, _) -> noSymbolIntersections sheet sym)
+           // Immediately reject solutions with overlapping symbols.
+        |> List.map (fun (sym, penalty) -> replaceSymbolAndBB sheet sym, penalty)
         |> List.map (fun (sheet, penalty) -> bruteForceOptimise remSyms compIds sheet, penalty)
         |> List.minBy (fun (result, penalty) -> result.Score + penalty)
         |> fun (result, _) -> result
@@ -147,6 +201,7 @@ let rec bruteForceOptimise
         |> reRouteWiresFrom compIds
         |> fun wire -> Optic.set SheetT.wire_ wire sheet
         |> fun newSheet -> {|OptimisedSheet = newSheet; Score = sheetScore newSheet|}
+        //{|OptimisedSheet = sheet; Score = sheetScore sheet|}
 
 
 
@@ -392,18 +447,18 @@ let rec beautifyILS
         (sheet: SheetT.Model)
         (partitions: ComponentId list list)
         (iterationsLeft: int)
+        (initialScore: float)
         : SheetT.Model =
     match iterationsLeft with
     | 0 -> sheet
     | _ ->
-        let scoreBefore = sheetScore sheet
         let sheet' =
             (sheet, partitions)
             ||> List.fold beautifyCluster
-        let scoreAfter = sheetScore sheet'
-        match abs (scoreBefore - scoreAfter) < XYPos.epsilon with
+        let afterScore = sheetScore sheet'
+        match abs (initialScore - afterScore) < XYPos.epsilon with
         | true -> sheet'
-        | false -> beautifyILS sheet' partitions (iterationsLeft - 1)
+        | false -> beautifyILS sheet' partitions (iterationsLeft - 1) afterScore
 
 
 
@@ -421,7 +476,16 @@ let sheetOrderFlip
     // Since beautification has exponential time complexity (using brute force), clusters
     // must be kept fairly small.
     let partitions = partitionCircuit sheet
-    beautifyILS sheet partitions D2Params.ILSIterations
+    totalCrossings <- 0
+    totalLength <- 0
+    totalAngles <- 0
+    totalIts <- 0
+    let initialScore = sheetScore sheet
+    let sheet' = beautifyILS sheet partitions D2Params.ILSIterations initialScore
+    printf "Average crossings: %A" (totalCrossings / totalIts)
+    printf "Average length: %A" (totalLength / totalIts)
+    printf "Average angles: %A" (totalAngles / totalIts)
+    sheet'
 
 //let sheetOrderFlip (sheet: SheetT.Model) : SheetT.Model =
 //    sheet.Wire.Symbol.Symbols

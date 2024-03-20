@@ -885,25 +885,25 @@ module HLPTick3 =
         initSheetModel
         |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -700; Y = -500 })
         |> Result.bind (placeSymbol "MUX2" (Mux2) (middleOfSheet))
-        |> Result.bind (placeSymbol "S1" (Input1 (1,None) ) (middleOfSheet + { X = -150; Y = -10 }))
-        |> Result.bind (placeSymbol "S2" (Input1 (1,None)) (middleOfSheet + { X = -150; Y = 70 }))
-        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 250; Y = -100 }))
+        |> Result.bind (placeSymbol "S1" (Input1 (1,None) ) (middleOfSheet + { X = -500; Y = -10 }))
+(*        |> Result.bind (placeSymbol "S2" (Input1 (1,None)) (middleOfSheet + { X = -250; Y = 70 }))*)
+   (*     |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 250; Y = -250 }))*)
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 1))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
+(*        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))*)
         |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 0))
-        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
-        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0))
+(*        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))*)
+(*        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0))*)
         |> (fun res -> if beautify then Result.map sheetWireLabelSymbol res else res)
         |> Result.map autoRouteAllWires
         |> getOkOrFail
 
     let makeOFTestCircuitDemo2 (beautify: bool) =
         initSheetModel
-        |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -600; Y = -300 })
+        |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -700; Y = -300 })
         |> Result.bind (placeSymbol "MUX2" (Mux2) (middleOfSheet))
-        |> Result.bind (placeSymbol "DEMUX2" (Demux2) (middleOfSheet + { X = -400; Y = 90 }))
-        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 150; Y = -180 }))
-        |> Result.bind (placeSymbol "G2" (GateN (Or,2)) (middleOfSheet + { X = 150; Y = 71.5 }))
+        |> Result.bind (placeSymbol "DEMUX2" (Demux2) (middleOfSheet + { X = -600; Y = -150 }))
+        |> Result.bind (placeSymbol "G1" (GateN (And,2)) (middleOfSheet + { X = 400; Y = -100}))
+        |> Result.bind (placeSymbol "G2" (GateN (Or,2)) (middleOfSheet + { X = 300; Y = 120}))
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0))

@@ -173,13 +173,6 @@ module HLPTick3 =
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
 
-
-                
-
-            
-
-
-
         /// Place a new symbol with label symLabel onto the Sheet with given position.
         /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
         /// To be safe place components close to (maxSheetCoord/2.0, maxSheetCoord/2.0).

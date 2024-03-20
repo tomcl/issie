@@ -52,7 +52,7 @@ open System
 module Constants = 
     // () // dummy to make skeleton type check - remove when other content exists
     let wireLabelThreshold = 200.0 
-    let seed = 1000
+    let seed = 100
 
 // ------------------------------------ Team work ------------------------------------------
 (* 
@@ -420,6 +420,7 @@ module T123 =
         |> placeWire (portOf "MUX1" 0) (portOf "COMP2" 0)
         |> Result.bind (placeWire (portOf "COMP2" 0) (portOf "COMP3" 0))
         |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 1))
         |> Result.bind (applyOptimizedModel)
         |> getOkOrFail
         
@@ -469,7 +470,7 @@ module T123 =
         |> placeWire (portOf "MUX1" 0) (portOf "COMP2" 0)
         |> Result.bind (placeWire (portOf "COMP2" 0) (portOf "COMP3" 0))
         |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 0))
-        //|> Result.bind (SheetBeautify.getOptimizedModel )
+        |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 1))
         |> getOkOrFail
 
     let makeRandomCircuit_improve_random (andPos:XYPos) =
@@ -513,6 +514,7 @@ module T123 =
 
         |> Result.bind (applyOptimizedModel)
         |> getOkOrFail
+
 
     // ---------------------------- T3 ------------------------------
     let makeTestCircuit_0 (andPos:XYPos) = // ?

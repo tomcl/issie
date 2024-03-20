@@ -128,7 +128,7 @@ let generateWireLabel (model: Model) (prefix: string) =
             |> List.choose id
             |> fun lst ->
                 if lst.Length > 0 then lst.Head
-                else if sortedList.Length > 0 then (List.rev sortedList |> List.head)
+                else if sortedList.Length > 0 then (List.rev sortedList |> List.head |> (+) 1)
                     else 0
         |> (string)
     

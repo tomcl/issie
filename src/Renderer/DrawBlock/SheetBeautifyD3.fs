@@ -442,15 +442,14 @@ let sameNetWireLabelsToWire (wireLabelName: string) (applyCond:bool) (model:Shee
     printf $"wire label name: {wireLabelName}"
 
     // 2. check condition
-    let wireLabelsMap =
+    let sourceWireLabelList, targetWireLabelList =
         wireLabelList
         |> List.map (fun sym -> getWireAndPort sym model)
-        |> List.groupBy (fun (sym,wire,portId) ->
+        |> List.partition (fun (sym,wire,portId) ->
                 wire.InputPort = InputPortId portId     // the source wire label
             )
-        |> Map.ofList
-    let sourceWireLabel, sourceWire, _ = wireLabelsMap[true][0]        // should only have one
-    let targetWireLabelInfoList = wireLabelsMap[false]
+    let sourceWireLabel, sourceWire, _ = sourceWireLabelList[0]        // should only have one
+    let targetWireLabelInfoList = targetWireLabelList
 
     let targetWireLabels,targetWires, _ = List.unzip3 targetWireLabelInfoList
 

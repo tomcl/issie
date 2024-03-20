@@ -152,8 +152,11 @@ let fileMenu (dispatch) =
         makeDebugItem name (Some $"Alt+{accelNumber+1}") (fun _ ->
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.testMenuFunc, accelNumber), dispatch)))
     let makeD3TestItem (name:string) (accelNumber:int)  =
-        makeDebugItem name (Some $"Alt+Shift+{accelNumber+1}") (fun _ -> // Using Alt+Shift
+        makeDebugItem name (Some $"CmdOrCtrl+Alt+Shift+{accelNumber+1}") (fun _ -> // Using Alt+Shift
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD3.testMenuFunc, accelNumber), dispatch)))
+    let makeBeautifyFunctions (name:string) (accelNumber:int)  =
+        makeDebugItem name (Some $"Alt+Shift+{accelNumber+1}") (fun _ -> // Using Alt+Shift
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.beautifyMenuFunc, accelNumber), dispatch)))
     makeMenu false "File" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
@@ -168,20 +171,25 @@ let fileMenu (dispatch) =
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
             |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
         // Add D1 Tests submenu
-        makeMenuGen (debugLevel > 0) false "D1 Tests" ( // This adds the "D1 Tests" submenu
-            TestDrawBlockD1.testsToRunFromSheetMenu // Assuming this is the name of your function
+        makeMenuGen (debugLevel > 0) false "D1 Tests" (
+            TestDrawBlockD1.testsToRunFromSheetMenu
             |> List.truncate 10 
             |> List.mapi (fun n (name,_) -> (makeD1TestItem name n)))
-        // D2 Tests submenu (existing)
+        // D2 Tests submenu
         makeMenuGen (debugLevel > 0) false "D2 Tests" (
             TestDrawBlockD2.testsToRunFromSheetMenu 
             |> List.truncate 10 
             |> List.mapi (fun n (name,_) -> (makeD2TestItem name n)))
         // Add D3 Tests submenu
-        makeMenuGen (debugLevel > 0) false "D3 Tests" ( // This adds the "D3 Tests" submenu
-            TestDrawBlockD3.testsToRunFromSheetMenu // Assuming this is the name of your function
+        makeMenuGen (debugLevel > 0) false "D3 Tests" (
+            TestDrawBlockD3.testsToRunFromSheetMenu
             |> List.truncate 10 
             |> List.mapi (fun n (name,_) -> (makeD3TestItem name n)))
+        // Add beautify Functions submenu
+        makeMenuGen (debugLevel > 0) false "Beautify Functions" (
+            TestDrawBlockD2.beautifyFunctionsMenu
+            |> List.truncate 10 
+            |> List.mapi (fun n (name,_) -> (makeBeautifyFunctions name n)))
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
         makeWinDebugItem "Trace View function" None (fun _ ->

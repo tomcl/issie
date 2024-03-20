@@ -1,5 +1,14 @@
 module TestDrawBlockD2
 // open modules likely to be used
+open CatalogueView
+open PopupHelpers
+open Fable.SimpleJson
+open Fable.Core.JsInterop
+open Fulma
+open Fulma.Extensions.Wikiki
+open Fable.React
+open Fable.React.Props
+open SheetBeautifyD3
 open CommonTypes
 open DrawHelpers
 open DrawModelType
@@ -26,6 +35,11 @@ open TestLib
 open SheetBeautifyD2
 open SheetBeautifyD3
 
+
+
+//--------------------------------------------------------------------------------------------------------------------------//
+//-----------------------------------------------------Type Definitions-----------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
 // Define a new type that combines an XYPos with an Port Connections and Component type
 type posConnectionsComponent = {
     Position: XYPos
@@ -49,6 +63,7 @@ type posFlipComponent = {
     Flip: Option<FlipType>
     Component: ComponentType
 }
+
 
 //--------------------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------Helper Functions-----------------------------------------------------//
@@ -161,10 +176,41 @@ let makeGrid (offsetX: float) (offsetY: float) =
 let beautify (model : SheetT.Model) : SheetT.Model = 
     replaceLongWiresWithLabels model 250
 
+///<summary>Displays a popup dialog for setting a user-defined threshold for beautifying a circuit.</summary>
+///<param name="model">The model containing the circuit data.</param>
+///<param name="func">A function to beautify the circuit, which takes the current model and returns the updated model.</param>
+///<param name="dispatch">Dispatch</param>
+let userThresholdPopUp (model: ModelType.Model) (func: SheetT.Model -> float -> SheetT.Model) (dispatch: Dispatch<Msg>) =
+    let title = $"Beautify circuit"
+    let beforeInt = fun _ -> str "Maximum wire length before replacing with wire label"
+    let intDefault = 200
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Beautify"
+    let buttonAction =
+        fun (model': Model) ->
+            // Use optic to get sheet
+            let sheet = Optic.get sheet_ model
+
+            // Print metrics for current Sheet
+            print "\nMetrics before beautifying"
+            printMetrics sheet
+            let dialogData = model'.PopupDialogData
+            let outputInt = getInt dialogData
+            let sheet = Optic.get sheet_ model
+            let newSheet = func sheet (float outputInt)
+            print "\nMetrics after beautifying"
+            printMetrics newSheet
+            let newModel = Optic.set sheet_ newSheet model
+            showSheetInIssieSchematic newModel.Sheet dispatch
+            dispatch ClosePopup
+    let isDisabled = fun (model': Model) -> getInt model'.PopupDialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+
 /// <summary> Beautifies the given sheet within the model then updates and displays the new sheet. Prints metrics before and after changes. </summary>
 /// <param name="model">The model containing the sheet to be beautified.</param>
 /// <param name="dispatch"> dispatch</param>
-let beautifySheet (model : ModelType.Model) (dispatch: Dispatch<Msg>): unit = 
+let beautifySheet (model : ModelType.Model) (func: SheetT.Model -> SheetT.Model) (dispatch: Dispatch<Msg>): unit = 
     // Use optic to get sheet
     let sheet = Optic.get sheet_ model
     
@@ -173,7 +219,7 @@ let beautifySheet (model : ModelType.Model) (dispatch: Dispatch<Msg>): unit =
     printMetrics sheet
     
     // Beautify sheet and print new metrics
-    let newSheet = beautify sheet
+    let newSheet = func sheet
     print "\nMetrics after beautifying"
     printMetrics newSheet
     
@@ -548,15 +594,19 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
     // Change names and test functions as required
     // delete unused tests from list
     [
+        // D1
         "Test1", test1
         "Test2", test2
+        
+        // D2
         "Test3", test3
         "Test4", test4
         "Test5", test5
         "Test6", test6
-        "Run Beautify Function 2", fun _ _ _ -> printf "Flipping MUX1"
-        "Run Beautify Function", fun _ _ _ -> printf "Running beautify algorithm"
-        "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+        // D3
+        "Test7", fun _ _ _ -> printf "To implement"
+        "Test8", fun _ _ _ -> printf "To implement"
+        "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the next error in a test
 
     ]
 
@@ -570,8 +620,30 @@ let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
                 printf "Test Finished"
                 ()
             | "Run Beautify Function", _ ->
-                beautifySheet model dispatch
+                beautifySheet model beautify dispatch
                 printf "Test Finished"
                 ()
             | _ ->
                 func testIndex 0 dispatch
+
+let beautifyFunctionsMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+    [
+        "D1 Beautify Function", fun _ _ _ -> printf "D1 Beautify Function"
+        "D2 Beautify Function", fun _ _ _ -> printf "D2 Beautify Function"
+        "D3 Beautify Function", fun _ _ _ -> printf "D3 Beautify Function"
+        "Integrated Beautify Function", fun _ _ _ -> printf "Integrated Beautify Function"
+    ]
+
+let beautifyMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
+    let name, _ = beautifyFunctionsMenu[testIndex]
+    printf "%s" name
+    match name, model.DrawBlockTestState with
+    | "D1 Beautify Function", _ -> 
+        beautifySheet model beautify dispatch
+    | "D2 Beautify Function", _ -> 
+        beautifySheet model beautify dispatch
+    | "D3 Beautify Function", _ -> 
+        userThresholdPopUp model replaceLongWiresWithLabels dispatch
+    | "Integrated Beautify Function", _ ->
+        userThresholdPopUp model replaceLongWiresWithLabels dispatch
+    | _ -> failwithf "Shouldn't happen buddy"

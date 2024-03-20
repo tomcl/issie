@@ -84,19 +84,54 @@ module T3 =
         model.Wire.Wires |> Map.count
 
     // -------------------------- Test data generation -------------------------------------------
-
-    let makeTestCircuit (andPos:XYPos) =
+    let makeTestCircuit_0 (andPos:XYPos) = // ?
         initSheetModel
-        |> placeSymbol "MUX1" Mux2  andPos
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+
+    let makeTestCircuit_1 (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) (andPos+{X=1000.;Y=0.})
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+
+    let makeTestCircuit_2 (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "I0" IOLabel (andPos+{X=60.;Y=60.}))
+        |> Result.bind (placeSymbol "I1" IOLabel (middleOfSheet+{X=60.;Y=30.}))
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "I0" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "I1" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
+        |> getOkOrFail
+
+    let makeTestCircuit_3 (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "FF1" DFF (middleOfSheet-{X=0.;Y=100.}))
         |> Result.bind (placeSymbol "FF2" DFF (middleOfSheet))
         |> Result.bind (placeSymbol "FF3" DFF (middleOfSheet+{X=0.;Y=100.}))
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "I0" 0))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF2" 0))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "FF3" 0))
-        |> Result.bind sheetWireLabelSymbol
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF2" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF3" 0))
+        |> getOkOrFail
+
+    let makeTestCircuit_alt (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "FF1" DFF (middleOfSheet-{X=0.;Y=100.}))
+        |> Result.bind (placeSymbol "FF2" DFF (middleOfSheet))
+        |> Result.bind (placeSymbol "FF3" DFF (middleOfSheet+{X=0.;Y=100.}))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF2" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF3" 0))
         |> getOkOrFail
 
     // ------------------------------------ Assertions -----------------------------------------
@@ -123,7 +158,7 @@ module T3 =
         /// 0. Each port has no more than 1 label
         ///    and if it has a label, no wire is connected to it
         ///   (for now this is abandoned, could be changed later)
-        let failOnWireLabels (model : SheetT.Model) =
+        let failOnMoreThan1Label (sample: int) (model : SheetT.Model) =
             let portLabelCounts =
                 model.Wire.Symbol.Ports
                 |> Map.toList
@@ -142,28 +177,22 @@ module T3 =
                 portLabelCounts
                 |> List.filter (fun (_, countLabel) -> countLabel > 1)
 
-            if List.isEmpty failedPorts then
-                printfn "Each port has at most 1 label and no wire connected to it."
-            else
-                printfn "The following ports violate the constraint of having at most 1 label and no wire connected to it:"
-                for portId, countLabel in failedPorts do
-                    printfn "Port: %s, Label Count: %d" portId countLabel
+            match (List.isEmpty failedPorts) with 
+                | true -> None
+                | false -> Some $"Illegal circuit: Port connected to more than 1 label."
 
         /// 1. Check wire -> label placement
-        let failOnLabelNotPlaced (model: SheetT.Model) =
+        let failOnLabelNotPlaced (sample: int) (model: SheetT.Model) =
             let wiresAboveThreshold =
                 mapValues model.Wire.Wires
                 |> List.filter (fun wire -> getWireLength wire >= Constants.wireLabelThreshold)
 
-            if List.isEmpty wiresAboveThreshold then
-                printfn "All wires above threshold have been replaced by labels."
-            else
-                printfn "The following wires are still above the threshold length and haven't been replaced by labels:"
-                for wire in wiresAboveThreshold do
-                    printfn "Wire: %A, Length: %f" wire.WId (getWireLength wire)
+            match (List.isEmpty wiresAboveThreshold) with 
+                | true -> None
+                | false -> Some $"Wires are still above the threshold length and haven't been replaced by labels."
 
         /// 2. Check label -> wire removal
-        let failOnLabelNotRemoved (model: SheetT.Model) =
+        let failOnLabelNotRemoved (sample: int) (model: SheetT.Model) =
             let labelsWithWires =
                 mapValues model.Wire.Symbol.Symbols
                 |> List.filter (fun sym -> sym.Component.Type = IOLabel)
@@ -172,67 +201,127 @@ module T3 =
                     | Some (_, wire, _) -> getWireLength wire < Constants.wireLabelThreshold
                     | None -> false)
 
-            if List.isEmpty labelsWithWires then
-                printfn "All labels corresponding to wires below threshold length have been removed."
-            else
-                printfn "The following labels still correspond to wires below the threshold length and haven't been removed:"
-                for sym in labelsWithWires do
-                    printfn "Label: %s" sym.Component.Label
+            match (List.isEmpty labelsWithWires) with 
+                | true -> None
+                | false -> Some $"Labels still correspond to wires below the threshold length and haven't been removed."
 
         /// 3. Check port are connected correctly
         /// (the model should be the same before and after sheet beautify)
-        let failOnWrongConnection (model : SheetT.Model) = 
-            failwithf "Not Implemented"
+        let failOnWrongConnection (sample: int) (model : SheetT.Model) = 
+            // assumption: this assert function would be used with "test circuit 3"
+            let originalModel = makeTestCircuit_3 middleOfSheet
+            let beautifiedModel = makeTestCircuit_3 middleOfSheet // TO CHANGE
 
-        // /// whether wire labels are correctly positioned to avoid overlaps with symbols
-        // let assertWireLabelPositionAdjustment (sample: int) (sheet: SheetT.Model) =
-        //     let wireLabels = Map.toSeq sheet.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type = IOLabel)
-        //     let symbols = Map.toSeq sheet.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type <> IOLabel)
-        //     let misplacedLabels =
-        //         wireLabels
-        //         |> Seq.filter (fun (_, label) ->
-        //             symbols |> Seq.exists (fun (_, symbol) -> overlap2DBox (getSymBoundingBox symbol) (getSymBoundingBox label))
-        //         )
-        //     match Seq.isEmpty misplacedLabels with
-        //     | true -> None
-        //     | false -> Some $"Wire labels are misplaced due to overlap with symbols in Sample {sample}."
+            // Get all wire symbols from both models
+            let originalWireSymbols =
+                originalModel.Wire.Symbol.Symbols
+            let beautifiedWireSymbols =
+                beautifiedModel.Wire.Symbol.Symbols
+                // |> Map.filter (fun _ sym -> sym.Component.Type = ComponentType.?)
+            
+            // Compare wire symbols between the original and beautified models
+            let originalWires =
+                originalWireSymbols |> Map.toSeq |> Seq.map snd |> Seq.toList
+            let beautifiedWires =
+                beautifiedWireSymbols |> Map.toSeq |> Seq.map snd |> Seq.toList
+
+            // Compare wire symbols
+            let areEqualWires (wire1: DrawModelType.SymbolT.Symbol) (wire2: DrawModelType.SymbolT.Symbol) =
+                wire1.Id = wire2.Id 
+            let wrongConnections =
+                List.filter (fun origWire ->
+                    not (List.exists (fun beautifiedWire -> areEqualWires origWire beautifiedWire) beautifiedWires)) originalWires
+
+            match (List.isEmpty wrongConnections) with 
+                | true -> None
+                | false -> Some $"Sheetbeautifier changed circuit connection."
+
+        /// 4. Check if wire labels are correctly positioned to avoid overlaps with symbols
+        let failOnLabelOverlap (sample: int) (sheet: SheetT.Model) =
+            let wireLabels = Map.toSeq sheet.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type = IOLabel)
+            let symbols = Map.toSeq sheet.Wire.Symbol.Symbols |> Seq.filter (fun (_, sym) -> sym.Component.Type <> IOLabel)
+            let misplacedLabels =
+                wireLabels
+                |> Seq.filter (fun (_, label) ->
+                    symbols |> Seq.exists (fun (_, symbol) -> overlap2DBox (readSymBoundingBox symbol) (readSymBoundingBox label))
+                )
+
+            match (Seq.isEmpty misplacedLabels) with
+                | true -> None
+                | false -> Some $"Wire labels are misplaced due to overlap with symbols."
 
     // ----------------------------------- Test driver -----------------------------------
     /// this is a similar test menu as tick 3
     module Tests = 
 
+        let testLabelNumber testNum firstSample dispatch = 
+            runTestOnSheets
+                "SheetBeautifyT3: fail when port connected to more than 1 label"
+                firstSample
+                horizLinePositions
+                makeTestCircuit_0
+                Asserts.failOnMoreThan1Label
+                dispatch
+            |> recordPositionInTest testNum dispatch 
+
         let testWireToLabel testNum firstSample dispatch = 
-            // runTestOnSheets
-            //     "Test sheetWireLabelSymbol function"
-            //     firstSample
-            //     sampleSheet // Replace sampleSheet with actual sheet
-            //     sheetWireLabelSymbol 
-            //     Asserts.failOnWireLabels
-            //     dispatch
-            // |> recordPositionInTest testNum dispatch
-            failwithf "Not Implemented"
+            runTestOnSheets
+                "SheetBeautifyT3: fail when label not added"
+                firstSample
+                horizLinePositions
+                makeTestCircuit_1
+                Asserts.failOnLabelNotPlaced
+                dispatch
+            |> recordPositionInTest testNum dispatch 
 
-        // let testLabelToWire = 
-        //     failwithf "Not Implemented"
+        let testLabelToWire testNum firstSample dispatch = 
+            runTestOnSheets
+                    "SheetBeautifyT3: fail when label not removed"
+                    firstSample
+                    horizLinePositions
+                    makeTestCircuit_2
+                    Asserts.failOnLabelNotRemoved
+                    dispatch
+                |> recordPositionInTest testNum dispatch 
 
-
+        let testConnection testNum firstSample dispatch = 
+            runTestOnSheets
+                    "SheetBeautifyT3: fail when connection info not maintained"
+                    firstSample
+                    horizLinePositions
+                    makeTestCircuit_3
+                    Asserts.failOnWrongConnection
+                    dispatch
+                |> recordPositionInTest testNum dispatch 
+        
+        let testOverlap testNum firstSample dispatch = 
+            runTestOnSheets
+                    "SheetBeautifyT3: fail when components overlaps"
+                    firstSample
+                    horizLinePositions
+                    makeTestCircuit_3
+                    Asserts.failOnLabelOverlap
+                    dispatch
+                |> recordPositionInTest testNum dispatch 
+                
         let testSheetWireLabelSymbol testNum firstSample dispatch = 
-            // runTestOnSheets
-            //     "Test sheetWireLabelSymbol function"
-            //     firstSample
-            //     sampleSheet // Replace sampleSheet with actual sheet
-            //     sheetWireLabelSymbol 
-            //     Asserts.failOnWireLabels
-            //     dispatch
-            // |> recordPositionInTest testNum dispatch
-            failwithf "Not Implemented"
+            runTestOnSheets
+                    "SheetBeautifyT3: fail on all tests"
+                    firstSample
+                    horizLinePositions
+                    makeTestCircuit_alt
+                    Asserts.failOnAllTests
+                    dispatch
+                |> recordPositionInTest testNum dispatch 
 
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             [
-                "test 0 : No port connected to more than 1 label", testWireToLabel
+                "test 0 : No port connected to more than 1 label", testLabelNumber // always PASS
                 "test 1 : Wire to label", testWireToLabel
-                // "test 2 : Label to wire", testLabelToWire
-                "(Dummy Test : SheetWireLabelSymbol)", testSheetWireLabelSymbol
+                "test 2 : Label to wire", testLabelToWire
+                "test 3 : Connection check", testConnection
+                "test 4 : Overlap check", testOverlap
+                "(Dummy Test : FailAllTests)", testSheetWireLabelSymbol
             ]
 
         /// Display the next error in a previously started test

@@ -72,7 +72,14 @@ module Builder =
 open Builder
 
 /// small offsets in X&Y axis
-let rnd=System.Random()
+let rnd=System.Random(42)
+let shuffleA arrayToShuffle: 'a array =
+        let tmpA = Array.copy arrayToShuffle
+        for i = 0 to tmpA.Length - 1 do 
+            let r = rnd.Next(i, tmpA.Length);
+            (tmpA[i],tmpA[r])
+            |> fun (iv, rv) -> tmpA[r] <- iv;  tmpA[i]  <- rv
+        tmpA
 
 let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (rotation:Rotation) (flip:option<SymbolT.FlipType>) (model: SheetT.Model) : Result<SheetT.Model, string> =
         let symLabel = String.toUpper symLabel // make label into its standard casing
@@ -133,7 +140,7 @@ let test1Builder =
         match x with
             |1  -> Some SymbolT.FlipHorizontal
             |2  -> Some SymbolT.FlipVertical
-            |3  -> None
+            |_  -> None
     let thing = 0
     let allFlip = List.map getFlip [1..3]
     let allRot = List.map getRotation [1..4] 
@@ -143,8 +150,10 @@ let test1Builder =
                 for z in lst do
                     yield [x; y; z] ]
     List.allPairs allRot allFlip
-    |>combinations 
-    |>fromList
+    |>combinations
+    |>List.toArray
+    |>shuffleA 
+    |>fromArray
 
 
 
@@ -159,22 +168,35 @@ let pos x y =
     middleOfSheet + {X=float x; Y=float y}
 
 let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
+    printf "MUX1 rotation: %A" (fst ori[0])
+    printf "MUX1 flipType: %A" ((snd ori[0]))
+    printf "MUX2 rotation: %A" (fst ori[1])
+    printf "MUX2 flipType: %A" ((snd ori[1]))
+    printf "MUX3 rotation: %A" (fst ori[2])
+    printf "MUX3 flipType: %A" ((snd ori[2]))
     let Mux1Pos = middleOfSheet + {X=300. ; Y=0.}
     let Mux2Pos = middleOfSheet + {X=300. ; Y=300.}
-    initSheetModel
-    |> placeSymbol "DM1" Demux4 middleOfSheet  (fst ori[0]) (snd ori[0])
-    |> Result.bind(placeSymbol "MUX1" Mux4 Mux1Pos (fst ori[1]) (snd ori[1]))
-    |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
-    |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
-    |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
-    |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
-    |> Result.bind(placeSymbol "MUX2" Mux4 Mux2Pos (fst ori[2]) (snd ori[2]))
-    |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX2" 0))
-    |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
-    |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
-    |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
-    |> getOkOrFail
-    |> autoGenerateWireLabels
+    let finalModel = 
+        initSheetModel
+        |> placeSymbol "DM1" Demux4 middleOfSheet  (fst ori[0]) (snd ori[0])
+        |> Result.bind(placeSymbol "MUX1" Mux4 Mux1Pos (fst ori[1]) (snd ori[1]))
+        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX1" 3))
+        |> Result.bind(placeSymbol "MUX2" Mux4 Mux2Pos (fst ori[2]) (snd ori[2]))
+        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
+        |> getOkOrFail
+        |> autoGenerateWireLabels
+        
+    finalModel.Wire.Symbol.Symbols.Values
+    |> Seq.cast
+    |> List.ofSeq
+    |>List.map (fun (x:SymbolT.Symbol) -> printf "%A STransform : %A" x.Component.Label x.STransform )
+    finalModel
 
 let makeTest2Circuit (data: float*Rotation)=
     let rotation = snd data

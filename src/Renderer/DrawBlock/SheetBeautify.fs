@@ -173,14 +173,22 @@ let applyScriptToSymbol (script: symbolScript) =
     
     
     let handlePortOrder (symbol: SymbolT.Symbol): SymbolT.Symbol =
-        symbol
-        |> putPortOrder Edge.Left script.PortOrder.[Edge.Left]
-        |> putPortOrder Edge.Right script.PortOrder.[Edge.Right]
-        |> putPortOrder Edge.Top script.PortOrder.[Edge.Top]
-        |> putPortOrder Edge.Bottom script.PortOrder.[Edge.Bottom]
+        match symbol.Component.Type with
+        | Custom _ -> 
+            symbol
+            |> putPortOrder Edge.Left script.PortOrder.[Edge.Left]
+            |> putPortOrder Edge.Right script.PortOrder.[Edge.Right]
+            |> putPortOrder Edge.Top script.PortOrder.[Edge.Top]
+            |> putPortOrder Edge.Bottom script.PortOrder.[Edge.Bottom]
+        | _ -> 
+            symbol
+            
+        
 
-    let handleMux2InputOrder = 
-        updateMuxFlip (Some script.ReversedInput)
+    let handleMux2InputOrder(symbol: SymbolT.Symbol): SymbolT.Symbol = 
+        match symbol.Component.Type with
+        | Mux2 | Mux4 | Mux8 -> updateMuxFlip (Some script.ReversedInput) symbol
+        | _ -> symbol
 
     let updateSymbol (symbol: SymbolT.Symbol): SymbolT.Symbol = 
         symbol

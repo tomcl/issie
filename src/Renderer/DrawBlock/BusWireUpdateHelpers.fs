@@ -781,7 +781,7 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
     
         { model with Wires = wiresWithJumps }
     | Modern ->
-        printfn "Updating modern circles"
+        // printfn "Updating modern circles"
         updateCirclesOnAllNets model
     | Radial -> 
         model

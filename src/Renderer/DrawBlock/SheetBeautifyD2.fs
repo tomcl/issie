@@ -224,8 +224,8 @@ module D2Helpers =
 
     let permuteMux ( symbol : SymbolT.Symbol ) = 
         [1.0, symbol; 1.0, changeReversedInputs symbol]
-        |> List.collect (flipPermute FlipVertical 1.2)
-        |> List.collect (flipPermute FlipHorizontal 2.0)
+        |> List.collect (flipPermute FlipVertical 1.1)
+        |> List.collect (flipPermute FlipHorizontal 2.5)
         |> List.collect (rotationPermute 3.0)
 
     // /// combine a list of symbol permutations into a list of all possible symbol permutations with each other
@@ -258,11 +258,31 @@ module D2Helpers =
 
     /// Given a Symbol and Sheet Exhaustively search through all permutations of the symbol to find the configuration which minimises the wire crossing heuristic
     let optimisePermuteSymbol ( sheet: SheetT.Model ) ((cid,sym : SymbolT.Symbol) ) =
+        let prevCrossings = countVisibleSegmentIntersection sheet
         sym
         |> permuteMux
-        |> List.map (fun (scale,newSym) -> scale,updateSymbolInSheet sheet (cid,newSym))
-        |> List.map (fun (scale, sheet) -> printf "%A %A" scale (scale * (float (countVisibleSegmentIntersection sheet) + 1.0)); (scale,sheet))
-        |> List.minBy (fun (scale, sheet) -> scale * (float (countVisibleSegmentIntersection sheet) + 1.0))
+        |> List.map (fun (scale,newSym) -> 
+            let newSheet = updateSymbolInSheet sheet (cid,newSym)
+
+            let newCrossings = countVisibleSegmentIntersection newSheet
+
+            let diff = float (newCrossings - prevCrossings)
+            // printf "diff:%A w:%A" (newCrossings - prevCrossings) weight;
+            (diff, scale, newSheet))
+        |> (fun lst -> 
+            List.unzip3 lst
+            |> (fun (diffs, scales, sheets) ->
+                let minDiff = List.min diffs
+                let biasedDiffs = List.map ((+) (minDiff * -1.0 + 1.0)) diffs
+                printf "%A" biasedDiffs;
+                let weights = List.zip biasedDiffs scales |> List.map (fun (x,y) -> x*y);
+                printf "%A" weights;
+                (weights, sheets)
+                ||> List.zip
+            )
+        )
+        // |> List.map (fun (scale, sheet) -> printf "%A %A" scale (scale * (float (countVisibleSegmentIntersection sheet) + 1.0)); (scale,sheet))
+        |> List.minBy fst
         |> snd
         
 

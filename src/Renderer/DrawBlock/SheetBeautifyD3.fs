@@ -17,8 +17,6 @@ open SheetBeautifyHelpers
 open EEExtensions
 open SheetBeautifyD2
 
-
-
 //--------------------------------------------------------------------------------------//
 //                                  Constants for D3                                    //
 //--------------------------------------------------------------------------------------//
@@ -42,7 +40,7 @@ let getOutputPortId (wireList: Wire list) : OutputPortId list =
     List.map (fun wire -> wire.OutputPort) wireList
 
 // Get all the input ports of the wires that have the same output port
-let getInputPortId (wireList: Wire list) (outputPort: OutputPortId): InputPortId list =
+let getInputPortId (wireList: Wire list) (outputPort: OutputPortId) : InputPortId list =
     wireList
     |> List.filter (fun wire -> wire.OutputPort = outputPort)
     |> List.map (fun wire -> wire.InputPort)
@@ -61,22 +59,20 @@ let placeSymbol
     let sym = symModel.Symbols[symId]
     match position + sym.getScaledDiagonal with
     | { X = x; Y = y } when x > maxSheetCoord || y > maxSheetCoord ->
-        Error
-            $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
+        Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
     | _ ->
         model
         |> Optic.set symbolModel_ symModel
         |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
         |> Ok
 
-
-let wireLabelPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWireT.Model)= 
+let wireLabelPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWireT.Model) =
     let outputPos = getPortPos (outputID.ToString()) model
 
     let inputPortList = getInputPortId wires outputID
-    let inputPosList = 
+    let inputPosList =
         [ for inputPort in inputPortList do
-            getPortPos (inputPort.ToString()) model ]
+              getPortPos (inputPort.ToString()) model ]
 
     outputPos :: inputPosList
 
@@ -93,21 +89,20 @@ let wireLabelPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWi
 let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
     let wires = getAllWires model
     let wireLengths = List.map getWireLength wires
-    let longWires = wireLengths 
-                    |> List.filter (fun (_, length) -> length > 500.0)  // Some threshold e.g 500
-                    |> List.map fst // Remove the length from snd as Wire list is now filtered
-    let OutputPortIds = longWires
-                        |> getOutputPortId
-                        |> List.distinct
-    let gap :XYPos = (10, 0)
+    let longWires =
+        wireLengths
+        |> List.filter (fun (_, length) -> length > 500.0) // Some threshold e.g 500
+        |> List.map fst // Remove the length from snd as Wire list is now filtered
+    let OutputPortIds = longWires |> getOutputPortId |> List.distinct
+    let gap: XYPos = { X = 10; Y = 0 }
     for outputPort in OutputPortIds do
         let posList = wireLabelPositions outputPort wires model.Wire
-        let outputSymModel, outputSymId = 
+        let outputSymModel, outputSymId =
             SymbolUpdate.addSymbol [] (model.Wire.Symbol) posList.Head IOLabel "I1"
         for pos in posList.Tail do
-            let inputSymModel, inputSymId = 
-                SymbolUpdate.addSymbol [] (model.Wire.Symbol) pos IOLabel "I1" 
-            
-            model
-            |> Optic.set symbolModel_ inputSymModel
+            let inputSymModel, inputSymId =
+                SymbolUpdate.addSymbol [] (model.Wire.Symbol) pos IOLabel "I1"
+
+            model |> Optic.set symbolModel_ inputSymModel
     model
+

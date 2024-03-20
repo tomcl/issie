@@ -1028,6 +1028,10 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                         printf "second pass unsuccessful"
                         currentSheetModel
 
+            (*
+                        Wishful Thinking: if there are still too many intersections, use findNearbyComponents to get a list of symbols and manually resize?
+                    *)
+
             // first, calculate how many bends we are saving by straightening CleanUpRecord.Wire
             // before running currentSheetModel, try determine the source of the intersection
 

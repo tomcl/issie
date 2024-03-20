@@ -29,31 +29,76 @@ let getLongWires (wireLengthlimit: float) (wireList: List<BusWireT.Wire>) =
     wireList
     |> List.filter (fun wire -> (getWireLength wire > wireLengthlimit))
 
-let findWireLabelRoomAtSource (wire: BusWireT.Wire ) (distance: float)= 
+let findWireLabelRoomAtSource (wire: BusWireT.Wire ) (distance: float) = 
     let asegList =  wire |> getAbsSegments 
     let firstSeg = asegList |> List.head
     match firstSeg.Orientation with
     | BusWireT.Horizontal -> 
         if firstSeg.End.X - firstSeg.Start.X < 0 
-        then {firstSeg.End with X = firstSeg.End.X - distance; Y = firstSeg.End.Y }
-        else { firstSeg.End with X = firstSeg.End.X + distance; Y = firstSeg.End.Y }
+        then 
+            let pos = {firstSeg.End with X = firstSeg.End.X - distance; Y = firstSeg.End.Y }
+            pos, Degree180
+        else 
+            let pos = { firstSeg.End with X = firstSeg.End.X + distance; Y = firstSeg.End.Y }
+            pos, Degree0
     | BusWireT.Vertical -> 
         if firstSeg.End.Y - firstSeg.Start.Y < 0 
-        then {firstSeg.End with X = firstSeg.End.X; Y = firstSeg.End.Y - distance}
-        else { firstSeg.End with X = firstSeg.End.X; Y = firstSeg.End.Y + distance}
+        then 
+            let pos = {firstSeg.End with X = firstSeg.End.X; Y = firstSeg.End.Y - distance}
+            pos, Degree90
+        else 
+            let pos = { firstSeg.End with X = firstSeg.End.X; Y = firstSeg.End.Y + distance}
+            pos, Degree270
 
-let findWireLabelRoomAtTarget (wire: BusWireT.Wire ) (distance: float) = 
+// let findWireLabelRoomAtTarget (wire: BusWireT.Wire) (symModel: SymbolT.Model) (sheet) (distance: float) = 
+//     let inputPort = wire.InputPort
+//     let portPos = getInputPortLocation None symModel inputPort
+//     let asegList =  sheet |> SegmentHelpers.visibleSegsWithVertices wire
+//     let lastSeg = asegList |> List.last
+//     let segStart, segEnd = lastSeg
+//     match SegmentHelpers.visSegOrientation lastSeg with
+//     | BusWireT.Horizontal -> 
+//         if segEnd.X - segStart.X < 0 
+//         then 
+//             let pos = {segEnd with X = segEnd.X + distance; Y = segEnd.Y }
+//             pos, Degree180
+//         else 
+//             let pos = { segEnd with X = segEnd.X - distance; Y = segEnd.Y }
+//             pos, Degree0
+//     | BusWireT.Vertical -> 
+//         if segEnd.Y - segStart.Y < 0 
+//         then 
+//             let pos = {segEnd with X = segEnd.X; Y = segEnd.Y + distance}
+//             printf "portpos %.2f, %.2f " portPos.X portPos.Y
+//             pos, Degree90
+//         else 
+//             printf "portpos %.2f, %.2f " portPos.X portPos.Y
+//             let pos = { portPos with X = segEnd.X; Y = segEnd.Y - distance}
+//             pos, Degree270
+let findWireLabelRoomAtTarget (wire: BusWireT.Wire) (symModel: SymbolT.Model) (distance: float) = 
+    let inputPort = wire.InputPort
+    let portPos = getInputPortLocation None symModel inputPort
     let asegList =  wire |> getAbsSegments 
     let lastSeg = asegList |> List.last
     match lastSeg.Orientation with
     | BusWireT.Horizontal -> 
         if lastSeg.End.X - lastSeg.Start.X < 0 
-        then {lastSeg.Start with X = lastSeg.Start.X + distance; Y = lastSeg.Start.Y }
-        else { lastSeg.Start with X = lastSeg.Start.X - distance; Y = lastSeg.Start.Y }
+        then 
+            let pos = {lastSeg.End with X = lastSeg.End.X + distance; Y = lastSeg.End.Y }
+            pos, Degree180
+        else 
+            let pos = { lastSeg.End with X = lastSeg.End.X - distance; Y = lastSeg.End.Y }
+            pos, Degree0
     | BusWireT.Vertical -> 
         if lastSeg.End.Y - lastSeg.Start.Y < 0 
-        then {lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y + distance}
-        else { lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y + distance}
+        then 
+            let pos = {lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y + distance}
+            printf "portpos %.2f, %.2f " lastSeg.Start.X (lastSeg.Start.Y - distance)
+            pos, Degree90
+        else 
+            printf "portpos %.2f, %.2f " lastSeg.Start.X (lastSeg.Start.Y - distance)
+            let pos = { lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y - distance}
+            pos, Degree270
 
 let getMovedSymbolBB (move: XYPos) (sym: SymbolT.Symbol) : BoundingBox =
     {sym.LabelBoundingBox with
@@ -92,7 +137,9 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
     if checkIfIntersect wireLabelSym.SymbolBoundingBox
     then 
         match tryAdjust adjustmentAmount 0 with
-        | Some moveAmount -> Some (newPos moveAmount)
+        | Some moveAmount -> 
+            //Some (newPos moveAmount)
+            Some originalPos
         | None -> None
     else 
         Some originalPos
@@ -130,6 +177,9 @@ let deleteWire (wireCID: ConnectionId) (sheet: SheetT.Model) =
 let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
     let connectionID = wire.WId
     let startSym = getSourceSymbol sheet.Wire wire
+    let endSym = getTargetSymbol sheet.Wire wire
+    let symbolModel = sheet.Wire.Symbol
+
     let sourceSymPort = getSourcePort sheet.Wire wire
     let inputPortNumber = sourceSymPort.PortNumber
     let wireLabelName =
@@ -139,11 +189,12 @@ let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
 
     let inputPort, outputPort = wire.InputPort, wire.OutputPort
 
-    let wireLabelSourcePos = findWireLabelRoomAtSource wire 40.0
-    let wireLabelTargetPos = findWireLabelRoomAtTarget wire 40.0
+    let wireLabelSourcePos, rotationSource = findWireLabelRoomAtSource wire 40.0
+    let wireLabelTargetPos, rotationTarget = findWireLabelRoomAtTarget wire symbolModel 40.0
 
     let addWireLabelAndConnectWire
         (pos)
+        (rotation)
         (labelName)
         (compType)
         (isAtSource: bool)
@@ -153,93 +204,175 @@ let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
         =
         let labelModel, labelID =
             SymbolUpdate.addSymbol [] (sheet.Wire.Symbol) pos compType labelName
+
         let labelSym = labelModel.Symbols[labelID]
+        let rotatedLabelModel = updateSymbol (SymbolResizeHelpers.rotateSymbol rotation) labelID labelModel 
         let inputPortIDstr, outputPortIdstr =
             if isAtSource then
-                (InputPortId labelModel.Symbols[labelID].Component.InputPorts.[0].Id), toLabelFromPortID
+                (InputPortId rotatedLabelModel.Symbols[labelID].Component.InputPorts.[0].Id), toLabelFromPortID
             else
-                fromLabelToPortID, (OutputPortId labelModel.Symbols[labelID].Component.OutputPorts.[0].Id)
+                fromLabelToPortID, (OutputPortId rotatedLabelModel.Symbols[labelID].Component.OutputPorts.[0].Id)
         let sheetWithWireLabelAdded = 
             sheet
-            |> Optic.set symbolModel_ labelModel
+            |> Optic.set symbolModel_ rotatedLabelModel
             |> SheetUpdateHelpers.updateBoundingBoxes
+            //|> updateSymPosInSheet labelID pos
 
         let adjustLabelOnSheet = 
             match adjustWireLabelPos labelSym sheetWithWireLabelAdded with
             | Some newPos -> 
                 // printf "newpos %.2f, %.2f " newPos.X newPos.Y
-                // printf "oldpos %.2f, %.2f" pos.X pos.Y
+                printf "labelpos %s, %.2f, %.2f" labelName labelSym.Component.X labelSym.Component.Y
                 let adjustedSheet = updateSymPosInSheet labelID newPos sheetWithWireLabelAdded
-                let newWireModel, _ = 
-                    BusWireUpdate.newWire (inputPortIDstr) (outputPortIdstr) adjustedSheet.Wire
+                let newWire = 
+                    BusWireUpdate.makeNewWire (inputPortIDstr) (outputPortIdstr) adjustedSheet.Wire
                 adjustedSheet
-                |> Optic.set busWireModel_ newWireModel
+                |> Optic.set (busWireModel_ >-> wireOf_ newWire.WId) newWire
             | None -> 
                 // printf "no room"
                 sheet
         adjustLabelOnSheet
-
+    
     let sheetCheckedForNetWires = 
         if sheet.Wire.Symbol.Symbols
             |> Map.exists (fun _ sym -> caseInvariantEqual sym.Component.Label wireLabelName) // if wire in a net then this would be true
         then sheet // Don't want to duplicate wirel Label at net inputPort
-        else sheet
-            |> addWireLabelAndConnectWire wireLabelSourcePos wireLabelName IOLabel true inputPort outputPort
+        else 
+            sheet
+            |> addWireLabelAndConnectWire wireLabelSourcePos rotationSource wireLabelName IOLabel true inputPort outputPort
     sheetCheckedForNetWires
-    |> addWireLabelAndConnectWire wireLabelTargetPos wireLabelName IOLabel false inputPort outputPort
+    |> addWireLabelAndConnectWire wireLabelTargetPos rotationTarget wireLabelName IOLabel false inputPort outputPort 
     |> deleteWire connectionID
 
-// let generateWireLabel (sheet: SheetT.Model) (wireWithCID: ConnectionId * BusWireT.Wire) =
-//     let connectionID, wire = wireWithCID
-//     let startSym = getSourceSymbol sheet.Wire wire
-//     let sourceSymPort = getSourcePort sheet.Wire wire
-//     let inputPortNumber = sourceSymPort.PortNumber
-//     let wireLabelName =
-//         startSym.Component.Label
-//         + "OUT"
-//         + string inputPortNumber
-
-//     let inputPort, outputPort = wire.InputPort, wire.OutputPort
-
-//     let wireLabelSourcePos = findWireLabelRoomAtSource wire 30.0
-//     let wireLabelTargetPos = findWireLabelRoomAtTarget wire 30.0
-
-//     let addWireLabelAndConnectWire
-//         (pos)
-//         (labelName)
-//         (compType)
-//         (isAtSource: bool)
-//         (fromLabelToPortID: InputPortId)
-//         (toLabelFromPortID: OutputPortId)
-//         (sheet: SheetT.Model)
-//         =
-//         let labelModel, labelID =
-//             SymbolUpdate.addSymbol [] (sheet.Wire.Symbol) pos compType labelName
-//         let inputPortIDstr, outputPortIdstr =
-//             if isAtSource then
-//                 (InputPortId labelModel.Symbols[labelID].Component.InputPorts.[0].Id), toLabelFromPortID
-//             else
-//                 fromLabelToPortID, (OutputPortId labelModel.Symbols[labelID].Component.OutputPorts.[0].Id)
-//         let newWireModel, _ =
-//             BusWireUpdate.newWire (inputPortIDstr) (outputPortIdstr) { sheet.Wire with Symbol = labelModel }
-//         sheet
-//         |> Optic.set symbolModel_ labelModel
-//         |> SheetUpdateHelpers.updateBoundingBoxes
-//         |> Optic.set busWireModel_ newWireModel
-
-//     let sheetCheckedForNetWires = 
-//         if sheet.Wire.Symbol.Symbols
-//             |> Map.exists (fun _ sym -> caseInvariantEqual sym.Component.Label wireLabelName) // if wire in a net then this would be true
-//         then sheet // Don't want to duplicate wirel Label at net inputPort
-//         else sheet
-//             |> addWireLabelAndConnectWire wireLabelSourcePos wireLabelName IOLabel true inputPort outputPort
-//     sheetCheckedForNetWires
-//     |> addWireLabelAndConnectWire wireLabelTargetPos wireLabelName IOLabel false inputPort outputPort
-//     |> deleteWire connectionID
-
 let autoGenerateWireLabels (sheet: SheetT.Model) =
-    let limit = 50. // need clarify how long a wire is considered too long
-    let wiresNeedLabels = getWiresNeedLabels sheet limit
+    let wireLengthlimit = 50. // User can decide what is considered long wire
+    let wiresNeedLabels = getWiresNeedLabels sheet wireLengthlimit
     (sheet, wiresNeedLabels)
     ||> List.fold (fun sheet wire -> generateWireLabel wire sheet)
-    |> Ok
+
+/// Find the wire connected to input port of a wire label.
+/// Returns an option of (connectionID of the wire, output port of the wire)
+let findWireByLabelInputPort (wires: Map<ConnectionId,Wire>) (label: SymbolT.Symbol) = 
+    let labelInputPortID = InputPortId label.Component.InputPorts[0].Id
+    let wireList = 
+        wires 
+        |> Map.filter (fun id wire -> wire.InputPort = labelInputPortID)
+        |> Map.toList
+
+    if List.isEmpty wireList then None
+    else 
+        let ouputPortId = 
+            wireList
+            |> (List.head >> snd)
+            |> (fun wire -> wire.OutputPort)
+        let connectionID = 
+            wireList
+            |> List.head
+            |> fst
+        Some (connectionID, ouputPortId)
+
+/// Find the wire connected to output port of a wire label.
+/// Returns an option of (connectionID of the wire, input port of the wire)
+let findWireByLabelOutputPort  (wires: Map<ConnectionId,Wire>) (label: SymbolT.Symbol) = 
+    let labelOutputPortID = OutputPortId label.Component.OutputPorts[0].Id
+    let wireList = 
+        wires 
+        |> Map.filter (fun id wire -> wire.OutputPort = labelOutputPortID)
+        |> Map.toList
+
+    if List.isEmpty wireList then None
+    else 
+        let inputPortID = 
+            wireList
+            |> (List.head >> snd)
+            |> (fun wire -> wire.InputPort)
+        let connectionID = 
+            wireList
+            |> List.head
+            |> fst
+        Some (connectionID, inputPortID)
+
+let createNewWireAndUpdateSheet (inputPortID: InputPortId) (outputPortID: OutputPortId) (sheet: SheetT.Model)  =
+    let newWire = BusWireUpdate.makeNewWire inputPortID outputPortID sheet.Wire
+    sheet
+    |> Optic.set (busWireModel_ >-> wireOf_ newWire.WId) newWire
+
+let deleteSymbolsAndUpdateSheet (symbols: list<ComponentId>) (sheet: SheetT.Model) = 
+    sheet
+    |> Optic.set (symbolModel_) (deleteSymbols sheet.Wire.Symbol symbols)
+
+let turnWireLabelsToWires (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) = 
+    let wires = sheet.Wire.Wires    
+    match wireLabel.Component.Type with
+    | IOLabel ->
+        let wireLabelName = wireLabel.Component.Label
+        let wireOutputInfo = findWireByLabelInputPort wires wireLabel
+        let wireInputInfo = findWireByLabelOutputPort wires wireLabel
+        /// Other wire labels with matching name as given wire label.
+        /// A wire label at source symbol could have a list of matching labels 
+        /// at target symbols if in a net.
+        /// A wire label at target symbol only has 1 matching labels at the source.
+        let matchingWireLabels = 
+            mapValues sheet.Wire.Symbol.Symbols
+            |> Array.filter (fun sym -> (sym.Component.Label = wireLabelName) && sym.Id <> wireLabel.Id)
+            |> Array.toList
+
+        if not (List.isEmpty matchingWireLabels)
+        then 
+            match wireInputInfo, wireOutputInfo with
+            | None, Some wireInfo->
+                let wireNeedDelete, outputPortID = wireInfo
+                let allWireLabelsCompID = 
+                        matchingWireLabels
+                        |> List.append [wireLabel]
+                        |> List.map (fun sym -> sym.Id)
+
+                let matchingWireLabelsWires = 
+                    matchingWireLabels
+                    |> List.choose (fun sym -> findWireByLabelOutputPort wires sym)
+
+                let inputPorts = 
+                    matchingWireLabelsWires
+                    |> List.map snd
+
+                let deleteWireLabelWires (sheet: SheetT.Model) = 
+                    let wireList = 
+                        matchingWireLabelsWires
+                        |> List.map (fst)
+                        |> List.append [wireNeedDelete]
+
+                    (sheet, wireList)
+                    ||> List.fold (fun updatedSheet wireID -> deleteWire wireID updatedSheet)
+                    
+                let updatedSheet = 
+                    (sheet,inputPorts)
+                    ||> List.fold (fun newSheet inputPortID ->
+                        newSheet
+                        |> deleteWireLabelWires
+                        |> deleteSymbolsAndUpdateSheet allWireLabelsCompID
+                        |> createNewWireAndUpdateSheet inputPortID outputPortID )
+                updatedSheet
+
+            | Some wireInfo, None  ->
+                let wireNeedsDelete, inputPortID = wireInfo
+                let outputPortID = 
+                    matchingWireLabels
+                    |> List.choose (fun sym -> findWireByLabelInputPort wires sym)
+                    |> (List.head >> snd)
+
+                sheet 
+                |> deleteWire wireNeedsDelete
+                |> deleteSymbolsAndUpdateSheet [wireLabel.Id]
+                |> createNewWireAndUpdateSheet inputPortID outputPortID
+
+            | _, _ -> sheet
+
+        else sheet
+
+    | _ -> sheet
+
+            
+
+
+
+    

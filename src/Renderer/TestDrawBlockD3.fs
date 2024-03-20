@@ -189,13 +189,15 @@ let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
         |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
-        |> Result.bind (autoGenerateWireLabels)
         |> getOkOrFail
+        |> autoGenerateWireLabels
+        
     finalModel.Wire.Symbol.Symbols.Values
     |> Seq.cast
     |> List.ofSeq
     |>List.map (fun (x:SymbolT.Symbol) -> printf "%A STransform : %A" x.Component.Label x.STransform )
     finalModel
+
 let makeTest2Circuit (data: float*Rotation)=
     let rotation = snd data
     let gap = fst data

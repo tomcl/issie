@@ -338,7 +338,7 @@ module HLPTick3 =
     open Builder
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
-        fromList [-100..20..100]
+        fromList [300..400..301]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
     /// demo test circuit consisting of a DFF & And gate

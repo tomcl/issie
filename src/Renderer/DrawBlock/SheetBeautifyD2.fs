@@ -27,6 +27,7 @@ open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open RotateScale
 open Optics
+open Operators
 
 /// constants used by SheetBeautify
 module Constants =
@@ -88,6 +89,49 @@ module mySheetBeautifyHelpers =
         | CrossJunction 
         | TJunction
 
+    /// Returns an option that indicated whether there is an intersection, and the position of said intersection
+    /// Expects two ASegments of opposite orientation
+    let getIntersectionOpt (seg1 : ASegment) (seg2: ASegment) = 
+        let hori, vert = match seg1.Orientation  with | Horizontal -> (seg1,seg2) | Vertical -> (seg2,seg1)
+        
+        let xmin, xmax = min hori.Start.X hori.End.X, max hori.Start.X hori.End.X 
+        let ymin, ymax = min vert.Start.Y vert.End.Y, max vert.Start.Y vert.End.Y
+
+        let isTJunction = 
+            hori.Start.Y = ymax 
+            || hori.Start.Y = ymin 
+            || vert.Start.X = xmin 
+            || vert.Start.X = xmax
+
+        let intersectRightAngle = 
+            (vert.Start.X <= xmax) && (vert.Start.X >= xmin)
+            &&
+            (hori.Start.Y <= ymax) && (hori.Start.Y >= ymin)
+
+        (match intersectRightAngle with
+        | false -> None
+        | true -> 
+            if isTJunction 
+            then Some TJunction
+            else Some CrossJunction
+        , {X=vert.Start.X;Y=hori.Start.Y})
+
+    let countSegmentPairIntersections ( segPairs : (OutputPortId * ASegment) list ) =
+        allDistinctPairs segPairs
+        |> List.collect (fun ((netId1,seg1), (netId2,seg2)) ->
+            if seg2.Orientation <> seg1.Orientation // to cross at right angles orientation must be opposite
+            then
+                match getIntersectionOpt seg1 seg2 with
+                | None, _ -> []
+                | Some TJunction, intPos -> if netId1 <> netId2 then [intPos] else [] 
+                | Some CrossJunction, intPos -> [intPos]
+            else
+                []
+        )
+        // remove any overlapping intersections
+        |> List.distinct
+        |> List.length
+
     // function 11 : The number of distinct pairs of segments that cross each other at right angles. 
     // Does not include 0 length segments or segments on same net intersecting at one end, or segments on same net on top of each other. Count over whole sheet.
     // T3R
@@ -109,34 +153,6 @@ module mySheetBeautifyHelpers =
         // get a list of segments which intersect at right angles
         // for each segment obtain asbolute start and end position
         // check orthogonality by checking each distinct segment pair to ensure they have opposite orientation and are within range of each other
-
-        /// Returns an option that indicated whether there is an intersection, and the position of said intersection
-        /// Expects two ASegments of opposite orientation
-        let getIntersectionOpt (seg1 : ASegment) (seg2: ASegment) = 
-            let hori, vert = match seg1.Orientation  with | Horizontal -> (seg1,seg2) | Vertical -> (seg2,seg1)
-            
-            let xmin, xmax = min hori.Start.X hori.End.X, max hori.Start.X hori.End.X 
-            let ymin, ymax = min vert.Start.Y vert.End.Y, max vert.Start.Y vert.End.Y
-
-            let isTJunction = 
-                hori.Start.Y = ymax 
-                || hori.Start.Y = ymin 
-                || vert.Start.X = xmin 
-                || vert.Start.X = xmax
-
-            let intersectRightAngle = 
-                (vert.Start.X <= xmax) && (vert.Start.X >= xmin)
-                &&
-                (hori.Start.Y <= ymax) && (hori.Start.Y >= ymin)
-
-            (match intersectRightAngle with
-            | false -> None
-            | true -> 
-                if isTJunction 
-                then Some TJunction
-                else Some CrossJunction
-            , {X=vert.Start.X;Y=hori.Start.Y})
-
         let allSegments = 
             sheet.Wire.Wires
             |> Map.toList
@@ -144,20 +160,26 @@ module mySheetBeautifyHelpers =
             |> List.distinctBy (fun (netid, seg) -> (netid,seg.Start,seg.End))
 
 
-        allDistinctPairs allSegments
-        |> List.collect (fun ((netId1,seg1), (netId2,seg2)) ->
-            if seg2.Orientation <> seg1.Orientation // to cross at right angles orientation must be opposite
-            then
-                match getIntersectionOpt seg1 seg2 with
-                | None, _ -> []
-                | Some TJunction, intPos -> if netId1 <> netId2 then [intPos] else [] 
-                | Some CrossJunction, intPos -> [intPos]
-            else
-                []
-        )
-        // remove any overlapping intersections
-        |> List.distinct
-        |> List.length
+        countSegmentPairIntersections allSegments
+
+    let countVisibleSegmentIntersectionWithoutSymbol ( sheet : SheetT.Model) (sym : SymbolT.Symbol) = 
+        let inputPortIds =  Optic.get (component_ >-> inputPorts_) sym |> List.map (fun port -> port.Id)
+        let outputPortIds =  Optic.get (component_ >-> outputPorts_) sym |> List.map (fun port -> port.Id)
+
+
+        let allSegments = 
+            sheet.Wire.Wires
+            |> Map.toList
+            |> List.filter (fun (wid, wire) -> 
+                match List.tryFind (fun x -> x = string wire.InputPort) inputPortIds, List.tryFind (fun x -> x = string wire.OutputPort) outputPortIds with
+                | None, None -> true
+                | _ -> false
+            )
+            |> List.collect (fun (wId, wire) -> BlockHelpers.getNonZeroAbsSegments wire |> List.map (fun v -> (wire.OutputPort, v)))
+            |> List.distinctBy (fun (netid, seg) -> (netid,seg.Start,seg.End))
+
+        countSegmentPairIntersections allSegments
+
 
 open mySheetBeautifyHelpers
 
@@ -177,10 +199,7 @@ module D2Helpers =
         {symbol with Component = newcompo; ReversedInputPorts = newValue}
 
     let rotationPermute ( symbol : SymbolT.Symbol ) =
-        // let rotations = [Degree0; Degree270]
-
         let centre = getBlock [symbol] |> (fun block -> block.Centre())
-
         [symbol; rotateSymbolInBlock Degree90 centre symbol]
 
     let flipPermute flip (sym : SymbolT.Symbol) =
@@ -203,10 +222,7 @@ module D2Helpers =
         | Mux2 | Mux4 | Mux8 -> true
         | _ -> false
 
-    let permutateMux ( symbol : SymbolT.Symbol ) = 
-        // obtain all 4 rotations of the symbol (rotatesymbolbyDegree)
-        // for each rotation perform port-reordering
-        // for each port-reorder flip the select port
+    let permuteMux ( symbol : SymbolT.Symbol ) = 
         [symbol; changeReversedInputs symbol]
         |> List.collect (flipPermute FlipVertical)
         |> List.collect (flipPermute FlipHorizontal)
@@ -231,9 +247,36 @@ module D2Helpers =
         |> Optic.set symbols_ newSymbols 
         |> Optic.map SheetT.wire_ (BusWireSeparate.reRouteWiresFrom (newSymbols.Keys |> Seq.toList))
 
+    let updateSymbolInSheet sheet (cid,newSym) = 
+        sheet
+        |> Optic.map (symbols_) (Map.add cid newSym)
+        |> Optic.map SheetT.wire_ (BusWireSeparate.reRouteWiresFrom [cid])
+
     let evaluateFlip ( sheet : SheetT.Model ) ( newSyms : Map<ComponentId,Symbol> ) = 
         updateSymbolsInSheet sheet newSyms
         |> countVisibleSegmentIntersection
+
+    /// Given a Symbol and Sheet Exhaustively search through all permutations of the symbol to find the configuration which minimises the wire crossing heuristic
+    let optimisePermuteSymbol ( sheet: SheetT.Model ) ((cid,sym : SymbolT.Symbol) ) =
+        sym
+        |> permuteMux
+        |> List.map (fun newSym -> updateSymbolInSheet sheet (cid,newSym))
+        |> List.minBy countVisibleSegmentIntersection
+        
+
+    /// Scale the number of wire crossing caused by a symbol, where a higher number means the symbol is "beautified first"
+    let scaleSymbolOrder ( sym : SymbolT.Symbol ) = 
+        match sym.Component.Type with
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> 3.0
+        | GateN _ -> 1.5
+        | Custom _ -> 2.0
+        | _ -> 1.0
+
+    /// Given a Symbol and a Sheet return a Sheet where the symbol has been modified to reduce the number of wire crossings
+    let reduceWireCrossings ( sheet: SheetT.Model ) ((cid,sym : SymbolT.Symbol)) = 
+        match sym.Component.Type with
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> optimisePermuteSymbol sheet (cid,sym)
+        | _ -> sheet
 
 open D2Helpers
 
@@ -244,26 +287,47 @@ let sheetOrderFlip ( sheet : SheetT.Model ) =
     // combine all permutations to obtain all possible permutation of all muxes
     // minimise over the number of wire crossings
     
-    sheet.Wire.Symbol.Symbols
-    |> Map.filter (fun _cid sym -> componentIsMux <| Optic.get component_ sym)
-    |> Map.map (fun cid sym -> 
-        let perms = permutateMux sym
+    // sheet.Wire.Symbol.Symbols
+    // |> Map.filter (fun _cid sym -> componentIsMux <| Optic.get component_ sym)
+    // |> Map.map (fun cid sym -> 
+    //     let perms = permutateMux sym
         
-        let print = 
-            perms |> List.map (fun sym ->
-            printfn "pos %A rev %A flip %A rot %A" 
-                (Optic.get posOfSym_ sym)
-                (Optic.get reversedInputPorts_ sym)
-                (Optic.get symbol_flipped_ sym)
-                (Optic.get symbol_rotation_ sym));
+    //     let print = 
+    //         perms |> List.map (fun sym ->
+    //         printfn "pos %A rev %A flip %A rot %A" 
+    //             (Optic.get posOfSym_ sym)
+    //             (Optic.get reversedInputPorts_ sym)
+    //             (Optic.get symbol_flipped_ sym)
+    //             (Optic.get symbol_rotation_ sym));
         
-        perms)
-    |> combinePermutations
-    |> List.mapi (fun i newSyms -> 
-        let newSheet = updateSymbolsInSheet sheet newSyms
-        let numCrossing = countVisibleSegmentIntersection newSheet
-        printfn "%d crossings num: %d"  i numCrossing;
-        (numCrossing,newSheet))
-    |> List.minBy (fun (num, sheet) -> num)
-    |> snd
+    //     perms)
+    // |> combinePermutations
+    // |> List.mapi (fun i newSyms -> 
+    //     let newSheet = updateSymbolsInSheet sheet newSyms
+    //     let numCrossing = countVisibleSegmentIntersection newSheet
+    //     printfn "%d crossings num: %d"  i numCrossing;
+    //     (numCrossing,newSheet))
+    // |> List.minBy (fun (num, sheet) -> num)
+    // |> snd
     // |> updateSymbolsInSheet sheet
+
+    let initWireCrossings = countVisibleSegmentIntersection sheet
+
+    sheet.Wire.Symbol.Symbols
+    |> Map.map (fun cid sym -> 
+        let crossingsWithoutSym = countVisibleSegmentIntersectionWithoutSymbol sheet sym
+        printf "sym: %A bef: %A after: %A diff: %A" sym.Component.Label initWireCrossings crossingsWithoutSym (initWireCrossings - crossingsWithoutSym);
+        (sym,(initWireCrossings - crossingsWithoutSym))
+    )
+    |> Map.map (fun cid (sym, crossings) -> 
+        (sym, float crossings * (scaleSymbolOrder sym))
+    )
+    |> Map.toList
+    |> List.sortByDescending (fun (cid, (sym, crossings)) -> crossings)
+    |> List.map (fun (cid, (sym, crossings)) -> (cid,sym))
+    // |> List.map (fun (cid, (sym, crossings)) ->
+    //     printf "%A %A %A" sym.Component.Label sym.Component.Type crossings
+    // )
+    |> List.fold reduceWireCrossings sheet
+
+    // sheet

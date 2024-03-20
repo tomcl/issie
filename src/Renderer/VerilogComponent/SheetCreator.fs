@@ -64,7 +64,7 @@ let createPort hostId portType portNumber =
         PortNumber = portNumber
         PortType = portType
         HostId = hostId
-        WireLabel = None
+        WireToLabel = None
     }
 
 /// Connect source with target returning the connection (type: Connection)

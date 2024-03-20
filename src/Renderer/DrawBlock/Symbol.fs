@@ -420,7 +420,7 @@ let portLists numOfPorts hostID portType =
                 PortNumber = Some x
                 PortType = portType
                 HostId = hostID
-                WireLabel = None
+                WireToLabel = None
             }])
 
 

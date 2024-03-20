@@ -3,174 +3,313 @@
 open CommonTypes
 open DrawModelType.SymbolT
 open DrawModelType
-open Optics
-open Symbol
 open BlockHelpers
-open Helpers
 open SheetBeautifyHelpers
 
+
+
 (*
-//////////////////////////////////////// Planned Approach //////////////////////////////////////////////////
+//////////////////////////////////////// Algorithm FlowChart //////////////////////////////////////////////////
 
     Program Flow:
         - sheetWireLabelSymbol
                  |
-                 '---> checkToggleMode <------------------------;-----------------------------;
-                        |           |                           |                             |
-             LABEL_MODE |           |WIRE_MODE                  |                             |
-                        |           |                           |                             |
-                        |           '---> savedWireModeModel--->'                             |
-                        |                                                                     |
-                        |                                                                     |
-                        '---> getLabelModeModel --------------------------------------------->'
-                                |            |                                             
-                                |            '-> placeWireLabels      
-                                |                           |
-                                |                           '---> computeLabelPos
-                                |                                    |
-                                |                                    '---> generateLabelText
-                                |                                                             
-                                '-> identifyLongWires                                         
-                                        |                                                     
-                                        '-> removeLongWires                                   
+                 '---> getLabelModeModel
+                        |
+                        |---> identifyWiresToRemove
+                        |         |
+                        |         |---> getWireLength
+                        |         |---> countRightAngleBendsInWire
+                        |         |     |
+                        |         |     '---> isRightAngleBend
+                        |         |
+                        |         '---> countCrossingsOnWire
+                        |        
+                        '---> removeWires
+                        |
+                        |---> placeWireLabels
+                        |         |
+                        |         |---> generateLabelText
+                        |         |---> addLabelBesidePort
+                        |                  |
+                        |                  |---> computeLabelPos
+                        |                  |---> generateLabelText
+                        |                  '---> rotateLabelSymbol
+                        |
+                        '---> placeSmallWire
 
-    Methodology:
-        1) Save a copy of the current wire segments
-        2) Check toggle mode to choose from LABEL_MODE or WIRE_MODE:
-            2.1) For LABEL_MODE:
-                    a) Identify long wires (len > 300 units for now)
-                    b) Remove current visible long wire segemnts
-                    c) Create wire labels for both input and output ends of the wire:
-                          i) Make the label text from source symbol label + port number
-                    d) Position labels on both input and output ports (keeping 2 unit wire segments, then placing the wire label)
-            2.2) For WIRE_MODE:
-                    a) Load saved copy of wire segments (from step 1) 
-                                                                            
-   Notes:
-    1) Size of each grid: 30.0 x 30.0 units
-    2) WireLabel type is IOLabel
-
-
-    TO-DOs:
-        1) Need to place a small segment of wire in between teh port on the symbol and the placed wire label.
-        2) Need to flip the placed wire label's orientation based on the symbol's oreintation.
-
-   
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 *)
 
 
 
-/// Computes total length of a single wire by summing the lengths of all its segments.
-/// Takes as input a wire.
+// Record to hold the properties that define wires to be removed 
+type wireProperties = {
+    minLength : float
+    minRightAngleBends : int
+    minWireCrossings : int
+    }
+
+/// <summary>
+/// Calculates the total length of a wire by summing the lengths of its segments.
+/// </summary>
+/// <param name="wire">The wire for which to calculate the length.</param>
+/// <returns>The total length of the wire.</returns>
 let getWireLength (wire : BusWireT.Wire) : float =
     wire.Segments
-    |> List.sumBy (fun (segment: BusWireT.Segment) -> segment.Length)
+    |> List.sumBy (fun (segment: BusWireT.Segment) -> abs(segment.Length))
 
-/// Gives the list of all wires in the model which can be cosidered as long wires.
-/// Takes as input the model, and threshold value to check if long or not.
-let identifyLongWires (model : BusWireT.Model) (longLen : float) : BusWireT.Wire list =
+/// <summary>
+/// Determines if two wire segments form a right angle.
+/// </summary>
+/// <param name="seg1">The first segment, defined by its start and end positions.</param>
+/// <param name="seg2">The second segment, defined by its start and end positions.</param>
+/// <returns>True if the segments form a right angle; otherwise, false.</returns>
+let isRightAngleBend (seg1: XYPos*XYPos) (seg2: XYPos*XYPos) =
+    let orientation1 = SegmentHelpers.visSegOrientation seg1
+    let orientation2 = SegmentHelpers.visSegOrientation seg2
+    match orientation1, orientation2 with
+    | BusWireT.Orientation.Horizontal, BusWireT.Orientation.Vertical 
+    | BusWireT.Orientation.Vertical, BusWireT.Orientation.Horizontal -> true
+    | _ -> false
+
+/// <summary>
+/// Counts the number of right-angle bends in a wire.
+/// </summary>
+/// <param name="model">The sheet model containing the wire.</param>
+/// <param name="wire">The wire to examine for right-angle bends.</param>
+/// <returns>The count of right-angle bends in the wire.</returns>
+let countRightAngleBendsInWire (model: SheetT.Model) (wire: BusWireT.Wire) =
+    let segments = SegmentHelpers.visibleSegsWithVertices wire model 
+    segments
+    |> List.pairwise 
+    |> List.filter (fun (seg1, seg2) -> isRightAngleBend seg1 seg2) 
+    |> List.length 
+
+/// <summary>
+/// Counts the number of crossings on a wire with other wires.
+/// </summary>
+/// <param name="model">The sheet model containing the wires.</param>
+/// <param name="wire">The wire to examine for crossings.</param>
+/// <returns>The count of wire crossings.</returns>
+let countCrossingsOnWire (model: SheetT.Model) (wire: BusWireT.Wire): int = 
+    model.Wire.Wires
+    |> Map.values
+    |> Seq.filter (fun otherWire -> otherWire <> wire && otherWire.OutputPort <> wire.OutputPort)
+    |> Seq.collect (fun otherWire ->
+        let wireSegments = getNonZeroAbsSegments wire
+        let otherWireSegments = getNonZeroAbsSegments otherWire
+        List.allPairs wireSegments otherWireSegments |> List.filter (fun (seg1, seg2) ->
+            let direction1 = seg1.End - seg1.Start
+            let direction2 = seg2.End - seg2.Start
+            let dotProduct = direction1.X * direction2.X + direction1.Y * direction2.Y
+            dotProduct = 0.0 && overlap1D (seg1.Start.X, seg1.End.X) (seg2.Start.X, seg2.End.X) && overlap1D (seg1.Start.Y, seg1.End.Y) (seg2.Start.Y, seg2.End.Y)))
+    |> Seq.distinct
+    |> Seq.length
+
+/// <summary>
+/// Identifies wires that should be removed based on specified bad wire properties.
+/// </summary>
+/// <param name="model">The bus wire model containing the wires.</param>
+/// <param name="properties">The properties used to determine which wires to remove.</param>
+/// <param name="sheetModel">The sheet model for additional context.</param>
+/// <returns>A list of wires that should be removed.</returns>
+let identifyWiresToRemove (model: BusWireT.Model) (properties : wireProperties) (sheetModel: SheetT.Model): BusWireT.Wire list =
     model.Wires
-    |> Map.toList
-    |> List.map (fun (_, wire) -> wire) 
-    |> List.filter (fun wire -> getWireLength wire > longLen)
+    |> Map.values
+    |> Seq.filter (fun wire ->
+        let wireLength = getWireLength wire
+        let rightAngleCount = countRightAngleBendsInWire sheetModel wire
+        let crossingCount = countCrossingsOnWire sheetModel wire
+        wireLength >= properties .minLength || rightAngleCount >= properties .minRightAngleBends || crossingCount >= properties .minWireCrossings)
+    |> Seq.toList
 
-/// Produces a new SheetT.model with the wires identified as long wires removed.
-/// Takes as input the model, the list of all wires identified as long wires.
-let removeLongWires (model : SheetT.Model) (longWires : BusWireT.Wire list) : SheetT.Model =
-    let longWireIDs = longWires
-                      |> List.map (fun wire -> wire.WId)
-                      |> Set.ofList
+/// <summary>
+/// Removes specified bad wires from the model.
+/// </summary>
+/// <param name="model">The sheet model from which wires will be removed.</param>
+/// <param name="wires">The list of wires to be removed.</param>
+/// <returns>The sheet model after removal of the specified wires.</returns>
+let removeWires (model: SheetT.Model) (wires: BusWireT.Wire list) : SheetT.Model =
+    wires
+    |> List.map (fun wire -> wire.WId)   
+    |> Set.ofList                         
+    |> fun wiresToRemove ->
+        model.Wire.Wires
+        |> Map.filter (fun key _ -> not (Set.contains key wiresToRemove)) 
+        |> fun updatedWires -> 
+            let updatedWireModel = { model.Wire with Wires = updatedWires }
+            let finalWireModel, _ = BusWireUpdate.calculateBusWidths updatedWireModel
+            { model with Wire = finalWireModel }
 
-    let removeSegments (wire : BusWireT.Wire) =
-        if Set.contains wire.WId longWireIDs then // checks to see if wire has been identified as Long-Wire
-            { wire with Segments = [] } // if so, remove the segemnts so that they do not exist in the model
-        else
-            wire // or else just return existing wire if not a long wire
-
-    let updatedWires = model.Wire.Wires
-                       |> Map.map (fun _ wire -> removeSegments wire)
-
-    { model with Wire = { model.Wire with Wires = updatedWires } }
-     
-
-
-/// Computes the absolute position of the WireLabel to be placed.
-/// Takes as input the port ID, the port's absolute position, the symbol on which the port resides, and the full model.
-// TODO:
-// Need to check for available room before placing the label.
-let computeLabelPos (portID : string) (portPos : XYPos) (sym : Symbol) (model: SymbolT.Model) : XYPos =
+/// <summary>
+/// Computes the position and edge orientation for placing a label next to a port.
+/// </summary>
+/// <param name="portID">The ID of the port next to which the label will be placed.</param>
+/// <param name="portPos">The position of the port.</param>
+/// <param name="sym">The symbol associated with the port.</param>
+/// <param name="model">The model containing the symbol and port.</param>
+/// <returns>The position for the label and the edge orientation relative to the port.</returns>
+let computeLabelPos (portID : string) (portPos : XYPos) (sym : Symbol) (model: SymbolT.Model) : XYPos * Edge =
     let orientation = BlockHelpers.getPortOrientationFrmPortIdStr model portID
 
-    // relative positioning based on which side of the symbol the port resides on, so as not to overlap the symbol
     match orientation with
-    | Top -> { portPos with Y = portPos.Y + 30.0 }          
-    | Bottom -> { portPos with Y = portPos.Y - 30.0 }
-    | Left -> { portPos with X = portPos.X - 30.0 }
-    | Right -> { portPos with X = portPos.X + 30.0 }
+    | Top -> { X = portPos.X + 15.0; Y = portPos.Y - 60.0 }, Top
+    | Bottom -> { X = portPos.X + 15.0; Y = portPos.Y + 60.0}, Bottom
+    | Left -> { X = portPos.X - 60.0; Y = portPos.Y + 0.0 }, Left
+    | Right -> { X = portPos.X + 60.0; Y = portPos.Y + 0.0 }, Right
 
-/// Generates the appropiate label text for the WireLabels to be placed.
-/// Takes as input the Source port ID and the model.
-/// Uses the symbol on which the source port resides' name, and the port number of the port, to make the label.
-let generateLabelText (portID : string) (model : SymbolT.Model)=
+/// <summary>
+/// Generates the text for a label associated with a port.
+/// </summary>
+/// <param name="portID">The ID of the port for which the label text is generated.</param>
+/// <param name="model">The model containing the port and associated symbol.</param>
+/// <returns>The generated label text.</returns>
+let generateLabelText (portID : string) (model : SymbolT.Model) : string=
     let port = BlockHelpers.getPort model portID
     let sym = BlockHelpers.getSymbol model portID
 
     match port.PortNumber with
-    | Some number -> sym.Component.Label + "_" + (string number) // uses symbol's label + port number of the symbol
+    | Some number -> sym.Component.Label + "_" + (string number) 
     | None -> sym.Component.Label + "_0"
 
-/// Produces the model with WireLables placed (on both ends) for a single wire.
-/// Takes as input a wire, and the sheet model.
-/// Adds the labels to both beside the source port and the target port.
-let placeWireLabels (wire : BusWireT.Wire) (sheetModel : SheetT.Model) : SheetT.Model =
+/// <summary>
+/// Rotates a label symbol based on the port orientation.
+/// </summary>
+/// <param name="labelCompId">The component ID of the label symbol to rotate.</param>
+/// <param name="portOrientation">The orientation of the port next to which the label is placed.</param>
+/// <param name="model">The model containing the label symbol.</param>
+/// <returns>The model with the rotated label symbol.</returns>
+let rotateLabelSymbol (labelCompId : ComponentId) (portOrientation : Edge) (model : Model) : Model =
+    let labelSymbol = model.Symbols.[labelCompId] 
 
+    let rotatedLabelSymbol = 
+        match portOrientation with
+        | Top -> SymbolResizeHelpers.rotateSymbol Degree270 labelSymbol
+        | Bottom -> SymbolResizeHelpers.rotateSymbol Degree90 labelSymbol
+        | _ -> labelSymbol
+
+    let updatedSymbols = Map.add labelCompId rotatedLabelSymbol model.Symbols 
+
+    {model with Symbols = updatedSymbols} 
+
+/// <summary>
+/// Adds a label next to a port and returns the updated model and port pairs.
+/// </summary>
+/// <param name="portID">The ID of the port next to which the label will be added.</param>
+/// <param name="labelText">The text of the label to add.</param>
+/// <param name="model">The model to which the label will be added.</param>
+/// <param name="oldPortPairs">Existing port pairs before adding the new label.</param>
+/// <param name="portType">The type of the port ("Target" or other).</param>
+/// <returns>The updated model and the list of port pairs including the new label.</returns>
+let addLabelBesidePort (portID : string) (labelText : string) (model : Model) (oldPortPairs : List<(string * string)>) (portType : string) : (Model * List<(string * string)>) =
+    let symbol = BlockHelpers.getSymbol model portID
+    let portPos = SheetBeautifyHelpers.getPortPos portID model
+    let labelPos, portOrientation = computeLabelPos portID portPos symbol model
+    let labelAddedModel, labelCompId = SymbolUpdate.addSymbol [] model labelPos IOLabel labelText
+
+    let updatedLabelModel = rotateLabelSymbol labelCompId portOrientation labelAddedModel
+
+    let labelComponent = updatedLabelModel.Symbols
+                            |> Map.find labelCompId 
+
+    let labelPortId = 
+        match portType with
+        | "Target" -> labelComponent.Component.OutputPorts
+                        |> List.head
+                        |> fun port -> port.Id
+        | _ -> labelComponent.Component.InputPorts
+                 |> List.head
+                 |> fun port -> port.Id
+
+    let pair =
+        match portType with
+        | "Target" -> (portID, labelPortId)
+        | _ -> (labelPortId, portID)
+
+    (updatedLabelModel, pair :: oldPortPairs)
+
+/// <summary>
+/// Places labels for a wire, updating the model with label symbols next to the wire's ports.
+/// </summary>
+/// <param name="wire">The wire for which labels will be placed.</param>
+/// <param name="sheetModel">The sheet model to update with the wire labels.</param>
+/// <param name="placedSourceLabels">A set of source port IDs for which labels have already been placed.</param>
+/// <param name="portPairs">The list of port pairs to be updated with the new labels.</param>
+/// <returns>The updated sheet model, the updated set of placed source labels, and the updated list of port pairs.</returns>
+let placeWireLabels (wire: BusWireT.Wire) (sheetModel: SheetT.Model) (placedSourceLabels: Set<string>) (portPairs: List<(string * string)>): (SheetT.Model * Set<string> * List<(string * string)>) =
     let model = sheetModel.Wire.Symbol
-
-    // sub-function to perform the labl placing operation
-    let addLabelBesidePort portID labelText theme symbolsMap =
-        let symbol = BlockHelpers.getSymbol model portID
-        let portPos = getPortPos portID model
-        let labelPos = computeLabelPos portID portPos symbol model
-        let labelSymbol = Symbol.createNewSymbol [] labelPos IOLabel labelText theme
-        Map.add labelSymbol.Id labelSymbol symbolsMap
-
     let sourcePortID = BlockHelpers.getOutputPortIdStr wire.OutputPort
     let targetPortID = BlockHelpers.getInputPortIdStr wire.InputPort
-
     let labelText = generateLabelText sourcePortID model
 
-    let sourceSideLabelAdded = addLabelBesidePort sourcePortID labelText model.Theme model.Symbols
+    let targetModel, targetPairs = addLabelBesidePort targetPortID labelText model portPairs "Target"
+    let updatedModel = { sheetModel with Wire = { sheetModel.Wire with Symbol = targetModel } }
 
-    let targetSideLabelAdded = addLabelBesidePort targetPortID labelText model.Theme sourceSideLabelAdded
+    let finalModel, finalPairs =
+        if Set.contains sourcePortID placedSourceLabels then
+            updatedModel, targetPairs
+        else
+            let sourceModel, sourcePairs = addLabelBesidePort sourcePortID labelText targetModel targetPairs "Source"
+            { updatedModel with Wire = { updatedModel.Wire with Symbol = sourceModel } }, sourcePairs
 
-    let updatedSymbolModel = { model with Symbols = targetSideLabelAdded } // updated SymbolT.Model
-    let updatedBusWireTModel = { sheetModel.Wire with Symbol = updatedSymbolModel } // updated BusWireT.Model
+    let updatedPlacedSourceLabels = Set.add sourcePortID placedSourceLabels
 
-    // updated final SheetT.Model
-    { sheetModel with Wire = updatedBusWireTModel} 
+    (finalModel, updatedPlacedSourceLabels, finalPairs)
 
+/// <summary>
+/// Places the small wire connecting the port of the symbol, and the port of the wire-label placed.
+/// </summary>
+/// <param name="model">The sheet model to be updated with the new wire.</param>
+/// <param name="inputPortStr">The input port ID as a string.</param>
+/// <param name="outputPortStr">The output port ID as a string.</param>
+/// <returns>The updated model with the new wire added.</returns>
+let placeSmallWire (model: SheetT.Model) (inputPortStr, outputPortStr) =
+    let inputPortId = InputPortId inputPortStr
+    let outputPortId = OutputPortId outputPortStr
 
-/// Returns the final model with all long wires removed and WireLabels placed.
-/// Takes as input the initial SheetT.Model.
-let getLabelModeModel (initialModel : SheetT.Model) : SheetT.Model =
-    let longWires = identifyLongWires initialModel.Wire 300.0
+    let newWire = BusWireUpdate.makeNewWire inputPortId outputPortId model.Wire
 
-    let modelLongWiresRemoved = removeLongWires initialModel longWires
+    let updatedWires = Map.add newWire.WId newWire model.Wire.Wires
 
-    let modelWithLabels = longWires
-                        |> List.fold (fun updatedModel wire ->
-                            placeWireLabels wire updatedModel
-                         ) modelLongWiresRemoved
+    { model with Wire = { model.Wire with Wires = updatedWires } }
 
-    modelWithLabels
+/// <summary>
+/// Updates the model by removing long wires based on specified properties, then places labels and small connecting wires.
+/// </summary>
+/// <param name="initialModel">The initial model containing all wires and components.</param>
+/// <param name="properties">Criteria for identifying wires to remove (length, right angle bends, wire crossings).</param>
+/// <returns>The updated model, with bad wires replaced by labels and connecting wires, after modifications.</returns>
+let modelWithWireLabels (initialModel : SheetT.Model) (properties : wireProperties) : SheetT.Model =
 
-  
-// The Main Function
-/// Switches between WIRE_MODE and LABEL_MODE models based on the toggleMode user input (will be updated later)
-let sheetWireLabelSymbol (initialModel : SheetT.Model) (toggleMode: bool) : SheetT.Model =
-    let savedWireModeModel = initialModel
+    let badWires = identifyWiresToRemove initialModel.Wire properties initialModel
 
-    match toggleMode with
-    | true -> getLabelModeModel initialModel // LABEL_MODE
-    | false -> savedWireModeModel // WIRE_MODE
+    let modelWithNoBadWires = removeWires initialModel badWires
+
+    let modelWithLabelsPlaced, _, allSymbolPortPairs = badWires
+                                                    |> List.fold (fun (model, sourceLabels, portPairs) wire ->
+                                                        let updatedModel, updatedSourceLabels, updatedPortPairs = placeWireLabels wire model sourceLabels portPairs
+                                                        updatedModel, updatedSourceLabels, updatedPortPairs) (modelWithNoBadWires, Set.empty, [])
+
+    let newModel = allSymbolPortPairs
+                       |> List.fold placeSmallWire modelWithLabelsPlaced
+
+    newModel
+
+/// <summary>
+/// Main function for enhancing the model by removing complex wires that are too long,
+/// has too many bends, or too many wire crossings.
+/// </summary>
+/// <param name="initialModel">The starting sheet model for processing.</param>
+/// <returns>The processed model with improved clarity and organization.</returns>
+let sheetWireLabelSymbol (initialModel: SheetT.Model): SheetT.Model =
+
+    // Adding initial model to the undo list
+    let newUndoList, newRedoList = SheetUpdateHelpers.appendUndoList initialModel.UndoList initialModel, initialModel.RedoList
+
+    let modelToUpdate = {initialModel with UndoList = newUndoList; RedoList = newRedoList}
+
+    // Set properties that define a bad wire
+    let badWireProperties = { minLength = 1000; minRightAngleBends = 3; minWireCrossings = 4 }  
+
+    modelWithWireLabels modelToUpdate badWireProperties

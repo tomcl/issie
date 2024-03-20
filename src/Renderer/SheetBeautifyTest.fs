@@ -45,11 +45,13 @@ open BusWidthInferer
 open BusWireSeparate
 open RotateScale
 open CanvasStateAnalyser
+open System 
 
 /// constants used by SheetBeautify
 module Constants = 
     // () // dummy to make skeleton type check - remove when other content exists
-    let wireLabelThreshold = 100.0 
+    let wireLabelThreshold = 200.0 
+    let seed = 1000
 
 // ------------------------------------ Team work ------------------------------------------
 (* 
@@ -60,6 +62,11 @@ module Constants =
 // /// dummy function to be tested (to avoid error for now)
 // let alignSinglyConnectedComponents (model : SheetT.Model) = 
 //     (model)
+
+let applyOptimizedModel (model : SheetT.Model) = 
+    model
+    |> getOptimizedModel
+    |> Ok
 let applySheetWireLabelSymbol (model : SheetT.Model) = 
     model
     |> sheetWireLabelSymbol
@@ -323,6 +330,198 @@ module T123 =
   
         |> getOkOrFail
 
+    // ---------------------------- T2 -----------------------------
+    let gen1sample =
+        fromList [-100..300..100]
+        |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
+
+    let MultipleTests =
+        fromList [-100..20..100]
+        |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
+
+    // Define a type for component with its type and number of inputs and outputs
+    type ComponentInfo = { CompType: ComponentType; Inputs: int; Outputs: int }
+
+    // Example component types and their input/output counts
+    let componentTypes = [
+        { CompType = GateN (And, 2); Inputs = 2; Outputs = 1 }
+        { CompType = Mux2; Inputs = 3; Outputs = 1 } // Assuming Mux2 has 2 inputs + 1 select = 3 inputs in total
+        { CompType = NbitsAdder 4; Inputs = 8; Outputs = 5 } // 4 bits (2 inputs each) + carry in, 4 bits out + carry out
+        { CompType = Register 8; Inputs = 8; Outputs = 8 }
+        { CompType = Not; Inputs = 1; Outputs = 1 }
+        { CompType = Decode4; Inputs = 2; Outputs = 4 }
+        { CompType = Mux4; Inputs = 6; Outputs = 1 } // Assuming Mux4 has 4 inputs + 2 select lines
+        { CompType = Demux2; Inputs = 2; Outputs = 2 } // Assuming Demux2 has 1 input + 1 select line
+        { CompType = NbitsXor (4, None); Inputs = 8; Outputs = 4 } // 4 bits XOR
+        { CompType = NbitsAnd 4; Inputs = 8; Outputs = 4 } // 4 bits AND
+        { CompType = NbitsOr 4; Inputs = 8; Outputs = 4 } // 4 bits OR
+        { CompType = DFF; Inputs = 1; Outputs = 1 }
+        { CompType = DFFE; Inputs = 2; Outputs = 1 } // DFF with Enable
+        { CompType = Counter 4; Inputs = 1; Outputs = 4 } // 4-bit counter with enable
+        // Add more custom or specific components as needed
+    ]
+
+
+    // Function to generate a random position
+    let randomXYPos (rnd: Random) (maxX: float) (maxY: float) : XYPos =
+        { X = rnd.NextDouble() * maxX; Y = rnd.NextDouble() * maxY }
+
+    // Function to select a random component from the list
+    let randomComponent (rnd: Random) : ComponentInfo =
+        let index = rnd.Next(0, componentTypes.Length)
+        componentTypes.[index]
+
+    // Function to create a unique label for each component
+    let uniqueLabel (basee: string) (id: int) : string =
+        sprintf "%s%d" basee id
+
+    // Generating a random circuit
+
+    let makeRandomCircuit_improve (andPos:XYPos) =
+        let initModel = initSheetModel
+        let maxX, maxY = 800.0, 600.0 // Define bounds for component placement
+        let rnd = Random(Constants.seed)
+
+        // Function to randomly decide on a flip type and apply it
+        let applyRandomFlip label model =
+            match rnd.Next(0, 3) with
+            | 0 -> model // No flip
+            | 1 -> flipSymbol label SymbolT.FlipType.FlipHorizontal model |> getOkOrFail // Horizontal flip
+            | 2 -> flipSymbol label SymbolT.FlipType.FlipVertical model |> getOkOrFail // Vertical flip
+            | _ -> failwith "Unexpected flip option"
+
+        // Function to ensure at least one MUX is placed in the circuit
+        let placeMuxComponent model id =
+            let muxType = if rnd.Next(0, 2) = 0 then Mux2 else Mux4 // Randomly choose between Mux2 and Mux4
+            let pos = randomXYPos rnd maxX maxY
+            let label = uniqueLabel "MUX" id
+            placeSymbol label muxType pos model |> getOkOrFail
+
+        // Randomly place a fixed number of components, ensuring at least one MUX
+        let rec placeComponents model id remaining =
+            match remaining with
+            | 0 -> model
+            | _ ->
+                let comp = randomComponent rnd
+                let pos = randomXYPos rnd maxX maxY
+                let label = uniqueLabel "COMP" id
+                let newModelResult = placeSymbol label comp.CompType pos model
+                match newModelResult with
+                | Ok newModel ->
+                    let flippedModel = applyRandomFlip label newModel // Randomly apply flip after placing the symbol
+                    placeComponents flippedModel (id + 1) (remaining - 1)
+                | Error msg -> failwithf "Failed to place and flip component: %s" msg
+
+        // Start by placing a MUX to ensure at least one is in the circuit
+        let modelWithMux = placeMuxComponent initModel 1
+
+        // Then place the rest of the components
+        let fullyPlacedModel = placeComponents modelWithMux 2 (3 - 1) // Adjust the remaining count accordingly
+
+        // Connect components randomly, or with a specific pattern if required
+        fullyPlacedModel
+        |> placeWire (portOf "MUX1" 0) (portOf "COMP2" 0)
+        |> Result.bind (placeWire (portOf "COMP2" 0) (portOf "COMP3" 0))
+        |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 0))
+        |> Result.bind (applyOptimizedModel)
+        |> getOkOrFail
+        
+
+    let makeRandomCircuit_ (andPos:XYPos) =
+        let initModel = initSheetModel
+        let maxX, maxY = 800.0, 600.0 // Define bounds for component placement
+        let rnd = Random(Constants.seed)
+
+        // Function to randomly decide on a flip type and apply it
+        let applyRandomFlip label model =
+            match rnd.Next(0, 3) with
+            | 0 -> model // No flip
+            | 1 -> flipSymbol label SymbolT.FlipType.FlipHorizontal model |> getOkOrFail // Horizontal flip
+            | 2 -> flipSymbol label SymbolT.FlipType.FlipVertical model |> getOkOrFail // Vertical flip
+            | _ -> failwith "Unexpected flip option"
+
+        // Function to ensure at least one MUX is placed in the circuit
+        let placeMuxComponent model id =
+            let muxType = if rnd.Next(0, 2) = 0 then Mux2 else Mux4 // Randomly choose between Mux2 and Mux4
+            let pos = randomXYPos rnd maxX maxY
+            let label = uniqueLabel "MUX" id
+            placeSymbol label muxType pos model |> getOkOrFail
+
+        // Randomly place a fixed number of components, ensuring at least one MUX
+        let rec placeComponents model id remaining =
+            match remaining with
+            | 0 -> model
+            | _ ->
+                let comp = randomComponent rnd
+                let pos = randomXYPos rnd maxX maxY
+                let label = uniqueLabel "COMP" id
+                let newModelResult = placeSymbol label comp.CompType pos model
+                match newModelResult with
+                | Ok newModel ->
+                    let flippedModel = applyRandomFlip label newModel // Randomly apply flip after placing the symbol
+                    placeComponents flippedModel (id + 1) (remaining - 1)
+                | Error msg -> failwithf "Failed to place and flip component: %s" msg
+
+        // Start by placing a MUX to ensure at least one is in the circuit
+        let modelWithMux = placeMuxComponent initModel 1
+
+        // Then place the rest of the components
+        let fullyPlacedModel = placeComponents modelWithMux 2 (3 - 1) // Adjust the remaining count accordingly
+
+        // Connect components randomly, or with a specific pattern if required
+        fullyPlacedModel
+        |> placeWire (portOf "MUX1" 0) (portOf "COMP2" 0)
+        |> Result.bind (placeWire (portOf "COMP2" 0) (portOf "COMP3" 0))
+        |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 0))
+        //|> Result.bind (SheetBeautify.getOptimizedModel )
+        |> getOkOrFail
+
+        
+
+
+    let makeRandomCircuit_improve_random (andPos:XYPos) =
+        let initModel = initSheetModel
+        let maxX, maxY = 800.0, 600.0 // Define bounds for component placement
+        let rnd = Random()
+        let rnd1 = Random()
+
+        // Function to randomly decide on a flip type and apply it
+        let applyRandomFlip label model =
+            match rnd.Next(0, 3) with
+            | 0 -> model // No flip
+            | 1 -> flipSymbol label SymbolT.FlipType.FlipHorizontal model |> getOkOrFail // Horizontal flip
+            | 2 -> flipSymbol label SymbolT.FlipType.FlipVertical model |> getOkOrFail // Vertical flip
+            | _ -> failwith "Unexpected flip option"
+
+        // Randomly place a fixed number of components, for example, 6
+        let rec placeComponents model id remaining =
+            match remaining with
+            | 0 -> model
+            | _ ->
+                let comp = randomComponent rnd
+                let pos = randomXYPos rnd1 maxX maxY
+                let label = uniqueLabel "COMP" id
+                let newModelResult = placeSymbol label comp.CompType pos model
+                match newModelResult with
+                | Ok newModel ->
+                    let flippedModel = applyRandomFlip label newModel // Randomly apply flip after placing the symbol
+                    placeComponents flippedModel (id + 1) (remaining - 1)
+                | Error msg -> failwithf "Failed to place and flip component: %s" msg
+
+        // Assuming all components placed have at least one input and output for simplicity
+        let fullyPlacedModel = placeComponents initModel 1 3
+
+        // Randomly connect components, this example simply connects the first component's output to the second's input
+        fullyPlacedModel
+        |> placeWire (portOf "COMP1" 0) (portOf "COMP2" 0)
+        |> Result.bind (placeWire (portOf "COMP2" 0) (portOf "COMP3" 0))
+        |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "COMP1" 0))
+      //  |> Result.bind (placeWire (portOf "COMP4" 0) (portOf "COMP1" 0))
+
+        |> Result.bind (applyOptimizedModel)
+        |> getOkOrFail
+
+    // ---------------------------- T3 ------------------------------
     let makeTestCircuit_0 (andPos:XYPos) = // ?
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) andPos
@@ -379,15 +578,7 @@ module T123 =
         |> getOkOrFail
 
     // ------------------------------------ Assertions -----------------------------------------
-    /// Assert functions to use for the testing of D3 task
-    /// The dataset used in this test must pass all the assertion in TestDrawBlocks.fs 
-    /// 0. No port is connected to more than 1 label
-    /// 1. Wire label placement when wire lengths > threshold.
-    /// 2. Wire label removal when wire lengths < threshold.
-    /// 3. Wire label correct connection between component ports. 
-    /// 4. Wire label positioning adjustment to avoid overlaps.
     module Asserts = 
-
         /// Fails on test number: show certain test case
         let failOnSampleNumber (sampleToFail : int) (sample: int) _sheet =
             if sampleToFail = sample then
@@ -407,7 +598,41 @@ module T123 =
             Some <| $"Sample {sample}"
             // Some $"Sample {sample}"
 
+        // --------------------------- T2 -----------------------------
+        let failOnIncreaseCrossing (sample: int) (circuitModel: SheetT.Model) =
+                // Measure the number of intersections before optimization
+                let beforeOptimization = numOfWireRightAngleCrossings circuitModel
+                printfn "Intersections before optimization: %d" beforeOptimization
+
+                // Optimize the circuit
+                let optimizedCircuit = applyOptimizedModel circuitModel
+
+                // Measure the number of intersections after optimization
+                
+                let afterOptimization = 
+                    match optimizedCircuit with
+                    | Ok model -> numOfWireRightAngleCrossings model
+                    | Error _ -> 0
+
+                printfn "Intersections after optimization: %d" afterOptimization
+
+                // Check if the number of intersections has reduced
+                if afterOptimization > beforeOptimization then
+                    // If not reduced, return a message indicating failure
+                    Some $"Optimization increased the number of intersections. Before: {beforeOptimization}, After: {afterOptimization}"
+                else
+                    // If reduced, return None indicating a pass
+                    None
+
         // ------------------------------- T3 ---------------------------
+        /// Assert functions to use for the testing of D3 task
+        /// The dataset used in this test must pass all the assertion in TestDrawBlocks.fs 
+        /// 0. No port is connected to more than 1 label
+        /// 1. Wire label placement when wire lengths > threshold.
+        /// 2. Wire label removal when wire lengths < threshold.
+        /// 3. Wire label correct connection between component ports. 
+        /// 4. Wire label positioning adjustment to avoid overlaps.
+
         /// 0. Each port has no more than 1 label
         ///    and if it has a label, no wire is connected to it
         ///   (for now this is abandoned, could be changed later)
@@ -587,6 +812,36 @@ module T123 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        // -------------------------- T2 -----------------------------
+        let test_origin testNum firstSample dispatch =
+            runTestOnSheets
+                "Show original circuit"
+                firstSample
+                gen1sample
+                makeRandomCircuit_
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test_improve testNum firstSample dispatch =
+            runTestOnSheets
+                "Show improved cicuit"
+                firstSample
+                gen1sample
+                makeRandomCircuit_improve
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
+        let automated_T2 testNum firstSample dispatch =
+            runTestOnSheets
+                "Optimization Effectiveness Test on Intersections"
+                firstSample
+                MultipleTests 
+                makeRandomCircuit_improve_random
+                Asserts.failOnIncreaseCrossing
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
         // -------------------------- T3 ------------------------------
         let testLabelNumber testNum firstSample dispatch = 
             runTestOnSheets
@@ -659,6 +914,10 @@ module T123 =
                 "D1 A2 beautify random", makeA2BeautifyTestCase
                 "D1 A5", makeA5TestCase
                 "D1 A5 beautify", makeA5BeautifyTestCase
+                // ------------------------ t2 ------------------
+                "D2 Test without", test_origin 
+                "D2 Test beautify", test_improve 
+                "D2 Automated Testing", automated_T2
                 // ------------------------ t3 -------------------
                 "T3 test 0 : No port connected to more than 1 label", testLabelNumber // always PASS
                 "T3 test 1 : Wire to label", testWireToLabel

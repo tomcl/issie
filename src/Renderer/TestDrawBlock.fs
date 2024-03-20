@@ -233,8 +233,27 @@ module HLPTick3 =
             failwithf "Not Implemented"
 
         // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+        let getSymId (symLabel: string) (symModel: SymbolT.Model) =
+            mapValues symModel.Symbols
+            |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+            |> function | Some x -> x.Id | None -> failwithf "Can't find symbol with label '{symLabel}'"
+    
+        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model)  =
+            let symId = getSymId symLabel model.Wire.Symbol
+            let flipSymbol' = 
+                match flip with
+                | SymbolT.FlipType.FlipHorizontal -> 
+                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
+                | SymbolT.FlipType.FlipVertical ->
+                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal 
+                    >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
+            let symModel: SymbolT.Model = 
+                SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
+
+            model
+            |> Optic.set symbolModel_ symModel 
+            |> SheetUpdateHelpers.updateBoundingBoxes
+            |> Ok
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.

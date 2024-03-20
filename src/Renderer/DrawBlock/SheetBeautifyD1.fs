@@ -14,23 +14,27 @@ open Helpers
 open Symbol
 open BlockHelpers
 open SheetBeautifyHelpers
-open RotateScale
+(*open RotateScale*)
 open BusWire
     module D1Helpers =
         // D1 HELPER FUNCTIONS ----------------------------------------------------------------------
     
         /// returns all singly compoenents with one output xor input port
-        let getSinglyComp (wModel: BusWireT.Model): Symbol list =
+        let getSinglyComp (wModel: BusWireT.Model): Symbol list option =
             Optic.get symbols_ wModel.Symbol
             |> Map.fold (fun acc (sId:ComponentId) (sym:SymbolT.Symbol) ->
                 match getComponentProperties sym.Component.Type sym.Component.Label with
                 | (0, 1, _, _) -> sym :: acc
-                | (1, 0,_,_) -> sym :: acc
+                | (1, 0, _, _) -> sym :: acc
                 | _ -> acc) []
             |> List.rev
+            |> fun result -> 
+                if List.isEmpty result then None
+                else Some result
+
     
         /// returns all multiply connected components on a sheet
-        let getMultiplyComp (wModel: BusWireT.Model): Symbol list =
+        let getMultiplyComp (wModel: BusWireT.Model): Symbol list option =
             Optic.get symbols_ wModel.Symbol
             |> Map.fold (fun acc (sId:ComponentId) (sym:SymbolT.Symbol) ->
                 let (numInputs, numOutputs, _, _) = getComponentProperties sym.Component.Type sym.Component.Label
@@ -38,6 +42,9 @@ open BusWire
                 | (i, o) when i > 1 || o > 1 -> sym :: acc  // Components with more than one input or output
                 | _ -> acc) []  // Ignore components with one or no inputs/outputs
             |> List.rev
+            |> fun result -> 
+                if List.isEmpty result then None
+                else Some result
 
         /// For a list of connecting Symbol Pairs, return the list of pairs where both symbols are custom Components
         let filterCustomComp (portPair: (Symbol * Symbol) list): ((Symbol * Symbol) list) =
@@ -186,22 +193,25 @@ open BusWire
         let alignSinglyComp (wModel: BusWireT.Model): BusWireT.Model =
             let singlyComp = getSinglyComp wModel
             let connections = extractConnections wModel
-            singlyComp
-            |> List.fold (fun wModel' sym ->
-                let portsMap = getPortSym wModel'.Symbol sym
-                // Since it's a singly component, assume there is only one port
-                let portOption = portsMap |> Map.values |> Seq.tryHead 
-                match portOption with
-                | Some port ->
-                    let otherPorts = findOtherPorts port connections 
-                    let otherSymOpt = chooseSymAlign port otherPorts wModel'
-                    match otherSymOpt with
-                    | Some otherSym ->
-                        let wModel'' = alignSymbols wModel' sym otherSym
-                        wModel''
-                    | None -> wModel'
-                | _ -> wModel' // If no port is found, proceed to the next symbol
-            ) wModel
+            match singlyComp with
+            | Some syms ->
+                List.fold (fun wModel' sym ->
+                    let portsMap = getPortSym wModel'.Symbol sym
+                    // Since it's a singly component, assume there is only one port
+                    let portOption = portsMap |> Map.values |> Seq.tryHead
+                    match portOption with
+                    | Some port ->
+                        let otherPorts = findOtherPorts port connections
+                        let otherSymOpt = chooseSymAlign port otherPorts wModel'
+                        match otherSymOpt with
+                        | Some otherSym ->
+                            let wModel'' = alignSymbols wModel' sym otherSym
+                            wModel''
+                        | None -> wModel' // If no suitable alignment, keep the model unchanged
+                    | None -> wModel' // If no port is found, proceed to the next symbol
+                ) wModel syms
+            | None -> wModel // If getSinglyComp returns None, return the model unchanged
+
     
 
         let alignScaleComp (wModel: BusWireT.Model): BusWireT.Model =
@@ -209,20 +219,31 @@ open BusWire
             let connPairs = getConnSyms wModel
             let custPairs = filterCustomComp connPairs
             let customSymbols = custPairs |> List.collect (fun (a, b) -> [a; b])
-            let alignSyms = List.filter (fun sym -> not (List.contains sym customSymbols)) multiplySyms
-            
+
+            let alignSyms = 
+                match multiplySyms with
+                | Some multiplySyms ->
+                    List.filter (fun sym -> not (List.contains sym customSymbols)) multiplySyms
+                | None -> [] // If there are no multiplySyms, use an empty list for alignSyms
+                
             // Iterate over each pair in custPairs for processing
             let wModel' =
-                List.fold (fun wModel' (symA, symB) -> 
-                    match getOppEdgePortInfo wModel' symA symB with
-                    | Some (portInfoA, portInfoB) ->
-                        let custEdges = (portInfoA.side, portInfoB.side)
-                        scaleMultiplyComp wModel' symA (fst custEdges) symB (snd custEdges)                   
-                    | None -> wModel'
-                ) wModel custPairs
+                if List.isEmpty custPairs then
+                    wModel
+                else
+                    List.fold (fun wModel' (symA, symB) -> 
+                        match getOppEdgePortInfo wModel' symA symB with
+                        | Some (portInfoA, portInfoB) ->
+                            let custEdges = (portInfoA.side, portInfoB.side)
+                            scaleMultiplyComp wModel' symA (fst custEdges) symB (snd custEdges)                   
+                        | None -> wModel'
+                    ) wModel custPairs
+                
+            let wModel'' = 
+                match alignSyms with
+                | [] -> wModel' // If no symbols to align, skip this step
+                | _ -> alignMultiplyComp wModel' alignSyms // Proceed with alignment if there are symbols to align
 
-            
-            let wModel'' = alignMultiplyComp wModel' alignSyms
             // Return the final model after adjustments
             wModel''
 

@@ -184,7 +184,6 @@ let evaluateAllComponents (model: SheetT.Model) (components: ComponentId list) :
         stateCount <- stateCount + 1
         evaluateModels updatedModel model
 
-    // Iterate over all state combinations and apply them
     let finalModel =
         allStateCombinations
         |> List.fold evaluateAndCompare model

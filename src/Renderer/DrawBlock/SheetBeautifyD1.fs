@@ -62,39 +62,6 @@ let perpendicularOverlap2D' ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) 
     (overlapX || overlapY)
     && not (overlapX && overlapY)
 
-(*
-
-//-----------Notes for D1 From Ed-----------//
-----------Dealing With Separation---------
-
-Typically one problem humans find when trying to tidy up schematics is that there is not enough room in some parts of the sheet,
-with components too close,  and everything needs to be rearranged.  Doing this automatically is problematic because changing relative
-positions of components (except for a small amount) is multiply constrained.
-
-Still there is one easy transform in line with "do no harm" which is to scale the whole sheet - already done by rotatescale if you select all components.
-
-What might require scaling the sheet - uniformly magnifying the distances between all components?
-If the "correct" positions of components to straighten connections cause symbol overlaps
-
-If the separation between (parallel) wire segments and component edges, or segments and segments, is too small.
-The wire separation algorithm should ensure that component-wire separation will be equally a problem is wire-wire separation is a problem -
-so you probably need to consider only that. Scaling the whole sheet can make it difficult to see everything - if too much scaling is done -
-so some sort of cap would maybe be necessary.
-
-----------Dealing With Separation---------
-2 quality metrics: no overlapping symbols, try to straighten wires as much as possible
-
-The no overlapping symbols requirement is an extreme form of an enough separation requirement where for two adjacent parallel
-symbol edges separated by distance d with n wires running through. The gap between them the separation  is:
-
-d/(n+1)
-
-Separations close to a defined minimum can be included as penalties in the objective function. Obviously separations below some
-minimum value should not allowed, so a nonlinear dependence of objective function on separation could make sense and allow optimisation
-techniques to be used.
-
-*)
-
 /// Constant that decides if a wire is classified as almost-straight, if its longest segment in the minority direction is shorter than this length
 let maxDeviationLengthThreshold = 30.0
 /// Constant that decides if a wire is classified as almost-straight, if its overall displacement in the minority direction is shorter than this length
@@ -231,10 +198,10 @@ almost straight
 *)
 /// Helper that returns the wires connected to a symbol
 /// Should go into blockhelpers
-let getWiresConnectedToSymbolOutput (symbol: Symbol) (model: SheetT.Model) =
+let getWiresConnectedToSymbolOutput (symbol: Symbol) (model: BusWireT.Model) =
 
     let modelWireOutputPorts =
-        model.Wire.Wires
+        model.Wires
         |> Map.values
         |> Seq.toList
         |> List.collect (fun wire -> [ (wire.OutputPort.ToString(), wire) ])
@@ -247,13 +214,14 @@ let getWiresConnectedToSymbolOutput (symbol: Symbol) (model: SheetT.Model) =
             match (Map.tryFind key modelWireOutputPorts) with
             | Some wire -> [ wire ]
             | _ -> [])
+        |> Seq.toList
 
     wiresConnected
 
-let getWiresConnectedToSymbolInput (symbol: Symbol) (model: SheetT.Model) =
+let getWiresConnectedToSymbolInput (symbol: Symbol) (model: BusWireT.Model) =
 
     let modelWireInputPorts =
-        model.Wire.Wires
+        model.Wires
         |> Map.values
         |> Seq.toList
         |> List.collect (fun wire -> [ (wire.InputPort.ToString(), wire) ])
@@ -266,14 +234,15 @@ let getWiresConnectedToSymbolInput (symbol: Symbol) (model: SheetT.Model) =
             match (Map.tryFind key modelWireInputPorts) with
             | Some wire -> [ wire ]
             | _ -> [])
+        |> Seq.toList
 
     wiresConnected
 
-let getWiresCountConnectedToSym (symbol: Symbol) (model: SheetT.Model) =
+let getWiresCountConnectedToSym (symbol: Symbol) (model: BusWireT.Model) =
     let wiresConnectedToInput = getWiresConnectedToSymbolInput symbol model
     let wiresConnectedToOutput = getWiresConnectedToSymbolOutput symbol model
-    (Seq.length wiresConnectedToInput)
-    + (Seq.length wiresConnectedToOutput)
+    (List.length wiresConnectedToInput)
+    + (List.length wiresConnectedToOutput)
 
 /// Helper that to get a Symbol from PortId. Will search the sheet
 // Quite surprising this wasn't created already!
@@ -793,7 +762,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                 | y, Vertical ->
                     let offset = { X = 0.0; Y = y }
                     symbolsToMove
-                    |> List.minBy (fun (symbol, _) -> getWiresCountConnectedToSym symbol model.Sheet)
+                    |> List.minBy (fun (symbol, _) -> getWiresCountConnectedToSym symbol model.Sheet.Wire)
                     |> (fun (symbol, isInput) ->
                         [ { Symbol = symbol
                             Wire = wire
@@ -804,7 +773,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                 | x, Horizontal -> // if deviating horizontally, offset x. Negative if it's an input port and positive if it output
                     let offset = { X = x; Y = 0.0 }
                     symbolsToMove
-                    |> List.minBy (fun (symbol, _) -> getWiresCountConnectedToSym symbol model.Sheet)
+                    |> List.minBy (fun (symbol, _) -> getWiresCountConnectedToSym symbol model.Sheet.Wire)
                     |> (fun (symbol, isInput) ->
                         [ { Symbol = symbol
                             Wire = wire
@@ -961,33 +930,316 @@ let tryGeneralCleanUp (model: ModelType.Model) =
 
     model |> Optic.set (sheet_) (updatedSheetModel)
 
-// let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolA : Symbol) (symbolB : Symbol)
-// algo: take in two symbols
-// find which symbol has least ports/wires connected, that is symbol B to be resized. Symbol A is the other symbol
-// use existing helpers to get a list of ports on Symbol B connected to ports on the other, then sort by edge
-// ideally they should all share one edge, but if not, choose only ports on the edge that is shared by the majority of the ports
-// Get the ports on Symbol A as well, that are connected to B, and that are on the same majority edge
+/// Helper to find the opposite edge. Code was from symbolReplaceHelpers but is not accessible as a helper
+let findOpposite (edge: Edge) =
+    match edge with
+    | Right -> Left
+    | Top -> Bottom
+    | Left -> Right
+    | Bottom -> Top
 
-// sort the ports by the edge
-// find the longest contiguous segment of ports on the edge of a and b that are connected to each other
-// if that segment length is just one, then just align and skip (call reSizeSymbol)
-// get the port distances on Symbol A, call it x
-// get the port distances on Symbol B, call it y
-//
+/// When trying to straighten wires by rescaling custom components, we want to find the longest contiguous sequence of connections between two custom components A and B
+/// This type keeps track of the longest sequence found so far and its start points on both symbols
+type ContiguousSequenceRecord =
+    { StartPointA: int
+      StartPointB: int
+      SequenceLength: int
 
-let reSizeSymbolImprovedTopLevel
-    (wModel: BusWireT.Model)
-    (symbolToSize: Symbol)
-    (otherSymbol: Symbol)
-    : BusWireT.Model
-    =
-    printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
+    }
 
-    let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
+let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) =
+
+    let wires: Wire list = wiresBtwnSyms wModel symbolToSize otherSymbol
+
+    // create a double-length map of connections between ports, for quick lookup
+    // using string to allow for InputPortId and OutputPortId to be used as keys
+    let connectionMap =
+        wires
+        |> List.collect (fun wire ->
+            [ (wire.InputPort.ToString(), wire.OutputPort.ToString())
+              (wire.OutputPort.ToString(), wire.InputPort.ToString()) ])
+        |> Map.ofList
+
+    // find longest contiguous sequence of connections between both symbols
+    // example case. Denote symbol A as the symbol to resize, and symbol B as the other symbol, and -> for a connection
+    // A's output ports (on the right edge) are connected to B's input ports (on the left edge)
+    // A.1 refers to A's first port from the top down, and B.1 refers to B's first port from the top down
+    // If (A.1 -> B.1), (A.2 -> B.2), (A.3 -> B.3), return [(A.1 -> B.1), (A.2 -> B.2), (A.3 -> B.3)]
+    // If (A.1 -> B.2), (A.3 -> B.1), return [(A.1 -> B.2)]. This is because A.2 broke the sequence
+    // If (A.1 -> B.2), (A.3 -> B.3), (A.4 -> B.4), (A.5 -> B.5), return [(A.3 -> B.3), (A.4 -> B.4), (A.5 -> B.5)]. This is because A.2 broke the sequence but we found a longer one after
+
+    // note. we iterate throughh ports from L to R or Top-Down. In PortMaps, the top and right edges' order is reversed.
+    // algorithm: start with port A.1 and get its connected port, B.X. Then check A.2 -> B.(X+1), A.3 -> B(X+2, ...) and keep track until when this sequence breaks.
+    // The first sequence lasting k ports would have stopped at A(k+1). Continue checking from A(k+2) onwards
+    // Keep track of the sequence with the most ports
+
+    let rec findLongestContiguousSequence
+        (maxData: ContiguousSequenceRecord)
+        (currentData: ContiguousSequenceRecord)
+        (currentPointA: int)
+        (currentPointB: int)
+        (endPointA: int)
+        (endPointB: int)
+        (portListA: string list)
+        (portListB: string list)
+        (connectionMap: Map<string, string>)
+        : ContiguousSequenceRecord
+        =
+
+        match
+            (currentPointA > endPointA)
+            || (currentPointB > endPointB)
+        with
+        | true -> maxData
+        | false ->
+            // for our given port on currentPointA index of edge A, we see if it's connected to a port on edge B using connectionMap.
+            // connectionMap keeps track of all connections between ports on symbol A and B
+            // if the port does not exist in connectionMap, it does not connect to any port on edge B
+            // if the port does exist in connectionMap, we get the index of the connected port on edge B
+            let tryFindBIndex =
+                Map.tryFind (portListA.[currentPointA]) connectionMap
+                |> Option.defaultValue ""
+                |> (fun (portAConnectedId) -> List.tryFindIndex (fun port -> port = portAConnectedId) portListB)
+
+            match tryFindBIndex with
+            | Some bIndex when currentData.SequenceLength = 0 -> // the current port on edge A is connected to the port on edge B. We have started a new sequence
+                let newCurrentData =
+                    { StartPointA = currentPointA; StartPointB = bIndex; SequenceLength = 1 }
+                let newMaxData =
+                    match maxData.SequenceLength < newCurrentData.SequenceLength with
+                    | true -> newCurrentData
+                    | false -> maxData
+                findLongestContiguousSequence
+                    (newMaxData)
+                    (newCurrentData)
+                    (currentPointA + 1)
+                    (bIndex + 1)
+                    (endPointA)
+                    (endPointB)
+                    (portListA)
+                    (portListB)
+                    (connectionMap)
+            | Some bIndex when (currentPointB = bIndex) -> // the current port on edge A is connected to the port on edge B, continuing from a previous sequence.
+                let newCurrentData =
+                    { currentData with SequenceLength = currentData.SequenceLength + 1 }
+                let newMaxData =
+                    match maxData.SequenceLength < newCurrentData.SequenceLength with
+                    | true -> newCurrentData
+                    | false -> maxData
+                findLongestContiguousSequence
+                    (newMaxData)
+                    (newCurrentData)
+                    (currentPointA + 1)
+                    (currentPointB + 1)
+                    (endPointA)
+                    (endPointB)
+                    (portListA)
+                    (portListB)
+                    (connectionMap)
+            | _ -> // the current port on edge A is not connected to any port on edge B. the sequence has ended
+                findLongestContiguousSequence
+                    (maxData)
+                    ({ StartPointA = -1; StartPointB = -1; SequenceLength = 0 })
+                    (currentPointA + min (currentData.SequenceLength) 1)
+                    (currentPointB)
+                    (endPointA)
+                    (endPointB)
+                    (portListA)
+                    (portListB)
+                    (connectionMap)
+
+    let longestContiguousSequencesByEdge =
+        [ Top; Bottom; Left; Right ]
+        |> List.map (fun edge ->
+            let symToSizeEdgePorts, otherSymbolEdgePorts =
+
+                match edge with
+                | Top ->
+                    (List.rev (Map.find Top symbolToSize.PortMaps.Order)), (Map.find Bottom otherSymbol.PortMaps.Order)
+                | Bottom ->
+                    (Map.find Bottom symbolToSize.PortMaps.Order), (List.rev (Map.find Top otherSymbol.PortMaps.Order))
+                | Left ->
+                    (Map.find Left symbolToSize.PortMaps.Order), (List.rev (Map.find Right otherSymbol.PortMaps.Order))
+                | Right ->
+                    (List.rev (Map.find Right symbolToSize.PortMaps.Order)), (Map.find Left otherSymbol.PortMaps.Order)
+            // printf "symToSizeEdgePorts: %A" symToSizeEdgePorts
+            // printf "otherSymbolEdgePorts: %A" otherSymbolEdgePorts
+
+            edge,
+            findLongestContiguousSequence
+                ({ StartPointA = -1; StartPointB = -1; SequenceLength = 0 })
+                ({ StartPointA = -1; StartPointB = -1; SequenceLength = 0 })
+                0
+                0
+                (symToSizeEdgePorts.Length - 1)
+                (otherSymbolEdgePorts.Length - 1)
+                symToSizeEdgePorts
+                otherSymbolEdgePorts
+                connectionMap)
+
+    let ((longestVertSequenceEdge, longestContiguousVerticalSequence),
+         (longestHorizSequenceEdge, longestContiguousHorizontalSequence)) =
+        match
+            (snd longestContiguousSequencesByEdge[0]).SequenceLength > (snd longestContiguousSequencesByEdge[1])
+                .SequenceLength,
+            (snd longestContiguousSequencesByEdge[2]).SequenceLength > (snd longestContiguousSequencesByEdge[3])
+                .SequenceLength
+        with
+        | true, true -> longestContiguousSequencesByEdge[0], longestContiguousSequencesByEdge[2] //Top and Left
+        | true, false -> longestContiguousSequencesByEdge[0], longestContiguousSequencesByEdge[3] //Top and Right
+        | false, true -> longestContiguousSequencesByEdge[1], longestContiguousSequencesByEdge[2] //Bottom and Left
+        | false, false -> longestContiguousSequencesByEdge[1], longestContiguousSequencesByEdge[3] //Bottom and Right
+    // printf "symbolToSize: %A" symbolToSize.Id
+    // printf "longestContiguousVerticalSequence: %A" longestContiguousVerticalSequence
+    // printf "longestContiguousHorizontalSequence: %A" longestContiguousHorizontalSequence
+
+    let resizePortIdHoriz =
+        (Map.find longestHorizSequenceEdge symbolToSize.PortMaps.Order)[longestContiguousHorizontalSequence.StartPointA]
+    let otherPortIdHoriz =
+        (Map.find (findOpposite longestHorizSequenceEdge) otherSymbol.PortMaps.Order)[longestContiguousHorizontalSequence.StartPointB]
+
+    let resizePortInfoHoriz =
+        match Map.tryFind resizePortIdHoriz wModel.Symbol.Ports with
+        | Some port -> makePortInfo symbolToSize port
+        | None -> failwith "Port not found"
+
+    let otherPortInfoHoriz =
+        match Map.tryFind otherPortIdHoriz wModel.Symbol.Ports with
+        | Some port -> makePortInfo otherSymbol port
+        | None -> failwith "Port not found"
+
+    let h, w = calculateResizedDimensions resizePortInfoHoriz otherPortInfoHoriz
+
+    match symbolToSize.Component.Type with
+    | Custom _ ->
+        let scaledSymbol = setCustomCompHW h w symbolToSize
+        let scaledInfo = makePortInfo scaledSymbol resizePortInfoHoriz.port
+        let offset = alignPortsOffset scaledInfo otherPortInfoHoriz
+        moveSymbol offset scaledSymbol
+    | _ -> symbolToSize
+
+// let h, w = calculateResizedDimensions
+
+// set the symbolToSize's vscale to match otherSymbol's vscale
+
+// note that we can only resize H and W. So we choose between considering satisfying the top or bottom edge,
+
+let reSizeSymbolImprovedTopLevel (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : BusWireT.Model =
+    // printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
+
+    // resize the symbol with the least wires connected to it
+    let symbolAWireCount, symbolBWireCount =
+        getWiresCountConnectedToSym symbolA wModel, getWiresCountConnectedToSym symbolB wModel
+    let symbolToSize, otherSymbol =
+        match symbolAWireCount >= symbolBWireCount with
+        | true -> symbolB, symbolA
+        | false -> symbolA, symbolB
+
+    let scaledSymbol2 = reSizeSymbol wModel symbolToSize otherSymbol
+    let scaledSymbol = reSizeSymbolImproved wModel symbolToSize otherSymbol
 
     wModel
     |> Optic.set (symbolOf_ symbolToSize.Id) scaledSymbol
     |> (fun model' -> BusWireSeparate.routeAndSeparateSymbolWires model' symbolToSize.Id)
+
+(*
+
+//-----------Notes for D1 From Ed-----------//
+----------Dealing With Separation---------
+
+Typically one problem humans find when trying to tidy up schematics is that there is not enough room in some parts of the sheet,
+with components too close,  and everything needs to be rearranged.  Doing this automatically is problematic because changing relative
+positions of components (except for a small amount) is multiply constrained.
+
+Still there is one easy transform in line with "do no harm" which is to scale the whole sheet - already done by rotatescale if you select all components.
+
+What might require scaling the sheet - uniformly magnifying the distances between all components?
+If the "correct" positions of components to straighten connections cause symbol overlaps
+
+If the separation between (parallel) wire segments and component edges, or segments and segments, is too small.
+The wire separation algorithm should ensure that component-wire separation will be equally a problem is wire-wire separation is a problem -
+so you probably need to consider only that. Scaling the whole sheet can make it difficult to see everything - if too much scaling is done -
+so some sort of cap would maybe be necessary.
+
+----------Dealing With Separation---------
+2 quality metrics: no overlapping symbols, try to straighten wires as much as possible
+
+The no overlapping symbols requirement is an extreme form of an enough separation requirement where for two adjacent parallel
+symbol edges separated by distance d with n wires running through. The gap between them the separation  is:
+
+d/(n+1)
+
+Separations close to a defined minimum can be included as penalties in the objective function. Obviously separations below some
+minimum value should not allowed, so a nonlinear dependence of objective function on separation could make sense and allow optimisation
+techniques to be used.
+
+*)
+
+// // count if
+// let symbolToSizeInputPorts =
+//     wires // count if each wire's InputPort.toString() is in symbolToSizeAllPorts
+//     |> List.filter (fun wire -> symbolToSizeAllPorts |> List.contains (wire.InputPort.ToString()))
+//     |> List.map (fun wire -> wire.InputPort.ToString())
+
+// let symbolToSizeOutputPorts =
+//     wires // count if each wire's OutputPort.toString() is in symbolToSizeAllPorts
+//     |> List.filter (fun wire -> symbolToSizeAllPorts |> List.contains (wire.OutputPort.ToString()))
+//     |> List.map (fun wire -> wire.OutputPort.ToString())
+
+// let otherSymbolInputPorts =
+//     wires // count if each wire's InputPort.toString() is in otherSymbolAllPorts
+//     |> List.filter (fun wire -> otherSymbolAllPorts |> List.contains (wire.InputPort.ToString()))
+//     |> List.map (fun wire -> wire.InputPort.ToString())
+
+// let otherSymbolOutputPorts =
+//     wires // count if each wire's OutputPort.toString() is in otherSymbolAllPorts
+//     |> List.filter (fun wire -> otherSymbolAllPorts |> List.contains (wire.OutputPort.ToString()))
+//     |> List.map (fun wire -> wire.OutputPort.ToString())
+
+// let symbolToSizeEdgePorts, otherSymbolEdgePorts =
+//     match (List.length(symbolToSizeInputPorts)) > (wires.Length / 2) with
+//     | true -> // a majority of the symbolToSize's ports are input ones. Get those that share a majority edge
+//         let symToSizeEdgePorts =
+//             symbolToSizeInputPorts
+//             |> List.groupBy (fun port -> symbolToSize.PortMaps.Orientation.[port])
+//             //  get the ports on the edge that is shared by the majority of the ports
+//             |> List.maxBy (fun (orientation, ports) -> ports.Length)
+//             |> snd
+//             // thus, a majority of otherSymbol's ports are output ones. Get those that share a majority edge
+//         let otherSymbolEdgePorts =
+//             otherSymbolOutputPorts
+//             |> List.groupBy (fun port -> otherSymbol.PortMaps.Orientation.[port])
+//             //  get the ports on the edge that is shared by the majority of the ports
+//             |> List.maxBy (fun (orientation, ports) -> ports.Length)
+//             |> snd
+//         symToSizeEdgePorts, otherSymbolEdgePorts
+//     | false -> // a majority of the symbolToSize's ports are output ones. Get those that share a majority edge
+//         let symToSizeEdgePorts  =
+//             symbolToSizeOutputPorts
+//             |> List.groupBy (fun port -> symbolToSize.PortMaps.Orientation.[port])
+//             //  get the ports on the edge that is shared by the majority of the ports
+//             |> List.maxBy (fun (orientation, ports) -> ports.Length)
+//             |> snd
+//             // thus, a majority of otherSymbol's ports are input ones. Get those that share a majority edge
+//         let otherSymbolEdgePorts =
+//             otherSymbolInputPorts
+//             |> List.groupBy (fun port -> otherSymbol.PortMaps.Orientation.[port])
+//             //  get the ports on the edge that is shared by the majority of the ports
+//             |> List.maxBy (fun (orientation, ports) -> ports.Length)
+//             |> snd
+//         symToSizeEdgePorts, otherSymbolEdgePorts
+
+// algo: take in two symbols
+// find which symbol has least ports/wires connected, that is the symbolToSize, the other is called otherSymbol.
+// use existing helpers to get a list of ports on symbolToSize connected to ports on the other, then sort by edge
+// ideally they should all share one edge, but if not, choose only ports on the edge that is shared by the majority of the ports
+// Get the ports on otherSymbol as well, that are connected to symbolToSize, and that are on the same majority edge
+
+// sort the ports by the edge
+// find the longest contiguous segment of ports on the edge of a and b that are connected to each other
+// if that segment length is just one, then just align and skip (call reSizeSymbol)
+// get the port distances on symbolToSize, call it x
+// get the port distances on otherSymbol, call it y
 
 (*  More notes: Cases for detecting Straightenable Wires (note we consider more cases than AlmostStraightWires )
                                                          __________
@@ -1111,3 +1363,32 @@ let reSizeSymbolImprovedTopLevel
 //     newStraightWire
 //
 // check for intersections. If there are none, then return the new model else return the old model
+
+// for every port on the symbol to size, try find if it is connected to a port on the other symbol
+// let sortedEdgeConnections : (Edge * (PortId * PortId) list ) list =
+//     let edgeConnections =
+//         symbolToSizeAllPorts
+//             |> List.groupBy (fun portId -> symbolToSize.PortMaps.Orientation[portId.ToString()])
+//             |> List.map (fun (edge, symToSizeEdgePorts) ->
+//                 // for each port on the symToSize, count it if it is connected to a port on the other symbol that is on the opposite edge
+//                 // find other symbol's ports using the connection map
+//                 let oppositeEdgePortPairs =
+//                     symToSizeEdgePorts
+//                     |> List.map (fun symToSizeEdgePort ->
+//                         symToSizeEdgePort, (connectionMap |> Map.tryFind symToSizeEdgePort))
+//                     |> List.choose (fun (symToSizeEdgePort, otherSymbolPortOption) ->
+//                         match otherSymbolPortOption with
+//                         | Some otherSymbolPort ->
+//                             if
+//                                 otherSymbolAllPorts
+//                                 |> List.contains otherSymbolPort
+//                             then
+//                                 Some(symToSizeEdgePort, otherSymbolPort)
+//                             else
+//                                 None
+//                         | None -> None)
+//                     |> List.filter (fun (_, otherPort) ->
+//                         otherSymbol.PortMaps.Orientation[(otherPort.ToString())] = findOpposite edge)
+//                 (edge, oppositeEdgePortPairs))
+//     edgeConnections
+//         |> List.sortByDescending (fun (_, oppositeEdgePortPairs) -> oppositeEdgePortPairs.Length)

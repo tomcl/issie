@@ -142,24 +142,28 @@ let calculateResizedDimensions (resizePortInfo: PortInfo) (otherPortInfo: PortIn
 let reSizeSymbol (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) : (Symbol) =
     let wires = wiresBtwnSyms wModel symbolToSize otherSymbol
 
-    // Try to get the PortInfo of two ports that are on opposite edges of two different symbols, if none found just use any two ports.
-    let resizePortInfo, otherPortInfo =
-        match getOppEdgePortInfo wModel symbolToSize otherSymbol with
-        | None ->
-            let pA, pB =
-                getPortAB wModel { symA = symbolToSize; symB = otherSymbol; wire = wires.Head }
-            makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
-        | Some(pIA, pIB) -> (pIA, pIB)
+    match wires.IsEmpty with
+    | true -> symbolToSize
+    | _ ->
 
-    let h, w = calculateResizedDimensions resizePortInfo otherPortInfo
+        // Try to get the PortInfo of two ports that are on opposite edges of two different symbols, if none found just use any two ports.
+        let resizePortInfo, otherPortInfo =
+            match getOppEdgePortInfo wModel symbolToSize otherSymbol with
+            | None ->
+                let pA, pB =
+                    getPortAB wModel { symA = symbolToSize; symB = otherSymbol; wire = wires.Head }
+                makePortInfo symbolToSize pA, makePortInfo symbolToSize pB
+            | Some(pIA, pIB) -> (pIA, pIB)
 
-    match symbolToSize.Component.Type with
-    | Custom _ ->
-        let scaledSymbol = setCustomCompHW h w symbolToSize
-        let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
-        let offset = alignPortsOffset scaledInfo otherPortInfo
-        moveSymbol offset scaledSymbol
-    | _ -> symbolToSize
+        let h, w = calculateResizedDimensions resizePortInfo otherPortInfo
+
+        match symbolToSize.Component.Type with
+        | Custom _ ->
+            let scaledSymbol = setCustomCompHW h w symbolToSize
+            let scaledInfo = makePortInfo scaledSymbol resizePortInfo.port
+            let offset = alignPortsOffset scaledInfo otherPortInfo
+            moveSymbol offset scaledSymbol
+        | _ -> symbolToSize
 
 /// For UI to call ResizeSymbol.
 // More pipelines were used here to improve readability

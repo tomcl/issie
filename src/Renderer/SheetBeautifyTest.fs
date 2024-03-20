@@ -1,4 +1,4 @@
-module SheetBeautifyT3
+module SheetBeautifyTest
 
 //-----------------------------------------------------------------------------------------//
 //----------Module for top-level beautify functions making (mostly) whole-sheet changes----//
@@ -59,7 +59,7 @@ let alignSinglyConnectedComponents (model : SheetT.Model) =
 let sheetWireLabelSymbol (model : SheetT.Model) = 
     Ok (model) // returns the same model, no change in labels
 
-module T3 =
+module T123 =
     open TestDrawBlock.TestLib
     open TestDrawBlock.HLPTick3
     open TestDrawBlock.HLPTick3.Asserts
@@ -395,10 +395,11 @@ module T3 =
 
         // ------------------------------- T1 --------------------------
         let failOnAllTestsD1 (sample: int) (sheet: SheetT.Model) =
-            // let singlyConnectedComponents = findSinglyConnectedComponents sheet
-            let singlyConnected = findAlignment sheet
-            printfn "singly connected symbol, %A" singlyConnected
-            Some <| $"Sample {sample}"
+            // // let singlyConnectedComponents = findSinglyConnectedComponents sheet
+            // let singlyConnected = findAlignment sheet
+            // printfn "singly connected symbol, %A" singlyConnected
+            // Some <| $"Sample {sample}"
+            Some $"Sample {sample}"
 
         // ------------------------------- T3 ---------------------------
         /// 0. Each port has no more than 1 label

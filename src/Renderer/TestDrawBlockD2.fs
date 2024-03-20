@@ -26,12 +26,29 @@ open TestLib
 open SheetBeautifyD2
 open SheetBeautifyD3
 
+// Define a new type that combines an XYPos with an Port Connections and Component type
+type posConnectionsComponent = {
+    Position: XYPos
+    Connections: int * int
+    Component: ComponentType
+}
+
+type posConnectionsPair = {
+    Position: XYPos
+    Connections: int * int
+}
+
 // Define a new type that combines an XYPos with an optional FlipType
 type posFlipPair = {
     Position: XYPos
     Flip: Option<FlipType>
 }
 
+type posFlipComponent = {
+    Position: XYPos
+    Flip: Option<FlipType>
+    Component: ComponentType
+}
 
 //--------------------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------Helper Functions-----------------------------------------------------//
@@ -74,22 +91,22 @@ let calcMetricsDiff (model1 : SheetT.Model) (model2 : SheetT.Model) : unit =
     // T2
     let segmentSymbolIntersections1 : int = numOfIntersectSegSym model1
     let segmentSymbolIntersections2 : int = numOfIntersectSegSym model2
-    print ($"Number of Symbol and Wire Intersections Removed: {segmentSymbolIntersections2 - segmentSymbolIntersections1}")
+    print ($"Number of Symbol and Wire Intersections Removed: {segmentSymbolIntersections1 - segmentSymbolIntersections2}")
 
     // T3
     let wireIntersections1 : int = numOfWireRightAngleCrossings model1
     let wireIntersections2 : int = numOfWireRightAngleCrossings model2
-    print ($"Number of Wire Crossings Removed: {wireIntersections2 - wireIntersections1}")
+    print ($"Number of Wire Crossings Removed: {wireIntersections1 - wireIntersections2}")
     
     // T4
     let totalSegLength1 : float = calcVisWireLength model1
     let totalSegLength2 : float = calcVisWireLength model2
-    print ($"Total Segment Length Reduced: {totalSegLength2 - totalSegLength1}")
+    print ($"Total Segment Length Reduced: {totalSegLength1 - totalSegLength2}")
 
     // T5
     let wireRightAngles1 : int = numOfVisRightAngles model1
     let wireRightAngles2 : int = numOfVisRightAngles model2
-    print ($"Number of Wire Right angles Removed: {wireRightAngles2 - wireRightAngles1}")
+    print ($"Number of Wire Right angles Removed: {wireRightAngles1 - wireRightAngles2}")
 
 
 /// <summary> Finds the ID of a symbol within a model by its label. </summary>
@@ -121,7 +138,6 @@ let flipSymbol (symLabel: string) (orientation: FlipType option) (model : SheetT
             Ok newModel
         | None -> Ok model
 
-let gridStep = 50.0
 
 
 /// <summary>Generates a 2x2 grid of XYPos positions based on an offset from the middle of the sheet.</summary>
@@ -129,6 +145,7 @@ let gridStep = 50.0
 /// <param name="offsetY">The vertical offset from the middle of the sheet for the grid's starting position.</param>
 /// <returns>A Gen<XYPos> representing a list of positions for a 2x2 grid.</returns>
 let makeGrid (offsetX: float) (offsetY: float) =
+    let gridStep = 50.0
     let x, y = middleOfSheet.X, middleOfSheet.Y
     [{X = x + offsetX; Y = y + offsetY};
      {X = x + offsetX + gridStep; Y = y + offsetY};
@@ -173,7 +190,107 @@ let beautifySheet (model : ModelType.Model) (dispatch: Dispatch<Msg>): unit =
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 
-//----------------------------------------------------- Circuit 1 ---------------------------------------------------------//
+
+//------------------------------------------------------- Circuit 1 --------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
+
+
+let input1PosCircuit1 = middleOfSheet + { X = -140; Y = 176 }
+let input2PosCircuit1 = middleOfSheet + { X = -230; Y = 100 }
+let mux1PosCircuit1 = middleOfSheet + { X = -150; Y = -90 }
+let mux2PosCircuit1 = middleOfSheet - { X = 0; Y = 80 }
+
+let verticalLinePositions midPos stepSize =
+    fromList [-30..stepSize..30]
+    |> map (fun n -> midPos + { X = 0.; Y = float n })
+
+let verticalLinePairs = product (fun a b -> (a, b)) (verticalLinePositions mux1PosCircuit1 15) (verticalLinePositions mux2PosCircuit1 15)
+
+
+let makeCircuit1 (symPosInfo : XYPos * XYPos) =
+    let (mux1Pos, mux2Pos) = symPosInfo
+    initSheetModel
+    |> placeSymbol "MUX1" Mux2 mux1Pos
+    |> Result.bind (placeSymbol "MUX2" Mux2 mux2Pos)
+    |> Result.bind (placeSymbol "A" (Input1 (1, None)) (middleOfSheet + { X = -350; Y = -130 }))
+    |> Result.bind (placeSymbol "B" (Input1 (1, None)) (middleOfSheet + { X = -350; Y = -50 }))
+    |> Result.bind (placeSymbol "C" (Output 1) (middleOfSheet + { X = 150; Y = -75 }))
+    |> Result.bind (placeSymbol "S1" (Input1 (1, None)) input1PosCircuit1)
+    |> Result.bind (placeSymbol "S2" (Input1 (1, None)) input2PosCircuit1)
+    |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+    |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
+    |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+    |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+    |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+    |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+    |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+    |> getOkOrFail
+
+//--------------------------------------------------------------------------------------------------------------------------//
+
+
+//----------------------------------------------------- Circuit 2 ---------------------------------------------------------//
+//-------------------------------------------------------------------------------------------------------------------------//
+
+let randomComponents1Circuit2 = fromList [Mux4; GateN(And, 5)]
+let randomComponents2Circuit2 = fromList [Not; DFF]
+let randomComponents3Circuit2 = fromList [Mux2; NbitsAdder(2)]
+
+let posGen1Circuit2 = verticalLinePositions (middleOfSheet - { X = 150.0; Y = 150.0 }) 30
+let posGen2Circuit2 = verticalLinePositions (middleOfSheet + { X = 60.0; Y = -130.0 }) 30
+let posGen3Circuit2 = verticalLinePositions (middleOfSheet + { X = 50.0; Y = 15.0 }) 30
+
+let connections1Circuit2 = fromList [(0, 0); (1, 0); (3, 0); (4, 0);]
+let connections2Circuit2 = fromList [(0, 0)]
+let connections3Circuit2 = fromList [(0, 0); (1, 0); (3, 0);]
+
+let posAndConnectionGen1 = product (fun (connections: int * int) (position: XYPos) -> { Position = position; Connections = connections }) connections1Circuit2 posGen1Circuit2 
+let posAndConnectionGen2 = product (fun (connections: int * int) (position: XYPos) -> { Position = position; Connections = connections }) connections2Circuit2 posGen2Circuit2
+let posAndConnectionGen3 = product (fun (connections: int * int) (position: XYPos) -> { Position = position; Connections = connections }) connections3Circuit2 posGen3Circuit2 
+
+let posConnectionCompGen1 = product (fun (posConnections : posConnectionsPair) comp -> { Position = posConnections.Position; Connections = posConnections.Connections; Component = comp }) posAndConnectionGen1 randomComponents1Circuit2
+let posConnectionCompGen2 = product (fun (posConnections : posConnectionsPair) comp -> { Position = posConnections.Position; Connections = posConnections.Connections; Component = comp }) posAndConnectionGen2 randomComponents2Circuit2
+let posConnectionCompGen3 = product (fun (posConnections : posConnectionsPair) comp -> { Position = posConnections.Position; Connections = posConnections.Connections; Component = comp }) posAndConnectionGen3 randomComponents3Circuit2
+
+let posConnectionCompGenPair = product (fun gen1 gen2 -> (gen1, gen2)) posConnectionCompGen1 posConnectionCompGen2
+let posConnectionCompGenTriple = product (fun (gen1, gen2) gen3 -> (gen1, gen2, gen3)) posConnectionCompGenPair posConnectionCompGen3
+
+
+
+let makeCircuit2 (symInfo : posConnectionsComponent * posConnectionsComponent * posConnectionsComponent) =
+    let (sym1Info, sym2Info, sym3Info) = symInfo
+    let sym1pos = sym1Info.Position
+    let (sym1InputPort, sym1OutputPort) = sym1Info.Connections
+    let sym1comp = sym1Info.Component
+    let sym2pos = sym2Info.Position
+    let (sym2InputPort, sym2OutputPort) = sym2Info.Connections
+    let sym2comp = sym2Info.Component
+    let sym3pos = sym3Info.Position
+    let (sym3InputPort, sym3OutputPort) = sym3Info.Connections
+    let sym3comp = sym3Info.Component
+    initSheetModel
+    |> placeSymbol "Sym1" sym1comp sym1pos
+    |> Result.bind (placeSymbol "Sym2" sym2comp sym2pos)
+    |> Result.bind (placeSymbol "Sym3" sym3comp sym3pos)
+    |> Result.bind (placeSymbol "S1" (Input1 (1, None)) (middleOfSheet + { X = -350; Y = -130 }))
+    |> Result.bind (placeSymbol "S2" (Input1 (1, None)) (middleOfSheet + { X = -350; Y = -50 }))
+    |> Result.bind (placeSymbol "S3" (Input1 (1, None)) (middleOfSheet + { X = -300; Y = +10 }))
+    |> Result.bind (placeSymbol "OUT1" (Output 1) (middleOfSheet + { X = 150; Y = -125 }))
+    |> Result.bind (placeSymbol "OUT2" (Output 1) (middleOfSheet + { X = 150; Y = -5 }))
+    |> Result.bind (placeWire (portOf "Sym1" sym1OutputPort) (portOf "Sym2" sym2InputPort))
+    |> Result.bind (placeWire (portOf "Sym2" sym2OutputPort) (portOf "OUT1" 0))
+    |> Result.bind (placeWire (portOf "S1" 0) (portOf "Sym1" sym1InputPort))
+    |> Result.bind (placeWire (portOf "S2" 0) (portOf "Sym1" ((sym1InputPort + 3) % 4)))
+    |> Result.bind (placeWire (portOf "S3" 0) (portOf "Sym3" sym3InputPort))
+    |> Result.bind (placeWire (portOf "Sym3" sym3OutputPort) (portOf "OUT2" 0))
+    // |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+    // |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+    |> getOkOrFail
+
+//--------------------------------------------------------------------------------------------------------------------------//
+
+
+//----------------------------------------------------- Circuit 3 ---------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 // Generate Random Flips
 let flipTypeGen = fromList [None; Some FlipHorizontal; Some FlipVertical]
@@ -187,27 +304,27 @@ let flipTypeTriples = product (fun (a, b) c -> (a, b, c)) flipTypePairs flipType
 let flipTypeQuadruples = product (fun (a, b, c) d -> (a, b, c, d)) flipTypeTriples flipTypeGen
 
 // Define the positions of Symbols in the Sheet for Circuit 1
-let mux1PosCircuit1 : XYPos = middleOfSheet - { X = 150.0; Y = 175.0 }
-let mux2PosCircuit1 : XYPos = middleOfSheet
-let input1PosCircuit1 : XYPos = middleOfSheet - { X = 200.0; Y = -28.0 }
-let input2PosCircuit1 : XYPos = middleOfSheet - { X = 200.0; Y = -90.0 }
-let andPosCircuit1 : XYPos = middleOfSheet - { X = -180.0; Y = 180. }
+let mux1PosCircuit3 : XYPos = middleOfSheet - { X = 150.0; Y = 175.0 }
+let mux2PosCircuit3 : XYPos = middleOfSheet
+let input1PosCircuit3 : XYPos = middleOfSheet - { X = 200.0; Y = -28.0 }
+let input2PosCircuit3 : XYPos = middleOfSheet - { X = 200.0; Y = -90.0 }
+let andPosCircuit3 : XYPos = middleOfSheet - { X = -180.0; Y = 180. }
 
 
 
 // Generate a circuit with 2 inputs, 2 Mux2 and one and gate with random flips
-let makeCircuit1 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipType>) =
+let makeCircuit3 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipType>) =
     let flipMUX1, flipMUX2, flipGate = symFlips 
     let model = 
         initSheetModel
-        |> placeSymbol "G1" (GateN(And, 2)) andPosCircuit1
+        |> placeSymbol "G1" (GateN(And, 2)) andPosCircuit3
         |> Result.bind (flipSymbol "G1" flipGate)
-        |> Result.bind (placeSymbol "MUX1" Mux2 mux1PosCircuit1)
+        |> Result.bind (placeSymbol "MUX1" Mux2 mux1PosCircuit3)
         |> Result.bind (flipSymbol "MUX1" flipMUX1)
-        |> Result.bind (placeSymbol "MUX2" Mux2 mux2PosCircuit1)
+        |> Result.bind (placeSymbol "MUX2" Mux2 mux2PosCircuit3)
         |> Result.bind (flipSymbol "MUX2" flipMUX2)
-        |> Result.bind (placeSymbol "S1" (Input1(1, Some 1)) input1PosCircuit1)
-        |> Result.bind (placeSymbol "S2" (Input1(1, Some 1)) input2PosCircuit1)
+        |> Result.bind (placeSymbol "S1" (Input1(1, Some 1)) input1PosCircuit3)
+        |> Result.bind (placeSymbol "S2" (Input1(1, Some 1)) input2PosCircuit3)
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 1))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 0))
@@ -218,37 +335,38 @@ let makeCircuit1 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipTy
 //--------------------------------------------------------------------------------------------------------------------------//
 
 
-//----------------------------------------------------- Circuit 2 ---------------------------------------------------------//
+//----------------------------------------------------- Circuit 4 ---------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 // Define the positions of Symbols in the Sheet for Circuit 2
-let notGatePosCircuit2 : XYPos = middleOfSheet - { X = 200.0; Y = 0.0 }
-let mux1PosCircuit2 : XYPos = middleOfSheet - { X = 100.0; Y = 100.0 }
-let mux2PosCircuit2 : XYPos = middleOfSheet + { X = -100.0; Y = 100.0 }
-let orGatePosCircuit2 : XYPos = middleOfSheet + { X = 0.0; Y = 0.0 }
-let inputPosCircuit2 : XYPos = middleOfSheet - { X = 300.0; Y = 0.0 }
-let outputPosCircuit2 : XYPos = middleOfSheet + { X = 150.0; Y = 0.0 }
+let notGatePosCircuit4 : XYPos = middleOfSheet - { X = 200.0; Y = 0.0 }
+let mux1PosCircuit4 : XYPos = middleOfSheet - { X = 100.0; Y = 100.0 }
+let mux2PosCircuit4 : XYPos = middleOfSheet + { X = -100.0; Y = 100.0 }
+let orGatePosCircuit4 : XYPos = middleOfSheet + { X = 0.0; Y = 0.0 }
+let inputPosCircuit4 : XYPos = middleOfSheet - { X = 300.0; Y = 0.0 }
+let outputPosCircuit4 : XYPos = middleOfSheet + { X = 150.0; Y = 0.0 }
 
 // Generate a circuit with an input, two Mux2s, a Not gate, an Or gate, and an output with random flips
-let makeCircuit2 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipType> * Option<FlipType>) =
+let makeCircuit4 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipType> * Option<FlipType>) =
     let flipMUX1, flipMUX2, flipOr, flipNot = symFlips 
     let model = 
         initSheetModel
-        |> placeSymbol "Not1" (Not) notGatePosCircuit2
+        |> placeSymbol "Not1" (Not) notGatePosCircuit4
         |> Result.bind (flipSymbol "Not1" flipNot)
-        |> Result.bind (placeSymbol "MUX1" Mux2 mux1PosCircuit2)
+        |> Result.bind (placeSymbol "MUX1" Mux2 mux1PosCircuit4)
         |> Result.bind (flipSymbol "MUX1" flipMUX1)
-        |> Result.bind (placeSymbol "MUX2" Mux2 mux2PosCircuit2)
+        |> Result.bind (placeSymbol "MUX2" Mux2 mux2PosCircuit4)
         |> Result.bind (flipSymbol "MUX2" flipMUX2)
-        |> Result.bind (placeSymbol "Or1" (GateN(Or, 2)) orGatePosCircuit2)
+        |> Result.bind (placeSymbol "Or1" (GateN(Or, 2)) orGatePosCircuit4)
         |> Result.bind (flipSymbol "Or1" flipOr)
-        |> Result.bind (placeSymbol "In1" (Input1(1, Some 1)) inputPosCircuit2)
-        |> Result.bind (placeSymbol "Out1" (Output 1) outputPosCircuit2)
+        |> Result.bind (placeSymbol "In1" (Input1(1, Some 1)) inputPosCircuit4)
+        |> Result.bind (placeSymbol "Out1" (Output 1) outputPosCircuit4)
         // Wire connections
         |> Result.bind (placeWire (portOf "In1" 0) (portOf "Not1" 0))
         |> Result.bind (placeWire (portOf "In1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "Not1" 0) (portOf "MUX1" 1))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "Or1" 0))
-        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "Or1" 1))
+        |> Result.bind (placeWire (portOf "Not1" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "Or1" 1))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "Or1" 0))
         |> Result.bind (placeWire (portOf "Or1" 0) (portOf "Out1" 0))
         |> getOkOrFail
     model
@@ -256,7 +374,7 @@ let makeCircuit2 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipTy
 //--------------------------------------------------------------------------------------------------------------------------//
 
 
-//----------------------------------------------------- Circuit 3 ---------------------------------------------------------//
+//----------------------------------------------------- Circuit 5 ---------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 
 // Create the generator for Circuit with random positions
@@ -274,7 +392,7 @@ let posAndFlipPair = product (fun posFlip1 posFlip2 -> (posFlip1, posFlip2)) pos
 let posAndFlipTriplesGen = product (fun (posFlip1, posFlip2) posFlip3 -> (posFlip1, posFlip2, posFlip3)) posAndFlipPair posAndFlipGen3
 
 // Generate a circuit with an input, two Mux2s, an And gate and an output with random flips and positioning
-let makeCircuit3 (symInfo : posFlipPair * posFlipPair * posFlipPair) =
+let makeCircuit5 (symInfo : posFlipPair * posFlipPair * posFlipPair) =
     let (MUX1info, MUX2info, andInfo) = symInfo
     let MUX1pos = MUX1info.Position
     let MUX1flip = MUX1info.Flip
@@ -290,8 +408,8 @@ let makeCircuit3 (symInfo : posFlipPair * posFlipPair * posFlipPair) =
         |> Result.bind (flipSymbol "MUX1" MUX1flip)
         |> Result.bind (placeSymbol "MUX2" Mux2 MUX2pos)
         |> Result.bind (flipSymbol "MUX2" MUX2flip)
-        |> Result.bind (placeSymbol "In1" (Input1(1, Some 1)) inputPosCircuit2)
-        |> Result.bind (placeSymbol "Out1" (Output 1) outputPosCircuit2)
+        |> Result.bind (placeSymbol "In1" (Input1(1, Some 1)) inputPosCircuit4)
+        |> Result.bind (placeSymbol "Out1" (Output 1) outputPosCircuit4)
         // Wire connections
         |> Result.bind (placeWire (portOf "In1" 0) (portOf "And1" 0))
         |> Result.bind (placeWire (portOf "In1" 0) (portOf "MUX2" 0))
@@ -304,26 +422,83 @@ let makeCircuit3 (symInfo : posFlipPair * posFlipPair * posFlipPair) =
 //--------------------------------------------------------------------------------------------------------------------------//
 
 
+//------------------------------------------------------- Circuit 6 --------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
+
+let randomComponents1 = fromList [Mux2; GateN(And, 3)]
+let randomComponents2 = fromList [Not; DFF]
+let randomComponents3 = fromList [Mux2; NbitsAdder(2)]
+
+let posGen4 = fromList [middleOfSheet - { X = 10.0; Y = 150.0 }; middleOfSheet + { X = 40.0; Y = 150.0 } ]
+let posGen5 = fromList [middleOfSheet - { X = 130.0; Y = -130.0 }; middleOfSheet + { X = -70.0; Y = 10.0 } ]
+let posGen6 = fromList [middleOfSheet + { X = 50.0; Y = 15.0 }; middleOfSheet + { X = 50.0; Y = -50.0 } ]
+
+let posAndFlipGen4 = product (fun position flip -> { Position = position; Flip = flip }) posGen4 flipTypeGen
+let posAndFlipGen5 = product (fun position flip -> { Position = position; Flip = flip }) posGen5 flipTypeGen
+let posAndFlipGen6 = product (fun position flip -> { Position = position; Flip = flip }) posGen6 flipTypeGen
+
+
+// Combine position and flip into a PosAndFlip generator
+let posFlipCompGen1 = product (fun (posFlip : posFlipPair) comp -> { Position = posFlip.Position; Flip = posFlip.Flip; Component = comp }) posAndFlipGen4 randomComponents1
+let posFlipCompGen2 = product (fun (posFlip : posFlipPair) comp -> { Position = posFlip.Position; Flip = posFlip.Flip; Component = comp }) posAndFlipGen5 randomComponents2
+let posFlipCompGen3 = product (fun (posFlip : posFlipPair) comp -> { Position = posFlip.Position; Flip = posFlip.Flip; Component = comp }) posAndFlipGen6 randomComponents3
+let posFlipCompGenPair = product (fun gen1 gen2 -> (gen1, gen2)) posFlipCompGen1 posFlipCompGen2
+let posFlipCompGenTriple = product (fun (gen1, gen2) gen3 -> (gen1, gen2, gen3)) posFlipCompGenPair posFlipCompGen3
+
+
+let makeCircuit6 (symInfo : posFlipComponent * posFlipComponent * posFlipComponent) =
+    let (sym1Info, sym2Info, sym3Info) = symInfo
+    let sym1pos = sym1Info.Position
+    let sym1flip = sym1Info.Flip
+    let sym1comp = sym1Info.Component
+    let sym2pos = sym2Info.Position
+    let sym2flip = sym2Info.Flip
+    let sym2comp = sym2Info.Component
+    let sym3pos = sym3Info.Position
+    let sym3flip = sym3Info.Flip
+    let sym3comp = sym3Info.Component
+    let model = 
+        initSheetModel
+        |> placeSymbol "Sym3" sym3comp sym3pos
+        |> Result.bind (flipSymbol "sym3" sym3flip)
+        |> Result.bind (placeSymbol "sym1" sym1comp sym1pos)
+        |> Result.bind (flipSymbol "sym1" sym1flip)
+        |> Result.bind (placeSymbol "sym2" sym2comp sym2pos)
+        |> Result.bind (flipSymbol "sym2" sym2flip)
+        |> Result.bind (placeSymbol "In1" (Input1(1, Some 1)) inputPosCircuit4)
+        |> Result.bind (placeSymbol "Out1" (Output 1) outputPosCircuit4)
+        // Wire connections
+        |> Result.bind (placeWire (portOf "In1" 0) (portOf "sym1" 0))
+        |> Result.bind (placeWire (portOf "In1" 0) (portOf "sym2" 0))
+        |> Result.bind (placeWire (portOf "sym1" 0) (portOf "Sym3" 1))
+        |> Result.bind (placeWire (portOf "Sym3" 0) (portOf "OUT1" 0))
+        |> Result.bind (placeWire (portOf "sym2" 0) (portOf "Sym3" 0))
+        |> Result.bind (placeWire (portOf "sym2" 0) (portOf "sym1" 2))
+        |> getOkOrFail
+    model
 
 
 //--------------------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------Demo tests on Draw Block code---------------------------------------------//
+
+
+//--------------------------------------------------------------------------------------------------------------------------//
+//---------------------------------------------- Demo tests on Draw Block code ---------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 let test1 testNum firstSample dispatch =
     runTestOnSheets
-        "Manually Generated: 2 MUXes and 1 Gate With Random Flips"
+        "2 muxes single connected and 2 gates connected"
         firstSample
-        flipTypeTriples
-        makeCircuit1 
+        verticalLinePairs
+        makeCircuit1
         failOnAllTests
         dispatch
     |> recordPositionInTest testNum dispatch
-
+    
 let test2 testNum firstSample dispatch =
     runTestOnSheets
-        "Manually Generated: 2 MUXes and 2 Gates With Random Flips"
+        "2 muxes and Viewers connected as per example Fig A1"
         firstSample
-        flipTypeQuadruples
+        posConnectionCompGenTriple
         makeCircuit2
         failOnAllTests
         dispatch
@@ -331,11 +506,41 @@ let test2 testNum firstSample dispatch =
 
 let test3 testNum firstSample dispatch =
     runTestOnSheets
+        "Manually Generated: 2 MUXes and 1 Gate With Random Flips"
+        firstSample
+        flipTypeTriples
+        makeCircuit3 
+        failOnAllTests
+        dispatch
+    |> recordPositionInTest testNum dispatch
+
+let test4 testNum firstSample dispatch =
+    runTestOnSheets
+        "Manually Generated: 2 MUXes and 2 Gates With Random Flips"
+        firstSample
+        flipTypeQuadruples
+        makeCircuit4
+        failOnAllTests
+        dispatch
+    |> recordPositionInTest testNum dispatch
+
+let test5 testNum firstSample dispatch =
+    runTestOnSheets
         "Randomly Generated: 2 MUXes and a Gate With Random Flips"
         firstSample
         posAndFlipTriplesGen
-        makeCircuit3
+        makeCircuit5
         failOnWireIntersectsSymbol
+        dispatch
+    |> recordPositionInTest testNum dispatch
+
+let test6 testNum firstSample dispatch =
+    runTestOnSheets
+        "Randomly Generated Components, Flips and Positions"
+        firstSample
+        posFlipCompGenTriple
+        makeCircuit6
+        failOnAllTests
         dispatch
     |> recordPositionInTest testNum dispatch
 
@@ -346,9 +551,9 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
         "Test1", test1
         "Test2", test2
         "Test3", test3
-        "Blank", fun _ _ _ -> printf "Test4" // dummy test - delete line or replace by real test as needed
-        "Blank", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-        "Run Beautify Function 1", fun _ _ _ -> printf "Test6"
+        "Test4", test4
+        "Test5", test5
+        "Test6", test6
         "Run Beautify Function 2", fun _ _ _ -> printf "Flipping MUX1"
         "Run Beautify Function", fun _ _ _ -> printf "Running beautify algorithm"
         "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test

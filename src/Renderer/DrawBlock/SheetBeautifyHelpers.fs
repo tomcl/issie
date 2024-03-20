@@ -10,6 +10,7 @@ open Symbol
 open BusWireRoute
 open Helpers
 open BlockHelpers
+open BusWireRoutingHelpers
 
 open Optics.Operators // for >-> operator
 
@@ -540,3 +541,87 @@ let findRetracingSegments (model: SheetT.Model) =
 
     {| RetraceSegs = retracingSegs
        RetraceSegsInSymbol = retracingSegsInsideSymbol |}
+
+
+
+let findWireSymbolSquashes (model: Model) (wire: Wire) : BoundingBox list =
+    let squashMargin = 10.
+    
+    let allSymbolsIntersected =
+        model.Symbol.Symbols
+        |> Map.values
+        |> Seq.toList
+        |> List.filter (fun s -> s.Annotation = None)
+        |> List.map (fun s -> (s.Component.Type, Symbol.getSymbolBoundingBox s))
+
+
+    let wireVertices =
+        segmentsToIssieVertices wire.Segments wire
+        |> List.map (fun (x, y, _) -> { X = x; Y = y })
+
+    let indexes = List.init ((List.length wireVertices)-2) (fun i -> i+1)
+
+    let segVertices = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] |> List.zip indexes // do not consider the nubs
+
+    let inputCompId = model.Symbol.Ports.[string wire.InputPort].HostId
+    let outputCompId = model.Symbol.Ports.[string wire.OutputPort].HostId
+
+    let componentIsMux (comp:Component) =
+        match comp.Type with
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> true
+        | _ -> false
+
+    // this was added to fix MUX SEL port wire rooting bug, it is irrelevant in other cases
+    let inputIsSelect =
+        let inputSymbol = model.Symbol.Symbols.[ComponentId inputCompId]
+        let inputCompInPorts = inputSymbol.Component.InputPorts
+        
+        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = string wire.InputPort)
+
+    let inputCompRotation =
+        model.Symbol.Symbols.[ComponentId inputCompId].STransform.Rotation
+
+    let outputCompRotation =
+        model.Symbol.Symbols.[ComponentId outputCompId].STransform.Rotation
+
+    let isConnectedToSelf = inputCompId = outputCompId
+
+
+    let boxesIntersectedBySegment (lastSeg:bool) startPos endPos =
+        allSymbolsIntersected
+        |> List.map (fun (compType, boundingBox) ->
+            (
+                compType,
+                {
+                    W = boundingBox.W + Constants.minWireSeparation * 2. + squashMargin
+                    H = boundingBox.H + Constants.minWireSeparation * 2. + squashMargin
+                    TopLeft =
+                    boundingBox.TopLeft
+                    |> updatePos Left_ (Constants.minWireSeparation + squashMargin)
+                    |> updatePos Up_ (Constants.minWireSeparation + squashMargin)
+                }
+            ))
+        |> List.filter (fun (compType, boundingBox) ->
+            // don't check if the final segments of a wire that connects to a MUX SEL port intersect with the MUX bounding box
+            match compType, lastSeg with
+            | Mux2, true | Mux4, true | Mux8, true | Demux2, true | Demux4, true | Demux8, true -> false
+            | _, _ ->
+                 match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+                 | Some _ -> true // segment intersects bounding box
+                 | None -> false // no intersection
+        )
+        |> List.map (fun (compType, boundingBox) -> boundingBox)
+
+
+    segVertices
+    |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
+    |> List.distinct
+ 
+let countSquashedWires (model: SheetT.Model) : int =
+    let wModel = model.Wire
+    let allWires = model.Wire.Wires |> Map.values
+    allWires
+    |> Array.map (findWireSymbolSquashes wModel)
+    |> Array.sumBy (function
+        | [] -> 0
+        | _ -> 1)

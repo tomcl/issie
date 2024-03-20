@@ -3,6 +3,7 @@ open GenerateData
 open Elmish
 open System
 open SheetBeautifyHelpers
+open SheetBeautifyD1
 
 
 
@@ -363,12 +364,18 @@ module HLPTick3 =
             (fromList [-100..20..100])
             (fromList [-100..20..100])
 
+    type SymbolDeviations = {
+        Adev: XYPos
+        Bdev: XYPos
+        Cdev: XYPos
+    }
+
     let generateSmallDeviations : Gen<XYPos> =
         let rnd = Random()
         let beginningSeq = -40
         let endSeq = beginningSeq * -1
         product (fun x y ->
-                    if x = -40 && y = -40 then
+                    if x = beginningSeq && y = endSeq then
                         { X = 0.0; Y = 0.0 } // Zero case for first set of values
                     else
                     let deviationX = rnd.NextDouble() * 15.0 - 10.0 // Random deviation up to 10.0 in X
@@ -486,14 +493,14 @@ module HLPTick3 =
 
         let testPreAlign = numOfStraightWires model
 
-        // @Martin add whatever function for sheetAlign here
+        let alignedModel = Beautify.sheetAlignScale model
 
-        let testPostAlign = numOfStraightWires model
+        let testPostAlign = numOfStraightWires alignedModel
         let straightenedWires = findNumDiff testPreAlign testPostAlign
 
         printf "Number of straightened wires: %d" straightenedWires
 
-        model
+        alignedModel
         
 
         

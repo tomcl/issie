@@ -107,6 +107,17 @@ let updateReversedInputsMux2 (reversedState: Option<bool>) (sym: Symbol) =
 /// Lens to operate on the reverses state of the inputs of a MUX2
 let reversedInputsMux2_ = Lens.create getReversedInputsMux2 updateReversedInputsMux2
 
+// 
+let putPortOrder edge newList symbol =
+    symbol
+    |> Optic.map (portMaps_ >-> order_) (Map.add edge newList)
+
+//B4 RW
+/// A lens for accessing the reversed input ports state of a MUX2 from its symbol
+let reversedInputPorts_ =
+    Lens.create (fun (symbol: SymbolT.Symbol) -> symbol.ReversedInputPorts)
+                (fun newState (symbol: SymbolT.Symbol) -> {symbol with ReversedInputPorts = newState})
+
 
 // B5R
 /// Get the position of a port on the sheet.
@@ -564,6 +575,56 @@ let numOfWireNetRightAngleCrossingsWithAllWires (net: list<Wire>) (model: SheetT
     |> List.length
 
 // -----------------------------------------------------------------
+
+// // copied function
+// ------------ hn621 - Helpers for T3R & T4R ------------
+/// helper to get all unique combinations of elements in a list
+let rec allPairsWithoutRepeats list =
+    match list with
+    | [] -> []
+    | hd::tl -> (List.map (fun elm -> (hd, elm)) tl) @ allPairsWithoutRepeats tl
+
+/// helper to get the input port of a segment from the sheet model
+let getSourcePortOfSeg (seg : BusWireT.Segment) (sheetModel : SheetT.Model) =
+    let wireMap : Map<ConnectionId,Wire> = sheetModel.Wire.Wires
+    wireMap[seg.WireId].OutputPort
+
+/// helper to check if two segments are from the same net in the sheet model
+let isSegFromSameNet (seg1 : BusWireT.Segment) (seg2 : BusWireT.Segment) (sheetModel : SheetT.Model) =
+    getSourcePortOfSeg seg1 sheetModel = getSourcePortOfSeg seg2 sheetModel
+
+/// helper to calculate the overlap length of two segments
+let calcASegOverlapLength (seg1: BusWireT.ASegment) (seg2: BusWireT.ASegment) = 
+    let min1, min2 = min seg1.Start seg1.End, min seg2.Start seg2.End
+    let max1, max2 = max seg1.Start seg1.End, max seg2.Start seg2.End
+    
+    let vector = min max1 max2 - max min1 min2
+    max (abs vector.X) (abs vector.Y) // assume that the segments are parallel, either X or Y will be cancelled out
+
+// -----------------------------------------------
+
+// T3R R Low 
+/// <summary>The number of distinct pairs of segments that cross each other at right angles. Does
+/// not include 0 length segments or segments on same net intersecting at one end.</summary>
+let numOfWireRightAngleCrossings (sheetModel : SheetT.Model) =
+    let wires: Map<ConnectionId,Wire> = sheetModel.Wire.Wires 
+    let ASegments = 
+        wires
+        |> Map.toList
+        |> List.map (fun (id, wire) -> wire)
+        |> List.collect BlockHelpers.getNonZeroAbsSegments
+
+    let intersectFilter (seg1 : BusWireT.ASegment) (seg2 : BusWireT.ASegment) =
+        // we require segments to be on different nets, be orthogonal to each other and overlap
+        not (isSegFromSameNet seg1.Segment seg2.Segment sheetModel)
+        && (seg1.Orientation <> seg2.Orientation) 
+        && BlockHelpers.overlap2D (seg1.Start, seg1.End) (seg2.Start, seg2.End)
+    
+    ASegments
+    |> allPairsWithoutRepeats
+    |> List.filter (fun (seg1, seg2) -> intersectFilter seg1 seg2)
+    |> List.length
+
 
 
 // T4R

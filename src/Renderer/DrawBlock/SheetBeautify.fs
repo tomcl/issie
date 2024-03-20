@@ -1,4 +1,4 @@
-module SheetBeautify
+﻿module SheetBeautify
 
 //-----------------------------------------------------------------------------------------//
 //----------Module for top-level beautify functions making (mostly) whole-sheet changes----//
@@ -26,7 +26,7 @@ open DrawModelType.SheetT
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
 // open SheetBeautifyD1
-// open SheetBeautifyD2
+open SheetBeautifyD2
 open SheetBeautifyD3
 open Optics
 
@@ -36,6 +36,7 @@ open Optics
 
 let sheetBeautify (model: SheetT.Model) = 
     model
+    |> getOptimizedModel    // D2
     |> sheetWireLabelSymbol     // D3
 
     

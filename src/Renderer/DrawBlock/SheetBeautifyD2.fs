@@ -224,11 +224,26 @@ let evaluateModel (model: SheetT.Model) =
 
 // Get optimized model
 let getOptimizedModel (model: SheetT.Model): SheetT.Model =
-    // Convert symbol map to list
+    
+    let randomSample list =
+    // Check if the list has at least 10,000 elements
+        if List.length list >= 10000 then
+            let rnd = System.Random()
+            let sampleNum = 
+                List.length list
+                |> System.Math.Sqrt
+                |> System.Math.Floor
+                |> int
+            let shuffledList = List.sortBy (fun _ -> rnd.Next()) list
+            shuffledList |> List.take sampleNum
+        else
+            list
+    
     let scripts = generateModelScript model
 
     let modelsWithScores = 
         scripts
+        |> randomSample
         |> List.map (applyScriptToModel model)
         |> List.map (fun model -> (model, evaluateModel model))
 

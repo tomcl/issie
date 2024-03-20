@@ -72,7 +72,14 @@ module Builder =
 open Builder
 
 /// small offsets in X&Y axis
-let rnd=System.Random()
+let rnd=System.Random(42)
+let shuffleA arrayToShuffle: 'a array =
+        let tmpA = Array.copy arrayToShuffle
+        for i = 0 to tmpA.Length - 1 do 
+            let r = rnd.Next(i, tmpA.Length);
+            (tmpA[i],tmpA[r])
+            |> fun (iv, rv) -> tmpA[r] <- iv;  tmpA[i]  <- rv
+        tmpA
 
 let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (rotation:Rotation) (flip:option<SymbolT.FlipType>) (model: SheetT.Model) : Result<SheetT.Model, string> =
         let symLabel = String.toUpper symLabel // make label into its standard casing
@@ -133,7 +140,7 @@ let test1Builder =
         match x with
             |1  -> Some SymbolT.FlipHorizontal
             |2  -> Some SymbolT.FlipVertical
-            |3  -> None
+            |_  -> None
     let thing = 0
     let allFlip = List.map getFlip [1..3]
     let allRot = List.map getRotation [1..4] 
@@ -143,8 +150,10 @@ let test1Builder =
                 for z in lst do
                     yield [x; y; z] ]
     List.allPairs allRot allFlip
-    |>combinations 
-    |>fromList
+    |>combinations
+    |>List.toArray
+    |>shuffleA 
+    |>fromArray
 
 
 

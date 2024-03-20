@@ -43,7 +43,7 @@ module Constants =
     // for classifying a single wire as long enough to be replaced by wire labels
     let longSingleWireLength = 200.
     // for classifying a net of wires as complex enough to be replaced by wire labels
-    let intersectionCountTolerance = 5
+    let intersectionCountTolerance = 0
 
     // minimum distance between two adjacent symbols
     let minCompDistance = 14.
@@ -319,7 +319,7 @@ let sameNetWiresToWireLabels (sourcePortId:OutputPortId) (applyCond:bool) (model
 
     let applyTransform =
         match applyCond with
-        | true -> (numOfIntersects>Constants.intersectionCountTolerance)    // apply transform only if the tolerance is exceeded
+        | true -> (numOfIntersects>=Constants.intersectionCountTolerance)    // apply transform only if the tolerance is exceeded
         | false -> true     // condition is not applied, no need to check
 
     let givenLabel = deriveWireLabelFromSrcPort srcPortStr model

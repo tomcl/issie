@@ -114,7 +114,7 @@ module T123 =
         |> Result.bind (placeSymbol "InputB" (Input1 (1,None))BPos) // S1 can be any type of component
         |> Result.bind (placeSymbol "S1" (Input1 (1,None))s1Pos) 
         |> Result.bind (placeSymbol "S2" (Input1 (1,None)) s2Pos) 
-        |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
+        |> Result.bind (placeSymbol "C" (Output 1) CPos) 
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
@@ -142,7 +142,7 @@ module T123 =
         |> Result.bind (placeSymbol "InputB" (Input1 (1,None)) BPos) // S1 can be any type of component
         |> Result.bind (placeSymbol "S1" (Input1 (1,None)) s1Pos) 
         |> Result.bind (placeSymbol "S2" (Input1 (1,None))s2Pos) 
-        |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
+        |> Result.bind (placeSymbol "C" (Output 1) CPos) 
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
@@ -173,7 +173,7 @@ module T123 =
         |> Result.bind (placeSymbol "InputB" (Input1 (1,None)) BPos) // S1 can be any type of component
         |> Result.bind (placeSymbol "S1" (Input1 (1,None)) s1Pos) 
         |> Result.bind (placeSymbol "S2" (Input1 (1,None)) s2Pos) 
-        |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
+        |> Result.bind (placeSymbol "C" (Output 1) CPos) 
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
@@ -203,7 +203,7 @@ module T123 =
         |> Result.bind (placeSymbol "InputB" (Input1 (1,None)) BPos) // S1 can be any type of component
         |> Result.bind (placeSymbol "S1" (Input1 (1,None)) s1Pos) 
         |> Result.bind (placeSymbol "S2" (Input1 (1,None)) s2Pos) 
-        |> Result.bind (placeSymbol "C" (GateN(And, 1))CPos) 
+        |> Result.bind (placeSymbol "C" (Output 1)CPos) 
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
@@ -233,7 +233,7 @@ module T123 =
         |> Result.bind (placeSymbol "InputB" (Input1 (1,None)) BPos) // S1 can be any type of component
         |> Result.bind (placeSymbol "S1" (Input1 (1,None)) s1Pos) 
         |> Result.bind (placeSymbol "S2" (Input1 (1,None)) s2Pos) 
-        |> Result.bind (placeSymbol "C" (GateN(And, 1))CPos) 
+        |> Result.bind (placeSymbol "C" (Output 1)CPos) 
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
@@ -264,7 +264,7 @@ module T123 =
         |> Result.bind (placeSymbol "InputB" (Input1 (1,None)) BPos) // S1 can be any type of component
         |> Result.bind (placeSymbol "S1" (Input1 (1,None)) s1Pos) 
         |> Result.bind (placeSymbol "S2" (Input1 (1,None)) s2Pos) 
-        |> Result.bind (placeSymbol "C" (GateN(And, 1))CPos) 
+        |> Result.bind (placeSymbol "C" (Output 1)CPos) 
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))

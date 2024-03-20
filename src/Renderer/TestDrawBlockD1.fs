@@ -3,6 +3,17 @@ module TestDrawBlockD1
 open GenerateData
 open Elmish
 
+(*
+Purpose of the TestDrawBlockD1:
+More focused on programmatically generating circuits, running a function on the sheet,
+followed by basic tests e.g. wire-wire, symbol-symbol, wire-symbol intersection tests.
+Mostly for wire routing tests (from Tick3) and to be used for a majority of D1T.
+
+TestSheetFunctions on the other hand is more focused on testing heuristics, helper functions
+or sub-functions that might not take in the whole sheet, but symbols or wires instead.
+TestSheetFunctions is more for testing RotateScale, D1B functions, BeautifySheetHelpers
+*)
+
 //-------------------------------------------------------------------------------------------//
 //--------Types to represent tests with (possibly) random data, and results from tests-------//
 //-------------------------------------------------------------------------------------------//
@@ -241,34 +252,74 @@ module HLPTick3 =
         let boundingBoxes_: Lens<SheetT.Model, Map<ComponentId, BoundingBox>> =
             Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> { m with BoundingBoxes = bb })
 
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            // we need to look up a component ID for symLabel.
-            // the issue is, we need to check symbolMap, for caseInvariantEqual-ity with symLabel
-            // I would've preferred rotateSymbol be changed to an option type, so it follows in nicely with
-            // the Result.bind for placeSymbol. Unfortuantely, we must stick with the spec
+        // let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+        //     // we need to look up a component ID for symLabel.
+        //     // the issue is, we need to check symbolMap, for caseInvariantEqual-ity with symLabel
+        //     // I would've preferred rotateSymbol be changed to an option type, so it follows in nicely with
+        //     // the Result.bind for placeSymbol. Unfortuantely, we must stick with the spec
 
-            // get ahold of ComponentID
-            let symbolMap = model.Wire.Symbol.Symbols
-            let findComponentID map predicate =
-                map
-                |> Map.filter predicate
-                |> Map.toSeq
-                |> Seq.tryHead
-                |> function
-                    | Some(key, _) -> key
-                    | None -> failwith "ComponentID not found for given symLabel"
+        //     // get ahold of ComponentID
+        //     let symbolMap = model.Wire.Symbol.Symbols
+        //     let findComponentID map predicate =
+        //         map
+        //         |> Map.filter predicate
+        //         |> Map.toSeq
+        //         |> Seq.tryHead
+        //         |> function
+        //             | Some(key, _) -> key
+        //             | None -> failwith "ComponentID not found for given symLabel"
 
-            let componentID =
-                findComponentID symbolMap (fun _ sym -> caseInvariantEqual sym.Component.Label symLabel)
+        //     let componentID =
+        //         findComponentID symbolMap (fun _ sym -> caseInvariantEqual sym.Component.Label symLabel)
 
-            // let compList = (List.ofArray (Map.keys model.Wire.Symbol.Symbols))
-            let compList = [ componentID ]
+        //     // let compList = (List.ofArray (Map.keys model.Wire.Symbol.Symbols))
+        //     let compList = [ componentID ]
 
-            let rotatedSymbol = RotateScale.rotateBlock compList model.Wire.Symbol rotate
+        //     let rotatedSymbol = RotateScale.rotateBlock compList model.Wire.Symbol rotate
+        //     model
+        //     |> Optic.set (wire_ >-> symbol_) rotatedSymbol
+        //     |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes rotatedSymbol)
+
+        /// Helper to get symbol ID from symbol label and symbol model
+        let getSymId (symLabel: string) (symModel: SymbolT.Model) : ComponentId =
+            mapValues symModel.Symbols
+            |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+            |> function
+                | Some x -> x.Id
+                | _ -> failwithf "TestDrawBlock.rotateSymbol: symLabel (%A) not found" symLabel
+
+        /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
+        let separateAllWires (model: SheetT.Model) : SheetT.Model =
             model
-            |> Optic.set (wire_ >-> symbol_) rotatedSymbol
-            |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes rotatedSymbol)
+            |> Optic.map
+                busWireModel_
+                (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
 
+        /// Helper to rotate a symbol by given number of degrees
+        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+            let rotateAntiClockwiseBy90 (model: SheetT.Model) : SheetT.Model =
+                let symModel = Optic.get symbolModel_ model
+                let symId = getSymId symLabel symModel
+                let updatedSymModel =
+                    SymbolUpdate.updateSymbol
+                        (SymbolResizeHelpers.rotateSymbol Degree90)
+                        (symId)
+                        (Optic.get symbolModel_ model)
+                Optic.set symbolModel_ updatedSymModel model
+
+            match rotate with
+            | Degree0 -> model
+            | Degree90 -> model |> rotateAntiClockwiseBy90
+            | Degree180 ->
+                model
+                |> rotateAntiClockwiseBy90
+                |> rotateAntiClockwiseBy90
+            | Degree270 ->
+                model
+                |> rotateAntiClockwiseBy90
+                |> rotateAntiClockwiseBy90
+                |> rotateAntiClockwiseBy90
+            |> separateAllWires
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
             // same comments from rotateSymbol apply here
 
@@ -333,13 +384,6 @@ module HLPTick3 =
                     model
                     |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
                     |> Ok
-
-        /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
-        let separateAllWires (model: SheetT.Model) : SheetT.Model =
-            model
-            |> Optic.map
-                busWireModel_
-                (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
 
         /// Copy testModel into the main Issie Sheet making its contents visible
         let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =

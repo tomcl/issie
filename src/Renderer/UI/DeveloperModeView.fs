@@ -34,11 +34,12 @@ open BusWireRoutingHelpers.Constants
 open BusWireRoutingHelpers
 open Sheet
 
-/// returns the an string ID with extra formatting of a hovered wire, symbol, or port
+/// function that returns the an string ID with extra formatting of a hovered wire, symbol, or port
 let findHoveredID (pos: XYPos) (model: SheetT.Model) =
     let dummySymbolId: ComponentId = ComponentId "dummy"
     // we add a 'dummy symbol' to the model to represent the mouse position
     // solely for calculation purposes, it will not be added to the actual model
+    // for convenience, we let dummy symbol be 30x30, equal to a Not gate size
     let h, w = 30.0, 30.0
     let mouseComponentDummy =
         { Id = "dummy"
@@ -51,6 +52,8 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
           H = float h
           W = float w
           SymbolInfo = None }
+
+    // create a mouse dummy symbol, find its bounding box, add it to a dummy model
     let mouseSymbolDummy: Symbol =
         { (createNewSymbol [] pos NotConnected "" White) with
             Component = mouseComponentDummy }
@@ -59,22 +62,25 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
         |> Optic.set (SheetT.symbols_) (Map.add dummySymbolId mouseSymbolDummy model.Wire.Symbol.Symbols)
         |> updateBoundingBoxes // just in case
 
+    // we calculate the bounding box of the mouse
     let mouseBoundingBox = getSymbolBoundingBox mouseSymbolDummy
 
+    // inspired by SheetBeautifyD1's findAllBoundingBoxesOfSymIntersections
     let intersectingWiresInfo =
         dummyModel.Wire.Wires
         |> Map.values
         // findWireSymbolIntersections returns a list of bounding boxes of symbols intersected by wire.
-        |> Seq.map (fun wire -> (wire, (findWireSymbolIntersections dummyModel.Wire wire)))
-        // we have (Wire * BoundingBox list) seq. Now to look through every tuple and get any wire whose bbox list contains symbolBoundingBox
+        // we find the wires that have a boundingBox in their intersection list that contains our mouseBoundingBox
         // we might get more than one wire – so get a list
-        |> Seq.choose (fun (wire, bboxes) ->
 
+        |> Seq.map (fun wire -> (wire, (findWireSymbolIntersections dummyModel.Wire wire)))
+        |> Seq.choose (fun (wire, bboxes) ->
             if
                 bboxes
                 |> List.exists (fun box ->
 
                     // findWireSymbolIntersections returns bounding boxes that have been enlarged with minWireSeparation
+                    // we correct this
                     let correctedBox =
                         { W = box.W - minWireSeparation * 2.
                           H = box.H - minWireSeparation * 2.
@@ -82,23 +88,21 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
                             box.TopLeft
                             |> updatePos Right_ minWireSeparation
                             |> updatePos Down_ minWireSeparation }
-                    // printf "cBox: %A mouseBBox: %A" correctedBox mouseBoundingBox
-                    mouseBoundingBox = correctedBox)
+                    mouseBoundingBox =~ correctedBox)
             then
                 Some(wire.WId.ToString())
 
             else
                 None)
         |> Seq.toList
-        // return the first element if it exists else None
         |> List.tryHead
 
+    // inspired by SheetBeautifyD1's findAllBoundingBoxesOfSymIntersections
     let intersectingSymbolInfo =
         model.BoundingBoxes
         |> Map.toList
-        // get all boundingBoxes in model not equal to symbolBoundingBox
+        // get all boundingBoxes in model not equal to symbolBoundingBox, see if they overlap with symbolBoundingBox, if yes, return compId
         |> List.filter (fun (compId, box) -> not (box =~ mouseBoundingBox))
-        // see if they overlap with the symbolBoundingBox, if they do, return the compId
         |> List.choose (fun (compId, box) ->
             match (overlapArea2DBox mouseBoundingBox box) with
             | Some area -> Some(compId.ToString())
@@ -106,6 +110,9 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
         |> List.tryHead
 
     // inpisred by Sheet.mouseOn
+    // priority: check for mouse over ports first, then symbols, then wires
+    // the code for checking for mouse over ports is the same as in Sheet.mouseOn
+    // otherwise symbol and wire mouseover is calculated based on intersection with mouseBoundingBox
     match intersectingWiresInfo, intersectingSymbolInfo with
     | _, Some symbolId ->
         let inputPorts, outputPorts =
@@ -120,6 +127,7 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
     | Some wireId, _ -> "Wire: ", wireId.ToString()
     | _ -> "Component: ", "Nothing Selected"
 
+/// Top Level function for developer mode
 let developerModeView (model: ModelType.Model) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
@@ -130,6 +138,8 @@ let developerModeView (model: ModelType.Model) dispatch =
               Menu.Item.OnClick(fun _ -> dispatch (SelectBeautifyLevel level)) ]
             [ strong [] [ str menuName ]; p [] [ str description ] ]
 
+    /// A drop down menu that allows the user to select the level of beautification. Open/close state persists between updates thanks to
+    /// a bool in the model called model.BeautifyMenuExpanded
     let beautificationLevelSelect =
         let beautifyMenu =
             Menu.menu
@@ -146,6 +156,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                   [ str "Beautification Level " ]
               div [] [ beautifyMenu ] ]
 
+    /// Some instructions for the user (deprecated)
     let instructionText =
         div
             [ Style [ Margin "15px 0 200px 0" ] ]
@@ -153,6 +164,7 @@ let developerModeView (model: ModelType.Model) dispatch =
               p [] [ str "Sample Text 2" ]
               p [] [ str "Sample Text 3" ] ]
 
+    /// Create a counter item (a title + number) for the sheet stats menu
     let createCounterItem title value =
         Level.item
             [ Level.Item.HasTextCentered ]
@@ -161,6 +173,8 @@ let developerModeView (model: ModelType.Model) dispatch =
                   [ Level.heading [] [ str title ]
                     strong [ Style [ FontSize "20px" ] ] [ str value ] ] ]
 
+    /// Create a list of counter items for the sheet stats menu. Can be expanded to include more stats
+    /// Functions take in a SheetT.Model and output a string/int/float
     let counters =
         let counterItems =
             [ ("Wire-Sym Intersects", (countVisibleSegsIntersectingSymbols model.Sheet).ToString())
@@ -183,7 +197,11 @@ let developerModeView (model: ModelType.Model) dispatch =
                       (chunk
                        |> List.map (fun (title, value) -> createCounterItem title value)) ])
         |> div []
+
+    /// Stores string details of the currently hovered comp to be used in sheetStatsMenu
     let hoveredType, hoveredId = findHoveredID model.Sheet.LastMousePos model.Sheet
+
+    /// Contains the mouse position, hovered comp data, and the counters
     let sheetStatsMenu =
         details
             [ Open(model.SheetStatsExpanded) ]
@@ -209,7 +227,7 @@ let developerModeView (model: ModelType.Model) dispatch =
 
                     counters ] ]
 
-    // for Symbol.PortMaps
+    /// Function to programmatically generate a html table from PortMaps.Order
     let createTableFromPortMapsOrder (map: Map<Edge, string list>) =
         Table.table
             []
@@ -224,6 +242,53 @@ let developerModeView (model: ModelType.Model) dispatch =
                            (strList
                             |> List.collect (fun s -> [ code [] [ str ("• " + s) ]; br [] ])) ]))
 
+    /// Function to programmatically generate a html table from a Map PortMaps.Oritentation
+    let createTableFromPorts (portsMap: Map<string, Edge>) (symbol: Symbol) =
+        let referencePortTable =
+            // get a list of ports from the selected component. more efficient to search smaller list
+            // than looking of ports in model.Sheet.Wire.Symbol.Symbols
+            symbol.Component.InputPorts
+            @ symbol.Component.OutputPorts
+            |> List.map (fun port -> port.Id, port)
+            |> Map.ofList
+        let portDetailMap =
+            portsMap
+            |> Map.map (fun key _ -> Map.tryFind key referencePortTable)
+            |> Map.filter (fun _ value -> value.IsSome)
+            |> Map.map (fun _ value -> value.Value)
+        let tableRows =
+            portDetailMap
+            |> Map.toList
+            |> List.map (fun (key, port) ->
+                tr
+                    []
+                    [ td [] [ code [] [ str port.Id ] ]
+                      td
+                          []
+                          [ str (
+                                match port.PortNumber with
+                                | Some num -> num.ToString()
+                                | None -> "N/A"
+                            ) ]
+                      td
+                          []
+                          [ str (
+                                match port.PortType with
+                                | CommonTypes.PortType.Input -> "In"
+                                | CommonTypes.PortType.Output -> "Out"
+                            ) ]
+                      td [] [ code [] [ str port.HostId ] ] ])
+        Table.table
+            []
+            [ tr
+                  []
+                  [ th [] [ str "Port Id" ]
+                    th [] [ str "No." ]
+                    th [] [ str "I/O" ]
+                    th [] [ str "Host Id" ] ]
+              yield! tableRows ]
+
+    /// Function to programmatically generate data for a symbol. Includes the symbol's data, its port data, and portmap
     let symbolToListItem (model: ModelType.Model) (symbol: Symbol) =
         let SymbolTableInfo =
             (Table.table
@@ -286,50 +351,8 @@ let developerModeView (model: ModelType.Model) dispatch =
                                      | Some vscale -> str ("VScale: " + vscale.ToString("F2"))
                                      | None -> str "VScale: N/A") ] ] ] ])
 
-        let createTableFromPorts (portsMap: Map<string, Edge>) =
-            let referencePortTable =
-                // get a list of ports from the selected component. more efficient to search smaller list
-                // than looking of ports in model.Sheet.Wire.Symbol.Symbols
-                symbol.Component.InputPorts
-                @ symbol.Component.OutputPorts
-                |> List.map (fun port -> port.Id, port)
-                |> Map.ofList
-            let portDetailMap =
-                portsMap
-                |> Map.map (fun key _ -> Map.tryFind key referencePortTable)
-                |> Map.filter (fun _ value -> value.IsSome)
-                |> Map.map (fun _ value -> value.Value)
-            let tableRows =
-                portDetailMap
-                |> Map.toList
-                |> List.map (fun (key, port) ->
-                    tr
-                        []
-                        [ td [] [ code [] [ str port.Id ] ]
-                          td
-                              []
-                              [ str (
-                                    match port.PortNumber with
-                                    | Some num -> num.ToString()
-                                    | None -> "N/A"
-                                ) ]
-                          td
-                              []
-                              [ str (
-                                    match port.PortType with
-                                    | CommonTypes.PortType.Input -> "In"
-                                    | CommonTypes.PortType.Output -> "Out"
-                                ) ]
-                          td [] [ code [] [ str port.HostId ] ] ])
-            Table.table
-                []
-                [ tr
-                      []
-                      [ th [] [ str "Port Id" ]
-                        th [] [ str "No." ]
-                        th [] [ str "I/O" ]
-                        th [] [ str "Host Id" ] ]
-                  yield! tableRows ]
+        // expandable menu persists between updates due to the model keeping track of the expanded state.
+        // this is unlike the Catalogue menu that immediately shuts expandable menu when the user clicks away
         [ details
               [ Open(model.SymbolInfoTableExpanded) ]
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolInfoTable)) ] [ str "Symbol " ]
@@ -337,12 +360,13 @@ let developerModeView (model: ModelType.Model) dispatch =
           details
               [ Open model.SymbolPortsTableExpanded ]
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolPortsTable)) ] [ str "Ports" ]
-                div [] [ (createTableFromPorts symbol.PortMaps.Orientation) ] ]
+                div [] [ (createTableFromPorts symbol.PortMaps.Orientation symbol) ] ]
           details
               [ Open model.SymbolPortMapsTableExpanded ]
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolPortMapsTable)) ] [ str "PortMaps" ]
                 div [] [ (createTableFromPortMapsOrder symbol.PortMaps.Order) ] ] ]
 
+    /// Function to programmatically generate data for a wire. Includes the wire's data and its segments
     let wireToListItem (wire: Wire) =
         let WireTableInfo =
             (Table.table
@@ -424,6 +448,7 @@ let developerModeView (model: ModelType.Model) dispatch =
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleWireSegmentsTable)) ] [ str "Wire Segments" ]
                 div [] [ WireSegmentsTableInfo ] ] ]
 
+    /// Code taken from the Properties tab. If nothing is selected, a message is displayed.
     let viewComponent =
         match model.Sheet.SelectedComponents, model.Sheet.SelectedWires with
         | [ compId: ComponentId ], [] ->
@@ -449,5 +474,6 @@ let developerModeView (model: ModelType.Model) dispatch =
                       br [] ]
             | None -> null
 
+    /// Top level div for the developer mode view
     let viewComponentWrapper = div [] [ p [ menuLabelStyle ] []; viewComponent ]
     div [ Style [ Margin "0 0 20px 0" ] ] ([ beautificationLevelSelect; sheetStatsMenu; viewComponentWrapper ])

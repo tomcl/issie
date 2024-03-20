@@ -18,16 +18,31 @@ open BusWire
 open BusWireUpdateHelpers
 open SheetUpdateHelpers
 open RotateScale
+open BusWireRoutingHelpers.Constants
+open BusWireRoutingHelpers
 
 // --------------------------------------------------- //
-//                         INFO!                       //
+//                      Constants                      //
 // --------------------------------------------------- //
-// Some of these functions are duplicates of BeautifySheetHelpers since they are used B1-8 and T1-6
-// They have been included here for assessment purposes since I developed them to be useful in other parts of the project
 
+module Constants =
+    /// Constant that decides if a wire is classified as almost-straight, if its longest segment in the minority direction is shorter than this length
+    let maxDeviationLengthThreshold = 30.0
+    /// Constant that decides if a wire is classified as almost-straight, if its overall displacement in the minority direction is shorter than this length
+    let maxMinorityDisplacementThreshold = 300
+
+// I initially wanted to use a ratio, but then it would not help fix shorter wires. So absolute values instead of relative measurements
+
+// --------------------------------------------------- //
+//                      Helpers!                      //
+// ---------------------------------------------------//
+open Constants
+
+//--------- To Do: Migrate from SheetBeautifyHelpers to D1----------//
 ///<summary>
 /// T2R, T3R Helper, but can be used to minimise invisible segments for D1.
 /// Remove all invisible segments from wires on a sheet.Wire.Wires.
+/// Author: tdc21/Tim
 /// </summary>
 /// <param name="wires">Map of wires indexed by ConnectionID to remove invisible segments from.</param>
 /// <returns>Map of wires indexed by ConnectionID with invisible segments removed.</returns>
@@ -53,6 +68,7 @@ let removeWireInvisibleSegments' (wires: Map<ConnectionId, Wire>) =
 /// T3R helper, but useful for calculations of wire crossings:
 /// Returns true if two 1D line segments intersect at a 90º angle. Takes in two segments described as point-to-point.
 /// A variant of overlap2D in BlockHelpers.fs
+/// Author: tdc21/Tim
 /// </summary>
 /// <param name="a1">The first segment.</param>
 /// <param name="a2">The second segment.</param>
@@ -62,32 +78,41 @@ let perpendicularOverlap2D' ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) 
     (overlapX || overlapY)
     && not (overlapX && overlapY)
 
-/// Constant that decides if a wire is classified as almost-straight, if its longest segment in the minority direction is shorter than this length
-let maxDeviationLengthThreshold = 30.0
-/// Constant that decides if a wire is classified as almost-straight, if its overall displacement in the minority direction is shorter than this length
-let maxMinorityDisplacementThreshold = 300
-// initially wanted to use a ratio, but then it would not help fix shorter wires
-
+/// <summary>
 /// Helper function to split a list of segments into odd and even segments
+/// Author: tdc21/Tim
+/// </summary>
 let unzipIntoOddAndEvenSegments (segments: Segment list) =
     segments
     |> List.mapi (fun i x -> (i % 2 = 0, x))
     |> List.partition fst
     |> fun (odd, even) -> (List.map snd odd, List.map snd even)
 
+/// <summary>
+/// Helper function that checks if a wire is completely straight
+/// Author: tdc21/Tim
+/// </summary>
 let checkIfStraightWire (wire: BusWireT.Wire) =
+    // remove all nubs and invisible segments, should be left with a single segment
     let wireWithInvisSegmentsRemoved = (removeSingleWireInvisibleSegments wire)
     match wireWithInvisSegmentsRemoved.Segments.Length with
     | 1 -> true
     | _ -> false
 
+/// <summary>
+/// Helper function to count the number of straight wires on a sheet. A heuristic
+/// Author: tdc21/Tim
+/// </summary>
 let countStraightWiresOnSheet (sheetModel: SheetT.Model) =
     let straightWires =
         sheetModel.Wire.Wires
         |> Map.filter (fun _ wire -> checkIfStraightWire wire)
     straightWires.Count
 
-/// Function that detects if a wire is almost straight
+/// <summary>
+/// Function that detects if a wire is almost straight.
+/// Author: tdc21/Tim
+/// </summary>
 let checkAlmostStraightWire (wire: BusWireT.Wire) =
     // Get list of even segments and odd segments of the wire. Note: we get rid of invisible segments
     let wireWithInvisSegmentsRemoved = (removeSingleWireInvisibleSegments wire)
@@ -102,19 +127,15 @@ let checkAlmostStraightWire (wire: BusWireT.Wire) =
         evenList
         |> List.sumBy (fun segment -> segment.Length)
 
-    let majorityDisplacement, isOddSegmentMajority =
-        // if oddDisplacement >= evenDisplacement then
-        //     oddDisplacement, true
-        // // if odd segments majority and wire starts from horiz (which is odd), then horiz is majority
-        // else
-        //     evenDisplacement, wire.InitialOrientation = Horizontal
+    let majorityDisplacement, isWireTravellingInMajority =
+        // a wire must be initially travelling in its majority direction.
+        // otherwise, it is not straightenable. See the cases below
+
         match oddDisplacement >= evenDisplacement, wire.InitialOrientation with
         | true, Horizontal -> oddDisplacement, true
         | true, Vertical -> oddDisplacement, false
         | false, Horizontal -> evenDisplacement, false
         | false, Vertical -> evenDisplacement, true
-
-    // if even segments majority and wire starts from vert (which is odd), then horiz is majority
 
     // can't be straightened if there are less than 2 segments OR segment length is even
     if
@@ -125,47 +146,34 @@ let checkAlmostStraightWire (wire: BusWireT.Wire) =
     else
         // maxDeviationLength is the longest segment in the minority direction
         // maxMinorityDisplacement is the overall displacement in the minority direction
-        match wire.InitialOrientation, isOddSegmentMajority with
+        match wire.InitialOrientation, isWireTravellingInMajority with
         | Horizontal, true -> // first seg horiz, majority horiz, will deviate vertically, which will be the even segments
             let maxDeviationLength =
                 (evenList
                  |> List.maxBy (fun segment -> abs (segment.Length)))
                     .Length
-            // let ratio = (abs (oddDisplacement) / abs (maxDeviationLength))
-            // printf "Ratio: %A" ratio
-            // ratio > straightenRatioTolerance
-            // || (maxDeviationLength < 30 && oddDisplacement < 100)
             abs (maxDeviationLength) < maxDeviationLengthThreshold
-        //&& abs (evenDisplacement) < maxDeviationLengthThreshold
         | Vertical, true -> // first seg vertical, majority vertical, will deviate horizontally, which will be the even segments
             let maxDeviationLength =
                 (evenList
                  |> List.maxBy (fun segment -> abs (segment.Length)))
                     .Length
-            // let ratio = (abs (oddDisplacement) / abs (maxDeviationLength))
-            // printf "Ratio: %A" ratio
-            // ratio > straightenRatioTolerance
-            // || (maxDeviationLength < 30 && oddDisplacement < 100)
             abs (maxDeviationLength) < maxDeviationLengthThreshold
-        //&& abs (oddDisplacement) < maxDeviationLengthThreshold
         | _, _ -> false
 
-/// To show on DeveloperModeView SheetStats
-let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) =
-    let straightWires =
-        sheetModel.Wire.Wires
-        |> Map.filter (fun _ wire -> checkAlmostStraightWire wire)
-    straightWires.Count
-
-(*  Cases for checkAlmostStraightWire
-                                                     __________            __________
-            ______                                  |         | No        |         |
-    _______|     |________ almost straight          |         |           |         |
-                                                                 _________|         |__________
-                    __________________                          |                             | No
-    _______________|      almost straight
+(*  Cases for checkAlmostStraightWire             (Not travelling in majority direction)
+                                               |    ___________           ___________
+            ______                             |    |         | No        |         |
+    _______|     |________ almost straight     |    |         |           |         |
+                                               |                 _________|         |__________
+                    __________________         |                |                             | No
+    _______________|      almost straight      |
 
     Todo: make sure it won't detect edge cases, such as a tall user-generated stepladder wire that moves upwards in small increments.
+    Edge case: https://github.com/timothycdc/hlp_team/commit/5460fb1a0cfe80fdecde22362221a07a3234ca93#commitcomment-139775204
+    (Update, this 'edge' case actually can be fixed by the cleanup, or when not possible, when updateWires is called by general cleanup,
+    the stepladder vanishes)
+
     this can be done by checking the length of the list of minority segments
 
     |               |
@@ -189,15 +197,31 @@ almost straight
 
     After determining majority direction, ake sure the first and last segments are also travelling
     in the majority direction. Can be done by checking initialOrientation, and then making sure the length is odd.
+    Another way to reframe this: any wire (odd segment length) must have an initial orientation that is the same as the majority direction.
+
     (in odd length, first and last segments will be in majority direction)
-    If even, discard, can't straighten a wire that is 'diagonal/L' shaped.
+    If even length, discard, can't straighten a wire that is 'diagonal/L' shaped. We assume all wires have no invisible segments since we've removed them
 
     Then, check for the maximum deviation in the minority direction. If the deviation-to-majority-displacement
     ratio is less than a certain threshold, then the wire is almost straight.
 
 *)
-/// Helper that returns the wires connected to a symbol
+
+/// <summary>
+/// Function that counts the number of almost straight wires on a sheet. A heuristic to show on DeveloperModeView SheetStats
+/// Author: tdc21/Tim
+/// </summary>
+let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) =
+    let straightWires =
+        sheetModel.Wire.Wires
+        |> Map.filter (fun _ wire -> checkAlmostStraightWire wire)
+    straightWires.Count
+
+/// <summary>
+/// Helper that returns the wires connected to a symbol's output ports
 /// Should go into blockhelpers
+/// Author: tdc21/Tim
+/// </summary>
 let getWiresConnectedToSymbolOutput (symbol: Symbol) (model: BusWireT.Model) =
 
     let modelWireOutputPorts =
@@ -217,7 +241,11 @@ let getWiresConnectedToSymbolOutput (symbol: Symbol) (model: BusWireT.Model) =
         |> Seq.toList
 
     wiresConnected
-
+/// <summary>
+/// Helper that returns the wires connected to a symbol's input ports
+/// Should go into blockhelpers
+/// Author: tdc21/Tim
+/// </summary>
 let getWiresConnectedToSymbolInput (symbol: Symbol) (model: BusWireT.Model) =
 
     let modelWireInputPorts =
@@ -238,13 +266,21 @@ let getWiresConnectedToSymbolInput (symbol: Symbol) (model: BusWireT.Model) =
 
     wiresConnected
 
+/// <summary>
+/// Helper that counts the number of all the wires connected to a given symbol's ports
+/// Should go into blockhelpers
+/// Author: tdc21/Tim
+/// </summary>
 let getWiresCountConnectedToSym (symbol: Symbol) (model: BusWireT.Model) =
     let wiresConnectedToInput = getWiresConnectedToSymbolInput symbol model
     let wiresConnectedToOutput = getWiresConnectedToSymbolOutput symbol model
     (List.length wiresConnectedToInput)
     + (List.length wiresConnectedToOutput)
 
-/// Helper that to get a Symbol from PortId. Will search the sheet
+/// <summary>
+/// Helper that to get a Symbol from PortId. Needs to be given a SheetT.Model to search
+/// Author: tdc21/Tim
+/// </summary>
 // Quite surprising this wasn't created already!
 let getSymbolFromPortID (portId: string) (model: SheetT.Model) =
     // PortId type is either an InputPortId or an OutputPortId
@@ -256,7 +292,12 @@ let getSymbolFromPortID (portId: string) (model: SheetT.Model) =
         symbol.PortMaps.Orientation.Keys
         |> Seq.exists (fun key -> key = portIdString))
 
-/// Function helper that checks if a symbol is of a component type that has a single port
+/// <summary>
+/// Function helper that checks if a symbol is of a component type that has a single port.
+/// Symbols in question: Inputs, Outputs, Viewers, Constants, WireLabels, Not Connected, IOLabels
+/// IOLabels are given the exception since they are generally used with a single port/ are used as stoppers
+/// Author: tdc21/Tim
+/// </summary>
 let checkIfSinglePortComponent (symbol: Symbol) =
     match symbol.Component.Type with
     | Input1 _
@@ -268,15 +309,12 @@ let checkIfSinglePortComponent (symbol: Symbol) =
     | NotConnected -> true
     | _ -> false
 
-/// Function helper that checks if a port is of a net that has a single wire connected to it
+/// <summary>
+/// Function helper that checks if a port is of a net that has a single wire connected to it.
+/// Author: tdc21/Tim
+/// </summary>
+// Mostly used for D1 purposes
 let checkSingleNet (portId: OutputPortId) (sheetModel: SheetT.Model) : bool =
-    //model.Wire.Symbol.OutputPortsConnected[portId] = 1
-    // use TryFind
-    // printf "symModel.OutputPortsConnected: %A" symModel.OutputPortsConnected
-    // match Map.tryFind portId symModel.OutputPortsConnected with
-    // | Some 1 -> true
-    // | _ -> false
-
     let nets = partitionWiresIntoNets sheetModel.Wire
 
     nets
@@ -284,8 +322,12 @@ let checkSingleNet (portId: OutputPortId) (sheetModel: SheetT.Model) : bool =
     |> Option.map (fun (outputPortID, netlist) -> netlist.Length = 1)
     |> Option.defaultValue false
 
-/// Function helper that checks if the wire is connected to at least 1 symbol that has a single port.
+/// <summary>
+/// Function helper that checks if a given wire is connected to at least 1 symbol where the symbol as a single port.
 /// Symbols in question: Inputs, Outputs, Viewers, Constants, WireLabels, Not Connected
+/// Author: tdc21/Tim
+/// </summary>
+// Mostly used for D1 purposes. The goal is to find 'lone' components with a single port that can be easily moved without causing intersections
 let checkIfSingularlyConnected (wire: Wire) (model: SheetT.Model) =
     let inputSymbol = getSymbolFromPortID (wire.InputPort.ToString()) model
     let outputSymbol = getSymbolFromPortID (wire.OutputPort.ToString()) model
@@ -308,34 +350,32 @@ let checkIfSingularlyConnected (wire: Wire) (model: SheetT.Model) =
         (checkIfSinglePortComponent outputSymbol
          && (checkSingleNet wire.OutputPort model))
     | _ -> false
-(* algo steps
+(* algo steps:
+    For each wire in a model, get the two symbols that the wire is connected to by InputPortId and OutputPortId
 
-get all wires in the model
-get the two symbols that the wire is connected to by InputPortId and OutputPortId
+    draft:
+    - For a symbol's input ports, since they can't be part of a net list, make sure the symbol is singly connected by
+    looking up the symbol's other ports to ensure no other wires are connected to them.
+    - Note: in my testing InputPortsConnected and OutputPortsConnected does not work! There are no references I can find that update it
+    - checkSingleNet is a better way to check if a port is singly connected
 
-draft:
-- To ensure InputPortId is singly connected: get the symbol that the symbol port is connected to.
-    - Assume that InputPorts only have a single wire. Then check if the symbol with this inputport
-     is singly connected. Do this by looking up the symbol's other portid in the SymbolT.model's
-     InputPortsConnected and OutputPortsConnected. If they do not exist then the wire links to a symbol's
-     input that is singly connected.
-- Note: in my testing InputPortsConnected and OutputPortsConnected does not work! There are no referenes I can find that update it
-- checkSingleNet is a better way to check if a port is singly connected
+    - To ensure OutputPortId is singly connected:
+    - use isWireInNet in BlockHelpers to check if the net has more than one wire. If so, output port is not singly connected. Skip
+    - If the net is singular, then check the symbol of the output port– make sure all its ports are not connected anywhere else
 
-- To ensure OutputPortId is singly connected:
-    - use isWireInNet in BlockHelpers to check if the net has more than one wire. If so, output port wire is
-    connected to is not singly connected. Can skip the other conditions
-    - If the net is singular, then check the symbol of the output port– make sure all its ports are not connected anywhere
-    else. Check the portids in the SymbolT.model's InputPortsConnected and OutputPortsConnected, same as above
-
-shortcut:
-- Note: these cases above apply to partially-done circuits where not all ports are being utilised by wires in the sheet!
-- This will help with beautifying a partially-done sheet. Otherwise, it's much faster immediately check symbols that
-   only have one port. Symbols in question: Inputs, Outputs, Viewers, Constants, WireLabels, Not Connected
-- After all, completed sheets will have all ports connected to wires (or will have used Not Connected Stopper )
+    shortcut:
+    - Note: these cases above apply to partially-done circuits where not all ports are being utilised by wires in the sheet!
+    - Otherwise, it's much faster to immediately check symbols that only have one port.
+    - Symbols in question: Inputs, Outputs, Viewers, Constants, WireLabels, Not Connected
+    - After all, completed sheets will have all ports connected to wires (or will have used Not Connected Stopper )
 *)
-/// Helper to find if a wire is singly connected to symbols that have a single port, and returns the symbols in a list.
-/// Note that list can be empty
+
+/// <summary>
+/// Helper to find if a wire is singly connected to symbols that have a single port or are (IOLabels), and returns the symbols
+/// Returns a list<Symbol * bool> where bool is true if the symbol is an input. List length is either 0, 1, or 2 (max num of wire ends is 2)
+/// Author: tdc21/Tim
+/// </summary>
+// mostly used for D1 purposes
 let findSinglyConnectedSymsByWire (wire: Wire) (sheetModel: SheetT.Model) =
     // will return (symbol, true) if the symbol is an input, (symbol, false) if the symbol is an output
     // it is important to distingush between the two, because when correcting the wire bend, inputs are
@@ -371,6 +411,11 @@ let findSinglyConnectedSymsByWire (wire: Wire) (sheetModel: SheetT.Model) =
             []
     | _ -> []
 
+/// <summary>
+/// Helper that returns the symbols on both ends of a wire, if they exist.
+/// Returns a list<Symbol * bool> where bool is true if the symbol is an input. List length is either 0, 1, or 2 (max num of wire ends is 2)
+/// Author: tdc21/Tim
+/// </summary>
 let findConnectedSymsByWire (wire: Wire) (sheetModel: SheetT.Model) =
     // will return (symbol, true) if the symbol is an input, (symbol, false) if the symbol is an output
     // it is important to distingush between the two, because when correcting the wire bend, inputs are
@@ -386,16 +431,21 @@ let findConnectedSymsByWire (wire: Wire) (sheetModel: SheetT.Model) =
     | _, Some outputSymbol -> [ (outputSymbol, false) ]
     | _ -> []
 
+/// <summary>
 /// Test function to show on Sheet Stats' developer mode
+/// Author: tdc21/Tim
+/// </summary>
 let countSinglyConnectedWires (model: SheetT.Model) =
     model.Wire.Wires
     |> Map.filter (fun _ wire -> checkIfSingularlyConnected wire model)
     |> Map.count
 
-/// Function to find the minority displacement of wire (the displacment in the direction that not travelled the furthest by the wire)
+/// <summary>
+/// (Helper?) Function to find the minority displacement of wire (the displacment in the direction that not travelled the furthest by the wire)
+/// Author: tdc21/Tim
+/// </summary>
+// Mostly used for D1 purposes
 let getMinorityWireDisplacementAndOrientation (wire: Wire) =
-
-    let wireWithInvisSegmentsRemoved = (removeSingleWireInvisibleSegments wire)
     let oddList, evenList =
         wire
         |> removeSingleWireInvisibleSegments
@@ -414,9 +464,12 @@ let getMinorityWireDisplacementAndOrientation (wire: Wire) =
     | false, Vertical -> evenDisplacement, Horizontal
 // if even segments majority and wire starts from vert (which is odd), then horiz is majority, vert is minority
 
-/// Function to find the majority displacement of wire (the displacment in the direction that travelled the furthest by the wire)
+/// <summary>
+/// (Helper?) Function to find the majority displacement of wire (the displacment in the direction that travelled the furthest by the wire)
+/// Author: tdc21/Tim
+/// </summary>
+// Mostly used for D1 purposes
 let getMajorityDisplacementWireAndOrientation (wire: Wire) =
-    let wireWithInvisSegmentsRemoved = (removeSingleWireInvisibleSegments wire)
     let oddList, evenList =
         wire
         |> removeSingleWireInvisibleSegments
@@ -442,11 +495,16 @@ let initialOrientation_: Lens<Wire, Orientation> =
 let startpos_: Lens<Wire, XYPos> =
     Lens.create (fun m -> m.StartPos) (fun s m -> { m with StartPos = s })
 
-/// when straightening/cleaning up wires singly connected to symbols, we need to keep track of:
+/// <summary>
+/// A record used  when straightening/cleaning up wires singly connected to symbols. Contains:
 /// the symbol to be moved,
 /// the wire that is connected to the symbol,
 /// the offset that needs to be moved by,
-/// and if the connected port is an input. This will determine how to shift the StartPos of the wire
+/// whether the connected port is an input (the input/output nature will determine how to shift the StartPos of the wire)
+/// the majorityDisplacement offset. Used in tryGeneralCleanup's 2nd pass, when we want to shift wire/symbols in the majority direction to avoid an intersection
+/// Author: tdc21/Tim
+/// </summary>
+// Mostly used for D1 purposes
 type CleanUpRecord =
     { Symbol: Symbol
       Wire: Wire
@@ -454,31 +512,41 @@ type CleanUpRecord =
       IsPortInput: bool
       MajorityDisplacementOffset: float }
 
+/// <summary>
 /// Function to move a symbol according to its cleanUpRecord
-//  smartAutoroute still causes small artefacts so this function manually creates a straight wire, recycling existing WId
+/// smartAutoroute still causes small artefacts so this function manually creates a straight wire, recycling existing WId
+/// Author: tdc21/Tim
+/// </summary>
+// Mostly used for D1 purposes
 let moveSymbolWireCleanUpRecord (cleanUpRecord: CleanUpRecord) =
     let majorityDisplacement, MajorityDirection =
         (getMajorityDisplacementWireAndOrientation cleanUpRecord.Wire)
 
-    // just to invert the direction
+    // to invert the direction if the port is an input
     let directionChangeMultiplier =
         (if cleanUpRecord.IsPortInput then
              -1.0
          else
              1.0)
 
+    // if the port is an output, we will have to shift the Wire's startpos
     let newPortStartPos =
         if cleanUpRecord.IsPortInput then
             cleanUpRecord.Wire.StartPos
         else
             cleanUpRecord.Wire.StartPos + cleanUpRecord.Offset
 
+    // smartautoroute gives artifacts when rerouting almost straight wires to become straight
+    // this function manually creates a straight wire from a given wire by discarding all segments except the first, recycling existing WId
+    // nubs are created later using makeEndsDraggable, so wires respect the spec
     let newWire =
         cleanUpRecord.Wire
         |> Optic.set
             (segments_)
             // assume that there are at least two segments, we can discard the rest.
             (cleanUpRecord.Wire.Segments // make a wire that consists of one big segment in the majority direction, then make nubs
+             // initially I was worried we might need more than the first segment so we use List.mapi and check the index i
+             // better to refactor this to use List.head?
              |> List.mapi (fun i segment ->
                  match MajorityDirection, i = 0 with
                  | Horizontal, true ->
@@ -503,9 +571,12 @@ let moveSymbolWireCleanUpRecord (cleanUpRecord: CleanUpRecord) =
         moveSymbol (cleanUpRecord.Offset * directionChangeMultiplier) cleanUpRecord.Symbol
 
     newWire, newSymbol
-// newSymbol
 
-/// Find the bounding box of a segment intersecting a bounding box
+/// <summary>
+/// Helper function that returns the bounding box of the intersection between a boundingBox and a segment
+/// similar to BlockHelpers.segmentIntersectsBoundingBox but uses boundingBoxes instead of rectangles, and returns the bounding box of the intersection
+/// Author: tdc21/Tim
+/// </summary>
 let getSegmentIntersectBBox (box: BoundingBox) segStart segEnd =
     let topLeft =
         if lThanEqualPos segStart segEnd then
@@ -523,15 +594,22 @@ let getSegmentIntersectBBox (box: BoundingBox) segStart segEnd =
     | Some segBBox -> overlapArea2DBox box segBBox
     | _ -> None
 
-/// Find the bounding box of of anything that intersects with a symbol
-/// try determine the source of the intersection
-// if it is caused by the newSymbol intersecting another symbol, we can easily move the newSymbol to another place and try again
-// but if it is caused by the newSymbol intersecting another wire, this is a lot more computationally difficult. Existing helpers
-// can help us find if a wire intersects a symbol, and not the other way round. We will have to iterate thru every wire and see if that the bounding
-// box returned by the findWireSymbolIntersections matches our newSymbol's bounding box.
-// then we will have determined the bbox of the intersection, and can move the newSymbol to another place and try again
+/// <summary>
+/// A very useful helper function that returns a bounding boxes list of a symbol's intersections with other symbols and wires segments on the model
+/// For wire intersections, it is segment-specific to be more exact.
+/// Returns a list of bounding boxes of symbols and wires that intersect with the symbol
+/// Author: tdc21/Tim
+/// </summary>
+// used by generalCleanup: we try and move a symbol to fix a bend. If this move causes interesections, this function allows us to
+// locate these intersections as boundingboxes so we can easily move the symbol to another place and try again
 let findAllBoundingBoxesOfSymIntersections (symbol: Symbol) (model: SheetT.Model) =
 
+    // To find where a symbol intersects a wire, is a lot more computationally difficult than a symbol-symbol intersection.
+    // Existing helpers can help us find if a wire intersects a symbol, and not the other way round.
+
+    // We will have to iterate thru every wire, run findWireSymbolIntersections to get a list of intersected symbol bounding boxes,
+    // and see if the list contains our newSymbol's bounding box. We use the =~ operator to check if two bounding boxes are equal.
+    // Similar to XYPos, I overloaded the =~operator to allow for tiny floating point differences
     let symbolBoundingBox = getBoundingBox model.Wire.Symbol symbol.Id
     let wModel = (updateBoundingBoxes model).Wire // just in case
 
@@ -540,12 +618,24 @@ let findAllBoundingBoxesOfSymIntersections (symbol: Symbol) (model: SheetT.Model
         |> Map.values
         // findWireSymbolIntersections returns a list of bounding boxes of symbols intersected by wire.
         |> Seq.map (fun wire -> (wire, (findWireSymbolIntersections wModel wire)))
-        // we have (Wire * BoundingBox list) seq. Now to look through every tuple and get any wire whose bbox list os equal to symbolBoundingBox
+        // we have (Wire * BoundingBox list) seq. Now to look through every tuple and get any wire whose bbox list is equal to symbolBoundingBox
         // we might get more than one wire – so get a list
         |> Seq.choose (fun (wire, bboxes) ->
             if
                 bboxes
-                |> List.exists (fun box -> symbolBoundingBox = box)
+                |> List.exists (fun box ->
+
+                    // findWireSymbolIntersections returns bounding boxes that have been enlarged with minWireSeparation. Is this a bug or feature?
+                    // we need to correct the bounding box to the original size
+                    let correctedBox =
+                        { W = box.W - minWireSeparation * 2.
+                          H = box.H - minWireSeparation * 2.
+                          TopLeft =
+                            box.TopLeft
+                            |> updatePos Right_ minWireSeparation
+                            |> updatePos Down_ minWireSeparation }
+
+                    symbolBoundingBox =~ correctedBox)
             then
                 Some wire
             else
@@ -557,11 +647,9 @@ let findAllBoundingBoxesOfSymIntersections (symbol: Symbol) (model: SheetT.Model
                 segmentsToIssieVertices wire.Segments wire
                 |> List.map (fun (x, y, _) -> { X = x; Y = y })
 
-            // taken from findWireSymbolIntersections so there is an extra index ignored as _ in List.choose (last line)
-            // might need a condition to disqualify the first and last segments (Done)
+            // similar to findWireSymbolIntersections, we disqualify the first and last segments
 
             let indexes = List.init ((List.length wireVertices) - 2) (fun i -> i + 1)
-
             let segVertices =
                 List.pairwise wireVertices.[1 .. wireVertices.Length - 2]
                 |> List.zip indexes // do not consider the nubs
@@ -573,6 +661,9 @@ let findAllBoundingBoxesOfSymIntersections (symbol: Symbol) (model: SheetT.Model
                 else
                     (getSegmentIntersectBBox symbolBoundingBox segStart segEnd)))
 
+    // unlike finding the bboxes of intersecting wire segments, finidng the bboxes of intersecting symbols is straightforward
+    // we get all symbol bounding boxes in the model (except the symbol we are comparing), and compare it with the given symbol
+    // check for an overlap area
     let intersectingSymbolBBoxes =
         model.BoundingBoxes
         |> Map.values
@@ -582,10 +673,62 @@ let findAllBoundingBoxesOfSymIntersections (symbol: Symbol) (model: SheetT.Model
         // see if they overlap with the symbolBoundingBox
         |> List.choose (fun box -> (overlapArea2DBox symbolBoundingBox box))
 
+    // return the list of intersecting bounding boxes
     intersectingWiresBbBoxes
     @ intersectingSymbolBBoxes
 
-/// Function to clean up almost straight singly connected wires
+/// <summary>
+/// Helper to update the sheet's existing symbol with a new symbol
+/// Author: tdc21/Tim
+/// </summary>
+let updateSheetSymWithNewSym (symbol: Symbol) (sheetModel: SheetT.Model) =
+    sheetModel
+    |> Optic.set (wire_ >-> symbolOf_ symbol.Id) symbol
+    |> SheetUpdateHelpers.updateBoundingBoxes // update the bounding boxes for accurate intersection checking
+
+/// <summary>
+/// Helper to update the sheet's existing wire with a new wire
+/// Author: tdc21/Tim
+/// </summary>
+let updateSheetWireWithNewWire (wire: Wire) (sheetModel: SheetT.Model) =
+    sheetModel
+    |> Optic.set (wire_ >-> wires_) (sheetModel.Wire.Wires |> Map.add wire.WId wire)
+
+/// <summary>
+/// D1 Helper to compare two an old or new sheetT.Model, and see if it has gained maintained or reduced the number of sym-wym or wire-sym intersections.
+/// Author: tdc21/Tim
+/// </summary>
+let checkIfGainedOrMaintainedIntersections (currentModel: SheetT.Model) (newModel: SheetT.Model) =
+    ((countIntersectingSymbolPairs newModel)
+     <= (countIntersectingSymbolPairs currentModel))
+    && ((countVisibleSegsIntersectingSymbols newModel)
+        <= (countVisibleSegsIntersectingSymbols currentModel))
+
+/// <summary>
+/// Helper to find the opposite edge. Code was from symbolReplaceHelpers but was not accessible as a helper, so I have added one here
+/// Author: tdc21/Tim
+/// </summary>
+let findOpposite (edge: Edge) =
+    match edge with
+    | Right -> Left
+    | Top -> Bottom
+    | Left -> Right
+    | Bottom -> Top
+
+//                                                    //
+//                                                    //
+//                                                    //
+// ---------------------------------------------------//
+//               Deliverable 1 Code                   //
+// ---------------------------------------------------//
+//                                                    //
+//                                                    //
+//                                                    //
+
+/// <summary>
+/// D1 Spec 1,2: Function to clean up almost straight singly connected wires. Takes in and outputs a model
+/// Author: tdc21/Tim
+/// </summary>
 let cleanUpAlmostStraightSinglyConnWires (model: ModelType.Model) =
     // check if wire is singly connected
     // then check if it is almost straight
@@ -627,23 +770,6 @@ let cleanUpAlmostStraightSinglyConnWires (model: ModelType.Model) =
                         IsPortInput = symbolsToMove[0] |> snd
                         MajorityDisplacementOffset = 0.0 } ])
 
-    /// helper to update the sheet's existing symbol with a new symbol
-    let updateSheetSymWithNewSym (symbol: Symbol) (sheetModel: SheetT.Model) =
-        sheetModel
-        |> Optic.set (wire_ >-> symbolOf_ symbol.Id) symbol
-        |> SheetUpdateHelpers.updateBoundingBoxes // update the bounding boxes for accurate intersection checking
-
-    /// helper to update the sheet's existing wire with a new wire
-    let updateSheetWireWithNewWire (wire: Wire) (sheetModel: SheetT.Model) =
-        sheetModel
-        |> Optic.set (wire_ >-> wires_) (sheetModel.Wire.Wires |> Map.add wire.WId wire)
-
-    let checkIfGainedOrMaintainedIntersections (currentModel: SheetT.Model) (newModel: SheetT.Model) =
-        ((countIntersectingSymbolPairs newModel)
-         <= (countIntersectingSymbolPairs currentModel))
-        && ((countVisibleSegsIntersectingSymbols newModel)
-            <= (countVisibleSegsIntersectingSymbols currentModel))
-
     let updatedSheetModel: SheetT.Model =
         symbolsWireOffsetUpdates
         |> List.fold // better way to do this?
@@ -663,7 +789,7 @@ let cleanUpAlmostStraightSinglyConnWires (model: ModelType.Model) =
                     newSheetModel
                 else
                     printf "another pass with symbol id %A" cleanUpRecord.Symbol.Id
-                    // we do another pass.
+                    // we do another pass. Although it would be great to increase the number of passes
                     let intersectingBBoxes =
                         findAllBoundingBoxesOfSymIntersections newMovedSymbol newSheetModel
                     let newOffset, majorityDisplacementOffset =
@@ -722,22 +848,21 @@ let cleanUpAlmostStraightSinglyConnWires (model: ModelType.Model) =
             // first, calculate how many bends we are saving by straightening CleanUpRecord.Wire
             // before running currentSheetModel, try determine the source of the intersection
 
-            // if it is caused by the newSymbol intersecting another symbol, we can easily move the newSymbol to another place and try again
-
-            // but if it is caused by the newSymbol intersecting another wire, this is a lot more computationally difficult. Existing helpers
-            // can help us find if a wire intersects a symbol, and not the other way round. We will have to iterate thru every wire and see if that the bounding
-            // box returned by the findWireSymbolIntersections matches our newSymbol's bounding box.
-            // then we will have determined the bbox of the intersection, and can move the newSymbol to another place and try again
-
+            // if it is caused by the newSymbol intersecting another symbol, we can easily move the newSymbol to another place and try again once more
             )
 
             model.Sheet
 
     model |> Optic.set (sheet_) (updatedSheetModel)
 
+/// <summary>
+/// D1 spec 3,5,6,7: Try to clean up all bends on a sheet
+/// Author: tdc21/Tim
+/// </summary>
 let tryGeneralCleanUp (model: ModelType.Model) =
     // check if wire is singly connected
     // then check if it is almost straight
+    // todo: perhaps use a different constant/tolerance to allow for more general straightening instead of 'almost straight' wires
 
     let almostStraightWires =
         model.Sheet.Wire.Wires
@@ -780,17 +905,6 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                             Offset = offset
                             IsPortInput = isInput
                             MajorityDisplacementOffset = 0.0 } ]))
-
-    /// helper to update the sheet's existing symbol with a new symbol
-    let updateSheetSymWithNewSym (symbol: Symbol) (sheetModel: SheetT.Model) =
-        sheetModel
-        |> Optic.set (wire_ >-> symbolOf_ symbol.Id) symbol
-        |> SheetUpdateHelpers.updateBoundingBoxes // update the bounding boxes for accurate intersection checking
-
-    /// helper to update the sheet's existing wire with a new wire
-    let updateSheetWireWithNewWire (wire: Wire) (sheetModel: SheetT.Model) =
-        sheetModel
-        |> Optic.set (wire_ >-> wires_) (sheetModel.Wire.Wires |> Map.add wire.WId wire)
 
     let continueConditionCheck (currentModel: SheetT.Model) (newModel: SheetT.Model) =
         ((countIntersectingSymbolPairs newModel)
@@ -869,7 +983,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                                 intersectingBBoxes
                                 |> List.minBy (fun box -> box.TopLeft.X)
                                 |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X - 10.0)
-                            // can add another condition to set to zero, cancelling the operatio if we have to move the symbol
+                            // can add another condition to set to zero, cancelling the operation if we have to move the symbol
                             // too far back
                             // { X = 10.0; Y = 0.0 }, -10.0
                             { X = addedXOffset; Y = 0.0 }, -addedXOffset
@@ -930,14 +1044,6 @@ let tryGeneralCleanUp (model: ModelType.Model) =
 
     model |> Optic.set (sheet_) (updatedSheetModel)
 
-/// Helper to find the opposite edge. Code was from symbolReplaceHelpers but is not accessible as a helper
-let findOpposite (edge: Edge) =
-    match edge with
-    | Right -> Left
-    | Top -> Bottom
-    | Left -> Right
-    | Bottom -> Top
-
 /// When trying to straighten wires by rescaling custom components, we want to find the longest contiguous sequence of connections between two custom components A and B
 /// This type keeps track of the longest sequence found so far and its start points on both symbols
 type ContiguousSequenceRecord =
@@ -947,6 +1053,11 @@ type ContiguousSequenceRecord =
 
     }
 
+/// <summary>
+/// D1 spec 4: An improved version of reSizeSymbol that identifies the port-pairs to be straightened in a way that maximises the reduction in bends,
+/// by targeting the longest contiguous sequence of port connections between two symbols.
+/// Author: tdc21/Tim
+/// </summary>
 let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) =
 
     let wires: Wire list = wiresBtwnSyms wModel symbolToSize otherSymbol
@@ -1124,6 +1235,10 @@ let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherS
 
 // note that we can only resize H and W. So we choose between considering satisfying the top or bottom edge,
 
+/// <summary>
+/// D1 spec 4: High level call for reSizeSymbolImproved
+/// Author: tdc21/Tim
+/// </summary>
 let reSizeSymbolImprovedTopLevel (wModel: BusWireT.Model) (symbolA: Symbol) (symbolB: Symbol) : BusWireT.Model =
     // printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 

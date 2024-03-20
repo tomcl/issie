@@ -145,10 +145,9 @@ let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
         ||> List.fold flipSymbol
     let model' = flipOptimized
 
-    printfn $"after crossings: {finalCrossings}, before: {initialCrossings}"
-
     let improvement = (finalCrossings < initialCrossings)
     if improvement then
+        printfn $"after crossings: {finalCrossings}, before: {initialCrossings}"
         optimizePortOrder model'
     else
         printfn "Beautified"

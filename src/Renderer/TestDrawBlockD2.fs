@@ -31,6 +31,11 @@ type posFlipPair = {
     Flip: Option<FlipType>
 }
 
+type posFlipComponent = {
+    Position: XYPos
+    Flip: Option<FlipType>
+    Component: ComponentType
+}
 
 //--------------------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------Helper Functions-----------------------------------------------------//
@@ -73,22 +78,22 @@ let calcMetricsDiff (model1 : SheetT.Model) (model2 : SheetT.Model) : unit =
     // T2
     let segmentSymbolIntersections1 : int = numOfIntersectSegSym model1
     let segmentSymbolIntersections2 : int = numOfIntersectSegSym model2
-    print ($"Number of Symbol and Wire Intersections Removed: {segmentSymbolIntersections2 - segmentSymbolIntersections1}")
+    print ($"Number of Symbol and Wire Intersections Removed: {segmentSymbolIntersections1 - segmentSymbolIntersections2}")
 
     // T3
     let wireIntersections1 : int = numOfWireRightAngleCrossings model1
     let wireIntersections2 : int = numOfWireRightAngleCrossings model2
-    print ($"Number of Wire Crossings Removed: {wireIntersections2 - wireIntersections1}")
+    print ($"Number of Wire Crossings Removed: {wireIntersections1 - wireIntersections2}")
     
     // T4
     let totalSegLength1 : float = calcVisWireLength model1
     let totalSegLength2 : float = calcVisWireLength model2
-    print ($"Total Segment Length Reduced: {totalSegLength2 - totalSegLength1}")
+    print ($"Total Segment Length Reduced: {totalSegLength1 - totalSegLength2}")
 
     // T5
     let wireRightAngles1 : int = numOfVisRightAngles model1
     let wireRightAngles2 : int = numOfVisRightAngles model2
-    print ($"Number of Wire Right angles Removed: {wireRightAngles2 - wireRightAngles1}")
+    print ($"Number of Wire Right angles Removed: {wireRightAngles1 - wireRightAngles2}")
 
 
 /// <summary> Finds the ID of a symbol within a model by its label. </summary>
@@ -120,7 +125,6 @@ let flipSymbol (symLabel: string) (orientation: FlipType option) (model : SheetT
             Ok newModel
         | None -> Ok model
 
-let gridStep = 50.0
 
 
 /// <summary>Generates a 2x2 grid of XYPos positions based on an offset from the middle of the sheet.</summary>
@@ -128,6 +132,7 @@ let gridStep = 50.0
 /// <param name="offsetY">The vertical offset from the middle of the sheet for the grid's starting position.</param>
 /// <returns>A Gen<XYPos> representing a list of positions for a 2x2 grid.</returns>
 let makeGrid (offsetX: float) (offsetY: float) =
+    let gridStep = 50.0
     let x, y = middleOfSheet.X, middleOfSheet.Y
     [{X = x + offsetX; Y = y + offsetY};
      {X = x + offsetX + gridStep; Y = y + offsetY};
@@ -246,8 +251,9 @@ let makeCircuit2 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipTy
         |> Result.bind (placeWire (portOf "In1" 0) (portOf "Not1" 0))
         |> Result.bind (placeWire (portOf "In1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "Not1" 0) (portOf "MUX1" 1))
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "Or1" 0))
-        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "Or1" 1))
+        |> Result.bind (placeWire (portOf "Not1" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "Or1" 1))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "Or1" 0))
         |> Result.bind (placeWire (portOf "Or1" 0) (portOf "Out1" 0))
         |> getOkOrFail
     model
@@ -303,6 +309,64 @@ let makeCircuit3 (symInfo : posFlipPair * posFlipPair * posFlipPair) =
 //--------------------------------------------------------------------------------------------------------------------------//
 
 
+//------------------------------------------------------ Circuit 4 ----------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
+
+let randomComponents1 = fromList [Mux2; GateN(And, 3)]
+let randomComponents2 = fromList [Not; DFF]
+let randomComponents3 = fromList [Mux2; NbitsAdder(2)]
+
+let posGen4 = fromList [middleOfSheet - { X = 10.0; Y = 150.0 }; middleOfSheet + { X = 40.0; Y = 150.0 } ]
+let posGen5 = fromList [middleOfSheet - { X = 130.0; Y = -130.0 }; middleOfSheet + { X = -70.0; Y = 10.0 } ]
+let posGen6 = fromList [middleOfSheet + { X = 50.0; Y = 15.0 }; middleOfSheet + { X = 50.0; Y = -50.0 } ]
+
+let posAndFlipGen4 = product (fun position flip -> { Position = position; Flip = flip }) posGen4 flipTypeGen
+let posAndFlipGen5 = product (fun position flip -> { Position = position; Flip = flip }) posGen5 flipTypeGen
+let posAndFlipGen6 = product (fun position flip -> { Position = position; Flip = flip }) posGen6 flipTypeGen
+
+
+// Combine position and flip into a PosAndFlip generator
+let posFlipCompGen1 = product (fun comp (posFlip : posFlipPair) -> { Position = posFlip.Position; Flip = posFlip.Flip; Component = comp }) randomComponents1 posAndFlipGen4
+let posFlipCompGen2 = product (fun comp (posFlip : posFlipPair) -> { Position = posFlip.Position; Flip = posFlip.Flip; Component = comp }) randomComponents2 posAndFlipGen5
+let posFlipCompGen3 = product (fun comp (posFlip : posFlipPair) -> { Position = posFlip.Position; Flip = posFlip.Flip; Component = comp }) randomComponents3 posAndFlipGen6
+let posFlipCompGenPair = product (fun gen1 gen2 -> (gen1, gen2)) posFlipCompGen1 posFlipCompGen2
+let posFlipCompGenTriple = product (fun (gen1, gen2) gen3 -> (gen1, gen2, gen3)) posFlipCompGenPair posFlipCompGen3
+
+
+let makeCircuit4 (symInfo : posFlipComponent * posFlipComponent * posFlipComponent) =
+    let (sym1Info, sym2Info, sym3Info) = symInfo
+    let sym1pos = sym1Info.Position
+    let sym1flip = sym1Info.Flip
+    let sym1comp = sym1Info.Component
+    let sym2pos = sym2Info.Position
+    let sym2flip = sym2Info.Flip
+    let sym2comp = sym2Info.Component
+    let sym3pos = sym3Info.Position
+    let sym3flip = sym3Info.Flip
+    let sym3comp = sym3Info.Component
+    let model = 
+        initSheetModel
+        |> placeSymbol "Sym3" sym3comp sym3pos
+        |> Result.bind (placeSymbol "sym1" sym1comp sym1pos)
+        |> Result.bind (flipSymbol "sym1" sym1flip)
+        |> Result.bind (placeSymbol "sym2" sym2comp sym2pos)
+        |> Result.bind (flipSymbol "sym2" sym2flip)
+        |> Result.bind (placeSymbol "In1" (Input1(1, Some 1)) inputPosCircuit2)
+        |> Result.bind (placeSymbol "Out1" (Output 1) outputPosCircuit2)
+        // Wire connections
+        |> Result.bind (placeWire (portOf "In1" 0) (portOf "sym1" 0))
+        |> Result.bind (placeWire (portOf "In1" 0) (portOf "sym2" 0))
+        |> Result.bind (placeWire (portOf "sym1" 0) (portOf "Sym3" 1))
+        |> Result.bind (placeWire (portOf "Sym3" 0) (portOf "OUT1" 0))
+        |> Result.bind (placeWire (portOf "sym2" 0) (portOf "Sym3" 0))
+        |> Result.bind (placeWire (portOf "sym2" 0) (portOf "sym1" 2))
+        |> getOkOrFail
+    model
+
+
+//--------------------------------------------------------------------------------------------------------------------------//
+
+
 
 
 //--------------------------------------------------------------------------------------------------------------------------//
@@ -338,6 +402,16 @@ let test3 testNum firstSample dispatch =
         dispatch
     |> recordPositionInTest testNum dispatch
 
+let test4 testNum firstSample dispatch =
+    runTestOnSheets
+        "Randomly Generated Components, Flips and Positions"
+        firstSample
+        posFlipCompGenTriple
+        makeCircuit4
+        failOnAllTests
+        dispatch
+    |> recordPositionInTest testNum dispatch
+
 let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
     // Change names and test functions as required
     // delete unused tests from list
@@ -345,7 +419,7 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
         "Test1", test1
         "Test2", test2
         "Test3", test3
-        "Blank", fun _ _ _ -> printf "Test4" // dummy test - delete line or replace by real test as needed
+        "Test4", test4
         "Blank", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
         "Run Beautify Function 1", fun _ _ _ -> printf "Test6"
         "Run Beautify Function 2", fun _ _ _ -> printf "Flipping MUX1"

@@ -10,6 +10,7 @@ open Symbol
 open BusWireRoute
 open Helpers
 open BlockHelpers
+open BusWireRoutingHelpers
 
 open Optics.Operators // for >-> operator
 
@@ -592,12 +593,12 @@ let findWireSymbolSquashes (model: Model) (wire: Wire) : BoundingBox list =
             (
                 compType,
                 {
-                    W = boundingBox.W + minWireSeparation * 2. + squashMargin
-                    H = boundingBox.H + minWireSeparation * 2. + squashMargin
+                    W = boundingBox.W + Constants.minWireSeparation * 2. + squashMargin
+                    H = boundingBox.H + Constants.minWireSeparation * 2. + squashMargin
                     TopLeft =
                     boundingBox.TopLeft
-                    |> updatePos Left_ minWireSeparation + squashMargin
-                    |> updatePos Up_ minWireSeparation + squashMargin
+                    |> updatePos Left_ (Constants.minWireSeparation + squashMargin)
+                    |> updatePos Up_ (Constants.minWireSeparation + squashMargin)
                 }
             ))
         |> List.filter (fun (compType, boundingBox) ->

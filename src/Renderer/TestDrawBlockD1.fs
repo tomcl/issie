@@ -94,12 +94,17 @@ module HLPTick3 =
     open Sheet.SheetInterface
     open GenerateData
     open TestLib
+    open SheetUpdateHelpers
 
     /// create an initial empty Sheet Model
     let initSheetModel = DiagramMainView.init().Sheet
 
-    /// Optic to access SheetT.Model from Issie Model
+    /// Optic to access SheetT.Model from Issie Model. Also used by TestSheetFunctions
     let sheetModel_ = sheet_
+
+    /// Optic to access UndoList from SheetT.Model
+    let UndoList_: Lens<SheetT.Model, SheetT.Model List> =
+        Lens.create (fun m -> m.UndoList) (fun w m -> { m with UndoList = w })
 
     /// Optic to access BusWireT.Model from SheetT.Model
     let busWireModel_ = SheetT.wire_
@@ -389,7 +394,14 @@ module HLPTick3 =
         let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
             let sheetDispatch sMsg = dispatch (Sheet sMsg)
             dispatch
-            <| UpdateModel(Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
+            <| UpdateModel(fun (model) ->
+                let newUndoList = appendUndoList model.Sheet.UndoList model.Sheet
+
+                model
+                |> Optic.set sheet_ testModel
+                |> Optic.set (ModelType.sheet_ >-> UndoList_) (newUndoList)
+
+            ) // set the Sheet component of the Issie model to make a new schematic.
             sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.

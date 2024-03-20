@@ -381,6 +381,13 @@ type BoundingBox =
     member this.Centre() =
         this.TopLeft
         + { X = this.W / 2.; Y = this.H / 2. }
+    /// TDC21: allowed tolerance when comparing positions with floating point errors for equality
+    /// define a static member BoundingBox for comparisons, to be used in D1
+    static member inline epsilon = 0.0000001
+    static member inline (=~)(left: BoundingBox, right: BoundingBox) =
+        (left.TopLeft =~ right.TopLeft)
+        && abs (left.W - right.W) <= BoundingBox.epsilon
+        && abs (left.H - right.H) <= BoundingBox.epsilon
 
 let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> { a with TopLeft = s })
 
@@ -1036,9 +1043,7 @@ let loadedComponentOf_ (name: string) =
 type ConnectionsWidth = Map<ConnectionId, int option>
 
 /// Documents user circuit error found during connection width inference
-type WidthInferError =
-    { Msg: string
-      ConnectionsAffected: ConnectionId list } // A list of connection Ids.
+type WidthInferError = { Msg: string; ConnectionsAffected: ConnectionId list } // A list of connection Ids.
 
 /// Messages sent from draw block
 type JSDiagramMsg =

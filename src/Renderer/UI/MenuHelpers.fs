@@ -41,7 +41,7 @@ module Constants =
     let redColor = Color "red"
     let blueColor = Color "blue"
     let greenColor = Color "green"
-   
+
 let displayFileErrorNotification err dispatch =
     let note = errorFilesNotification err
     dispatch <| SetFilesNotification note
@@ -72,7 +72,7 @@ let warnAppWidth (dispatch: Msg -> unit) (afterFun: _ -> unit ) =
                 ] |> List.collect (fun s -> [s; br []])))
     else
         afterFun()
-        
+
 
 
 
@@ -89,7 +89,7 @@ let formatLabelAsBus (width:int) (text:string) =
     match width with
     | 1 -> text'
     | _ -> sprintf "%s(%d:%d)" (text'.ToUpper()) (width-1) 0
-   
+
 
 let formatLabelFromType compType (text:string) =
     let text' = extractLabelBase text
@@ -117,7 +117,7 @@ let updateSymbolRAMs (ramCheck: Component list) (sModel: SymbolT.Model) =
     (sModel, ramCheck)
     ||> List.fold (fun sModel comp ->
             let cId = (ComponentId comp.Id)
-            if Map.containsKey cId sModel.Symbols then 
+            if Map.containsKey cId sModel.Symbols then
                 SymbolUpdate.writeMemoryType sModel cId comp.Type
             else
                sModel)
@@ -141,9 +141,9 @@ let raiseFileNotification  (dispatch : Msg -> unit) (msg: string option) =
 /// maybe no longer needed...
 let fileEntryBox files fName dialog dispatch =
     let inputValidate text =
-        (text = "" || 
-        List.exists ((=) text) files || 
-        not <| Seq.forall Char.IsLetterOrDigitOrUnderscore text || 
+        (text = "" ||
+        List.exists ((=) text) files ||
+        not <| Seq.forall Char.IsLetterOrDigitOrUnderscore text ||
         not <| String.startsWithLetter text)
         |> not
     let n1,n2, _,_ = getMemorySetup dialog 1
@@ -153,14 +153,14 @@ let fileEntryBox files fName dialog dispatch =
         Input.DefaultValue fName
         Input.Placeholder "Enter file name"
         Input.Color (if inputValidate fName then IsSuccess else IsDanger)
-        Input.OnChange 
-            (getTextEventValue 
-            >> (fun newName -> 
+        Input.OnChange
+            (getTextEventValue
+            >> (fun newName ->
                     let newKey = if inputValidate newName then ToFile newName else ToFileBadName newName
                     dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2, newKey,None) ) ) )
         ]
 /// Make a poup with menu to view and select a memory data source
-let makeSourceMenu 
+let makeSourceMenu
         (model: Model)
         (updateMem: ComponentId -> (Memory1 -> Memory1) -> Unit)
         (cid: ComponentId)
@@ -176,9 +176,9 @@ let makeSourceMenu
 
         let popupKey mSetup =
             match mSetup with
-            | Some(_,_, key,_) -> 
+            | Some(_,_, key,_) ->
                 key
-            | None -> 
+            | None ->
                 FromData
 
 
@@ -188,7 +188,7 @@ let makeSourceMenu
             printfn $"Select {key}"
             //dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2,key,None))
             dispatch <| SetPopupDialogMemorySetup (Some (n1,n2,key, match key with | FromFile name -> Some name | _ -> None))
-        
+
             match key, projOpt with
             | FromFile s, Some p ->
                 let mem1 = {Init = FromFile s; AddressWidth = n1; WordWidth = n2; Data=Map.empty}
@@ -196,17 +196,17 @@ let makeSourceMenu
                 let mem = FilesIO.initialiseMem mem1 p.ProjectPath
                 match mem with
                 | Ok mem' -> updateMem cid (fun _ -> mem')
-                | Error msg -> 
+                | Error msg ->
                     dispatch <| SetFilesNotification
-                                    (Notifications.errorFilesNotification msg) 
+                                    (Notifications.errorFilesNotification msg)
             | _ ->
                 updateMem cid (fun mem -> {mem with Init = FromData})
-                
+
 
         let files =
             FilesIO.readFilesFromDirectoryWithExtn dialog.ProjectPath ".ram"
             |> List.map (FilesIO.removeExtn ".ram" >> Option.get)
-       
+
         let existingFiles =
             List.map FromFile files
 
@@ -222,7 +222,7 @@ let makeSourceMenu
             let react = printSource true key
             Menu.Item.li
                 [ Menu.Item.IsActive (key = popupKey dialog.MemorySetup)
-                  Menu.Item.OnClick (fun _ -> onSelect key) ] react 
+                  Menu.Item.OnClick (fun _ -> onSelect key) ] react
 
         let noFileItem =
             Menu.Item.li
@@ -242,13 +242,13 @@ let makeSourceMenu
         let modalMessageBadFileLink s =
                 "You have linked this component to file '{s}' which does not exist or is badly formatted. \
                 Please either correct the file or remove the link."
-        
+
 
         let msg, menu =
             match mem with
             | _ when existingFiles.Length > 0 ->
                 modalMessageWithRamFiles, noFileItem :: List.map menuItem existingFiles
-            | FromFile s -> 
+            | FromFile s ->
                 modalMessageBadFileLink s, [noFileItem]
             | _ ->
                 modalMessageNoRamFiles, [noFileItem]
@@ -259,13 +259,13 @@ let makeSourceMenu
             br []; br []
             Menu.menu []
                 [ Menu.list [] menu ]
-        
+
         ]
 
 /// Node in the sheet tree, child nodes correspond to custom components in sheet.
 type SheetTree = {
     /// path of custom component labels to node or [] if node is top level
-    LabelPath: string list 
+    LabelPath: string list
     /// name of sheet
     SheetName: string
     /// path of sheet names to current sheet name - NB this is not unique
@@ -308,18 +308,18 @@ let rec makeBreadcrumbNamesUnique (tree: SheetTree) =
         |> makeBreadcrumbNamesUnique)
     |> fun subsheets -> {tree with SubSheets = List.sortBy (fun subs -> subs.BreadcrumbName) subsheets}
 
-            
+
 let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> Model) (tree: SheetTree) (model: Model)=
     printf "traversing %A" tree.SheetName
     model
     |> folder isSubSheet tree
     |> fun model -> List.fold (fun model tree -> foldOverTree false folder tree model) model tree.SubSheets
-    
+
 
 /// Get the subsheet tree for all sheets in the current project.
 /// Returns a map from sheet name to tree of SheetTree nodes
 let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
-    let ldcMap = 
+    let ldcMap =
         p.LoadedComponents
         |> List.map (fun ldc -> ldc.Name,ldc)
         |> Map.ofList
@@ -340,11 +340,11 @@ let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
         | Some ldc ->
             let comps,_ = ldc.CanvasState
             comps
-            |> List.collect (fun comp -> 
-                    match comp.Type with 
-                    | Custom ct when not <| List.contains ct.Name path -> 
-                        [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [sheet])] 
-                    | _ -> 
+            |> List.collect (fun comp ->
+                    match comp.Type with
+                    | Custom ct when not <| List.contains ct.Name path ->
+                        [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [sheet])]
+                    | _ ->
                         [])
             |> (fun subs -> {
                     SheetName = sheet;
@@ -356,7 +356,7 @@ let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
                         |> List.map (fun s -> s.Depth)
                         |> fun l -> 0 :: l
                         |> List.max
-                    Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
+                    Size = List.sumBy (fun sub -> sub.Size) subs + 1;
                     SubSheets = if allowAllInstances then subs else (subs |> List.distinctBy (fun sh -> sh.SheetName))
                     GridArea = None
                 })
@@ -373,7 +373,7 @@ let allRootSheets (sTrees:Map<string,SheetTree>) =
         match Map.tryFind sh sTrees with
         | Some tree -> tree.SubSheets
         | None -> []
-        |> List.collect (fun ssh -> 
+        |> List.collect (fun ssh ->
             match List.contains ssh.SheetName path with
             | true -> []
             | false -> ssh.SheetName :: subSheetsOf (ssh.SheetName :: path) ssh.SheetName)
@@ -416,17 +416,17 @@ let writeComponentToFile comp =
 /// return an option containing sequence data and file name and directory of the latest
 /// backup file for given component, if it exists.
 let readLastBackup comp =
-    let path = pathWithoutExtension comp.FilePath 
+    let path = pathWithoutExtension comp.FilePath
     let baseN = baseName path
     let backupDir = pathJoin [| dirName path ; "backup" |]
     latestBackupFileData backupDir baseN
     |> Option.map (fun (seq, fName) -> seq, fName, backupDir)
-  
+
 /// Write Loadedcomponent comp to a backup file if there has been any change.
 /// Overwrite the existing backup file only if it is a small, and recent, change.
 /// Parameters determine thresholds of smallness and recency
 /// return () - display an error if the write goes wrong.
-let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (dispatch: Msg -> Unit)= 
+let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (dispatch: Msg -> Unit)=
     let nSeq, backupFileName, backFilePath =
         match readLastBackup comp with
         | Some( n, fp, path) -> n+1,fp, path
@@ -450,8 +450,8 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
                         true, None
                     else
                         true, Some oldBackupFile
-                        
-            | err -> 
+
+            | err ->
                 printfn "Error: writeComponentToBackup\n%A" err
                 true, None
     if wantToWrite then
@@ -466,7 +466,7 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
                 ensureDirectory <| pathJoin [| dirName path ; "backup" |]
                 pathJoin [| dirName path ; "backup" ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
         // write the new backup file
-        {comp with 
+        {comp with
             TimeStamp = timestamp
             FilePath = backupPath}
         |> writeComponentToFile
@@ -501,28 +501,28 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
     let name = compToSetup.Name
     let components, connections = compToSetup.CanvasState
     //printfn "Loading..."
-    let msgs = 
+    let msgs =
         [
             SetHighlighted([], []) // Remove current highlights.
-    
+
             // Clear the canvas.
             Sheet SheetT.ResetModel
             Sheet (SheetT.Wire BusWireT.ResetModel)
             Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ResetModel ) ) )
-    
+
             // Finally load the new state in the canvas.
             SetIsLoading true
             //printfn "Check 1..."
-    
+
             //Load components
             Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.LoadComponents (ldcs,components ))))
-    
+
             Sheet (SheetT.Wire (BusWireT.LoadConnections connections))
 
             Sheet SheetT.FlushCommandStack // Discard all undo/redo.
             // Run the a connection widths inference.
             //printfn "Check 4..."
-    
+
             Sheet (SheetT.Wire (BusWireT.BusWidths))
             // JSdispatch <| InferWidths()
             //printfn "Check 5..."
@@ -543,7 +543,7 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
 
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             SynchroniseCanvas
-            SetIsLoading false 
+            SetIsLoading false
             if finishUI then FinishUICmd else DoNothing
 
             //printfn "Check 6..."
@@ -585,7 +585,7 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
 
     let savedWaveSim =
         compToSetup.WaveInfo
-        |> Option.map loadWSModelFromSavedWaveInfo 
+        |> Option.map loadWSModelFromSavedWaveInfo
         |> Option.defaultValue initWSModel
 
     let waveSim =
@@ -593,7 +593,7 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
         |> Option.map (fun sheet -> (Map.tryFind sheet  model.WaveSim))
         |> Option.defaultValue None
         |> Option.defaultValue savedWaveSim
-        
+
 
 
     loadStateIntoModel finishUI compToSetup waveSim ldComps model dispatch
@@ -612,7 +612,7 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
 let private createEmptyDiagramFile projectPath name =
     createEmptyDgmFile projectPath name |> ignore
 
-    {   
+    {
         Name = name
         TimeStamp = System.DateTime.Now
         WaveInfo = None
@@ -626,10 +626,10 @@ let private createEmptyDiagramFile projectPath name =
 
 
 /// work out what to do opening a file
-let rec resolveComponentOpenPopup 
+let rec resolveComponentOpenPopup
         (pPath:string)
-        (components: LoadedComponent list)  
-        (resolves: LoadStatus list) 
+        (components: LoadedComponent list)
+        (resolves: LoadStatus list)
         (model: Model)
         (dispatch: Msg -> Unit) =
     let chooseWhichToOpen comps =
@@ -647,35 +647,35 @@ let rec resolveComponentOpenPopup
             |> displayAlertOnError dispatch
             if compChanges + connChanges > 0 then
                 writeComponentToBackupFile 0 1. comp dispatch
-            resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
+            resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch
         // special case when autosave data is most recent
         let title = "Warning!"
         let message, color =
             match compChanges + connChanges with
-            | 0 -> 
+            | 0 ->
                 sprintf "There were layout but no circuit changes made in sheet %s after your last save. \
                          There is an automatically saved version which is \
                          more uptodate. Do you want to keep the newer AutoSaved version or \
-                         the older Saved version?"  ldComp.Name, "green"  
-            | n when n < 3 ->   
+                         the older Saved version?"  ldComp.Name, "green"
+            | n when n < 3 ->
                 sprintf "Warning: %d component and %d connection changes were made to sheet '%s' after your last Save. \
                          There is an automatically saved version which is \
                          more uptodate. Do you want to keep the newer AutoSaved version or \
                          the older saved version?"  compChanges connChanges ldComp.Name, "orange"
-            | n -> 
+            | n ->
                 sprintf "Warning: %d component and %d connection changes were made to sheet '%s' after your last Save. \
                          There is an automatically saved version which is \
                          more uptodate. Do you want to keep the newer AutoSaved version or \
                          the older saved version? This is a large change so the option you do not choose \
                          will be saved as file 'backup/%s.dgm'"  compChanges connChanges ldComp.Name ldComp.Name, "red"
-        let body = 
-            div [Style [Color color]] [str message] 
+        let body =
+            div [Style [Color color]] [str message]
         choicePopup title body "Newer AutoSaved file" "Older Saved file" buttonAction dispatch
     | OkAuto autoComp :: rLst ->
          let errMsg = "Could not load saved project file '%s' - using autosave file instead"
          displayFileErrorNotification errMsg dispatch
          resolveComponentOpenPopup pPath (autoComp::components) rLst model dispatch
-    | OkComp comp ::rLst -> 
+    | OkComp comp ::rLst ->
         resolveComponentOpenPopup pPath (comp::components) rLst model dispatch
 
 let addToRecents path recents =
@@ -699,7 +699,7 @@ let openDemoProjectFromPath (path:string) model dispatch =
 
         | Ok (componentsToResolve: LoadStatus list) ->
             traceIf "project" (fun () -> "resolving popups...")
-            
+
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
             traceIf "project" (fun () ->  "project successfully opened.")
 
@@ -715,17 +715,17 @@ let openProjectFromPath (path:string) model dispatch =
             log err
             displayFileErrorNotification err dispatch
             model.UserData.RecentProjects
-            |> Option.map (List.filter ((<>) path)) 
+            |> Option.map (List.filter ((<>) path))
         | Ok (componentsToResolve: LoadStatus list) ->
             traceIf "project" (fun () -> "resolving popups...")
-            
+
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
             traceIf "project" (fun () ->  "project successfully opened.")
             addToRecents path model.UserData.RecentProjects
         |> fun recents ->
                 dispatch <| SetUserData {
-                    model.UserData with 
-                        LastUsedDirectory = Some path; 
+                    model.UserData with
+                        LastUsedDirectory = Some path;
                         RecentProjects = recents
                         }
         Elmish.Cmd.none))
@@ -740,11 +740,11 @@ let currWaveSimModel (model: Model) =
 
 
 /// Return LoadedComponents with sheet name updated according to setFun.
-/// Do not update model. 
+/// Do not update model.
 let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) (dispatch: (Msg -> Unit))=
     let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
     match n with
-    | None -> 
+    | None ->
         printf "In updateLoadedcomponents can't find name='%s' in components:%A" name lcLst
         lcLst
     | Some n ->
@@ -758,7 +758,7 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
 let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
     match model.Sheet.GetCanvasState() with
     | ([], []) -> model.CurrentProj
-    | canvasState ->  
+    | canvasState ->
         canvasState
         |> fun canvas ->
             let inputs, outputs = parseDiagramSignature canvas
@@ -769,14 +769,14 @@ let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
                     OutputLabels = outputs
                 }
             model.CurrentProj
-            |> Option.map (fun p -> 
+            |> Option.map (fun p ->
                 {
                     p with LoadedComponents = updateLoadedComponents p.OpenFileName setLc p.LoadedComponents dispatch
                 })
 
 
 /// extract SavedWaveInfo from model to be saved
-let getSavedWave (model: Model) : SavedWaveInfo option = 
+let getSavedWave (model: Model) : SavedWaveInfo option =
     match currWaveSimModel model with
     | Some wsModel -> Some (getSavedWaveInfo wsModel)
     | None -> None
@@ -797,7 +797,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         if isAuto then
             failwithf "Auto saving is no longer used"
             None
-        else 
+        else
             saveStateToFile project.ProjectPath project.OpenFileName savedState
             |> displayAlertOnError dispatch
             removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
@@ -811,11 +811,11 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
             let newState =
                 canvasState
-                |> (fun (comps, conns) -> 
+                |> (fun (comps, conns) ->
                         comps
-                        |> List.map (fun comp -> 
+                        |> List.map (fun comp ->
                             match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
-                            | Some newRam -> 
+                            | Some newRam ->
                                 // TODO: create consistent helpers for messages
                                 dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
                                 newRam
@@ -843,7 +843,7 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     let state = Option.map snd opt |> Option.defaultValue ([],[])
     match model.CurrentProj with
     | None -> failwithf "What? Should never be able to save sheet when project=None"
-    | Some p -> 
+    | Some p ->
         // update loaded components for saved file
         updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
         |> (fun lc -> {p with LoadedComponents=lc})
@@ -871,7 +871,7 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
     match getFileInProject name project with
     | None ->
         printf "%s" $"Anomalous project: sheet {name}.dgm not found"
-        SetFilesNotification <| errorFilesNotification 
+        SetFilesNotification <| errorFilesNotification
            $"Warning: Issie could not find the file '{name}.dgm' in the project. Did you delete a file manually?"
         |> dispatch
         dispatch FinishUICmd
@@ -882,7 +882,7 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
             let updatedModel = {newModel with CurrentProj = Some p}
             //printSheetNames updatedModel
             let ldcs =
-                if saveCurrent then 
+                if saveCurrent then
                     let opt = saveOpenFileAction false updatedModel dispatch
                     let ldcOpt = Option.map fst opt
                     let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
@@ -900,19 +900,19 @@ let openFileInProject name project (model:Model) dispatch =
 let removeAllCustomComps (name:string) project =
     let ldcs = project.LoadedComponents
     ldcs
-    |> List.map (fun lc -> 
+    |> List.map (fun lc ->
         let comps,conns = lc.CanvasState
-        let idsToBeDeleted = 
-            comps |> List.filter (fun comp -> 
+        let idsToBeDeleted =
+            comps |> List.filter (fun comp ->
                 match comp.Type with
                 |Custom c when c.Name = name -> true
                 |_ -> false
             )
             |> List.map (fun comp -> comp.Id)
-        let newComps = 
-            comps |> List.filter (fun comp -> 
+        let newComps =
+            comps |> List.filter (fun comp ->
                 match comp.Type with
-                |Custom c when c.Name = name -> 
+                |Custom c when c.Name = name ->
                     printfn "custom %A" c
                     false
                 |_ -> true
@@ -937,16 +937,16 @@ let removeFileInProject name project model dispatch =
     let project' = {project with LoadedComponents = newComponents}
 
     //delete all custom components from that sheet
-    let newComponents' = removeAllCustomComps name project' 
+    let newComponents' = removeAllCustomComps name project'
     let project' = {project' with LoadedComponents = newComponents'}
 
     match newComponents, name = project.OpenFileName with
-    | [],true -> 
+    | [],true ->
         // reate a new empty file with default name main as sole file in project
         let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
         let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"; WorkingFileName=Some "main"}
         openFileInProject' false newComponents[0].Name project' model dispatch
-    | [], false -> 
+    | [], false ->
         failwithf "What? - this cannot happen"
     | nc, true ->
         // open one of the undeleted loadedcomponents
@@ -959,7 +959,7 @@ let removeFileInProject name project model dispatch =
         //printSheetNames {model with CurrentProj = Some project'}
         openFileInProject' false project'.OpenFileName project' model dispatch
     dispatch FinishUICmd
-       
+
 let deleteFileConfirmationPopup (sheetName: string) (model: Model) (dispatch: Msg -> unit) =
     let title = "Delete sheet"
     let project = Option.get model.CurrentProj

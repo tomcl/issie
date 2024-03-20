@@ -1,9 +1,11 @@
 # HLP Team 8
 
 ## Updated Features:
+- Developer Mode tab to get debugging information such as a selected wire/symbol, the heuristics of a sheet (e.g. intersections, bends, etc), and more
 - Right-clicking on the sheet prints the position of the mouse
 - TestDrawBlock (in the Renderer directory) is activated by cmd/ctrl 1-9
-- TestSheetFunctions (in the Renderer directory) let you call functions with the sheet. See the file for more info. To activate, press cmd/ctrl + shift + 1
+- TestSheetFunctions (in the Renderer directory) let you call a beautify function with the sheet. To activate, press cmd/ctrl + shift + 1. Undo is now supported
+- TestSheetFunctions also lets you place a test circuit specified in TestSheetFunctions onto the sheet and calls the beautify function with the sheet. To activate, press cmd/ctrl + shift + 2. Undo is now supported
 
 
 

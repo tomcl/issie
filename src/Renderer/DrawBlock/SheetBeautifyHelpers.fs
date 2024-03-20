@@ -1,4 +1,4 @@
-module BeautifySheetHelpers
+module SheetBeautifyHelpers
 
 open DrawModelType
 open CommonTypes
@@ -13,10 +13,49 @@ open BlockHelpers
 open Symbol
 open BusWireRoute
 open BusWire
+open BusWireUpdateHelpers
+open SheetUpdateHelpers
 
 // --------------------------------------------------- //
 //                      Helpers                        //
 // --------------------------------------------------- //
+
+// Return a list of segment lengths with 3 lengths coalesced into 1, if 0.0 length appear,
+// otherwise return segment lengths unchanged.
+let coalesceWire (wire: Wire) : float list =
+    let rec coalesceSegLengths (segLengths: float list) =
+        match segLengths with
+        | l1 :: 0.0 :: l2 :: rest -> coalesceSegLengths ((l1 + l2) :: rest)
+        | l :: rest -> l :: (coalesceSegLengths rest)
+        | [] -> []
+    wire.Segments
+    |> List.map (fun seg -> seg.Length)
+    |> coalesceSegLengths
+
+// Take a list of wires and group them into their "nets" (i.e same Output Port).
+// Returns a List of nets (where a net = List of wires)
+let groupWiresByNet (wireList: Wire list) : Wire list list =
+    wireList
+    |> List.groupBy (fun w -> w.OutputPort) // Group wires by same Net
+    |> List.map snd // Don't need the key in fst, just the wires grouped in snd
+
+// ---- DEFINITION : Segment Retracement -------------------------------------------------
+// Occurs when 2 consecutive segments in a wire that are:
+// - Non-zero in length
+// - Both parallel
+// - Move in opposite directions (e.g "up and down" or "left and right")
+let checkTwoSegments (s1: Segment) (s2: Segment) : bool =
+    let bothParallel =
+        ((s1.Index % 2 = 0) && (s2.Index % 2 = 0))
+        || ((s1.Index % 2 = 1) && (s2.Index % 2 = 1))
+    let bothOppositeDir =
+        (s1.Length > 0 && s2.Length < 0)
+        || (s1.Length < 0 && s2.Length > 0)
+    bothParallel && bothOppositeDir
+
+// Take a sheet and return all Wires on it in a list
+let getAllWires (model: SheetT.Model) : Wire list =
+    model.Wire.Wires |> Map.toList |> List.map snd
 
 // lens to set the symbolMap in the model
 let symbolMap_: Lens<SheetT.Model, Map<ComponentId, Symbol>> =
@@ -109,14 +148,9 @@ let setCustomComponentSymbolDims (sym: Symbol) (dimensions: XYPos) : Symbol =
 /// <summary> B2W: Modifies to the symbol's position. </summary>
 /// <param name="sym">The symbol to set the position of.</param>
 /// <param name="newPos">The new position of the symbol.</param>
-let setSymbolPos (sym: Symbol) (newPos: XYPos) : Symbol =
-    let comp' = { sym.Component with X = newPos.X; Y = newPos.Y }
-    { sym with
-        Component = comp'
-        Pos = newPos
-        LabelBoundingBox =
-            { sym.LabelBoundingBox with
-                TopLeft = sym.LabelBoundingBox.TopLeft - sym.Pos + newPos } }
+let setSymbolPos (sym: Symbol) (newPos: XYPos) : Symbol = moveSymbol (newPos - sym.Pos) sym
+
+// moveSymbol moves the symbol by an offset. so subtract the original position from the new position to get the offset
 
 /// <summary> B2W: The position of a symbol on the sheet. This modifies the sheet's SymbolMap </summary>
 /// <param name="symID">The ID of the symbol to set the position of.</param>
@@ -129,8 +163,8 @@ let setSymbolPosOnSheet (symID: ComponentId) (pos: XYPos) (model: SheetT.Model) 
         | Some s -> s
         | None -> failwithf "Symbol with id %A not found in model" symID
 
-    let newSym = moveSymbol pos sym // let newSym be the symbol with the new position
-    let newSymbolMap = Map.remove symID symbolMap |> Map.add symID newSym
+    let newSym = setSymbolPos sym pos // let newSym be the symbol with the new position
+    let newSymbolMap = symbolMap |> Map.add symID newSym
     // return the model with the new symbolMap
     model |> Optic.set symbolMap_ newSymbolMap
 
@@ -220,6 +254,13 @@ let getPortPosOnSheet (sym: Symbol) (port: Port) =
     let portPosOnSymbol = getPortPos (sym: Symbol) (port: Port)
     sym.Pos + portPosOnSymbol
 
+/// <summary> B5R: Variant of B5. This takes the  </summary>
+/// <param name="portId">The port to get the position of.</param>
+/// <param name="model">The Wire Model.</param>
+/// <returns>The position of the port on the sheet as XYPos.</returns>
+let getPortPos (portId: string) (model: BusWireT.Model) : XYPos =
+    getPortLocation None model.Symbol portId
+
 // --------------------------------------------------- //
 //                     B6 Function                     //
 // --------------------------------------------------- //
@@ -247,10 +288,20 @@ let getSymbolRotation (sym: Symbol) : Rotation = sym.STransform.Rotation
 /// <param name="sym">The symbol to set the rotation state of.</param>
 /// <param name="newRot">The new rotation state of the symbol.</param>
 /// <returns>The symbol with the new rotation state set.</returns>
+/// lens to get Rotation of a STransform
+let rotation_: Lens<STransform, Rotation> =
+    Lens.create (fun s -> s.Rotation) (fun v s -> { s with Rotation = v })
+/// lens to get STransform of a Symbol
+let sTransform_: Lens<Symbol, STransform> =
+    Lens.create (fun s -> s.STransform) (fun v s -> { s with STransform = v })
+
 let setSymbolRotation (sym: Symbol) (newRot: Rotation) : Symbol =
-    let sTransform = sym.STransform
-    let newSTransform = { sTransform with Rotation = newRot }
-    { sym with STransform = newSTransform }
+    let newSTransform = //{ sTransform with Rotation = newRot }
+        sym.STransform |> Optic.set rotation_ newRot
+    // { sym with STransform = newSTransform }
+    sym
+    |> Optic.set sTransform_ newSTransform
+    |> calcLabelBoundingBox
 
 // --------------------------------------------------- //
 //                     B8 Functions                    //
@@ -261,9 +312,9 @@ let setSymbolRotation (sym: Symbol) (newRot: Rotation) : Symbol =
 /// <returns>The flip state of the symbol as bool.</returns>
 let getSymbolFlip (sym: Symbol) : bool = sym.STransform.flipped
 
-/// <summary> B8W: Write the flip state of a symbol </summary>
+/// <summary> B8W: Alternative to B8W </summary>
+/// <param name="flip">The new flip state of the symbol.</param>
 /// <param name="sym">The symbol to set the flip state of.</param>
-/// <param name="newFlip">The new flip state of the symbol.</param>
 /// <returns>The symbol with the new flip state set.</returns>
 let setSymbolFlip (sym: Symbol) (newFlip: bool) : Symbol =
     let sTransform = sym.STransform
@@ -285,6 +336,47 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
     List.allPairs boxes boxes
     |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
     |> List.length
+    // divide by 2
+    |> (fun x -> x / 2)
+
+// to do: test if using n1<n2 and not having to divide by 2
+
+/// overlap2DBoxvariant from BlockHelpers. Returns a bounding box of an overlap area between two bounding boxes
+let overlapArea2DBox (bb1: BoundingBox) (bb2: BoundingBox) : BoundingBox option =
+    let xOverlap =
+        max
+            0.0
+            (min (bb1.TopLeft.X + bb1.W) (bb2.TopLeft.X + bb2.W)
+             - max bb1.TopLeft.X bb2.TopLeft.X)
+    let yOverlap =
+        max
+            0.0
+            (min (bb1.TopLeft.Y + bb1.H) (bb2.TopLeft.Y + bb2.H)
+             - max bb1.TopLeft.Y bb2.TopLeft.Y)
+
+    if xOverlap > 0.0 && yOverlap > 0.0 then
+        let overlapTopLeft =
+            { X = max bb1.TopLeft.X bb2.TopLeft.X; Y = max bb1.TopLeft.Y bb2.TopLeft.Y }
+        Some { TopLeft = overlapTopLeft; W = xOverlap; H = yOverlap }
+    else
+        None
+
+/// For debugging purposes. Can get called from either developer mode or from testSheetFunctions. Similar to countIntersectingSymbolPairs but prints out the boxes that intersect
+let countIntersectingSymbolPairsWithOverlapArea (model: SheetT.Model) =
+    let boxes =
+        mapValues model.BoundingBoxes
+        |> Array.toList
+        |> List.mapi (fun n box -> n, box)
+
+    let bBoxes =
+        List.allPairs boxes boxes
+        |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 < n2) && BlockHelpers.overlap2DBox box1 box2)
+        |> List.map (fun ((n1, box1), (n2, box2)) -> overlapArea2DBox box1 box2)
+        |> List.choose id
+
+    bBoxes
+    // |> List.map (fun box -> printf "Box: %A" box)
+    |> List.length
 
 // --------------------------------------------------- //
 //                     T2R Functions                   //
@@ -300,6 +392,10 @@ let countIntersectingSymbolPairs (model: SheetT.Model) =
 // This is achieved by utilising existing helper function segmentsToIssieVertices to convert all segments to a list of vertices.
 // It is then very easy to remove duplicate vertices.
 // We can utilise another helper function issieVerticesToSegments to convert vertices back to segments, and create new wires.
+// ########
+// Important Note!!!: this function should only be used for calculations and not modifying the sheet. This is because it causes all wires to lose their nubs
+// (10-length + zero-length) segment pairs, runing a functionality where the wire can no 'grow' additional segments when dragged.
+// see BusWireUpdateHelper for more details. If you must use this, the helper function below  makeAllWiresDraggable to restore the nubs.
 let removeWireInvisibleSegments (wires: Map<ConnectionId, Wire>) =
     wires
     |> Map.map (fun connId wire ->
@@ -314,26 +410,37 @@ let removeWireInvisibleSegments (wires: Map<ConnectionId, Wire>) =
         // for each wire, set the segments to the new segments
         wire |> Optic.set segments_ newSegments)
 
+// note: propose name change to team to have removeWireInvisibleSegments above be renamed with 'wires' instead of 'wire', and
+// rename removeSingleWireInvisibleSegments to just removeWireInvisibleSegments
+let removeSingleWireInvisibleSegments (wire: Wire) =
+    let uniqueVertices =
+        segmentsToIssieVertices wire.Segments wire
+        |> List.distinctBy (fun (x, y, _) -> (x, y))
+    let newSegments = issieVerticesToSegments wire.WId uniqueVertices
+    // for each wire, set the segments to the new segments
+    wire |> Optic.set segments_ newSegments
+
+let makeAllWiresDraggable (wires: Map<ConnectionId, Wire>) =
+    wires
+    |> Map.map (fun connId wire ->
+        wire
+        |> Optic.set segments_ (makeEndsDraggable wire.Segments))
+
 /// <summary>
 /// T2R: The number of distinct wire visible segments that intersect with one or more symbols. See Tick3.HLPTick3.visibleSegments for a helper. Count over all visible wire segments.
+/// Assumes that within one wire at most one segment crosses a symbol boundary. Not always true, but works for a metric
 /// </summary>
 /// <param name="model">The model to count the intersecting wire segments of.</param>
 /// <returns>The number of distinct wire visible segments that intersect with one or more symbols.</returns>
 let countVisibleSegsIntersectingSymbols (model: SheetT.Model) =
-    let wireModel = model.Wire
-    wireModel.Wires
-    |> removeWireInvisibleSegments
-    |> Map.fold
-        // For each wire, define a function that takes an accumulator and a wire
-        (fun acc _ wire ->
-            // Add to the accumulator the count of intersections between the wire and symbols
-            // The count is obtained by calling BusWireRoute.findWireSymbolIntersections, which returns a list of intersections,
-            // and then using List.length to get the count of intersections
-            acc
-            + (BusWireRoute.findWireSymbolIntersections wireModel wire
-               |> List.length))
-        // Initialize the accumulator to 0
-        0
+
+    let wModel = (updateBoundingBoxes model).Wire // just in case
+    wModel.Wires
+    |> Map.values
+    |> Seq.map (fun wire -> (findWireSymbolIntersections wModel wire))
+    |> Seq.sumBy (function
+        | [] -> 0
+        | _ -> 1)
 
 // --------------------------------------------------- //
 //                     T3R Functions                   //
@@ -359,8 +466,8 @@ let perpendicularOverlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) :
 /// <returns>The number of distinct pairs of segments that cross each other at right angles.</returns>
 // Corner cases where this won't work: any L shaped crossing that results in a  + style configuration, even though wires do not actually cross at right angles
 let countVisibleSegsPerpendicularCrossings (model: SheetT.Model) =
-    let wireModel = model.Wire // Get all the wires from the Wire model
-    let wires = Map.toList wireModel.Wires
+    let wireMap = removeWireInvisibleSegments model.Wire.Wires // Get all the wires from the Wire model
+    let wires = Map.toList wireMap
 
     // Get all the absolute segments from each wire
     let segments =
@@ -631,6 +738,59 @@ let getApproxVisibleSegmentsLength (model: SheetT.Model) =
     (getTotalSegmentsLength model)
     - (getSharedNetOverlapOffsetLength model)
 
+//--------------------------------------------------------------------------------------//
+//                                   T4R Alternative                                    //
+//--------------------------------------------------------------------------------------//
+
+// ---- INITIAL FUNCTION : countVisibleSegmentLength -------------------------------------
+// (1) First sort all wires, on the sheet, into their nets giving a "Segment list list list"
+//     where "a net = Segment list list ".
+// (2) List.fold over each net which is fed into a recursive function to find the visible
+//     segment length of the net.
+
+// ---- RECURSIVE FUNCTION : netVisibleSegmentLength -------------------------------------
+// (3) The recursive function starts and checks the length of "index 0 Segment" of each
+//     wire in the net.
+// (4.1) As all the "positive length index 0 Segments" overlap, you take the max (or 0 if
+//       "max < 0") (which is added to running total).
+// (4.2) As all the "negative length index 0 Segments" overlap, you take the min (or 0 if
+//       "min > 0")(which is added to running total).
+// (5) Next you need to form the subNets, which is done by grouping wires by their "index
+//     0 Segment length", ( Because this length tells you where the "wire split-off" or
+//     "corner" will occur for the next index (i.e 1) of that wire. If the 2 wires have
+//     this same length then they will "corner off" at the same point). You then take the
+//     tail of each wire/Segment List (so only index 1..n of the Segment list).
+// (6) Finally you recursively call the function on the subNets which return a float to sum
+//     to the running total.
+// (7) Base case: When subNet only has 1 Wire. Hence just sum the rest of the wire and
+//     return the float.
+
+let rec netVisibleSegmentLength (net: Segment list list) : float =
+    match net.Length with // Number of wires in the net
+    | 1 -> List.sumBy (fun seg -> abs seg.Length) net[0] // If 1 wire left in subnet, sum rest of the segments in the only wire/subnet
+    | n ->
+        let fstSegLengths = List.map (fun (wire: list<Segment>) -> wire[0].Length) net // Grab first/next segment for each wire in Net/subNet
+        let longestPosSeg = fstSegLengths |> List.max |> max 0.0
+        let longestNegSeg = fstSegLengths |> List.min |> min 0.0 |> abs
+        let subNets =
+            net
+            |> List.groupBy (fun wire -> wire[0].Length) // Group wires into subNets
+            |> List.map snd // Don't need the length in fst, just the wires grouped in snd
+            |> List.map (fun wireList -> List.map (fun segList -> List.tail segList) wireList) // Take the tail of each Segment list (1..n)
+        longestPosSeg
+        + longestNegSeg
+        + List.fold (fun totalLength wireList -> totalLength + (netVisibleSegmentLength wireList)) 0.0 subNets
+
+let countVisibleSegmentLength (model: SheetT.Model) : float =
+    // Get all wires on sheet and sort them into their "nets" (same InputPort)
+    // (1) netList = list of nets (2) net = list of wires (3) wire = list of segments
+    let netList =
+        model
+        |> getAllWires
+        |> groupWiresByNet
+        |> List.map (fun lst -> List.map (fun w -> w.Segments) lst)
+    List.fold (fun totalLength wireList -> totalLength + (netVisibleSegmentLength wireList)) 0.0 netList
+
 // --------------------------------------------------- //
 //                     T5R Function                    //
 // --------------------------------------------------- //
@@ -650,6 +810,55 @@ let countVisibleRAngles (model: SheetT.Model) =
             + acc)
         // initialise the accumulator to 0
         0
+
+//--------------------------------------------------------------------------------------//
+//                                   T5R Alternative                                    //
+//--------------------------------------------------------------------------------------//
+
+// ---- INITIAL FUNCTION : countVisibleBends -------------------------------------------
+// (1) First sort all wires, on the sheet, into their nets giving a "float list list list"
+//     where "a net = float list list ". It's a "float list list" due to the "coalesceWire"
+//     helper function which converts and coalesces the segments to their lengths.
+// (2) List.fold over each net which is fed into a recursive function to find the visible
+//     segment length of the net.
+
+// ---- RECURSIVE FUNCTION : netVisibleBends -------------------------------------------
+// (3) The recursive function starts and checks the "index 0 Segment Length" of each wire
+//     in the net.
+// (4) Next you need to form the subNets, which is done by grouping wires by their "index 0
+//     Segment Length", ( Because this length tells you where the "wire split-off" or
+//     "corner" will occur for the next index (i.e 1) of that wire. If the 2 wires have this
+//     same length then they will "corner off" at the same point). You then take the tail of
+//     each wire/Segment List (so only index 1..n of the Segment list).
+// (5) The length of the subNets (how many subNets/splitOffs/corners made is the number of
+//     Bends for that iteration).
+// (6) Finally you recursively call the function on the subNets which return an int to sum
+//     to the running total.
+// (7) Base case: When subNet only has 1 Wire. Hence just "sum the rest of the Segments of
+//     the wire" (List.length) and subtract 1 for the rest of the Bends.
+
+let rec netVisibleBends (net: float list list) : int =
+    match net.Length with
+    | 1 -> (List.length net[0]) - 1
+    | n ->
+        let subNets =
+            net
+            |> List.groupBy (fun segList -> segList[0]) // Group wires into subNets
+            |> List.map snd // Don't need the length in fst, just the wires grouped in snd
+            |> List.map (fun wireList -> List.map (fun segList -> List.tail segList) wireList) // Take the tail of each Segment list (1..n)
+
+        (List.length subNets)
+        + List.fold (fun totalBends wireList -> totalBends + (netVisibleBends wireList)) 0 subNets
+
+let countVisibleBends (model: SheetT.Model) : int =
+    // Get all wires on sheet and sort them into their "nets" (same InputPort)
+    // (1) netList = list of nets (2) net = list of wires (3) wire = list of floats/lengths
+    let netList =
+        model
+        |> getAllWires
+        |> groupWiresByNet
+        |> List.map (fun lst -> List.map (fun w -> coalesceWire w) lst)
+    List.fold (fun totalBends wireList -> totalBends + (netVisibleBends wireList)) 0 netList
 
 // --------------------------------------------------- //
 //                     T6R Functions                   //

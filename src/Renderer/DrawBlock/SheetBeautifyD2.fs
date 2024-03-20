@@ -45,8 +45,8 @@ module Constants =
 
     let GateNPenalty = {
         VerticalFlip = 1.1;
-        HorizontalFlip = 2.0;
-        Rotation90 = 2.0;
+        HorizontalFlip = 2.5;
+        Rotation90 = 3.0;
     }
 
 module mySheetBeautifyHelpers = 

@@ -61,8 +61,6 @@ type symbolScript = {
     Flipped: SymbolT.FlipType option
     ReversedInput: bool
     PortOrder: Map<Edge, string list>
-    // PortEdge: Edge
-    // PortOrder: list<string>
 }
 
 // script to describe a model
@@ -77,6 +75,10 @@ let rec combinations list =
             combinations tail |> List.map (fun perm -> head :: perm))
 
 
+
+/// <summary> generate all possible symbolScripts for a symbol </summary>
+/// <param name="symbol"> The symbol to generate scripts for </param>
+/// <returns> A list of all possible symbolScripts for the symbol </returns>
 let generateSymbolScript (symbol: SymbolT.Symbol) =
     let flips = [Some FlipHorizontal; Some FlipVertical; None]
     let reversedInputs = [true; false]
@@ -239,11 +241,13 @@ let getOptimizedModel (model: SheetT.Model): SheetT.Model =
         else
             list
     
-    let scripts = generateModelScript model
+    let scripts = 
+        model
+        |> generateModelScript
+        |> randomSample
 
     let modelsWithScores = 
         scripts
-        |> randomSample
         |> List.map (applyScriptToModel model)
         |> List.map (fun model -> (model, evaluateModel model))
 
@@ -261,8 +265,8 @@ let getOptimizedModel (model: SheetT.Model): SheetT.Model =
 
     bestModel
 
-
-// test function
+//------------------------------------test function---------------------------------------//
+// inrevelent to the main code, used for testing
 
 let printSymbolScript (script: symbolScript) =
     let flippedMessage = match script.Flipped with

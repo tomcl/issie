@@ -31,7 +31,23 @@ open Operators
 
 /// constants used by SheetBeautify
 module Constants =
-    () // dummy to make skeleton type check - remove when other content exists
+    type PermutePenalty = {
+        VerticalFlip : float;
+        HorizontalFlip: float;
+        Rotation90: float;
+    }
+
+    let MuxPenalty = {
+        VerticalFlip = 1.1;
+        HorizontalFlip = 2.5;
+        Rotation90 = 3.0;
+    }
+
+    let GateNPenalty = {
+        VerticalFlip = 1.1;
+        HorizontalFlip = 2.0;
+        Rotation90 = 2.0;
+    }
 
 module mySheetBeautifyHelpers = 
     /// <summary>
@@ -182,6 +198,7 @@ module mySheetBeautifyHelpers =
 
 
 open mySheetBeautifyHelpers
+open Constants
 
 module D2Helpers = 
 
@@ -203,9 +220,7 @@ module D2Helpers =
         [scale, symbol; (scale * scalingFactor), rotateSymbolInBlock Degree90 centre symbol]
 
     let flipPermute flip (scalingFactor : float) (scale,sym : SymbolT.Symbol)  =
-        let pos = {X = sym.Pos.X + sym.Component.W / 2.0 ; Y = sym.Pos.Y + sym.Component.H / 2.0 }
         let centre = getBlock [sym] |> (fun block -> block.Centre())
-        printf "%A" centre;
         [(scale, sym) ; ((scale * scalingFactor),flipSymbolInBlock flip centre sym)]
 
     let rec permute lst  =
@@ -216,51 +231,22 @@ module D2Helpers =
             |> List.map (fun permL -> xn :: permL))
         |> List.concat
 
-    // stolen from findWireSymbolIntersections in BusWireRoute
-    // let componentIsMux (comp:Component) =
-    //     match comp.Type with
-    //     | Mux2 | Mux4 | Mux8 -> true
-    //     | _ -> false
-
-    let permuteMux ( symbolL : (float * SymbolT.Symbol) list ) = 
+    let permuteMux ( penalty : PermutePenalty ) ( symbolL : (float * SymbolT.Symbol) list ) = 
         symbolL
-        |> List.collect (flipPermute FlipVertical 1.1)
-        |> List.collect (flipPermute FlipHorizontal 2.5)
-        |> List.collect (rotationPermute 3.0)
-
-    // /// combine a list of symbol permutations into a list of all possible symbol permutations with each other
-    // let combinePermutations ( allPerms ) = 
-    //     ([], allPerms)
-    //     ||> Map.fold (fun (combinedPerms) cid perms -> 
-    //         match combinedPerms with
-    //         | [] -> perms |> List.map (fun sym -> Map.empty |> Map.add cid sym)
-    //         | c -> 
-    //             List.allPairs c perms
-    //             |> List.map (fun (oldmap, newsym) -> Map.add cid newsym oldmap))
-
-    // let updateSymbolsInSheet sheet newSyms = 
-    //     let oldSymbols = Optic.get symbols_ sheet
-
-    //     let newSymbols = Map.fold (fun old cid sym -> Map.add cid sym old) oldSymbols newSyms
-
-    //     sheet
-    //     |> Optic.set symbols_ newSymbols 
-    //     |> Optic.map SheetT.wire_ (BusWireSeparate.reRouteWiresFrom (newSymbols.Keys |> Seq.toList))
+        |> List.collect (flipPermute FlipVertical penalty.VerticalFlip)
+        |> List.collect (flipPermute FlipHorizontal penalty.HorizontalFlip)
+        |> List.collect (rotationPermute penalty.Rotation90)
 
     let updateSymbolInSheet sheet (cid,newSym) = 
         sheet
         |> Optic.map (symbols_) (Map.add cid newSym)
         |> Optic.map SheetT.wire_ (BusWireSeparate.reRouteWiresFrom [cid])
 
-    // let evaluateFlip ( sheet : SheetT.Model ) ( newSyms : Map<ComponentId,Symbol> ) = 
-    //     updateSymbolsInSheet sheet newSyms
-    //     |> countVisibleSegmentIntersection
-
     /// Given a Symbol and Sheet Exhaustively search through all permutations of the symbol to find the configuration which minimises the wire crossing heuristic
-    let optimisePermuteSymbol ( sheet: SheetT.Model ) cid symL  =
+    let optimisePermuteSymbol ( sheet: SheetT.Model ) cid symL penalties  =
         let prevCrossings = countVisibleSegmentIntersection sheet
         symL
-        |> permuteMux
+        |> permuteMux penalties
         |> List.map (fun (scale,newSym) -> 
             let newSheet = updateSymbolInSheet sheet (cid,newSym)
 
@@ -297,42 +283,13 @@ module D2Helpers =
     /// Given a Symbol and a Sheet return a Sheet where the symbol has been modified to reduce the number of wire crossings
     let reduceWireCrossings ( sheet: SheetT.Model ) ((cid,sym : SymbolT.Symbol)) = 
         match sym.Component.Type with
-        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> optimisePermuteSymbol sheet cid [1.0, sym; 1.0, changeReversedInputs sym]
-        | GateN _ -> optimisePermuteSymbol sheet cid [1.0, sym]
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> optimisePermuteSymbol sheet cid [1.0, sym; 1.0, changeReversedInputs sym] MuxPenalty
+        | GateN _ -> optimisePermuteSymbol sheet cid [1.0, sym] GateNPenalty
         | _ -> sheet
 
 open D2Helpers
 
 let sheetOrderFlip ( sheet : SheetT.Model ) = 
-    // Basic Mux Implementation:
-    // Obtain all of the muxes in the sheet
-    // for each one obtain all permutations of the mux 
-    // combine all permutations to obtain all possible permutation of all muxes
-    // minimise over the number of wire crossings
-    
-    // sheet.Wire.Symbol.Symbols
-    // |> Map.filter (fun _cid sym -> componentIsMux <| Optic.get component_ sym)
-    // |> Map.map (fun cid sym -> 
-    //     let perms = permutateMux sym
-        
-    //     let print = 
-    //         perms |> List.map (fun sym ->
-    //         printfn "pos %A rev %A flip %A rot %A" 
-    //             (Optic.get posOfSym_ sym)
-    //             (Optic.get reversedInputPorts_ sym)
-    //             (Optic.get symbol_flipped_ sym)
-    //             (Optic.get symbol_rotation_ sym));
-        
-    //     perms)
-    // |> combinePermutations
-    // |> List.mapi (fun i newSyms -> 
-    //     let newSheet = updateSymbolsInSheet sheet newSyms
-    //     let numCrossing = countVisibleSegmentIntersection newSheet
-    //     printfn "%d crossings num: %d"  i numCrossing;
-    //     (numCrossing,newSheet))
-    // |> List.minBy (fun (num, sheet) -> num)
-    // |> snd
-    // |> updateSymbolsInSheet sheet
 
     let initWireCrossings = countVisibleSegmentIntersection sheet
 

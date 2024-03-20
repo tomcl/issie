@@ -26,13 +26,13 @@ let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
                                                             | _ -> false)
 
     // Evaluate change in wire crossings after adjustments
-    let evaluateChange (model: SheetT.Model) (newModel: SheetT.Model) (compcompId: ComponentId): bool * SheetT.Model =
-        let beforeCount = numOfWireRightAngleCrossings model
+    let evaluateChange (crossings: int) (newModel: SheetT.Model) (compcompId: ComponentId): bool * SheetT.Model * int =
         let newWireModel = updateWires newModel.Wire [compcompId] {X= 0.0; Y= 0.0}
         let model' = {newModel with Wire = newWireModel}
-        let afterCount = numOfWireRightAngleCrossings model'
-        printfn $"after crossings: {afterCount}, before: {beforeCount}"
-        (afterCount < beforeCount), model'
+        let updatedCrossings = numOfWireRightAngleCrossings model'
+        //printfn $"after crossings: {updatedCrossings}, before: {crossings}"
+        (updatedCrossings < crossings), model', updatedCrossings
+
 
     // Recursion function to keep trying swapping port pairs until no improvement in wire crossing, then returns model.
     // For ports on a single edge 
@@ -61,27 +61,27 @@ let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
             else []
 
         // create model with new port layout and evaluate
-        let checkSwapFolder (model: SheetT.Model) (order: string list) =
+        let checkSwapFolder ((model,crossings): SheetT.Model * int) (order: string list) =
             let newModel =
                 model
                 |> Optic.set symbols_ (Map.add compId (putPortOrder  edge order model.Wire.Symbol.Symbols[compId]) model.Wire.Symbol.Symbols)
-            let improvement,model' = evaluateChange model newModel compId
+            let improvement,model',updatedCrossings = evaluateChange crossings newModel compId
 
             if improvement then
                 printfn "Swapped a custom component port order"
-                model'
+                model',updatedCrossings
             else
-                model
+                model,crossings
 
         // create a model with swapped MUX sel port and evaluate
-        let checkMuxSelSwap model symbol edge =
+        let checkMuxSelSwap  symbol edge (model,crossings) =
             if (isMuxSel symbol edge) then
                 let flipDirection =
                     match edge with
                     | (Left | Right) -> FlipHorizontal
                     | (Top | Bottom) -> FlipVertical
                 let newModel = flipSymbol symbol.Component.Label flipDirection model
-                let improvement,model' = evaluateChange model newModel compId
+                let improvement,model',updatedCrossings = evaluateChange crossings newModel compId
                 if improvement then
                     printfn "Flipped MUX Sel port edge"
                     model'
@@ -94,29 +94,29 @@ let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
             symbol.PortMaps.Order[edge]
             |> generateSwaps
 
-        let bestPortSwap =
-            (model, swappedPortsList)
-            ||> List.fold checkSwapFolder            
-        
-        let bestModel = checkMuxSelSwap bestPortSwap symbol edge
+        let initialCrossings = numOfWireRightAngleCrossings model
+        let bestModel =
+            ((model,initialCrossings), swappedPortsList)
+            ||> List.fold checkSwapFolder
+            |> checkMuxSelSwap symbol edge
         (bestModel,compId,symbol)
 
     // Flip symbol horizontally, vertically, or both based on improvement
-    let flipSymbol (model: SheetT.Model) ((compId,symbol): ComponentId * Symbol) =
+    let flipSymbol ((model,crossings): SheetT.Model * int) ((compId,symbol): ComponentId * Symbol) =
         let newModelH = flipSymbol symbol.Component.Label FlipHorizontal model
         let newModelV = flipSymbol symbol.Component.Label FlipVertical model
         let newModelVH = flipSymbol symbol.Component.Label FlipVertical (flipSymbol symbol.Component.Label FlipHorizontal model)
-        let improvementH,modelH = evaluateChange model newModelH compId
-        let improvementV,modelV = evaluateChange model newModelV compId
-        let improvementVH,modelVH = evaluateChange model newModelVH compId
+        let improvementH,modelH,crossingsH = evaluateChange crossings newModelH compId
+        let improvementV,modelV,crossingsV = evaluateChange crossings newModelV compId
+        let improvementVH,modelVH,crossingsVH = evaluateChange crossings newModelVH compId
         if (improvementH || improvementV || improvementVH) then
             printfn "flipped normal component"
 
         match improvementH, improvementV, improvementVH with
-        | true, _, _ -> modelH
-        | false,true,_ -> modelV
-        | false,false,true -> modelVH
-        | _ -> model
+        | true, _, _ -> modelH, crossingsH
+        | false,true,_ -> modelV, crossingsV
+        | false,false,true -> modelVH, crossingsVH
+        | _ -> model, crossings
 
 
     // Swap ports on all edges of a symbol
@@ -137,13 +137,17 @@ let rec optimizePortOrder (model: SheetT.Model) : SheetT.Model =
 
     let customAndMuxComponents = partitionComponents symbols
     let portSwapOptimized =
-        (model,customAndMuxComponents)
+        (model, customAndMuxComponents)
         ||> List.fold swapSymbolEdgePorts
-    let flipOptimized =
-        (portSwapOptimized,symbols)
+    let updatedCrossings = numOfWireRightAngleCrossings portSwapOptimized
+    let flipOptimized,finalCrossings =
+        ((portSwapOptimized,updatedCrossings),symbols)
         ||> List.fold flipSymbol
     let model' = flipOptimized
-    let improvement = (numOfWireRightAngleCrossings model' < initialCrossings)
+
+    printfn $"after crossings: {finalCrossings}, before: {initialCrossings}"
+
+    let improvement = (finalCrossings < initialCrossings)
     if improvement then
         optimizePortOrder model'
     else

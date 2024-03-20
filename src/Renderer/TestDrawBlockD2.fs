@@ -630,7 +630,7 @@ module D2Test =
         let testRandomComp testNum firstSample dispatch model =
             let sheetMaker = makeRandomCircuit model
             let displayOnFail = displayAll
-            let generator = chunkShuffledGen (randomComponentSamples) 1 12
+            let generator = chunkShuffledGen (randomComponentSamples) 1 25
             // this assertion fails on all tests without symbol intersection!
             let assertion (sample: int) (sheetModel: SheetT.Model) = 
                 sheetModel
@@ -677,9 +677,12 @@ module D2Test =
 
         /// This test is to apply beautification and calculate metric
         let applyBeautify testNum firstSample dispatch model =
+            let beforeCount = numOfWireRightAngleCrossings model.Sheet
             let sheetAfter = optimizePortOrder model.Sheet
+            let afterCount = numOfWireRightAngleCrossings sheetAfter
             
             metricDisplay displayMetrics sheetAfter model.Sheet
+            printfn $"after crossings: {afterCount}, before: {beforeCount}"
             showSheetInIssieSchematic sheetAfter dispatch
 
         /// This test is to display info on the current model as it is in Issie

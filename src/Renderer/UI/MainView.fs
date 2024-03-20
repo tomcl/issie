@@ -15,7 +15,7 @@ open Sheet.SheetInterface
 open DrawModelType
 open CommonTypes
 open PopupHelpers
-
+open JSHelpers
 open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
@@ -115,7 +115,15 @@ let init () =
       ConnsOfSelectedWavesAreHighlighted = false
       Pending = []
       UIState = None
-      BuildVisible = false }
+      BuildVisible = false
+      BeautifyLevel = Level1
+      BeautifyMenuExpanded = true
+      SymbolInfoTableExpanded = true
+      SymbolPortMapsTableExpanded = true
+      WireTableExpanded = true
+      WireSegmentsTableExpanded = true
+      SymbolPortsTableExpanded = true
+      SheetStatsExpanded = true }
 
 let makeSelectionChangeMsg (model: Model) (dispatch: Msg -> Unit) (ev: 'a) = dispatch SelectionHasChanged
 
@@ -157,7 +165,15 @@ let private viewRightTab canvasState model dispatch =
             [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
             [ Heading.h4 [] [ str "Component properties" ]
               SelectedComponentView.viewSelectedComponent model dispatch ]
-
+    | DeveloperMode ->
+        if debugLevel > 0 then
+            div
+                [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
+                [ Heading.h4 [] [ str "Developer Mode" ]
+                  div [ Style [ MarginBottom "15px" ] ] []
+                  DeveloperModeView.developerModeView model dispatch ]
+        else
+            div [] []
     | Simulation ->
         let subtabs =
             Tabs.tabs
@@ -286,6 +302,9 @@ let viewRightTabs canvasState model dispatch =
                 Tabs.tab // simulation tab to view all simulators
                     [ Tabs.Tab.IsActive(model.RightPaneTabVisible = Simulation) ]
                     [ a [ OnClick(fun _ -> dispatch <| ChangeRightTab Simulation) ] [ str "Simulations" ] ]
+                Tabs.tab
+                    [ Tabs.Tab.IsActive(model.RightPaneTabVisible = DeveloperMode) ]
+                    [ a [ OnClick(fun _ -> dispatch <| ChangeRightTab DeveloperMode) ] [ str "Dev Mode" ] ]
                 buildTab ]
           div
               [ HTMLAttr.Id "TabBody"

@@ -57,7 +57,7 @@ let adjustPosForRotation
     let posOffset =
         match rotation with
         | Degree90 | Degree270 -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-        | _ ->  failwithf "Can't encounter Degree0 or Degree180 here in SymbolResizeHelpers/adjustPosForRotation function"
+        | _ -> {X = 0.; Y = 0.}
     pos - posOffset
 
 
@@ -81,9 +81,9 @@ let rotateSymbol (rotation: Rotation) (sym: Symbol) : Symbol =
 
         let newSTransform = 
             match sym.STransform.flipped with
-            | true -> 
+            | true when rotation = Degree90 || rotation = Degree270 -> // Only do this when rotating 90 or 270 degrees when the symbol is flipped
                 {sym.STransform with Rotation = combineRotation (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
-            | false -> 
+            | _ -> 
                 {sym.STransform with Rotation = combineRotation rotation sym.STransform.Rotation}
         { sym with 
             Pos = newPos;
@@ -106,7 +106,7 @@ let rec rotateAntiClockByAng (rotAngle: Rotation) (sym: Symbol) : Symbol =
             rotateAntiClockByAng (Degree180) newSym
         | Degree0 -> failwithf "Can't encounter Degree0 here"
 
-/// Flips a side horizontally
+/// Flips a horizontal side horizontally
 let flipSideHorizontal (edge: Edge) : Edge =
     match edge with
     | Left | Right ->
@@ -116,6 +116,7 @@ let flipSideHorizontal (edge: Edge) : Edge =
 
 /// Takes in a symbol and returns the same symbol flipped
 let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
+
     let portOrientation = 
         sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
 
@@ -123,12 +124,13 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
         currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
 
     let portOrder = 
-        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
-        |> Map.map (fun edge order -> List.rev order)       
+        (Map.empty, [Top; Left; Bottom; Right]) 
+        ||> List.fold flipPortList // Flip all horizontal sides horizontally
+        |> Map.map (fun edge order -> List.rev order) // Reverse all the ports
 
     let newSTransform = 
-        {flipped= not sym.STransform.flipped;
-        Rotation= sym.STransform.Rotation} 
+        {flipped = not sym.STransform.flipped;
+        Rotation = sym.STransform.Rotation} 
 
     { sym with
         PortMaps = {Order=portOrder;Orientation=portOrientation}

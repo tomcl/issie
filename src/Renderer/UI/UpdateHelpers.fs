@@ -193,6 +193,14 @@ let shortDisplayMsg (msg: Msg) =
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
     | UpdateDrawBlockTestState _ -> None
+    | SelectBeautifyLevel _ -> None
+    | ToggleBeautifyMenu -> None
+    | ToggleSymbolInfoTable -> None
+    | ToggleSymbolPortsTable -> None
+    | ToggleSymbolPortMapsTable -> None
+    | ToggleWireTable -> None
+    | ToggleWireSegmentsTable -> None
+    | ToggleSheetStats -> None
 
 /// If debugTrace is on print out human readable info on message.
 /// Be careful not to do this on mouse moves (there are too many).

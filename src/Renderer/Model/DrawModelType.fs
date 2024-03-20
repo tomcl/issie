@@ -83,7 +83,7 @@ module SymbolT =
             /// Maps edge to list of ports on that edge, in correct order
             Order: Map<Edge, string list>
             /// Maps the port ids to which side of the component the port is on
-            Orientation: Map<string, Edge>
+            Orientation: Map<string, Edge>   
         }
 
     let order_ = Lens.create (fun a -> a.Order) (fun s a -> {a with Order = s})

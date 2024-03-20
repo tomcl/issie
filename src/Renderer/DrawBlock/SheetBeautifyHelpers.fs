@@ -533,29 +533,70 @@ let findRetracingSegments (model : SheetT.Model) =
     {| RetraceSegs =retracingSegs;
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
 
+type AlreadyLabelled = 
+    | ExistingLabel of label: string 
+    | NewLabel of label: string 
+
 let replaceWireWithLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
-    let wireLabel = SymbolUpdate.generateWireLabel sheet.Wire.Symbol "I"
+    let portIdStr = getOutputPortIdStr wire.OutputPort
 
-    let modelWithFirstLabel, outputLabelComponentId = SymbolUpdate.addSymbol [] sheet.Wire.Symbol (wire.StartPos |> fun origPos -> {origPos with X=(origPos.X + 50.0)}) IOLabel wireLabel
-    let newSymbolModel, inputLabelComponentId = SymbolUpdate.addSymbol [] modelWithFirstLabel (getInputPortLocation None sheet.Wire.Symbol wire.InputPort |> fun origPos -> {origPos with X=(origPos.X - 50.0)}) IOLabel wireLabel
+    // first we try to see if this net has already got a WireLabel on it somewhere
+    let wireLabel = 
+        Map.tryFind portIdStr sheet.Wire.Symbol.Ports
+        |> Option.bind (fun port -> port.WireLabel)
+        |> function
+        | Some label -> ExistingLabel label
+        | _ -> NewLabel <| SymbolUpdate.generateWireLabel sheet.Wire.Symbol "I"
 
-    let newModel = Optic.set (SheetT.wire_ >-> BusWireT.symbol_) newSymbolModel sheet // need updated model to update wire
+    printfn "made label"
 
-    let labelInputPort =
-        SymbolUpdate.extractComponent newSymbolModel outputLabelComponentId
-        |> fun comp -> InputPortId comp.InputPorts.Head.Id
+    let modelWithNewLabels, outputLabelComponentIdOpt, inputLabelComponentId =
+        wireLabel
+        |> function
+            | NewLabel label ->
+                SymbolUpdate.addSymbol [] sheet.Wire.Symbol (wire.StartPos |> fun origPos -> {origPos with X=(origPos.X + 50.0)}) IOLabel label
+                |> fun (modelWithFirstLabel, outputLabelId) -> 
+                    SymbolUpdate.addSymbol [] modelWithFirstLabel (getInputPortLocation None sheet.Wire.Symbol wire.InputPort |> fun origPos -> {origPos with X=(origPos.X - 50.0)}) IOLabel label
+                    |> fun (modelWithSecondLabel, inputLabelId) -> modelWithSecondLabel, Some outputLabelId, inputLabelId
+            | ExistingLabel label -> 
+                SymbolUpdate.addSymbol [] sheet.Wire.Symbol (wire.StartPos |> fun origPos -> {origPos with X=(origPos.X + 50.0)}) IOLabel label
+                |> fun (modelWithFirstLabel, outputLabelId) -> modelWithFirstLabel, None, outputLabelId
+                
+        |> fun (model, outputLabelIdOpt, inputLabelId) ->
+            Optic.set (SheetT.wire_ >-> BusWireT.symbol_) model sheet // need updated model to update wire
+            |> Optic.map (SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.ports_) 
+                (Map.change portIdStr (fun portOpt -> 
+                    Option.map (fun port -> {port with WireLabel = match wireLabel with | ExistingLabel wl | NewLabel wl -> Some wl}) portOpt))
+            |> fun model -> model, outputLabelIdOpt, inputLabelId
+
+    printfn "made model with new symbols"
+
+    let labelInputPortOpt =
+        outputLabelComponentIdOpt
+        |> Option.map (SymbolUpdate.extractComponent modelWithNewLabels.Wire.Symbol) 
+        |> Option.map (fun comp -> InputPortId comp.InputPorts.Head.Id)
 
     let labelOutputPort =
-        SymbolUpdate.extractComponent newSymbolModel inputLabelComponentId
+        SymbolUpdate.extractComponent modelWithNewLabels.Wire.Symbol inputLabelComponentId
         |> fun comp -> OutputPortId comp.OutputPorts.Head.Id
-    
-    let toOutputLabelWire = BusWireUpdate.makeNewWire labelInputPort wire.OutputPort newModel.Wire
-    let toInputLabelWire = BusWireUpdate.makeNewWire wire.InputPort labelOutputPort newModel.Wire
 
-    newModel
+
+    let toOutputLabelWireOpt = 
+        labelInputPortOpt
+        |> Option.map (fun labelInputPort -> BusWireUpdate.makeNewWire labelInputPort wire.OutputPort modelWithNewLabels.Wire)
+
+    let toInputLabelWire = BusWireUpdate.makeNewWire wire.InputPort labelOutputPort modelWithNewLabels.Wire
+
+    let ouputLabelWireAdder =
+        toOutputLabelWireOpt
+        |> function
+        | Some wire -> Map.add wire.WId wire
+        | None -> id
+
+    modelWithNewLabels
     |> Optic.map (SheetT.wire_ >-> BusWireT.wires_) (
         Map.remove wire.WId >> 
-        Map.add toOutputLabelWire.WId toOutputLabelWire >> 
+        ouputLabelWireAdder >> 
         Map.add toInputLabelWire.WId toInputLabelWire) // delete selected wire
 
 

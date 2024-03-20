@@ -111,6 +111,7 @@ let createNewPort no hostID portType =
                 PortNumber = Some no
                 PortType = portType
                 HostId = hostID
+                WireLabel = None
             } 
 
 let updateSymPortMaps newPortMaps newInputPorts newOutputPorts sym =

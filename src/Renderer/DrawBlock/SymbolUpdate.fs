@@ -110,7 +110,7 @@ let generateWireLabel (model: Model) (prefix: string) =
     let listSymbols = List.map snd (Map.toList model.Symbols)
     
     let generateLabelNumberFromPrefix (listSymbols: Symbol list) (prefix: string) =
-        let rx = Regex(prefix, RegexOptions.Compiled)
+        let rx = Regex(prefix, RegexOptions.Compiled) // todo, check case insensitve
 
         listSymbols
         |> List.map (fun sym -> sym.Component.Label)

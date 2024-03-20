@@ -112,6 +112,8 @@ module CommonTypes
         PortNumber : int option
         PortType : PortType 
         HostId : string
+        // the name of the Wire label that could attached to the port (output port only)
+        WireLabel: string option
     }
 
     

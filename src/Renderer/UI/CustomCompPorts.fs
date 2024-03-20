@@ -379,6 +379,7 @@ let changeInstance (comp:Component) (change: PortChange) =
                     PortNumber = Some ports.Length // next available number
                     HostId = comp.Id
                     PortType = match dir with | InputIO -> PortType.Input | OutputIO -> PortType.Output
+                    WireLabel = None
                 }
             let ports = ports @ [newPort]
             labels,ports

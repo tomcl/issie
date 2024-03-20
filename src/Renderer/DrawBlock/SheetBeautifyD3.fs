@@ -161,7 +161,7 @@ let getPosRotNextToPort (port: Port) (model: SymbolT.Model) (dist: float) =
         | false -> Some (pos, rot)
 
 
-/// Add a IOLabel (wire label) component to the sheet, return the updated model, the added symbol, and its label name
+/// Add an IOLabel (wire label) component to the sheet, return the updated model, the added symbol, and its label name
 let addIOLabelComp (pos:XYPos) (rot:Rotation) (labelName:string) (model:SheetT.Model) = 
     // let labelName = generateWireLabel model label
     let newSymbolModel, compId = addSymbol [] model.Wire.Symbol pos IOLabel labelName

@@ -305,7 +305,7 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
     let adjustSymbolPosition (symbol: Symbol) (shift: XYPos) : Symbol =
         // let newPos = { X = symbol.Pos.X + shift.X; Y = symbol.Pos.Y + shift.Y }
         moveSymbol shift symbol
-
+        
     // Convert ComponentId to string for matching
     let componentIdToString (ComponentId s) = s
 
@@ -325,10 +325,6 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
 
 
     { model with Wire = newModel }
-    |> updateBoundingBoxes
-
-
-
     
 ///----------------------------------------processing-more-than-one-connections----------------------------------------///
 /// ---------------------------------------------------------------------------------------------------------------///

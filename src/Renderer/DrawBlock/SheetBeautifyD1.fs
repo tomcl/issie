@@ -313,6 +313,7 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
 
 
     { model with Wire = newModel }
+    |> updateBoundingBoxes
 
 
 

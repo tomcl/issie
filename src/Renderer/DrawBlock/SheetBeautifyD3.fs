@@ -257,12 +257,12 @@ let updateWiring (sym:Symbol) (model:SheetT.Model) =
 /// Create and place IOLabel components for a given port, return the updated model and the added wire label's name
 let addIOLabelAtPortAndPlaceWire (portIdStr:string) (portPos:XYPos) (isStart:bool) (label:string) (model:SheetT.Model) =
     let ioLabelPos, ioLabelRot = 
-        let posRotOption = getPosRotNextToPort model.Wire.Symbol.Ports[portIdStr] model.Wire.Symbol (3.*Constants.minCompDistance)
+        let posRotOption = getPosRotNextToPort model.Wire.Symbol.Ports[portIdStr] model.Wire.Symbol (5.*Constants.minCompDistance)
         match posRotOption with
         | Some (pos,rot) -> pos,rot
         | None -> 
             printf "no good end pos, using default pos" // debug
-            if isStart then {X=portPos.X+3.*Constants.minCompDistance; Y=portPos.Y},Degree180
+            if isStart then {X=portPos.X+5.*Constants.minCompDistance; Y=portPos.Y},Degree180
             else {X=portPos.X-Constants.minCompDistance-Constants.widthIOLabel; Y=portPos.Y},Degree180
 
     let modelPlacedSym,ioLabelSym,ioLabelName =  addIOLabelComp ioLabelPos ioLabelRot label model

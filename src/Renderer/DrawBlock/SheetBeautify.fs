@@ -25,7 +25,7 @@ open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
-// open SheetBeautifyD1
+open SheetBeautifyD1
 open SheetBeautifyD2
 open SheetBeautifyD3
 open Optics
@@ -38,5 +38,6 @@ let sheetBeautify (model: SheetT.Model) =
     model
     |> getOptimizedModel    // D2
     |> sheetWireLabelSymbol     // D3
+    |> alignSinglyConnectedComponents   // D1
 
     

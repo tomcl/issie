@@ -57,11 +57,13 @@ module Constants =
     See https://github.com/dyu18/hlp24-project-issie-team7/tree/indiv-az1821/README-Indiv-notes.md for more documentation. 
 *)
 
-/// dummy function to be tested (to avoid error for now)
-let alignSinglyConnectedComponents (model : SheetT.Model) = 
-    (model)
-let sheetWireLabelSymbol (model : SheetT.Model) = 
-    Ok (model) // returns the same model, no change in labels
+// /// dummy function to be tested (to avoid error for now)
+// let alignSinglyConnectedComponents (model : SheetT.Model) = 
+//     (model)
+let applySheetWireLabelSymbol (model : SheetT.Model) = 
+    model
+    |> sheetWireLabelSymbol
+    |> Ok
 
 module T123 =
     open TestDrawBlock.TestLib
@@ -327,7 +329,7 @@ module T123 =
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-        |> Result.bind sheetWireLabelSymbol
+        |> Result.bind applySheetWireLabelSymbol
         |> getOkOrFail
 
     let makeTestCircuit_1 (andPos:XYPos) =
@@ -336,7 +338,7 @@ module T123 =
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-        |> Result.bind sheetWireLabelSymbol
+        |> Result.bind applySheetWireLabelSymbol
         |> getOkOrFail
 
     let makeTestCircuit_2 (andPos:XYPos) =
@@ -349,7 +351,7 @@ module T123 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "I1" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
-        |> Result.bind sheetWireLabelSymbol
+        |> Result.bind applySheetWireLabelSymbol
         |> getOkOrFail
 
     let makeTestCircuit_3 (andPos:XYPos) =
@@ -361,7 +363,7 @@ module T123 =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF2" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF3" 0))
-        |> Result.bind sheetWireLabelSymbol
+        |> Result.bind applySheetWireLabelSymbol
         |> getOkOrFail
 
     let makeTestCircuit_alt (andPos:XYPos) =
@@ -373,7 +375,7 @@ module T123 =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF2" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF3" 0))
-        |> Result.bind sheetWireLabelSymbol
+        |> Result.bind applySheetWireLabelSymbol
         |> getOkOrFail
 
     // ------------------------------------ Assertions -----------------------------------------

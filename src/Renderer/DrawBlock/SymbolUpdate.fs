@@ -39,7 +39,7 @@ let rec extractIOPrefix (str : string) (charLst: char list) =
 let generateIOLabel (model: Model) (compType: ComponentType) (name:string) : string =
     let listSymbols = List.map snd (Map.toList model.Symbols)
     let newCompBaseName, newCompNo = extractIOPrefix name []
-    //printfn "s %s , n%i" newCompBaseName newCompNo
+    printfn "s %s , n%i" newCompBaseName newCompNo
     let existingNumbers =
         listSymbols
         |> List.collect (fun sym ->
@@ -106,8 +106,36 @@ let generateCopiedLabel (model: Model) (oldSymbol:Symbol) (compType: ComponentTy
     |Input _ | Input1 (_,_) |Output _ |Viewer _ -> generateIOLabel model compType oldSymbol.Component.Label
     | _ -> prefix + (generateLabelNumber listSymbols compType)
 
+let generateWireLabel (model: Model) (prefix: string) =
+    let listSymbols = List.map snd (Map.toList model.Symbols)
+    
+    let generateLabelNumberFromPrefix (listSymbols: Symbol list) (prefix: string) =
+        let rx = Regex(prefix, RegexOptions.Compiled)
 
-/// Initialises and returns the PortMaps of a pasted symbol
+        listSymbols
+        |> List.map (fun sym -> sym.Component.Label)
+        |> List.filter rx.IsMatch
+        |> List.map getLabelNumber
+        |> List.sort
+        |> fun sortedList ->
+            sortedList
+            |> (@) [-1] // expand to search to find values between 0 and first number, if they exist
+            |> List.pairwise
+            |> List.map (
+                fun (a, b) -> 
+                    if a + 1 <> b then Some (a + 1)
+                    else None)
+            |> List.choose id
+            |> fun lst ->
+                if lst.Length > 0 then lst.Head
+                else if sortedList.Length > 0 then (List.rev sortedList |> List.head)
+                    else 0
+        |> (string)
+    
+    prefix + generateLabelNumberFromPrefix listSymbols prefix
+
+
+/// Initialises and returns the PortMaps of a pasted symbolcon
 let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
     let inPortIds = List.map (fun (p:Port) -> p.Id)  newComp.InputPorts
     let outPortIds = List.map (fun (p:Port) -> p.Id) newComp.OutputPorts

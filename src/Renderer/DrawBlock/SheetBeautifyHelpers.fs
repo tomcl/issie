@@ -9,8 +9,25 @@ open Symbol
 open BusWireRoute
 open Helpers
 open BlockHelpers
-
 open Optics.Operators // for >-> operator
+
+// These three functions make it easier to print without interrupting a pipeline (easy to comment in and out)
+
+/// <summary> Print the argument as "${param}"</summary>
+/// <param name="print">The value to print and pass</param>
+/// <returns>The unchanged argument</returns>
+let printInline print = printf $"{print}"; print
+
+/// <summary> Print each element of the list as "${param}"</summary>
+/// <param name="print">The list of values to print and pass</param>
+/// <returns>The unchanged list</returns>
+let printListInline print = List.map (fun elem -> printf $"{elem}") print |> ignore; print
+
+/// <summary> Print an argument as "${param}"</summary>
+/// <param name="print">The value to print</param>
+/// <param name="pass">The value to return</param>
+/// <returns>The unchanged argument</returns>
+let printAndPass print pass = printf $"{print}"; pass
 
 //----------------------------------------------------------------------------------------------------//
 //----------------------------------------RotateScale-------------------------------------------------//
@@ -478,6 +495,8 @@ let numOfVisRightAngles (model: SheetT.Model) : int =
 /// Returns the retracing segments, and those which intersect symbols.
 /// a segment seg is retracing if the segment before it is zero-length and
 /// the segment two segments before has opposite sign length
+///     W
+/// 
 let findRetracingSegments (model : SheetT.Model) =
     /// Return any segemnts in the wire which are retracing.
     let getRetracingSegments (segs: BusWireT.ASegment list) =
@@ -514,6 +533,30 @@ let findRetracingSegments (model : SheetT.Model) =
     {| RetraceSegs =retracingSegs;
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
 
+let replaceWireWithLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
+    let wireLabel = SymbolUpdate.generateWireLabel sheet.Wire.Symbol "I"
+
+    let modelWithFirstLabel, outputLabelComponentId = SymbolUpdate.addSymbol [] sheet.Wire.Symbol (wire.StartPos |> fun origPos -> {origPos with X=(origPos.X + 50.0)}) IOLabel wireLabel
+    let newSymbolModel, inputLabelComponentId = SymbolUpdate.addSymbol [] modelWithFirstLabel (getInputPortLocation None sheet.Wire.Symbol wire.InputPort |> fun origPos -> {origPos with X=(origPos.X - 50.0)}) IOLabel wireLabel
+
+    let newModel = Optic.set (SheetT.wire_ >-> BusWireT.symbol_) newSymbolModel sheet // need updated model to update wire
+
+    let labelInputPort =
+        SymbolUpdate.extractComponent newSymbolModel outputLabelComponentId
+        |> fun comp -> InputPortId comp.InputPorts.Head.Id
+
+    let labelOutputPort =
+        SymbolUpdate.extractComponent newSymbolModel inputLabelComponentId
+        |> fun comp -> OutputPortId comp.OutputPorts.Head.Id
+    
+    let toOutputLabelWire = BusWireUpdate.makeNewWire labelInputPort wire.OutputPort newModel.Wire
+    let toInputLabelWire = BusWireUpdate.makeNewWire wire.InputPort labelOutputPort newModel.Wire
+
+    newModel
+    |> Optic.map (SheetT.wire_ >-> BusWireT.wires_) (
+        Map.remove wire.WId >> 
+        Map.add toOutputLabelWire.WId toOutputLabelWire >> 
+        Map.add toInputLabelWire.WId toInputLabelWire) // delete selected wire
 
 
 //----------------------------------------------------------------------------------------------//

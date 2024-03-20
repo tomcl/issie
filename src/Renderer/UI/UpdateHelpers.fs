@@ -24,6 +24,7 @@ open PopupHelpers
 open Optics.Optic
 open Optics.Operators
 open EEExtensions
+open SheetBeautifyHelpers
 
 module Constants =
     let memoryUpdateCheckTime = 300.
@@ -498,6 +499,15 @@ let processContextMenuClick
         |> map (sheet_ >-> SheetT.wireOf_ wire.WId >-> BusWireT.segments_)  (List.map changeManualSegToAuto)
         |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
         |> withNoCmd
+
+    | DBWire (wire, aSeg), "Convert to Label" ->
+        {model with Sheet = model.Sheet |> replaceWireWithLabel wire}
+        // |> replaceWireWithLabel wire
+        |> withNoCmd
+
+    | DBWire (wire, aSeg), "Revert to Wire" ->
+
+        model |> withNoCmd
     
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
         rotateDispatch Degree90

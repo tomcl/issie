@@ -320,6 +320,10 @@ module BusWireT =
 
     [<StringEnum>]
     type RoutingMode = Manual | Auto
+
+    type PreviousConnectionState =
+        | WasWire of (InputPortId * OutputPortId)
+        | WasLabel of (string * XYPos)
     
     /// Used to represent a segment in a wire
     type Segment = 
@@ -365,6 +369,7 @@ module BusWireT =
             Segments: list<Segment>
             StartPos : XYPos
             InitialOrientation : Orientation
+            ConversionHistory: option<PreviousConnectionState>
         }
 
     let segments_ = Lens.create (fun m -> m.Segments) (fun s m -> {m with Segments = s})

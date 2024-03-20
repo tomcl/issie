@@ -177,10 +177,11 @@ module D2Helpers =
         {symbol with Component = newcompo; ReversedInputPorts = newValue}
 
     let rotationPermute ( symbol : SymbolT.Symbol ) =
-        let rotations = [Degree0; Degree90]
+        // let rotations = [Degree0; Degree270]
 
-        rotations
-        |> List.map (fun r -> rotateSymbolByDegree r symbol)
+        let centre = getBlock [symbol] |> (fun block -> block.Centre())
+
+        [symbol; rotateSymbolInBlock Degree90 centre symbol]
 
     let flipPermute flip (sym : SymbolT.Symbol) =
         let pos = {X = sym.Pos.X + sym.Component.W / 2.0 ; Y = sym.Pos.Y + sym.Component.H / 2.0 }
@@ -209,7 +210,7 @@ module D2Helpers =
         [symbol; changeReversedInputs symbol]
         |> List.collect (flipPermute FlipVertical)
         |> List.collect (flipPermute FlipHorizontal)
-        // |> List.collect rotationPermute
+        |> List.collect rotationPermute
 
     /// combine a list of symbol permutations into a list of all possible symbol permutations with each other
     let combinePermutations ( allPerms ) = 

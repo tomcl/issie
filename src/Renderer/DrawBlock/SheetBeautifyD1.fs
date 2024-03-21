@@ -75,7 +75,7 @@ open BusWire
             let (movePortInfo, otherPortInfo) = (makePortInfo symA portA,makePortInfo symB portB) 
             
             let offset = alignPortsOffset movePortInfo otherPortInfo
-            let offset' = if (offset.X > (symA.Component.W/2.0) || offset.Y > (symA.Component.H/2.0) && not(movePortInfo.side = otherPortInfo.side.Opposite) && (handleWireLoop movePortInfo otherPortInfo)) then
+            let offset' = if ((offset.X > (symA.Component.W/2.0)) || (offset.Y > (symA.Component.H/2.0)) || not(movePortInfo.side = otherPortInfo.side.Opposite) || (handleWireLoop movePortInfo otherPortInfo)) then
                             printfn $"SKIP"
                             {X=0.0;Y=0.0}
                           else

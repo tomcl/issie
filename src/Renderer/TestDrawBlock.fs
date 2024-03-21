@@ -1,4 +1,4 @@
-﻿module TestDrawBlock
+module TestDrawBlock
 open GenerateData
 open Elmish
 open System
@@ -448,16 +448,26 @@ module HLPTick3 =
         APos: XYPos
         BPos: XYPos
         CPos: XYPos
+        M2Pos: XYPos
+        M3Pos: XYPos
+        S1Pos: XYPos
+        S2Pos: XYPos
+        CC2Pos: XYPos
     }
 
     /// function to set symbol positions
     let setSymbolPositions (andPos: XYPos) =
 
-        let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = andPos.Y}
         let aPos = middleOfSheet + { X = -100.0; Y = -50.0 } + {X = andPos.X ; Y = andPos.Y}
         let bPos = middleOfSheet + { X = -100.0; Y = 50.0 } + {X = andPos.X; Y = -andPos.Y}
-
-        { APos = aPos; BPos = bPos; CPos = cPos }
+        let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = andPos.Y}
+        let m2Pos = middleOfSheet + {X = 120.0; Y = -20.0 } + {X = -andPos.X ; Y = andPos.Y}
+        let m3Pos = m2Pos + {X = 40.0; Y = -30.0} + { X = andPos.X ; Y = andPos.Y}
+        let s1Pos = middleOfSheet + {X = -30.0; Y = -100.0} + { X = andPos.X ; Y = andPos.Y}
+        let s2Pos = middleOfSheet + {X = -40.0; Y = -50.0} + { X = andPos.X ; Y = andPos.Y}
+        let cc2Pos = middleOfSheet + {X = 30.0; Y = 0.0} + { X = andPos.X ; Y = andPos.Y}
+        
+        { APos = aPos; BPos = bPos; CPos = cPos; M2Pos = m2Pos; M3Pos = m3Pos; S1Pos = s1Pos; S2Pos = s2Pos; CC2Pos = cc2Pos }
 
         /// Returns the number of straight wires in a sheet   
     let numOfStraightWires (sheet: SheetT.Model) : int =
@@ -502,15 +512,51 @@ module HLPTick3 =
 
         let testPreAlign = numOfStraightWires model
 
-        let alignedModel = Beautify.sheetSingly model
+        //let alignedModel = Beautify.sheetSingly model
 
+        let testPostAlign = numOfStraightWires model
+        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        printf "Number of straightened wires: %d" straightenedWires
+
+        model
+
+
+        ///Create circuit containing 2 input ports and MUX2
+    let makeTest7Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (sheet1: int) (sheet2: int) : int =
+            sheet2 - sheet1
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "MUX3" Mux2 symbolPositions.M3Pos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX3" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+
+        let testPreAlign = numOfStraightWires model
+        let alignedModel = Beautify.sheetSingly model
         let testPostAlign = numOfStraightWires alignedModel
         let straightenedWires = findNumDiff testPreAlign testPostAlign
 
         printf "Number of straightened wires: %d" straightenedWires
 
         alignedModel
-        
 
         
 
@@ -631,6 +677,16 @@ module HLPTick3 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeTest6Circuit
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test7 testNum firstSample dispatch =
+            runTestOnSheets
+                "Test Multiply"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeTest7Circuit
                 Asserts.failOnSymbolIntersectsSymbol
                 dispatch
             |> recordPositionInTest testNum dispatch

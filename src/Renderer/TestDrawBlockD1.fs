@@ -224,6 +224,14 @@ module Circuit =
         |> toArray
         |> shuffleA
         |> fromArray
+    
+    let flip =
+        [|SymbolT.FlipType.FlipHorizontal; SymbolT.FlipType.FlipVertical|]
+        |> fromArray
+
+    let rotation =
+        [|Rotation.Degree0; Rotation.Degree180; Rotation.Degree270; Rotation.Degree90|]
+        |> fromArray
 
 
     //--------------------------------------------------------------------------------------------------//
@@ -339,6 +347,18 @@ module Circuit =
         |> placeSymbol "MAIN1" mainCC middleOfSheet
         |> addSym "MAIN2" mainCC 160. 0.
         |> scaleSymInSheet "MAIN2" scale
+        |> addWire ("MAIN1", 0) ("MAIN2", 0)
+        |> addWire ("MAIN1", 1) ("MAIN2", 1)
+        |> addWire ("MAIN1", 2) ("MAIN2", 2)
+        |> getOkOrFail
+
+    /// Flipped two same custom components
+    let makeFlippedA4Circuit ((offsetXY: XYPos), (rotation: Rotation))=
+        initSheetModel
+        |> placeSymbol "MAIN1" mainCC middleOfSheet
+        |> addSym "MAIN2" mainCC (160.+offsetXY.X) (0.+offsetXY.Y)
+        // |> Result.bind (Ok << flipSymbol "MAIN2" flip)
+        |> Result.bind (Ok << rotateSymbol "MAIN2" rotation)
         |> addWire ("MAIN1", 0) ("MAIN2", 0)
         |> addWire ("MAIN1", 1) ("MAIN2", 1)
         |> addWire ("MAIN1", 2) ("MAIN2", 2)
@@ -543,7 +563,7 @@ module Evaluations =
 
     /// Evaluates length of wires compared to ideal minimum
     let wireLengthProp (sheet: SheetT.Model) =    
-        let minWireLen wire =
+        let idealWireLen wire =
             BusWireRoute.getWireVertices
         failwithf "Not implemented"
 
@@ -608,7 +628,7 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let genA4 = randXY {min=(-50); step=5; max=50}
+    let genA4 = randXY {min=(-50); step=5; max=100}
     let testA4 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random offset"
@@ -621,6 +641,25 @@ module Tests =
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
+
+    let genA4Flip =
+        product (fun pos rotation -> (pos, rotation)) genA4 rotation
+        |> toArray
+        |> shuffleA
+        |> fromArray
+    let testA4Flip testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "two custom components with random scaling"
+            firstSample
+            genA4Flip
+            showTargetSheet
+            (Some sheetAlignScale)
+            makeFlippedA4Circuit
+            (AssertFunc failOnAllTests)
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
+
 
     let genA5 = randXY {min=(0.5); step=0.5; max=3}
     let testA5 testNum firstSample showTargetSheet dispatch =
@@ -693,11 +732,11 @@ module Tests =
         [
             "Position", testA4
             "Scale", testA5
+            "Rotation", testA4Flip
             "MUX",   testA3
             "Large", testLargeCircuit 
             "compareOnLarge", testLargeCompareD1
             "multiOutputs", testMultiOutputs
-            "Test7", fun _ _ _ _ -> printf "Test7"
             "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]

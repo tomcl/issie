@@ -619,7 +619,7 @@ module T123 =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF2" 0))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF3" 0))
-        |> Result.bind applySheetWireLabelSymbol
+        |> Result.bind applySheetWireLabelSymbol  // speration once? 
         |> getOkOrFail
 
     // ------------------------------------ Assertions -----------------------------------------

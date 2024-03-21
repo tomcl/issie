@@ -25,6 +25,8 @@ open SheetBeautifyD2
 /// Optic to access SymbolT.Model from SheetT.Model
 let symbolModel_ = SheetT.symbol_
 
+let wireModel_ = SheetT.wire_
+
 /// allowed max X or y coord of svg canvas
 let maxSheetCoord = Sheet.Constants.defaultCanvasSize
 
@@ -77,8 +79,6 @@ let wireLabelPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWi
 
     outputPos :: inputPosList
 
-
-    
     
     
     //--------------------------------------------------------------------------------------//
@@ -116,16 +116,23 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
     let updatedModel: SheetT.Model = 
         OutputPortIds
         // Accumulator is currentModel. We repeat this List.fold for each outputPort
-        //|> List.fold (fun currentModel outputPort -> // make my own delete wires function
-            //BusWireUpdateHelpers.deleteWiresWithPort outputPort currentModel.Wire) model
         |> List.fold (fun currentModel outputPort ->
             let posList = wireLabelPositions outputPort wires currentModel.Wire
 
             // add the IOLabel for the output symbol to the SymbolT.Model
             let (outputSymModel: SymbolT.Model), outputSymId =
                 SymbolUpdate.addSymbol [] (currentModel.Wire.Symbol) posList.Head IOLabel "I1"
+            // Find the portID for the outputportID
+            let outPortIDs = outputSymModel.Symbols[outputSymId].Component.OutputPorts
+            let outputPortOptions =
+                outPortIDs
+                |> List.map (fun port -> Some port)
+            // create a new BusWireT.Model with the wire deleted
+            let (wireModelWithDeletedWires: BusWireT.Model) = BusWireUpdateHelpers.deleteWiresWithPort outputPortOptions currentModel.Wire
+            // create a new SheetT.model with long wires deleted
+            let (modelWithOutputSym: SheetT.Model) = currentModel |> Optic.set SheetT.wire_ wireModelWithDeletedWires
             // create a new SheetT.Model with the output symbol added
-            let (modelWithOutputSym: SheetT.Model) = currentModel |> Optic.set SheetT.symbol_ outputSymModel
+            let (modelWithOutputSym: SheetT.Model) = modelWithOutputSym |> Optic.set SheetT.symbol_ outputSymModel
 
             // take the postList.Tail list of XYPos and add the IOLabel for each symbol to the SymbolT.Model
             posList.Tail

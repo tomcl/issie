@@ -28,7 +28,7 @@ type D2ParamsT = {
 let D2Params = {
     NumCrossingsNorm = 250_000.0;
     VisibleLengthNorm = 1.0;
-    RightAnglesNorm = 10_000.0;
+    RightAnglesNorm = 15_000.0;
     Rotate90Penalty = 50_000.0;
     Rotate180Penalty = 100_000.0;
     k = 1;
@@ -57,6 +57,7 @@ let replaceSymbolAndBB
     |> replaceSymbol sheet
     |> Optic.set SheetT.boundingBoxes_ (Map.add symbol.Id (Symbol.getSymbolBoundingBox symbol) sheet.BoundingBoxes)
 
+// Used for finetuning hyperparameters through testing.
 let mutable totalCrossings = 0.
 let mutable totalLength = 0.
 let mutable totalAngles = 0.
@@ -95,6 +96,105 @@ let noSymbolIntersections
     sheet.BoundingBoxes
     |> Map.exists (fun compId box -> compId <> symbol.Id && BlockHelpers.overlap2DBox box symbolBox)
     |> not
+
+type CircuitBoxT = {
+    TopLeft: XYPos;
+    BottomRight: XYPos
+}
+
+/// Adapted from BusWireRoute, reason: checking within +/- minwireseparation is undesirable as it allows
+/// the algorithm to reduce the number of segments within +/- min separation at the cost of introducing
+/// new segments that fully intersect a symbol. Therefore, we should be strict in that only segments that
+/// fully intersect symbols should be counted.
+/// Checks if a wire intersects any symbol.
+/// Returns list of bounding boxes of symbols intersected by wire.
+let findWireSymbolIntersections (model: BusWireT.Model) (wire: BusWireT.Wire) : BoundingBox list =
+    let allSymbolsIntersected =
+        model.Symbol.Symbols
+        |> Map.values
+        |> Seq.toList
+        |> List.filter (fun s -> s.Annotation = None)
+        |> List.map (fun s -> (s.Component.Type, Symbol.getSymbolBoundingBox s))
+
+
+    let wireVertices =
+        BlockHelpers.segmentsToIssieVertices wire.Segments wire
+        |> List.map (fun (x, y, _) -> { X = x; Y = y })
+
+    let indexes = List.init ((List.length wireVertices)-2) (fun i -> i+1)
+
+    let segVertices = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] |> List.zip indexes // do not consider the nubs
+
+    let inputCompId = model.Symbol.Ports.[string wire.InputPort].HostId
+    let outputCompId = model.Symbol.Ports.[string wire.OutputPort].HostId
+
+    let componentIsMux (comp:Component) =
+        match comp.Type with
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> true
+        | _ -> false
+
+    // this was added to fix MUX SEL port wire rooting bug, it is irrelevant in other cases
+    let inputIsSelect =
+        let inputSymbol = model.Symbol.Symbols.[ComponentId inputCompId]
+        let inputCompInPorts = inputSymbol.Component.InputPorts
+        
+        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = string wire.InputPort)
+
+    let inputCompRotation =
+        model.Symbol.Symbols.[ComponentId inputCompId].STransform.Rotation
+
+    let outputCompRotation =
+        model.Symbol.Symbols.[ComponentId outputCompId].STransform.Rotation
+
+    let isConnectedToSelf = inputCompId = outputCompId
+
+
+    let boxesIntersectedBySegment (lastSeg:bool) startPos endPos =
+        allSymbolsIntersected
+        //|> List.map (fun (compType, boundingBox) ->
+        //    (
+        //        compType,
+        //        {
+        //            W = boundingBox.W + BusWireRoutingHelpers.Constants.minWireSeparation * 2.
+        //            H = boundingBox.H + BusWireRoutingHelpers.Constants.minWireSeparation * 2.
+        //            TopLeft =
+        //            boundingBox.TopLeft
+        //            |> BusWireRoutingHelpers.updatePos BusWireRoutingHelpers.Left_ BusWireRoutingHelpers.Constants.minWireSeparation
+        //            |> BusWireRoutingHelpers.updatePos BusWireRoutingHelpers.Up_ BusWireRoutingHelpers.Constants.minWireSeparation
+        //        }
+        //    ))
+        |> List.filter (fun (compType, boundingBox) ->
+            // don't check if the final segments of a wire that connects to a MUX SEL port intersect with the MUX bounding box
+            match compType, lastSeg with
+            | Mux2, true | Mux4, true | Mux8, true | Demux2, true | Demux4, true | Demux8, true -> false
+            | _, _ ->
+                 match BlockHelpers.segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+                 | Some _ -> true // segment intersects bounding box
+                 | None -> false // no intersection
+        )
+        |> List.map (fun (compType, boundingBox) -> boundingBox)
+
+
+    segVertices
+    |> List.collect (fun (i, (startPos, endPos)) -> boxesIntersectedBySegment (i > List.length segVertices - 2 && inputIsSelect) startPos endPos)
+    |> List.distinct
+
+/// Returns the number of symbols that are intersected by a wire.
+/// A more useful metric than the number of wire segments intersecting a symbol.
+let numSymsIntersectedBySeg
+        (sheet: SheetT.Model)
+        : int =
+    sheet.Wire.Wires
+    |> Map.toList
+    |> List.map (fun (_, wire) -> wire)
+    |> List.map (findWireSymbolIntersections sheet.Wire)
+    |> (List.collect id >> List.distinct >> List.length)
+
+/// Returns the number of retraced segments in the sheet.
+let numRetracedSegs
+        (sheet: SheetT.Model)
+        : int =
+    SheetBeautifyHelpers2.getAllRetracedSegs sheet |> List.length
 
 
 
@@ -143,38 +243,51 @@ let generateRevInputs
     [symbol, penalty + 0.0;
      SheetBeautifyHelpers2.toggleReversedInputs symbol, penalty + 0.0]
 
+/// Contains the result of one path through the search space for brute-force optimisation.
+type OptimResult = {
+    OptimSheet: SheetT.Model
+    Score: float option
+}
+
 /// Takes a sheet and a list of symbols to manipulate (flip, reverse inputs and reorder ports),
 /// and returns a new sheet with the changed symbols (optimising for the beautify function),
 /// and the score of this sheet.
 /// compIds acts as a reference and remains constant for each function call.
 /// Uses brute force - exponential time complexity. Only use for small groups of symbols.
+/// This algorithm will never increase the number of symbols intersected by a segment, or the
+/// number of retraced segments.
 let rec bruteForceOptimise
-        (symbols: SymbolT.Symbol list)
         (compIds: ComponentId list)
+        (initSymsIntersected: int)
+        (initRetraced: int)
+        (symbols: SymbolT.Symbol list)
         (sheet: SheetT.Model)
-        : {|OptimisedSheet: SheetT.Model; Score: float|} =
+        : OptimResult =
 
     match symbols with
     | sym::remSyms ->
 
         let symbolChoices =
             match sym.Component.Type with
+
             // MUXes
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 ->
                 [sym, 0.0]
                 |> List.collect generateFlips
                 |> List.collect generateRevInputs
                 |> List.collect generateLimitedRotations
+
             // Flip and rotate
             | GateN _ | MergeWires | SplitWire _ ->
                 [sym, 0.0]
                 |> List.collect generateFlips
                 |> List.collect generateLimitedRotations
+
             // Rotate-only (typically single input / single output)
-            | Not | Input1 _ | Output _ | Viewer _ | BusCompare1 _ | BusSelection _
-            | Constant1 _ | NbitSpreader _ ->
+            | Not | Viewer _ | BusCompare1 _ | BusSelection _ | Constant1 _ | NbitSpreader _ ->
                 [sym, 0.0]
                 |> List.collect generateLimitedRotations
+
             // Flip-only (typically larger units like adders)
             | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _
             | NbitsXor _ | NbitsAnd _ | NbitsOr _ | NbitsNot _ | MergeN _ | SplitN _
@@ -183,25 +296,35 @@ let rec bruteForceOptimise
             | AsyncRAM1 _ ->
                 [sym, 0.0]
                 |> List.collect generateFlips
-            // Everything else: do not transform (includes custom components and legacy components)
-            | _ ->
+
+            // Everything else: do not transform (includes legacy components)
+            // Non-legacy components shown for clarity
+            | Input1 _ | Output _ | Custom _ | _ ->
                 [sym, 0.0]
 
         symbolChoices
         |> List.filter (fun (sym, _) -> noSymbolIntersections sheet sym)
            // Immediately reject solutions with overlapping symbols.
         |> List.map (fun (sym, penalty) -> replaceSymbolAndBB sheet sym, penalty)
-        |> List.map (fun (sheet, penalty) -> bruteForceOptimise remSyms compIds sheet, penalty)
-        |> List.minBy (fun (result, penalty) -> result.Score + penalty)
-        |> fun (result, _) -> result
+        |> List.map (fun (sheet, penalty) ->
+            bruteForceOptimise compIds initSymsIntersected initRetraced remSyms sheet, penalty)
+        |> fun lst ->
+            match List.filter (fun (s, _) -> Option.isSome s.Score) lst with
+            | [] -> List.head lst
+            | l -> List.minBy (fun (s, p) -> Option.get s.Score + p) l
+            |> fun (s, _) -> s
 
     | [] ->
 
-        sheet.Wire
-        |> reRouteWiresFrom compIds
-        |> fun wire -> Optic.set SheetT.wire_ wire sheet
-        |> fun newSheet -> {|OptimisedSheet = newSheet; Score = sheetScore newSheet|}
-        //{|OptimisedSheet = sheet; Score = sheetScore sheet|}
+        let newSheet =
+            sheet.Wire
+            |> reRouteWiresFrom compIds
+            |> fun wire -> Optic.set SheetT.wire_ wire sheet
+        let newSymsIntersected = numSymsIntersectedBySeg newSheet
+        let newRetraced = numRetracedSegs newSheet
+        match newSymsIntersected <= initSymsIntersected && newRetraced <= initRetraced with
+        | true -> {OptimSheet = newSheet; Score = Some (sheetScore newSheet)}
+        | false -> {OptimSheet = newSheet; Score = None}
 
 
 
@@ -344,7 +467,8 @@ let removeNode
 /// Partition a graph into subsets of no more than k components each using BFS.
 /// Passes of BFS proceed from left to right in the circuit.
 /// Clusters that are close together are prioritised (approximately) via DFS.
-/// TODO could improve distance prioritisation via a modification of Dijkstra's algorithm.
+/// Could improve distance prioritisation via a modification of Dijkstra's algorithm,
+/// but probably not worth it.
 let rec getGraphPartitions
         (symbolMap: Map<ComponentId, SymbolT.Symbol>)
         (graph: Graph)
@@ -429,7 +553,9 @@ let beautifyCluster
         compIds
         |> List.map (fun compId -> sheet.Wire.Symbol.Symbols[compId])
     // TODO think about the impact of the order (brute force, clock face).
-    let sheet' = (bruteForceOptimise symbols compIds sheet).OptimisedSheet
+    let initSymsIntersected = numSymsIntersectedBySeg sheet
+    let initRetraced = numRetracedSegs sheet
+    let sheet' = (bruteForceOptimise compIds initSymsIntersected initRetraced symbols sheet).OptimSheet
     (sheet', symbols)
     ||> List.fold (fun currSheet sym ->
         match sym.Component.Type with
@@ -460,6 +586,25 @@ let rec beautifyILS
         | true -> sheet'
         | false -> beautifyILS sheet' partitions (iterationsLeft - 1) afterScore
 
+/// Find the box enclosing all the components in the circuit.
+/// Use this if we end up aligning input/output label rotation with position on schematic.
+let getCircuitBox
+        (sheet: SheetT.Model)
+        : CircuitBoxT =
+    let topLeftList =
+        Map.toList sheet.Wire.Symbol.Symbols
+        |> List.map (fun (_, sym) -> sym.Pos)
+    let bottomRightList =
+        Map.toList sheet.Wire.Symbol.Symbols
+        |> List.map (fun (_, sym) ->
+            let (h, w) = Symbol.getRotatedHAndW sym
+            {X = sym.Pos.X + w; Y = sym.Pos.Y + h})
+    let {XYPos.X = minX} = List.minBy (fun pos -> pos.X) topLeftList
+    let {XYPos.X = maxX} = List.maxBy (fun pos -> pos.X) bottomRightList
+    let {XYPos.Y = minY} = List.minBy (fun pos -> pos.Y) topLeftList
+    let {XYPos.Y = maxY} = List.maxBy (fun pos -> pos.Y) bottomRightList
+    {TopLeft = {X = minX; Y = minY}; BottomRight = {X = maxX; Y = maxY}}
+
 
 
 ////////// TOP LEVEL //////////
@@ -470,8 +615,8 @@ let sheetOrderFlip
         (sheet: SheetT.Model)
         : SheetT.Model =
     printf "Applying sheetOrderFlip"
-    printf "Clarke: %A" (SheetBeautifyHelpers.numOfWireRightAngleCrossings sheet)
-    printf "Roshan: %A" (SheetBeautifyHelpers2.numRightAngleSegCrossings sheet)
+    //printf "Clarke: %A" (SheetBeautifyHelpers.numOfIntersectSegSym sheet)
+    printf "Roshan: %A" <| List.length (SheetBeautifyHelpers2.getAllRetracedSegs sheet)
     // k is the number of components in each cluster; clusters are individually optimised.
     // Since beautification has exponential time complexity (using brute force), clusters
     // must be kept fairly small.

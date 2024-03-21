@@ -46,7 +46,7 @@ let getWiresNeedLabels (wireList: list<Wire>) (sheet: SheetT.Model) (wireLengthl
     let flattenList = List.collect id >> List.distinct
     let wireInNet, singleWires =
         wireList
-        |> List.groupBy (fun wire -> wire.InputPort)
+        |> List.groupBy (fun wire -> wire.OutputPort)
         |> List.map snd
         |> List.partition (fun wireList -> wireList.Length > 1)
     let longWires =

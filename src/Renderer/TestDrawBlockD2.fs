@@ -22,6 +22,7 @@ module D2Test =
     open ModelType
     open DrawModelType
     open Sheet.SheetInterface
+    open SheetBeautifyD3
 
 
 //------------------------------------------------------------------------------------------------------------------------//
@@ -630,7 +631,7 @@ module D2Test =
         let testRandomComp testNum firstSample dispatch model =
             let sheetMaker = makeRandomCircuit model
             let displayOnFail = displayAll
-            let generator = chunkShuffledGen (randomComponentSamples) 1 25
+            let generator = chunkShuffledGen (randomComponentSamples) 1 10
             // this assertion fails on all tests without symbol intersection!
             let assertion (sample: int) (sheetModel: SheetT.Model) = 
                 sheetModel
@@ -644,7 +645,7 @@ module D2Test =
                 firstSample
                 generator
                 sheetMaker
-                Asserts.failOnAllTests
+                assertion
                 dispatch
                 displayOnFail
             |> recordPositionInTest testNum dispatch
@@ -678,7 +679,12 @@ module D2Test =
         /// This test is to apply beautification and calculate metric
         let applyBeautify testNum firstSample dispatch model =
             let beforeCount = numOfWireRightAngleCrossings model.Sheet
-            let sheetAfter = optimizePortOrder model.Sheet
+
+
+            let sheetAfter = 
+                model.Sheet
+                |> optimizePortOrder
+                |> wireLabelBeautify
             let afterCount = numOfWireRightAngleCrossings sheetAfter
             
             metricDisplay displayMetrics sheetAfter model.Sheet

@@ -292,7 +292,6 @@ let findWiresConnectedToLabels (model: SheetT.Model) =
             None)
 
 let getNonLabelEndDetails (wireId: ConnectionId) (model: SheetT.Model) =
-    // Assuming getWireSymbolsAndPort returns ((sourceSymbol, sourcePortId), (targetSymbol, targetPortId))
     let ((sourceSymbol, sourcePortId), (targetSymbol, targetPortId)) =
         getWireSymbolsAndPort wireId model
     let isSourceLabel = sourceSymbol.Component.Type = IOLabel
@@ -304,9 +303,9 @@ let getNonLabelEndDetails (wireId: ConnectionId) (model: SheetT.Model) =
 
         let findPortIndexInList (portsList: Port list) =
             portsList
-            |> List.mapi (fun idx port -> (idx, port.Id)) // Create a list of (index, portId) pairs
-            |> List.tryFind (fun (_, pid) -> pid = portIdStr) // Try to find the port id
-            |> Option.map fst // Map the found tuple to just the index
+            |> List.mapi (fun idx port -> (idx, port.Id))
+            |> List.tryFind (fun (_, pid) -> pid = portIdStr)
+            |> Option.map fst
 
         match model.Wire.Symbol.Symbols |> Map.tryFind symId with
         | Some symbol ->
@@ -384,33 +383,22 @@ let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : Shee
                     failwithf "Wire with ID %A not found" wireId
             let wireLength = getWireLength wire
             if wireLength <= lengthThreshold then
-                // If within threshold, keep the wire and consider removing labels.
                 printf "Label: %A" label
                 ///deleteSymbols updatedModel (componentsWithLabel label updatedModel)
                 updatedModel
             else
-                // If not, delete the newly placed wire.
                 let modelWithWireRemoved = deleteWire wireId updatedModel
                 modelWithWireRemoved
         | Error errMsg ->
             printfn "Error placing wire: %s" errMsg
             model
     printf "IMPORTANT: %A" groupedByLabelAndCombinations
-    // Fold over matched pairs to process them.
+
     List.fold processPair model groupedByLabelAndCombinations
 
 let d3Function (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
     let removedWiresModel = replaceLongWiresWithLabels model lengthThreshold
     replaceLabelsWithWires removedWiresModel lengthThreshold
-
-// findLongWires
-// |> List.fold (fun model (wireId, wire) ->
-//     let wireLabel = placeWireLabel wire model
-
-//     let modelWithoutWire = DeleteWiresWithPort [Some wire.InputPort; Some wire.OutputPort] model
-
-//     let addLabel = placeWireLabel label modelWithoutWire
-//     )
 
 // findLongWires
 // |> List.fold (fun model (wireId, wire) ->

@@ -784,39 +784,39 @@ module HLPTick3 =
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= 0})
 
-        let showTestCircuit1 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (sheet : SheetT.Model) =
+        let showTestCircuit1 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (model : Model) =
             let testCircuit = makeSinglyConnectedCircuit firstSample
             showSheetInIssieSchematic testCircuit dispatch
 
-        let showTestCircuit2 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (sheet : SheetT.Model) =
+        let showTestCircuit2 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (model : Model) =
             let testCircuit = makeAndGateCircuit_1 firstSample
             showSheetInIssieSchematic testCircuit dispatch
 
-        let showTestCircuit3 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (sheet : SheetT.Model) =
+        let showTestCircuit3 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (model : Model) =
             let testCircuit = makeCircuitA3 firstSample
             showSheetInIssieSchematic testCircuit dispatch
 
-        let showTestCircuit4 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (sheet : SheetT.Model) =
+        let showTestCircuit4 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (model : Model) =
             let testCircuit = makeCircuitA4 firstSample
             showSheetInIssieSchematic testCircuit dispatch
 
-        let showTestCircuit5 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (sheet : SheetT.Model) =
+        let showTestCircuit5 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (model : Model) =
             let testCircuit = makeCircuitV5 firstSample
             showSheetInIssieSchematic testCircuit dispatch
 
-        let autoPlaceWires (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (sheet : SheetT.Model) =
-            let testCircuitWithWires = autoPlaceMissingPortWires sheet
+        let autoPlaceWires (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (model : Model) =
+            let testCircuitWithWires = autoPlaceMissingPortWires model.Sheet
             showSheetInIssieSchematic testCircuitWithWires dispatch
 
-        let showOptimizedCircuit (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (sheet : SheetT.Model)=
+        let showOptimizedCircuit (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (model : Model)=
             // get the current circuit on sheet
-            let testCircuit = sheet
+            let testCircuit = model.Sheet
             let optimizedCircuit = applyBeautifyAlgorithm testCircuit
             showSheetInIssieSchematic optimizedCircuit dispatch
 
 
         /// check visible wires
-        let test1 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (sheet : SheetT.Model) sheetMaker =
+        let test1 (testNum : int) (firstSample : int) (dispatch: Dispatch<Msg>) (model : Model) sheetMaker =
             runTestOnSheets
                 sheetMaker
                 applyBeautifyAlgorithm
@@ -826,7 +826,7 @@ module HLPTick3 =
 
 
         /// check for symbol overlap
-        let test2 testNum firstSample dispatch sheet sheetMaker =
+        let test2 testNum firstSample dispatch model sheetMaker =
             runTestOnSheets
                 sheetMaker
                 applyBeautifyAlgorithm
@@ -834,7 +834,7 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let runAllTests testNum firstSample dispatch sheet =
+        let runAllTests testNum firstSample dispatch model =
             //let testCircuitMaker = makeCircuitA3
             //test1 testNum firstSample dispatch sheet testCircuitMaker
             //test2 testNum firstSample dispatch sheet testCircuitMaker
@@ -850,8 +850,8 @@ module HLPTick3 =
             testCircuits
             |> List.iter (fun (testCircuitMaker, circuitName) ->
                 printf $"[Tester] Running test for: {circuitName}"
-                test1 testNum firstSample dispatch sheet testCircuitMaker
-                test2 testNum firstSample dispatch sheet testCircuitMaker)
+                test1 testNum firstSample dispatch model testCircuitMaker
+                test2 testNum firstSample dispatch model testCircuitMaker)
 
         /// Example test: Horizontally positioned AND + DFF: fail on sample 10
         //let test2 testNum firstSample dispatch =
@@ -910,7 +910,7 @@ module HLPTick3 =
         /// holds all the references in here, which is complied at a later order. The makeMenuGen function also serves as a higher-order function
         /// that creates a generic, reusable component that elegently handles different use cases including testing like this one.
         /// ------------------------------------------------------------------------------------
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> SheetT.Model -> Unit)) list =
+        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Model -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
@@ -947,7 +947,7 @@ module HLPTick3 =
             //    ()
             //| _ ->
             //    func testIndex (randomInt 0 1 100 |> toList).[0] dispatch
-            func testIndex (randomInt 0 1 100 |> toList).[0] dispatch model.Sheet
+            func testIndex (randomInt 0 1 100 |> toList).[0] dispatch model
         
 
 

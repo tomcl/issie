@@ -755,8 +755,8 @@ module D2Test =
                 "Apply Beautify D3", (applyBeautify wireLabelBeautify)
                 "Build: Random Components No Rotate", testRandomCompNoRotate 
                 "Build: Random Components", testRandomComp
-                "Test: Statistics", testRandomComp // TODO: add actual function
-                "Test: Edge Case", testRandomComp // TODO: add actual function
+                "Test: Statistics", TestDrawBlockD1.HLPTick3.Tests.showTestCircuit5 // TODO: add actual function
+                "Test: Edge Case", TestDrawBlockD1.HLPTick3.Tests.runAllTests // TODO: add actual function
                 "Test: Beautify Time Complexity", testBeautifyTimePerformance
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]

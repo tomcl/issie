@@ -23,6 +23,8 @@ open TestLib
 open SheetBeautifyD1
 open SheetBeautifyD2
 open SheetBeautifyD3
+open SheetBeautify
+
 
 
 
@@ -813,11 +815,11 @@ let beautifyMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
     | "D1 Beautify Function", _ -> 
         beautifySheet model sheetAlignScale dispatch
     | "D2 Local Beautify Function", _ -> 
-        beautifySheet model iteratedLocalSearchSingleComponent dispatch
+        beautifySheet model d2iteratedLocalSearchSingleComponent dispatch
     | "D2 Exhaustive Beautify Function", _ -> 
         beautifySheet model findBestModel dispatch
     | "D3 Beautify Function", _ -> 
         userThresholdPopUp model replaceLongWiresWithLabels dispatch
     | "Integrated Beautify Function", _ ->
-        userThresholdPopUp model replaceLongWiresWithLabels dispatch
+        userThresholdPopUp model integratedBeautify dispatch
     | _ -> failwithf "Shouldn't happen buddy"

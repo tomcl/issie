@@ -32,16 +32,32 @@ let generateAllStates (symbolCount: int) (stateNum: int): int list list =
                     state :: prevState ]
     // Generate all states for all elements
     generateStatesForSym symbolCount
+///given a string list generate all lists of possible arrangement of string elements 
+let rec permutations (lst : string list) : string list list =
+    match lst with
+    | [] -> [[]]  // Base case: empty list has one permutation, which is an empty list
+    | [x] -> [[x]]  // Base case: single-element list has one permutation, which is itself
+    | hd::tl -> 
+        // Recursively generate permutations for the tail
+        let subperms = permutations tl
+        
+        // For each permutation in subperms, insert the head element at all possible positions
+        List.collect (fun perm ->
+            // Generate all possible positions to insert the head element
+            let positions = [0..List.length perm]
+            List.map (fun pos ->
+                // Insert the head element at the current position
+                let (left, right) = List.splitAt pos perm
+                left @ [hd] @ right
+            ) positions
+        ) subperms
+let print a = printf "%A" a
 // ------------------------helpers---------------------------
 
 
 ///Team deliverable D2 implementation <az1221>
 ///Port order on custom components, flip components, flip MUX input order
 let sheetOrderFlip (sheet: SheetT.Model) = 
-    //1. Flip all MUX inputs and permute gate inputs to reduce wire crossings
-    // Do not increase total number of wire bends
-    //Algorithm 1. Exhaustive search algorithm. Try every possible combination of flips and swaps: measure wire crossings
-    //each time, choose minimum. This is optimal but slow and unscalable.
 
     // get symbols on sheet
     let symbolList (sheet: SheetT.Model) = 
@@ -119,9 +135,9 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         //numOfWireRightAngleCrossings sheet
     printf "inital cross number: %A" (numWireCrossing sheet)
     
-    // 12 possible combinations for a MUX being flipped, having inputs swapped, rotate 90, rotate270. 12 states
-    // flip, swap, rotate 90, rotate-90, flip and swap, flip and rotat90, flip and rotat-90, swap 90, swap -90, flipand swap 
-    //and rotate90, flip and swap and rotate-90
+    /// 12 possible combinations for a MUX being flipped, having inputs swapped, rotate 90, rotate270. 12 States: 
+    /// flip, swap, rotate 90, rotate-90, flip and swap, flip and rotat90, flip and rotat-90, swap 90, swap -90, flipand swap 
+    /// and rotate90, flip and swap and rotate-90
     let muxTransform (state:int) (sym: SymbolT.Symbol)= 
         match state with
         | 0 -> sym
@@ -138,7 +154,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         | 11 -> sym |> flipAndSwapMux |> rotateAnti90
         | _ -> failwithf "invalid transform state"
 
-    //  6 possible combinations for a gate being flipped vertical 2 states
+    ///  6 possible combinations for a gate being flipped vertical, rotate 90, rotate anticlockwise 90
     let gateTransform (state: int) (sym: SymbolT.Symbol) = 
         match state with
         | 0 -> sym
@@ -151,7 +167,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
 
     let muxList = getCompList "Mux" sheet
     let gateList= getCompList "Gate" sheet
-    let customCompList = getCompList "Custom" sheet
+    
     ///list of combination of all Muxes with transform state, e.g 2 MUX, each Mux has 4 transform combination -> total 16 combination 
     let muxTransformStates = generateAllStates (List.length muxList) 12
     ///list of combination of all Gates with transform state, e.g 3 Gates, each Gate has 2 transform combination -> total 8 combination 
@@ -189,14 +205,14 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         allCombinationList
         
         |> List.map (fun (combMux, combGate) -> 
-            let reRoutedSheet = reRoutedSheet combMux combGate
-            numWireCrossing reRoutedSheet
+            let updatedSheet = reRoutedSheet combMux combGate
+            numWireCrossing updatedSheet
             )
     /// get the transform list which number of wire crossing on sheet is minimum
     let getOptimalCombination = 
-        printf "%A" (List.length getNumWireCrossingForAllCombination)
+
         let optimalIndex = 
-            //printf "%A" getNumWireCrossingForAllCombination
+
             getNumWireCrossingForAllCombination
             |> List.mapi (fun i x -> (i, x))
             |> List.minBy snd
@@ -204,7 +220,77 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         List.item optimalIndex allCombinationList
     //printf "%A" getOptimalCombination
 
-    getOptimalCombination
-    |> fun (combMux, combGate) -> reRoutedSheet combMux combGate
+    //apply the optimal transform to correspond symbols on sheet
+    let firstOptimalSheet = 
+        getOptimalCombination
+        |> fun (combMux, combGate) -> reRoutedSheet combMux combGate
+
+    let customCompList = getCompList "Custom" sheet //should change sheet to updated sheet
+
+    let ccReOrderPortList (symbol: Symbol):list<list<string> * list<string>> = 
+        let leftPortReOrderList = getPortOrder Left symbol |> permutations
+        let rightPortReOrderList = getPortOrder Right symbol |> permutations
+        List.allPairs leftPortReOrderList rightPortReOrderList
+    let numReOrderCC (symbol: Symbol) = 
+        List.length (ccReOrderPortList symbol)
+    
+    let reverseEdge (edge : Edge) (sym: SymbolT.Symbol) = 
+        let reverse = getPortOrder edge sym |> List.rev 
+        putPortOrder edge reverse sym
+
+    ///Currently reverse input ports or output ports or both ports of 
+    ///a custom component. Could add more functions later to reorder any sides
+    let ccTransform (state:int) (sym: SymbolT.Symbol) = 
+        match state with
+        | 0 -> sym
+        | 1 -> reverseEdge Left sym
+        | 2 -> reverseEdge Right sym
+        | 3 -> reverseEdge Left sym |> reverseEdge Right
+        | _ -> failwithf "not implemented yet"
+
+    ///list of combination of all custom components with reverse port
+    /// e.g 2 custom components, each has 4 reverse port combination -> total 16 combination 
+    let ccTransformStates = generateAllStates (List.length customCompList) 4
+
+    //Like above with MUX and Gates, apply transform for custom components and update symbol map and sheet
+    let reRouteSheetForCC (combCC:int list) (updatedSheet: SheetT.Model) = 
+        let updateCCSymbolMap = 
+                List.map2 ccTransform combCC customCompList
+                |> (fun transformedSym -> 
+                    let symbolsMap = updatedSheet.Wire.Symbol.Symbols
+                    (symbolsMap, transformedSym)
+                    ||> List.fold (fun symMap symToAdd -> Map.add symToAdd.Id symToAdd symMap))
+
+        let newSheet = { updatedSheet with Wire = { updatedSheet.Wire with Symbol = { updatedSheet.Wire.Symbol with Symbols = updateCCSymbolMap } } }
+        // reroute wires for modified symbols
+        let wireMap = 
+            newSheet.Wire.Wires
+            |> Map.map (fun cid wire -> smartAutoroute newSheet.Wire wire)
+        {newSheet with Wire = {newSheet.Wire with Wires = wireMap} }  //re-routed sheet
+
+
+    let getNumWireCrossingForCC =   
+        ccTransformStates
+        
+        |> List.map (fun (combCC) -> 
+            let reRoutedSheet = reRouteSheetForCC combCC firstOptimalSheet
+            numWireCrossing reRoutedSheet 
+            )
+
+    /// get the transform list which number of wire crossing on sheet is minimum
+    let getOptimalPortOrder = 
+        //printf "%A" (List.length getNumWireCrossingForAllCombination)
+        let optimalIndex = 
+            //printf "%A" getNumWireCrossingForAllCombination
+            getNumWireCrossingForCC
+            |> List.mapi (fun i x -> (i, x))
+            |> List.minBy snd
+            |> fst
+        List.item optimalIndex ccTransformStates
+    
+
+    // //apply the optimal transform to correspond symbols on sheet
+    getOptimalPortOrder
+    |> fun (combCC) -> reRouteSheetForCC combCC firstOptimalSheet
 
    

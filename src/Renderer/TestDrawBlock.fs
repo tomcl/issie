@@ -1,6 +1,10 @@
-﻿module TestDrawBlock
+module TestDrawBlock
 open GenerateData
 open Elmish
+open System
+open SheetBeautifyHelpers
+open SheetBeautifyD1
+
 
 
 //-------------------------------------------------------------------------------------------//
@@ -91,6 +95,7 @@ module HLPTick3 =
     open Sheet.SheetInterface
     open GenerateData
     open TestLib
+    
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -149,22 +154,23 @@ module HLPTick3 =
             | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
             | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
 
-        /// Return the list of segment vectors with 3 vectors coalesced into one visible equivalent
-        /// wherever this is possible
-        let rec coalesce (segVecs: XYPos list)  =
-            match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with          
-            | Some zeroVecIndex ->
-                let index = zeroVecIndex + 1 // base index as it should be on full segVecs
+        /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
+        /// if this is possible, otherwise return segVecs unchanged.
+        /// Index must be in range 1..segVecs
+        let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
+            if segVecs[index] =~ XYPos.zero
+            then
                 segVecs[0..index-2] @
                 [segVecs[index-1] + segVecs[index+1]] @
                 segVecs[index+2..segVecs.Length - 1]
-                |> coalesce
-            | None -> segVecs
-     
+            else
+                segVecs
+
         wire.Segments
         |> List.mapi getSegmentVector
-        |> coalesce
-                
+        |> (fun segVecs ->
+                (segVecs,[1..segVecs.Length-2])
+                ||> List.fold tryCoalesceAboutIndex)
 
 
 //------------------------------------------------------------------------------------------------------------------------//
@@ -173,12 +179,7 @@ module HLPTick3 =
     module Builder =
 
 
-                
-
-            
-
-
-
+         
         /// Place a new symbol with label symLabel onto the Sheet with given position.
         /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
         /// To be safe place components close to (maxSheetCoord/2.0, maxSheetCoord/2.0).
@@ -234,13 +235,31 @@ module HLPTick3 =
             
         
 
-        // Rotate a symbol
+            // Rotate a symbol
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+            let symLabel = String.toUpper symLabel
+            let symbol = model.Wire.Symbol.Symbols
+            match mapValues symbol |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+            | Some sym ->
+                let rotatedSymbol = SymbolResizeHelpers.rotateSymbol rotate sym
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) rotatedSymbol
+                |> SheetUpdateHelpers.updateBoundingBoxes
+            | None -> model
 
-        // Flip a symbol
+
+            // Flip a symbol
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
+            let symLabel = String.toUpper symLabel
+            let symbol = model.Wire.Symbol.Symbols
+            match mapValues symbol |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+            | Some sym ->
+                let flippedSymbol = SymbolResizeHelpers.flipSymbol flip sym
+                model
+                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) flippedSymbol
+                |> SheetUpdateHelpers.updateBoundingBoxes
+            | None -> model
+
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
@@ -323,10 +342,82 @@ module HLPTick3 =
 //--------------------------------------------------------------------------------------------------//
 
     open Builder
+
+    let findStraightWireSeg (model: SheetT.Model) (wire: BusWireT.Wire) : bool =
+        let segments = SegmentHelpers.visibleSegments wire.WId model
+        List.length segments = 1
+
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
+
+
+    //==================================GENERATE COORDINATES====================================//
+    let generateSampleData =
+        product (fun x y -> middleOfSheet + {X = float x; Y = float y})
+            (fromList [-100..20..100])
+            (fromList [-100..20..100])
+
+    type SymbolDeviations = {
+        Adev: XYPos
+        Bdev: XYPos
+        Cdev: XYPos
+    }
+
+    let generateSmallDeviations : Gen<XYPos> =
+        let rnd = Random()
+        let beginningSeq = -40
+        let endSeq = beginningSeq * -1
+        product (fun x y ->
+                    if x = beginningSeq && y = endSeq then
+                        { X = 0.0; Y = 0.0 } // Zero case for first set of values
+                    else
+                    let deviationX = rnd.NextDouble() * 15.0 - 10.0 // Random deviation up to 10.0 in X
+                    let deviationY = rnd.NextDouble() * 15.0 - 10.0 // Random deviation up to 10.0 in Y
+                    { X = float x + deviationX; Y = float y + deviationY})
+                (fromList [beginningSeq..2..endSeq])
+                (fromList [beginningSeq..2..endSeq])
+            
+    let filterOverlap (pos1: XYPos) =
+        // Define the size of the components
+        let componentSize = 10.0
+        
+        let overlapX = abs(pos1.X - middleOfSheet.X) < componentSize
+        let overlapY = abs(pos1.Y - middleOfSheet.Y) < componentSize
+        
+        // Return true if there's no overlap, false otherwise
+        not (overlapX && overlapY)
+
+    let filteredSampleData =
+        generateSampleData
+        |> GenerateData.filter filterOverlap
+
+    let filteredSampleDataWithDeviation =
+        generateSmallDeviations
+        |> GenerateData.filter filterOverlap
+
+    let rnd = Random()
+
+    //==================================GENERATE COORDINATES ==============================//
+
+    //---------------TICK 3 Q10---------------------------------------------
+    let randomSel arr =
+        let shuffledArray = shuffleA arr
+        shuffledArray.[0] //first element from shuffled array
+
+    let Rotations =
+        [|Degree0; Degree90; Degree180; Degree270|]
+
+    let Flips = [|SymbolT.FlipHorizontal|]
+
+    let andRotation = randomSel Rotations
+    let dffRotation = randomSel Rotations
+    let andFlip = randomSel Flips
+    let dffFlip = randomSel Flips
+    //-----------------TICK 3 Q10------------------------------------------
+
+    //-----------------TESTS-----------------------------------------------
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -334,10 +425,173 @@ module HLPTick3 =
         |> placeSymbol "G1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
         |> getOkOrFail
 
+    let makeTest5Circuit (andPos: XYPos) =
+        initSheetModel
+        |> placeSymbol "Component1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "Component2" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "Component1" 0) (portOf "Component2" 0))
+        |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
+        |> getOkOrFail
 
+//========================================================PROJECT WORK===========================================================================
+
+    ///D.U for symbol pos
+    type SymbolPositions = {
+        APos: XYPos
+        BPos: XYPos
+        CPos: XYPos
+        M2Pos: XYPos
+        M3Pos: XYPos
+        S1Pos: XYPos
+        S2Pos: XYPos
+        CC2Pos: XYPos
+    }
+
+    /// function to set symbol positions
+    let setSymbolPositions (andPos: XYPos) =
+
+        let aPos = middleOfSheet + { X = -100.0; Y = -50.0 } + {X = andPos.X ; Y = andPos.Y}
+        let bPos = middleOfSheet + { X = -100.0; Y = 50.0 } + {X = andPos.X; Y = -andPos.Y}
+        let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = andPos.Y}
+        let m2Pos = middleOfSheet + {X = 90.0; Y = 100.0 } 
+        let m3Pos = middleOfSheet + {X = 200.0; Y = 120.0} 
+        let s1Pos = middleOfSheet + {X = -30.0; Y = 300.0} + { X = andPos.X ; Y = andPos.Y}
+        let s2Pos = middleOfSheet + {X = -40.0; Y = 200.0} + { X = andPos.X ; Y = andPos.Y}
+        let cc2Pos = middleOfSheet + {X = 30.0; Y = 0.0} + { X = andPos.X ; Y = andPos.Y}
+        
+        { APos = aPos; BPos = bPos; CPos = cPos; M2Pos = m2Pos; M3Pos = m3Pos; S1Pos = s1Pos; S2Pos = s2Pos; CC2Pos = cc2Pos }
+
+        /// Returns the number of straight wires in a sheet   
+    let numOfStraightWires (sheet: SheetT.Model) : int =
+            let wModel = sheet.Wire
+            let allWires = sheet.Wire.Wires |> Map.values
+
+            let straightWiresCount =
+                allWires
+                |> Seq.filter(fun wire ->
+                    match findStraightWireSeg sheet wire with
+                    | true -> true
+                    | _ -> false)
+                |> Seq.length
+            straightWiresCount
+
+    let numOfVisRightAngles (model: SheetT.Model) : int =
+        let nets = SegmentHelpers.allWireNets model
+        let numWires = nets |> List.sumBy (fun (source,wires) -> wires.Length)
+        let distinctSegs =
+            nets
+            |> List.collect (fun (_, net) -> SegmentHelpers.getVisualSegsFromNetWires true model net)
+        // every visual segment => right-angle bend except for the first (or last) in a wire
+        distinctSegs.Length - numWires
+
+    ///Create circuit containing 2 input ports and MUX2
+    let makeTest6Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (test1: int) (test2: int) : int =
+            test1 - test2
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "C" (Output(1)) symbolPositions.CPos) 
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "C" 0) ) 
+            |> getOkOrFail
+
+        let testPreAlign = numOfStraightWires model
+
+        //let alignedModel = Beautify.sheetSingly model
+
+        let testPostAlign = numOfStraightWires model
+        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        printf "Number of straightened wires: %d" straightenedWires
+
+        model
+
+
+    ///Create circuit containing 2 input ports and MUX2
+    let makeTest7Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (sheet1: int) (sheet2: int) : int =
+            sheet2 - sheet1
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "MUX3" Mux2 symbolPositions.M3Pos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX3" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+
+        let testPreAlign = numOfStraightWires model
+        let alignedModel = Beautify.sheetSingly model
+        let testPostAlign = numOfStraightWires alignedModel
+        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        printf "Number of straightened wires: %d" straightenedWires
+
+        alignedModel
+
+    ///Create circuit containing 2 input ports and MUX2
+    let makeTest8Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (sheet1: int) (sheet2: int) : int =
+            sheet2 - sheet1
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "C" (Output(1)) symbolPositions.CPos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.map (rotateSymbol "S1" Degree90)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+
+        let testPreAlign = numOfStraightWires model
+        let alignedModel = Beautify.sheetSingly model
+        let testPostAlign = numOfStraightWires alignedModel
+        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        printf "Number of straightened wires: %d" straightenedWires
+
+        alignedModel
+
+
+
+        
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -345,10 +599,6 @@ module HLPTick3 =
 
 
     module Asserts =
-
-        (* Each assertion function from this module has as inputs the sample number of the current test and the corresponding schematic sheet.
-           It returns a boolean indicating (true) that the test passes or 9false) that the test fails. The sample numbr is included to make it
-           easy to document tests and so that any specific sampel schematic can easily be displayed using failOnSampleNumber. *)
 
         /// Ignore sheet and fail on the specified sample, useful for displaying a given sample
         let failOnSampleNumber (sampleToFail :int) (sample: int) _sheet =
@@ -380,7 +630,6 @@ module HLPTick3 =
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
-
 
 
 //---------------------------------------------------------------------------------------//
@@ -445,22 +694,64 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        let test5 testNum firstSample dispatch =
+            runTestOnSheets
+                "Test wire routing between two components"
+                firstSample
+                filteredSampleData
+                makeTest5Circuit
+                Asserts.failOnWireIntersectsSymbol
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test6 testNum firstSample dispatch =
+            runTestOnSheets
+                "Test Near Straight Wire"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeTest6Circuit
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test7 testNum firstSample dispatch =
+            runTestOnSheets
+                "Test Multiply"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeTest7Circuit
+                Asserts.failOnSymbolIntersectsSymbol
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test8 testNum firstSample dispatch =
+            runTestOnSheets
+                "Test Multiply"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeTest7Circuit
+                Asserts.failOnSymbolIntersectsSymbol
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+            
+
+        open TestDrawBlockD1
+
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1", test1 // example
-                "Test2", test2 // example
-                "Test3", test3 // example
-                "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
+                "Test1", TestDrawBlockD1.TestD1.Tests.test1 // example
+                "Test2: Multiply", TestDrawBlockD1.TestD1.Tests.test2 // example
+                "Test3", TestDrawBlockD1.TestD1.Tests.test3 // example
+                "Test4", TestDrawBlockD1.TestD1.Tests.test4
+                "D1Test1: Singly", TestDrawBlockD1.TestD1.Tests.D1Test1
+                "D1Test2: Multiply", TestDrawBlockD1.TestD1.Tests.D1Test2
+                "D1Test3: S1 rotate", TestDrawBlockD1.TestD1.Tests.D1Test3
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
             ]
 
         /// Display the next error in a previously started test
@@ -484,9 +775,3 @@ module HLPTick3 =
                 ()
             | _ ->
                 func testIndex 0 dispatch
-        
-
-
-    
-
-

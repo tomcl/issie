@@ -1,6 +1,5 @@
 ﻿module SheetBeautifyHelpers
 
-//-----------------Module for beautify Helper functions--------------------------//
 open EEExtensions
 open CommonTypes
 open DrawModelType.SymbolT
@@ -124,19 +123,21 @@ let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model)
 // B1 R
 /// get the outline dimensions of a custom component
 let getCustomCompDims (sym: Symbol) =
-    let h,w = getRotatedHAndW sym // compensates for rotation
-    { X = w * Option.defaultValue 1. sym.HScale; // compensates for custom symbol scaling
-      Y = h * Option.defaultValue 1. sym.VScale}
+    (SymbolHelpers.getCustomSymCorners sym)[2] // compensates for rotation & scaling
 
 // B1 W
 /// Write the outline dimensions of a custom component
 let putCustomCompDims  (newDims: XYPos) (sym: Symbol) =
     // changing H & W does not work well because these are recalculated by autoScaleHandW
-    // symbol is resized by chnaging HScale, VScale
+    // symbol is resized by changing HScale, VScale
     let {X=w; Y=h} = getCustomCompDims sym // old dimensions
     let ws, hs = Option.defaultValue 1. sym.HScale, Option.defaultValue 1. sym.VScale
-    {sym with HScale = Some (ws * newDims.X / w);
-              VScale = Some (hs * newDims.Y / h)}
+    let ws', hs' = // HScale, VScale affect h,w before rotation, so we need to compensate for that
+        match sym.STransform.Rotation with
+        | Degree0 | Degree180 -> ws * newDims.X / w, hs * newDims.Y / h // non-rotated case
+        | Degree90 | Degree270 -> hs * newDims.Y / w, ws * newDims.X / h // rotated case: swap w,h
+    {sym with HScale = Some ws'
+              VScale = Some hs'}
    
 /// A lens from a symbol to its bounding box dimensions (as a width X height XYPos)
 let customCompDims_ = Lens.create getCustomCompDims putCustomCompDims
@@ -512,5 +513,3 @@ let findRetracingSegments (model : SheetT.Model) =
 
     {| RetraceSegs =retracingSegs;
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
-
-

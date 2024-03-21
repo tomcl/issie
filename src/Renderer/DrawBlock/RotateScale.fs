@@ -493,42 +493,30 @@ let scaleSymbolInBlock
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
-// General function to be used when applying a function on a selected group of symbols
-let updateSymbolGroup
-    (compList: ComponentId list)
-    (model: SymbolT.Model)
-    (transformFunc: XYPos -> Symbol -> Symbol) =
-    
-    let selectedSymbols =
-        compList
-        |> List.map (fun x -> model.Symbols |> Map.find x)
 
-    let block = getBlock selectedSymbols
-    let blockCentre = block.Centre()
-
-    let selectedSymbolsMap =
-        selectedSymbols
-        |> List.map (fun sym -> sym.Id, transformFunc blockCentre sym)
-
-    let unselectedSymbolsMap =
-        model.Symbols
-        |> Map.filter (fun x _ -> not (List.contains x compList))
-
-    let updatedSymbolMap =
-        (Map.ofList selectedSymbolsMap)
-        |> Map.fold (fun acc k v -> Map.add k v acc) unselectedSymbolsMap
-
-    { model with Symbols = updatedSymbolMap}
-
-
-/// <summary>Rotates a block of symbols, returning the new symbol model</summary>
+/// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
 /// <param name="rotation"> Type of rotation to do</param>
 /// <returns>New rotated symbol model</returns>
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
-    let rotateSymBlock blockCentre sym = rotateSymbolInBlock (invertRotation rotation) blockCentre sym
-    updateSymbolGroup compList model rotateSymBlock
+
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+
+    //Get block properties of selected symbols
+    let block = getBlock SelectedSymbols
+
+    //Rotated symbols about the center
+    let newSymbols = 
+        List.map (fun x -> 
+            rotateSymbolInBlock (invertRotation rotation) (block.Centre()) x) SelectedSymbols 
+
+    //return model with block of rotated selected symbols, and unselected symbols
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}
 
 /// <summary> Determines if all selected symbol (centres) align either vertically or horizontally </summary>
 /// <returns> True if all symbols align vertically or horizontally; otherwise, false. </returns>
@@ -618,14 +606,25 @@ let groupNewSelectedSymsModel
     )}
 
 
-/// <summary>Flips a block of symbols, returning the new symbol model</summary>
+/// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
 /// <param name="flip"> Type of flip to do</param>
 /// <returns>New flipped symbol model</returns>
 let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) = 
-    let flipSymBlock blockCentre sym = flipSymbolInBlock flip blockCentre sym
-    updateSymbolGroup compList model flipSymBlock
+    //Similar structure to rotateBlock, easy to understand
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+    
+    let block = getBlock SelectedSymbols
+  
+    let newSymbols = 
+        List.map (fun x -> flipSymbolInBlock flip (block.Centre()) x ) SelectedSymbols
+
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}
 
 /// After every model update this updates the "scaling box" part of the model to be correctly
 /// displayed based on whetehr multiple components are selected and if so what is their "box"

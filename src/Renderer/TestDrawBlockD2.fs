@@ -822,7 +822,7 @@ let beautifyMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
     printf "%s" name
     match name, model.DrawBlockTestState with
     | "D1 Beautify Function", _ -> 
-        beautifySheet model beautify dispatch
+        beautifySheet model sheetAlignScale dispatch
     | "D2 Beautify Function", _ -> 
         beautifySheet model findBestModel dispatch
     | "D3 Beautify Function", _ -> 

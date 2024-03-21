@@ -14,27 +14,20 @@ open Helpers
 open Symbol
 open BusWireRoute
 
-// --------------------------------------------------------------
-// --------------------------------------------------------------
-// Exhaustive Search
+//--------------------------------------------------------------------------------------------------------------------------//
 
+//--------------------------------------------------------------------------------------------------------------------------//
+//---------------------------------------------------- Exhaustive Search ---------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
+
+/// Record that stores potential permutations
 type ComponentState =
     { ComponentId: ComponentId
       Flipped: bool
       Rotation: Rotation
       InputsReversed: bool }
 
-/// Function to generate powersets for testing all combinations of flips
-let rec powerSet =
-    function
-    | [] -> [ [] ]
-    | head :: tail ->
-        let tailSubsets = powerSet tail
-        tailSubsets
-        @ (tailSubsets
-           |> List.map (fun subset -> head :: subset))
-
-/// Generates records for the specified component, for every single state combination
+/// Generates records for the specified component, for every possible  state combination
 let generateComponentStates (compId: ComponentId) : ComponentState list =
     let flipStates = [ true; false ]
     let rotationStates = [ Degree0; Degree90; Degree180; Degree270 ]
@@ -52,6 +45,7 @@ let generateComponentStates (compId: ComponentId) : ComponentState list =
                         inputReversalStates)
                 rotationStates)
         flipStates
+/// Recursive function to compute the Cartesian product of a list of lists. Used to generate all possible combinations of permutations
 let rec cartesianProduct =
     function
     | [] -> [ [] ]
@@ -129,6 +123,7 @@ let reverseInputsAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : Sh
             Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
     newModel |> rerouteWire compId
 
+/// Applies a ComponentState record to the sheet
 let applyStateToModel (model: SheetT.Model) (state: ComponentState) : SheetT.Model =
     let updatedFlipModel =
         if state.Flipped = true then
@@ -142,18 +137,12 @@ let applyStateToModel (model: SheetT.Model) (state: ComponentState) : SheetT.Mod
             updatedFlipModel
     rotateAndRerouteComp updatedInputsReversedModel state.ComponentId state.Rotation
 
-/// Find the better performing model based off total wire crossings and right angles
+/// Finds the better performing model based off total wire crossings and right angles
 let evaluateModels (changedModel: SheetT.Model) (originalModel: SheetT.Model) : SheetT.Model =
     let originalCrossings = numOfWireRightAngleCrossings originalModel
     let originalRightAngles = numOfVisRightAngles originalModel
     let newCrossings = numOfWireRightAngleCrossings changedModel
     let newRightAngles = numOfVisRightAngles changedModel
-
-    // printfn "Running evaluateModelCrossings................."
-    // printfn "originalCrossings: %A" originalCrossings
-    // printfn "originalRightAngles: %A" originalRightAngles
-    // printfn "NewCrossings: %A" newCrossings
-    // printfn "NewRightAngles: %A" newRightAngles
 
     if
         newCrossings <= originalCrossings
@@ -163,18 +152,15 @@ let evaluateModels (changedModel: SheetT.Model) (originalModel: SheetT.Model) : 
             newCrossings = originalCrossings
             && newRightAngles = originalRightAngles
         then
-            // printfn "Kept original model"
-            // printfn "EvaluateModelCrossings complete................"
             originalModel
         else
-            // printfn "Changed to new model"
-            // printfn "EvaluateModelCrossings complete................"
+
             changedModel
     else
-        // printfn "Kept original model"
-        // printfn "EvaluateModelCrossings complete................"
         originalModel
 
+/// Generates, applies and evaluates all potential permutations for a specified list of componenents.
+/// Returns the best performing model
 let evaluateAllComponents (model: SheetT.Model) (components: ComponentId list) : SheetT.Model =
     let allStates = components |> List.map generateComponentStates
     let allStateCombinations = cartesianProduct allStates
@@ -196,6 +182,8 @@ let evaluateAllComponents (model: SheetT.Model) (components: ComponentId list) :
     printfn "Total number of ComponentStates applied: %d" stateCount
     finalModel
 
+/// Partitions the components in to independent connected groups based on if they are directly
+/// or indirectly connected
 let findAllSubCircuitsFunctional (model: SheetT.Model) =
     // Helper to add a component to a sub-circuit, ensuring no duplicates.
     let addToSubCircuit comp subCircuit =
@@ -234,7 +222,7 @@ let findAllSubCircuitsFunctional (model: SheetT.Model) =
                         (si, ti))
                     (None, None)
 
-            // Update sub-circuits based on whether source/target components are already in sub-circuits.
+            // Updates sub-circuits based on whether source/target components are already in sub-circuits.
             let updatedSubCircuits =
                 match sourceSubCircuitIndex, targetSubCircuitIndex with
                 | Some si, Some ti when si = ti -> subCircuits
@@ -267,13 +255,14 @@ let findAllSubCircuitsFunctional (model: SheetT.Model) =
             processWires remainingWires updatedSubCircuits
 
     processWires (List.map snd (Map.toList model.Wire.Wires)) []
+
+/// Partitions circuit and applies exhaustive search on each sub-circuit.
+/// Returns model with best performing sub-circuits
 let findBestModel (model: SheetT.Model) : SheetT.Model =
-    // Finds all sub-circuits in the model.
     let subCircuits = findAllSubCircuitsFunctional model
 
     // Function to evaluate a single sub-circuit and update the model.
     let evaluateSubCircuit (currentModel: SheetT.Model) (subCircuit: ComponentId list) : SheetT.Model =
-        // Filter components of the current sub-circuit for the specific types to evaluate.
         let componentsToEvaluate =
             subCircuit
             |> List.choose (fun id ->
@@ -285,91 +274,20 @@ let findBestModel (model: SheetT.Model) : SheetT.Model =
                     | _ -> None
                 | None -> None)
 
-        // Evaluate all components in the current sub-circuit and update the model.
         evaluateAllComponents currentModel componentsToEvaluate
 
-    // Sequentially evaluate each sub-circuit and update the model.
     let updatedModel = List.fold evaluateSubCircuit model subCircuits
 
-    // Return the model updated with evaluations of all sub-circuits.
     updatedModel
 
-// let flipCombinations = powerSet components
-// // printfn "Flip combinations: %A" flipCombinations
+//--------------------------------------------------------------------------------------------------------------------------//
 
-// let compareModels (currentBestModel: SheetT.Model) flipCombination =
-//     let flippedModel =
-//         flipCombination
-//         |> List.fold (fun accModel compId -> rotateAndRerouteComp accModel compId Degree90) currentBestModel
+//--------------------------------------------------------------------------------------------------------------------------//
+//-------------------------------------------------- Iterated Local Search -------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
 
-//     evaluateModels flippedModel currentBestModel
-
-// flipCombinations |> List.fold compareModels model
-
-// /// Gate permutations (currently just horizontal flip)
-// /// TODO: Implement permuations for higher port orders & test if horiontal flip is correct for all orientations
-// let flipGatesHorizontally (model: SheetT.Model) : SheetT.Model =
-//     let updatedModel, flippedIds =
-//         model.Wire.Symbol.Symbols
-//         |> Map.fold (fun (accModel, accIds) id symbol ->
-//             match symbol.Component.Type with
-//             | GateN _ | Mux2 ->
-//                 let accModel = flipSymbol (symbol.Component.Label) FlipVertical accModel
-//                 accModel, id :: accIds
-//             | _ -> accModel, accIds) (model, [])
-
-//     flippedIds
-//     |> List.fold rerouteWire updatedModel
-
-// let evaluateAllCombinations (model: SheetT.Model) (components: ComponentId list) : SheetT.Model =
-//     let allStates =
-//         components
-//         |> List.collect generateComponentStates
-//         |> Set.ofList
-//         |> Set.toList
-//     let powerSetOfStates = powerSet allStates |> Set.ofList |> Set.toList
-
-//     powerSetOfStates
-//     |> List.iter (fun subset ->
-//         printfn "Subset start"
-//         subset
-//         |> List.iter (fun state ->
-//             printfn
-//                 "ComponentId: %A, Flipped: %b, Rotation: %A, InputsReversed: %b"
-//                 state.ComponentId
-//                 state.Flipped
-//                 state.Rotation
-//                 state.InputsReversed)
-//         printfn "Subset end")
-
-//     powerSetOfStates
-//     |> List.fold
-//         (fun currentBestModel statesCombination ->
-//             let modelForCombination =
-//                 statesCombination
-//                 |> List.fold applyStateToModel model
-
-//             evaluateModels modelForCombination currentBestModel)
-//         model
-
-// /// Perform exhaustive search across all component flips, finding the model with the least total wire crossings and right angles
-// let findBestModel (model: SheetT.Model) : SheetT.Model =
-//     let components =
-//         model.Wire.Symbol.Symbols
-//         |> Map.toList
-//         |> List.choose (fun (id, sym) ->
-//             match sym.Component.Type with
-//             | GateN _
-//             | Mux2 -> Some id
-//             | _ -> None)
-
-//     evaluateAllCombinations model components
-
-//------------------------------------------------------------
-//------------------------------------------------------------
-// Iterated Local Search (ILS)
-
-/// General framework for Iterated Local Search -> Needs fully implementing once we test more complex circuits
+/// Generates possible permutations for one component at a time, evaluating which permutation is best.
+/// Carried out on all components to achieve a local minimum
 let iteratedLocalSearchSingleComponent (initialModel: SheetT.Model) : SheetT.Model =
     let optimiseComponent (model: SheetT.Model) (compId: ComponentId) =
         let states = generateComponentStates compId

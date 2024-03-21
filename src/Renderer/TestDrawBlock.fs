@@ -522,7 +522,7 @@ module HLPTick3 =
         model
 
 
-        ///Create circuit containing 2 input ports and MUX2
+    ///Create circuit containing 2 input ports and MUX2
     let makeTest7Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
 
@@ -557,6 +557,44 @@ module HLPTick3 =
         printf "Number of straightened wires: %d" straightenedWires
 
         alignedModel
+
+    ///Create circuit containing 2 input ports and MUX2
+    let makeTest8Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (sheet1: int) (sheet2: int) : int =
+            sheet2 - sheet1
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "C" (Output(1)) symbolPositions.CPos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.map (rotateSymbol "S1" Degree90)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+
+        let testPreAlign = numOfStraightWires model
+        let alignedModel = Beautify.sheetSingly model
+        let testPostAlign = numOfStraightWires alignedModel
+        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        printf "Number of straightened wires: %d" straightenedWires
+
+        alignedModel
+
+
 
         
 
@@ -691,6 +729,16 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        let test8 testNum firstSample dispatch =
+            runTestOnSheets
+                "Test Multiply"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeTest7Circuit
+                Asserts.failOnSymbolIntersectsSymbol
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
             
 
 
@@ -706,8 +754,8 @@ module HLPTick3 =
                 "Test4", test4 
                 "Test5", test5 // dummy test - delete line or replace by real test as needed
                 "Test6", test6
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
+                "Test7", test7
+                "Test8", test8
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]

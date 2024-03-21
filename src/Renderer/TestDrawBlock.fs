@@ -657,7 +657,7 @@ module HLPTick3 =
                 firstSample
                 horizLinePositions
                 makeTest1Circuit
-                (Asserts.failOnSampleNumber 10)
+                (Asserts.failOnSampleNumber 0)
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -667,7 +667,7 @@ module HLPTick3 =
                 "Horizontally positioned AND + DFF: fail on sample 10"
                 firstSample
                 horizLinePositions
-                makeTest2Circuit
+                makeTest1Circuit
                 (Asserts.failOnSampleNumber 10)
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -688,28 +688,8 @@ module HLPTick3 =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
-                filteredSampleDataWithDeviation
-                makeTest4Circuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        let test5 testNum firstSample dispatch =
-            runTestOnSheets
-                "Test wire routing between two components"
-                firstSample
-                filteredSampleData
-                makeTest5Circuit
-                Asserts.failOnWireIntersectsSymbol
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        let test6 testNum firstSample dispatch =
-            runTestOnSheets
-                "Test Near Straight Wire"
-                firstSample
-                filteredSampleDataWithDeviation
-                makeTest6Circuit
+                horizLinePositions
+                makeTest1Circuit
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -795,6 +775,3 @@ module HLPTick3 =
                 ()
             | _ ->
                 func testIndex 0 dispatch
-        
-
-

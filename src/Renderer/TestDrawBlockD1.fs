@@ -17,11 +17,6 @@ open System
 
 module D1TestLib =
 
-//-------------------------------------------------------------------------------------------//
-//--------Types to represent tests with (possibly) random data, and results from tests-------//
-//-------------------------------------------------------------------------------------------//
-module TestLib =
-
     /// convenience unsafe function to extract Ok part of Result or fail if value is Error
     let getOkOrFail (res: Result<'a,string>) =
         match res with
@@ -86,13 +81,6 @@ module TestD1 =
     open SheetBeautify
     open D1TestLib
     open EEExtensions
-    open Optics
-    open Optics.Operators
-    open DrawHelpers
-    open Helpers
-    open CommonTypes
-    open ModelType
-    open DrawModelType
     open Sheet.SheetInterface
     open SymbolResizeHelpers
 
@@ -128,61 +116,7 @@ module TestD1 =
     let portOf (label:string) (number: int) =
         {Label=label; PortNumber = number}
 
-
-    //-----------------------------------------------------------------------------------------------
-    // visibleSegments is included here as ahelper for info, and because it is needed in project work
-    //-----------------------------------------------------------------------------------------------
-
-    /// The visible segments of a wire, as a list of vectors, from source end to target end.
-    /// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
-    /// which if present causes the two segments on either side of it to coalesce into a single visible segment.
-    /// A wire can have any number of visible segments - even 1.
-    let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
-
-        let wire = model.Wire.Wires[wId] // get wire from model
-
-        /// helper to match even and off integers in patterns (active pattern)
-        let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
-
-        /// Convert seg into its XY Vector (from start to end of segment).
-        /// index must be the index of seg in its containing wire.
-        let getSegmentVector (index:int) (seg: BusWireT.Segment) =
-            // The implicit horizontal or vertical direction  of a segment is determined by 
-            // its index in the list of wire segments and the wire initial direction
-            match index, wire.InitialOrientation with
-            | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
-            | IsEven, BusWireT.Horizontal | IsOdd, BusWireT.Vertical -> {X=seg.Length; Y=0.}
-
-        /// Return a list of segment vectors with 3 vectors coalesced into one visible equivalent
-        /// if this is possible, otherwise return segVecs unchanged.
-        /// Index must be in range 1..segVecs
-        let tryCoalesceAboutIndex (segVecs: XYPos list) (index: int)  =
-            if segVecs[index] =~ XYPos.zero
-            then
-                segVecs[0..index-2] @
-                [segVecs[index-1] + segVecs[index+1]] @
-                segVecs[index+2..segVecs.Length - 1]
-            else
-                segVecs
-
-        wire.Segments
-        |> List.mapi getSegmentVector
-        |> (fun segVecs ->
-                (segVecs,[1..segVecs.Length-2])
-                ||> List.fold tryCoalesceAboutIndex)
-
-
-//------------------------------------------------------------------------------------------------------------------------//
-//------------------------------functions to build issue schematics programmatically--------------------------------------//
-//------------------------------------------------------------------------------------------------------------------------//
     module Builder =
-
-
-                
-
-            
-
-
 
             /// Place a new symbol with label symLabel onto the Sheet with given position.
             /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
@@ -204,9 +138,6 @@ module TestD1 =
                     |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
                     |> Ok
         
-
-
-    
             /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
             /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
             /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
@@ -341,9 +272,6 @@ module TestD1 =
                     | Ok sheet -> showSheetInIssieSchematic sheet dispatch
                     | Error mess -> ()
                 result
-//--------------------------------------------------------------------------------------------------//
-//----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
-//--------------------------------------------------------------------------------------------------//
 
     open Builder
 
@@ -471,7 +399,6 @@ module TestD1 =
     /// function to set symbol positions
     let setSymbolPositions (andPos: XYPos) =
 
-        let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = andPos.Y}
         let aPos = middleOfSheet + { X = -100.0; Y = -50.0 } + {X = andPos.X ; Y = andPos.Y}
         let bPos = middleOfSheet + { X = -100.0; Y = 50.0 } + {X = andPos.X; Y = -andPos.Y}
         let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = andPos.Y}
@@ -672,10 +599,6 @@ module TestD1 =
                          | false -> None)
 
 
-//---------------------------------------------------------------------------------------//
-//-----------------------------Demo tests on Draw Block code-----------------------------//
-//---------------------------------------------------------------------------------------//
-
     module Tests =
 
         /// Allow test errors to be viewed in sequence by recording the current error
@@ -712,7 +635,6 @@ module TestD1 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
         let test3 testNum firstSample dispatch =
             runD1TestOnSheets
                 "Test wire routing between two components"
@@ -765,31 +687,3 @@ module TestD1 =
             |> recordPositionInTest testNum dispatch
 
 
-        
-
-
-
-
-            ]
-
-        /// Display the next error in a previously started test
-        let nextError (testName, testFunc) firstSampleToTest dispatch =
-            let testNum =
-                testsToRunFromSheetMenu
-                |> List.tryFindIndex (fun (name,_) -> name = testName)
-                |> Option.defaultValue 0
-            testFunc testNum firstSampleToTest dispatch
-
-        /// common function to execute any test.
-        /// testIndex: index of test in testsToRunFromSheetMenu
-        let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name,func = testsToRunFromSheetMenu[testIndex] 
-            printf "%s" name
-            match name, model.DrawBlockTestState with
-            | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
-            | "Next Test Error", None ->
-                printf "Test Finished"
-                ()
-            | _ ->
-                func testIndex 0 dispatch

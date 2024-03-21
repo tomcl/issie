@@ -1,6 +1,5 @@
 ﻿module SheetBeautifyHelpers
 
-//-----------------Module for beautify Helper functions--------------------------//
 open EEExtensions
 open CommonTypes
 open DrawModelType.SymbolT

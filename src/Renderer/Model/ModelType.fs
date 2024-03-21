@@ -136,7 +136,7 @@ type UICommandType =
     | ViewWaveSim
     | CloseWaveSim
 
-type TestState = {LastTestNumber: int; LastTestSampleIndex: int}
+type TestState = {LastTestNumber: int; LastTestSampleIndex: int; TargetFunctionApplied: bool}
 
     
 //---------------------------------------------------------------

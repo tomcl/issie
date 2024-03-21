@@ -245,29 +245,31 @@ module Asserts =
 
 module Tests =
     
-    let D3Test1 testNum firstSample dispatch =
+    let D3Test1 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Mux conected to 2 demux"
             firstSample
             test1Builder
+            showTargetSheet
             None
             makeTest1Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
     
-    let D3Test2 testNum firstSample dispatch =
+    let D3Test2 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Test for label placement"
             firstSample
             test2Builder
+            showTargetSheet
             None
             makeTest2Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
     // ac2021: CAUSED COMPILE ERRORS SO COMMENTED
     // ac2021: I think it was caused by Alina's pr?
@@ -281,30 +283,39 @@ module Tests =
     //         dispatch
     //     |> recordPositionInTest testNum dispatch
 
-    let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+    let testsToRunFromSheetMenu : (string * (int -> int -> bool -> Dispatch<Msg> -> Unit)) list =
         // Change names and test functions as required
         // delete unused tests from list
         [
             "Test1", D3Test1 // example
             "Test2", D3Test2 // example
-            "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+            "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
     
-    let nextError (testName, testFunc) firstSampleToTest dispatch =
-            let testNum =
-                testsToRunFromSheetMenu
-                |> List.tryFindIndex (fun (name,_) -> name = testName)
-                |> Option.defaultValue 0
-            testFunc testNum firstSampleToTest dispatch
-    
+    /// Display the next error in a previously started test
+    let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
+        let testNum =
+            testsToRunFromSheetMenu
+            |> List.tryFindIndex (fun (name,_) -> name = testName)
+            |> Option.defaultValue 0
+        testFunc testNum firstSampleToTest showTargetSheet dispatch
+
+    /// common function to execute any test.
+    /// testIndex: index of test in testsToRunFromSheetMenu
     let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name,func = testsToRunFromSheetMenu[testIndex] 
-            printf "%s" name
-            match name, model.DrawBlockTestState with
-            | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
-            | "Next Test Error", None ->
-                printf "Test Finished"
-                ()
-            | _ ->
-                func testIndex 0 dispatch
+        let name,func = testsToRunFromSheetMenu[testIndex] 
+        printf "%s" name
+        match name, model.DrawBlockTestState with
+        | "Next Test Error", Some state ->
+            nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) (state.TargetFunctionApplied) dispatch
+        | "Next Test Error", None ->
+            printf "Test Finished"
+            ()
+        | "Toggle Beautify", Some state -> 
+            nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex) (not state.TargetFunctionApplied) dispatch
+        | "Toggle Beautify", None ->
+            printf "No test started"
+            ()
+        | _ ->
+            func testIndex 0 true dispatch
+        

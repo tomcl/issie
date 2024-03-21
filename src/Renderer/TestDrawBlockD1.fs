@@ -513,13 +513,28 @@ module Evaluations =
         | 0 -> 1.
         | _ -> float idealRightAngs / float rightAngs
 
-    /// Evaluates number of wires compared to number of visual segments
-    let visualSegmentProp (sheet: SheetT.Model) =
-        failwithf "Not implemented"
+    /// Evaluates symbol alignment with all other symbols
+    let symCentreAlignmentProp (sheet: SheetT.Model) : float =
+        let syms = mapValues sheet.Wire.Symbol.Symbols
+        let n = Array.length syms
+        
+        /// Scores how close two points are
+        let calcAlignPoint (pointA: float) (pointB: float) : float =
+            let diff = abs (pointA - pointB)
+            match diff with
+            | diff when diff < 1. -> 1.
+            | _ -> 1. / diff
 
-    /// Evaluates number of crosses of wires compared to number of wires in sheet
-    let wireCrossProp (sheet: SheetT.Model) =
-        failwithf "Not implemented"
+        /// Scores how aligned two symbols are
+        let calcAlignSym (symA: SymbolT.Symbol) (symB: SymbolT.Symbol) : float = 
+            let ctrA = symA.CentrePos
+            let ctrB = symB.CentrePos
+            calcAlignPoint ctrA.X ctrB.X + calcAlignPoint ctrA.Y ctrB.Y
+
+        Array.allPairs syms syms
+        |> Array.sumBy (function | (symA,symB) when symA.Id <= symB.Id -> calcAlignSym symA symB
+                                 | _ -> 0.)
+        |> (fun x -> x / (float (n * n))) // Scales to lots of symbols
 
     /// Evaluates wire squashing between symbols
     let wireSquashProp (sheet: SheetT.Model) =
@@ -531,23 +546,6 @@ module Evaluations =
         let minWireLen wire =
             BusWireRoute.getWireVertices
         failwithf "Not implemented"
-
-    // For each symbol in sheet
-    // evaluates alignment with all other symbols
-    // getSymbolPos
-    /// Evaluates symbol alignment with all other symbols
-    let symCentreAlignmentProp (sheet: SheetT.Model) : float =
-        let syms = mapValues sheet.Wire.Symbol.Symbols
-        
-        /// Scores how aligned two symbols are
-        let calcAlignment (symA: SymbolT.Symbol) (symB: SymbolT.Symbol) =
-            // getSymBoundingBox
-            failwithf "not implemented"
-
-        Array.allPairs syms syms
-        |> Array.sumBy (function | (symA,symB) when symA.Id <= symB.Id -> calcAlignment symA symB
-                                 | _ -> 0.)
-        |> (fun x -> x / (float (Array.length syms))) // Scales to lots of symbols
 
     type ConfigD1 =
         {
@@ -582,71 +580,83 @@ module Tests =
     open Circuit
     open Evaluations
 
-    let testA1 testNum firstSample dispatch =
+    let genA1 = randXY {min=(-30); step=3; max=30}
+    let testA1 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Figure A1 circuit from hlp2024 brief"
             firstSample
-            (randXY {min=(-30); step=3; max=30})
+            genA1
+            showTargetSheet
             None
             makeA1Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let testA3 testNum firstSample dispatch =
+    let genA3 = randXY {min=(-30); step=3; max=30}
+    let testA3 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Figure A3 circuit from hlp2024 brief"
             firstSample
-            (randXY {min=(-30); step=3; max=30})
+            genA3
+            showTargetSheet
             (Some sheetAlignScale)
             makeA3Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let testA4 testNum firstSample dispatch =
+    let genA4 = randXY {min=(-50); step=5; max=50}
+    let testA4 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random offset"
             firstSample
-            (randXY {min=(-50); step=5; max=50})
+            genA4
+            showTargetSheet
             (Some sheetAlignScale)
             makeA4Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let testA5 testNum firstSample dispatch =
+    let genA5 = randXY {min=(0.5); step=0.5; max=3}
+    let testA5 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random scaling"
             firstSample
-            (randXY {min=(0.5); step=0.5; max=3})
+            genA5
+            showTargetSheet
             (Some sheetAlignScale)
             makeA5Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let testLargeCircuit testNum firstSample dispatch =
+    let genLC = randXY {min=(0.5); step=0.5; max=1}
+    let testLargeCircuit testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Large circuit"
             firstSample
-            (randXY {min=(0.5); step=0.5; max=1})
+            genLC
+            showTargetSheet
             (Some sheetAlignScale)
             makeLargeCircuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let testLargeCompareD1 testNum firstSample dispatch =
+    let genLCComp = randXY {min=(0.5); step=0.5; max=1}
+    let testLargeCompareD1 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Large circuit"
             firstSample
-            (randXY {min=(0.5); step=0.5; max=1})
+            genLCComp
+            showTargetSheet
             (Some sheetAlignScale)
             makeLargeCircuit
             TargetFuncWorse
@@ -655,19 +665,21 @@ module Tests =
                 Penalty = -1
             }
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let testMultiOutputs testNum firstSample dispatch =
+    let genMultOut = randXY {min=(0.5); step=0.5; max=1}
+    let testMultiOutputs testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Multi outputs"
             firstSample
-            (randXY {min=(0.5); step=0.5; max=1})
+            genMultOut
+            showTargetSheet
             (Some sheetAlignScale)
             makeMultipleOutputs
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
     
 
 
@@ -675,7 +687,7 @@ module Tests =
 
     /// List of tests available which can be run ftom Issie File Menu.
     /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-    let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+    let testsToRunFromSheetMenu : (string * (int -> int -> bool -> Dispatch<Msg> -> Unit)) list =
         // Change names and test functions as required
         // delete unused tests from list
         [
@@ -685,16 +697,18 @@ module Tests =
             "Large", testLargeCircuit 
             "compareOnLarge", testLargeCompareD1
             "multiOutputs", testMultiOutputs
-            "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+            "Test7", fun _ _ _ _ -> printf "Test7"
+            "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
+            "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
 
     /// Display the next error in a previously started test
-    let nextError (testName, testFunc) firstSampleToTest dispatch =
+    let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
         let testNum =
             testsToRunFromSheetMenu
             |> List.tryFindIndex (fun (name,_) -> name = testName)
             |> Option.defaultValue 0
-        testFunc testNum firstSampleToTest dispatch
+        testFunc testNum firstSampleToTest showTargetSheet dispatch
 
     /// common function to execute any test.
     /// testIndex: index of test in testsToRunFromSheetMenu
@@ -703,9 +717,14 @@ module Tests =
         printf "%s" name
         match name, model.DrawBlockTestState with
         | "Next Test Error", Some state ->
-            nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
+            nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) (state.TargetFunctionApplied) dispatch
         | "Next Test Error", None ->
             printf "Test Finished"
             ()
+        | "Toggle Beautify", Some state -> 
+            nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex) (not state.TargetFunctionApplied) dispatch
+        | "Toggle Beautify", None ->
+            printf "No test started"
+            ()
         | _ ->
-            func testIndex 0 dispatch
+            func testIndex 0 true dispatch

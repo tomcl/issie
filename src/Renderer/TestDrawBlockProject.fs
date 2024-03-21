@@ -1,31 +1,19 @@
 module TestDrawBlockProject
 
 
-open PopupHelpers
-
-
-open Fulma
-
-open Fable.React
-
-open SheetBeautifyD3
 open CommonTypes
-
 open DrawModelType
 open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open DrawModelType.SymbolT
-
 open Elmish
+open Fable
+open Fable.React
 open GenerateData
-
 open ModelType
 open Optics
-
-
+open PopupHelpers
 open SheetBeautifyHelpers
-
-
 open TestDrawBlock
 open TestDrawBlock.HLPTick3
 open TestDrawBlock.HLPTick3.Asserts

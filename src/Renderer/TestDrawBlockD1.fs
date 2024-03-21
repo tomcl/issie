@@ -361,7 +361,20 @@ module TestD1 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
         |> getOkOrFail
 
-    let makeTest5Circuit (andPos: XYPos) =
+    let makeTest2Circuit (andPos:XYPos) =
+        let model =
+            initSheetModel
+            |> placeSymbol "G1" (GateN(And,2)) andPos
+            |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+            |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+            |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
+            |> getOkOrFail
+
+        let alignedModel = Beautify.sheetMultiply model
+       
+        alignedModel
+
+    let makeTest3Circuit (andPos: XYPos) =
         initSheetModel
         |> placeSymbol "Component1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "Component2" DFF middleOfSheet)
@@ -420,6 +433,35 @@ module TestD1 =
         // every visual segment => right-angle bend except for the first (or last) in a wire
         distinctSegs.Length - numWires
 
+    let makeTest4Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (sheet1: int) (sheet2: int) : int =
+            sheet2 - sheet1
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "MUX3" Mux2 symbolPositions.M3Pos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX3" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+
+        let testPreAlign = numOfStraightWires model
+        model
+
     ///Create circuit containing 2 input ports and MUX2
     let makeD1Test1Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
@@ -450,7 +492,7 @@ module TestD1 =
         alignedModel
 
 
-    ///Create circuit containing 2 input ports and MUX2
+    ///Create circuit containing 4x Input Ports, 3x MUX2
     let makeD1Test2Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
 
@@ -478,7 +520,7 @@ module TestD1 =
 
 
         let testPreAlign = numOfStraightWires model
-        let alignedModel = Beautify.sheetSingly model
+        let alignedModel = Beautify.sheetAlignScale model
         let testPostAlign = numOfStraightWires alignedModel
         let straightenedWires = findNumDiff testPreAlign testPostAlign
 
@@ -486,7 +528,7 @@ module TestD1 =
 
         alignedModel
 
-    ///Create circuit containing 2 input ports and MUX2
+    ///Same as above but with rotated S1
     let makeD1Test3Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
 
@@ -521,6 +563,7 @@ module TestD1 =
         printf "Number of straightened wires: %d" straightenedWires
 
         alignedModel
+
 
     module Asserts =
 
@@ -581,13 +624,35 @@ module TestD1 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test5 testNum firstSample dispatch =
+        /// Example test: Horizontally positioned AND + DFF: fail on sample 10
+        let test2 testNum firstSample dispatch =
+            runD1TestOnSheets
+                "Horizontally positioned AND + DFF: fail on sample 10"
+                firstSample
+                horizLinePositions
+                makeTest2Circuit
+                (Asserts.failOnSampleNumber 10)
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test3 testNum firstSample dispatch =
             runD1TestOnSheets
                 "Test wire routing between two components"
                 firstSample
                 filteredSampleData
-                makeTest5Circuit
+                makeTest3Circuit
                 Asserts.failOnWireIntersectsSymbol
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        /// Example test: Horizontally positioned AND + DFF: fail all tests
+        let test4 testNum firstSample dispatch =
+            runD1TestOnSheets
+                "Horizontally positioned AND + DFF: fail all tests"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeTest4Circuit
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -607,7 +672,7 @@ module TestD1 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeD1Test2Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                (Asserts.failOnSampleNumber 0)
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -617,7 +682,7 @@ module TestD1 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeD1Test3Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                (Asserts.failOnSampleNumber 0)
                 dispatch
             |> recordPositionInTest testNum dispatch
 

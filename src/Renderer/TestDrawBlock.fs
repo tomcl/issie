@@ -744,10 +744,13 @@ module HLPTick3 =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "D1Test1: Small circuit", TestDrawBlockD1.TestD1.Tests.D1Test1
-                "D1Test2: Wire straightened", TestDrawBlockD1.TestD1.Tests.D1Test2
-                "D1Test3: Component overlap", TestDrawBlockD1.TestD1.Tests.D1Test3
-             // "D1Test3: Wire routing length", TestDrawBlockD1.TestD1.Tests.D1Test3 10.0
+                "Test1", TestDrawBlockD1.TestD1.Tests.test1 // example
+                "Test2: Multiply", TestDrawBlockD1.TestD1.Tests.test2 // example
+                "Test3", TestDrawBlockD1.TestD1.Tests.test3 // example
+                "Test4", TestDrawBlockD1.TestD1.Tests.test4
+                "D1Test1: Singly", TestDrawBlockD1.TestD1.Tests.D1Test1
+                "D1Test2: Multiply", TestDrawBlockD1.TestD1.Tests.D1Test2
+                "D1Test3: S1 rotate", TestDrawBlockD1.TestD1.Tests.D1Test3
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]
 

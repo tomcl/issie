@@ -147,11 +147,11 @@ let convertWiresToLabels dispatch =
 
 let fileMenu (dispatch) =
     /// generate a menu item from a (name, function) list. See testDrawBlock.testsToRunFromSheetMenu
-    let makeTestItem (name:string) (accelNumber:int)  =
-        // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
-        makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
-            // dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD4.Tests.testMenuFunc, accelNumber), dispatch)))
-            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
+    // let makeTestItem (name:string) (accelNumber:int)  =
+    //     // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
+    //     makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
+    //         // dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD4.Tests.testMenuFunc, accelNumber), dispatch)))
+    //         dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
     let makeTestItemD1 (name:string) (accelNumber:int)  =
         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
         makeDebugItem name (Some $"Alt+{accelNumber+1}") (fun _ ->
@@ -178,10 +178,10 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
-        makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
-            TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
-            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
-            |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
+        // makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
+        //     TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
+        //     |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
+        //     |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
         makeMenuGen (debugLevel > 0) false "D1 Tests" (
             TestDrawBlockD1.Tests.testsToRunFromSheetMenu // make a submenu from this list
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes

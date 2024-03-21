@@ -14,6 +14,7 @@ open SheetBeautifyHelpers
 open EEExtensions
 open Sheet.SheetInterface
 open BusWireT
+open BusWireUpdateHelpers
 
 /// Optic to access BusWireT.Model from SheetT.Model
 let busWireModel_ = SheetT.wire_
@@ -30,7 +31,7 @@ let rerouteAllWires (sheet: SheetT.Model) : SheetT.Model=
     let comps = mapKeys sheet.Wire.Symbol.Symbols |> Array.toList
     let newWModel = List.fold (BusWireSeparate.routeAndSeparateSymbolWires) sheet.Wire comps
     Optic.set (SheetT.wire_) newWModel sheet
-let getWireListFromSheet (sheet: SheetT.Model) = sheet.Wire.Wires |> Map.toList
+let getWireListFromSheet (sheet: SheetT.Model) = sheet.Wire.Wires |> Map.toList |> List.map snd
 
 /// Return a list of wires that are long and are not straight which can potentially be replaced with wire labels
 let getLongWires (wireLengthlimit: float) (sheet: SheetT.Model) (wireList: List<BusWireT.Wire>)  =
@@ -41,22 +42,20 @@ let getLongWires (wireLengthlimit: float) (sheet: SheetT.Model) (wireList: List<
 /// Return a map of wires grouped by net (multiple wires with same source port).
 /// And a list of single wires that are too long and complex.
 /// Both need wire labels generated.
-let getWiresNeedLabels (sheet: SheetT.Model) (wireLengthlimit: float) =
+let getWiresNeedLabels (wireList: list<Wire>) (sheet: SheetT.Model) (wireLengthlimit: float) =
     let flattenList = List.collect id >> List.distinct
     let wireInNet, singleWires =
-        getWireListFromSheet sheet
-        |> List.groupBy (fun (id, wire) -> wire.InputPort)
+        wireList
+        |> List.groupBy (fun wire -> wire.InputPort)
         |> List.map snd
         |> List.partition (fun wireList -> wireList.Length > 1)
     let longWires =
         singleWires
         |> flattenList
-        |> List.map snd
         |> getLongWires wireLengthlimit sheet
     
     wireInNet 
     |> flattenList
-    |> List.map snd
     |> List.append longWires
 
 let deleteWire (wireCID: ConnectionId) (sheet: SheetT.Model) =
@@ -254,10 +253,11 @@ let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
         |   None -> sheet
     | None -> sheet
 
-/// Automatically generate Wire Labels for all wires on a sheet
+/// Automatically generate Wire Labels for all wires on a sheet/// Automatically generate Wire Labels for all wires on a sheet
 let sheetWireLabelSymbol (sheet: SheetT.Model) =
     let wireLengthlimit = 120. // User can decide what is considered long wire
-    let wiresNeedLabels = getWiresNeedLabels sheet wireLengthlimit
+    let wireList = getWireListFromSheet sheet
+    let wiresNeedLabels = getWiresNeedLabels wireList sheet wireLengthlimit
     (sheet, wiresNeedLabels)
     ||> List.fold (fun sheet wire -> generateWireLabel wire sheet)
     |> rerouteAllWires
@@ -409,5 +409,17 @@ let autoConvertWireLabelsToWires (sheet: SheetT.Model) =
     ||> Array.fold (fun sheet sym -> turnWireLabelsToWires sym sheet)       
 
 
-
+let convertSelectedWiresIntoWireLabels (comps: ComponentId list) (model: Model) (sheet: SheetT.Model) =
+    let wireList = getConnectedWires model comps
+    let wireLengthlimit = 120.
+    let wiresNeedLabels = getWiresNeedLabels wireList sheet wireLengthlimit
+    (sheet, wiresNeedLabels)
+    ||> List.fold (fun sheet wire -> generateWireLabel wire sheet)
+    |> rerouteAllWires
     
+let convertSelectedWiresLabelsIntoWires (comps: ComponentId list) (model: Model) (sheet: SheetT.Model) =
+    let symbolList = 
+        comps
+        |> List.map (fun id -> model.Symbol.Symbols[id])
+    (sheet, symbolList)
+    ||> List.fold (fun sheet sym -> turnWireLabelsToWires sym sheet)

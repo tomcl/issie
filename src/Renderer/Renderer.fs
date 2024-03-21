@@ -138,13 +138,13 @@ let reRouteWires dispatch =
 let convertWiresToLabels dispatch =
     dispatch <| UpdateModel (fun model ->
         model 
-        |> Optic.map (sheet_ ) (SheetBeautifyD3.sheetWireLabelSymbol) 
+        |> Optic.map (sheet_ ) (SheetBeautifyD3.convertSelectedWiresIntoWireLabels model.Sheet.SelectedComponents model.Sheet.Wire) 
     )
 
 let convertWireLabelsToWires dispatch =
     dispatch <| UpdateModel (fun model ->
         model 
-        |> Optic.map (sheet_ ) (SheetBeautifyD3.autoConvertWireLabelsToWires) 
+        |> Optic.map (sheet_ ) (SheetBeautifyD3.convertSelectedWiresLabelsIntoWires model.Sheet.SelectedComponents model.Sheet.Wire) 
     )
 
 //-----------------------------------------------------------------------------------------------------------//

@@ -138,7 +138,7 @@ let applyStateToModel (model: SheetT.Model) (state: ComponentState) : SheetT.Mod
     rotateAndRerouteComp updatedInputsReversedModel state.ComponentId state.Rotation
 
 /// Finds the better performing model based off total wire crossings and right angles
-let evaluateModels (changedModel: SheetT.Model) (originalModel: SheetT.Model) : SheetT.Model =
+let evaluateModels (changedModel: SheetT.Model) (originalModel: SheetT.Model) : SheetT.Model * bool =
     let originalCrossings = numOfWireRightAngleCrossings originalModel
     let originalRightAngles = numOfVisRightAngles originalModel
     let newCrossings = numOfWireRightAngleCrossings changedModel
@@ -152,12 +152,12 @@ let evaluateModels (changedModel: SheetT.Model) (originalModel: SheetT.Model) : 
             newCrossings = originalCrossings
             && newRightAngles = originalRightAngles
         then
-            originalModel
+            originalModel, false
         else
 
-            changedModel
+            changedModel, true
     else
-        originalModel
+        originalModel, false
 
 /// Generates, applies and evaluates all potential permutations for a specified list of componenents.
 /// Returns the best performing model
@@ -172,7 +172,8 @@ let evaluateAllComponents (model: SheetT.Model) (components: ComponentId list) :
     let evaluateAndCompare model states =
         let updatedModel = applyStatesToModel model states
         stateCount <- stateCount + 1
-        evaluateModels updatedModel model
+        let winningModel, _ = evaluateModels updatedModel model
+        winningModel
 
     let finalModel =
         allStateCombinations
@@ -288,32 +289,58 @@ let findBestModel (model: SheetT.Model) : SheetT.Model =
 
 /// Generates possible permutations for one component at a time, evaluating which permutation is best.
 /// Carried out on all components to achieve a local minimum
+/// Generates possible permutations for one component at a time, evaluating which permutation is best.
+/// Continues to optimize each component until no further improvements can be made.
+
 let iteratedLocalSearchSingleComponent (initialModel: SheetT.Model) : SheetT.Model =
     let optimiseComponent (model: SheetT.Model) (compId: ComponentId) =
         let states = generateComponentStates compId
         states
         |> List.fold
-            (fun currentBestModel state ->
-                let newStateModel = applyStateToModel model state
-                evaluateModels newStateModel currentBestModel)
-            model
+            (fun (accModel, accStateOpt) state ->
+                let newStateModel = applyStateToModel accModel state
+                let newStateModelImproved, improved = evaluateModels newStateModel accModel
+                if improved then
+                    (newStateModelImproved, Some state)
+                else
+                    (accModel, accStateOpt))
+            (model, None)
 
-    let rec optimiseAllComponents (model: SheetT.Model) (components: ComponentId list) =
+    let rec optimiseAllComponents
+        (model: SheetT.Model)
+        (components: ComponentId list)
+        (bestStates: Map<ComponentId, ComponentState>)
+        =
         match components with
-        | [] -> model
+        | [] -> model, bestStates
         | compId :: restComponents ->
-            let optimisedModel = optimiseComponent model compId
-            optimiseAllComponents optimisedModel restComponents // Continue with the rest components.
+            let newModel, newStateOpt = optimiseComponent model compId
+            let newBestStates =
+                match newStateOpt with
+                | Some newState -> Map.add compId newState bestStates
+                | None -> bestStates
+            optimiseAllComponents newModel restComponents newBestStates
 
-    let componentIds =
+    let rec optimisationLoop (model: SheetT.Model) (bestStates: Map<ComponentId, ComponentState>) iterationCount =
+        let componentIds = Map.toList bestStates |> List.map fst
+        let newModel, newBestStates = optimiseAllComponents model componentIds bestStates
+        if newBestStates = bestStates then
+            printfn "Total iterations: %d" iterationCount
+            model
+        else
+            optimisationLoop newModel newBestStates (iterationCount + 1)
+
+    let initialBestStates =
         initialModel.Wire.Symbol.Symbols
-        |> Map.toList
-        |> List.choose (fun (id, sym) ->
+        |> Map.filter (fun _ sym ->
             match sym.Component.Type with
             | GateN _
-            | Mux2 -> Some id
-            | _ -> None)
+            | Mux2 -> true
+            | _ -> false)
+        |> Map.map (fun id _ ->
+            { ComponentId = id
+              Flipped = false
+              Rotation = Degree0
+              InputsReversed = false })
 
-    let optimisedModel = optimiseAllComponents initialModel componentIds
-    let doubleOptimisedModel = optimiseAllComponents optimisedModel componentIds
-    doubleOptimisedModel
+    optimisationLoop initialModel initialBestStates 0

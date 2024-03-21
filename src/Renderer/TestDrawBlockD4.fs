@@ -13,6 +13,7 @@ open TestDrawBlock.HLPTick3.Builder
 open TestDrawBlock.HLPTick3.Tests
 open SheetBeautifyHelpers
 open SheetBeautifyD1
+open SheetBeautifyD4
 
 open EEExtensions
 open Optics
@@ -206,6 +207,21 @@ module Tests =
     open Circuit
     open TestData
 
+    let genLC = randXY {min=(0.5); step=0.5; max=1}
+    let testAllLarge testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "Large circuit"
+            firstSample
+            genLC
+            showTargetSheet
+            (Some beautifySheetBasic)
+            makeLargeCircuit
+            (AssertFunc failOnAllTests)
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
+
+
     let genTestRand = getTestRand 3
     let testRand testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
@@ -229,7 +245,7 @@ module Tests =
             "D1 - Random", testRand // RANDOM TEST (D1 beautify)
             "D2 - Random", fun _ _ _ _ -> printf "Test2" // RANDOM TEST (D2 beautify)
             "D3 - Random", fun _ _ _ _ -> printf "Test3" // RANDOM TEST (D3 beautify)
-            "All - D1's test", fun _ _ _ _ -> printf "Test4" // Standard D1 TEST (all beautifies)
+            "All - D1's test", testAllLarge // Standard D1 TEST (all beautifies)
             "All - D2's test", fun _ _ _ _ -> printf "Test5" // Standard D2 TEST (all beautifies)
             "All - D3's test", fun _ _ _ _ -> printf "Test6" // Standard D3 TEST (all beautifies)
             "All - Random", fun _ _ _ _ -> printf "Test5" // RANDOM TEST (all beautifies)

@@ -606,7 +606,6 @@ module HLPTick3 =
                 "Test7", fun _ _ _ _ -> printf "No Test"
                 "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
             ]
 
         /// Display the next error in a previously started test

@@ -245,7 +245,7 @@ let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
     |> deleteWire connectionID
 
 let autoGenerateWireLabels (sheet: SheetT.Model) =
-    let wireLengthlimit = 50. // User can decide what is considered long wire
+    let wireLengthlimit = 120. // User can decide what is considered long wire
     let wiresNeedLabels = getWiresNeedLabels sheet wireLengthlimit
     (sheet, wiresNeedLabels)
     ||> List.fold (fun sheet wire -> generateWireLabel wire sheet)

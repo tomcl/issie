@@ -357,7 +357,6 @@ module Circuit =
         initSheetModel
         |> placeSymbol "MAIN1" mainCC middleOfSheet
         |> addSym "MAIN2" mainCC (160.+offsetXY.X) (0.+offsetXY.Y)
-        // |> Result.bind (Ok << flipSymbol "MAIN2" flip)
         |> Result.bind (Ok << rotateSymbol "MAIN1" Rotation.Degree270)
         |> Result.bind (Ok << rotateSymbol "MAIN2" Rotation.Degree270)
         |> addWire ("MAIN1", 0) ("MAIN2", 0)
@@ -746,6 +745,7 @@ module Tests =
             |> Option.defaultValue 0
         testFunc testNum firstSampleToTest showTargetSheet dispatch
 
+    open MenuHelpers
     /// common function to execute any test.
     /// testIndex: index of test in testsToRunFromSheetMenu
     let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
@@ -756,6 +756,7 @@ module Tests =
             nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) (state.TargetFunctionApplied) dispatch
         | "Next Test Error", None ->
             printf "Test Finished"
+            // scorePopup "TEST" model dispatch
             ()
         | "Toggle Beautify", Some state -> 
             nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex) (not state.TargetFunctionApplied) dispatch

@@ -81,23 +81,55 @@ let shuffleA arrayToShuffle: 'a array =
             |> fun (iv, rv) -> tmpA[r] <- iv;  tmpA[i]  <- rv
         tmpA
 
-let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (rotation:Rotation) (flip:option<SymbolT.FlipType>) (model: SheetT.Model) : Result<SheetT.Model, string> =
-        let symLabel = String.toUpper symLabel // make label into its standard casing
-        let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
-        let rotateModel = RotateScale.rotateBlock [symId] symModel rotation
-        let flipModel = 
-            match flip with
-            |None -> rotateModel
-            |Some f -> RotateScale.flipBlock [symId] rotateModel f 
-        let sym = flipModel.Symbols[symId]
-        match position + sym.getScaledDiagonal with
-        | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
-            Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
-        | _ ->
-            model
-            |> Optic.set symbolModel_ flipModel
-            |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
-            |> Ok
+let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+            let symbolsMap = model.Wire.Symbol.Symbols
+            let getSymbol = 
+                mapValues symbolsMap
+                |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+                |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
+
+            match getSymbol with
+            | Ok symbol ->
+                let rotatedSymbol = SymbolResizeHelpers.rotateSymbol rotate symbol
+                let updatedSymbolsMap = Map.add symbol.Id rotatedSymbol symbolsMap
+                { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbolsMap } } }
+
+            | _ -> model
+
+        // Flip a symbol
+let flipSymbol (symLabel: string) (flip: SymbolT.FlipType option) (model: SheetT.Model) : (SheetT.Model) =
+    let symbolsMap = model.Wire.Symbol.Symbols
+    let getSymbol =
+        mapValues symbolsMap
+        |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+        |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
+
+    match flip with 
+    | None -> model
+    | Some f ->
+        match getSymbol with
+        | Ok symbol ->
+            let flippedSymbol = SymbolResizeHelpers.flipSymbol f symbol
+            let updatedSymbolsMap = Map.add symbol.Id flippedSymbol symbolsMap
+            { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbolsMap } } }
+
+        | _ -> model
+
+
+let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (rotation: Rotation) (flip: SymbolT.FlipType option) (model: SheetT.Model) : Result<SheetT.Model, string> =
+    let symLabel = String.toUpper symLabel // make label into its standard casing
+    let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
+    let sym = symModel.Symbols[symId]
+    match position + sym.getScaledDiagonal with
+    | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
+        Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
+    | _ ->
+        model
+        |> Optic.set symbolModel_ symModel
+        |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
+        |> rotateSymbol symLabel rotation 
+        |> flipSymbol symLabel flip
+        |> Ok
 let dSelect (model:SheetT.Model) = 
     { model with
         SelectedComponents = []
@@ -190,7 +222,6 @@ let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
         |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
         |> getOkOrFail
-        |> sheetWireLabelSymbol
         
     finalModel.Wire.Symbol.Symbols.Values
     |> Seq.cast
@@ -228,9 +259,10 @@ let makeTest2Circuit (data: float*Rotation)=
         |> Result.bind (placeWire (portOf "MN1" 0) (portOf "B" 0))
         |> getOkOrFail
 
+
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
     |>rerouteAllWires
-
+    |>dSelect
 let makeTest3Circuit (data: float*Rotation)=
     let rotation = snd data
     let gap = fst data
@@ -320,7 +352,7 @@ module Tests =
             firstSample
             test1Builder
             showTargetSheet
-            None
+            (Some sheetWireLabelSymbol)
             makeTest1Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
@@ -372,6 +404,7 @@ module Tests =
             "Test1", D3Test1 // example
             "Test2", D3Test2 // example
             "Test3", D3Test3
+            "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
     

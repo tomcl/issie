@@ -61,6 +61,7 @@ module TestLib =
         TestData: Gen<'a>
         FirstSampleTested: int
         firstTestError: option<int * TestStatus>
+        score: float
     }
 
 
@@ -141,6 +142,7 @@ module TestLib =
                     FirstSampleTested = test.StartFrom
                     TestData = test.Samples
                     firstTestError = resL
+                    score = -1
                 })
 
 
@@ -275,7 +277,7 @@ module HLPTick3 =
             let componentID = Map.findKey (fun _ (sym: SymbolT.Symbol) -> sym.Component.Label = symLabel) symbolMap
             (symbolMap, componentID)
 
-        /// updates model with symbol and reroutes wires
+        /// updates model with symbol and reroutes wiresƒ
         let updatedModel componentID symModel model =
             let newModel =
                 model
@@ -397,11 +399,12 @@ module HLPTick3 =
 
             match result.firstTestError with
             | None -> // no errors
-                let score = calcEval test
+                let score' = calcEval test |> (fun x -> System.Math.Round(x, 2))
                 printf $"Test {result.TestName} has PASSED."
                 printf "----------"
-                printf $" SCORE: {score}"
+                printf $" SCORE: {score'}"
                 printf "----------"
+                {result with score = score'}
                 // evaluationPopup
             | Some (n,first) -> // display in Issie editor and print out first error
                 match showTargetSheet with
@@ -417,8 +420,8 @@ module HLPTick3 =
                     | Ok sheet -> 
                         showSheetInIssieSchematic sheet dispatch
                     | Error mess -> ()
-
-            result
+                result
+    
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
 //--------------------------------------------------------------------------------------------------//
@@ -512,6 +515,7 @@ module HLPTick3 =
 //---------------------------------------------------------------------------------------//
 
     module Tests =
+        open SymbolPortHelpers // TODO: move from SymbolPortHelpers here
 
         /// Allow test errors to be viewed in sequence by recording the current error
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
@@ -520,10 +524,12 @@ module HLPTick3 =
                 match result.firstTestError with
                 | None ->
                     printf "Test finished"
+                    dispatch <| ShowStaticInfoPopup("Test Evaluation", scoreSheet(result.score), dispatch)
                     None
                 | Some (numb, _) ->
                     printf $"Sample {numb}"
                     Some {LastTestNumber=testNumber; LastTestSampleIndex= numb; TargetFunctionApplied= targetFuncApplied})
+            
             
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample showTargetSheet dispatch =

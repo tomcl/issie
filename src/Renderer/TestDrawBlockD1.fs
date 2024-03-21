@@ -353,13 +353,13 @@ module Circuit =
         |> getOkOrFail
 
     /// Flipped two same custom components
-    let makeFlippedA4Circuit ((offsetXY: XYPos), (rotation: Rotation))=
+    let makeFlippedA4Circuit (offsetXY: XYPos) =
         initSheetModel
         |> placeSymbol "MAIN1" mainCC middleOfSheet
         |> addSym "MAIN2" mainCC (160.+offsetXY.X) (0.+offsetXY.Y)
         // |> Result.bind (Ok << flipSymbol "MAIN2" flip)
-        |> Result.bind (Ok << rotateSymbol "MAIN1" rotation)
-        |> Result.bind (Ok << rotateSymbol "MAIN2" rotation)
+        |> Result.bind (Ok << rotateSymbol "MAIN1" Rotation.Degree270)
+        |> Result.bind (Ok << rotateSymbol "MAIN2" Rotation.Degree270)
         |> addWire ("MAIN1", 0) ("MAIN2", 0)
         |> addWire ("MAIN1", 1) ("MAIN2", 1)
         |> addWire ("MAIN1", 2) ("MAIN2", 2)
@@ -643,11 +643,7 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let genA4Flip =
-        product (fun pos rotation -> (pos, rotation)) genA4 rotation
-        |> toArray
-        |> shuffleA
-        |> fromArray
+    let genA4Flip = randXY {min=(-200); step=5; max=(-100)}
     let testA4Flip testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random scaling"

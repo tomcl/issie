@@ -229,6 +229,7 @@ let makeTest2Circuit (data: float*Rotation)=
         |> getOkOrFail
 
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
+    |>rerouteAllWires
 
 let makeTest3Circuit (data: float*Rotation)=
     let rotation = snd data

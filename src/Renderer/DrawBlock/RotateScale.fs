@@ -1,4 +1,5 @@
 ﻿module RotateScale
+
 open CommonTypes
 open DrawModelType
 open DrawModelType.SymbolT
@@ -532,24 +533,19 @@ let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rota
 /// <summary> Determines if all selected symbol (centres) align either vertically or horizontally </summary>
 /// <returns> True if all symbols align vertically or horizontally; otherwise, false. </returns>
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
-    let maxXSymCentre = 
-            selectedSymbols
-            |> List.maxBy (fun (x:Symbol) -> x.Pos.X + snd (getRotatedHAndW x)) 
-            |> getRotatedSymbolCentre
-    let minXSymCentre =
-            selectedSymbols
-            |> List.minBy (fun (x:Symbol) -> x.Pos.X)
-            |> getRotatedSymbolCentre
-    let maxYSymCentre = 
-            selectedSymbols
-            |> List.maxBy (fun (y:Symbol) -> y.Pos.Y+ fst (getRotatedHAndW y))
-            |> getRotatedSymbolCentre
-    let minYSymCentre =
-            selectedSymbols
-            |> List.minBy (fun (y:Symbol) -> y.Pos.Y)
-            |> getRotatedSymbolCentre
-    (maxXSymCentre.X = minXSymCentre.X) || (maxYSymCentre.Y = minYSymCentre.Y)
-    
+    let centers = 
+        selectedSymbols 
+        |> List.map getRotatedSymbolCentre
+
+    let minX, maxX = 
+        (centers |> List.minBy (fun c -> c.X)).X, 
+        (centers |> List.maxBy (fun c -> c.X)).X
+
+    let minY, maxY = 
+        (centers |> List.minBy (fun c -> c.Y)).Y, 
+        (centers |> List.maxBy (fun c -> c.Y)).Y
+
+    minX = maxX || minY = maxY
 
 let findSelectedSymbols (compList: ComponentId list) (model: SymbolT.Model) = 
     List.map (fun x -> model.Symbols |> Map.find x) compList
@@ -694,4 +690,3 @@ let postUpdateScalingBox (model:SheetT.Model, cmd) =
             |> Optic.set SheetT.scalingBox_ (Some initScalingBox)
             |> Optic.set SheetT.symbols_ newSymbolMap, 
             newCmd
-

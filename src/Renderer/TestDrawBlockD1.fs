@@ -1,11 +1,21 @@
 ﻿module TestDrawBlockD1
-open GenerateData
+
 open Elmish
-open System
+open DrawModelType
+open DrawModelType.SymbolT
+open DrawModelType.BusWireT
+open CommonTypes
+open Optics
+open Optics.Operators
+open Helpers
+open ModelType
 open SheetBeautifyHelpers
 open SheetBeautifyD1
+open GenerateData
+open System
 
 
+module D1TestLib =
 
 //-------------------------------------------------------------------------------------------//
 //--------Types to represent tests with (possibly) random data, and results from tests-------//
@@ -51,7 +61,7 @@ module TestLib =
     /// Run the Test samples from 0 up to test.Size - 1.
     /// The return list contains all failures or exceptions: empty list => everything has passed.
     /// This will always run to completion: use truncate if text.Samples.Size is too large.
-    let runTests (test: Test<'a>) : TestResult<'a>  =
+    let runD1Tests (test: Test<'a>) : TestResult<'a>  =
         [test.StartFrom..test.Samples.Size - 1]
         |> List.map (fun n ->
                 catchException $"generating test {n} from {test.Name}" test.Samples.Data n
@@ -71,19 +81,10 @@ module TestLib =
                     TestData = test.Samples
                     TestErrors =  resL
                 })
- 
- 
-            
-(******************************************************************************************
-   This submodule contains a set of functions that enable random data generation
-   for property-based testing of Draw Block wire routing functions.
-   basic idea.
-   1. Generate, in various ways, random circuit layouts
-   2. For each layout apply smartautoroute to regenerate all wires
-   3. Apply check functions to see if the resulting wire routing obeys "good layout" rules.
-   4. Output any layouts with anomalous wire routing
-*******************************************************************************************)
-module HLPTick3 =
+
+module TestD1 =
+    open SheetBeautify
+    open D1TestLib
     open EEExtensions
     open Optics
     open Optics.Operators
@@ -93,11 +94,9 @@ module HLPTick3 =
     open ModelType
     open DrawModelType
     open Sheet.SheetInterface
-    open GenerateData
-    open TestLib
-    
+    open SymbolResizeHelpers
 
-    /// create an initial empty Sheet Model 
+        /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
 
     /// Optic to access SheetT.Model from Issie Model
@@ -185,163 +184,163 @@ module HLPTick3 =
 
 
 
-        /// Place a new symbol with label symLabel onto the Sheet with given position.
-        /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
-        /// To be safe place components close to (maxSheetCoord/2.0, maxSheetCoord/2.0).
-        /// symLabel - the component label, will be uppercased to make a standard label name
-        /// compType - the type of the component
-        /// position - the top-left corner of the symbol outline.
-        /// model - the Sheet model into which the new symbol is added.
-        let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (model: SheetT.Model) : Result<SheetT.Model, string> =
-            let symLabel = String.toUpper symLabel // make label into its standard casing
-            let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
-            let sym = symModel.Symbols[symId]
-            match position + sym.getScaledDiagonal with
-            | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
-                Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
-            | _ ->
-                model
-                |> Optic.set symbolModel_ symModel
-                |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
-                |> Ok
+            /// Place a new symbol with label symLabel onto the Sheet with given position.
+            /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
+            /// To be safe place components close to (maxSheetCoord/2.0, maxSheetCoord/2.0).
+            /// symLabel - the component label, will be uppercased to make a standard label name
+            /// compType - the type of the component
+            /// position - the top-left corner of the symbol outline.
+            /// model - the Sheet model into which the new symbol is added.
+            let placeSymbol (symLabel: string) (compType: ComponentType) (position: XYPos) (model: SheetT.Model) : Result<SheetT.Model, string> =
+                let symLabel = String.toUpper symLabel // make label into its standard casing
+                let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
+                let sym = symModel.Symbols[symId]
+                match position + sym.getScaledDiagonal with
+                | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord ->
+                    Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates"
+                | _ ->
+                    model
+                    |> Optic.set symbolModel_ symModel
+                    |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
+                    |> Ok
         
 
 
     
-        /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
-        /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
-        /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
-        let placeCustomSymbol
-                (symLabel: string)
-                (ccSheetName: string)
-                (project: Project)
-                (scale: XYPos)
-                (position: XYPos)
-                (model: SheetT.Model)
-                    : Result<SheetT.Model, string> =
-           let symbolMap = model.Wire.Symbol.Symbols
-           if caseInvariantEqual ccSheetName project.OpenFileName then
-                Error "Can't create custom component with name same as current opened sheet"        
-            elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
-                Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
-            elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
-                Error "Can't create custom component with duplicate Label"
-            else
-                let canvas = model.GetCanvasState()
-                let ccType: CustomComponentType =
-                    {
-                        Name = ccSheetName
-                        InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
-                        OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
-                        Form = None
-                        Description = None
-                    }
-                placeSymbol symLabel (Custom ccType) position model
+            /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
+            /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
+            /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
+            let placeCustomSymbol
+                    (symLabel: string)
+                    (ccSheetName: string)
+                    (project: Project)
+                    (scale: XYPos)
+                    (position: XYPos)
+                    (model: SheetT.Model)
+                        : Result<SheetT.Model, string> =
+               let symbolMap = model.Wire.Symbol.Symbols
+               if caseInvariantEqual ccSheetName project.OpenFileName then
+                    Error "Can't create custom component with name same as current opened sheet"        
+                elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
+                    Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
+                elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
+                    Error "Can't create custom component with duplicate Label"
+                else
+                    let canvas = model.GetCanvasState()
+                    let ccType: CustomComponentType =
+                        {
+                            Name = ccSheetName
+                            InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
+                            OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
+                            Form = None
+                            Description = None
+                        }
+                    placeSymbol symLabel (Custom ccType) position model
             
         
 
-            // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            let symLabel = String.toUpper symLabel
-            let symbol = model.Wire.Symbol.Symbols
-            match mapValues symbol |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
-            | Some sym ->
-                let rotatedSymbol = SymbolResizeHelpers.rotateSymbol rotate sym
-                model
-                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) rotatedSymbol
-                |> SheetUpdateHelpers.updateBoundingBoxes
-            | None -> model
+                // Rotate a symbol
+            let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+                let symLabel = String.toUpper symLabel
+                let symbol = model.Wire.Symbol.Symbols
+                match mapValues symbol |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+                | Some sym ->
+                    let rotatedSymbol = SymbolResizeHelpers.rotateSymbol rotate sym
+                    model
+                    |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) rotatedSymbol
+                    |> SheetUpdateHelpers.updateBoundingBoxes
+                | None -> model
 
 
-            // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            let symLabel = String.toUpper symLabel
-            let symbol = model.Wire.Symbol.Symbols
-            match mapValues symbol |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
-            | Some sym ->
-                let flippedSymbol = SymbolResizeHelpers.flipSymbol flip sym
-                model
-                |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) flippedSymbol
-                |> SheetUpdateHelpers.updateBoundingBoxes
-            | None -> model
+                // Flip a symbol
+            let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
+                let symLabel = String.toUpper symLabel
+                let symbol = model.Wire.Symbol.Symbols
+                match mapValues symbol |> Array.tryFind (fun sym -> sym.Component.Label = symLabel) with
+                | Some sym ->
+                    let flippedSymbol = SymbolResizeHelpers.flipSymbol flip sym
+                    model
+                    |> Optic.set (symbolModel_ >-> SymbolT.symbolOf_ sym.Id) flippedSymbol
+                    |> SheetUpdateHelpers.updateBoundingBoxes
+                | None -> model
 
 
-        /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
-        /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
-        /// The wire created will be smart routed but not separated from other wires: for a nice schematic
-        /// separateAllWires should be run after  all wires are added.
-        /// source, target: respectively the output port and input port to which the wire connects.
-        let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : Result<SheetT.Model,string> =
-            let symbols = model.Wire.Symbol.Symbols
-            let getPortId (portType:PortType) symPort =
-                mapValues symbols
-                |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symPort.Label)
-                |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
-                |> Result.bind (fun sym ->
-                    match portType with
-                    | PortType.Input -> List.tryItem symPort.PortNumber sym.Component.InputPorts
-                    | PortType.Output -> List.tryItem symPort.PortNumber sym.Component.OutputPorts
-                    |> function | Some port -> Ok port.Id
-                                | None -> Error $"Can't find {portType} port {symPort.PortNumber} on component {symPort.Label}")
+            /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
+            /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
+            /// The wire created will be smart routed but not separated from other wires: for a nice schematic
+            /// separateAllWires should be run after  all wires are added.
+            /// source, target: respectively the output port and input port to which the wire connects.
+            let placeWire (source: SymbolPort) (target: SymbolPort) (model: SheetT.Model) : Result<SheetT.Model,string> =
+                let symbols = model.Wire.Symbol.Symbols
+                let getPortId (portType:PortType) symPort =
+                    mapValues symbols
+                    |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symPort.Label)
+                    |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
+                    |> Result.bind (fun sym ->
+                        match portType with
+                        | PortType.Input -> List.tryItem symPort.PortNumber sym.Component.InputPorts
+                        | PortType.Output -> List.tryItem symPort.PortNumber sym.Component.OutputPorts
+                        |> function | Some port -> Ok port.Id
+                                    | None -> Error $"Can't find {portType} port {symPort.PortNumber} on component {symPort.Label}")
             
-            match getPortId PortType.Input target, getPortId PortType.Output source with
-            | Error e, _ | _, Error e -> Error e
-            | Ok inPort, Ok outPort ->
-                let newWire = BusWireUpdate.makeNewWire (InputPortId inPort) (OutputPortId outPort) model.Wire
-                if model.Wire.Wires |> Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) then
-                        // wire already exists
-                        Error "Can't create wire from {source} to {target} because a wire already exists between those ports"
-                else
-                     model
-                     |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
-                     |> Ok
+                match getPortId PortType.Input target, getPortId PortType.Output source with
+                | Error e, _ | _, Error e -> Error e
+                | Ok inPort, Ok outPort ->
+                    let newWire = BusWireUpdate.makeNewWire (InputPortId inPort) (OutputPortId outPort) model.Wire
+                    if model.Wire.Wires |> Map.exists (fun wid wire -> wire.InputPort=newWire.InputPort && wire.OutputPort = newWire.OutputPort) then
+                            // wire already exists
+                            Error "Can't create wire from {source} to {target} because a wire already exists between those ports"
+                    else
+                         model
+                         |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
+                         |> Ok
             
 
-        /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
-        let separateAllWires (model: SheetT.Model) : SheetT.Model =
-            model
-            |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
+            /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
+            let separateAllWires (model: SheetT.Model) : SheetT.Model =
+                model
+                |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
 
-        /// Copy testModel into the main Issie Sheet making its contents visible
-        let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
-            let sheetDispatch sMsg = dispatch (Sheet sMsg)
-            dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
-            sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
+            /// Copy testModel into the main Issie Sheet making its contents visible
+            let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
+                let sheetDispatch sMsg = dispatch (Sheet sMsg)
+                dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
+                sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
 
 
-        /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
-        /// 2. Check each ciruit with sheetChecker.
-        /// 3. Return a TestResult record with errors those samples for which sheetChecker returns false,
-        /// or where there is an exception.
-        /// If there are any test errors display the first in Issie, and its error message on the console.
-        /// sheetMaker: generates a SheetT.model from the random sample
-        /// sheetChecker n model: n is sample number, model is the genrated model. Return false if test fails.
-        let runTestOnSheets
-            (name: string)
-            (sampleToStartFrom: int)
-            (samples : Gen<'a>)
-            (sheetMaker: 'a -> SheetT.Model)
-            (sheetChecker: int -> SheetT.Model -> string option)
-            (dispatch: Dispatch<Msg>)
-                : TestResult<'a> =
-            let generateAndCheckSheet n = sheetMaker >> sheetChecker n
-            let result =
-                {
-                    Name=name;
-                    Samples=samples;
-                    StartFrom = sampleToStartFrom
-                    Assertion = generateAndCheckSheet
-                }
-                |> runTests
-            match result.TestErrors with
-            | [] -> // no errors
-                printf $"Test {result.TestName} has PASSED."
-            | (n,first):: _ -> // display in Issie editor and print out first error
-                printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
-                match catchException "" sheetMaker (samples.Data n) with
-                | Ok sheet -> showSheetInIssieSchematic sheet dispatch
-                | Error mess -> ()
-            result
+            /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
+            /// 2. Check each ciruit with sheetChecker.
+            /// 3. Return a TestResult record with errors those samples for which sheetChecker returns false,
+            /// or where there is an exception.
+            /// If there are any test errors display the first in Issie, and its error message on the console.
+            /// sheetMaker: generates a SheetT.model from the random sample
+            /// sheetChecker n model: n is sample number, model is the genrated model. Return false if test fails.
+            let runD1TestOnSheets
+                (name: string)
+                (sampleToStartFrom: int)
+                (samples : Gen<'a>)
+                (sheetMaker: 'a -> SheetT.Model)
+                (sheetChecker: int -> SheetT.Model -> string option)
+                (dispatch: Dispatch<Msg>)
+                    : TestResult<'a> =
+                let generateAndCheckSheet n = sheetMaker >> sheetChecker n
+                let result =
+                    {
+                        Name=name;
+                        Samples=samples;
+                        StartFrom = sampleToStartFrom
+                        Assertion = generateAndCheckSheet
+                    }
+                    |> runD1Tests
+                match result.TestErrors with
+                | [] -> // no errors
+                    printf $"Test {result.TestName} has PASSED."
+                | (n,first):: _ -> // display in Issie editor and print out first error
+                    printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
+                    match catchException "" sheetMaker (samples.Data n) with
+                    | Ok sheet -> showSheetInIssieSchematic sheet dispatch
+                    | Error mess -> ()
+                result
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
 //--------------------------------------------------------------------------------------------------//
@@ -404,6 +403,7 @@ module HLPTick3 =
 
     let rnd = Random()
 
+
     //==================================GENERATE COORDINATES ==============================//
 
     //---------------TICK 3 Q10---------------------------------------------
@@ -433,7 +433,20 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
         |> getOkOrFail
 
-    let makeTest5Circuit (andPos: XYPos) =
+    let makeTest2Circuit (andPos:XYPos) =
+        let model =
+            initSheetModel
+            |> placeSymbol "G1" (GateN(And,2)) andPos
+            |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+            |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+            |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
+            |> getOkOrFail
+
+        let alignedModel = Beautify.sheetMultiply model
+       
+        alignedModel
+
+    let makeTest3Circuit (andPos: XYPos) =
         initSheetModel
         |> placeSymbol "Component1" (GateN(And,2)) andPos
         |> Result.bind (placeSymbol "Component2" DFF middleOfSheet)
@@ -448,6 +461,11 @@ module HLPTick3 =
         APos: XYPos
         BPos: XYPos
         CPos: XYPos
+        M2Pos: XYPos
+        M3Pos: XYPos
+        S1Pos: XYPos
+        S2Pos: XYPos
+        CC2Pos: XYPos
     }
 
     /// function to set symbol positions
@@ -456,8 +474,14 @@ module HLPTick3 =
         let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = andPos.Y}
         let aPos = middleOfSheet + { X = -100.0; Y = -50.0 } + {X = andPos.X ; Y = andPos.Y}
         let bPos = middleOfSheet + { X = -100.0; Y = 50.0 } + {X = andPos.X; Y = -andPos.Y}
-
-        { APos = aPos; BPos = bPos; CPos = cPos }
+        let cPos = middleOfSheet + { X = 120.0; Y = 0.0 } + {X = -andPos.X; Y = andPos.Y}
+        let m2Pos = middleOfSheet + {X = 90.0; Y = 100.0 } 
+        let m3Pos = middleOfSheet + {X = 200.0; Y = 120.0} 
+        let s1Pos = middleOfSheet + {X = -30.0; Y = 300.0} + { X = andPos.X ; Y = andPos.Y}
+        let s2Pos = middleOfSheet + {X = -40.0; Y = 200.0} + { X = andPos.X ; Y = andPos.Y}
+        let cc2Pos = middleOfSheet + {X = 30.0; Y = 0.0} + { X = andPos.X ; Y = andPos.Y}
+        
+        { APos = aPos; BPos = bPos; CPos = cPos; M2Pos = m2Pos; M3Pos = m3Pos; S1Pos = s1Pos; S2Pos = s2Pos; CC2Pos = cc2Pos }
 
         /// Returns the number of straight wires in a sheet   
     let numOfStraightWires (sheet: SheetT.Model) : int =
@@ -473,8 +497,46 @@ module HLPTick3 =
                 |> Seq.length
             straightWiresCount
 
+    let numOfVisRightAngles (model: SheetT.Model) : int =
+        let nets = SegmentHelpers.allWireNets model
+        let numWires = nets |> List.sumBy (fun (source,wires) -> wires.Length)
+        let distinctSegs =
+            nets
+            |> List.collect (fun (_, net) -> SegmentHelpers.getVisualSegsFromNetWires true model net)
+        // every visual segment => right-angle bend except for the first (or last) in a wire
+        distinctSegs.Length - numWires
+
+    let makeTest4Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (sheet1: int) (sheet2: int) : int =
+            sheet2 - sheet1
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "MUX3" Mux2 symbolPositions.M3Pos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX3" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+
+        let testPreAlign = numOfStraightWires model
+        model
+
     ///Create circuit containing 2 input ports and MUX2
-    let makeTest6Circuit (andPos: XYPos) =
+    let makeD1Test1Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
 
         let findNumDiff (test1: int) (test2: int) : int =
@@ -493,7 +555,7 @@ module HLPTick3 =
 
         let testPreAlign = numOfStraightWires model
 
-        let alignedModel = Beautify.sheetAlignScale model
+        let alignedModel = Beautify.sheetSingly model
 
         let testPostAlign = numOfStraightWires alignedModel
         let straightenedWires = findNumDiff testPreAlign testPostAlign
@@ -501,13 +563,79 @@ module HLPTick3 =
         printf "Number of straightened wires: %d" straightenedWires
 
         alignedModel
-        
 
-        
 
-//------------------------------------------------------------------------------------------------//
-//-------------------------Example assertions used to test sheets---------------------------------//
-//------------------------------------------------------------------------------------------------//
+    ///Create circuit containing 4x Input Ports, 3x MUX2
+    let makeD1Test2Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (sheet1: int) (sheet2: int) : int =
+            sheet2 - sheet1
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "MUX3" Mux2 symbolPositions.M3Pos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX3" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+
+        let testPreAlign = numOfStraightWires model
+        let alignedModel = Beautify.sheetAlignScale model
+        let testPostAlign = numOfStraightWires alignedModel
+        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        printf "Number of straightened wires: %d" straightenedWires
+
+        alignedModel
+
+    ///Same as above but with rotated S1
+    let makeD1Test3Circuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let findNumDiff (sheet1: int) (sheet2: int) : int =
+            sheet2 - sheet1
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "C" (Output(1)) symbolPositions.CPos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.map (rotateSymbol "S1" Degree90)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+
+        let testPreAlign = numOfStraightWires model
+        let alignedModel = Beautify.sheetSingly model
+        let testPostAlign = numOfStraightWires alignedModel
+        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        printf "Number of straightened wires: %d" straightenedWires
+
+        alignedModel
 
 
     module Asserts =
@@ -564,7 +692,7 @@ module HLPTick3 =
             
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
         let test1 testNum firstSample dispatch =
-            runTestOnSheets
+            runD1TestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 0"
                 firstSample
                 horizLinePositions
@@ -575,75 +703,72 @@ module HLPTick3 =
 
         /// Example test: Horizontally positioned AND + DFF: fail on sample 10
         let test2 testNum firstSample dispatch =
-            runTestOnSheets
+            runD1TestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 10"
                 firstSample
                 horizLinePositions
-                makeTest1Circuit
+                makeTest2Circuit
                 (Asserts.failOnSampleNumber 10)
                 dispatch
             |> recordPositionInTest testNum dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
         let test3 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on symbols intersect"
+            runD1TestOnSheets
+                "Test wire routing between two components"
                 firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                filteredSampleData
+                makeTest3Circuit
+                Asserts.failOnWireIntersectsSymbol
                 dispatch
             |> recordPositionInTest testNum dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail all tests
         let test4 testNum firstSample dispatch =
-            runTestOnSheets
+            runD1TestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
-                horizLinePositions
-                makeTest1Circuit
+                filteredSampleDataWithDeviation
+                makeTest4Circuit
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test5 testNum firstSample dispatch =
-            runTestOnSheets
-                "Test wire routing between two components"
-                firstSample
-                filteredSampleData
-                makeTest5Circuit
-                Asserts.failOnWireIntersectsSymbol
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        let test6 testNum firstSample dispatch =
-            runTestOnSheets
+        let D1Test1 testNum firstSample dispatch =
+            runD1TestOnSheets
                 "Test Near Straight Wire"
                 firstSample
                 filteredSampleDataWithDeviation
-                makeTest6Circuit
+                makeD1Test1Circuit
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-            
+        let D1Test2 testNum firstSample dispatch =
+            runD1TestOnSheets
+                "Test Multiply"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeD1Test2Circuit
+                (Asserts.failOnSampleNumber 0)
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let D1Test3 testNum firstSample dispatch =
+            runD1TestOnSheets
+                "Test Multiply"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeD1Test3Circuit
+                (Asserts.failOnSampleNumber 0)
+                dispatch
+            |> recordPositionInTest testNum dispatch
 
 
-        /// List of tests available which can be run ftom Issie File Menu.
-        /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
-            // Change names and test functions as required
-            // delete unused tests from list
-            [
-                "Test1", test1 // example
-                "Test2", test2 // example
-                "Test3", test3 // example
-                "Test4", test4 
-                "Test5", test5 // dummy test - delete line or replace by real test as needed
-                "Test6", test6
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+        
+
+
+
 
             ]
 

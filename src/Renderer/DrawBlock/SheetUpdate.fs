@@ -19,6 +19,7 @@ open FSharp.Core
 open Fable.Core.JsInterop
 open BuildUartHelpers
 open Node
+open RotateScale
 
 module node = Node.Api
 

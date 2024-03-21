@@ -287,14 +287,18 @@ module HLPTick3 =
         /// Rotate a symbol given its label
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
             let symbolMap, componentID = getSymMapCompId symLabel model
-            let symModel = SymbolResizeHelpers.rotateAntiClockByAng rotate symbolMap[componentID]
-            updatedModel componentID symModel model
+            let sym' = 
+                SymbolResizeHelpers.rotateAntiClockByAng rotate symbolMap[componentID]
+                |> Optic.set SheetBeautifyHelpers.symbol_rotation_ rotate 
+            updatedModel componentID sym' model
 
         /// Flip a symbol given its label
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
             let symbolMap, componentID = getSymMapCompId symLabel model
-            let symModel = SymbolResizeHelpers.flipSymbol flip symbolMap[componentID]
-            updatedModel componentID symModel model
+            let sym' = 
+                SymbolResizeHelpers.flipSymbol flip symbolMap[componentID]
+                // |> Optic.set SheetBeautifyHelpers.symbol_flipped_ 
+            updatedModel componentID sym' model
 
         /// Get PortId from symPort
         let getPortId (symbols: Map<ComponentId, SymbolT.Symbol>) (portType:PortType) symPort  =
@@ -345,20 +349,6 @@ module HLPTick3 =
             let sheetDispatch sMsg = dispatch (Sheet sMsg)
             dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
             sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
-
-        /// Popup shown after test evaluation
-        let evaluationPopup (model:Model) dispatch =
-            // let title = sprintf "SCORE" 
-            // let beforeInt =
-            //     fun _ -> str "How wide should the register be (in bits)?"
-            // let intDefault = model.LastUsedDialogWidth
-            // let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
-            // let buttonText = "Add"
-            // let buttonAction = dispatch ClosePopup
-            // let isDisabled =
-            //     fun (model': Model) -> getInt model'.PopupDialogData < 1
-            // dialogPopup title body buttonText buttonAction isDisabled [] dispatch
-            confirmationPopup
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
         /// 2. Check each ciruit with sheetChecker.

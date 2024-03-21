@@ -10,6 +10,7 @@ open TestDrawBlock.HLPTick3.Tests
 open TestDrawBlock.HLPTick3.Asserts
 open TestDrawBlock.HLPTick3.Builder
 open SheetBeautifyHelpers
+open SheetBeautifyD1
 open SheetBeautifyD2
 
 module D2Test =
@@ -749,10 +750,10 @@ module D2Test =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Apply Beautify D1", (applyBeautify id) // TODO: add actual function
+                "Apply Beautify D1", (applyBeautify (sheetAlignScale 3)) // TODO: add actual function
                 "Apply Beautify D2", (applyBeautify optimizePortOrder) 
                 "Apply Beautify D3", (applyBeautify wireLabelBeautify)
-                "Build: Random Components No Rotate", testRandomCompNoRotate
+                "Build: Random Components No Rotate", testRandomCompNoRotate 
                 "Build: Random Components", testRandomComp
                 "Test: Statistics", testRandomComp // TODO: add actual function
                 "Test: Edge Case", testRandomComp // TODO: add actual function

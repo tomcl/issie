@@ -98,11 +98,14 @@ open BusWire
         /// `port` is the given port to find matches for.
         /// `connections` is the list of all connections to search through.
         let findOtherPorts (port: Port) (connections: Connection list): (string * Port) list =
+            printfn $"port {port}"
             connections |> List.collect (fun connection ->
-                match connection with
-                | { Id = id; Source = src; Target = tgt } when src = port -> [(id,tgt)] // Port is the source; collect the target
-                | { Id = id; Source = src; Target = tgt } when tgt = port -> [(id,src)] // Port is the target; collect the source
-                | _ -> [] // No match, proceed to the next connection
+                if connection.Source.Id = port.Id then
+                    [(connection.Id,connection.Target)]
+                elif connection.Target.Id = port.Id then
+                    [(connection.Id,connection.Source)]
+                else
+                    [] // No match, proceed to the next connection
             )
         
         /// return the corresponding Symbol for a given Port
@@ -221,25 +224,46 @@ open BusWire
 
         let alignSinglyComp (wModel: BusWireT.Model): BusWireT.Model =
             let singlyComp = getSinglyComp wModel
+            printfn $"singlyCompsize: {match singlyComp with
+                                        | Some(lst) -> List.length lst
+                                        | None -> 0 (* or handle the case where there is no list *)
+                                        }"
             let connections = extractConnections wModel
             match singlyComp with
             | Some syms ->
                 List.fold (fun wModel' sym ->
                     let portsMap = getPortSym wModel'.Symbol sym
                     // Since it's a singly component, assume there is only one port
+                    printfn $"Portsmap size: {Map.count portsMap}"
                     let portOption = portsMap |> Map.values |> Seq.tryHead
+                    printfn $"PortOption: {match portOption with
+                                            | Some(port) -> port.Id
+                                            | None -> string 0}"
                     match portOption with
                     | Some port ->
+                        printfn $"Connections: {List.length connections}"
                         let otherPorts = findOtherPorts port connections
+                        printfn $"OtherPorts: {List.length otherPorts}"
                         let otherSymOpt = chooseSymAlign port otherPorts wModel'
                         match otherSymOpt with
                         | Some (otherSym,otherPort) ->
+                            printfn $"portHost: {sym.Component.Label}"
+                            printfn $"portType: {port.PortType}"
+                            printfn $"otherportHost: {otherSym.Component.Label}"
+                            printfn $"otherportType: {port.PortType}"
                             let wModel'' = alignComponents  wModel' sym port otherSym otherPort
                             wModel''
-                        | None -> wModel' // If no suitable alignment, keep the model unchanged
-                    | None -> wModel' // If no port is found, proceed to the next symbol
+                        | None ->
+                            printfn $"Fail Match"
+                            wModel' // If no suitable alignment, keep the model unchanged
+                    | None ->
+                        printfn $"No PortOption"
+                        wModel' // If no port is found, proceed to the next symbol                            
                 ) wModel syms
-            | None -> wModel // If getSinglyComp returns None, return the model unchanged
+            | None ->
+                printfn $"ERROR"
+                wModel // If getSinglyComp returns None, return the model unchanged
+
 
     
 

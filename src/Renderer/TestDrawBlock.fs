@@ -502,14 +502,14 @@ module HLPTick3 =
 
         let testPreAlign = numOfStraightWires model
 
-        //let alignedModel = Beautify.sheetSingly model
+        let alignedModel = Beautify.sheetSingly model
 
-        let testPostAlign = numOfStraightWires model
+        let testPostAlign = numOfStraightWires alignedModel
         let straightenedWires = findNumDiff testPreAlign testPostAlign
 
         printf "Number of straightened wires: %d" straightenedWires
 
-        model
+        alignedModel
         
 
         
@@ -631,7 +631,7 @@ module HLPTick3 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeTest6Circuit
-                Asserts.failOnAllTests
+                Asserts.failOnSymbolIntersectsSymbol
                 dispatch
             |> recordPositionInTest testNum dispatch
 

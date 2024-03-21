@@ -238,6 +238,59 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         
         addText pos text "middle" "bold" Constants.mergeSplitTextSize
 
+    let mergeSplitNLineNew (compType: ComponentType)(portType: PortType) (posEdge:XYPos*Edge) msb lsb =
+        let pos, edge = posEdge
+        let text = 
+            match msb = lsb, msb >= lsb with
+            | _, false -> ""
+            | true, _ -> sprintf $"({msb})"
+            | false, _ -> sprintf $"({msb}:{lsb})"
+        let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
+        let canvasWidthContext = testCanvas.getContext_2d()
+
+        let fontString (font:DrawHelpers.Text) = String.concat " " [ font.FontWeight; font.FontSize; font.FontFamily]
+
+        let textMeasureWidth (font:DrawHelpers.Text) (txt:string) =
+            let fontStr = fontString font
+            canvasWidthContext.font <- fontStr
+            canvasWidthContext.measureText(txt).width
+
+        let textStyle =
+            {defaultText with TextAnchor = "middle"; FontWeight = "bold"; FontSize = Constants.mergeSplitTextSize}
+
+        let MergeInOffset, MergeOutOffset, SplitInOffset, SplitOutOffset = 
+            match edge with
+            | Left ->   {X = -(textMeasureWidth textStyle text)/2.; Y = 2.}, 
+                        {X = -(textMeasureWidth textStyle text)/2.; Y = 2.},  
+                        {X = -(textMeasureWidth textStyle text)/2.; Y = 2.}, 
+                        {X = -(textMeasureWidth textStyle text)/2.; Y = 2.}
+            | Top ->    {X = -(textMeasureWidth textStyle text)/2.-2.; Y = -12.}, 
+                        {X = -(textMeasureWidth textStyle text)/2.-2.; Y = -12.}, 
+                        {X = -(textMeasureWidth textStyle text)/2.-2.; Y = -12.}, 
+                        {X = 0.; Y = 2.}
+            | Right ->  {X = (textMeasureWidth textStyle text)/2.; Y = 2.},
+                        {X = (textMeasureWidth textStyle text)/2.; Y = 2.},
+                        {X = (textMeasureWidth textStyle text)/2.; Y = 2.},
+                        {X = (textMeasureWidth textStyle text)/2.; Y = 2.}
+            | Bottom -> {X = -(textMeasureWidth textStyle text)/2.-2.; Y = 2.},
+                        {X = -(textMeasureWidth textStyle text)/2.-2.; Y = 2.},
+                        {X = -(textMeasureWidth textStyle text)/2.-2.; Y = 2.},
+                        {X = 0.; Y = -12.}
+
+        let posNew = 
+            match compType with
+            | MergeN _ -> 
+                match portType with 
+                | PortType.Input -> pos + MergeInOffset
+                | PortType.Output -> pos + MergeOutOffset
+            | SplitN _ -> 
+                match portType with 
+                | PortType.Input -> pos + SplitInOffset
+                | PortType.Output -> pos + SplitOutOffset
+            | _ -> pos
+        
+        addText posNew text "middle" "bold" Constants.mergeSplitTextSize
+
     let mergeSplitNLine (compType: ComponentType)(portType: PortType) pos msb lsb =
         let text = 
             match msb = lsb, msb >= lsb with
@@ -256,12 +309,16 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
 
         let textStyle =
             {defaultText with TextAnchor = "middle"; FontWeight = "bold"; FontSize = Constants.mergeSplitTextSize}
+        
+        //TODO: hack way to fix position of bit legend text
+        // let MergeInOffset, MergeOutOffset, SplitInOffset, SplitOutOffset = 
+        //     match
         let posNew = 
             match compType with
             | MergeN _ -> 
                 match portType with 
-                | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -4.}
-                | PortType.Output -> pos + {X = (textMeasureWidth textStyle text)/2.; Y = 4.}
+                | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -0.}
+                | PortType.Output -> pos + {X = (textMeasureWidth textStyle text)/2.; Y = 5.}
             | SplitN _ -> 
                 match portType with 
                 | PortType.Input -> pos - {X = (textMeasureWidth textStyle text)/2.; Y = -4.}
@@ -378,6 +435,17 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | [|pos'|]-> pos' 
             | _ -> failwithf "What? Can't happen"
         
+        let inputTextPointsNew = 
+            comp.InputPorts
+            |> List.toArray
+            |> Array.map (fun port -> ((getPortPos symbol port), (getSymbolPortOrientation symbol port)))
+
+        let outputTextPointsNew =
+            comp.OutputPorts
+            |> List.toArray
+            |> Array.map (fun port -> ((getPortPos symbol port), (getSymbolPortOrientation symbol port)))
+
+
         let inputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.InputPorts)
         let outputTextPoints = Array.map (getPortPos symbol) (List.toArray comp.OutputPorts)
 
@@ -414,11 +482,21 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                                 ) (0, [])
                         List.rev ranges
                     let valuesOutput = [(fst (List.last valuesInput),0)]
+
                     let inputEls = List.fold2 (fun og pos value -> 
                         og @ mergeSplitNLine comp.Type PortType.Input pos (fst value) (snd value)) [] (Array.toList inputTextPoints) valuesInput
                     let outputEls = List.fold2 (fun og pos value -> 
                         og @ mergeSplitNLine comp.Type PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints) valuesOutput
-                    inputEls @ outputEls
+                    
+                    let inputElsNew = List.fold2 (fun og posEdge value -> 
+                        og @ mergeSplitNLineNew comp.Type PortType.Input posEdge (fst value) (snd value)) [] (Array.toList inputTextPointsNew) valuesInput
+                    let outputElsNew = List.fold2 (fun og posEdge value ->
+                        og @ mergeSplitNLineNew comp.Type PortType.Output posEdge (fst value) (snd value)) [] (Array.toList outputTextPointsNew) valuesOutput
+                    
+                    //inputEls @ outputEls
+                    inputElsNew @ outputElsNew
+
+                    
                 | true -> []
             | None -> []
             
@@ -458,7 +536,14 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                         og @ mergeSplitNLine comp.Type PortType.Input pos (fst value) (snd value)) [] (Array.toList inputTextPoints) [inputValue]
             let outputEls = List.fold2 (fun og pos value -> 
                         og @ mergeSplitNLine comp.Type PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints)outputValues
-            outputEls @ inputEls
+            
+            let inputElsNew = List.fold2 (fun og posEdge value -> 
+                        og @ mergeSplitNLineNew comp.Type PortType.Input posEdge (fst value) (snd value)) [] (Array.toList inputTextPointsNew) [inputValue]
+            let outputElsNew = List.fold2 (fun og posEdge value ->
+                        og @ mergeSplitNLineNew comp.Type PortType.Output posEdge (fst value) (snd value)) [] (Array.toList outputTextPointsNew) outputValues
+            
+            //inputEls @ outputEls
+            inputElsNew @ outputElsNew
             
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
             (addText clockTxtPos " clk" "middle" "normal" "12px")

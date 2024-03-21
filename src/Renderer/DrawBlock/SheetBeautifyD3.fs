@@ -26,7 +26,7 @@ open DrawHelpers
 
 ///constants used in DEBUG mode
 module DEBUG_CONSTANTS =
-    let DEBUG:bool = true
+    let DEBUG:bool = false
     let DEBUG_MAX_LENGTH:float = 1.
 
 /// Some Helper functions copied from Tick3 testdrawblock and edited
@@ -122,7 +122,7 @@ module Constants =
 
     /// If the length of a wire is greater than this ratio of the median length of all wires,
     /// then the wire is considered too long.
-    let maxLengthRatio = 2.5
+    let maxLengthRatio = 2.
 
     /// If the intersection of a wire with all other wires is greater than this ratio of the median
     /// intersection of all wires, then the wire is considered too intersecting.
@@ -189,9 +189,18 @@ module findIllegalWiresHelpers =
 
     /// Get the median length of all wires
     let getMedianLength(sheetModel: SheetT.Model): float =
+        let IOLabelsPortIDs = 
+            sheetModel.Wire.Symbol.Symbols
+            |> Map.toList
+            |> List.map snd
+            |> List.filter (fun symbol -> symbol.Component.Type = ComponentType.IOLabel)
+            |> List.map (fun symbol -> symbol.Component.InputPorts.Head.Id, symbol.Component.OutputPorts.Head.Id)
+            |> List.collect (fun (inputPortId, outputPortId) -> [inputPortId; outputPortId])
         sheetModel.Wire.Wires
         |> Map.toList
-        |> List.map (fun (id, wire) -> getWireLength wire)
+        |> List.map snd
+        |> List.filter (fun wire -> not (List.contains (string wire.InputPort) IOLabelsPortIDs) && not (List.contains (string wire.OutputPort) IOLabelsPortIDs))
+        |> List.map (fun wire -> getWireLength wire)
         |> median
     
     /// Get the median number of intersections of all wires
@@ -212,6 +221,7 @@ module findIllegalWiresHelpers =
 
     /// get wires that are too long
     let getWiresTooLong(sheetModel: SheetT.Model): Wire Set =
+        
         sheetModel.Wire.Wires
         |> Map.filter (fun id wire -> (getWireLength wire > Constants.maxLengthRatio * getMedianLength sheetModel) || (getWireLength wire > Constants.maxWireLength))
         |> Map.toList

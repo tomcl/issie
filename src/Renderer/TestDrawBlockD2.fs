@@ -703,6 +703,18 @@ module D2Test =
                 displayOnFail
             |> recordPositionInTest testNum dispatch
 
+        let testD3Regular testNum firstSample dispatch model =
+            
+            runTestOnSheets
+                "DisplayAll D3: Regular Shifts"
+                firstSample
+                TestDrawBlockD3.GenerateRegularWireLabelReplaceTestPos
+                TestDrawBlockD3.makeReplaceWireLabelTestCircuit
+                Asserts.failOnAllTests
+                dispatch
+                displayAll
+            |> recordPositionInTest testNum dispatch
+
         /// <summary>AUTHOR hn621 - Prints out the average time to beautify a sheet of n components, where n is in range [5..5..25]</summary>
         let testBeautifyTimePerformance testNum firstSample dispatch model =
             let sheetMaker = makeRandomCircuit model
@@ -755,10 +767,11 @@ module D2Test =
                 "Apply Beautify D3", (applyBeautify wireLabelBeautify)
                 "Build: Random Components No Rotate", testRandomCompNoRotate 
                 "Build: Random Components", testRandomComp
-                "Test: Statistics", TestDrawBlockD1.HLPTick3.Tests.showTestCircuit5 // TODO: add actual function
-                "Test: Edge Case", TestDrawBlockD1.HLPTick3.Tests.runAllTests // TODO: add actual function
+                "Test: Statistics", TestDrawBlockD1.HLPTick3.Tests.showTestCircuit5
+                "Test: Edge Case", TestDrawBlockD1.HLPTick3.Tests.runAllTests 
                 "Test: Beautify Time Complexity", testBeautifyTimePerformance
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+                "D3 regular shifts", testD3Regular
             ]
 
         /// Display the next error in a previously started test

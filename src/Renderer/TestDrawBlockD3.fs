@@ -339,29 +339,18 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let D3Test3 testNum firstSample dispatch =
+    let D3Test3 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
-            "Complete test on crowded complex circuit"
+            "General Test on complex circuit"
             firstSample
             test2Builder
+            showTargetSheet
             None
             makeTest3Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
-        |> recordPositionInTest testNum dispatch
-
-    let D3Test3 testNum firstSample dispatch =
-        runTestOnSheets
-            "Complete test on crowded complex circuit"
-            firstSample
-            test2Builder
-            None
-            makeTest3Circuit
-            (AssertFunc failOnAllTests)
-            Evaluations.nullEvaluator
-            dispatch
-        |> recordPositionInTest testNum dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
     // ac2021: CAUSED COMPILE ERRORS SO COMMENTED
     // ac2021: I think it was caused by Alina's pr?
@@ -382,7 +371,7 @@ module Tests =
             "Test1", D3Test1 // example
             "Test2", D3Test2 // example
             "Test3", D3Test3
-            "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+            "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
     
     /// Display the next error in a previously started test

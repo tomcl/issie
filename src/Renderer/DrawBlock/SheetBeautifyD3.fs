@@ -398,10 +398,10 @@ module illegalWireToWireLabels =
             // let portPos= port.
             let labelPos=
                 match orientation with
-                | Top -> {X= portPos.X ; Y=portPos.Y-1.5*height} 
-                | Bottom-> {X= portPos.X ; Y=portPos.Y+1.5*height}
-                | Left-> {X= portPos.X-1.5*width ; Y=portPos.Y}
-                | Right ->{X= portPos.X+1.5*width ; Y=portPos.Y}
+                | Top -> {X= portPos.X+15.; Y=portPos.Y-1.5*height-25.} 
+                | Bottom-> {X= portPos.X+15. ; Y=portPos.Y+1.5*height}
+                | Left-> {X= portPos.X-1.*width ; Y=portPos.Y}
+                | Right ->{X= portPos.X+1.*width ; Y=portPos.Y}
             let labelRotation=
                 match orientation,isInput with
                 | Top, true-> Degree90

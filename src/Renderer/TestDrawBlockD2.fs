@@ -32,6 +32,7 @@ open TestDrawBlock.HLPTick3.Asserts
 open TestDrawBlock.HLPTick3.Builder
 open TestDrawBlock.HLPTick3.Tests
 open TestLib
+open SheetBeautifyD1
 open SheetBeautifyD2
 open SheetBeautifyD3
 
@@ -61,6 +62,14 @@ type posFlipPair = {
 type posFlipComponent = {
     Position: XYPos
     Flip: Option<FlipType>
+    Component: ComponentType
+}
+
+// Define new Type for Integrated Tests
+type posFlipComponentConnections = {
+    Position: XYPos
+    Flip: Option<FlipType>
+    Connections: int * int
     Component: ComponentType
 }
 
@@ -95,6 +104,9 @@ let printMetrics (model : SheetT.Model) : unit =
     let wireRightAngles : int = numOfVisRightAngles model
     print ($"Number of Wire Right angles: {wireRightAngles}")
 
+    let wireLabelIntersections: int = countWireLabelIntersections model
+    print ($"Number of Wire Label Intersections: {wireLabelIntersections}")
+
 /// <summary> Prints the difference in metrics between two given sheet models. </summary>
 /// <param name="model1">The sheet model before the beautification.</param>
 /// <param name="model2">The sheet model after the beautification.</param>
@@ -122,6 +134,10 @@ let calcMetricsDiff (model1 : SheetT.Model) (model2 : SheetT.Model) : unit =
     let wireRightAngles1 : int = numOfVisRightAngles model1
     let wireRightAngles2 : int = numOfVisRightAngles model2
     print ($"Number of Wire Right angles Removed: {wireRightAngles1 - wireRightAngles2}")
+    
+    let wireLabelIntersections1 : int = countWireLabelIntersections model1
+    let wireLabelIntersections2 : int = countWireLabelIntersections model2
+    print ($"Number of Wire Label Intersections Removed: {wireLabelIntersections1 - wireLabelIntersections2}")
 
 
 /// <summary> Finds the ID of a symbol within a model by its label. </summary>
@@ -132,7 +148,7 @@ let findSymbolIdByLabel (model: SheetT.Model) (targetLabel: string) : Option<Com
     model.Wire.Symbol.Symbols
     |> Map.toSeq 
     |> Seq.tryFind (fun (_, sym) -> sym.Component.Label.ToUpper() = targetLabel.ToUpper()) 
-    |> Option.map fst 
+    |> Option.map fst
 
 
 /// <summary> Flips a symbol within the model based on the specified orientation. </summary>
@@ -154,7 +170,6 @@ let flipSymbol (symLabel: string) (orientation: FlipType option) (model : SheetT
         | None -> Ok model
 
 
-
 /// <summary>Generates a 2x2 grid of XYPos positions based on an offset from the middle of the sheet.</summary>
 /// <param name="offsetX">The horizontal offset from the middle of the sheet for the grid's starting position.</param>
 /// <param name="offsetY">The vertical offset from the middle of the sheet for the grid's starting position.</param>
@@ -167,6 +182,44 @@ let makeGrid (offsetX: float) (offsetY: float) =
      {X = x + offsetX; Y = y + offsetY + gridStep};
      {X = x + offsetX + gridStep; Y = y + offsetY + gridStep}]
     |> fromList
+
+let verticalLinePositions midPos stepSize =
+    fromList [-30..stepSize..30]
+    |> map (fun n -> midPos + { X = 0.; Y = float n })
+let horizontallLinePositions midPos stepSize =
+    fromList [-150..stepSize..50]
+    |> map (fun n -> midPos + { X = float n; Y = 0. })
+
+let randomXPositions =
+    [-300.0..15.0..300.0]
+    |> List.map (fun xpos -> {X=xpos; Y=0})
+    |> fromList
+
+let failOnLabelWireIntersection (sample:int) model =
+    let intersections = countWireLabelIntersections model
+    if intersections = 0 then
+        None
+    else
+        Some $"Wire intersects a wire label in Sample {sample}, at least {intersections} intersections"
+
+let failOnOversizeWires (sample:int) (model:SheetT.Model) : string option =
+    let threshold = 200.0 // Need to find a good threshold
+    let wireLengths = SegmentHelpers.allWireNets model
+                      |> List.collect (fun (_, net) -> SegmentHelpers.getVisualSegsFromNetWires true model net)
+                      |> List.map( fun (startP,endP) -> euclideanDistance startP endP)
+    let maxWireLength = List.max wireLengths
+    if maxWireLength > threshold then
+        Some $"Wire length exceeds threshold in Sample {sample}, max length: {maxWireLength}"
+    else
+        None
+
+
+
+let beautifyOnOddTests tests =
+    tests
+    |> toList
+    |> List.collect (fun t -> [(t,false); (t,true)])
+    |> fromList    
 
 //--------------------------------------------------------------------------------------------------------------------------//
 //----------------------------------------------------Beautify Functions----------------------------------------------------//
@@ -200,6 +253,8 @@ let userThresholdPopUp (model: ModelType.Model) (func: SheetT.Model -> float -> 
             let newSheet = func sheet (float outputInt)
             print "\nMetrics after beautifying"
             printMetrics newSheet
+            print "\nDifference in Metrics"
+            calcMetricsDiff sheet newSheet
             let newModel = Optic.set sheet_ newSheet model
             showSheetInIssieSchematic newModel.Sheet dispatch
             dispatch ClosePopup
@@ -245,10 +300,6 @@ let input1PosCircuit1 = middleOfSheet + { X = -140; Y = 176 }
 let input2PosCircuit1 = middleOfSheet + { X = -230; Y = 100 }
 let mux1PosCircuit1 = middleOfSheet + { X = -150; Y = -90 }
 let mux2PosCircuit1 = middleOfSheet - { X = 0; Y = 80 }
-
-let verticalLinePositions midPos stepSize =
-    fromList [-30..stepSize..30]
-    |> map (fun n -> midPos + { X = 0.; Y = float n })
 
 let verticalLinePairs = product (fun a b -> (a, b)) (verticalLinePositions mux1PosCircuit1 15) (verticalLinePositions mux2PosCircuit1 15)
 
@@ -300,7 +351,6 @@ let posConnectionCompGen3 = product (fun (posConnections : posConnectionsPair) c
 
 let posConnectionCompGenPair = product (fun gen1 gen2 -> (gen1, gen2)) posConnectionCompGen1 posConnectionCompGen2
 let posConnectionCompGenTriple = product (fun (gen1, gen2) gen3 -> (gen1, gen2, gen3)) posConnectionCompGenPair posConnectionCompGen3
-
 
 
 let makeCircuit2 (symInfo : posConnectionsComponent * posConnectionsComponent * posConnectionsComponent) =
@@ -383,7 +433,7 @@ let makeCircuit3 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipTy
 
 //----------------------------------------------------- Circuit 4 ---------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
-// Define the positions of Symbols in the Sheet for Circuit 2
+// Define the positions of Symbols in the Sheet for Circuit 4
 let notGatePosCircuit4 : XYPos = middleOfSheet - { X = 200.0; Y = 0.0 }
 let mux1PosCircuit4 : XYPos = middleOfSheet - { X = 100.0; Y = 100.0 }
 let mux2PosCircuit4 : XYPos = middleOfSheet + { X = -100.0; Y = 100.0 }
@@ -526,6 +576,115 @@ let makeCircuit6 (symInfo : posFlipComponent * posFlipComponent * posFlipCompone
 
 //--------------------------------------------------------------------------------------------------------------------------//
 
+//------------------------------------------------------- Circuit 7 --------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
+let makeCircuit7 (muxDistance : XYPos) =
+    let mux2Offset = (muxDistance.X * 2.0) % 200.0
+    let muxDistance2 = { X = mux2Offset; Y = 300}
+    let model = 
+        initSheetModel
+        |> placeSymbol "DMUX1" (Demux4) (middleOfSheet + muxDistance)
+        |> Result.bind (placeSymbol "MUX1" Mux4 middleOfSheet)
+        |> Result.bind (placeSymbol "MUX2" Mux4 (middleOfSheet + muxDistance2))
+        |> Result.bind (placeWire (portOf "DMUX1" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "DMUX1" 1) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "DMUX1" 2) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "DMUX1" 3) (portOf "MUX1" 3))
+        |> Result.bind (placeWire (portOf "DMUX1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "DMUX1" 1) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "DMUX1" 2) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "DMUX1" 3) (portOf "MUX2" 3))
+        |> getOkOrFail
+    model
+
+//--------------------------------------------------------------------------------------------------------------------------//
+
+
+//------------------------------------------------------- Circuit 8 --------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
+
+// Define Component Positions
+
+// Sym1 definitions
+let sym1PosCircuit8 = middleOfSheet + {X = -150; Y = -230}
+let posGen1Circuit8 = horizontallLinePositions sym1PosCircuit8 100
+let sym1Flips : FlipType option list = [None]
+let sym1FlipsGen = fromList sym1Flips
+let sym1Connections = fromList [(1,0); (1, 1); (1, 3)]
+let sym1Components = fromList [Demux4]
+let sym1PosFlipGen = product (fun pos flip -> {Position = pos; Flip =  flip}) posGen1Circuit8 sym1FlipsGen
+let sym1PosFlipComponentGen = product (fun (posFlip: posFlipPair) comp -> {Position = posFlip.Position; Flip = posFlip.Flip; Component = comp}) sym1PosFlipGen sym1Components
+let sym1PosFlipComponentConnectionGen = product (fun (posFlipComponent : posFlipComponent) connections -> {Position = posFlipComponent.Position; 
+                                                                            Flip = posFlipComponent.Flip; 
+                                                                            Component = posFlipComponent.Component;
+                                                                            Connections = connections}) sym1PosFlipComponentGen sym1Connections
+
+
+// Sym2 definitions
+let sym2PosCircuit8 = middleOfSheet + {X = 0; Y = -230}
+let posGen2Circuit8 = verticalLinePositions sym2PosCircuit8 15
+let sym2Flips : FlipType option list = [None]
+let sym2FlipsGen = fromList sym1Flips
+let sym2Connections = fromList [(0,0);]
+let sym2Components = fromList [Mux4; GateN(And, 5)]
+let sym2PosFlipGen = product (fun pos flip -> {Position = pos; Flip =  flip}) posGen2Circuit8 sym2FlipsGen
+let sym2PosFlipComponentGen = product (fun (posFlip: posFlipPair) comp -> {Position = posFlip.Position; Flip = posFlip.Flip; Component = comp}) sym2PosFlipGen sym2Components
+let sym2PosFlipComponentConnectionGen = product (fun (posFlipComponent : posFlipComponent) connections -> {Position = posFlipComponent.Position; 
+                                                                            Flip = posFlipComponent.Flip; 
+                                                                            Component = posFlipComponent.Component;
+                                                                            Connections = connections}) sym2PosFlipComponentGen sym2Connections
+
+// Sym3 definitions
+let posGen3Circuit8 = makeGrid 0 0
+let sym3Flips : FlipType option list = [None]
+let sym3FlipsGen = fromList sym1Flips
+let sym3Connections = fromList [(0,0); (2,0)]
+let sym3Components = fromList [Mux2]
+let sym3PosFlipGen = product (fun pos flip -> {Position = pos; Flip =  flip}) posGen3Circuit8 sym3FlipsGen
+let sym3PosFlipComponentGen = product (fun (posFlip: posFlipPair) comp -> {Position = posFlip.Position; Flip = posFlip.Flip; Component = comp}) sym3PosFlipGen sym3Components
+let sym3PosFlipComponentConnectionGen = product (fun (posFlipComponent : posFlipComponent) connections -> {Position = posFlipComponent.Position; 
+                                                                            Flip = posFlipComponent.Flip; 
+                                                                            Component = posFlipComponent.Component;
+                                                                            Connections = connections}) sym3PosFlipComponentGen sym3Connections
+
+// combine all sym info
+let sym1And2 = product (fun sym1 sym2 -> (sym1, sym2)) sym1PosFlipComponentConnectionGen sym2PosFlipComponentConnectionGen
+let allSymInfoCircuit8 = product (fun (sym1, sym2) sym3 -> (sym1, sym2, sym3)) sym1And2 sym3PosFlipComponentConnectionGen
+
+let integratedTestCircuit (symInfo : posFlipComponentConnections * posFlipComponentConnections * posFlipComponentConnections) =
+    let (sym1Info, sym2Info, sym3Info) = symInfo
+    let sym1pos = sym1Info.Position
+    let sym1flip = sym1Info.Flip
+    let sym1comp = sym1Info.Component
+    let (sym1InputPort, sym1OutputPort) = sym1Info.Connections
+    let sym2pos = sym2Info.Position
+    let sym2flip = sym2Info.Flip
+    let sym2comp = sym2Info.Component
+    let (sym2InputPort, sym2OutputPort) = sym2Info.Connections
+    let sym3pos = sym3Info.Position
+    let sym3flip = sym3Info.Flip
+    let sym3comp = sym3Info.Component
+    let (sym3InputPort, sym3OutputPort) = sym3Info.Connections
+    initSheetModel
+    |> placeSymbol "Sym3" sym3comp sym3pos
+    |> Result.bind (flipSymbol "Sym3" sym3flip)
+    |> Result.bind (placeSymbol "Sym2" sym2comp sym2pos)
+    |> Result.bind (placeSymbol "Sym1" sym1comp sym1pos)
+    |> Result.bind (placeSymbol "S1" (Input1 (1, None)) (middleOfSheet + { X = -400; Y = -160 }))
+    |> Result.bind (placeSymbol "S2" (Input1 (1, None)) (middleOfSheet + { X = -350; Y = -10 }))
+    |> Result.bind (placeSymbol "OUT1" (Output 1) (middleOfSheet + { X = 150; Y = -125 }))
+    |> Result.bind (placeSymbol "OUT2" (Output 1) (middleOfSheet + { X = 150; Y = -5 }))
+    |> Result.bind (placeWire (portOf "S1" 0) (portOf "Sym1" sym1InputPort))
+    |> Result.bind (placeWire (portOf "S2" 0) (portOf "Sym3" sym3InputPort))
+    |> Result.bind (placeWire (portOf "Sym1" sym1OutputPort) (portOf "Sym2" sym2InputPort))
+    |> Result.bind (placeWire (portOf "Sym1" ((sym1InputPort + 2) % 4)) (portOf "Sym2" ((sym2InputPort + 3) % 4)))
+    |> Result.bind (placeWire (portOf "Sym2" sym2OutputPort) (portOf "OUT1" 0))
+    |> Result.bind (placeWire (portOf "Sym3" sym3OutputPort) (portOf "OUT2" 0))
+    |> Result.bind (placeWire (portOf "Sym1" 3) (portOf "Sym3" 1))
+    |> getOkOrFail
+
+//--------------------------------------------------------------------------------------------------------------------------//
+
 
 //--------------------------------------------------------------------------------------------------------------------------//
 //---------------------------------------------- Demo tests on Draw Block code ---------------------------------------------//
@@ -590,6 +749,27 @@ let test6 testNum firstSample dispatch =
         dispatch
     |> recordPositionInTest testNum dispatch
 
+let test7 testNum firstSample dispatch =
+    runTestOnSheets
+        "2 MUXes With Random Distance"
+        firstSample
+        randomXPositions
+        makeCircuit7
+        failOnAllTests
+        dispatch
+    |> recordPositionInTest testNum dispatch
+
+let test8 testNum firstSample dispatch =
+    runTestOnSheets
+        "Integrated Test"
+        firstSample
+        allSymInfoCircuit8
+        integratedTestCircuit
+        failOnAllTests
+        dispatch
+    |> recordPositionInTest testNum dispatch
+
+
 let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
     // Change names and test functions as required
     // delete unused tests from list
@@ -603,9 +783,12 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
         "Test4", test4
         "Test5", test5
         "Test6", test6
+        
         // D3
-        "Test7", fun _ _ _ -> printf "To implement"
-        "Test8", fun _ _ _ -> printf "To implement"
+        "Test7", test7
+
+        // Integrated Test
+        "Test8", test8
         "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the next error in a test
 
     ]
@@ -641,7 +824,7 @@ let beautifyMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
     | "D1 Beautify Function", _ -> 
         beautifySheet model beautify dispatch
     | "D2 Beautify Function", _ -> 
-        beautifySheet model beautify dispatch
+        beautifySheet model findBestModel dispatch
     | "D3 Beautify Function", _ -> 
         userThresholdPopUp model replaceLongWiresWithLabels dispatch
     | "Integrated Beautify Function", _ ->

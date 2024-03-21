@@ -625,3 +625,24 @@ let countSquashedWires (model: SheetT.Model) : int =
     |> Array.sumBy (function
         | [] -> 0
         | _ -> 1)
+
+/// <summary>Counts the number of intersections between wire segments and IO label bounding boxes in a given sheet.</summary>
+/// <param name="sheet">The sheet model containing wires and symbols, including IO labels.</param>
+/// <returns>The total count of intersections between wire segments and IO label bounding boxes within the specified sheet.</returns>
+let countWireLabelIntersections (sheet:SheetT.Model) =
+    let wires = sheet.Wire.Wires |> Map.toList
+    let labels = sheet.Wire.Symbol.Symbols
+                 |> Map.filter (fun _ sym -> sym.Component.Type = IOLabel)
+    let labelBoxes = labels
+                     |> Map.map (fun _ sym -> getSymBoundingBox sym)
+                     |> Map.toList
+                     |> List.map (fun (_, x) -> x)
+    List.allPairs wires labelBoxes
+    |> List.map (fun (w,bbox) ->
+            let folder pos1 pos2 acc seg =
+                match BlockHelpers.overlap2D (pos1,pos2) (bbox.TopLeft,bbox.BottomRight()) with
+                | true -> acc + 1
+                | false -> acc
+            BlockHelpers.foldOverNonZeroSegs folder 0 (snd w))
+    |> List.sum
+    

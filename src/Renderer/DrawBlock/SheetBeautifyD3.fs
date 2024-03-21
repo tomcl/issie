@@ -312,6 +312,10 @@ let turnWireLabelsToWires (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) =
         /// A wire label at source symbol could have a list of matching labels 
         /// at target symbols if in a net.
         /// A wire label at target symbol only has 1 matching labels at the source.
+        // let matchingWireLabels = 
+        //     mapValues sheet.Wire.Symbol.Symbols
+        //     |> Array.filter (fun sym -> (sym.Component.Label = wireLabelName) && sym.Id <> wireLabel.Id)
+        //     |> Array.toList
         let matchingWireLabels = 
             mapValues sheet.Wire.Symbol.Symbols
             |> Array.filter (fun sym -> (sym.Component.Label = wireLabelName) && sym.Id <> wireLabel.Id)
@@ -319,14 +323,13 @@ let turnWireLabelsToWires (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) =
 
         if not (List.isEmpty matchingWireLabels)
         then 
+            let allWireLabelsCompID = 
+                matchingWireLabels
+                |> List.append [wireLabel]
+                |> List.map (fun sym -> sym.Id)
             match wireInputInfo, wireOutputInfo with
             | None, Some wireInfo->
-                let wireNeedDelete, outputPortID = wireInfo
-                let allWireLabelsCompID = 
-                        matchingWireLabels
-                        |> List.append [wireLabel]
-                        |> List.map (fun sym -> sym.Id)
-
+                let wiresNeedDelete, outputPortID = wireInfo
                 let matchingWireLabelsWires = 
                     matchingWireLabels
                     |> List.choose (fun sym -> findWireByLabelOutputPort wires sym)
@@ -339,7 +342,7 @@ let turnWireLabelsToWires (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) =
                     let wireList = 
                         matchingWireLabelsWires
                         |> List.map (fst)
-                        |> List.append [wireNeedDelete]
+                        |> List.append [wiresNeedDelete]
 
                     (sheet, wireList)
                     ||> List.fold (fun updatedSheet wireID -> deleteWire wireID updatedSheet)
@@ -355,14 +358,29 @@ let turnWireLabelsToWires (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) =
 
             | Some wireInfo, None  ->
                 let wireNeedsDelete, inputPortID = wireInfo
-                let outputPortID = 
+                let matchingWireLabelsWires = 
                     matchingWireLabels
                     |> List.choose (fun sym -> findWireByLabelInputPort wires sym)
-                    |> (List.head >> snd)
+                let outputPortID = matchingWireLabelsWires |> (List.head >> snd)
+                let deleteWireLabelWiresAndLabels (sheet: SheetT.Model) = 
+                    if matchingWireLabels.Length > 1 
+                    then 
+                        sheet
+                        |> deleteWire wireNeedsDelete 
+                        |> deleteSymbolsAndUpdateSheet [wireLabel.Id]
+                        
+                    else 
+                        let wireList = 
+                            matchingWireLabelsWires
+                            |> List.map (fst)
+                            |> List.append [wireNeedsDelete]
 
+                        (sheet, wireList)
+                        ||> List.fold (fun updatedSheet wireID -> deleteWire wireID updatedSheet)
+                        |> deleteSymbolsAndUpdateSheet allWireLabelsCompID
+                        
                 sheet 
-                |> deleteWire wireNeedsDelete
-                |> deleteSymbolsAndUpdateSheet [wireLabel.Id]
+                |> deleteWireLabelWiresAndLabels        
                 |> createNewWireAndUpdateSheet inputPortID outputPortID
 
             | _, _ -> sheet
@@ -371,7 +389,10 @@ let turnWireLabelsToWires (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) =
 
     | _ -> sheet
 
-            
+let autoConvertWireLabelsToWires (sheet: SheetT.Model) = 
+    let symbolMap = mapValues sheet.Wire.Symbol.Symbols 
+    (sheet, symbolMap)
+    ||> Array.fold (fun sheet sym -> turnWireLabelsToWires sym sheet)       
 
 
 

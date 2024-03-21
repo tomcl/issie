@@ -22,6 +22,7 @@ open BlockHelpers
 
 open TestDrawBlock
 open TestDrawBlockD1
+open TestDrawBlockD1.Circuit
 open TestLib
 open TestDrawBlock.HLPTick3
 open TestDrawBlock.HLPTick3.Asserts
@@ -243,21 +244,21 @@ let makeRandomTestCircuit (posList:XYPos List) =
         //let compList = [comp1; comp2; comp3; comp4]
         initSheetModel
             |> placeSymbol "C2" comp2 {X= middleOfSheet.X + 300.; Y= middleOfSheet.Y}
-            |> addSymToSheet "C1" comp1 posList.[0].X posList.[0].Y
-            |> addSymToSheet "C3" comp3 posList.[1].X posList.[1].Y
-            |> addSymToSheet "C4" comp4 posList.[2].X posList.[2].Y
-            |> addSymToSheet "S1" (Input1(1,None)) (-350.) (-25.)
-            |> addSymToSheet "S2" (Input1(1,None)) (-350.) (-100.)
+            |> addSym "C1" comp1 posList.[0].X posList.[0].Y
+            |> addSym "C3" comp3 posList.[1].X posList.[1].Y
+            |> addSym "C4" comp4 posList.[2].X posList.[2].Y
+            |> addSym "S1" (Input1(1,None)) (-350.) (-25.)
+            |> addSym "S2" (Input1(1,None)) (-350.) (-100.)
             |> getOkOrFail
             |> applyRandomOperation comp1 "C1"
             |> applyRandomOperation comp2 "C2"
             |> applyRandomOperation comp3 "C3"
             |> placeWire (portOf "C1" 0) (portOf "C2" (getRandPort comp2))
-            |> addWireToSheet ("C2", 0) ("C3", 0)
-            |> addWireToSheet ("C3", 0) ("C4", 0)
-            |> addWireToSheet ("C4", 0) ("C1", (getRandPort comp1))
-            |> addWireToSheet ("S1", 0) ("C4", 1)
-            |> addWireToSheet ("S2", 0) ("C3", 1)
+            |> addWire ("C2", 0) ("C3", 0)
+            |> addWire ("C3", 0) ("C4", 0)
+            |> addWire ("C4", 0) ("C1", (getRandPort comp1))
+            |> addWire ("S1", 0) ("C4", 1)
+            |> addWire ("S2", 0) ("C3", 1)
             |> getOkOrFail
 
 /// manually generated test circuits where gates and MUXes are randomly flipped, or (2-MUX) inputs swapped.
@@ -265,49 +266,49 @@ let makeRandomTestCircuit (posList:XYPos List) =
 let makeTestCircuit1(andPos:XYPos) = 
         initSheetModel
         |> placeSymbol "1MUX2" Mux2 andPos
-        |> addSymToSheet "2MUX2" Mux2 0 0
-        |> addSymToSheet "3MUX2" Mux2 100. 0
-        |> addSymToSheet "S1" (Input1(1,None)) -100. 0
-        |> addSymToSheet "S2" (Input1(1,None)) -100. -100.
+        |> addSym "2MUX2" Mux2 0 0
+        |> addSym "3MUX2" Mux2 100. 0
+        |> addSym "S1" (Input1(1,None)) -100. 0
+        |> addSym "S2" (Input1(1,None)) -100. -100.
         |> getOkOrFail
         |> placeWire (portOf "1MUX2" 0) (portOf "2MUX2" 1)
-        |> addWireToSheet ("2MUX2", 0) ("3MUX2", 1)
-        |> addWireToSheet ("S1", 0) ("1MUX2", 0)
-        |> addWireToSheet ("S2", 0) ("2MUX2", 0)
+        |> addWire ("2MUX2", 0) ("3MUX2", 1)
+        |> addWire ("S1", 0) ("1MUX2", 0)
+        |> addWire ("S2", 0) ("2MUX2", 0)
         |> getOkOrFail
 
 let makeTestCircuit2 (andPos:XYPos) = 
         initSheetModel
         |> placeSymbol "S2" (Input1(1,None)) andPos
-        |> addSymToSheet "G2" (GateN(And,2)) 0 0
-        |> addSymToSheet "G1" (GateN(And,2)) 0 -100.
-        |> addSymToSheet "MUX1" Mux2 200. -100.
-        |> addSymToSheet "MUX2" Mux2 200. 50.
-        |> addSymToSheet "S1" (Input1(1,None)) -100. -150.
+        |> addSym "G2" (GateN(And,2)) 0 0
+        |> addSym "G1" (GateN(And,2)) 0 -100.
+        |> addSym "MUX1" Mux2 200. -100.
+        |> addSym "MUX2" Mux2 200. 50.
+        |> addSym "S1" (Input1(1,None)) -100. -150.
         |> getOkOrFail
         |> flipSymbol "MUX1" SymbolT.FlipType.FlipVertical
         |> placeWire (portOf "S2" 0) (portOf "G1" 0)
-        |> addWireToSheet ("G1", 0) ("MUX1", 1)
-        |> addWireToSheet ("MUX1", 0) ("G1", 1)
-        |> addWireToSheet ("G2", 0) ("MUX1", 0)
-        |> addWireToSheet ("G2", 0) ("MUX2", 1)
-        |> addWireToSheet ("S1", 0) ("MUX1", 2)
+        |> addWire ("G1", 0) ("MUX1", 1)
+        |> addWire ("MUX1", 0) ("G1", 1)
+        |> addWire ("G2", 0) ("MUX1", 0)
+        |> addWire ("G2", 0) ("MUX2", 1)
+        |> addWire ("S1", 0) ("MUX1", 2)
         |> getOkOrFail
 
 let makeTestCircuit3 (andPos:XYPos) = 
         initSheetModel
         |> placeSymbol "S1" (Input1(1,None)) {X=middleOfSheet.X - 150.; Y=andPos.Y}
-        |> addSymToSheet "MUX2" Mux2 0 0
-        |> addSymToSheet "S2" (Input1(1,None)) -150. 55.
-        |> addSymToSheet "MUX1" Mux2 -100. -150.
-        |> addSymToSheet "G1" (GateN(And,2)) 100. -100.
+        |> addSym "MUX2" Mux2 0 0
+        |> addSym "S2" (Input1(1,None)) -150. 55.
+        |> addSym "MUX1" Mux2 -100. -150.
+        |> addSym "G1" (GateN(And,2)) 100. -100.
         |> getOkOrFail
         |> flipSymbol "MUX2" SymbolT.FlipType.FlipVertical
         |> placeWire (portOf "S1" 0) (portOf "MUX2" 1)
-        |> addWireToSheet ("S2", 0) ("MUX2", 2)
-        |> addWireToSheet ("MUX1", 0) ("MUX2", 0)
-        |> addWireToSheet ("MUX1", 0) ("G1", 1)
-        |> addWireToSheet ("MUX2", 0) ("G1", 0)
+        |> addWire ("S2", 0) ("MUX2", 2)
+        |> addWire ("MUX1", 0) ("MUX2", 0)
+        |> addWire ("MUX1", 0) ("G1", 1)
+        |> addWire ("MUX2", 0) ("G1", 0)
         |> getOkOrFail
 
 let offset = {X=150.; Y=0.}
@@ -315,11 +316,11 @@ let offset = {X=150.; Y=0.}
 let makeCCTestingCircuit (andXY: XYPos) = 
     initSheetModel
     |> placeSymbol "MAIN1" mainCC middleOfSheet
-    |> addSymToSheet "MAIN2" mainCC andXY.X andXY.Y
+    |> addSym "MAIN2" mainCC andXY.X andXY.Y
     //|> scaleSymInSheet "MAIN2" scale
-    |> addWireToSheet ("MAIN1", 0) ("MAIN2", 0)
-    |> addWireToSheet ("MAIN1", 1) ("MAIN2", 1)
-    |> addWireToSheet ("MAIN1", 2) ("MAIN2", 2)
+    |> addWire ("MAIN1", 0) ("MAIN2", 0)
+    |> addWire ("MAIN1", 1) ("MAIN2", 1)
+    |> addWire ("MAIN1", 2) ("MAIN2", 2)
     |> getOkOrFail
 
 
@@ -453,70 +454,75 @@ module Tests =
         open Asserts
         open Evaluations
         
-        let test1 testNum firstSample dispatch =
+        let test1 testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "D2 Test Circuit 1: testing"
                 firstSample
                 horizLinePositions
+                showTargetSheet
                 None
                 makeTestCircuit1
                 (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
         
-        let test2 testNum firstSample dispatch =
+        let test2 testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "D2 Test Circuit 2: Annie's test"
                 firstSample
                 horizLinePositions
+                showTargetSheet
                 None
                 makeTestCircuit2
                 (AssertFunc indevTestWiresCrossing)
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
         
-        let test3 testNum firstSample dispatch =
+        let test3 testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "D3 Test Circuit 3"
                 firstSample
                 horizLinePositions
+                showTargetSheet
                 None
                 makeTestCircuit3
                 (AssertFunc indevTestWiresCrossing)
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
         
-        let testRandom testNum firstSample dispatch =
+        let testRandom testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "D4 Test Random Circuit"
                 firstSample
                 randomPos
+                showTargetSheet
                 None
                 makeRandomTestCircuit
                 (AssertFunc indevTestWiresCrossing)
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
         
         
-        let testCC testNum firstSample dispatch =
+        let testCC testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "D5 Test Custom Component"
                 firstSample
                 horizLinePositions
+                showTargetSheet
                 None
                 makeCCTestingCircuit
                 (AssertFunc indevTestWiresCrossing)
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
         
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+        let testsToRunFromSheetMenu : (string * (int -> int -> bool -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
@@ -524,21 +530,21 @@ module Tests =
                 "Mux2", test2
                 "Mux2 & And", test3 
                 "Random", testRandom 
-                "Custom Component", fun _ _ _ -> printf "Test5"
-                "Test6", fun _ _ _ -> printf "Test6"
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+                "Custom Component", fun _ _ _ _ -> printf "Test5"
+                "Test6", fun _ _ _ _ -> printf "Test6"
+                "Test7", fun _ _ _ _ -> printf "Test7"
+                "Test8", fun _ _ _ _ -> printf "Test8"
+                "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]
 
         /// Display the next error in a previously started test
-        let nextError (testName, testFunc) firstSampleToTest dispatch =
+        let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
             let testNum =
                 testsToRunFromSheetMenu
                 |> List.tryFindIndex (fun (name,_) -> name = testName)
                 |> Option.defaultValue 0
-            testFunc testNum firstSampleToTest dispatch
+            testFunc testNum firstSampleToTest showTargetSheet dispatch
 
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
@@ -547,12 +553,17 @@ module Tests =
             printf "%s" name
             match name, model.DrawBlockTestState with
             | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
+                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) (state.TargetFunctionApplied) dispatch
             | "Next Test Error", None ->
                 printf "Test Finished"
                 ()
+            | "Toggle Beautify", Some state -> 
+                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex) (not state.TargetFunctionApplied) dispatch
+            | "Toggle Beautify", None ->
+                printf "No test started"
+                ()
             | _ ->
-                func testIndex 0 dispatch
+                func testIndex 0 true dispatch
         
 
 

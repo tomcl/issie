@@ -371,23 +371,24 @@ module HLPTick3 =
             (name: string)
             (sampleToStartFrom: int)
             (samples : Gen<'a>)
+            (showTargetSheet: bool)
             (targetFunc: option<SheetT.Model -> SheetT.Model>)
             (sheetMaker: 'a -> SheetT.Model)
             (sheetChecker: Assertion<SheetT.Model>)
             (sheetScorer: Evaluator<SheetT.Model>)
             (dispatch: Dispatch<Msg>)
                 : TestResult<'a> =
+            let targetSheetMaker' =
+                match targetFunc with
+                | Some func -> sheetMaker >> func >> rerouteAllWires
+                | None -> sheetMaker
             let generateAndCheckSheet: Assertion<'a> = 
                 match sheetChecker, targetFunc with
-                | AssertFunc func, Some sheetFunc   -> AssertFunc (fun n -> sheetMaker >> sheetFunc >> rerouteAllWires >> (func n))
-                | AssertFunc func, None             -> AssertFunc (fun n -> sheetMaker >> (func n))
-                | TargetFuncWorse, Some _           -> TargetFuncWorse
-                | TargetFuncWorse, None             -> failwithf "Evaluating target func without specifying target func"
+                | AssertFunc func, _      -> AssertFunc (fun n -> targetSheetMaker' >> (func n))
+                | TargetFuncWorse, Some _ -> TargetFuncWorse
+                | TargetFuncWorse, None   -> failwithf "Evaluating target func without specifying target func"
             let generateAndScoreBaseSheet = sheetMaker >> sheetScorer.EvalFunc
-            let generateAndScoreTestSheet = 
-                match targetFunc with
-                | Some sheetFunc                    -> sheetMaker >> sheetFunc >> rerouteAllWires >> sheetScorer.EvalFunc
-                | None                              -> sheetMaker >> sheetScorer.EvalFunc // Workaround to targetFunc testing & normal assertion
+            let generateAndScoreTargetSheet = targetSheetMaker' >> sheetScorer.EvalFunc
 
             let test =
                 {
@@ -398,7 +399,7 @@ module HLPTick3 =
                     Assertion = generateAndCheckSheet
                     Evaluation = {
                         BaseFunc = generateAndScoreBaseSheet
-                        TestFunc = generateAndScoreTestSheet
+                        TestFunc = generateAndScoreTargetSheet
                         Penalty = sheetScorer.Penalty
                     }
                 }
@@ -413,18 +414,20 @@ module HLPTick3 =
                 printf "----------"
                 // evaluationPopup
             | Some (n,first) -> // display in Issie editor and print out first error
-                printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
-                match targetFunc with
-                | None ->
-                    match catchException "" (sheetMaker) (samples.Data n) with
+                match showTargetSheet with
+                | true ->
+                    printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
+                    match catchException "" targetSheetMaker' (samples.Data n) with
                     | Ok sheet -> 
                         showSheetInIssieSchematic sheet dispatch
                     | Error mess -> ()
-                | Some sheetFunc -> 
-                    match catchException "" (sheetMaker >> sheetFunc >> rerouteAllWires) (samples.Data n) with
+                | false ->
+                    printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
+                    match catchException "" sheetMaker (samples.Data n) with
                     | Ok sheet -> 
                         showSheetInIssieSchematic sheet dispatch
                     | Error mess -> ()
+
             result
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
@@ -435,6 +438,9 @@ module HLPTick3 =
     let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
+
+    let combGen gen1 gen2 =
+        product (fun x y -> (x,y)) gen1 gen2
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -519,7 +525,7 @@ module HLPTick3 =
 
         /// Allow test errors to be viewed in sequence by recording the current error
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
-        let recordPositionInTest (testNumber: int) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
+        let recordPositionInTest (testNumber: int) (targetFuncApplied: bool) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
             dispatch <| UpdateDrawBlockTestState(fun _ ->
                 match result.firstTestError with
                 | None ->
@@ -527,63 +533,67 @@ module HLPTick3 =
                     None
                 | Some (numb, _) ->
                     printf $"Sample {numb}"
-                    Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
+                    Some {LastTestNumber=testNumber; LastTestSampleIndex= numb; TargetFunctionApplied= targetFuncApplied})
             
         /// Example test: Horizontally positioned AND + DFF: fail on sample 0
-        let test1 testNum firstSample dispatch =
+        let test1 testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 0"
                 firstSample
                 horizLinePositions
+                showTargetSheet
                 None
                 makeTest1Circuit
                 (AssertFunc (Asserts.failOnSampleNumber 0))
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail on sample 10
-        let test2 testNum firstSample dispatch =
+        let test2 testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 10"
                 firstSample
                 horizLinePositions
+                showTargetSheet
                 None
                 makeTest1Circuit
                 (AssertFunc (Asserts.failOnSampleNumber 10))
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
-        let test3 testNum firstSample dispatch =
+        let test3 testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on symbols intersect"
                 firstSample
                 horizLinePositions
+                showTargetSheet
                 None
                 makeTest1Circuit
                 (AssertFunc Asserts.failOnSymbolIntersectsSymbol)
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail all tests
-        let test4 testNum firstSample dispatch =
+        let test4 testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
                 horizLinePositions
+                showTargetSheet
                 None
                 makeTest1Circuit
                 (AssertFunc Asserts.failOnAllTests)
                 Evaluations.nullEvaluator
                 dispatch
-            |> recordPositionInTest testNum dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
 
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+        let testsToRunFromSheetMenu : (string * (int -> int -> bool -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
@@ -591,21 +601,21 @@ module HLPTick3 =
                 "Test2", test2 // example
                 "Test3", test3 // example
                 "Test4", test4 
-                "Test5", fun _ _ _ -> printf "No Test"
-                "Test6", fun _ _ _ -> printf "No Test"
-                "Test7", fun _ _ _ -> printf "No Test"
-                "Test8", fun _ _ _ -> printf "No Test"
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+                "Test5", fun _ _ _ _ -> printf "No Test"
+                "Test6", fun _ _ _ _ -> printf "No Test"
+                "Test7", fun _ _ _ _ -> printf "No Test"
+                "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
+                "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]
 
         /// Display the next error in a previously started test
-        let nextError (testName, testFunc) firstSampleToTest dispatch =
+        let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
             let testNum =
                 testsToRunFromSheetMenu
                 |> List.tryFindIndex (fun (name,_) -> name = testName)
                 |> Option.defaultValue 0
-            testFunc testNum firstSampleToTest dispatch
+            testFunc testNum firstSampleToTest showTargetSheet dispatch
 
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
@@ -614,12 +624,17 @@ module HLPTick3 =
             printf "%s" name
             match name, model.DrawBlockTestState with
             | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
+                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) (state.TargetFunctionApplied) dispatch
             | "Next Test Error", None ->
                 printf "Test Finished"
                 ()
+            | "Toggle Beautify", Some state -> 
+                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex) (not state.TargetFunctionApplied) dispatch
+            | "Toggle Beautify", None ->
+                printf "No test started"
+                ()
             | _ ->
-                func testIndex 0 dispatch
+                func testIndex 0 true dispatch
         
 
 

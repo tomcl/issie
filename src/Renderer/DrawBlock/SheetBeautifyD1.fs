@@ -49,7 +49,7 @@ let getPortSep edge sym sheet =
             | Top | Bottom -> snd (Symbol.getRotatedHAndW sym)
         match portOrder.Length with 
         | 0 | 1 -> length/2.
-        | n when n>1 -> 
+        | _ -> 
             let portPos1 = getPortPos portOrder[0] sheet.Wire.Symbol 
             let portPos2 = getPortPos portOrder[1] sheet.Wire.Symbol
             match edge with 
@@ -104,9 +104,6 @@ let updateAllComponents targetPorts (sourcePorts: Edge list) priorSheet=
 /// And the original symbol as a tuple. If not connected, returns None and original symbol
 let getConnectingPort (sheet: SheetT.Model) portAndSym = 
     let (port: string) = fst portAndSym    
-    // printfn "GETCONNECTINGPORT: LIST OF WIRES CONNECTED TO PORT"
-    // printfn "%A" <| fst portAndSym
-    // printfn "%A" (sheet.Wire.Wires |>  (mapValues >> Seq.toList) |> List.filter (fun wire -> (string wire.OutputPort)=port || (string wire.InputPort)=port))
     sheet.Wire.Wires
     |> (mapValues >> Seq.toList)
     |> List.filter (
@@ -128,16 +125,20 @@ let getConnectingPort (sheet: SheetT.Model) portAndSym =
 let getCorrectSide sheet sym = 
     let potentialPort = 
         match sym.STransform.Flipped, sym.STransform.Rotation with // assuming flipped means flipped along y axis of symbol
-            | false, Degree0 | true, Degree180->  sym.PortMaps.Order[Right][0], sym
-            | false, Degree90 | true, Degree270 -> sym.PortMaps.Order[Top][0], sym
-            | false, Degree180 | true, Degree0 -> sym.PortMaps.Order[Left][0], sym
-            | false, Degree270 | true, Degree90 -> sym.PortMaps.Order[Bottom][0], sym
+            | false, Degree0 | true, Degree180->  List.tryItem 0 sym.PortMaps.Order[Right], sym
+            | false, Degree90 | true, Degree270 -> List.tryItem 0 sym.PortMaps.Order[Top], sym
+            | false, Degree180 | true, Degree0 -> List.tryItem 0 sym.PortMaps.Order[Left], sym
+            | false, Degree270 | true, Degree90 -> List.tryItem 0 sym.PortMaps.Order[Bottom], sym
     
-    let connectingPort = getConnectingPort sheet potentialPort
+    let connectingPort = 
+        match fst potentialPort with 
+        | None -> None, sym
+        | Some port -> getConnectingPort sheet (port,sym)
+    
     
     let connectingPortPos = 
         match connectingPort with 
-        | Some port, _ -> getPortPos port sheet.Wire.Symbol
+        | Some port, _ -> getPortPos  port sheet.Wire.Symbol
         | None, _ -> sym.Pos
     
     let ret = 
@@ -178,15 +179,23 @@ let getCaseSourcePorts sheet comparer symbolList =
     symbolList
     |> List.map (fun sym -> getCorrectSide sheet sym)
     |> List.filter (fun (portList, _) -> comparer portList)
-    |> List.map (fun (portList, sym) -> portList[0], sym)
+    |> List.map (fun (portList, sym) -> List.tryItem 0 portList, sym)
     |> List.filter (
-        fun (sPort, sym) -> 
-            let connPort = getConnectingPort sheet (sPort,sym)
+        fun (sPort, sym) ->
+            let connPort = 
+                match sPort with 
+                | Some sPort -> getConnectingPort sheet (sPort, sym)
+                | None -> None, sym 
             match connPort with 
             | Some _, _-> true
             | None, _ -> false
     )
-    |> List.map (fun (port, sym) -> Map.find port sym.PortMaps.Orientation)
+    |> List.map (
+        fun (port, sym) -> 
+        match port with 
+        | Some port -> Map.find port sym.PortMaps.Orientation
+        | None -> Right // defaults to right, but should be a better way to do it
+    )
 
 /// Find exactly how two symbols known to be connected are connected to each other
 /// returns the edge of sym1 that connects to edge of sym2 and the original symbol tuple
@@ -218,21 +227,71 @@ let findSymbolsEdgeConns sheet symPair =
     
     (Option.get (fst edges), Option.get (snd edges)), (sym1, sym2)
 
+// Gets ALL the ports a port is connected to. The wires connecting the ports must all have the same direction
+// ie the number of segments %2 must be the same
+let getAllConnectingPorts sheet port =
+    let allConnectedWires = 
+        sheet.Wire.Wires
+        |> (mapValues >> Seq.toList)
+        |> List.filter (
+            fun wire -> 
+                (string wire.OutputPort)=port || (string wire.InputPort)=port
+        )
+    // assert that all wires have the same # of segments %2
+    let wireAssertion = 
+        let initialState = 
+            match List.tryItem 0 allConnectedWires with 
+            | Some wire -> Some (wire.Segments.Length%2) 
+            | None -> None
+        
+        (true, allConnectedWires)
+        ||> List.fold (
+            fun cs wire -> 
+                match initialState with 
+                | Some dir -> (wire.Segments.Length%2=dir) && cs
+                | None -> false
+        )
+    if (wireAssertion) then 
+        allConnectedWires
+        |> List.map (
+            fun wire ->
+                match (string wire.OutputPort)=port with 
+                | true -> (string wire.InputPort)
+                | false -> (string wire.OutputPort) 
+        )
+    else 
+        []
+    
+
 /// Get list of symbols that a given port is connected to 
-let getConnectedSymbols sheet port = 
-    let connectedPort = fst (getConnectingPort sheet port)
-    let key = 
-        match connectedPort with 
-        | None -> ""
-        | Some s -> s
+let getConnectedSymbols sheet isCase2 portAndSym = 
+    let port = fst portAndSym
+    let connectedPorts = 
+        match isCase2 with
+        | true -> 
+            getAllConnectingPorts sheet port
+        | false -> 
+            getConnectingPort sheet portAndSym
+            |> fst
+            |> function
+            | None -> [""]
+            | Some str -> [str]
+            
+            
     sheet.Wire.Symbol.Symbols
     |> (mapValues >> Seq.toList)
     |> List.filter (
         fun sym -> 
-            Map.tryFind key sym.PortMaps.Orientation
-            |> function
-            | None -> false
-            | Some _ -> true
+            List.map (
+                fun key -> 
+                    Map.tryFind key sym.PortMaps.Orientation
+            ) connectedPorts
+            |> List.fold (
+                fun cs ci -> 
+                    match ci with 
+                    | Some _ -> true
+                    | None -> cs || false
+            ) false  
     )
 
 /// Finds the edgemost coordinate in a list of symbols ie finds the rightmost, leftmost, topmost or bottomost symbol
@@ -277,7 +336,7 @@ let sheetAlignScale (sheet: SheetT.Model) =
         let portConnectedSymbols = 
             portList
             |> List.map (fun port -> port, 1)
-            |> List.map (getConnectedSymbols sheet) 
+            |> List.map (getConnectedSymbols sheet false) 
         match portConnectedSymbols.Length with 
         | 1 -> 
             match portConnectedSymbols[0].Length with 
@@ -289,11 +348,11 @@ let sheetAlignScale (sheet: SheetT.Model) =
         let portConnectedSymbols = 
             portList
             |> List.map (fun port -> port, 1)
-            |> List.map (getConnectedSymbols sheet) 
+            |> List.map (getConnectedSymbols sheet true) 
         match portConnectedSymbols.Length with 
         | 1 -> 
             match portConnectedSymbols[0].Length with 
-            | 1-> false
+            | 0 | 1-> false
             | _ -> true
         | _ -> false
 
@@ -301,9 +360,7 @@ let sheetAlignScale (sheet: SheetT.Model) =
         let portConnectedSymbols = 
             portList
             |> List.map (fun port -> port, 1)
-            |> List.map (getConnectedSymbols sheet) 
-        // printfn "Port connected symbols"
-        // printfn "%A" portConnectedSymbols
+            |> List.map (getConnectedSymbols sheet false) 
         match portConnectedSymbols.Length with 
         | 1 -> false
         | _ -> 
@@ -315,7 +372,7 @@ let sheetAlignScale (sheet: SheetT.Model) =
         let portConnectedSymbols = 
             portList
             |> List.map (fun port -> port, 1)
-            |> List.map (getConnectedSymbols sheet) 
+            |> List.map (getConnectedSymbols sheet false) 
         match portConnectedSymbols.Length with 
         | 1 -> false
         | _ -> 
@@ -331,15 +388,6 @@ let sheetAlignScale (sheet: SheetT.Model) =
     let case4TargetPort = getCaseTargetPorts sheet case4Comparer multiplyConnected
     let case1SourcePort = getCaseSourcePorts sheet case1Comparer multiplyConnected
     let case3SourcePort = getCaseSourcePorts sheet case3Comparer multiplyConnected
-
-    printfn "Case 1 length"
-    printfn "%A" case1TargetPort.Length
-    printfn "Case 2 length"
-    printfn "%A" case2TargetPort.Length
-    printfn "Case 3 length"
-    printfn "%A" <| case3TargetPort.Length
-    printfn "Case 4 length"
-    printfn "%A" case4TargetPort.Length
 
 
 
@@ -433,7 +481,6 @@ let sheetAlignScale (sheet: SheetT.Model) =
 
     let singlyConnectedTargetPort = getCaseTargetPorts sheet alwaysTrue singlyConnected
     let singlyConnectedSourcePort = getCaseSourcePorts sheet alwaysTrue singlyConnected
-    
     
     // 4. Scale custom symbols to reduce wire bends in parallel wires between two custom components
     // get custom symbols and the custom symbols they are connected to

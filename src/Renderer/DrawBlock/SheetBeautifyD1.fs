@@ -14,11 +14,40 @@ open Helpers
 open Symbol
 open BlockHelpers
 open SheetBeautifyHelpers
-(*open RotateScale*)
+open RotateScale
 open BusWire
     module D1Helpers =
         // D1 HELPER FUNCTIONS ----------------------------------------------------------------------
-    
+        (*type PortInfo =
+            { port: Port
+              sym: Symbol
+              side: Edge
+              ports: string list
+              gap: float
+              topBottomGap: float
+              portDimension: float
+              h: float
+              w: float
+              portGap: float }*)
+
+        let alignComponents 
+            (wModel: BusWireT.Model)
+            (symA: Symbol)
+            (portA: Port)
+            (symB: Symbol)
+            (portB: Port)
+            : BusWireT.Model =
+            
+            // Only attempt to align symbols if they are connected by ports on parallel edges.
+            let (movePortInfo, otherPortInfo) = (makePortInfo symA portA,makePortInfo symB portB) 
+
+            let offset = alignPortsOffset movePortInfo otherPortInfo
+            let symbol' = moveSymbol offset symA
+            let model' = Optic.set (symbolOf_ symA.Id) symbol' wModel
+            BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id
+
+
+
         /// returns all singly compoenents with one output xor input port
         let getSinglyComp (wModel: BusWireT.Model): Symbol list option =
             Optic.get symbols_ wModel.Symbol
@@ -128,7 +157,7 @@ open BusWire
 
         /// Chooses other Symbol to align a port based on the condition that they are opposite parallel edges
         /// and will choose the symbol with the smallest offset distance to help avoid symbol overlaps
-        let chooseSymAlign (port: Port) (otherPorts: (string * Port) list) (wModel:BusWireT.Model): Symbol Option=
+        let chooseSymAlign (port: Port) (otherPorts: (string * Port) list) (wModel:BusWireT.Model): (Symbol * Port) Option=
             if List.length otherPorts >1 then
                 let portOrientation = getSymbolPortOrientation (getSym wModel port) port
                 
@@ -151,12 +180,12 @@ open BusWire
                     filteredAndMappedPorts
                     |> List.minBy fst //Choose the port with the smallest offset (X Y Is chosen depending on orientation)
                     |> snd
-                    |> (fun sym -> Some (getSym wModel sym))
+                    |> (fun port -> Some ((getSym wModel port),port))
             else
                 let otherSym =
                     otherPorts
                     |> List.tryHead
-                    |> Option.map (fun (_,port) -> getSym wModel port)
+                    |> Option.map (fun (_,port) -> ((getSym wModel port),port))
                 otherSym
     
         
@@ -183,7 +212,7 @@ open BusWire
                     let portPair = choosePortAlign wModel' outputPorts
                     let otherPort = snd portPair
                     let otherSym = getSym wModel' otherPort
-                    alignSymbols wModel' sym otherSym
+                    alignComponents  wModel' sym (fst portPair) otherSym otherPort
              ) wModel
                
                
@@ -204,8 +233,8 @@ open BusWire
                         let otherPorts = findOtherPorts port connections
                         let otherSymOpt = chooseSymAlign port otherPorts wModel'
                         match otherSymOpt with
-                        | Some otherSym ->
-                            let wModel'' = alignSymbols wModel' sym otherSym
+                        | Some (otherSym,otherPort) ->
+                            let wModel'' = alignComponents  wModel' sym port otherSym otherPort
                             wModel''
                         | None -> wModel' // If no suitable alignment, keep the model unchanged
                     | None -> wModel' // If no port is found, proceed to the next symbol

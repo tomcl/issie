@@ -349,7 +349,7 @@ module HLPTick3 =
         initSheetModel
         // Place a MUX on the sheet at the specified position.
         |> placeSymbol "MUX1" Mux2 muxPos
-        |> Result.bind (placeSymbol "MUX2" Mux2 muxPos2) 
+        |> Result.bind (placeSymbol "MUX2" Mux2 {CPos with X = CPos.X - 150.0}) 
         |> Result.bind (placeSymbol "InputA" (GateN(And, 1)) APos) // S1 can be any type of component
         |> Result.bind (placeSymbol "InputB" (GateN(And, 1)) BPos) // S1 can be any type of component
         |> Result.bind (placeSymbol "S1" (GateN(And, 1)) s1Pos) 
@@ -358,8 +358,8 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
-        |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
-        |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
+        // |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
+        // |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
         |> getOkOrFail
@@ -375,7 +375,7 @@ module HLPTick3 =
         initSheetModel
         // Place a MUX on the sheet at the specified position.
         |> placeSymbol "MUX1" Mux2 muxPos
-        |> Result.bind (placeSymbol "MUX2" Mux2 muxPos2) 
+        |> Result.bind (placeSymbol "MUX2" Mux2 {CPos with X = CPos.X - 150.0}) 
         |> Result.bind (placeSymbol "InputA" (GateN(And, 1)) APos) // S1 can be any type of component
         |> Result.bind (placeSymbol "InputB" (GateN(And, 1)) BPos) // S1 can be any type of component
         |> Result.bind (placeSymbol "S1" (GateN(And, 1)) s1Pos) 
@@ -391,6 +391,8 @@ module HLPTick3 =
         |> getOkOrFail
         |> alignSinglyConnectedComponents
         |> alignSinglyConnectedComponents
+        |> alignMultipleComponents
+        // |> alignSinglyConnectedComponents
         // |> alignSinglyConnectedComponents
         
 
@@ -466,7 +468,14 @@ module HLPTick3 =
         
         let failOnAllTestsD1 (sample: int) (sheet: SheetT.Model) =
             // let singlyConnectedComponents = findSinglyConnectedComponents sheet
-            let singlyConnected = findAlignment sheet
+            let singlyConnected = findParallelWiresAndShifts sheet
+            // let label =
+            //     singlyConnected
+            //     |> List.choose (fun idStr ->
+            //         let compId = ComponentId idStr  // Convert string ID to ComponentId
+            //         match Map.tryFind compId sheet.Wire.Symbol.Symbols with
+            //         | Some(symbol) -> Some(symbol.Component.Label)
+            //         | None -> None)
             printfn "singly connected symbol, %A" singlyConnected
             Some <| $"Sample {sample}"
         

@@ -502,14 +502,14 @@ module HLPTick3 =
 
         let testPreAlign = numOfStraightWires model
 
-        let alignedModel = Beautify.sheetSingly model
+        //let alignedModel = Beautify.sheetSingly model
 
-        let testPostAlign = numOfStraightWires alignedModel
+        let testPostAlign = numOfStraightWires model
         let straightenedWires = findNumDiff testPreAlign testPostAlign
 
         printf "Number of straightened wires: %d" straightenedWires
 
-        alignedModel
+        model
         
 
         

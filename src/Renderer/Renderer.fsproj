@@ -120,6 +120,7 @@
     <Compile Include="GenerateData.fs" />
 
     <Compile Include="TestDrawBlock.fs" />
+    <Compile Include="TestDrawBlockD1.fs" />
     <Compile Include="TestDrawBlockD2.fs" />
     <Compile Include="TestDrawBlockD3.fs" />
     <Compile Include="TestWorker.fs" />

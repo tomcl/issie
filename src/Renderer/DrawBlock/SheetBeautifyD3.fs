@@ -26,8 +26,8 @@ open DrawHelpers
 
 ///constants used in DEBUG mode
 module DEBUG_CONSTANTS =
-    let DEBUG:bool = true
-    let DEBUG_MAX_LENGTH:float = 0.0
+    let DEBUG:bool = false
+    let DEBUG_MAX_LENGTH:float = 1.
 
 /// Some Helper functions copied from Tick3 testdrawblock and edited
 module sheetBeutifyD3Helpers =
@@ -68,13 +68,13 @@ module sheetBeutifyD3Helpers =
         let symLabel = String.toUpper symLabel // make label into its standard casing
         let symModel, symId = SymbolUpdate.addSymbol [] (model.Wire.Symbol) position compType symLabel
         let sym:Symbol = symModel.Symbols[symId]
-        let rotatedSym= Optic.set  symbol_rotation_ rotation sym 
-        let symModel = replaceSymbol symModel sym symId
-        let doesLabelHaveRoom= labelHasRoom model sym
+        let rotatedSym = SymbolResizeHelpers.rotateAntiClockByAng rotation sym
+        let symModel = replaceSymbol symModel rotatedSym symId
+        let doesLabelHaveRoom= labelHasRoom model rotatedSym
         let res=
-            match position + sym.getScaledDiagonal with
+            match position + rotatedSym.getScaledDiagonal with
             | {X=x;Y=y} when x > maxSheetCoord || y > maxSheetCoord || (doesLabelHaveRoom)->
-                Error $"symbol '{symLabel}' position {position + sym.getScaledDiagonal} lies outside allowed coordinates'{maxSheetCoord}' or there is no room for it"
+                Error $"symbol '{symLabel}' position {position + rotatedSym.getScaledDiagonal} lies outside allowed coordinates'{maxSheetCoord}' or there is no room for it"
             | _ ->
                 model
                 |> Optic.set symbolModel_ symModel
@@ -118,7 +118,7 @@ module Constants =
         the line number, the more important the metric is.
     *)
     /// The maximum length of a wire, TODO: find a suitable value
-    let maxWireLength = 0.
+    let maxWireLength = 750.
 
     /// If the length of a wire is greater than this ratio of the median length of all wires,
     /// then the wire is considered too long.
@@ -213,7 +213,7 @@ module findIllegalWiresHelpers =
     /// get wires that are too long
     let getWiresTooLong(sheetModel: SheetT.Model): Wire Set =
         sheetModel.Wire.Wires
-        |> Map.filter (fun id wire -> getWireLength wire > Constants.maxLengthRatio * getMedianLength sheetModel)
+        |> Map.filter (fun id wire -> (getWireLength wire > Constants.maxLengthRatio * getMedianLength sheetModel) || (getWireLength wire > Constants.maxWireLength))
         |> Map.toList
         |> List.map snd
         |> Set.ofList
@@ -394,11 +394,12 @@ module illegalWireToWireLabels =
         let calcLabelPositionAndRotation (port:Port) (sheet:SheetT.Model) (portPos:XYPos)  isInput =
             let a,b,height,width=getComponentProperties IOLabel "1"
             let orientation:Edge=getPortOrientationFrmPortIdStr  sheet.Wire.Symbol port.Id 
+            //printf "orientation %A\n" orientation
             // let portPos= port.
             let labelPos=
                 match orientation with
-                | Top -> {X= portPos.X ; Y=portPos.Y+1.5*height} 
-                | Bottom-> {X= portPos.X ; Y=portPos.Y-1.5*height}
+                | Top -> {X= portPos.X ; Y=portPos.Y-1.5*height} 
+                | Bottom-> {X= portPos.X ; Y=portPos.Y+1.5*height}
                 | Left-> {X= portPos.X-1.5*width ; Y=portPos.Y}
                 | Right ->{X= portPos.X+1.5*width ; Y=portPos.Y}
             let labelRotation=
@@ -407,8 +408,11 @@ module illegalWireToWireLabels =
                 | Top, false-> Degree270
                 | Bottom, true-> Degree270
                 | Bottom, false-> Degree90
-                | Left,_-> Degree0 //assuming all inputs are at the left and outputs are at right
-                | Right,_ -> Degree0
+                | Left, true-> Degree0 
+                | Right,true -> Degree180
+                | Left,false-> Degree180
+                | Right,false -> Degree0
+
             labelPos, labelRotation
         let targetIOLabelPos, targetIORotation= calcLabelPositionAndRotation targetPort initialSheet targetPortPos true
         let sourceIOLabelPos, sourceIORotation=calcLabelPositionAndRotation sourcePort initialSheet sourcePortPos false
@@ -418,7 +422,7 @@ module illegalWireToWireLabels =
             |> placeSymbol targetLabel IOLabel targetIOLabelPos targetIORotation
             |> function
                 |(sym, Ok sheet) -> Ok (placeWire targetPort sym sheet)
-                |(sym, Error mess) -> Error "fail to place target symbol"
+                |(sym, Error mess) -> Error "fail to place target symbol" 
         //only place sourceLabelSymbol if targetLabelSymbol was placed successfully
         //and if there is not already a source label Symbol for the source port
         let sourceLabelSymbolSheet = 
@@ -444,7 +448,7 @@ module illegalWireToWireLabels =
             // printf "Ok"
                 sheet
             | Error mess -> 
-                printf "Error placing IOlabel symbol: %s\n" mess
+                //printf "Error placing IOlabel symbol: %s\n" mess
                 initialSheet //do nothing if there is some error in placing the target label symbol
     
     /// Top Level functon to replace all illegal wires with wire labels
@@ -462,11 +466,98 @@ module illegalWireToWireLabels =
 
 
 /// functions to find illegal wire labels and replace them with wires
+/// Buggy, need to fix
 module illgealWireLabelToWires =
+    // change wire labels back to wires
+    let findConnectedLabels (model:SheetT.Model) (label:string) =
+        let symbolsMap = model.Wire.Symbol.Symbols
+        let labels :Symbol array = 
+            mapValues symbolsMap
+            |> Array.filter (fun sym -> caseInvariantEqual sym.Component.Label label)
+            //|>(fun symArray -> if (Array.isEmpty symArray) then failwithf "can't find iolabel with name" else symArray    )
+        labels
+
+    let findNewWirePorts(model:SheetT.Model)(labels: Symbol array) =
+        let wires=model.Wire.Wires |> Map.toList |> List.map snd
+        let connectedInputPorts=model.Wire.Symbol.InputPortsConnected |> Set.map (fun portid -> getInputPortIdStr portid)
+        let connectedOutputPorts=
+            model.Wire.Symbol.OutputPortsConnected 
+            |>Map.toList 
+            |> List.filter (fun (pId,num) -> num>0 )
+            |> List.map fst
+            |> List.map (fun portid -> getOutputPortIdStr portid)
+        // let sourcelabel=
+        //     labels
+        //     |> Array.filter(fun label -> Set.contains(label.Component.InputPorts[0]. ) connectedInputPorts)
+
+        let sourceLabelPortId= // get the port ids of the input label, which is the output port of a wire that connects to it
+            labels
+            |> Array.filter(fun label -> Set.contains(label.Component.InputPorts[0].Id ) connectedInputPorts)
+            |>(fun symArray -> if (Array.isEmpty symArray) then failwithf "can't find labels act as input" else symArray    )
+            |> Array.map( fun label ->label.Component.InputPorts[0].Id) // there should be only 1 source label
+            |> Array.toList
+        let outputLabelPortIds= // get the port ids of the input label, which is the in port of a wire that connects to it
+            labels
+            |> Array.filter(fun label -> List.contains(label.Component.OutputPorts[0].Id ) connectedOutputPorts)
+            |>(fun symArray -> if (Array.isEmpty symArray) then failwithf "can't find labels act as output" else symArray    )
+            |> Array.map( fun label ->label.Component.OutputPorts[0].Id)
+            |> Array.toList// there can be many output labels
+
+        let sourceWire =
+            wires
+            |> List.tryFind(fun wire -> List.contains(getOutputPortIdStr wire.OutputPort) sourceLabelPortId)
+            |> function
+                    | Some wire -> wire
+                    | None -> failwithf "can't find source wire"
+        let outputWires=
+            wires
+            |> List.filter(fun wire -> List.contains(getInputPortIdStr wire.InputPort) outputLabelPortIds)
+            |>(fun wires -> if (List.isEmpty wires) then failwithf "can't find labels act as input" else wires    )
+
+        let sourceport=
+            sourceWire.InputPort
+        let outputports=
+            outputWires |> List.map(fun wire ->wire.OutputPort)
+
+
+        sourceport, outputports
+
+
+
+    let makeWire inputport outputport (sheet:SheetT.Model) =
+        let newWire =  BusWireUpdate.makeNewWire inputport outputport sheet.Wire
+        
+        {sheet with Wire={sheet.Wire with Wires= Map.add newWire.WId newWire sheet.Wire.Wires}}
+    
+    //let findShortWiresToReplace() :string=()
+        
+    let replaceWireLablesWithWire (labelName:string) (sheet:SheetT.Model)  =
+        let connectedLabels:Symbol array= findConnectedLabels sheet labelName
+        //printf "connectedLabels!!!!!!!!!!!!! %d" connectedLabels.Length
+
+        let newWireports=findNewWirePorts sheet connectedLabels
+        //printf "inputPort" 
+        let inputPort=fst newWireports
+        let outputPorts=snd newWireports
+
+        
+        let sheetwithRemovedLabels=
+            connectedLabels
+            |> Array.toList
+            |> List.map(fun label -> label.Id)
+            |> List.fold( fun (sheet:SheetT.Model) labelId-> 
+                {sheet with Wire= {sheet.Wire with Symbol = {sheet.Wire.Symbol with Symbols=sheet.Wire.Symbol.Symbols.Remove(labelId)}}}) sheet
+
+        let targetLabelSymbolSheet = 
+            outputPorts
+            |>List.fold( fun (sheet:SheetT.Model) outputport -> 
+                (makeWire inputPort outputport sheet)) sheetwithRemovedLabels
+        targetLabelSymbolSheet
 
     ///top level function to replace all illegal wire labels with wires
     let optimizeLabels(sheet:SheetT.Model)=
         sheet
+        //|> replaceWireLablesWithWire "MUX1_I"
 
 /// functions to reconnect wires that are connected to the same source port
 /// if the source port is connected to an IO label

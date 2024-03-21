@@ -564,4 +564,9 @@ let findRetracingSegments (model : SheetT.Model) =
     {| RetraceSegs =retracingSegs;
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
     
-
+let getVisibleSegmentCount (model: SheetT.Model) =
+    let allWires = model.Wire.Wires
+                   |> Map.values
+                   |> Array.toList
+    allWires
+    |> List.sumBy (fun wire -> visibleSegments wire.WId model |> List.length)

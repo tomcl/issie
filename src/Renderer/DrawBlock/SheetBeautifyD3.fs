@@ -26,7 +26,7 @@ open DrawHelpers
 
 ///constants used in DEBUG mode
 module DEBUG_CONSTANTS =
-    let DEBUG:bool = false
+    let DEBUG:bool = true
     let DEBUG_MAX_LENGTH:float = 1.
 
 /// Some Helper functions copied from Tick3 testdrawblock and edited

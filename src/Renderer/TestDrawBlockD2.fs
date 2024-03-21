@@ -93,7 +93,7 @@ module D2Test =
 //------------------------------------------------------------------------------------------------------------------------//
     module Displays =
         open Metrics
-        /// <summary> Display information or calculated metrics on the sheet model. This will be called automatically on failed tests. </summary>
+        /// <summary> AUTHOR hn621 - Display information or calculated metrics on the sheet model. This will be called automatically on failed tests. </summary>
         /// <param name="displayFunc"> A list of display functions </param>
         /// <param name="sheet"> The sheet model to display </param>
         let display (displayFuncs: (SheetT.Model -> string) list) (sheet: SheetT.Model) =
@@ -255,9 +255,13 @@ module D2Test =
                 | _ -> failwithf "TestDrawBlock.getSymId: symLabel (%A) not found" symLabel
 
         // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
+        let rotateSymbol (symLabel: string) (rotate: Rotation option) (model: SheetT.Model) : (SheetT.Model) =
             let symId = getSymId symLabel model.Wire.Symbol
-            let rotateSymbol' = SymbolResizeHelpers.rotateSymbol rotate
+            let rotateSymbol' = 
+                match rotate with
+                | Some degree -> SymbolResizeHelpers.rotateAntiClockByAng degree
+                | None -> id
+
             let symModel: SymbolT.Model = 
                 SymbolUpdate.updateSymbol rotateSymbol' symId model.Wire.Symbol
 
@@ -294,6 +298,7 @@ module D2Test =
         | TOutput
         | TCustomComp
 
+        /// adapted from EdStem: minimal DSL for placing symbols on the sheet
         let minimalDSL (initSheetModel: SheetT.Model) (placers: (SheetT.Model -> Result<SheetT.Model,'a>) list) : Result<SheetT.Model,'a> = 
             (Ok initSheetModel, placers)
             ||> List.fold (fun circuitRes placer -> Result.bind placer circuitRes)
@@ -313,16 +318,10 @@ module D2Test =
             |> getOkOrFail
 
         /// DSL for symbol placer, automatically names the symbol using a given index
-        let symPlacerDSL (idx: int) (compType: TestCompType) (pos: XYPos) (model: Model) (sheetModel: SheetT.Model) : Result<SheetT.Model, string> =
+        let symPlacerDSL (idx: int) (compType: ComponentType) (pos: XYPos) (model: Model) (sheetModel: SheetT.Model) : Result<SheetT.Model, string> =
             match compType with
-            | TAnd -> placeSymbol (sprintf "S%d" idx) (GateN(And,2)) pos sheetModel
-            | TOr -> placeSymbol (sprintf "S%d" idx) (GateN(Or,2)) pos sheetModel
-            | TNot -> placeSymbol (sprintf "S%d" idx) (Not) pos sheetModel
-            | TMux2 -> placeSymbol (sprintf "S%d" idx) Mux2 pos sheetModel
-            | TMux4 -> placeSymbol (sprintf "S%d" idx) Mux4 pos sheetModel
-            | TInput -> placeSymbol (sprintf "S%d" idx) (Input1(1, None)) pos sheetModel
-            | TOutput -> placeSymbol (sprintf "S%d" idx) (Output(1)) pos sheetModel
-            | TCustomComp -> placeCustomSymbol (sprintf "S%d" idx) initCCSheet "custom" model {X=1.0; Y=1.0} pos sheetModel
+            | Custom(_) -> placeCustomSymbol (sprintf "S%d" idx) initCCSheet "custom" model {X=1.0; Y=1.0} pos sheetModel
+            | comp -> placeSymbol (sprintf "S%d" idx) comp pos sheetModel
             // TODO: input and output symbols have only one of input/output port
             // need an algorithm to conenct them
 
@@ -408,23 +407,52 @@ module D2Test =
                     AndPos=andPos
                 |})
 
-        // Gen samples incorporating a set of components
-        let randomComponentSamples : Gen<{| Comp: TestCompType; Flip: SymbolT.FlipType option; Pos: XYPos |}> =
-            let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
-            let comps = fromList [TAnd; TOr; TNot; TMux2; TMux4; TCustomComp] // TODO: TInput; TOutput; not yet supported
+        type GenCompStates = {
+            Comp: ComponentType; 
+            Pos: XYPos; 
+            Flip: SymbolT.FlipType option; 
+            Rotate: Rotation option
+        }
 
-            let tupleCompPosFlip: Gen<{| Comp: TestCompType; Pos: XYPos; Flip: SymbolT.FlipType option |}> =
-                (gridPosGen 400 100, flips)
-                ||> product makeTuple
-                |> product makeTuple comps
-                |> map (fun (comp, (pos, flip)) -> 
-                        {|
-                            Comp=comp;
-                            Pos=pos;
-                            Flip=flip;
-                        |}
-                )
-            tupleCompPosFlip
+        let cctype = {
+                    Name = "custom"
+                    InputLabels = []
+                    OutputLabels = []
+                    Form = None
+                    Description = None
+                }
+        let comps = fromList [GateN(And,2); GateN(Or,2); Not; Mux2; Mux4; Custom(cctype)] // TODO: TInput; TOutput; not yet supported
+        let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
+        let rotates = fromList [Some Degree90; Some Degree180; Some Degree270; None]
+
+        ///<summary> AUTHOR hn621 - Random Gen samples: component, position, flips, rotations</summary>
+        let randomComponentSamples : Gen<GenCompStates> =
+            rotates
+            |> product makeTuple flips
+            |> product makeTuple (gridPosGen 300 100)
+            |> product makeTuple comps
+            |> map (fun (comp, (pos, (flip, rotate))) -> 
+                    {
+                        Comp=comp;
+                        Pos=pos;
+                        Flip=flip;
+                        Rotate=rotate;
+                    }
+            )
+
+        ///<summary> AUTHOR hn621 - Random Gen samples: component, position, flips, rotations</summary>
+        let randomComponentSamplesNoRotate : Gen<GenCompStates> =
+            flips
+            |> product makeTuple (gridPosGen 400 100)
+            |> product makeTuple comps
+            |> map (fun (comp, (pos, flip)) -> 
+                    {
+                        Comp=comp;
+                        Pos=pos;
+                        Flip=flip;
+                        Rotate=None;
+                    }
+            )
         
     open Builder
     open Generator
@@ -495,14 +523,16 @@ module D2Test =
         |> getOkOrFail
     
     // ====================== Random Sheet Generator ======================
-    let makeRandomCircuit (model:Model) (samples: {| Comp: TestCompType; Pos: XYPos; Flip: SymbolT.FlipType option |} array) =
-        let folder acc (sample: {| Comp: TestCompType; Pos: XYPos; Flip: SymbolT.FlipType option |}) = 
+    let makeRandomCircuit (model:Model) (samples: GenCompStates array) =
+        let folder acc (sample: GenCompStates) = 
             let (sheetModel, idx) = acc
-            let comp, pos, flip = sample.Comp, sample.Pos, sample.Flip
             let newSheet =
                 [
-                    symPlacerDSL idx comp pos model;
-                    flipSymbol (sprintf "S%d" idx) flip >> Ok;
+                    // place component and set states
+                    symPlacerDSL idx sample.Comp sample.Pos model;
+                    flipSymbol (sprintf "S%d" idx) sample.Flip >> Ok;
+                    rotateSymbol (sprintf "S%d" idx) sample.Rotate >> Ok;
+                    // set wire connections
                     if idx > 0 then 
                         wirePlacerDSL (sprintf "S%d" (idx-1)) (sprintf "S%d" (idx)) 0 0
                     else id >> Ok;
@@ -626,12 +656,11 @@ module D2Test =
                 displayOnFail
             |> recordPositionInTest testNum dispatch
 
-        
-
         let testRandomComp testNum firstSample dispatch model =
+            let nComponents = 10 // note that the position generation is fixed, too large nComponents will not have non-overlapping test cases
             let sheetMaker = makeRandomCircuit model
             let displayOnFail = displayAll
-            let generator = chunkShuffledGen (randomComponentSamples) 1 10
+            let generator = nComponents |> chunkShuffledGen (randomComponentSamples) 1
             // this assertion fails on all tests without symbol intersection!
             let assertion (sample: int) (sheetModel: SheetT.Model) = 
                 sheetModel
@@ -641,7 +670,30 @@ module D2Test =
                     | None -> Some "Random Component Test Failed"
             
             runTestOnSheets
-                "DisplayAll: Random 4 Components"
+                "DisplayAll: Random N Components"
+                firstSample
+                generator
+                sheetMaker
+                assertion
+                dispatch
+                displayOnFail
+            |> recordPositionInTest testNum dispatch
+
+        let testRandomCompNoRotate testNum firstSample dispatch model =
+            let nComponents = 10 // note that the position generation is fixed, too large nComponents will not have non-overlapping test cases
+            let sheetMaker = makeRandomCircuit model
+            let displayOnFail = displayAll
+            let generator = nComponents |> chunkShuffledGen (randomComponentSamplesNoRotate) 1
+            // this assertion fails on all tests without symbol intersection!
+            let assertion (sample: int) (sheetModel: SheetT.Model) = 
+                sheetModel
+                |> Asserts.failOnSymbolIntersectsSymbol sample
+                |> function
+                    | Some str -> None
+                    | None -> Some "Random Component Test Failed"
+            
+            runTestOnSheets
+                "DisplayAll: Random N Components No Rotate"
                 firstSample
                 generator
                 sheetMaker
@@ -677,14 +729,9 @@ module D2Test =
             executionStats <- Map []
 
         /// This test is to apply beautification and calculate metric
-        let applyBeautify testNum firstSample dispatch model =
+        let applyBeautify beautifyFunc testNum firstSample dispatch model =
             let beforeCount = numOfWireRightAngleCrossings model.Sheet
-
-
-            let sheetAfter = 
-                model.Sheet
-                |> optimizePortOrder
-                |> wireLabelBeautify
+            let sheetAfter = beautifyFunc model.Sheet
             let afterCount = numOfWireRightAngleCrossings sheetAfter
             
             metricDisplay displayMetrics sheetAfter model.Sheet
@@ -702,14 +749,14 @@ module D2Test =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1: MUX Original", test1
-                "Test1: Optimised", test1Opt
-                "Test2: CC Original", test2
-                "Test2: CC Optimised", test2Opt
-                "Test: Random Components", testRandomComp
-                "Apply Beautify", applyBeautify
-                "Print Beautify Time", testBeautifyTimePerformance
-                "Display Sheet Info", displayCurSheet
+                "Apply Beautify D1", (applyBeautify id) // TODO: add actual function
+                "Apply Beautify D2", (applyBeautify optimizePortOrder) 
+                "Apply Beautify D3", (applyBeautify wireLabelBeautify)
+                "Build: Random Components No Rotate", testRandomCompNoRotate
+                "Build: Random Components", testRandomComp
+                "Test: Statistics", testRandomComp // TODO: add actual function
+                "Test: Edge Case", testRandomComp // TODO: add actual function
+                "Test: Beautify Time Complexity", testBeautifyTimePerformance
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]
 

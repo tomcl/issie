@@ -102,20 +102,38 @@ let deleteWire (wireId: ConnectionId) (model: SheetT.Model) =
 let autoAdjustWLRotation (wlSymId: ComponentId) (symId: ComponentId) (portId: PortId) (model: SheetT.Model) : SheetT.Model =
     let symbolsMap = model.Wire.Symbol.Symbols
     let symLens = symbolOf_ symId
-    let symRotation = Optic.get symbol_rotation_ (Optic.get symLens model)
+    let sym = Optic.get symLens model
+    let symRotation = Optic.get symbol_rotation_ sym
+    let symFlip = Optic.get symbol_flipped_ sym
 
     match symbolsMap |> Map.tryFind wlSymId with
         | Some wireLabel ->
             let portEdge = getPortOrientation model.Wire.Symbol portId 
             let adjustedSymbol = match portEdge with
                                     | Top | Bottom -> 
-                                        match symRotation with 
-                                        | Degree180 | Degree270 -> SymbolResizeHelpers.rotateSymbol Degree270 wireLabel
-                                        | _ -> SymbolResizeHelpers.rotateSymbol Degree90 wireLabel
+                                        let rotationCheck wireLabel = 
+                                            match symRotation with 
+                                            | Degree180 | Degree270 -> SymbolResizeHelpers.rotateSymbol Degree270 wireLabel
+                                            | _ -> SymbolResizeHelpers.rotateSymbol Degree90 wireLabel
+
+                                        let flipCheck wireLabel = 
+                                            match symFlip with 
+                                            | true -> wireLabel
+                                            | false -> wireLabel
+
+                                        wireLabel |> rotationCheck |> flipCheck
                                     | Left | Right -> 
-                                        match symRotation with 
-                                        | Degree180 | Degree90 -> SymbolResizeHelpers.rotateSymbol Degree180 wireLabel
-                                        | _ -> wireLabel
+                                        let rotationCheck wireLabel = 
+                                            match symRotation with 
+                                            | Degree180 | Degree90 -> SymbolResizeHelpers.rotateSymbol Degree180 wireLabel
+                                            | _ -> wireLabel
+                                        
+                                        let flipCheck wireLabel = 
+                                            match symFlip with 
+                                            | true -> SymbolResizeHelpers.rotateSymbol Degree180 wireLabel
+                                            | false -> wireLabel
+                                        
+                                        wireLabel |> rotationCheck |> flipCheck
             let updatedSymbols = Map.add wlSymId adjustedSymbol symbolsMap
             { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
         | None -> model 
@@ -154,9 +172,11 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
             { X = portPos.X + 15.0; Y = portPos.Y - 40.0 }
 
     let placeWlAtPort (model: SheetT.Model) (portPos: XYPos) =
+        let wireLabelName = wlName + "/" + string PortIndex
+       
         portPos
         |> calcWLPos 
-        |> placeWireLabelSymbol wlName model 
+        |> placeWireLabelSymbol wireLabelName model 
         
     match placeWlAtPort model portPos with
     | Ok (updatedModel, wlSymId) ->

@@ -1,31 +1,31 @@
-module TestDrawBlockD2
-// open modules likely to be used
-open CatalogueView
+module TestDrawBlockProject
+
+
 open PopupHelpers
-open Fable.SimpleJson
-open Fable.Core.JsInterop
+
+
 open Fulma
-open Fulma.Extensions.Wikiki
+
 open Fable.React
-open Fable.React.Props
+
 open SheetBeautifyD3
 open CommonTypes
-open DrawHelpers
+
 open DrawModelType
 open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open DrawModelType.SymbolT
-open EEExtensions
+
 open Elmish
 open GenerateData
-open Helpers
+
 open ModelType
 open Optics
-open Optics.Operators
-open Sheet.SheetInterface
+
+
 open SheetBeautifyHelpers
-open SheetUpdateHelpers
-open SymbolResizeHelpers
+
+
 open TestDrawBlock
 open TestDrawBlock.HLPTick3
 open TestDrawBlock.HLPTick3.Asserts

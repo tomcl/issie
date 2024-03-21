@@ -147,10 +147,10 @@ let fileMenu (dispatch) =
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
     let makeProjectTestItem (name:string) (accelNumber:int)  =
         makeDebugItem name (Some $"Alt+{accelNumber+1}") (fun _ ->
-            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.testMenuFunc, accelNumber), dispatch)))
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockProject.testMenuFunc, accelNumber), dispatch)))
     let makeBeautifyFunctions (name:string) (accelNumber:int)  =
         makeDebugItem name (Some $"Alt+Shift+{accelNumber+1}") (fun _ -> // Using Alt+Shift
-            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.beautifyMenuFunc, accelNumber), dispatch)))
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockProject.beautifyMenuFunc, accelNumber), dispatch)))
     makeMenu false "File" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
@@ -166,12 +166,12 @@ let fileMenu (dispatch) =
             |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
         // All Tests submenu
         makeMenuGen (debugLevel > 0) false "Project Tests" (
-            TestDrawBlockD2.testsToRunFromSheetMenu 
+            TestDrawBlockProject.testsToRunFromSheetMenu 
             |> List.truncate 10 
             |> List.mapi (fun n (name,_) -> (makeProjectTestItem name n)))
         // Add beautify Functions submenu
         makeMenuGen (debugLevel > 0) false "Beautify Functions" (
-            TestDrawBlockD2.beautifyFunctionsMenu
+            TestDrawBlockProject.beautifyFunctionsMenu
             |> List.truncate 10 
             |> List.mapi (fun n (name,_) -> (makeBeautifyFunctions name n)))
         makeWinDebugItem "Trace all" None (fun _ ->

@@ -1,6 +1,6 @@
-# Team 4 HLP Coursework
+# Team 6 HLP Coursework
 
-Members: Han Jiao (), Yiming Chen (), Edward Chen (), Harry Ni (), Linmo Lin (), Runshen Lu ()
+Members: Han Jiao (), Yiming Chen (), Edward Chen (), Harry Ni (), Linmo Lin (), Runshen Lu (02033159)
 
 ## Wiki
 [link](https://github.com/rl3721/IssieProject-2024/wiki)

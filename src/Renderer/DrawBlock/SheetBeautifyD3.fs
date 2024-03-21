@@ -138,7 +138,7 @@ let autoAdjustWLRotation (wlSymId: ComponentId) (symId: ComponentId) (portId: Po
             { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
         | None -> model 
 
-let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourceWL: bool) (model: SheetT.Model) : SheetT.Model =
+let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourceWL: bool) (model: SheetT.Model) : (SheetT.Model * string) =
     let portIdStr = getPortIdStr portId
     let portPos = SheetBeautifyHelpers.getPortPos portIdStr model.Wire.Symbol
     
@@ -157,6 +157,11 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
             |> Option.map fst
             |> Option.get
         | None -> failwith "Symbol ID not found in model"
+    
+    let wireLabelName = 
+            if isSourceWL then
+                wlName + "/" + string PortIndex
+            else wlName
 
     let calcWLPos (portPos: XYPos)  = 
         let portEdge = getPortOrientation model.Wire.Symbol portId 
@@ -172,8 +177,7 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
             { X = portPos.X + 15.0; Y = portPos.Y - 40.0 }
 
     let placeWlAtPort (model: SheetT.Model) (portPos: XYPos) =
-        let wireLabelName = wlName + "/" + string PortIndex
-       
+               
         portPos
         |> calcWLPos 
         |> placeWireLabelSymbol wireLabelName model 
@@ -184,7 +188,8 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
         let symRec = {SymbolId = symId; PortNumber = PortIndex}
 
         let modelWithAdjustedWL = autoAdjustWLRotation wlSymId symId portId updatedModel
-        
+        let wireLabelOutput =  if not(isSourceWL) then wireLabelName else wlName
+
         let wireResult =
             if isSourceWL then
                 placeWireX symRec wlRec modelWithAdjustedWL
@@ -192,14 +197,16 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
                 placeWireX wlRec symRec modelWithAdjustedWL
 
         match wireResult with
-        | Ok (finalModel,_) -> finalModel 
+        | Ok (finalModel,_) -> 
+            printfn "Wire label name %A" wireLabelName
+            (finalModel, wireLabelName)
         | Error wireError -> 
             printfn "Error placing wire: %s" wireError
-            updatedModel 
+            (updatedModel, wireLabelName) 
 
     | Error errMsg ->
         printfn "Error placing wire label: %s" errMsg
-        model 
+        (model, wireLabelName) 
 
 
 let replaceLongWiresWithLabels (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
@@ -215,9 +222,10 @@ let replaceLongWiresWithLabels (model: SheetT.Model) (lengthThreshold: float) : 
         let (sourceSymbol, sourcePortId), (targetSymbol, targetPortId) = getWireSymbolsAndPort  wireId model
         printfn "SourceSymbol: %A" sourceSymbol.Component.Label 
         printfn "TargetSymbol: %A" targetSymbol.Component.Label
-        let modelWithTargetLabels = addWireLabel sourceSymbol.Component.Label targetPortId targetSymbol.Id false model
-        let modelWithSourceLabels = addWireLabel sourceSymbol.Component.Label sourcePortId sourceSymbol.Id true modelWithTargetLabels
-        deleteWire wireId modelWithSourceLabels
+        let (modelWithSourceLabels, newWLName) = addWireLabel sourceSymbol.Component.Label sourcePortId sourceSymbol.Id true model
+        let (modelWithTargetLabels, _) = addWireLabel newWLName targetPortId targetSymbol.Id false modelWithSourceLabels
+        
+        deleteWire wireId modelWithTargetLabels
 
 
 

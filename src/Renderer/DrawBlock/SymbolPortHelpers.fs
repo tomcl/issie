@@ -164,6 +164,19 @@ let moveCustomPortsPopup() : ReactElement =
                 ]
             ]
         ]
+
+let scoreSheet(score) : ReactElement =
+    let styledSpan styles txt = span [Style styles] [str <| txt]
+    let bSpan txt = styledSpan [FontWeight "bold"] txt
+    let iSpan txt = styledSpan [FontStyle "italic"] txt
+    let tSpan txt = span [] [str txt]
+    div [] [
+    bSpan "Testing Complete!" ; 
+    br []; br [];
+    tSpan " Based on the evaluation functions provided for this test, your sheet received a score of "; bSpan $"{score}."
+    br []; br []; 
+    tSpan "The scoring functions are meant to be absolute, but the score is more useful for relative scoring." 
+        ]
         
    
 /// Returns an Option Edge. Returns Some edge if position is on edge of Symbol, and None if it was not on an edge

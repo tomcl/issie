@@ -222,7 +222,6 @@ let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
         |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
         |> getOkOrFail
-        |> sheetWireLabelSymbol
         
     finalModel.Wire.Symbol.Symbols.Values
     |> Seq.cast
@@ -353,7 +352,7 @@ module Tests =
             firstSample
             test1Builder
             showTargetSheet
-            None
+            (Some sheetWireLabelSymbol)
             makeTest1Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
@@ -405,6 +404,7 @@ module Tests =
             "Test1", D3Test1 // example
             "Test2", D3Test2 // example
             "Test3", D3Test3
+            "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
     

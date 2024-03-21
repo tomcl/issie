@@ -32,6 +32,7 @@ module Circuit =
     
     /// generates random circuit without overlap
     let randCircuit ((comps: ComponentType list), (posGen: XYPos list)) =
+        // let genRand = System.Random(seed)
         printfn $"comps len = {List.length comps}"
         printfn $"pos len = {List.length posGen}"
         if (List.length comps <> List.length posGen) 
@@ -206,9 +207,10 @@ module TestData =
 module Tests =
     open Circuit
     open TestData
+    open TestDrawBlockD3
 
     let genLC = randXY {min=(0.5); step=0.5; max=1}
-    let testAllLarge testNum firstSample showTargetSheet dispatch =
+    let testD1Circuit testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Large circuit"
             firstSample
@@ -220,16 +222,29 @@ module Tests =
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
+    
+    let testD3circuit testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "General Test on complex circuit"
+            firstSample
+            test2Builder
+            showTargetSheet
+            (Some beautifySheetBasic)
+            makeTest3Circuit
+            (AssertFunc failOnAllTests)
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
 
-    let genTestRand = getTestRand 3
+    let genTestRand = getTestRand 2
     let testRand testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "random circuit"
             firstSample
             genTestRand
             showTargetSheet
-            (Some sheetAlignScale)
+            (Some beautifySheetBasic)
             randCircuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
@@ -245,9 +260,9 @@ module Tests =
             "D1 - Random", testRand // RANDOM TEST (D1 beautify)
             "D2 - Random", fun _ _ _ _ -> printf "Test2" // RANDOM TEST (D2 beautify)
             "D3 - Random", fun _ _ _ _ -> printf "Test3" // RANDOM TEST (D3 beautify)
-            "All - D1's test", testAllLarge // Standard D1 TEST (all beautifies)
+            "All - D1's test", testD1Circuit // Standard D1 TEST (all beautifies)
             "All - D2's test", fun _ _ _ _ -> printf "Test5" // Standard D2 TEST (all beautifies)
-            "All - D3's test", fun _ _ _ _ -> printf "Test6" // Standard D3 TEST (all beautifies)
+            "All - D3's test", testD3circuit // Standard D3 TEST (all beautifies)
             "All - Random", fun _ _ _ _ -> printf "Test5" // RANDOM TEST (all beautifies)
             "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test

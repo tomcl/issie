@@ -4,6 +4,7 @@ open Elmish
 open GenerateData
 open TestDrawBlockD1.Circuit
 open TestDrawBlockD1.Builder
+open TestDrawBlockD2
 open TestDrawBlock
 open TestLib
 open TestDrawBlock.HLPTick3
@@ -11,6 +12,7 @@ open TestDrawBlock.HLPTick3.Asserts
 open TestDrawBlock.HLPTick3.Builder
 open TestDrawBlock.HLPTick3.Tests
 open SheetBeautifyHelpers
+open SheetBeautifyD1
 
 open EEExtensions
 open Optics
@@ -29,12 +31,14 @@ module Circuit =
     
     /// generates random circuit without overlap
     let randCircuit ((comps: ComponentType list), (posGen: XYPos list)) =
+        printfn $"comps len = {List.length comps}"
+        printfn $"pos len = {List.length posGen}"
         if (List.length comps <> List.length posGen) 
         then failwithf "needs 1-1 mapping for component's pos in Random Circuit"
 
         /// Returns function to add a symbol to sheet
         let addSingleSym (num:int) comp (pos:XYPos) =
-            addSym $"MUX{num}" comp pos.X pos.Y
+            addSym $"SYM{num}" comp pos.X pos.Y
 
         /// Adds all input symbols to sheet
         let placeSyms (sheet : Result<SheetT.Model, string>) : Result<SheetT.Model, string> =
@@ -58,9 +62,10 @@ module Circuit =
             
             let inPorts = portIdByType PortType.Input sheet
             let outPorts = portIdByType PortType.Output sheet |> shuffleA
+            let minLen = min (Array.length inPorts) (Array.length outPorts)
             
             
-            Array.fold addWireToModel sheet (Array.zip inPorts outPorts)
+            Array.fold addWireToModel sheet (Array.zip (Array.take minLen inPorts) (Array.take minLen outPorts))
             |> Ok
             
         
@@ -125,28 +130,60 @@ module TestData =
             RAM1 (exampleMem 1);
         |]
 
+    /// Returns a random element from an array
     let randElem (arr: 'a array) =
         let len = Array.length arr
         let randIdx = random.Next(len)
         arr.[randIdx]
+
+    /// Gets all combinations of length n from a list
+    let rec combinations n list =
+        match n, list with
+        | 0, _ -> [[]]
+        | _, [] -> []
+        | k, (x::xs) -> 
+            let withX = combinations (k-1) xs |> List.map (fun ys -> x::ys)
+            let withoutX = combinations k xs
+            withX @ withoutX
+
+    ///
+    let nRandComps n =  
+        combinations n (Array.toList allComps)
+        |> fromList
+
+    // let nRandPos n = 
+    //     let posGen = randXY {
+    //                             min = -400
+    //                             step = 100
+    //                             max = 400
+    //                         }
+    //     toList posGen
+    let getTestRand n =
+        (nRandComps n, randomPos)
+        ||> product (fun compL posL -> (compL, posL))
+        |> toArray
+        |> shuffleA
+        |> fromArray
+
+
         
 
-    /// Generates a list of n random components
-    let nRandComps (n:int) : ComponentType list =
-        let getRandComp _ = randElem allComps
+    // /// Generates a list of n random components
+    // let nRandComps (n:int) : ComponentType list =
+    //     let getRandComp _ = randElem allComps
 
-        [1..n]
-        |> List.map getRandComp
+    //     [1..n]
+    //     |> List.map getRandComp
 
-    let nRandXY (n:int) (xyMin, xyStep, xyMax) =
-        let getRandXY _ = randXY {  
-                                    min  = xyMin
-                                    step = xyStep
-                                    max  = xyMax
-                                 }   
+    // let nRandXY (n:int) (xyMin, xyStep, xyMax) =
+    //     let getRandXY _ = randXY {  
+    //                                 min  = xyMin
+    //                                 step = xyStep
+    //                                 max  = xyMax
+    //                              }   
 
-        [1..n]
-        |> List.map getRandXY
+    //     [1..n]
+    //     |> List.map getRandXY
 
 
     // /// Generator of random number of random components.
@@ -169,17 +206,19 @@ module Tests =
     open Circuit
     open TestData
 
-    // let testRand testNum firstSample dispatch =
-    //     runTestOnSheets
-    //         "random circuit"
-    //         firstSample
-    //         (combGen (nRandComps 1 5) (randXY {min=(-30); step=3; max=30}))
-    //         None
-    //         randCircuit
-    //         (AssertFunc failOnAllTests)
-    //         Evaluations.nullEvaluator
-    //         dispatch
-    //     |> recordPositionInTest testNum dispatch
+    let genTestRand = getTestRand 3
+    let testRand testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "random circuit"
+            firstSample
+            genTestRand
+            showTargetSheet
+            (Some sheetAlignScale)
+            randCircuit
+            (AssertFunc failOnAllTests)
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
     /// List of tests available which can be run ftom Issie File Menu.
     /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
@@ -187,13 +226,14 @@ module Tests =
         // Change names and test functions as required
         // delete unused tests from list
         [
-            "D1 - Random", fun _ _ _ _ -> printf "Test1" // RANDOM TEST (D1 beautify)
+            "D1 - Random", testRand // RANDOM TEST (D1 beautify)
             "D2 - Random", fun _ _ _ _ -> printf "Test2" // RANDOM TEST (D2 beautify)
             "D3 - Random", fun _ _ _ _ -> printf "Test3" // RANDOM TEST (D3 beautify)
             "All - D1's test", fun _ _ _ _ -> printf "Test4" // Standard D1 TEST (all beautifies)
             "All - D2's test", fun _ _ _ _ -> printf "Test5" // Standard D2 TEST (all beautifies)
             "All - D3's test", fun _ _ _ _ -> printf "Test6" // Standard D3 TEST (all beautifies)
             "All - Random", fun _ _ _ _ -> printf "Test5" // RANDOM TEST (all beautifies)
+            "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
 

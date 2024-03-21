@@ -14,11 +14,40 @@ open Helpers
 open Symbol
 open BlockHelpers
 open SheetBeautifyHelpers
-(*open RotateScale*)
+open RotateScale
 open BusWire
     module D1Helpers =
         // D1 HELPER FUNCTIONS ----------------------------------------------------------------------
-    
+        (*type PortInfo =
+            { port: Port
+              sym: Symbol
+              side: Edge
+              ports: string list
+              gap: float
+              topBottomGap: float
+              portDimension: float
+              h: float
+              w: float
+              portGap: float }*)
+
+        let alignComponents 
+            (wModel: BusWireT.Model)
+            (symA: Symbol)
+            (portA: Port)
+            (symB: Symbol)
+            (portB: Port)
+            : BusWireT.Model =
+            
+            // Only attempt to align symbols if they are connected by ports on parallel edges.
+            let (movePortInfo, otherPortInfo) = (makePortInfo symA portA,makePortInfo symB portB) 
+
+            let offset = alignPortsOffset movePortInfo otherPortInfo
+            let symbol' = moveSymbol offset symA
+            let model' = Optic.set (symbolOf_ symA.Id) symbol' wModel
+            BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id
+
+
+
         /// returns all singly compoenents with one output xor input port
         let getSinglyComp (wModel: BusWireT.Model): Symbol list option =
             Optic.get symbols_ wModel.Symbol
@@ -69,11 +98,14 @@ open BusWire
         /// `port` is the given port to find matches for.
         /// `connections` is the list of all connections to search through.
         let findOtherPorts (port: Port) (connections: Connection list): (string * Port) list =
+            printfn $"port {port}"
             connections |> List.collect (fun connection ->
-                match connection with
-                | { Id = id; Source = src; Target = tgt } when src = port -> [(id,tgt)] // Port is the source; collect the target
-                | { Id = id; Source = src; Target = tgt } when tgt = port -> [(id,src)] // Port is the target; collect the source
-                | _ -> [] // No match, proceed to the next connection
+                if connection.Source.Id = port.Id then
+                    [(connection.Id,connection.Target)]
+                elif connection.Target.Id = port.Id then
+                    [(connection.Id,connection.Source)]
+                else
+                    [] // No match, proceed to the next connection
             )
         
         /// return the corresponding Symbol for a given Port
@@ -128,7 +160,7 @@ open BusWire
 
         /// Chooses other Symbol to align a port based on the condition that they are opposite parallel edges
         /// and will choose the symbol with the smallest offset distance to help avoid symbol overlaps
-        let chooseSymAlign (port: Port) (otherPorts: (string * Port) list) (wModel:BusWireT.Model): Symbol Option=
+        let chooseSymAlign (port: Port) (otherPorts: (string * Port) list) (wModel:BusWireT.Model): (Symbol * Port) Option=
             if List.length otherPorts >1 then
                 let portOrientation = getSymbolPortOrientation (getSym wModel port) port
                 
@@ -151,12 +183,12 @@ open BusWire
                     filteredAndMappedPorts
                     |> List.minBy fst //Choose the port with the smallest offset (X Y Is chosen depending on orientation)
                     |> snd
-                    |> (fun sym -> Some (getSym wModel sym))
+                    |> (fun port -> Some ((getSym wModel port),port))
             else
                 let otherSym =
                     otherPorts
                     |> List.tryHead
-                    |> Option.map (fun (_,port) -> getSym wModel port)
+                    |> Option.map (fun (_,port) -> ((getSym wModel port),port))
                 otherSym
     
         
@@ -183,7 +215,7 @@ open BusWire
                     let portPair = choosePortAlign wModel' outputPorts
                     let otherPort = snd portPair
                     let otherSym = getSym wModel' otherPort
-                    alignSymbols wModel' sym otherSym
+                    alignComponents  wModel' sym (fst portPair) otherSym otherPort
              ) wModel
                
                
@@ -192,25 +224,46 @@ open BusWire
 
         let alignSinglyComp (wModel: BusWireT.Model): BusWireT.Model =
             let singlyComp = getSinglyComp wModel
+            printfn $"singlyCompsize: {match singlyComp with
+                                        | Some(lst) -> List.length lst
+                                        | None -> 0 (* or handle the case where there is no list *)
+                                        }"
             let connections = extractConnections wModel
             match singlyComp with
             | Some syms ->
                 List.fold (fun wModel' sym ->
                     let portsMap = getPortSym wModel'.Symbol sym
                     // Since it's a singly component, assume there is only one port
+                    printfn $"Portsmap size: {Map.count portsMap}"
                     let portOption = portsMap |> Map.values |> Seq.tryHead
+                    printfn $"PortOption: {match portOption with
+                                            | Some(port) -> port.Id
+                                            | None -> string 0}"
                     match portOption with
                     | Some port ->
+                        printfn $"Connections: {List.length connections}"
                         let otherPorts = findOtherPorts port connections
+                        printfn $"OtherPorts: {List.length otherPorts}"
                         let otherSymOpt = chooseSymAlign port otherPorts wModel'
                         match otherSymOpt with
-                        | Some otherSym ->
-                            let wModel'' = alignSymbols wModel' sym otherSym
+                        | Some (otherSym,otherPort) ->
+                            printfn $"portHost: {sym.Component.Label}"
+                            printfn $"portType: {port.PortType}"
+                            printfn $"otherportHost: {otherSym.Component.Label}"
+                            printfn $"otherportType: {port.PortType}"
+                            let wModel'' = alignComponents  wModel' sym port otherSym otherPort
                             wModel''
-                        | None -> wModel' // If no suitable alignment, keep the model unchanged
-                    | None -> wModel' // If no port is found, proceed to the next symbol
+                        | None ->
+                            printfn $"Fail Match"
+                            wModel' // If no suitable alignment, keep the model unchanged
+                    | None ->
+                        printfn $"No PortOption"
+                        wModel' // If no port is found, proceed to the next symbol                            
                 ) wModel syms
-            | None -> wModel // If getSinglyComp returns None, return the model unchanged
+            | None ->
+                printfn $"ERROR"
+                wModel // If getSinglyComp returns None, return the model unchanged
+
 
     
 

@@ -190,7 +190,7 @@ let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
         |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
         |> getOkOrFail
-        |> autoGenerateWireLabels
+        |> sheetWireLabelSymbol
         
     finalModel.Wire.Symbol.Symbols.Values
     |> Seq.cast

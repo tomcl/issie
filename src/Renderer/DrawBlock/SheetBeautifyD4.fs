@@ -18,7 +18,7 @@ let beautifySheetBasic : SheetT.Model -> SheetT.Model =
     // sheetOrderFlip
     sheetAlignScale
     >> rerouteAllWires
-    >> autoGenerateWireLabels
+    >> sheetWireLabelSymbol
 
 // Applies each beautify function to the sheet.
 // Then evaluates which looks best.

@@ -153,7 +153,7 @@ let alignPortsOffset (movingPortI : PortInfo) (stationaryPortI : PortInfo) : XYP
 let alignSymbols (model: BusWireT.Model) (movingSymb: Symbol) (stationarySymb: Symbol) : BusWireT.Model =
 
     // Only attempt to align symbols if they are connected by ports on parallel edges.
-    match getOppEdgePortInfo (model:BusWireT.Model) movingSymb stationarySymb with
+    match getOppEdgePortInfo (model: BusWireT.Model) movingSymb stationarySymb with
     | None -> model
     | Some(movePortInfo, otherPortInfo) ->
         let offset = alignPortsOffset movePortInfo otherPortInfo
@@ -209,16 +209,21 @@ let reSizeSymbol (model: BusWireT.Model) (movingSymb: Symbol) (stationarySymb: S
     let resizePortInfo, otherPortInfo =
         match getOppEdgePortInfo model movingSymb stationarySymb with
         | None ->
-            let pA, pB = getPortAB model { SymA = movingSymb; SymB = stationarySymb; Wire = wires[0] }
+            let pA, pB =
+                getPortAB model { SymA = movingSymb; SymB = stationarySymb; Wire = wires[0] }
             makePortInfo movingSymb pA, makePortInfo movingSymb pB
         | Some(pIA, pIB) -> (pIA, pIB)
 
     let h, w =
         match resizePortInfo.side with
         | Left | Right ->
-            otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.gap), resizePortInfo.w
+            otherPortInfo.portGap *
+            (resizePortInfo.portDimension + 2.0 * resizePortInfo.gap),
+            resizePortInfo.w
         | Top  | Bottom ->
-            resizePortInfo.h, otherPortInfo.portGap * (resizePortInfo.portDimension + 2.0 * resizePortInfo.topBottomGap)
+            resizePortInfo.h,
+            otherPortInfo.portGap *
+            (resizePortInfo.portDimension + 2.0 * resizePortInfo.topBottomGap)
 
     match movingSymb.Component.Type with
     | Custom _ ->
@@ -229,14 +234,15 @@ let reSizeSymbol (model: BusWireT.Model) (movingSymb: Symbol) (stationarySymb: S
     | _ ->
         movingSymb
 
-/// <summary>
-/// A top-level fucntion that resized a symbol to ensure direct connectyions with anotyher symbol and updates the model with the resized symbol.
+// ae621 : Moved parameters on the same line for this function so that it is consistent with the rest of the code and added XML comments
+///  <summary>
+/// Resizes the specified top-level symbol within the given BusWireT.Model.
 /// </summary>
-/// <param name="model">Current model containg all wires and symbols.</param>
-/// <param name="movingSymb">The symbol to be resized/moved for port alignment.</param>
-/// <param name="stationarySymb">Reference symbol for movingSymb alignment.</param>
+/// <param name="wModel">The BusWireT.Model containing symbols and their connections.</param>
+/// <param name="symbolToSize">The symbol to be resized.</param>
+/// <param name="otherSymbol">The reference symbol used for resizing calculations.</param>
 /// <returns>
-/// An updated BusWireT.Model that includes the resized model and potentially adjusted wire connections with a message.
+/// A new BusWireT.Model with the resized symbol and updated connections.
 /// </returns>
 let reSizeSymbolTopLevel (model: BusWireT.Model) (movingSymb: Symbol) (stationarySymb: Symbol) : BusWireT.Model =
     printfn $"ReSizeSymbol: ToResize:{movingSymb.Component.Label}, Other:{stationarySymb.Component.Label}"
@@ -250,8 +256,19 @@ let reSizeSymbolTopLevel (model: BusWireT.Model) (movingSymb: Symbol) (stationar
 type SymConnDataT =
     { ConnMap: Map<ComponentId * Edge, int> }
 
-/// If a wire between a target symbol and another symbol connects opposite edges, return the edge that the wire is connected to on the target symbol 
-let tryWireSymOppEdge (wModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symbol) =
+// ae621: renamed function and added XML comments
+/// <summary>
+/// Tries to find the edge connected to the target symbol when a wire connects opposite edges.
+/// </summary>
+/// <param name="wModel">The model containing the symbols and wires.</param>
+/// <param name="wire">The wire between the symbols.</param>
+/// <param name="targetSymbol">The target symbol.</param>
+/// <param name="otherSymbol">The other symbol connected by the wire.</param>
+/// <returns>
+/// If the wire connects opposite edges, returns the edge connected to the target symbol;
+/// otherwise, returns <c>None</c>.
+///  </returns>
+let tryFindEdgeForOppositeWire (wModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symbol) =
     let symEdge = wireSymEdge wModel wire sym
     let otherSymEdge = wireSymEdge wModel wire otherSym
 
@@ -259,12 +276,35 @@ let tryWireSymOppEdge (wModel: Model) (wire: Wire) (sym: Symbol) (otherSym: Symb
     | true -> Some symEdge
     | _ -> None
 
-let updateOrInsert (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
+//added XML comments and renamed function to make it clearer removed TODO as it as already been done
+/// <summary>
+/// Updates or inserts a connection count for a specific edge and component ID in the symmetric connection data.
+/// </summary>
+/// <param name="symConnData">The symmetric connection data to update.</param>
+/// <param name="edge">The edge involved in the connection.</param>
+/// <param name="cid">The component ID related to the connection.</param>
+/// <returns>
+/// The updated symmetric connection data with the modified connection count.
+/// </returns>
+let updateOrInsertConnectionCount (symConnData: SymConnDataT) (edge: Edge) (cid: ComponentId) =
     let m = symConnData.ConnMap
-    let count = Map.tryFind (cid, edge) m |> Option.defaultValue 0 |> (+) 1
+    let count =
+        Map.tryFind (cid, edge) m
+        |> Option.defaultValue 0
+        |> (+) 1
     { ConnMap = Map.add (cid, edge) count m }
 
 // TODO: this is copied from Sheet.notIntersectingComponents. It requires SheetT.Model, which is not accessible from here. Maybe refactor it.
+//added XML comments
+/// <summary>
+/// Checks if a symbol does not overlap with any other symbols based on the provided bounding box intersection function.
+/// </summary>
+/// <param name="boxesIntersect">The function to determine if two bounding boxes intersect.</param>
+/// <param name="boundingBoxes">A map of symbol IDs to their corresponding bounding boxes.</param>
+/// <param name="symbol">The symbol to check for overlap with other symbols.</param>
+/// <returns>
+/// Returns true if the symbol does not overlap with any other symbols; otherwise, returns false.
+/// </returns>
 let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundingBoxes sym =
     let symBB = getSymbolBoundingBox sym
 
@@ -272,70 +312,76 @@ let noSymbolOverlap (boxesIntersect: BoundingBox -> BoundingBox -> bool) boundin
     |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox symBB && sym.Id <> sId)
     |> Map.isEmpty
 
-/// Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
-let optimiseSymbol
-    (wModel: BusWireT.Model)
-    (symbol: Symbol)
-    (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
-    : BusWireT.Model =
+(*
+In the refactoring process, several changes were made to enhance the modularity and correctness of the code.
+The calculateSymConnData function was
+introduced to encapsulate the logic for computing symbolic connection data,
+ while the alignSym, tryResize, and scaleSymbolForOptim functions were created to isolate the symbol alignment and resizing operations.
+ These changes not only improve code readability but also contribute to a more organized and maintainable codebase.
+*)
+let updateData (wModel: BusWireT.Model) (symbol: Symbol) (symConnData: SymConnDataT) _ (wire: Wire) =
+    let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire
 
-    // If a wire connects the target symbol to another symbol, note which edge it is connected to
-    let updateData (symConnData: SymConnDataT) _ (wire: Wire) =
-        let symS, symT = getSourceSymbol wModel wire, getTargetSymbol wModel wire
+    let otherSymbol =
+        match symS, symT with
+        | _ when symS.Id <> symbol.Id && symT.Id = symbol.Id -> Some symS
+        | _ when symS = symbol && symT.Id <> symbol.Id -> Some symT
+        | _ -> None
 
-        let otherSymbol =
-            match symS, symT with
-            | _ when (symS.Id <> symbol.Id) && (symT.Id = symbol.Id) -> Some symS
-            | _ when (symS = symbol) && (symT <> symbol) -> Some symT
-            | _ -> None
+    match otherSymbol with
+    | Some otherSym ->
+        let edge = tryFindEdgeForOppositeWire wModel wire symbol otherSym
 
-        match otherSymbol with
-        | Some otherSym ->
-            let edge = tryWireSymOppEdge wModel wire symbol otherSym
+        match edge with
+        | Some e -> updateOrInsertConnectionCount symConnData e otherSym.Id
+        | None -> symConnData
+    | None -> symConnData
 
-            match edge with
-            | Some e -> updateOrInsert symConnData e otherSym.Id
-            | None -> symConnData // should not happen
-        | None -> symConnData 
+let calculateSymConnData (wModel: BusWireT.Model) (symbol: Symbol) : SymConnDataT =
+    let resizeWithAlign (symConnData: SymConnDataT) _ wire =
+        updateData wModel symbol symConnData () wire
+    Map.fold resizeWithAlign { ConnMap = Map.empty } wModel.Wires
 
-    // Look through all wires to build up SymConnDataT.
-    let symConnData = ({ ConnMap = Map.empty }, wModel.Wires) ||> Map.fold updateData
+let alignSym (wModel: BusWireT.Model) (sym: Symbol) (otherSym: Symbol) : bool * Symbol =
+    let resizedSym = reSizeSymbol wModel sym otherSym
+    let boundingBoxesID = wModel.Symbol.Symbols |> Map.keys |> Seq.toList
+    let boundingBoxes =
+        List.map (fun (bbID) -> (bbID, getBoundingBox wModel.Symbol bbID)) boundingBoxesID
+        |> Map.ofList
+    let noOverlap = noSymbolOverlap DrawHelpers.boxesIntersect boundingBoxes resizedSym
 
-    let tryResize (symCount: ((ComponentId * Edge) * int) array) sym =
+    match noOverlap with
+    | true -> true, resizedSym
+    | _ -> false, sym
 
-        let alignSym (sym: Symbol) (otherSym: Symbol) =
-            let resizedSym = reSizeSymbol wModel sym otherSym
-            let noOverlap = noSymbolOverlap DrawHelpers.boxesIntersect boundingBoxes resizedSym
+let tryResize (wModel: BusWireT.Model) (symCount: ((ComponentId * Edge) * int) array) (sym: Symbol) : Symbol =
+    let alignSym (hAligned, vAligned, sym) ((cid, edge), _) =
+        let otherSym = Optic.get (symbolOf_ cid) wModel
 
-            match noOverlap with
-            | true -> true, resizedSym
-            | _ -> false, sym
+        match hAligned, vAligned, edge with
+        | false, _, (Top | Bottom) ->
+            let hAligned', resizedSym = alignSym wModel sym otherSym
+            (hAligned', vAligned, resizedSym)
+        | _, false, (Left | Right) ->
+            let vAligned', resizedSym = alignSym wModel sym otherSym
+            (hAligned, vAligned', resizedSym)
+        | _ -> (hAligned, vAligned, sym)
 
-        // HLP 2024 - Ahmæd renamed "folder" to resizeWithAlign
-        let resizeWithAlign (hAligned, vAligned, sym) ((cid, edge), _) =
-            let otherSym = Optic.get (symbolOf_ cid) wModel       
+    let (_, _, sym') = Array.fold alignSym (false, false, sym) symCount
+    sym'
 
-            match hAligned, vAligned with
-            | false, _ when edge = Top || edge = Bottom ->
-                let hAligned', resizedSym = alignSym sym otherSym
-                (hAligned', vAligned, resizedSym)
-            | _, false when edge = Left || edge = Right ->
-                let vAligned', resizedSym = alignSym sym otherSym
-                (hAligned, vAligned', resizedSym)
-            | _ -> (hAligned, vAligned, sym)
+let scaleSymbolForOptim (wModel: BusWireT.Model) (symConnData: SymConnDataT) (symbol: Symbol) : Symbol =
+    let symCount =
+        symConnData.ConnMap
+        |> Map.toArray
+        |> Array.filter (fun (_, count) -> count > 1)
+        |> Array.sortByDescending snd
 
-        // HLP 2024 - Ahmæd renamed "folder" to resizeWithAlign
-        let (_, _, sym') = ((false, false, sym), symCount) ||> Array.fold resizeWithAlign 
-        sym'
+    tryResize wModel symCount symbol
 
-    let scaledSymbol =
-        let symCount =
-            Map.toArray symConnData.ConnMap
-            |> Array.filter (fun (_, count) -> count > 1)
-            |> Array.sortByDescending snd
-
-        tryResize symCount symbol
-
+let optimiseSymbol (wModel: BusWireT.Model) (symbol: Symbol) : BusWireT.Model =
+    let symConnData = calculateSymConnData wModel symbol
+    let scaledSymbol = scaleSymbolForOptim wModel symConnData symbol
     let model' = Optic.set (symbolOf_ symbol.Id) scaledSymbol wModel
     BusWireSeparate.routeAndSeparateSymbolWires model' symbol.Id
 
@@ -381,7 +427,7 @@ let rotatePointAboutBlockCentre
     (point: XYPos) 
     (centre: XYPos) 
     (rotation: Rotation) = 
-    let relativeToCentre = (fun x-> x - centre)
+    let relativeToCentre = (fun x -> x - centre)
     let rotateAboutCentre pointIn = 
         match rotation with 
         | Degree0 -> 
@@ -447,7 +493,7 @@ let adjustPosForBlockFlip
     let posOffset =
         match flip with
         | FlipHorizontal -> { X = w ; Y = 0.0 }
-        | FlipVertical -> { X = 0.0 ;Y = h }
+        | FlipVertical -> { X = 0.0 ; Y = h }
     pos - posOffset
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.</summary>
@@ -478,7 +524,8 @@ let rotateSymbolInBlock
         STransform = newSTransform
         LabelHasDefaultPos = true
         Component = newComponent
-    } |> calcLabelBoundingBox 
+    }
+    |> calcLabelBoundingBox 
 
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Flip a symbol horizontally or vertically in its block.</summary>
@@ -498,24 +545,27 @@ let flipSymbolInBlock
         |> adjustPosForBlockFlip flip h w
 
     let portOrientation = 
-        sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
+        sym.PortMaps.Orientation
+        |> Map.map (fun id side -> flipSideHorizontal side)
 
     let flipPortList currPortOrder side =
-        currPortOrder |> Map.add (flipSideHorizontal side) sym.PortMaps.Order[side]
+        currPortOrder
+        |> Map.add (flipSideHorizontal side) sym.PortMaps.Order[side]
 
     let portOrder = 
         (Map.empty, [Edge.Top; Edge.Left; Edge.Bottom; Edge.Right]) 
-        ||> List.fold flipPortList |> Map.map (fun _edge order -> List.rev order) //_edge ah121
+        ||> List.fold flipPortList
+        |> Map.map (fun _edge order -> List.rev order) //_edge ah121
 
     let newSTransform = 
         {Flipped = not sym.STransform.Flipped;
-        Rotation = sym.STransform.Rotation} 
+         Rotation = sym.STransform.Rotation} 
 
     let newcomponent = {sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
 
     { sym with
         Component = newcomponent
-        PortMaps = {Order=portOrder;Orientation=portOrientation}
+        PortMaps = {Order = portOrder; Orientation = portOrientation}
         STransform = newSTransform
         LabelHasDefaultPos = true
         Pos = newTopLeft }
@@ -545,20 +595,23 @@ let scaleSymbolInBlock
     let symCenter = getRotatedSymbolCentre sym
 
     //Get x and y proportion of symbol to block
-    let xProp, yProp = (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
+    let xProp, yProp =
+        (symCenter.X - block.TopLeft.X) / block.W, (symCenter.Y - block.TopLeft.Y) / block.H
 
     let newCenter = 
         match scaleType with
-            | ScaleUp ->
-                {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp); Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
-            | ScaleDown ->
-                {X= (block.TopLeft.X+5.) + ((block.W-10.) * xProp); Y=  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
+        | ScaleUp ->
+            {X = (block.TopLeft.X-5.) + ((block.W+10.) * xProp);
+             Y = (block.TopLeft.Y-5.) + ((block.H+10.) * yProp)}
+        | ScaleDown ->
+            {X = (block.TopLeft.X+5.) + ((block.W-10.) * xProp);
+             Y =  (block.TopLeft.Y+5.) + ((block.H-10.) * yProp)}
 
-    let h,w = getRotatedHAndW sym
+    let h, w = getRotatedHAndW sym
     let newPos = {X = (newCenter.X) - w/2.; Y= (newCenter.Y) - h/2.}
     let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
 
-    {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
+    {sym with Pos = newPos; Component = newComponent; LabelHasDefaultPos = true}
 
 /// <summary> HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
 /// The rotation degree can only be a fixed multiple of 90 degrees. </summary>
@@ -566,27 +619,29 @@ let scaleSymbolInBlock
 /// <param name="sym"> The symbol that is rotated</param>
 /// <returns>New rotated symbol model</returns>
 let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
-    let pos = {X = sym.Component.X + sym.Component.W / 2.0 ; Y = sym.Component.Y + sym.Component.H / 2.0 }
+    let pos =
+        {X = sym.Component.X + sym.Component.W / 2.0;
+         Y = sym.Component.Y + sym.Component.H / 2.0}
     match degree with
     | Degree0 -> sym
-    | _ ->  rotateSymbolInBlock degree pos sym
+    | _ -> rotateSymbolInBlock degree pos sym
 
 let oneCompBoundsBothEdges (selectedSymbols: Symbol list) = 
     let maxXSymCentre = 
             selectedSymbols
-            |> List.maxBy (fun (sym:Symbol) -> sym.Pos.X + snd (getRotatedHAndW sym)) 
+            |> List.maxBy (fun (sym: Symbol) -> sym.Pos.X + snd (getRotatedHAndW sym)) 
             |> getRotatedSymbolCentre
     let minXSymCentre =
             selectedSymbols
-            |> List.minBy (fun (sym:Symbol) -> sym.Pos.X)
+            |> List.minBy (fun (sym: Symbol) -> sym.Pos.X)
             |> getRotatedSymbolCentre
     let maxYSymCentre = 
             selectedSymbols
-            |> List.maxBy (fun (sym:Symbol) -> sym.Pos.Y+ fst (getRotatedHAndW sym))
+            |> List.maxBy (fun (sym: Symbol) -> sym.Pos.Y+ fst (getRotatedHAndW sym))
             |> getRotatedSymbolCentre
     let minYSymCentre =
             selectedSymbols
-            |> List.minBy (fun (sym:Symbol) -> sym.Pos.Y)
+            |> List.minBy (fun (sym: Symbol) -> sym.Pos.Y)
             |> getRotatedSymbolCentre
     (maxXSymCentre.X = minXSymCentre.X) || (maxYSymCentre.Y = minYSymCentre.Y)
 
@@ -599,11 +654,15 @@ let findSelectedSymbols (compList: ComponentId list) (model: SymbolT.Model) =
 
 let getScalingFactorAndOffsetCentre (min:float) (matchMin:float) (max:float) (matchMax:float) = 
     let scaleFact = 
-        if min = max || matchMax <= matchMin then 1. 
-        else (matchMin - matchMax) / (min - max)
+        if min = max || matchMax <= matchMin then
+            1. 
+        else
+            (matchMin - matchMax) / (min - max)
     let offsetC = 
-        if scaleFact = 1. then 0.
-        else (matchMin - min * scaleFact) / (1.-scaleFact)
+        if scaleFact = 1. then
+            0.
+        else
+            (matchMin - min * scaleFact) / (1. - scaleFact)
     (scaleFact, offsetC)
 
 // It is difficult to understand the functionality and high-level purpose of this code without comments
@@ -620,17 +679,17 @@ let getScalingFactorAndOffsetCentreGroup
 
     let maxXSym = 
         selectedSymbols
-        |> List.maxBy (fun (sym:Symbol) -> sym.Pos.X + snd (getRotatedHAndW sym)) 
+        |> List.maxBy (fun (sym: Symbol) -> sym.Pos.X + snd (getRotatedHAndW sym)) 
     let minXSym =
         selectedSymbols
-        |> List.minBy (fun (sym:Symbol) -> sym.Pos.X)
+        |> List.minBy (fun (sym: Symbol) -> sym.Pos.X)
 
     let maxYSym = 
         selectedSymbols
-        |> List.maxBy (fun (sym:Symbol) -> sym.Pos.Y+ fst (getRotatedHAndW sym))
+        |> List.maxBy (fun (sym: Symbol) -> sym.Pos.Y+ fst (getRotatedHAndW sym))
     let minYSym =
         selectedSymbols
-        |> List.minBy (fun (sym:Symbol) -> sym.Pos.Y)
+        |> List.minBy (fun (sym: Symbol) -> sym.Pos.Y)
 
     let oldMaxX = (maxXSym |> getRotatedSymbolCentre).X
     let newMaxX = matchBBMax.X - (snd (getRotatedHAndW maxXSym))/2.
@@ -765,8 +824,10 @@ let flipBlock
 //ra2520 lots of renaming/reordering things for clarity
 let postUpdateScalingBox (model:SheetT.Model, cmd) = 
     
-    let symbolCmd (msg: SymbolT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
-    let sheetCmd (msg: SheetT.Msg) = Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
+    let symbolCmd (msg: SymbolT.Msg) =
+        Elmish.Cmd.ofMsg (ModelType.Msg.Sheet (SheetT.Wire (BusWireT.Symbol msg)))
+    let sheetCmd (msg: SheetT.Msg) =
+        Elmish.Cmd.ofMsg (ModelType.Msg.Sheet msg)
     //ra2520 (1) helper function
     let removeOldScalingBoxCmd (model: SheetT.Model) =
         [model.ScalingBox.Value.ButtonList |> SymbolT.DeleteSymbols |> symbolCmd;

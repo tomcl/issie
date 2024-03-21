@@ -38,12 +38,7 @@ let getAllSingleConnectedSymbols (model: SheetT.Model) (wires: Wire list) =
         |> List.groupBy (fun sym -> sym)
         |> List.filter (fun (_, symList) -> List.length symList = 1)
         |> List.map (fun (sym, _) -> sym)
-        // |> (fun symList ->
-        //     match symList with
-        //     | [] -> []
-        //     | (s1,t1,w1)::(s2,t2,w2)::rest -> (s1,t1,w1, t1=s1)
 
-        // )
     let singleConnected = getSingleConnectedSymbols sourceTargetSymbols
     let sourceSymbols = List.map (fun (s, _, _) -> s.Id) singleConnected
     let targetSymbols = List.map (fun (_, t, _) -> t.Id) singleConnected
@@ -55,11 +50,6 @@ let getAllSingleConnectedSymbols (model: SheetT.Model) (wires: Wire list) =
     singleConnected
     |> List.map (fun (s, t, w) -> (s, t, w, moveSource sourceSymbols targetSymbols s.Id t.Id))
 
-
-
-
-    // getSingleConnectedSymbols sourceTargetSymbols
-    // |> moveSourceSymbol
 
 /// <summary>
 /// Gets all symbols associated with parallel wires in the model.
@@ -78,6 +68,60 @@ let getSymbolsBoundingBox (model: SheetT.Model) =
     let symbols = getAllSymbols model
     symbols
     |> List.map (fun (symS, symT, _, _) -> getSymBoundingBox symS)
+
+/// <summary>
+/// Check for overlaps between symbols after they have been moved.
+/// </summary>
+/// <param name="symbols">The symbol that checks for overlapping.</param>
+/// <returns>List of overlaps</returns>
+let detectOverlaps (symbols: Symbol list) : (Symbol * Symbol) list =
+    let boundingBoxes = symbols |> List.map (fun sym -> (sym, getSymBoundingBox sym))
+    let overlaps =
+        boundingBoxes
+        |> List.collect (fun (sym1, box1) ->
+            boundingBoxes
+            |> List.filter (fun (sym2, box2) ->
+                sym1 <> sym2 && overlap2DBox box1 box2)
+            |> List.map (fun (sym2, _) -> (sym1, sym2)))
+    overlaps
+
+let resolveOverlaps (overlaps: (Symbol * Symbol) list) : Symbol list -> Symbol list =
+    let moveApart (sym1: Symbol, sym2: Symbol) : Symbol * Symbol =
+        // Calculate current bounding boxes
+        let bb1 = getSymBoundingBox sym1
+        let bb2 = getSymBoundingBox sym2
+
+        // Determine the overlap along X and Y
+        let overlapX = max 0.0 (bb1.TopLeft.X + bb1.W - bb2.TopLeft.X)
+        let overlapY = max 0.0 (bb1.TopLeft.Y + bb1.H - bb2.TopLeft.Y)
+
+        // Determine how much to move the symbols to no longer overlap
+        let moveDistanceX = if overlapX > 0.0 then overlapX + 1.0 else 0.0
+        let moveDistanceY = if overlapY > 0.0 then overlapY + 1.0 else 0.0
+
+        // Check the direction of movement needed based on your layout preference
+        // This example assumes moving sym2 to the right and/or down
+        let newPosX = sym2.Pos.X + moveDistanceX
+        let newPosY = sym2.Pos.Y + moveDistanceY
+
+        // Move sym2 by updating its position
+        let sym2Moved = { sym2 with Pos = { X = newPosX; Y = newPosY } }
+
+        // Return the updated symbols
+        (sym1, sym2Moved)
+
+    let updatedSymbols (symbols) = 
+        overlaps |> List.fold (fun acc (sym1, sym2) ->
+            let (movedSym1, movedSym2) = moveApart(sym1, sym2) 
+            // Update the list of symbols with the new positions
+            // Ensure that the list remains unique and update only the moved symbols
+            acc |> List.map (fun sym ->
+                if sym.Id = movedSym1.Id then movedSym1
+                elif sym.Id = movedSym2.Id then movedSym2
+                else sym)
+        ) symbols  // Start with the original list of symbols
+    updatedSymbols  // Return the updated list of symbols
+
 
 /// <summary>
 /// Aligns all singly connected symbols by their target port.
@@ -108,7 +152,13 @@ let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
                             | _ -> v
                         ))
 
-    let NewSymbolModel = Optic.set symbols_ symbols' model //Update the model with the new symbol positions
+    let overlaps = detectOverlaps (Map.toSeq symbols' |> Seq.map snd |> Seq.toList)
+    let nonOverlappingSymbols = resolveOverlaps overlaps (Map.toSeq symbols' |> Seq.map snd |> Seq.toList)
+
+    let NewSymbolModel = 
+        Optic.set symbols_ 
+            (Map.ofSeq (List.zip (Map.keys symbols' |> Seq.toList) nonOverlappingSymbols)) 
+            model
 
     //Getting Wire map to update to new wire positions based on updated Symbol postions
     let wireMap = Optic.get wires_ model
@@ -120,7 +170,7 @@ let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
                     ||> List.fold (fun w movedWire ->
                         w |> Map.map (fun _ v ->
                             match v.WId with
-                            | id when id = movedWire.WId -> movedWire
+                            | (id: ConnectionId) when id = movedWire.WId -> movedWire
                             | _ -> v
                         ))
     //Updating the model with the new wire positions
@@ -128,16 +178,19 @@ let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
     // printfn "Number of intersecting pairs: %d" intersectingPair
     Optic.set wires_ wires' NewSymbolModel
 
+// Only scales unrotated components
+let scaleCustomSymAlign (sourceSym:Symbol) (targetSym:Symbol) =
+    let sourceDims = Optic.get customCompDims_ sourceSym
+    let targetDims = Optic.get customCompDims_ targetSym
+    let sourcePortCount = List.length sourceSym.Component.InputPorts
+    let targetPortCount = List.length targetSym.Component.InputPorts
+    let sourceDimPerPort = sourceDims.Y / (float)sourcePortCount
+    let targetDimPerPort = targetDims.Y / (float)targetPortCount
+    let scale = targetDimPerPort / sourceDimPerPort
+    Optic.set customCompDims_ ({X=targetDims.X; Y=targetDims.Y * scale}) targetSym
 
-// let scaleCustomCompAlign model compId =
-//     let sym = Optic.get symbols_ model
-//               |> Map.tryFind compId
-//               |> Option.defaultValue (failwith "Symbol not found")
-//     let wires = BusWireUpdateHelpers.getConnectedWires compId model
-//                 |> List.filter (fun w -> numOfVisRightAngles )
-//
-//
-// let scaleCustomCompsAlign (model: SheetT.Model) =
+
+// let scaleCustomSyms model = 
 //     let customSyms = Optic.get symbols_ model
 //                      |> Map.filter (fun _ s  -> match s.Component.Type with
 //                                                 | Custom _ -> true
@@ -145,6 +198,8 @@ let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
 //                      |> Map.filter (fun _ s -> s.Component.InputPorts > 1)
 //                      |> Map.filter (fun k s -> BusWireUpdateHelpers.getConnectedWires k model |> List.length > 1)
 //                      |> Map.toList
+    
+
 
 /// <summary>
 /// Aligns and scales symbols based on the positions and bounding boxes of connected symbols.

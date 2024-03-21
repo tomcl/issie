@@ -53,7 +53,7 @@ let getWireSymbolsAndPort (wireId: ConnectionId) (model: SheetT.Model) =
 
     ((sourceSymbol, sourcePortId), (targetSymbol, targetPortId))
 
-let placeWireLabelSymbol (symLabel: string) (position: XYPos) (model: SheetT.Model) :  Result<(Model * ComponentId), string> =
+let placeWireLabelSymbol (symLabel: string) (model: SheetT.Model) (position: XYPos) :  Result<(Model * ComponentId), string> =
     let symLabel = String.toUpper symLabel
     let wlSymModel, wlSymId =
         SymbolUpdate.addSymbol [] (model.Wire.Symbol) position IOLabel symLabel
@@ -99,14 +99,31 @@ let deleteWire (wireId: ConnectionId) (model: SheetT.Model) =
 
     { model with Wire = { model.Wire with Wires = newWires } }
 
+let autoAdjustWLRotation (wlSymId: ComponentId) (symId: ComponentId) (portId: PortId) (model: SheetT.Model) : SheetT.Model =
+    let symbolsMap = model.Wire.Symbol.Symbols
+    let symLens = symbolOf_ symId
+    let symRotation = Optic.get symbol_rotation_ (Optic.get symLens model)
+
+    match symbolsMap |> Map.tryFind wlSymId with
+        | Some wireLabel ->
+            let portEdge = getPortOrientation model.Wire.Symbol portId 
+            let adjustedSymbol = match portEdge with
+                                    | Top | Bottom -> 
+                                        match symRotation with 
+                                        | Degree180 | Degree270 -> SymbolResizeHelpers.rotateSymbol Degree270 wireLabel
+                                        | _ -> SymbolResizeHelpers.rotateSymbol Degree90 wireLabel
+                                    | Left | Right -> 
+                                        match symRotation with 
+                                        | Degree180 | Degree90 -> SymbolResizeHelpers.rotateSymbol Degree180 wireLabel
+                                        | _ -> wireLabel
+            let updatedSymbols = Map.add wlSymId adjustedSymbol symbolsMap
+            { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
+        | None -> model 
 
 let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourceWL: bool) (model: SheetT.Model) : SheetT.Model =
     let portIdStr = getPortIdStr portId
     let portPos = SheetBeautifyHelpers.getPortPos portIdStr model.Wire.Symbol
     
-    printfn "%A" portPos
-    printfn "%A" wlName
-
     let PortIndex  =  
         match model.Wire.Symbol.Symbols |> Map.tryFind symId with
         | Some symbol ->  
@@ -123,43 +140,36 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
             |> Option.get
         | None -> failwith "Symbol ID not found in model"
 
-    printfn "%A" PortIndex
-
-    let findWLPos  (portPos: XYPos) = 
-        let symLens = symbolOf_ symId  
-        let symRotation = Optic.get symbol_rotation_ (Optic.get symLens model)
-        // let wlLens = symbolOf_ wlId  
-        // let wlRotation = Optic.get symbol_rotation_ (Optic.get wlLens model)
+    let calcWLPos (portPos: XYPos)  = 
+        let portEdge = getPortOrientation model.Wire.Symbol portId 
         
-        match symRotation with
-        | Degree0 -> 
-            if isSourceWL then { X = portPos.X + 40.0; Y = portPos.Y }
-            else { X = portPos.X - 40.0; Y = portPos.Y }
-        | Degree90 -> 
-            if isSourceWL then { X = portPos.X; Y = portPos.Y - 40.0 }
-            else { X = portPos.X; Y = portPos.Y + 40.0 }
-        | Degree180 -> 
-            if isSourceWL then { X = portPos.X - 40.0; Y = portPos.Y }
-            else { X = portPos.X + 40.0; Y = portPos.Y }
-        | Degree270 -> 
-            if isSourceWL then { X = portPos.X; Y = portPos.Y + 40.0 }
-            else { X = portPos.X; Y = portPos.Y - 40.0 }
+        match portEdge with
+        | Right -> 
+             { X = portPos.X + 40.0; Y = portPos.Y }
+        | Left -> 
+             { X = portPos.X - 40.0; Y = portPos.Y }
+        | Bottom -> 
+            { X = portPos.X + 15.0; Y = portPos.Y + 40.0 }
+        | Top -> 
+            { X = portPos.X + 15.0; Y = portPos.Y - 40.0 }
 
     let placeWlAtPort (model: SheetT.Model) (portPos: XYPos) =
-        let wlPos = findWLPos portPos
-
-        placeWireLabelSymbol wlName wlPos model 
+        portPos
+        |> calcWLPos 
+        |> placeWireLabelSymbol wlName model 
         
     match placeWlAtPort model portPos with
     | Ok (updatedModel, wlSymId) ->
         let wlRec = {SymbolId = wlSymId; PortNumber = 0}
         let symRec = {SymbolId = symId; PortNumber = PortIndex}
 
+        let modelWithAdjustedWL = autoAdjustWLRotation wlSymId symId portId updatedModel
+        
         let wireResult =
             if isSourceWL then
-                placeWireX symRec wlRec updatedModel
+                placeWireX symRec wlRec modelWithAdjustedWL
             else
-                placeWireX wlRec symRec updatedModel
+                placeWireX wlRec symRec modelWithAdjustedWL
 
         match wireResult with
         | Ok (finalModel,_) -> finalModel 
@@ -170,16 +180,6 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
     | Error errMsg ->
         printfn "Error placing wire label: %s" errMsg
         model 
-        
-
-  
-
-// ALTERNATIVE FUNCTION: If we decide that using visible segments is better in testing, this is the alternative to getWireLength
-// working with the visible segment coordinate outputs
-// /// Calculates the length of the visible wire
-// let calcWireLength (wireId: ConnectionId) (model: SheetT.Model): float =
-//         visibleSegments wireId model
-//         |> List.sumBy (fun seg -> abs seg.X + abs seg.Y)
 
 
 let replaceLongWiresWithLabels (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =

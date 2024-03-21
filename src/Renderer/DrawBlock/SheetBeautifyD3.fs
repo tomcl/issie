@@ -68,7 +68,7 @@ let placeWireLabelSymbol (symLabel: string) (position: XYPos) (model: SheetT.Mod
             |> updateBoundingBoxes
         Ok (updatedModel, wlSymId)
 
-let placeWireX (source: SymbolPortRec) (target: SymbolPortRec) (model: SheetT.Model) : Result<SheetT.Model, string> =
+let placeWireX (source: SymbolPortRec) (target: SymbolPortRec) (model: SheetT.Model) : Result<SheetT.Model*ConnectionId, string> =
     let getPort (symPortRec: SymbolPortRec) (portType: PortType) =
         match model.Wire.Symbol.Symbols |> Map.tryFind symPortRec.SymbolId with
         | Some symbol ->
@@ -89,9 +89,8 @@ let placeWireX (source: SymbolPortRec) (target: SymbolPortRec) (model: SheetT.Mo
         if model.Wire.Wires |> Map.exists (fun wid wire -> wire.InputPort = newWire.InputPort && wire.OutputPort = newWire.OutputPort) then
             Error "Can't create wire because a wire already exists between those ports"
         else
-            model
-            |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
-            |> Ok
+            let updatedModel = model |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
+            Ok (updatedModel, newWire.WId)
 
 let deleteWire (wireId: ConnectionId) (model: SheetT.Model) =
     let newWires =
@@ -126,12 +125,28 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
 
     printfn "%A" PortIndex
 
+    let findWLPos  (portPos: XYPos) = 
+        let symLens = symbolOf_ symId  
+        let symRotation = Optic.get symbol_rotation_ (Optic.get symLens model)
+        // let wlLens = symbolOf_ wlId  
+        // let wlRotation = Optic.get symbol_rotation_ (Optic.get wlLens model)
+        
+        match symRotation with
+        | Degree0 -> 
+            if isSourceWL then { X = portPos.X + 40.0; Y = portPos.Y }
+            else { X = portPos.X - 40.0; Y = portPos.Y }
+        | Degree90 -> 
+            if isSourceWL then { X = portPos.X; Y = portPos.Y - 40.0 }
+            else { X = portPos.X; Y = portPos.Y + 40.0 }
+        | Degree180 -> 
+            if isSourceWL then { X = portPos.X - 40.0; Y = portPos.Y }
+            else { X = portPos.X + 40.0; Y = portPos.Y }
+        | Degree270 -> 
+            if isSourceWL then { X = portPos.X; Y = portPos.Y + 40.0 }
+            else { X = portPos.X; Y = portPos.Y - 40.0 }
+
     let placeWlAtPort (model: SheetT.Model) (portPos: XYPos) =
-        let wlPos = 
-            if isSourceWL then 
-                { X = portPos.X + 40.0; Y = portPos.Y }
-            else 
-                { X = portPos.X - 40.0; Y = portPos.Y }
+        let wlPos = findWLPos portPos
 
         placeWireLabelSymbol wlName wlPos model 
         
@@ -147,7 +162,7 @@ let addWireLabel (wlName: string) (portId: PortId) (symId: ComponentId) (isSourc
                 placeWireX wlRec symRec updatedModel
 
         match wireResult with
-        | Ok finalModel -> finalModel 
+        | Ok (finalModel,_) -> finalModel 
         | Error wireError -> 
             printfn "Error placing wire: %s" wireError
             updatedModel 

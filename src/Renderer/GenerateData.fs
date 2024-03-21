@@ -67,15 +67,15 @@
 
     /// return a shuffled range of integers
     let randomInt (min:int) (step:int) (max:int) : Gen<int> =
-            [|min..step..max|]
-            |> shuffleA
-            |> fromArray
+        [|min..step..max|]
+        |> shuffleA
+        |> fromArray
 
     /// return a shuffled range of integers
     let randomFloat (min:float) (step:float) (max:float) : Gen<float> =
-            [|min..step..max|]
-            |> shuffleA
-            |> fromArray
+        [|min..step..max|]
+        |> shuffleA
+        |> fromArray
 
 //------------------------Combinators to transform and combine random sequences-----------------//
 

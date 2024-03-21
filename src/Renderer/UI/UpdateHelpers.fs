@@ -490,6 +490,11 @@ let processContextMenuClick
         model  
         |> withMsg (Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlC))
     
+    | DBComp sym, "Convert Wire Label to Wire" ->
+        model 
+        |> map (sheet_ ) (SheetBeautifyD3.turnWireLabelsToWires sym) 
+        |> withNoCmd
+    
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
             map BusWireT.mode_ (function | BusWireT.Manual -> BusWireT.Auto | m -> m)

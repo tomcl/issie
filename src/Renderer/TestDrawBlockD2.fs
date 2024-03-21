@@ -12,6 +12,8 @@ open TestDrawBlock.HLPTick3.Builder
 open SheetBeautifyHelpers
 open SheetBeautifyD1
 open SheetBeautifyD2
+open SheetBeautifyD3
+open SheetBeautify
 
 module D2Test =
     open EEExtensions
@@ -718,7 +720,7 @@ module D2Test =
         /// <summary>AUTHOR hn621 - Prints out the average time to beautify a sheet of n components, where n is in range [5..5..25]</summary>
         let testBeautifyTimePerformance testNum firstSample dispatch model =
             let sheetMaker = makeRandomCircuit model
-            let beautifier = optimizePortOrder
+            let beautifier = beatifySheet
             let nGenerator = chunkShuffledGen (randomComponentSamples) 1
             let nComponents = [5..5..25]
 

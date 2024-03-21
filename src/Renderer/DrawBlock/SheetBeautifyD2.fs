@@ -108,10 +108,14 @@ let rotateAndRerouteComp (model: SheetT.Model) (compId: ComponentId) (rotate: Ro
     |> rerouteWire compId
 
 /// Reverses inputs of specified component before rerouting connected wires
-let reverseMuxAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Model =
+let reverseInputsAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Model =
     let updateSymbol sym =
         match sym.ReversedInputPorts with
-        | Some currState -> { sym with ReversedInputPorts = Some(not currState) }
+        | Some currState ->
+            if sym.Component.Type = Mux2 then
+                sym
+            else
+                { sym with ReversedInputPorts = Some(not currState) }
         | None -> failwith "No state found"
 
     let updatedSymbols =
@@ -133,7 +137,7 @@ let applyStateToModel (model: SheetT.Model) (state: ComponentState) : SheetT.Mod
             model
     let updatedInputsReversedModel =
         if state.InputsReversed = true then
-            reverseMuxAndRerouteComp updatedFlipModel state.ComponentId
+            reverseInputsAndRerouteComp updatedFlipModel state.ComponentId
         else
             updatedFlipModel
     rotateAndRerouteComp updatedInputsReversedModel state.ComponentId state.Rotation
@@ -192,17 +196,103 @@ let evaluateAllComponents (model: SheetT.Model) (components: ComponentId list) :
     printfn "Total number of ComponentStates applied: %d" stateCount
     finalModel
 
-let findBestModel (model: SheetT.Model) : SheetT.Model =
-    let components =
-        model.Wire.Symbol.Symbols
-        |> Map.toList
-        |> List.choose (fun (id, sym) ->
-            match sym.Component.Type with
-            | GateN _
-            | Mux2 -> Some id
-            | _ -> None)
+let findAllSubCircuitsFunctional (model: SheetT.Model) =
+    // Helper to add a component to a sub-circuit, ensuring no duplicates.
+    let addToSubCircuit comp subCircuit =
+        if List.contains comp subCircuit then
+            subCircuit
+        else
+            comp :: subCircuit
 
-    evaluateAllComponents model components
+    // Helper to merge two sub-circuits and ensure unique elements.
+    let mergeSubCircuits sc1 sc2 = (sc1 @ sc2) |> List.distinct
+
+    let rec processWires wires subCircuits =
+        match wires with
+        | [] -> subCircuits
+        | wire :: remainingWires ->
+            let sourceSymbol = getSourceSymbol model.Wire wire
+            let targetSymbol = getTargetSymbol model.Wire wire
+            let sourceId, targetId = sourceSymbol.Id, targetSymbol.Id
+
+            // Find sub-circuits that contain the source or target component, if any.
+            let sourceSubCircuitIndex, targetSubCircuitIndex =
+                subCircuits
+                |> List.indexed
+                |> List.fold
+                    (fun (si, ti) (idx, sc) ->
+                        let si =
+                            if List.contains sourceId sc then
+                                Some idx
+                            else
+                                si
+                        let ti =
+                            if List.contains targetId sc then
+                                Some idx
+                            else
+                                ti
+                        (si, ti))
+                    (None, None)
+
+            // Update sub-circuits based on whether source/target components are already in sub-circuits.
+            let updatedSubCircuits =
+                match sourceSubCircuitIndex, targetSubCircuitIndex with
+                | Some si, Some ti when si = ti -> subCircuits
+                | Some si, None ->
+                    subCircuits
+                    |> List.mapi (fun idx sc ->
+                        if idx = si then
+                            addToSubCircuit targetId sc
+                        else
+                            sc)
+                | None, Some ti ->
+                    subCircuits
+                    |> List.mapi (fun idx sc ->
+                        if idx = ti then
+                            addToSubCircuit sourceId sc
+                        else
+                            sc)
+                | Some si, Some ti when si <> ti ->
+                    let merged = mergeSubCircuits (List.item si subCircuits) (List.item ti subCircuits)
+                    let withoutSi =
+                        List.append (List.take si subCircuits) (List.skip (si + 1) subCircuits)
+                    let finalSubCircuits =
+                        List.append (List.take ti withoutSi) (List.skip (ti + 1) withoutSi)
+                    merged :: finalSubCircuits
+                | None, None ->
+
+                    List.append subCircuits [ [ sourceId; targetId ] ]
+                | _, _ -> failwithf "should not be here"
+
+            processWires remainingWires updatedSubCircuits
+
+    processWires (List.map snd (Map.toList model.Wire.Wires)) []
+let findBestModel (model: SheetT.Model) : SheetT.Model =
+    // Finds all sub-circuits in the model.
+    let subCircuits = findAllSubCircuitsFunctional model
+
+    // Function to evaluate a single sub-circuit and update the model.
+    let evaluateSubCircuit (currentModel: SheetT.Model) (subCircuit: ComponentId list) : SheetT.Model =
+        // Filter components of the current sub-circuit for the specific types to evaluate.
+        let componentsToEvaluate =
+            subCircuit
+            |> List.choose (fun id ->
+                match Map.tryFind id currentModel.Wire.Symbol.Symbols with
+                | Some sym ->
+                    match sym.Component.Type with
+                    | GateN _
+                    | Mux2 -> Some id
+                    | _ -> None
+                | None -> None)
+
+        // Evaluate all components in the current sub-circuit and update the model.
+        evaluateAllComponents currentModel componentsToEvaluate
+
+    // Sequentially evaluate each sub-circuit and update the model.
+    let updatedModel = List.fold evaluateSubCircuit model subCircuits
+
+    // Return the model updated with evaluations of all sub-circuits.
+    updatedModel
 
 // let flipCombinations = powerSet components
 // // printfn "Flip combinations: %A" flipCombinations
@@ -280,9 +370,25 @@ let findBestModel (model: SheetT.Model) : SheetT.Model =
 // Iterated Local Search (ILS)
 
 /// General framework for Iterated Local Search -> Needs fully implementing once we test more complex circuits
-let iteratedLocalSearch (model: SheetT.Model) : SheetT.Model =
-    let componentsToFlip =
-        model.Wire.Symbol.Symbols
+let iteratedLocalSearchSingleComponent (initialModel: SheetT.Model) : SheetT.Model =
+    let optimiseComponent (model: SheetT.Model) (compId: ComponentId) =
+        let states = generateComponentStates compId
+        states
+        |> List.fold
+            (fun currentBestModel state ->
+                let newStateModel = applyStateToModel model state
+                evaluateModels newStateModel currentBestModel)
+            model
+
+    let rec optimiseAllComponents (model: SheetT.Model) (components: ComponentId list) =
+        match components with
+        | [] -> model
+        | compId :: restComponents ->
+            let optimisedModel = optimiseComponent model compId
+            optimiseAllComponents optimisedModel restComponents // Continue with the rest components.
+
+    let componentIds =
+        initialModel.Wire.Symbol.Symbols
         |> Map.toList
         |> List.choose (fun (id, sym) ->
             match sym.Component.Type with
@@ -290,16 +396,6 @@ let iteratedLocalSearch (model: SheetT.Model) : SheetT.Model =
             | Mux2 -> Some id
             | _ -> None)
 
-    let rec search currentBestModel components =
-        match components with
-        | [] -> model //-> Introduce purtubation out of local optimum here (e.g. jump to a different cluster)
-        | compId :: tailComponents ->
-
-            let compFlipped = flipAndRerouteComp currentBestModel compId
-            let compNotFlipped = currentBestModel
-
-            let bestModel = evaluateModels compFlipped compNotFlipped
-
-            search bestModel tailComponents
-
-    search model componentsToFlip
+    let optimisedModel = optimiseAllComponents initialModel componentIds
+    let doubleOptimisedModel = optimiseAllComponents optimisedModel componentIds
+    doubleOptimisedModel

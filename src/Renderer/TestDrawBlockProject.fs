@@ -800,7 +800,8 @@ let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
 let beautifyFunctionsMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
     [
         "D1 Beautify Function", fun _ _ _ -> printf "D1 Beautify Function"
-        "D2 Beautify Function", fun _ _ _ -> printf "D2 Beautify Function"
+        "D2 Local Beautify Function", fun _ _ _ -> printf "D2 Local Beautify Function"
+        "D2 Exhaustive Beautify Function", fun _ _ _ -> printf "D2 Exhaustive Beautify Function"
         "D3 Beautify Function", fun _ _ _ -> printf "D3 Beautify Function"
         "Integrated Beautify Function", fun _ _ _ -> printf "Integrated Beautify Function"
     ]
@@ -811,7 +812,9 @@ let beautifyMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
     match name, model.DrawBlockTestState with
     | "D1 Beautify Function", _ -> 
         beautifySheet model sheetAlignScale dispatch
-    | "D2 Beautify Function", _ -> 
+    | "D2 Local Beautify Function", _ -> 
+        beautifySheet model iteratedLocalSearchSingleComponent dispatch
+    | "D2 Exhaustive Beautify Function", _ -> 
         beautifySheet model findBestModel dispatch
     | "D3 Beautify Function", _ -> 
         userThresholdPopUp model replaceLongWiresWithLabels dispatch

@@ -174,8 +174,8 @@ let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
     printf "MUX2 flipType: %A" ((snd ori[1]))
     printf "MUX3 rotation: %A" (fst ori[2])
     printf "MUX3 flipType: %A" ((snd ori[2]))
-    let Mux1Pos = middleOfSheet + {X=300. ; Y=0.}
-    let Mux2Pos = middleOfSheet + {X=300. ; Y=300.}
+    let Mux1Pos = middleOfSheet + {X=400. ; Y=0.}
+    let Mux2Pos = middleOfSheet + {X=400. ; Y=400.}
     let finalModel = 
         initSheetModel
         |> placeSymbol "DM1" Demux4 middleOfSheet  (fst ori[0]) (snd ori[0])
@@ -196,6 +196,7 @@ let makeTest1Circuit (ori:list<Rotation*(SymbolT.FlipType option)>)=
     |> Seq.cast
     |> List.ofSeq
     |>List.map (fun (x:SymbolT.Symbol) -> printf "%A STransform : %A" x.Component.Label x.STransform )
+    |>ignore
     finalModel
 
 let makeTest2Circuit (data: float*Rotation)=
@@ -225,6 +226,73 @@ let makeTest2Circuit (data: float*Rotation)=
         |> Result.bind (placeWire (portOf "SN1" 1) (portOf "MN1" 1))
         |> Result.bind (placeWire (portOf "SN1" 2) (portOf "MN1" 2))
         |> Result.bind (placeWire (portOf "MN1" 0) (portOf "B" 0))
+        |> getOkOrFail
+
+    {model with Wire = model.Wire |>calculateBusWidths |>fst}
+
+let makeTest3Circuit (data: float*Rotation)=
+    let rotation = snd data
+    let gap = fst data
+    printf "Test 3 rotation: %A" rotation
+    printf "Test 3 gap: %A" gap
+    let Pos1 = middleOfSheet + {X=0. ; Y=200.}
+    let Pos2 = middleOfSheet + {X=200. ; Y=(-60.)}
+    let Pos3 = Pos1 + {X=200. ; Y=(-60.)}
+    let Pos4 = Pos2 + {X=200. ; Y=(-50.)}
+    let Pos5 = Pos4 + {X=0.   ; Y=100.}
+    let Pos6 = Pos5 + {X=0.   ; Y=100.}
+    let Pos7 = Pos6 + {X=0.   ; Y=100.}
+    let Pos8 = Pos6 + {X=150.   ; Y=0.}
+    let Pos9 = Pos7 + {X=250.   ; Y=(-14.)}
+    let Pos10 = Pos8 + {X=80.   ; Y=(-100.)}
+    let Pos11 = Pos8 + {X=180.   ; Y=(-35.)}
+    let Pos12 = Pos11 + {X=180.   ; Y=(-100.)}
+    let Pos13 = Pos12 + {X=180.   ; Y=200.}
+
+
+
+    let noWireModel =
+        initSheetModel
+        |> placeSymbol "IN1" (Input1( BusWidth=2 , DefaultValue=None)) middleOfSheet Degree180 None
+        |> Result.bind(placeSymbol "IN2" (Input1( BusWidth=2 , DefaultValue=None)) Pos1 Degree180 None )
+        |> Result.bind(placeSymbol "SW1" (SplitWire(BusWidth=1)) Pos2 Degree180 None )
+        |> Result.bind(placeSymbol "SW2" (SplitWire(BusWidth=1)) Pos3 Degree180 None )
+        |> Result.bind(placeSymbol "G1" (GateN(GateType=And,NumInputs=2)) Pos4 Degree180 None )
+        |> Result.bind(placeSymbol "G2" (GateN(GateType=And,NumInputs=2)) Pos5 Degree180 None )
+        |> Result.bind(placeSymbol "G3" (GateN(GateType=And,NumInputs=2)) Pos6 Degree180 None )
+        |> Result.bind(placeSymbol "G4" (GateN(GateType=And,NumInputs=2)) Pos7 Degree180 None )
+        |> Result.bind(placeSymbol "G5" (GateN(GateType=And,NumInputs=2)) Pos8 Degree180 None )
+        |> Result.bind(placeSymbol "G6" (GateN(GateType=And,NumInputs=2)) Pos9 Degree180 None )
+        |> Result.bind(placeSymbol "G7" (GateN(GateType=Xor,NumInputs=2)) Pos10 Degree180 None )
+        |> Result.bind(placeSymbol "G8" (GateN(GateType=Xor,NumInputs=2)) Pos11 Degree180 None )
+        |> Result.bind(placeSymbol "MN1" (MergeN(NumInputs=4)) Pos12 Degree180 None )
+        |> Result.bind(placeSymbol "OUT" (Output( BusWidth=4)) Pos13 Degree180 None)
+        |> getOkOrFail
+    let model =
+        noWireModel
+        |> placeWire (portOf "IN1" 0) (portOf "SW1" 0)
+        |> Result.bind (placeWire (portOf "IN2" 0) (portOf "SW2" 0))
+        |> Result.bind (placeWire (portOf "SW1" 0) (portOf "G1" 0))
+        |> Result.bind (placeWire (portOf "SW1" 0) (portOf "G2" 0))
+        |> Result.bind (placeWire (portOf "SW1" 1) (portOf "G3" 0))
+        |> Result.bind (placeWire (portOf "SW1" 1) (portOf "G4" 0))
+        |> Result.bind (placeWire (portOf "SW2" 0) (portOf "G2" 1))
+        |> Result.bind (placeWire (portOf "SW2" 0) (portOf "G3" 1))
+        |> Result.bind (placeWire (portOf "SW2" 1) (portOf "G1" 1))
+        |> Result.bind (placeWire (portOf "SW2" 1) (portOf "G4" 1))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "G5" 0))          
+        |> Result.bind (placeWire (portOf "G3" 0) (portOf "G5" 1))          
+        |> Result.bind (placeWire (portOf "G4" 0) (portOf "G6" 1))
+        |> Result.bind (placeWire (portOf "G5" 0) (portOf "G6" 0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "G7" 0))
+        |> Result.bind (placeWire (portOf "G3" 0) (portOf "G7" 1))
+        |> Result.bind (placeWire (portOf "G4" 0) (portOf "G8" 0))
+        |> Result.bind (placeWire (portOf "G5" 0) (portOf "G8" 1))          
+        |> Result.bind (placeWire (portOf "G2" 0) (portOf "MN1" 0))
+        |> Result.bind (placeWire (portOf "G7" 0) (portOf "MN1" 1))
+        |> Result.bind (placeWire (portOf "G8" 0) (portOf "MN1" 2))
+        |> Result.bind (placeWire (portOf "G6" 0) (portOf "MN1" 3))
+        |> Result.bind (placeWire (portOf "MN1" 0) (portOf "OUT" 0))
         |> getOkOrFail
 
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
@@ -269,6 +337,18 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum dispatch
 
+    let D3Test3 testNum firstSample dispatch =
+        runTestOnSheets
+            "Complete test on crowded complex circuit"
+            firstSample
+            test2Builder
+            None
+            makeTest3Circuit
+            (AssertFunc failOnAllTests)
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum dispatch
+
     // ac2021: CAUSED COMPILE ERRORS SO COMMENTED
     // ac2021: I think it was caused by Alina's pr?
     // let D3Test2 testNum firstSample dispatch =
@@ -287,6 +367,7 @@ module Tests =
         [
             "Test1", D3Test1 // example
             "Test2", D3Test2 // example
+            "Test3", D3Test3
             "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
     

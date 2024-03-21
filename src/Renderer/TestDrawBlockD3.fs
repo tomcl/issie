@@ -378,7 +378,7 @@ module Tests =
             firstSample
             test2Builder
             showTargetSheet
-            None
+            (Some sheetWireLabelSymbol)
             makeTest3Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator

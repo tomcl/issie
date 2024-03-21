@@ -473,6 +473,15 @@ module HLPTick3 =
                 |> Seq.length
             straightWiresCount
 
+    let numOfVisRightAngles (model: SheetT.Model) : int =
+        let nets = SegmentHelpers.allWireNets model
+        let numWires = nets |> List.sumBy (fun (source,wires) -> wires.Length)
+        let distinctSegs =
+            nets
+            |> List.collect (fun (_, net) -> SegmentHelpers.getVisualSegsFromNetWires true model net)
+        // every visual segment => right-angle bend except for the first (or last) in a wire
+        distinctSegs.Length - numWires
+
     ///Create circuit containing 2 input ports and MUX2
     let makeTest6Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
@@ -493,7 +502,7 @@ module HLPTick3 =
 
         let testPreAlign = numOfStraightWires model
 
-        let alignedModel = Beautify.sheetAlignScale model
+        let alignedModel = Beautify.sheetSingly model
 
         let testPostAlign = numOfStraightWires alignedModel
         let straightenedWires = findNumDiff testPreAlign testPostAlign

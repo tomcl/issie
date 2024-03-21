@@ -97,8 +97,15 @@ let sheetOrderFlip (sheet: SheetT.Model) =
     // flip a symbol vertically, SymbolResizeHelpers.flip Symbol does not work for flip vertical
     let flipVertical (sym: SymbolT.Symbol) = 
         sym
-        |> SymbolResizeHelpers.rotateSymbol Degree180
-        |> SymbolResizeHelpers.flipSymbol SymbolT.FlipHorizontal 
+        |> SymbolResizeHelpers.flipSymbol SymbolT.FlipVertical
+
+    let rotate90 (sym : SymbolT.Symbol) = 
+        sym
+        |> SymbolResizeHelpers.rotateSymbol Degree90
+
+    let rotateAnti90 (sym : SymbolT.Symbol) = 
+        sym
+        |> SymbolResizeHelpers.rotateSymbol Degree270
 
     // flip a MUX and swap input
     let flipAndSwapMux (symbol: SymbolT.Symbol) = 
@@ -112,28 +119,43 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         //numOfWireRightAngleCrossings sheet
     printf "inital cross number: %A" (numWireCrossing sheet)
     
-    // 4 possible combinations for a MUX being flipped or having inputs swapped. 4 states
+    // 12 possible combinations for a MUX being flipped, having inputs swapped, rotate 90, rotate270. 12 states
+    // flip, swap, rotate 90, rotate-90, flip and swap, flip and rotat90, flip and rotat-90, swap 90, swap -90, flipand swap 
+    //and rotate90, flip and swap and rotate-90
     let muxTransform (state:int) (sym: SymbolT.Symbol)= 
         match state with
         | 0 -> sym
         | 1 -> flipVertical sym
         | 2 -> swapMuxInputOrder sym
         | 3 -> flipAndSwapMux sym
+        | 4 -> rotate90 sym
+        | 5 -> rotateAnti90 sym
+        | 6 -> sym |> flipVertical |> rotate90
+        | 7 -> sym |> flipVertical |> rotateAnti90
+        | 8 -> sym |> swapMuxInputOrder |> rotate90
+        | 9 -> sym |> swapMuxInputOrder |> rotateAnti90
+        | 10 -> sym |> flipAndSwapMux |> rotate90
+        | 11 -> sym |> flipAndSwapMux |> rotateAnti90
         | _ -> failwithf "invalid transform state"
-    //  2 possible combinations for a gate being flipped vertical 2 states
+
+    //  6 possible combinations for a gate being flipped vertical 2 states
     let gateTransform (state: int) (sym: SymbolT.Symbol) = 
         match state with
         | 0 -> sym
         | 1 -> flipVertical sym
+        | 2 -> rotate90 sym
+        | 3 -> rotateAnti90 sym
+        | 4 -> sym |> flipVertical |> rotateAnti90
+        | 5 -> sym |> flipVertical |> rotate90
         | _ -> failwithf "invalid transform state"
 
     let muxList = getCompList "Mux" sheet
     let gateList= getCompList "Gate" sheet
     let customCompList = getCompList "Custom" sheet
     ///list of combination of all Muxes with transform state, e.g 2 MUX, each Mux has 4 transform combination -> total 16 combination 
-    let muxTransformStates = generateAllStates (List.length muxList) 4
+    let muxTransformStates = generateAllStates (List.length muxList) 12
     ///list of combination of all Gates with transform state, e.g 3 Gates, each Gate has 2 transform combination -> total 8 combination 
-    let gateTransformStates = generateAllStates (List.length gateList) 2
+    let gateTransformStates = generateAllStates (List.length gateList) 6
 
     let allCombinationList = List.allPairs muxTransformStates gateTransformStates
 
@@ -172,6 +194,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             )
     /// get the transform list which number of wire crossing on sheet is minimum
     let getOptimalCombination = 
+        printf "%A" (List.length getNumWireCrossingForAllCombination)
         let optimalIndex = 
             //printf "%A" getNumWireCrossingForAllCombination
             getNumWireCrossingForAllCombination

@@ -55,15 +55,10 @@ module Constants =
     let seed = 101
 
 // ------------------------------------ Team work ------------------------------------------
-(* 
-    This part of the code aims to test the correct usage of labels as described in D3. 
-    See https://github.com/dyu18/hlp24-project-issie-team7/tree/indiv-az1821/README-Indiv-notes.md for more documentation. 
-*)
-
-// /// dummy function to be tested (to avoid error for now)
-// let alignSinglyConnectedComponents (model : SheetT.Model) = 
-//     (model)
-
+let applyAlignSinglyConnectedComponents (model : SheetT.Model) = 
+    model 
+    |> alignSinglyConnectedComponents
+    |> Ok
 let applyOptimizedModel (model : SheetT.Model) = 
     model
     |> optimizeModelExhaustive
@@ -220,11 +215,12 @@ module T123 =
         |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
+        |> Result.bind applyAlignSinglyConnectedComponents
+        |> Result.bind applyAlignSinglyConnectedComponents
+        |> Result.bind applyAlignSinglyConnectedComponents
+        |> Result.bind applyAlignSinglyConnectedComponents
         |> getOkOrFail
-        |> alignSinglyConnectedComponents
-        |> alignSinglyConnectedComponents
-        |> alignSinglyConnectedComponents
-        |> alignSinglyConnectedComponents
+
     let makeA3TestCircuit (muxPos: XYPos) =
         let offset = {X=30; Y=50}
         let muxPos2 ={X = muxPos.X + 150.0; Y = muxPos.Y + 28.0 + offset.X }
@@ -252,10 +248,8 @@ module T123 =
         |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
         |> Result.bind (placeWire (portOf "MUX3" 0) (portOf "C" 0))
-       // |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "OutputC" 1))
         |> getOkOrFail
-        //|> alignSinglyConnectedComponents
-        //|> alignSinglyConnectedComponents
+
     let makeA3BeautifyTestCircuit (muxPos: XYPos) =
         let offset = {X=30; Y=50}
         let muxPos2 ={X = muxPos.X + 150.0; Y = muxPos.Y + 28.0 + offset.X }
@@ -283,10 +277,9 @@ module T123 =
         |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
         |> Result.bind (placeWire (portOf "MUX3" 0) (portOf "C" 0))
-       // |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "OutputC" 1))
+        |> Result.bind applyAlignSinglyConnectedComponents
+        |> Result.bind applyAlignSinglyConnectedComponents
         |> getOkOrFail
-        |> alignSinglyConnectedComponents
-        |> alignSinglyConnectedComponents
 
     let makeA5BeutifyTestCircuit (muxPos: XYPos) =
         let muxPos2 ={X = muxPos.X + 150.0; Y = muxPos.Y + 28.0}
@@ -297,7 +290,6 @@ module T123 =
         let s2Pos = {X = muxPos.X - 100.0; Y = muxPos.Y + 110.0}
         initSheetModel
         |> placeSymbol "Decode"Decode4 muxPos
-        
         |> Result.bind (placeSymbol "InputA" (Input1 (1,None)) APos)
         |> Result.bind (placeSymbol "InputB" (Input1 (1,None)) BPos)
         |> Result.bind (placeSymbol "OutputC" (GateN(And, 4)) CPos)
@@ -307,9 +299,9 @@ module T123 =
         |> Result.bind (placeWire (portOf "Decode" 1) (portOf "OutputC" 1))
         |> Result.bind (placeWire (portOf "Decode" 2) (portOf "OutputC" 2))
         |> Result.bind (placeWire (portOf "Decode" 3) (portOf "OutputC" 3))
+        |> Result.bind applyAlignSinglyConnectedComponents
+        |> Result.bind applyAlignSinglyConnectedComponents
         |> getOkOrFail
-        |> alignSinglyConnectedComponents
-        |> alignSinglyConnectedComponents
     let makeA5TestCircuit (muxPos: XYPos) =
         let muxPos2 ={X = muxPos.X + 150.0; Y = muxPos.Y + 28.0}
         let APos ={X = muxPos.X - 150.0; Y = muxPos.Y - 28.0} 

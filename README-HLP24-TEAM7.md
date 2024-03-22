@@ -28,6 +28,8 @@ The functions `autoWiresToWireLabels` and `autoWireLabelsToWires` are called in 
 
 The functions `selectedWiresToWireLabels` and `selectedWireLabelsToWires` can be invoked by users clicking on the "Replace Selected Wire Nets by Wire Labels" and "Replace Selected Wire Label Sets by Wires" items in the Edit dropdown menu, or by right-clicking on selected elements and clicking on "Same-Net Wires to Wire Labels" and "Same-Name Wire Labels to Wires" in the context menu. The actions can be undone with `Ctrl+Z` and redone with `Ctrl+Y`. (These are mandatory commands where the invoked transformation must be performed, regardless of the wiring complexity. Useful when users would like to perform transformations manually.)
 
+### Tests
+The file `SheetBeautifyTest.fs` integrates all the tests for the above features, while keeping a same basic structure as in Tick 3. For each beautify strategy, specific test cases were generated to test features in D1, D2 and D3 (as mentioned above), these test cases are then passed to the test driver, where the beautifiers are applied. 
 
 ## List of Modules Containing Our Code
 | Modules |
@@ -37,6 +39,7 @@ The functions `selectedWiresToWireLabels` and `selectedWireLabelsToWires` can be
 | module SheetBeautifyD1 |
 | module SheetBeautifyD2 |
 | module SheetBeautifyD3 |
+| module SheetBeautifyTest |
 | module TestDrawBlock |
 
 

@@ -744,15 +744,11 @@ module HLPTick3 =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1", TestDrawBlockD1.TestD1.Tests.test1 // example
-                "Test2: Multiply", TestDrawBlockD1.TestD1.Tests.test2 // example
-                "Test3", TestDrawBlockD1.TestD1.Tests.test3 // example
-                "Test4", TestDrawBlockD1.TestD1.Tests.test4
-                "D1Test1: Singly", TestDrawBlockD1.TestD1.Tests.D1Test1
-                "D1Test2: Multiply", TestDrawBlockD1.TestD1.Tests.D1Test2
-                "D1Test3: S1 rotate", TestDrawBlockD1.TestD1.Tests.D1Test3
+                "D1TestMain", TestDrawBlockD1.TestD1.Tests.D1TestMain
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
                 "D3 Replace Test", fun _ _ _ -> printf "DemoTest: D3"
+                "D2 Test: sheetOrderFlip", fun _ _ _ -> printf "D2 Test: sheetOrderFlip"
+                "D2 Template", TestDrawBlockD2.TestD2.Tests.D2Test0
             ]
 
         /// Display the next error in a previously started test
@@ -776,5 +772,21 @@ module HLPTick3 =
                 ()
             |"D3 Replace Test", Some state ->
                 showSheetInIssieSchematic (removeComplexWires model.Sheet) dispatch
+            | "D2 Test: sheetOrderFlip", Some state ->
+                // let printPipe (msg:string) x = printf $"{msg} {x}" ; x
+                printf "Starting DemoTest: sheetOrderFlip"
+                printf $"DemoTest: Wire Crossings before: {SheetBeautifyHelpers.numOfWireRightAngleCrossings model.Sheet}"
+                // printf $"Right Angles before: {numOfVisRightAngles model.Sheet}"
+                printf $"DemoTest: # of straight lines before: {numOfStraightWires model.Sheet}"
+                printf $"DemoTest: Length of Wire Routing before: {SheetBeautifyHelpers.calcVisWireLength model.Sheet}"
+                printf $"DemoTest: # of overlapping components before: {SheetBeautifyHelpers.numOfIntersectedSymPairs model.Sheet}"
+
+                printf "DemoTest: Implement sheetOrderFlip"
+                let flippedSheet = SheetBeautify.sheetOrderFlip model.Sheet
+                printf $"DemoTest: Wire Crossings after: {SheetBeautifyHelpers.numOfWireRightAngleCrossings flippedSheet}"
+                printf $"DemoTest: # of straight lines after: {numOfStraightWires flippedSheet}"
+                printf $"DemoTest: Length of Wire Routing after: {SheetBeautifyHelpers.calcVisWireLength flippedSheet}"
+                printf $"DemoTest: # of overlapping components after: {SheetBeautifyHelpers.numOfIntersectedSymPairs flippedSheet}"
+                showSheetInIssieSchematic (flippedSheet) dispatch
             | _ ->
                 func testIndex 0 dispatch

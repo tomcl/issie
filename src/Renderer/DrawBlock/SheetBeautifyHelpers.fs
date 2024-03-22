@@ -11,6 +11,7 @@ open Helpers
 open BlockHelpers
 
 open Optics.Operators // for >-> operator
+open SymbolResizeHelpers
 
 //----------------------------------------------------------------------------------------------------//
 //----------------------------------------RotateScale-------------------------------------------------//
@@ -19,7 +20,7 @@ open Optics.Operators // for >-> operator
 
 let getBlockAbstracted (symbols: Symbol list) : BoundingBox =
     /// Sample implementation to show how abstraction can capture XY regularity
-    /// It is debatable whetehr this on its own is worthwhile because of the
+    /// It is debatable whether this on its own is worthwhile because of the
     /// cognitive burden understanding what it is doing. But with more consistent use
     /// of XYPos (see TODO) and a few standard helper functions it looks better.
     /// This implementation captures more readably the "real content" of the function.
@@ -34,7 +35,7 @@ let getBlockAbstracted (symbols: Symbol list) : BoundingBox =
     /// TODO: put this in DrawHelpers with other low-level stuff.
     let toXY x y : XYPos = {X=x;Y=y}
 
-    /// apply f to a list to genrate a list of XYPos. Extract lists of X and y coordinates.
+    /// apply f to a list to generate a list of XYPos. Extract lists of X and y coordinates.
     /// Apply total to make a float from each coordinate-list, return X,Y results as an XYPos.
     let listMapXY total (f: 'a -> XYPos) (xyL: 'a list) =
             toXY (total (List.map (fun xy -> (f xy).X) xyL))
@@ -98,21 +99,25 @@ let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (
 /// Flip the symbol given by symLabel by an amount flip.
 /// Takes in a symbol label, a flip fixed amount, and a sheet containing the symbol.
 /// Return the sheet with the flipped symbol.
+/// fixed FlipVertical 0 180 error
 let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
+        let symbolsMap = model.Wire.Symbol.Symbols
+        let getSymbol =
+            mapValues symbolsMap
+            |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
+            |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
 
-    let symbolsMap = model.Wire.Symbol.Symbols
-    let getSymbol =
-        mapValues symbolsMap
-        |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
-        |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
+        match getSymbol with
+        | Ok symbol ->
+            let flippedSymbol = 
+                match flip with
+                | FlipHorizontal -> SymbolResizeHelpers.flipSymbol flip symbol
+                | FlipVertical -> SymbolResizeHelpers.flipSymbol FlipHorizontal symbol
+                                    |> rotateAntiClockByAng Degree180 
+            let updatedSymbolsMap = Map.add symbol.Id flippedSymbol symbolsMap
+            { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbolsMap } } }
 
-    match getSymbol with
-    | Ok symbol ->
-        let flippedSymbol = SymbolResizeHelpers.flipSymbol flip symbol
-        let updatedSymbolsMap = Map.add symbol.Id flippedSymbol symbolsMap
-        { model with Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbolsMap } } }
-
-    | _ -> model
+        | _ -> model
 
 //----------------------------------------------------------------------------------------------------//
 //------------------------------Helpers functions assesed in Individual Phase-------------------------//
@@ -211,7 +216,7 @@ let symbol_flipped_ =
 
 
 //----------------------------------------------------------------------------------------------//
-//-----------------------------------SegmentHelpers Submodel------------------------------------//
+//-----------------------------------SegmentHelpers Submodule-----------------------------------//
 //----------------------------------------------------------------------------------------------//
 
 /// Helpers to work with visual segments and nets
@@ -266,12 +271,6 @@ module SegmentHelpers =
 
     open BusWireT // so that Orientation D.U. members do not need qualification
 
-    /// visible segments in a wire as a pair (start,end) of vertices.
-    /// start is the segment end nearest the wire Source.
-    let visibleSegsWithVertices (wire:BusWireT.Wire) (model: SheetT.Model) =
-        visibleSegments wire.WId model
-        |> List.map (fun segV -> wire.StartPos, wire.StartPos + segV)
-
     /// Input must be a pair of visula segment vertices (start, end).
     /// Returns segment orientation
     let visSegOrientation ((vSegStart, vSegEnd): XYPos * XYPos) =
@@ -280,11 +279,34 @@ module SegmentHelpers =
         | false -> Vertical
 
 
+    /// print a visual segment in an easy-toread form
+    let pvs (seg: XYPos * XYPos) =
+        let ori = visSegOrientation seg
+        let startS = fst seg
+        let endS = snd seg
+        let c1,cs1,c2,cs2,c3,cs3 =
+            match ori with
+            | Vertical -> startS.X,"X", startS.Y,"Y", endS.Y,"Y"
+            | Horizontal -> startS.Y,"Y",  startS.X,"X",endS.X ,"X"
+        $"{ori}:{int c1}{cs1}:({int c2}{cs2}-{int c3}{cs3}) {int <| euclideanDistance startS endS}-"
+
+
+    /// visible segments in a wire as a pair (start,end) of vertices.
+    /// start is the segment end nearest the wire Source.
+    let visibleSegsWithVertices (wire:BusWireT.Wire) (model: SheetT.Model) =
+        (wire.StartPos, visibleSegments wire.WId model)
+        ||> List.scan (fun startP segV -> startP + segV)
+        |> List.pairwise
+
+
+
+
+
     /// Filter visSegs so that if they overlap with common start only the longest is kept.
     /// ASSUMPTION: in a connected Net this will remove all overlaps
     let distinctVisSegs (visSegs: (XYPos * XYPos) list) =
         /// convert float to integer buckt number
-        let pixBucket (pixel:float) = int(pixel / Constants.bucketSpacing)
+        let pixBucket (pixel:float) = int (pixel / Constants.bucketSpacing)
 
         /// convert XYPos to pair of bucket numbers
         let posBucket (pos:XYPos) = pixBucket pos.X, pixBucket pos.Y
@@ -295,7 +317,9 @@ module SegmentHelpers =
         // then discard duplicates (the later = shorter ones will be discarded)
         // Two segments are judged the same if X & y starting coordinates map to the same "buckets"
         // This will very rarely mean that very close but not identical position segments are viewed as different
-        |> List.distinctBy (fun ((startOfSeg, _) as vSeg) -> posBucket startOfSeg, visSegOrientation vSeg)
+        |> List.distinctBy (fun ((startOfSeg, _) as vSeg) ->
+                    let bucket = posBucket startOfSeg, visSegOrientation vSeg
+                    bucket)
 
     /// Filter visSegs so that if they overlap with common start only the longest is kept.
     /// More accurate version of distinctVisSegs.

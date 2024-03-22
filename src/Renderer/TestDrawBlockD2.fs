@@ -534,6 +534,11 @@ module TestD2 =
                 printSuccess None
         // TODO: Wire squashing test
 
+        // let failOnAllTests (sample: int) (sheet: SheetT.Model) = 
+        //     let oldRoutingLength = calcVisWireLength sheet
+        //     let newRoutingLength = sheetOrderFlip sheet |> calcVisWireLength 
+        //     Some $""
+
     module Tests = 
     // redo runTestsOnSheets
         let recordPositionInTest (testNumber: int) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
@@ -606,6 +611,15 @@ module TestD2 =
                 dispatch
             |> recordPositionInTest testNum dispatch
         
+        // let D2TestMain testNum firstSample dispatch =
+        //     runD2TestOnSheets
+        //         "D1 Test with both singly and multiply connected components"
+        //         firstSample
+        //         arbitrarySamples
+        //         makeRandomFlipCircuit
+        //         Asserts.failOnAllTests
+        //         dispatch
+        //     |> recordPositionInTest testNum dispatch
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list

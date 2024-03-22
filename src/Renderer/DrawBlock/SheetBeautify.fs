@@ -219,7 +219,7 @@ let checkInOutPortOpp (model: SheetT.Model) (wire: BusWireT.Wire) =
             | Top, Bottom -> true
             | Bottom, Top -> true
             | _ ->
-                printfn "Symbol IN: %A, and Symbol OUT: %A Input and output ports are not opposite" inputSymbol.Component.Label outputSymbol.Component.Label
+                //printfn "Symbol IN: %A, and Symbol OUT: %A Input and output ports are not opposite" inputSymbol.Component.Label outputSymbol.Component.Label
                 false
         | None -> failwithf "What? No ports found connected by the wire"
     | _, _ ->   false 
@@ -518,10 +518,10 @@ let sheetAlignScale (model: SheetT.Model) : SheetT.Model =
     //printMovementSymbolWireDetails nonSinglyConnected
     match nonSinglyConnected.Length with
     | 0 ->
-        printfn "No non singly connected symbols to align"
+        //printfn "No non singly connected symbols to align"
         model
     | _ ->
-        printfn "Non singly connected symbols to align"
+        //printfn "Non singly connected symbols to align"
 
         let nonSinglyCnnectedModel = updateModelWithNonSinglyConnected model nonSinglyConnected
         let newSinglyConnected =  singlyConnectedSymbols nonSinglyCnnectedModel // cals singly connected symbols again to check if any wires have been unstraightened

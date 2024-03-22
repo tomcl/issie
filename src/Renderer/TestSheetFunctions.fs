@@ -112,6 +112,7 @@ let testResizeSymbolTopLevelImproved (model: ModelType.Model) : ModelType.Model 
         //     match model.Sheet.Wire.Symbol.Symbols |> Map.toList with
         //     | symbolToSizeInMap :: otherSymbolInMap :: _ -> snd (symbolToSizeInMap), snd (otherSymbolInMap)
         //     | _ -> failwith "Not enough elements in symbol list" // will never happen
+
         let customSymbolsPairs =
             model.Sheet.Wire.Symbol.Symbols
             |> Map.values
@@ -137,6 +138,30 @@ let testResizeSymbolTopLevelImproved (model: ModelType.Model) : ModelType.Model 
         model |> Optic.set (sheet_ >-> wire_) (newWire)
 
     | false -> model
+
+// let testCustomCompResize (model: ModelType.Model) : ModelType.Model =
+//     // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
+//     match model.Sheet.Wire.Symbol.Symbols.Count >= 2 with
+//     | true ->
+//         let customSymbols =
+//             model.Sheet.Wire.Symbol.Symbols
+//             |> Map.values
+//             |> Array.toList
+//             |> List.filter (fun sym ->
+//                 match sym.Component.Type with
+//                 | Custom _ -> true
+//                 | _ -> false)
+
+//         let newWire =
+//             customSymbols
+//             |> List.fold
+//                 (fun accWModel customSymbol ->
+//                     (reSizeCustomComponent accWModel customSymbol
+//                 model.Sheet.Wire))
+
+//         model |> Optic.set (sheet_ >-> wire_) (newWire)
+
+//     | false -> model
 
 let testD2 (model: ModelType.Model) : ModelType.Model =
     model

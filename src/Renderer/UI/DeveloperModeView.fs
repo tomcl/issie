@@ -184,8 +184,8 @@ let developerModeView (model: ModelType.Model) dispatch =
               ("Near-Straight Wires", (countAlmostStraightWiresOnSheet model.Sheet).ToString())
               ("Singly-Conn Wires", (countSinglyConnectedWires model.Sheet).ToString())
               ("Vis. Seg. Length", (countVisibleSegmentLength model.Sheet).ToString("F2"))
-              ("Sym-Sym Overlap", (countIntersectingSymbolPairsWithOverlapArea model.Sheet).ToString()) ]
-        //   ("Free Space!!!", ":)") ]
+              //   ("Sym-Sym Overlap", (countIntersectingSymbolPairsWithOverlapArea model.Sheet).ToString()) ]
+              ("Free Space!!!", ":)") ]
 
         counterItems
         |> List.chunkBySize 2

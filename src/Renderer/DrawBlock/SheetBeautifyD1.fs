@@ -950,7 +950,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
             (fun currentSheetModel (cleanUpRecord: CleanUpRecord) ->
                 printf "doing a pass with symbol id %A" cleanUpRecord.Symbol.Id
                 // create a new straight wire
-                let _, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
+                let testNewStraightWire, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
                 let newSheetModelBeforeReroute =
                     currentSheetModel
                     |> updateSheetSymWithNewSym newMovedSymbol
@@ -958,6 +958,8 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                         updateSheetWireWithNewWire
                             (smartAutoroute modelWithNewSymb.Wire cleanUpRecord.Wire)
                             modelWithNewSymb)
+                // let newSheetModel =
+                //     updateSheetWireWithNewWire testNewStraightWire newSheetModelBeforeReroute
                 let routedWires =
                     newSheetModelBeforeReroute.Wire
                     |> perturbAllSymbols 100.0

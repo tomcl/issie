@@ -49,9 +49,12 @@ type moveSymInformation =
         Movements: (Directions * float) list
     }
 
+ /// Function to easily create a moveSymInformation record
 let createMovementSymbolWire (symbolToMove: SymbolT.Symbol) (symbolRef: SymbolT.Symbol) (movements: (Directions * float) list) : moveSymInformation =
     { SymbolToMove = symbolToMove; SymbolRef = symbolRef; Movements = movements }
 
+
+/// Function that checks the wires that need to be straightened
 let checkWiresToBeStraightened (model: SheetT.Model) =
     let wires = model.Wire.Wires
 
@@ -59,10 +62,11 @@ let checkWiresToBeStraightened (model: SheetT.Model) =
         let wireVertices =
             visibleSegments wId model
             |> List.filter (fun segs -> not (segs =~ XYPos.zero))
+        // change the match to enable and disable straightening of wires with 3, 4 or 5 segments
         match wireVertices with
         | [a; b; c] -> Some [a; b; c] // Explicitly match a list with 3 elements
-        | [a ;b ; c ;d] -> Some [a; b; c; d]
-        | [a; b; c; d; e] -> Some [a; b; c; d; e]
+        | [a ;b ; c ;d] -> Some [a; b; c; d] // Explicitly match a list with 4 elements
+        | [a; b; c; d; e] -> Some [a; b; c; d; e] // Explicitly match a list with 5 elements
         | _ -> None
 
     let wireSegments =
@@ -100,8 +104,7 @@ let isSymbolSinglyConnected (symbol: SymbolT.Symbol) (model: SheetT.Model) : boo
 let findOutputSymbol (model: SheetT.Model) (wire: BusWireT.Wire, segments:XYPos list) : (BusWireT.Wire * XYPos list * SymbolT.Symbol*SymbolClassification) Option =
     // need to identif the symbol or component and move it by the amount stated by the second segment
     let symbolMap = model.Wire.Symbol.Symbols
-        // Assuming symbolMap is a Map<componentId, Symbol>
-        // Find the symbol whose component's output port list contains the wire's OutputPortId
+
     let matchingSymbolOption =
         symbolMap
         |> Map.toList
@@ -112,7 +115,9 @@ let findOutputSymbol (model: SheetT.Model) (wire: BusWireT.Wire, segments:XYPos 
     | Some (_, symbol) ->
         Some (wire, segments, symbol, ClassOutput)
     | None -> None
-// not combined with the above function as later in the code only one of these function is called whilst in other places both are called
+
+
+// not combined with the findOutputSymbol as later in the code only one of these function is called whilst in other places both are called
 /// Finds the destination port of the wire and returns a tuple of the wire, segments and the symbol
 let findInputSymbol (model: SheetT.Model) (wire: BusWireT.Wire, segments:XYPos list) : (BusWireT.Wire * XYPos list * SymbolT.Symbol*SymbolClassification) Option =
     // need to identif the symbol or component and move it by the amount stated by the second segment

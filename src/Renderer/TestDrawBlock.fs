@@ -533,11 +533,11 @@ module HLPTick3 =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "D1TestMain", TestDrawBlockD1.TestD1.Tests.D1TestMain
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-                "D3 Replace Test", fun _ _ _ -> printf "DemoTest: D3"
+                "D1 Test", TestDrawBlockD1.TestD1.Tests.D1TestMain
                 "D2 Test: sheetOrderFlip", fun _ _ _ -> printf "D2 Test: sheetOrderFlip"
                 "D2 Template", TestDrawBlockD2.TestD2.Tests.D2Test0
+                "D3 Replace Test", TestDrawBlockD3.D3Tests.test1
+                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]
 
         /// Display the next error in a previously started test

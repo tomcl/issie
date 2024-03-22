@@ -255,14 +255,14 @@ module D3Builder =
 module D3Asserts =
 
     open SheetBeautifyHelpers
-    open SheetBeautify.Constants
+    open SheetBeautify
 
     /// Fails all tests: useful to show in sequence all the sheets generated in a test
     let failOnAllTests (sample: int) (sheet: SheetT.Model) =
         let numOfComponentOverlap = numOfIntersectedSymPairs sheet
         let numOfWireBends = numOfVisRightAngles sheet
-        let numOfComponentOverlapAfter = sheet |> sheetWireLabelSymbol |> numOfIntersectedSymPairs
-        let numOfWireBendsAfter = sheet |> sheetWireLabelSymbol |> numOfVisRightAngles 
+        let numOfComponentOverlapAfter = sheet |> SheetBeautify.D4Build.sheetWireLabelSymbol |> numOfIntersectedSymPairs
+        let numOfWireBendsAfter = sheet |> SheetBeautify.D4Build.sheetWireLabelSymbol |> numOfVisRightAngles 
         Some $"overlaps before: {numOfComponentOverlap} overlaps after: {numOfComponentOverlapAfter} wire bends before: {numOfWireBends} wire bends after: {numOfWireBendsAfter}"
 
 

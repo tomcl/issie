@@ -3,17 +3,14 @@
 // open modules likely to be used
 open SheetBeautifyHelpers
 open CommonTypes
-open DrawHelpers
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open SheetUpdateHelpers
-open SymbolUpdate
 open BlockHelpers
 open Optics
 open Optics.Operators
-open Helpers
 open Symbol
 open BusWireRoute
 open Sheet
@@ -158,7 +155,7 @@ let resolveOverlaps (overlaps: (Symbol * Symbol) list) : Symbol list -> Symbol l
 /// </summary>
 /// <param name="model">The sheet model containing wires and symbols.</param>
 /// <returns>The score of the model, lower is better</returns>
-let getSheetScore (model:SheetT.Model) original : float =
+let getSheetScore (model:SheetT.Model) (original: bool) (counter: int) : float =
     // Symbol overlaps
     let numOverlaps = numOfIntersectedSymPairs model |> float
 
@@ -193,18 +190,19 @@ let getSheetScore (model:SheetT.Model) original : float =
     printfn "Number of wire right bends: %f" (numWireBends)
     printfn "Size: %f" (size)
     printfn "Wire length: %f" (wireLength)
-    
-
-
-    // Score equation with weights
-    (2.0 * numOverlaps) + (10.0 * wireOverlaps) + (0.0001 * size) + (0.5 * wireLength) + (100.0 * numWireBends)
+    printfn "Counter: %d" (counter)
+    if (counter < 3 && not original) then
+        0.0
+    else
+        // Score equation with weights
+        (2.0 * numOverlaps) + (1.0 * wireOverlaps) + (0.0001 * size) + (100.0 * numWireBends) + (0.5 * wireLength)
 
 /// <summary>
 /// Aligns all singly connected symbols by their target port.
 /// </summary>
 /// <param name="model">The sheet model containing wires and symbols</param>
 /// <returns>Updated model with the moved symbols</returns>
-let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
+let alignSingleConnectedSyms (model: SheetT.Model) (syms) (counter: int)=
     let checkXCoor (s1: Symbol) (s2: Symbol) =
         if abs(s1.Pos.X - s2.Pos.X) < 80 then
             -100.
@@ -254,26 +252,15 @@ let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
     let FinalModel = Optic.set wires_ wires' NewSymbolModel
 
     // Test if D1 has made things worse
-    let originalScore = getSheetScore model true
-    let newScore = getSheetScore FinalModel false
+    let originalScore = getSheetScore model true counter
+    let newScore = getSheetScore FinalModel false counter
     let improvement = originalScore - newScore // Lower score is better
-    if improvement <= 0 then
+    if improvement < 0 then
         printfn "D1 made things worse: Original: %A, New: %A, Change: %A" originalScore newScore improvement
         model // Original model is better
     else
         printfn "D1 made things better: Original: %A, New: %A, Change: %A" originalScore newScore improvement
         FinalModel
-
-// Only scales unrotated components
-let scaleCustomSymAlign (sourceSym: Symbol) (targetSym: Symbol) =
-    let sourceDims = Optic.get customCompDims_ sourceSym
-    let targetDims = Optic.get customCompDims_ targetSym
-    let sourcePortCount = List.length sourceSym.Component.InputPorts
-    let targetPortCount = List.length targetSym.Component.InputPorts
-    let sourceDimPerPort = sourceDims.Y / (float) sourcePortCount
-    let targetDimPerPort = targetDims.Y / (float) targetPortCount
-    let scale = targetDimPerPort / sourceDimPerPort
-    Optic.set customCompDims_ ({ X = targetDims.X; Y = targetDims.Y * scale }) targetSym
 
 
 /// <summary>
@@ -288,9 +275,9 @@ let sheetAlignScale (model: SheetT.Model) =
         match symList with
         | [] -> model
         | _ ->
-            // Recursivly align and scale symbols, setting a max count of beautifying 10 times to avoid infinte loops where not all symbols can be aligned perfectly.
-            if List.length symList > 0 && count < 10 then //
-                let model' = alignSingleConnectedSyms model symList
+            // Recursivly align and scale symbols, setting a max count of beautifying 20 times to avoid infinte loops where not all symbols can be aligned perfectly.
+            if List.length symList > 0 && count < 20 then //
+                let model' = alignSingleConnectedSyms model symList count
                 let updatedSymList = getAllSingleConnectedSymbols model' (parallelWires model')
                 let symbolsOnly1 = List.map (fun (sym, _, _) -> sym) updatedSymList
                 let symbolsOnly2 = List.map (fun (_, sym, _) -> sym) updatedSymList
@@ -1192,4 +1179,4 @@ let integratedBeautify (model: SheetT.Model) (userThreshold: float) : SheetT.Mod
     userThreshold
     |> d3Function model
     |> d2iteratedLocalSearchSingleComponent
-    // |> sheetAlignScale
+    |> sheetAlignScale

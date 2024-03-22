@@ -346,9 +346,9 @@ let randomComponents1Circuit2 = fromList [Mux4; GateN(And, 5)]
 let randomComponents2Circuit2 = fromList [Not; DFF]
 let randomComponents3Circuit2 = fromList [Mux2; NbitsAdder(2)]
 
-let posGen1Circuit2 = verticalLinePositions (middleOfSheet - { X = 150.0; Y = 150.0 }) 30
-let posGen2Circuit2 = verticalLinePositions (middleOfSheet + { X = 60.0; Y = -130.0 }) 30
-let posGen3Circuit2 = verticalLinePositions (middleOfSheet + { X = 50.0; Y = 15.0 }) 30
+let posGen1Circuit2 = verticalLinePositions ({ X = 0; Y = 0}) 30
+let posGen2Circuit2 = verticalLinePositions ({ X = 80; Y = -130.0 }) 30
+let posGen3Circuit2 = verticalLinePositions ({ X = 160; Y = 15.0 }) 30
 
 let connections1Circuit2 = fromList [(0, 0); (1, 0); (3, 0); (4, 0);]
 let connections2Circuit2 = fromList [(0, 0)]
@@ -381,19 +381,30 @@ let makeCircuit2 (symInfo : posConnectionsComponent * posConnectionsComponent * 
     |> placeSymbol "Sym1" sym1comp sym1pos
     |> Result.bind (placeSymbol "Sym2" sym2comp sym2pos)
     |> Result.bind (placeSymbol "Sym3" sym3comp sym3pos)
-    |> Result.bind (placeSymbol "S1" (Input1 (1, None)) (middleOfSheet + { X = -350; Y = -130 }))
-    |> Result.bind (placeSymbol "S2" (Input1 (1, None)) (middleOfSheet + { X = -350; Y = -50 }))
-    |> Result.bind (placeSymbol "S3" (Input1 (1, None)) (middleOfSheet + { X = -300; Y = +10 }))
-    |> Result.bind (placeSymbol "OUT1" (Output 1) (middleOfSheet + { X = 150; Y = -125 }))
-    |> Result.bind (placeSymbol "OUT2" (Output 1) (middleOfSheet + { X = 150; Y = -5 }))
+    |> Result.bind (placeSymbol "S1" (Input1 (1, None)) ({ X = -75; Y = -130 }))
+    |> Result.bind (placeSymbol "S2" (Input1 (1, None)) ({ X = -75; Y = -50 }))
+    |> Result.bind (placeSymbol "MUX1" Mux2 ({ X = 230; Y = 90 }))
+    |> Result.bind (placeSymbol "MUX2" Mux2 ({ X = 310; Y = 80 }))
+    |> Result.bind (placeSymbol "MUX3" Mux2 ({ X = 390; Y = 125 }))
+    |> Result.bind (placeSymbol "MUX4" Mux2 ({ X = 470; Y = 145 }))
+    |> Result.bind (placeSymbol "MUX5" Mux2 ({ X = 550; Y = 95 }))
+    |> Result.bind (placeSymbol "MUX6" Mux2 ({ X = 630; Y = 135 }))
+    |> Result.bind (placeSymbol "MUX7" Mux2 ({ X = 710; Y = 165 }))
+    |> Result.bind (placeSymbol "MUX8" Mux2 ({ X = 790; Y = 95 }))
+    |> Result.bind (placeSymbol "MUX9" Mux2 ({ X = 870; Y = 135 }))
     |> Result.bind (placeWire (portOf "Sym1" sym1OutputPort) (portOf "Sym2" sym2InputPort))
-    |> Result.bind (placeWire (portOf "Sym2" sym2OutputPort) (portOf "OUT1" 0))
+    |> Result.bind (placeWire (portOf "Sym2" sym2OutputPort) (portOf "Sym3" sym3OutputPort))
     |> Result.bind (placeWire (portOf "S1" 0) (portOf "Sym1" sym1InputPort))
     |> Result.bind (placeWire (portOf "S2" 0) (portOf "Sym1" ((sym1InputPort + 3) % 4)))
-    |> Result.bind (placeWire (portOf "S3" 0) (portOf "Sym3" sym3InputPort))
-    |> Result.bind (placeWire (portOf "Sym3" sym3OutputPort) (portOf "OUT2" 0))
-    // |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
-    // |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+    |> Result.bind (placeWire (portOf "Sym3" sym3InputPort) (portOf "MUX1" 0))
+    |> Result.bind (placeWire (portOf "MUX1" 0 )(portOf "MUX2" 0))
+    |> Result.bind (placeWire (portOf "MUX2" 0 )(portOf "MUX3" 0))
+    |> Result.bind (placeWire (portOf "MUX3" 0 )(portOf "MUX4" 0))
+    |> Result.bind (placeWire (portOf "MUX4" 0 )(portOf "MUX5" 0))
+    |> Result.bind (placeWire (portOf "MUX5" 0 )(portOf "MUX6" 0))
+    |> Result.bind (placeWire (portOf "MUX6" 0 )(portOf "MUX7" 0))
+    |> Result.bind (placeWire (portOf "MUX7" 0 )(portOf "MUX8" 0))
+    |> Result.bind (placeWire (portOf "MUX8" 0 )(portOf "MUX9" 0))
     |> getOkOrFail
 
 //--------------------------------------------------------------------------------------------------------------------------//
@@ -743,15 +754,6 @@ let test4 testNum firstSample dispatch =
         dispatch
     |> recordPositionInTest testNum dispatch
 
-// let test4 testNum firstSample dispatch =
-//     runTestOnSheets
-//         "Manually Generated: 2 MUXes and 2 Gates With Random Flips"
-//         firstSample
-//         flipTypeQuadruples
-//         makeCircuit4
-//         failOnAllTests
-//         dispatch
-//     |> recordPositionInTest testNum dispatch
 
 let test5 testNum firstSample dispatch =
     runTestOnSheets
@@ -812,7 +814,7 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
         "Test7", test7
 
         // Integrated Test
-        "Test7", test8
+        "Test8", test8
         "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the next error in a test
 
     ]

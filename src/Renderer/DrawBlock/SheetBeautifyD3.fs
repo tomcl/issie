@@ -17,6 +17,7 @@ open BusWireUpdateHelpers
 open SheetBeautifyHelpers
 open EEExtensions
 open SheetBeautifyD2
+open SymbolUpdate
 
 //--------------------------------------------------------------------------------------//
 //                                  Constants for D3                                    //
@@ -80,6 +81,7 @@ let newWireModel (model: SheetT.Model) (input: InputPortId) (output: OutputPortI
     // - What names to give each label.
 let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
     let symbols = getAllSymbols model
+    let wirelabel = generateLabelNumber symbols IOLabel 
     let wires = getAllWires model
     let wireLengths = List.map getWireLength wires
     let longWires =
@@ -88,7 +90,7 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
         |> List.map fst // Remove the length from snd as Wire list is now filtered
     let OutputPortIds = longWires |> getWireOutputPortId |> List.distinct
     let gap: XYPos = { X = 40; Y = 0 }
-    let mutable count = 0
+    let mutable count = int wirelabel
 
     let updatedModel: SheetT.Model = 
         OutputPortIds
@@ -96,6 +98,7 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
         |> List.fold (fun currentModel outputPort ->
             let InputPortIds = getWireInputPortId longWires outputPort
             let posList = wireLabelPositions outputPort wires currentModel.Wire
+            //let label = generateLabel currentModel.Wire.Symbol IOLabel 
             let label = "I" + count.ToString()
             count <- count + 1
             // add the IOLabel for the output symbol to the SymbolT.Model
@@ -154,17 +157,22 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
                 //This is not working
                 InputPortIds
                 |> List.fold (fun inputModel inputPort ->
-                    let addInputWireModel, msgOpt =
-                        BusWireUpdate.newWire 
-                            inputPort 
-                            (OutputPortId IOPortID)
-                            inputModel.Wire
-                    
-                    let (modelWithNewInputWires: SheetT.Model) = 
-                        inputModel
-                        |> Optic.set SheetT.wire_ addInputWireModel
-                    
-                    modelWithNewInputWires) modelwithInputSym
+                    let inputPortPos = getPortPos (inputPort.ToString()) inputModel.Wire
+                    match inputPortPos with
+                    | x when x = pos ->
+                        let addInputWireModel, msgOpt =
+                            BusWireUpdate.newWire 
+                                inputPort 
+                                (OutputPortId IOPortID)
+                                inputModel.Wire
+                        
+                        let (modelWithNewInputWires: SheetT.Model) = 
+                            inputModel
+                            |> Optic.set SheetT.wire_ addInputWireModel
+                        modelWithNewInputWires
+                    | _ -> inputModel
+                        
+                ) modelwithInputSym
                    
                     
             ) modelWithNewOutputWires // feed modelWithOutputSym as our initial starting point (aka default value)

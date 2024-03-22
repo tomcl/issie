@@ -9,7 +9,8 @@ Analysis of beautify function through testing is shown [here](https://github.com
 add below -->
 
 ### D1 beautifying function (sheet->sheet)
-
+- `sheetAlignScale` _ `[SheetT.Model -> SheetT.Model]`
+This aligns all components on a sheet and scales custom components to reduce wire bends. Invoked automatically on D1 test cases (Alt1-7) and toggled with Alt-8. 
 ### D2 beautifying function (sheet->sheet)
 
 ### D3 beautifying function 

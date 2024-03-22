@@ -302,6 +302,39 @@ let deriveWireLabelFromSrcPort (sourcePortStr:string) (model:SheetT.Model) =
     | "" -> symLabel+"_"+"OUT"   // TODO: add support for "SplitWire" & "SplitN" (multiple possible outputs)
     | _ -> symLabel+"_"+portLabel
 
+// an optimisation could be to make this function and "sameNetWiresToWireLabels" into a single function
+// because there is repeated code
+// but this has not been done because it's a last-minute feature addition
+/// Replace a given wire with wire labels, return the updated model
+let singleWireToWireLabels (targetWire:Wire) (model:SheetT.Model) = 
+    let startPort = 
+        match targetWire.OutputPort with
+        | OutputPortId str -> str
+    let startPos = getPortPosOnSheet startPort model
+    let endPort = 
+        match targetWire.InputPort with
+        | InputPortId str -> str
+    let endPos = getPortPosOnSheet endPort model
+    let labelName = deriveWireLabelFromSrcPort startPort model
+    
+    let addWireLabelsToModel (model:SheetT.Model) =
+        let _,newModel =
+            match (checkOutputPortConnectedToWireLabel targetWire.OutputPort model) with
+            | Some (existingLabel,_) -> // the start (output) port already has a wire label
+                // only need to add the "end wire label"
+                (existingLabel,model)
+                ||> addIOLabelAtPortAndPlaceWire endPort endPos false
+            | None -> // the start (output) port has no wire label, need to create both
+                (labelName,model)
+                ||> addIOLabelAtPortAndPlaceWire startPort startPos true
+                ||> addIOLabelAtPortAndPlaceWire endPort endPos false
+        newModel
+
+    // remove original wire, then add new wirings
+    model
+    |> deleteSingleWire targetWire
+    |> addWireLabelsToModel
+
 
 /// Replace the net of wires corresponding to the given source port with a set of wire labels, return the updated model;
 /// if applyCond=true, check whether the wiring complexity of the net 

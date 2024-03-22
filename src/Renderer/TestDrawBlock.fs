@@ -1313,7 +1313,7 @@ module HLPTick3 =
                 "Test5", beforeMultiConnecct // set of test with more spaced out components to evaluate D3
                 "Test6", afterMultiConnect // set of test with more compressed components to evaluate D3
                 "Test7", beforeTripleMUX
-                "Test8", afterMultiConnect  // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
+                "Test8", afterTripleMUX  // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
                 "Next Test Error", fun _ _ _ -> printf "Next Error:"
             ]
             // Easy, EasyIndiv, testD3Hard

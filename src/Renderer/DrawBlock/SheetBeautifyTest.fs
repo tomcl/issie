@@ -132,9 +132,18 @@ let sheetBeautifyTest
         let optimSheet = beautifySheet randomSheet
         let scoreAfter = evaluateSheet optimSheet
         let scoreDiff = scoreBefore - scoreAfter
+        let d3WireBendsBefore = SheetBeautifyHelpers.numOfVisRightAngles randomSheet
+        let d3WireBendsAfter = SheetBeautifyHelpers.numOfVisRightAngles sheet
+        let d3SymbolIntersectsBefore = SheetBeautifyHelpers.numOfIntersectedSymPairs randomSheet
+        let d3SymbolIntersectsAfter = SheetBeautifyHelpers.numOfIntersectedSymPairs sheet
         printf "Score before = %.2e" scoreBefore
         printf "Score after = %.2e" scoreAfter
         printf "Score improvement = %.2e (%.1f%%)" scoreDiff (scoreDiff/scoreBefore * 100.)
+        printf $"Wire Bends before = {d3WireBendsBefore}"
+        printf $"Wire Bends after = {d3WireBendsAfter}"
+        printf $"Symbol Intersects Before = {d3SymbolIntersectsBefore}"
+        printf $"Symbol Intersects Before = {d3SymbolIntersectsAfter}"
+
         let newUndoList =
             appendUndoList sheet.UndoList sheet
             |> fun undoList -> appendUndoList undoList randomSheet

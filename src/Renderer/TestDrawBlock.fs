@@ -325,6 +325,7 @@ module HLPTick3 =
 
     open Builder
     open SheetBeautifyD1
+    // open SheetBeautifyHelpers
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
         fromList [100..20..100]
@@ -343,26 +344,34 @@ module HLPTick3 =
         let s1Pos = {X = muxPos.X - 50.0; Y = muxPos.Y + 150.0}  
         let s2Pos = {X = muxPos.X - 100.0; Y = muxPos.Y + 110.0}
         let APos ={X = muxPos.X - 150.0; Y = muxPos.Y - 280.0} 
-        let BPos ={X = muxPos.X - 150.0; Y = muxPos.Y + 280.0} 
+        let BPos ={X = muxPos.X - 110.0; Y = muxPos.Y + 110.0} 
         let CPos = { X = muxPos2.X + 150.0; Y = muxPos2.Y + 10.0}
 
-        initSheetModel
-        // Place a MUX on the sheet at the specified position.
-        |> placeSymbol "MUX1" Mux2 muxPos
-        |> Result.bind (placeSymbol "MUX2" Mux2 {CPos with X = CPos.X - 150.0}) 
-        |> Result.bind (placeSymbol "InputA" (GateN(And, 1)) APos) // S1 can be any type of component
-        |> Result.bind (placeSymbol "InputB" (GateN(And, 1)) BPos) // S1 can be any type of component
-        |> Result.bind (placeSymbol "S1" (GateN(And, 1)) s1Pos) 
-        |> Result.bind (placeSymbol "S2" (GateN(And, 1)) s2Pos) 
-        |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
-        |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
-        |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
-        // |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
-        // |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
-        |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
-        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
-        |> getOkOrFail
+        let fin =
+            initSheetModel
+            // Place a MUX on the sheet at the specified position.
+            |> placeSymbol "MUX1" Mux2 muxPos
+            |> Result.bind (placeSymbol "MUX2" Mux2 {CPos with X = CPos.X - 150.0}) 
+            |> Result.bind (placeSymbol "InputA" (GateN(And, 1)) APos) // S1 can be any type of component
+            |> Result.bind (placeSymbol "InputB" (GateN(And, 1)) BPos) // S1 can be any type of component
+            |> Result.bind (placeSymbol "S1" (GateN(And, 1)) s1Pos) 
+            |> Result.bind (placeSymbol "S2" (GateN(And, 1)) s2Pos) 
+            |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
+            |> getOkOrFail
+            |> finalUpdate
+            // |> resolveIntersectingSymbols
+            // |> finalUpdate
+        let overlap = findIntersectingSymbols fin
+        printfn "overlap, %A"  overlap
+        // |> alignSinglyConnectedComponents
+        fin
 
     let makeTest1CircuitBeautify (muxPos:XYPos) =
         let muxPos2 ={X = muxPos.X + 150.0; Y = muxPos.Y + 28.0}
@@ -372,28 +381,31 @@ module HLPTick3 =
         let BPos ={X = muxPos.X - 150.0; Y = muxPos.Y + 280.0} 
         let CPos = { X = muxPos2.X + 150.0; Y = muxPos2.Y + 10.0}
 
-        initSheetModel
+        let fin = 
+            initSheetModel
         // Place a MUX on the sheet at the specified position.
-        |> placeSymbol "MUX1" Mux2 muxPos
-        |> Result.bind (placeSymbol "MUX2" Mux2 {CPos with X = CPos.X - 150.0}) 
-        |> Result.bind (placeSymbol "InputA" (GateN(And, 1)) APos) // S1 can be any type of component
-        |> Result.bind (placeSymbol "InputB" (GateN(And, 1)) BPos) // S1 can be any type of component
-        |> Result.bind (placeSymbol "S1" (GateN(And, 1)) s1Pos) 
-        |> Result.bind (placeSymbol "S2" (GateN(And, 1)) s2Pos) 
-        |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
-        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
-        |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
-        |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
-        |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
-        |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
-        |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
-        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
-        |> getOkOrFail
-        |> alignSinglyConnectedComponents
+            |> placeSymbol "MUX1" Mux2 muxPos
+            |> Result.bind (placeSymbol "MUX2" Mux2 {CPos with X = CPos.X - 150.0}) 
+            |> Result.bind (placeSymbol "InputA" (GateN(And, 1)) APos) // S1 can be any type of component
+            |> Result.bind (placeSymbol "InputB" (GateN(And, 1)) BPos) // S1 can be any type of component
+            |> Result.bind (placeSymbol "S1" (GateN(And, 1)) s1Pos) 
+            |> Result.bind (placeSymbol "S2" (GateN(And, 1)) s2Pos) 
+            |> Result.bind (placeSymbol "C" (GateN(And, 1)) CPos) 
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "InputA" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "InputB" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "s2" 0) (portOf "MUX2" 2))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
+            |> getOkOrFail
+            |> finalUpdate
+            // |> resolveIntersectingSymbols
+        // |> SheetBeautifyHelpers.countSymbolIntersectSymbol
+        let overlap = SheetBeautifyHelpers.countSymbolIntersectSymbol fin
+        printfn "overlap, %A"  overlap
         // |> alignSinglyConnectedComponents
-        |> alignMultipleComponents
-        |> alignSinglyConnectedComponents
-        // |> alignSinglyConnectedComponents
+        fin
         
 
 
@@ -468,7 +480,8 @@ module HLPTick3 =
         
         let failOnAllTestsD1 (sample: int) (sheet: SheetT.Model) =
             // let singlyConnectedComponents = findSinglyConnectedComponents sheet
-            let singlyConnected = findParallelWiresAndShifts sheet
+            // let singlyConnected = findIntersectingSymbols sheet
+            // let length = singlyConnected.Length
             // let label =
             //     singlyConnected
             //     |> List.choose (fun idStr ->
@@ -476,7 +489,7 @@ module HLPTick3 =
             //         match Map.tryFind compId sheet.Wire.Symbol.Symbols with
             //         | Some(symbol) -> Some(symbol.Component.Label)
             //         | None -> None)
-            printfn "singly connected symbol, %A" singlyConnected
+            // printfn "singly connected symbol, %A" singlyConnected
             Some <| $"Sample {sample}"
         
         let failOnAllTestsT1 (sample: int) (sheet: SheetT.Model) =

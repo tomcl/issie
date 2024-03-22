@@ -391,8 +391,153 @@ let alignMultipleComponents (model: SheetT.Model) : SheetT.Model =
     { model with Wire = newModel }
 
 
+///----------------------------------------------ensure-no-overlapping---------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+
+// funtions to find overlapping symbols
+let overlap2DBox (box1: BoundingBox) (box2: BoundingBox) : bool =
+    let rightOfBox1 = box1.TopLeft.X + box1.W
+    let bottomOfBox1 = box1.TopLeft.Y + box1.H
+    let rightOfBox2 = box2.TopLeft.X + box2.W
+    let bottomOfBox2 = box2.TopLeft.Y + box2.H
+
+    if rightOfBox1 < box2.TopLeft.X then false // Box1 is to the left of Box2
+    elif box1.TopLeft.X > rightOfBox2 then false // Box1 is to the right of Box2
+    elif bottomOfBox1 < box2.TopLeft.Y then false // Box1 is above Box2
+    elif box1.TopLeft.Y > bottomOfBox2 then false // Box1 is below Box2
+    else true // Boxes overlap
+
+let findIntersectingSymbols (model: Model) : (Symbol * Symbol) list =
+    let boxes =  model.BoundingBoxes
+    let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map snd |> List.indexed
+    let checkIntersects (acc: (Symbol * Symbol) list) ((i, symbol1): int * Symbol) =
+        symbols
+        |> List.filter (fun (j, _) -> j > i)
+        |> List.fold (fun innerAcc (_, symbol2) ->
+            let box1 = boxes.[symbol1.Id]
+            let box2 = boxes.[symbol2.Id]
+            if overlap2DBox box1 box2 then (symbol1, symbol2) :: innerAcc else innerAcc
+        ) acc
+    symbols |> List.fold checkIntersects []
+
+let getSymbolBoundingBox (symbol: Symbol) : BoundingBox =  
+    let topLeft = symbol.Pos
+    let w = symbol.Component.W
+    let h = symbol.Component.H
+    { TopLeft = topLeft; W = w; H = h }
+
+let doesSymbolIntersect (symbol: Symbol) (otherSymbols: Symbol list) : bool =
+    let symbolBox = getSymbolBoundingBox(symbol)
+    otherSymbols
+    |> List.exists (fun otherSymbol ->
+        let otherSymbolBox = getSymbolBoundingBox(otherSymbol)
+        overlap2DBox symbolBox otherSymbolBox)
+
+let findNonIntersectingTranslation (symbol: Symbol) (otherSymbols: Symbol list) initialTranslations =
+    // let initialTranslations = [(10., 0.); (-10., 0.); (0., 10.); (0., -10.)]
+    let rec tryTranslations translations =
+        match translations with
+        | [] -> None // If all translations result in intersection, return None.
+        | (dx, dy) :: rest ->
+            let newPos = { X = symbol.Pos.X + dx; Y = symbol.Pos.Y + dy }
+            let updatedSymbol = { symbol with Pos = newPos }
+            if not (doesSymbolIntersect updatedSymbol otherSymbols) then Some(newPos)
+            else tryTranslations rest
+
+    let result = tryTranslations initialTranslations
+    match result with
+    | Some(_) -> result
+    | None -> 
+        // Double the translations and try again if all initial attempts fail
+        let doubledTranslations = List.map (fun (dx, dy) -> (dx * 2.0, dy * 2.0)) initialTranslations
+        tryTranslations doubledTranslations
+
+// move symbols to avoid overlapping
+let updateModelPositions (model: Model) (symPair: (Symbol * Symbol) list) : Model =
+    let initialTranslations = [(50., 0.); (-50., 0.); (0., 50.); (0., -50.)]
+    let symbolIdMap=
+        symPair
+        |> List.fold (fun accMap (sym1, _) ->
+            // Assuming 'otherSymbols' contains all symbols in the model except 'sym1'
+            let otherSymbols =
+                symPair
+                |> List.filter (fun (otherSym1, otherSym2) -> otherSym1.Id <> sym1.Id && otherSym2.Id <> sym1.Id)
+                |> List.collect (fun (s1, s2) -> [s1; s2])
+                |> List.filter (fun sym -> sym.Id <> sym1.Id)
+            
+            // Attempt to find a new position for sym1 that doesn't result in an intersection
+            match findNonIntersectingTranslation sym1 otherSymbols initialTranslations with
+            | Some(newPos) -> accMap |> Map.add sym1.Id newPos
+            | None -> accMap // If no non-intersecting position is found, do not update the position in the map
+        ) Map.empty
+    
+    let updatedSymbols = 
+        model.Wire.Symbol.Symbols
+        |> Map.map (fun key symbol ->
+            match symbolIdMap.TryFind(key) with
+            | Some(shift) -> moveSymbol shift symbol
+            | None -> symbol)
+    
+    let newWire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } }
+    
+    let symList = symbolIdMap |> Map.keys |> Seq.toList
+    let newModel = updateWires newWire symList {X=0;Y=0} // Assuming {X=0;Y=0} is the default or reset shift
+
+    { model with Wire = newModel }
+
+
+let resolveIntersectingSymbols (model: Model) : Model =
+    // Step 1: Find intersecting symbols
+    let intersectingSymbols = findIntersectingSymbols model
+
+    // Step 2: Update model positions based on intersecting pairs
+    let updatedModel = updateModelPositions model intersectingSymbols
+
+    updatedModel
+
 
 ///--------------------------------------------aligning-custom-component-------------------------------------------///
 /// ---------------------------------------------------------------------------------------------------------------///
 /// ---------------------------------------------------------------------------------------------------------------///
 
+
+// Function to find all custom components in the model
+let findCustomComponents (model: SheetT.Model) =
+    model.Wire.Symbol.Symbols
+    |> Map.toList
+    |> List.filter (fun (_, sym) ->
+        match sym.Component.Type with
+        | Custom _ -> true
+        | _ -> false)
+    |> List.map fst
+
+let findConnectionIdsForPort (model: Model) (portId: string) : ConnectionId list =
+
+    []
+
+
+// Function to find the port map of a symbol
+let findPortMap (model: Model) (symbolId: ComponentId) =
+    match model.Wire.Symbol.Symbols.TryFind(symbolId) with
+    | Some(symbol) -> 
+        symbol.PortMaps.Order
+        |> Map.map (fun edge portIds ->
+            portIds
+            |> List.collect (findConnectionIdsForPort model) // Collects all connection IDs for the port IDs on this edge
+        )
+    | None -> Map.empty
+    
+
+///--------------------------------------------intergrating-translation--------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+
+let finalUpdate (model: SheetT.Model) =
+    let model1 = alignSinglyConnectedComponents model
+    let model2 = alignSinglyConnectedComponents model1
+    let model3 = alignMultipleComponents model2
+    let model4 = alignSinglyConnectedComponents model3
+    // let model5 = resolveIntersectingSymbols model4
+
+    model4

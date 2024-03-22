@@ -218,7 +218,9 @@ let countSymbolIntersectSymbol (sheet: SheetT.Model) =
         |> List.fold (fun innerAcc (_, box2) ->
             if overlap2DBox box1 box2 then innerAcc + 1 else innerAcc
         ) acc
-    boxes |> List.fold countOverlaps 0
+    let number = boxes |> List.fold countOverlaps 0
+    printfn "Number of symbol intersections: %d" number
+    number
 
 ///-------------------------------------------------------------------------------------------------------------------------------------------//
 /// ------------------------------------------------------------------------------------------------------------------------------------------//

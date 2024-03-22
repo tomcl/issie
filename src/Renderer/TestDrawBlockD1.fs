@@ -453,7 +453,7 @@ module HLPTick3 =
         initSheetModel
         |> placeSymbol "G1" (GateN(And, 2)) andPos
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0))
         |> getOkOrFail
 
@@ -475,6 +475,10 @@ module HLPTick3 =
 
     //--------------------------------D1T Functions for Testing-----------------------------------//
     // Have to provide XYPos with Component since the unplaced component does not have dimensions
+
+    /// <summary>
+    /// Defines a sample list of components that can be used to generate circuits.
+    /// </summary>
     let test3SampleComponents: (string * ComponentType * XYPos) list =
         [ "AND", GateN(And, 2), { X = 45.0; Y = 45.0 }
           "NOT", Not, { X = 30.0; Y = 30.0 }
@@ -483,6 +487,9 @@ module HLPTick3 =
           "ADDER", NbitsAdder(1), { X = 90.0; Y = 120.0 }
           "REG", Register(1), { X = 60.0; Y = 120.0 } ]
 
+    /// <summary>
+    /// Defines a sample list of custom components that can be used to generate circuits.
+    /// </summary>
     let test3SampleCustomComponents: (string * ComponentType * XYPos) list =
         [ "CUSTOM",
           Custom
@@ -493,9 +500,16 @@ module HLPTick3 =
                 Description = None },
           { X = 301.0; Y = 100.0 } ]
 
+
     let inputSample = [ "INPUT", Input1(1, Some 1), { X = 30.0; Y = 60.0 } ]
     let outputSample = [ "OUTPUT", Output 1, { X = 30.0; Y = 60.0 } ]
 
+    /// <summary>
+    /// Generates a custom component with a specified number of input and output labels.
+    /// </summary>
+    /// <param name="inputLabelsCount">The count of input labels for the custom component.</param>
+    /// <param name="outputLabelsCount">The count of output labels for the custom component.</param>
+    /// <returns>A list containing the custom component definition.</returns>
     let generateCustomComponent (inputLabelsCount: int) (outputLabelsCount: int) =
         let inputLabels =
             [ 1..inputLabelsCount ]
@@ -521,6 +535,14 @@ module HLPTick3 =
     let perturbationNoiseUnstraighten =
         let rnd = System.Random()
         fun () -> rnd.Next(-10, 10)
+
+    /// <summary>
+    /// Generates a sequence of circuits with randomly positioned components.
+    /// </summary>
+    /// <param name="count">The number of components to generate in the circuit.</param>
+    /// <param name="startPos">The starting XY position for the first component.</param>
+    /// <param name="sampleComponentsList">The list of sample components to choose from.</param>
+    /// <returns>A list of components with their labels, types, and positions.</returns>
     let generateCircuitSequence
         (count: int)
         (startPos: XYPos)
@@ -530,12 +552,12 @@ module HLPTick3 =
         // for each component, calculate its position by adding the dimensions to the startpos + a perturbation
 
         let rnd = System.Random()
-        let randomSampleComponents =
+        let randomSampleComponents: (string * ComponentType * XYPos) list =
             [ 1..count ]
             |> List.mapi (fun i _ ->
                 let compName, compType, pos =
                     sampleComponentsList[rnd.Next(sampleComponentsList.Length)]
-                ((compName + i.ToString()), compType, pos))
+                ((compName+ "_" + i.ToString()), compType, pos))
 
         let componentsWithArrangedPos =
             randomSampleComponents
@@ -555,39 +577,70 @@ module HLPTick3 =
 
     let increasingPositions = fromList [ 1..9 ]
 
+    /// <summary>
+    /// Generates a test circuit with a specified starting position.
+    /// </summary>
+    /// <param name="startPos">The starting XY position for the circuit.</param>
+    /// <returns>A sheet model containing the placed components and wires.</returns>
     let makeTest3Circuit (startPos: XYPos) =
-        // initSheetModel
-        // |> placeSymbol "G1" (GateN(And, 2)) startPos
-        // |> Result.bind (placeSymbol "FF1" DFF startPos)
-        // |> getOkOrFail
-        let componentsWithArrangedPos =
+        let componentsWithArrangedPos, _ =
             generateCircuitSequence 5 startPos test3SampleComponents
-        let sheetModel =
-            List.fold
-                (fun model (compLabel, comp, pos) ->
-                    match model with
-                    | Ok model -> placeSymbol (string compLabel) comp pos model
-                    | Error e -> Error e)
-                (Ok initSheetModel)
-                (fst componentsWithArrangedPos)
-        getOkOrFail sheetModel
 
+        let sheetModelResult =
+            componentsWithArrangedPos
+            |> List.fold (fun result (compLabel, compType, pos) ->
+                result
+                |> Result.bind (fun model -> placeSymbol (string compLabel) compType pos model)
+            ) (Ok initSheetModel)
+
+        sheetModelResult
+        |> Result.bind (fun model ->
+            let componentLabels = componentsWithArrangedPos |> List.map (fun (label, _, _) -> label)
+            let connections =
+                componentLabels
+                |> List.pairwise
+                |> List.map (fun (sourceLabel, destLabel) -> portOf destLabel 0, portOf sourceLabel 0)
+            
+            connections
+            |> List.fold (fun currentResult (sourcePort, destPort) ->
+                currentResult
+                |> Result.bind (fun currentModel -> placeWire sourcePort destPort currentModel)
+            ) (Ok model)
+        )
+        |> getOkOrFail
+
+    /// <summary>
+    /// Generates a test circuit with custom components and a specified starting position.
+    /// </summary>
+    /// <param name="startPos">The starting XY position for the circuit.</param>
+    /// <returns>A sheet model containing the placed custom components and wires.</returns>
     let makeTest4Circuit (startPos: XYPos) =
-        // initSheetModel
-        // |> placeSymbol "G1" (GateN(And, 2)) startPos
-        // |> Result.bind (placeSymbol "FF1" DFF startPos)
-        // |> getOkOrFail
-        let componentsWithArrangedPos =
+        let componentsWithArrangedPos, _ =
             generateCircuitSequence 5 startPos test3SampleCustomComponents
-        let sheetModel =
-            List.fold
-                (fun model (compLabel, comp, pos) ->
-                    match model with
-                    | Ok model -> placeSymbol (string compLabel) comp pos model
-                    | Error e -> Error e)
-                (Ok initSheetModel)
-                (fst componentsWithArrangedPos)
-        getOkOrFail sheetModel
+
+        let sheetModelResult =
+            componentsWithArrangedPos
+            |> List.fold (fun result (compLabel, compType, pos) ->
+                result
+                |> Result.bind (fun model -> placeSymbol (string compLabel) compType pos model)
+            ) (Ok initSheetModel)
+
+        sheetModelResult
+        |> Result.bind (fun model ->
+            let componentLabels = componentsWithArrangedPos |> List.map (fun (label, _, _) -> label)
+            let connections =
+                componentLabels
+                |> List.pairwise
+                |> List.map (fun (sourceLabel, destLabel) -> portOf destLabel 0, portOf sourceLabel 0)
+            
+            connections
+            |> List.fold (fun currentResult (sourcePort, destPort) ->
+                currentResult
+                |> Result.bind (fun currentModel -> placeWire sourcePort destPort currentModel)
+            ) (Ok model)
+        )
+        |> getOkOrFail
+
 
     let vertLinePositions: Gen<XYPos> =
         fromList [ -100..20..100 ]

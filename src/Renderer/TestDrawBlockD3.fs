@@ -156,6 +156,10 @@ let test2Builder =
     |> List.toArray
     |> GenerateData.shuffleA
     |> GenerateData.fromArray
+
+let test3Builder = 
+    randomFloat 100 20 200
+
     
 
 let test1Builder = 
@@ -265,43 +269,41 @@ let makeTest2Circuit (data: float*Rotation)=
     |>dSelect
 
 
-let makeTest3Circuit (data: float*Rotation)=
-    let rotation = snd data
-    let gap = fst data
-    printf "Test 3 rotation: %A" rotation
+let makeTest3Circuit (gap:float)=
+    let coeff = gap/200.
     printf "Test 3 gap: %A" gap
-    let Pos1 = middleOfSheet + {X=0. ; Y=200.}
-    let Pos2 = middleOfSheet + {X=200. ; Y=(-60.)}
-    let Pos3 = Pos1 + {X=200. ; Y=(-60.)}
-    let Pos4 = Pos2 + {X=200. ; Y=(-50.)}
-    let Pos5 = Pos4 + {X=0.   ; Y=100.}
-    let Pos6 = Pos5 + {X=0.   ; Y=100.}
-    let Pos7 = Pos6 + {X=0.   ; Y=100.}
-    let Pos8 = Pos6 + {X=150.   ; Y=0.}
-    let Pos9 = Pos7 + {X=250.   ; Y=(-14.)}
-    let Pos10 = Pos8 + {X=80.   ; Y=(-100.)}
-    let Pos11 = Pos8 + {X=180.   ; Y=(-35.)}
-    let Pos12 = Pos11 + {X=180.   ; Y=(-100.)}
-    let Pos13 = Pos12 + {X=180.   ; Y=200.}
+    let Pos1 = middleOfSheet + {X=0. ; Y=200.*coeff}
+    let Pos2 = middleOfSheet + {X=200.*coeff ; Y=(-60.)*coeff}
+    let Pos3 = Pos1 + {X=200.*coeff ; Y=(-60.)*coeff}
+    let Pos4 = Pos2 + {X=200.*coeff ; Y=(-50.)*coeff}
+    let Pos5 = Pos4 + {X=0.   ; Y=100.*coeff}
+    let Pos6 = Pos5 + {X=0.   ; Y=100.*coeff}
+    let Pos7 = Pos6 + {X=0.   ; Y=100.*coeff}
+    let Pos8 = Pos6 + {X=150.*coeff   ; Y=0.}
+    let Pos9 = Pos7 + {X=250.*coeff   ; Y=(-14.)*coeff}
+    let Pos10 = Pos8 + {X=80.*coeff   ; Y=(-100.)*coeff}
+    let Pos11 = Pos8 + {X=180.*coeff   ; Y=(-35.)*coeff}
+    let Pos12 = Pos11 + {X=180.*coeff   ; Y=(-100.)*coeff}
+    let Pos13 = Pos12 + {X=180.*coeff   ; Y=200.*coeff}
 
 
 
     let noWireModel =
         initSheetModel
-        |> placeSymbol "IN1" (Input1( BusWidth=2 , DefaultValue=None)) middleOfSheet Degree180 None
-        |> Result.bind(placeSymbol "IN2" (Input1( BusWidth=2 , DefaultValue=None)) Pos1 Degree180 None )
-        |> Result.bind(placeSymbol "SW1" (SplitWire(BusWidth=1)) Pos2 Degree180 None )
-        |> Result.bind(placeSymbol "SW2" (SplitWire(BusWidth=1)) Pos3 Degree180 None )
-        |> Result.bind(placeSymbol "G1" (GateN(GateType=And,NumInputs=2)) Pos4 Degree180 None )
-        |> Result.bind(placeSymbol "G2" (GateN(GateType=And,NumInputs=2)) Pos5 Degree180 None )
-        |> Result.bind(placeSymbol "G3" (GateN(GateType=And,NumInputs=2)) Pos6 Degree180 None )
-        |> Result.bind(placeSymbol "G4" (GateN(GateType=And,NumInputs=2)) Pos7 Degree180 None )
-        |> Result.bind(placeSymbol "G5" (GateN(GateType=And,NumInputs=2)) Pos8 Degree180 None )
-        |> Result.bind(placeSymbol "G6" (GateN(GateType=And,NumInputs=2)) Pos9 Degree180 None )
-        |> Result.bind(placeSymbol "G7" (GateN(GateType=Xor,NumInputs=2)) Pos10 Degree180 None )
-        |> Result.bind(placeSymbol "G8" (GateN(GateType=Xor,NumInputs=2)) Pos11 Degree180 None )
-        |> Result.bind(placeSymbol "MN1" (MergeN(NumInputs=4)) Pos12 Degree180 None )
-        |> Result.bind(placeSymbol "OUT" (Output( BusWidth=4)) Pos13 Degree180 None)
+        |> placeSymbol "IN1" (Input1( BusWidth=2 , DefaultValue=None)) middleOfSheet Degree0 None
+        |> Result.bind(placeSymbol "IN2" (Input1( BusWidth=2 , DefaultValue=None)) Pos1 Degree0 None )
+        |> Result.bind(placeSymbol "SW1" (SplitWire(BusWidth=1)) Pos2 Degree0 None )
+        |> Result.bind(placeSymbol "SW2" (SplitWire(BusWidth=1)) Pos3 Degree0 None )
+        |> Result.bind(placeSymbol "G1" (GateN(GateType=And,NumInputs=2)) Pos4 Degree0 None )
+        |> Result.bind(placeSymbol "G2" (GateN(GateType=And,NumInputs=2)) Pos5 Degree0 None )
+        |> Result.bind(placeSymbol "G3" (GateN(GateType=And,NumInputs=2)) Pos6 Degree0 None )
+        |> Result.bind(placeSymbol "G4" (GateN(GateType=And,NumInputs=2)) Pos7 Degree0 None )
+        |> Result.bind(placeSymbol "G5" (GateN(GateType=And,NumInputs=2)) Pos8 Degree0 None )
+        |> Result.bind(placeSymbol "G6" (GateN(GateType=And,NumInputs=2)) Pos9 Degree0 None )
+        |> Result.bind(placeSymbol "G7" (GateN(GateType=Xor,NumInputs=2)) Pos10 Degree0 None )
+        |> Result.bind(placeSymbol "G8" (GateN(GateType=Xor,NumInputs=2)) Pos11 Degree0 None )
+        |> Result.bind(placeSymbol "MN1" (MergeN(NumInputs=4)) Pos12 Degree0 None )
+        |> Result.bind(placeSymbol "OUT" (Output( BusWidth=4)) Pos13 Degree0 None)
         |> getOkOrFail
     let model =
         noWireModel
@@ -332,8 +334,8 @@ let makeTest3Circuit (data: float*Rotation)=
 
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
 
-let makeTest4Circuit (data: float*Rotation)=
-    let gap = (fst data)/2.
+let makeTest4Circuit (data:float)=
+    let gap = (data)/2.
     printf "Test 4 gap: %A" gap
     let Pos1 = middleOfSheet + {X=100 ; Y=150.}
     let noWireModel =
@@ -365,14 +367,39 @@ let makeTest4Circuit (data: float*Rotation)=
 
 
 module Asserts =
+
     let failOnAllTests (sample: int) _ =
             Some <| $"Sample {sample}"
+
+            
+
+    let failOnMetric (failAll:bool) (sample: int) (model: SheetT.Model) =
+            let ISP =  numOfIntersectedSymPairs model //number of intersecting symbol pairs
+            let numSymPairs = 
+                (float (mapKeys model.Wire.Symbol.Symbols |> Array.toList).Length)/2.
+                |> (System.Math.Round)
+                |> int 
+            let ISPScore = (float ISP)/(float numSymPairs)
+            let numSegs = 
+                (getVisibleSegOnSheet model).Length
+            let ISS = float (numOfIntersectSegSym model) //number of segments intersecting segments
+            let ISSScore = (float ISS)/(float (numSegs+numSymPairs))
+            let SCR = numSegmentCrossRightAngle model //number of wire intersections
+            let SCRScore = (float SCR)/(float numSegs)
+            let score = System.Math.Round ((ISPScore + ISSScore + SCRScore),10) 
+            printf $" Sample {sample} scored average {score}/3 with ISP {ISP}, ISS {ISS}, SCR {SCR}"
+            match failAll with
+            |true -> Some $"Failing all, sample {sample}"
+            |_ ->
+                match score with
+                |0.0 -> None
+                |_ -> Some $"Sample {sample} failed with score > 0" 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
 //---------------------------------------------------------------------------------------//
 
 module Tests =
-    
+    open Asserts
     let D3Test1 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Mux conected to 2 demux"
@@ -381,7 +408,7 @@ module Tests =
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest1Circuit
-            (AssertFunc failOnAllTests)
+            (AssertFunc (failOnMetric false))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
@@ -394,7 +421,7 @@ module Tests =
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest2Circuit
-            (AssertFunc failOnAllTests)
+            (AssertFunc (failOnMetric false))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
@@ -403,11 +430,11 @@ module Tests =
         runTestOnSheets
             "General Test on complex circuit"
             firstSample
-            test2Builder
+            test3Builder
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest3Circuit
-            (AssertFunc failOnAllTests)
+            (AssertFunc (failOnMetric false))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
@@ -416,11 +443,11 @@ module Tests =
         runTestOnSheets
             "Test for label placement "
             firstSample
-            test2Builder
+            test3Builder
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest4Circuit
-            (AssertFunc failOnAllTests)
+            (AssertFunc (failOnMetric false))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch

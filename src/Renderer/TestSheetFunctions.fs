@@ -131,28 +131,6 @@ let testResizeSymbolTopLevelImproved (model: ModelType.Model) : ModelType.Model 
                 match sym1.Pos.X >= sym2.Pos.X with
                 | true -> ((i1, sym1), (i2, sym2))
                 | false -> ((i2, sym2), (i1, sym1)))
-        // |> List.map (fun ((i1, sym1), (i2, sym2)) ->
-        //     match sym1.Pos.Y >= sym2.Pos.Y with
-        //     | true -> ((i1, sym1), (i2, sym2))
-        //     | false -> ((i2, sym2), (i1, sym1)))
-
-        // let customSymbolsPairs =
-        //     model.Sheet.Wire.Symbol.Symbols
-        //     |> Map.values
-        //     |> Array.toList
-        //     |> List.filter (fun sym ->
-        //         match sym.Component.Type with
-        //         | Custom _ -> true
-        //         | _ -> false)
-        //     |> List.mapi (fun i sym -> (i, sym))
-        //     |> (fun customSymbols ->
-        //         List.allPairs customSymbols customSymbols
-        //         |> List.filter (fun ((i1, _), (i2, _)) -> i1 < i2))
-        //     |> List.sortBy (fun ((_, sym1), (_, sym2)) -> (max sym1.Pos.X sym2.Pos.X))
-        //     |> List.map (fun ((i1, sym1), (i2, sym2)) ->
-        //         match sym1.Pos.X >= sym2.Pos.X with
-        //         | true -> ((i1, sym1), (i2, sym2))
-        //         | false -> ((i2, sym2), (i1, sym1)))
 
         let newWire =
             customSymbolsPairs

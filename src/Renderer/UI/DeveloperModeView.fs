@@ -229,8 +229,8 @@ let developerModeView (model: ModelType.Model) dispatch =
                   [ Level.item
                         [ Level.Item.HasTextCentered ]
                         [ div
-                              [ Style [ FontSize "14px" ] ]
-                              [ Menu.list [] [ trackingMenuItem "Hold Values" (Some cachedSheetStats) dispatch ] ] ]
+                              [ Style [ FontSize "14px"; Width "100%"; Border "1.1px solid #555" ] ]
+                              [ Menu.list [] [ trackingMenuItem "Hold/Unhold Values" (Some cachedSheetStats) dispatch ] ] ]
 
                     ] ]
 

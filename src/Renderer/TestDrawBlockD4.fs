@@ -3,10 +3,7 @@ open GenerateData
 open Elmish
 open System
 open SheetBeautifyHelpers
-open SheetBeautifyD1
-open SheetBeautifyD3
-
-
+open SheetBeautify
 
 //-------------------------------------------------------------------------------------------//
 //--------Types to represent tests with (possibly) random data, and results from tests-------//
@@ -534,10 +531,10 @@ module HLPTick3 =
             // delete unused tests from list
             [
                 "D1TestMain", TestDrawBlockD1.TestD1.Tests.D1TestMain
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-                "D3 Replace Test", fun _ _ _ -> printf "DemoTest: D3"
                 "D2 Test: sheetOrderFlip", fun _ _ _ -> printf "D2 Test: sheetOrderFlip"
                 "D2 Template", TestDrawBlockD2.TestD2.Tests.D2Test0
+                "D3 Test", fun _ _ _ -> printf "DemoTest: D3"
+                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
             ]
 
         /// Display the next error in a previously started test
@@ -571,7 +568,7 @@ module HLPTick3 =
                 printf $"DemoTest: # of overlapping components before: {SheetBeautifyHelpers.numOfIntersectedSymPairs model.Sheet}"
 
                 printf "DemoTest: Implement sheetOrderFlip"
-                let flippedSheet = SheetBeautify.sheetOrderFlip model.Sheet
+                let flippedSheet = SheetBeautify.D4Build.sheetOrderFlip model.Sheet
                 printf $"DemoTest: Wire Crossings after: {SheetBeautifyHelpers.numOfWireRightAngleCrossings flippedSheet}"
                 printf $"DemoTest: # of straight lines after: {TestDrawBlockD1.TestD1.numOfStraightWires flippedSheet}"
                 printf $"DemoTest: Length of Wire Routing after: {SheetBeautifyHelpers.calcVisWireLength flippedSheet}"

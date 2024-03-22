@@ -406,7 +406,6 @@ module HLPTick3 =
                 printf $" SCORE: {score'}"
                 printf "----------"
                 {result with score = score'}
-                // evaluationPopup
             | Some (n,first) -> // display in Issie editor and print out first error
                 match showTargetSheet with
                 | true ->
@@ -493,6 +492,39 @@ module HLPTick3 =
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
 
+                         
+         /// Fail if the evaluation metric is greater than 0 (not perfect) 
+        let failOnMetric (failAll:bool) (sample: int) (model: SheetT.Model) =
+            let weighting = [1.;1.;1.;1.]
+            let wireLengthMetric (model:SheetT.Model) = 
+                let totalLength = calcVisWireLength model
+                let minLength =
+                    mapValues model.Wire.Wires
+                    |> Array.map (fun w -> Symbol.getTwoPortLocations model.Wire.Symbol w.InputPort w.OutputPort)
+                    |> Array.map (fun w -> manhattanDistance (fst w) (snd w))
+                    |> Array.sum
+                totalLength/minLength - 1.
+            let wireScore = wireLengthMetric model
+            let ISP =  numOfIntersectedSymPairs model //number of intersecting symbol pairs
+            let numSymPairs = 
+                (float (mapKeys model.Wire.Symbol.Symbols |> Array.toList).Length)/2.
+                |> (System.Math.Round)
+                |> int 
+            let ISPScore = (float ISP)/(float numSymPairs)
+            let numSegs = 
+                (getVisibleSegOnSheet model).Length
+            let ISS = float (numOfIntersectSegSym model) //number of segments intersecting segments
+            let ISSScore = (float ISS)/(float (numSegs+numSymPairs))
+            let SCR = numSegmentCrossRightAngle model //number of wire intersections
+            let SCRScore = (float SCR)/(float numSegs)
+            let score = System.Math.Round ((ISPScore*weighting[0] + ISSScore*weighting[1] + SCRScore*weighting[2] + wireScore*weighting[3])/(List.sum weighting),10) 
+            printf $" ===========Sample {sample} scored average {score}/4 with ISP {ISP}, ISS {ISS}, SCR {SCR}, WireWaste {wireScore}============"
+            match failAll with
+            |true -> Some $"=====Failing all, sample {sample}====="
+            |_ ->
+                match score with
+                |0.0 -> None
+                |_ -> Some $"=====Sample {sample} failed with score > 0=====" 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Evaluation------------------------------------------------//
 //---------------------------------------------------------------------------------------//
@@ -598,9 +630,25 @@ module HLPTick3 =
 //---------------------------------------------------------------------------------------//
 
     module Tests =
-        open SymbolPortHelpers // TODO: move from SymbolPortHelpers here
+        open Fable.React.Props
+        open Fable.React
 
-        /// Allow test errors to be viewed in sequence by recording the current error
+        /// score popup formatting
+        let scoreSheet(score) : ReactElement =
+            let styledSpan styles txt = span [Style styles] [str <| txt]
+            let bSpan txt = styledSpan [FontWeight "bold"] txt
+            let iSpan txt = styledSpan [FontStyle "italic"] txt
+            let tSpan txt = span [] [str txt]
+            div [] [
+            bSpan "Testing Complete!" ; 
+            br []; br [];
+            tSpan " Based on the evaluation functions provided for this test, your sheet received a score of "; bSpan $"{score}."
+            br []; br []; 
+            tSpan "The scoring functions are meant to be absolute, but the score is more useful for relative scoring." 
+                ]
+        
+
+        /// Allow test errors to be viewed in sequence by recording the current error. Also allows toggling target function
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
         let recordPositionInTest (testNumber: int) (targetFuncApplied: bool) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
             dispatch <| UpdateDrawBlockTestState(fun _ ->

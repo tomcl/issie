@@ -8,6 +8,7 @@ open BusWireSeparate
 open SheetUpdateHelpers
 open SheetBeautifyD2
 open SheetBeautify
+open SheetBeautifyHelpers2
 
 
 ////////// Parameter/configuration types

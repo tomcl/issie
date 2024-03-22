@@ -90,6 +90,7 @@ module HLPTick3 =
     open DrawModelType
     open Sheet.SheetInterface
     open SheetUpdateHelpers
+    open SheetBeautifyTest
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -217,7 +218,24 @@ module HLPTick3 =
                         Description = None
                     }
                 placeSymbol symLabel (Custom ccType) position model
-            
+        
+        //Unsafe - only used for testers 
+        let unsafePlaceCustomSymbol
+                (symLabel: string)
+                (ccSheetName: string)
+                (position: XYPos)
+                (model: SheetT.Model)
+                    : Result<SheetT.Model, string> =
+            let canvas = model.GetCanvasState()
+            let ccType: CustomComponentType =
+                {
+                    Name = ccSheetName
+                    InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
+                    OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
+                    Form = None
+                    Description = None
+                }
+            placeSymbol symLabel (Custom ccType) position model    
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
         /// The wire created will be smart routed but not separated from other wires: for a nice schematic
@@ -262,12 +280,15 @@ module HLPTick3 =
         
         // Applies specified beautify function to the sheet from ModelType Model and displays the result in Issie
         let applyBeautify beautifyFunc (dispatch: Dispatch<Msg>) (model: ModelType.Model) =
-            printfn ""
+            printfn "Before"
             dispatch <| UpdateDrawBlockTestState(fun _ -> Some {LastTestNumber=0; LastTestSampleIndex=0})
             let sheet = Optic.get sheet_ model
-            sheet
-            |> beautifyFunc 
-            |> fun sheet' -> {sheet' with SheetT.UndoList = appendUndoList sheet.UndoList sheet}
+            let newSheet = 
+                sheet
+                |> beautifyFunc 
+                |> fun sheet' -> {sheet' with SheetT.UndoList = appendUndoList sheet.UndoList sheet}
+            printfn "After"
+            newSheet
             |> showSheetInIssieSchematic dispatch
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
@@ -313,11 +334,9 @@ module HLPTick3 =
         fromList [-100..20..100]        
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
-        
     let randOffsets =
         (randomInt -100 10 100, randomInt -100 10 100)
         ||> product (fun x y -> (x,y))
-        |> filter (fun (x,y) -> (abs x >= 60) || (abs y >= 60))
         |> map (fun (n, m) -> {X=float n; Y=float m})
 
     // Rotate or Flip a symbol
@@ -351,26 +370,28 @@ module HLPTick3 =
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
+        let offsets =
+            (randomInt -100 10 100, randomInt -100 10 100)
+            ||> product (fun x y -> (x,y))
+            |> map (fun (n, m) -> {X=float n; Y=float m})
+        
         initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> placeSymbol "G1" (GateN(And,2)) (middleOfSheet + andPos + offsets.Data 0)
+        |> Result.bind (placeSymbol "FF1" DFF (middleOfSheet + andPos + offsets.Data 1))
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
+
     /// demo test circuit consisting of a DFF & And gate
     let makeTest2Circuit (offset:XYPos) =
         initSheetModel
         |> placeSymbol "G1" (GateN(And,2)) middleOfSheet
         |> Result.bind (placeSymbol "G2" (GateN(And,2)) (middleOfSheet + offset))
-        |> Result.map randomTransformSymbol
-        // |> Result.map randomTransformSymbol
         |> Result.bind (placeSymbol "G3" (GateN(And,2)) (middleOfSheet + offset * 2.0))
-        // |> Result.map randomTransformSymbol
         |> Result.bind (placeSymbol "G4" (GateN(And,2)) (middleOfSheet + offset * 3.0))
-        // |> Result.map randomTransformSymbol
         |> Result.bind (placeSymbol "G5" (GateN(And,2)) (middleOfSheet + offset * 4.0))
-        // |> Result.map randomTransformSymbol
         |> Result.bind (placeSymbol "G6" (GateN(And,2)) (middleOfSheet + offset * 5.0))
+        |> Result.map randomTransformSheet
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "G2" 0))
         |> Result.bind (placeWire (portOf "G2" 0) (portOf "G3" 0) )
         |> Result.bind (placeWire (portOf "G3" 0) (portOf "G4" 0) )
@@ -443,9 +464,9 @@ module HLPTick3 =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 0"
                 firstSample
-                horizLinePositions
+                randOffsets
                 makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -520,7 +541,7 @@ module HLPTick3 =
                 nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
             | "Next Test Error", None ->
                 printf "Test Finished"
-            | "BeautifyD1", _ -> applyBeautify SheetBeautifyD2.sheetOrderFlip dispatch model; ()
+            | "BeautifyD1", _ -> applyBeautify SheetBeautifyD1.sheetAlignScale dispatch model; ()
             | "BeautifyD2", _ -> applyBeautify SheetBeautifyD2.sheetOrderFlip dispatch model; ()
             | "BeautifyD3", _ -> (* applyBeautify SheetBeautifyD3.___ dispatch model; *) ()
             | _ -> func testIndex 0 dispatch

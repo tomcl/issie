@@ -752,6 +752,9 @@ module D2Helpers =
     /// Given a Symbol and Sheet Exhaustively search through all permutations of the symbol to find the configuration which minimises the wire crossing heuristic
     let optimisePermuteSymbol ( sheet: SheetT.Model ) cid symL penalties  =
         let prevCrossings = countVisibleSegmentIntersection sheet
+        let prevWireBends = countVisibleRightAngles sheet
+        let prevNumSymIntersect = countDistinctWireSegmentIntersectSymbol sheet
+
         symL
         |> permuteMux penalties
         |> List.map (fun (scale,newSym) -> 
@@ -761,10 +764,12 @@ module D2Helpers =
 
             let numSymIntersect = countDistinctWireSegmentIntersectSymbol newSheet
 
+            let numWireBends = countVisibleRightAngles newSheet
+
             let diff = 
-                if numSymIntersect > 0 then
-                    10000.0 // very large number to prevent this from happening
-                else float (newCrossings - prevCrossings)
+                if (numSymIntersect - prevNumSymIntersect) > 0 then
+                    100000.0 // very large number to prevent extra symbol intersects from being added
+                else float (newCrossings - prevCrossings) + float (numWireBends - prevWireBends) * 0.2
 
             (diff, scale, newSheet))
         |> (fun lst -> 

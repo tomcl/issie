@@ -1,4 +1,4 @@
-module SheetBeautify
+module SheetBeautifyAlign
 
 open CommonTypes
 open DrawModelType
@@ -224,37 +224,42 @@ let alignCSyms (sheetModel : SheetT.Model) : SheetT.Model=
             let wires = getWiresBetweenTwoSymbol sym1 sym2 sheetModel
             let parallelWires = wires |> List.filter (fun wire -> isParallelWire wire.WId sheetModel |> Option.isSome)
             // we can have at most 1 straight wire between two symbols
-            wires.Length - parallelWires.Length < 2)
+            wires.Length - parallelWires.Length < 2 && wires.Length > 0 && parallelWires.Length > 0)
 
-    let cSymPairsToAlignInfo = 
-        cSymPairsToAlign
-        |> List.map (fun (sym1,sym2) -> 
-            let wires = getWiresBetweenTwoSymbol sym1 sym2 sheetModel
-            let wire = wires |> List.head
-            let sourceSym = getSourceSymbol sheetModel.Wire wires.[0]
-            let targetSym = getTargetSymbol sheetModel.Wire wires.[0]
+    match cSymPairsToAlign.Length with
+    | 0 -> 
+        printfn "no custom symbols to align"
+        sheetModel
+    | _ ->
+        let cSymPairsToAlignInfo = 
+            cSymPairsToAlign
+            |> List.map (fun (sym1,sym2) -> 
+                let wires = getWiresBetweenTwoSymbol sym1 sym2 sheetModel
+                let wire = wires |> List.head
+                let sourceSym = getSourceSymbol sheetModel.Wire wires.[0]
+                let targetSym = getTargetSymbol sheetModel.Wire wires.[0]
 
-            let (sourceEdge, targetEdge) = (sourceSym.PortMaps.Orientation.[wire.OutputPort.ToString()], targetSym.PortMaps.Orientation.[wire.InputPort.ToString()])
+                let (sourceEdge, targetEdge) = (sourceSym.PortMaps.Orientation.[wire.OutputPort.ToString()], targetSym.PortMaps.Orientation.[wire.InputPort.ToString()])
 
-            if chooseCSymToMove sourceSym sourceEdge targetSym targetEdge = sourceSym then
-                let desiredPortGap = getPortGapOfCSym targetSym targetEdge
-                let dimension = calculateDimension sourceSym sourceEdge desiredPortGap
-                (sourceSym, dimension, wire)
-            else
-                let desiredPortGap = getPortGapOfCSym sourceSym sourceEdge
-                let dimension = calculateDimension targetSym targetEdge desiredPortGap
-                (targetSym, dimension, wire))
+                if chooseCSymToMove sourceSym sourceEdge targetSym targetEdge = sourceSym then
+                    let desiredPortGap = getPortGapOfCSym targetSym targetEdge
+                    let dimension = calculateDimension sourceSym sourceEdge desiredPortGap
+                    (sourceSym, dimension, wire)
+                else
+                    let desiredPortGap = getPortGapOfCSym sourceSym sourceEdge
+                    let dimension = calculateDimension targetSym targetEdge desiredPortGap
+                    (targetSym, dimension, wire))
 
-    let newCSyms = 
-        cSymPairsToAlignInfo
-        |> List.map (fun (sym, dimension, wire) -> putCustomCompDims dimension sym)
+        let newCSyms = 
+            cSymPairsToAlignInfo
+            |> List.map (fun (sym, dimension, wire) -> putCustomCompDims dimension sym)
 
-    let wiresToStraighten = 
-        cSymPairsToAlignInfo
-        |> List.map (fun (sym, dimension, wire) -> wire)
+        let wiresToStraighten = 
+            cSymPairsToAlignInfo
+            |> List.map (fun (sym, dimension, wire) -> wire)
 
-    updateSheetModel sheetModel newCSyms
-    |> straightenWires wiresToStraighten // straighten the wires between the custom symbols
+        updateSheetModel sheetModel newCSyms
+        |> straightenWires wiresToStraighten // straighten the wires between the custom symbols
 
 
 /// Straighten parallel wires in the sheetModel, once
@@ -341,9 +346,8 @@ let rec starightnParallelWires (sheetModel: SheetT.Model) (stubbornWiresLst : Co
 
 /// Straighten parallel wires and align custom symbols in the sheetModel, multiple times
 let rec sheetAlignScale (runTimes : int) (sheetModel: SheetT.Model) =
-    // let newSheet = alignCSyms sheetModel
-    let newSheet = sheetModel
-    if runTimes = 0 then newSheet
+    let newSheet = alignCSyms sheetModel
+    if runTimes = 0 then alignCSyms newSheet
     else
         printfn "runTimes: %d" runTimes
         let newSheetModel = starightnParallelWires newSheet [] (numOfIntersectedSymPairs newSheet)

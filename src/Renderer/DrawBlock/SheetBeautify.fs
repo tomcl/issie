@@ -276,11 +276,14 @@ let findBestModel (model: SheetT.Model) : SheetT.Model =
                 match Map.tryFind id currentModel.Wire.Symbol.Symbols with
                 | Some sym ->
                     match sym.Component.Type with
-                    | GateN _
-                    | Mux2 -> Some id
+                    | GateN _ | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
+                    | NbitsNot(_) | NbitsAnd(_) | NbitsXor(_) | NbitsOr(_) 
+                    | NbitsAdder(_) | NbitsAdderNoCin(_) | NbitsAdderNoCout(_) | NbitsAdderNoCinCout(_)
+                    | IOLabel | DFF | DFFE | Register(_) | RegisterE(_) 
+                    | Counter(_) | CounterNoLoad(_) | CounterNoEnable(_) | CounterNoEnableLoad(_) 
+                    | AsyncROM(_) | ROM1(_) | RAM1(_) | AsyncRAM1(_) -> Some id
                     | _ -> None
                 | None -> None)
-
         evaluateAllComponents currentModel componentsToEvaluate
 
     let updatedModel = List.fold evaluateSubCircuit model subCircuits

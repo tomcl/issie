@@ -331,7 +331,7 @@ module Circuit =
     let makeA4Circuit (offsetXY: XYPos) =
         initSheetModel
         |> placeSymbol "MAIN1" mainCC middleOfSheet
-        |> addSym "MAIN2" mainCC (160.+offsetXY.X) (0.+offsetXY.Y)
+        |> addSym "MAIN2" mainCC (260.+offsetXY.X) (0.+offsetXY.Y)
         |> addWire ("MAIN1", 0) ("MAIN2", 0)
         |> addWire ("MAIN1", 1) ("MAIN2", 1)
         |> addWire ("MAIN1", 2) ("MAIN2", 2)

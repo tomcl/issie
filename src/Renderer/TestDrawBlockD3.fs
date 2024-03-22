@@ -393,7 +393,7 @@ module HLPTick3 =
             |> map (fun n -> { X = 0.; Y = float n })
         product (fun x y -> x + y) horizLinePositionsSparse vertLinePositionsSparse
         |> filter (fun pos -> not (abs pos.X <= 300 && abs pos.Y <= 300))
-        // after measuring, keep the absolute distances less than 60 together
+        // after measuring, keep the absolute distances less than 360 together
         |> map (fun pos -> middleOfSheet + pos)
 
     let hVLinePosFlipRotate1: Gen<XYPosRFlip> =

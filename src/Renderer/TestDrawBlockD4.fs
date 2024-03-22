@@ -175,7 +175,7 @@ module TestData =
     //                         }
     //     toList posGen
     let getTestRand n =
-        (nRandComps n, fromList randomPos)
+        (nRandComps n, fromList TestData.randomPos)
         ||> product (fun compL posL -> (compL, posL))
         |> toArray
         |> shuffleA
@@ -218,6 +218,7 @@ module TestData =
 module Evaluations =
     open TestDrawBlockD1.Evaluations
     open TestDrawBlockD2.Evaluations
+    // open TestDrawBlockD3.Evaluations
 
     type ConfigD4 =
         {
@@ -233,9 +234,9 @@ module Evaluations =
 
     /// Combines all evaluations into one score
     let evalBeauty (c: ConfigD4) (sheet: SheetT.Model) : float =
-        c.wBendWeight * (wireBendProp sheet)
+        c.wBendWeight * (Evaluations.wireBendProp sheet)
         |> (+) (c.wCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
-        |> (+) (c.wSquashWeight * (float (wireSquashProp sheet)))
+        |> (+) (c.wSquashWeight * (float (Evaluations.wireSquashProp sheet)))
         // |> (+) (c.wLenWeight * (float (wireSquashProp sheet)))
 
     let evalD4 =
@@ -352,26 +353,7 @@ module Tests =
             "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled" // Toggle beautify function
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
-        //         [
-        //     "D1 - Random", testRand // RANDOM TEST (D1 beautify)
-        //     "D2 - Random", Tests.testRandomD2 // RANDOM TEST (D2 beautify)
-        //     //"D2 - Random Eval Score", Tests.testRandomD2Eval // RANDOM TEST, show evaluation score (D2 beautify)
-        //     "D3 - Random", fun _ _ _ _ -> printf "Test3" // RANDOM TEST (D3 beautify)
-        //     "All - D1's test", testD1Circuit // Standard D1 TEST (all beautifies)
-        //     "All - D2's test", Tests.testAll // Standard D2 TEST (all beautifies)
-        //     "All - D3's test", testD3circuit // Standard D3 TEST (all beautifies)
-        //     "All - Random", fun _ _ _ _ -> printf "Test5" // RANDOM TEST (all beautifies)
-        //     "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
-        //     "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-        // ]
 
-    /// Display the next error in a previously started test
-    let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
-        let testNum =
-            testsToRunFromSheetMenu
-            |> List.tryFindIndex (fun (name,_) -> name = testName)
-            |> Option.defaultValue 0
-        testFunc testNum firstSampleToTest showTargetSheet dispatch
 
     /// common function to execute any test.
     /// testIndex: index of test in testsToRunFromSheetMenu

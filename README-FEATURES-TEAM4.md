@@ -60,4 +60,5 @@
 
 
 ## Randomised testing
-- fully randomised circuit generation to find edge cases
+- Fully randomised circuit generation to find edge cases
+- Customized random circuit for easier testing

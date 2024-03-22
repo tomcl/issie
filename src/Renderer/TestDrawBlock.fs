@@ -1,6 +1,7 @@
 ﻿module TestDrawBlock
 open GenerateData
 open Elmish
+open SheetBeautifyHelpers
 
 
 //-------------------------------------------------------------------------------------------//
@@ -85,7 +86,7 @@ module TestLib =
     /// The return list contains all failures or exceptions: empty list => everything has passed.
     /// This will always run to completion: use truncate if text.Samples.Size is too large.
     let calcEval (test: Test<'a>) : float =
-        [0..test.Samples.Size - 1]
+        [0..test.Samples.Size-1]
         |> List.map (fun n ->
                 catchException $"generating test {n} from {test.Name}" test.Samples.Data n
                 |> (fun res -> n,res)
@@ -108,12 +109,14 @@ module TestLib =
     /// Run the Test samples from the test's start up to test.Size - 1.
     /// The return list contains the first failures or exceptions: empty list => everything has passed.
     /// This will run till the first failure
+    // TODO: currently stops when assertion fail found, then has to redo assertion to get error message.
+    // Could be made recursive to prevent
     let runTestsTillFail (test: Test<'a>) : TestResult<'a> =
         printfn $"[{test.StartFrom}/{test.Samples.Size}]"
         let getTestFail (n, res) : option<int * TestStatus> =
             match n, res with
                 | n, Error mess -> Some (n, Exception mess)
-                | n, Ok sample -> // TODO: Add targetFunc worse stuff
+                | n, Ok sample ->
                     match test.Assertion with
                     | TargetFuncWorse ->
                         if (calcEvalDiff sample test.Evaluation > 0) then
@@ -405,7 +408,6 @@ module HLPTick3 =
                 printf $" SCORE: {score'}"
                 printf "----------"
                 {result with score = score'}
-                // evaluationPopup
             | Some (n,first) -> // display in Issie editor and print out first error
                 match showTargetSheet with
                 | true ->
@@ -492,6 +494,39 @@ module HLPTick3 =
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
 
+                         
+         /// Fail if the evaluation metric is greater than 0 (not perfect) 
+        let failOnMetric (failAll:bool) (sample: int) (model: SheetT.Model) =
+            let weighting = [1.;1.;1.;1.]
+            let wireLengthMetric (model:SheetT.Model) = 
+                let totalLength = calcVisWireLength model
+                let minLength =
+                    mapValues model.Wire.Wires
+                    |> Array.map (fun w -> Symbol.getTwoPortLocations model.Wire.Symbol w.InputPort w.OutputPort)
+                    |> Array.map (fun w -> manhattanDistance (fst w) (snd w))
+                    |> Array.sum
+                totalLength/minLength - 1.
+            let wireScore = wireLengthMetric model
+            let ISP =  numOfIntersectedSymPairs model //number of intersecting symbol pairs
+            let numSymPairs = 
+                (float (mapKeys model.Wire.Symbol.Symbols |> Array.toList).Length)/2.
+                |> (System.Math.Round)
+                |> int 
+            let ISPScore = (float ISP)/(float numSymPairs)
+            let numSegs = 
+                (getVisibleSegOnSheet model).Length
+            let ISS = float (numOfIntersectSegSym model) //number of segments intersecting segments
+            let ISSScore = (float ISS)/(float (numSegs+numSymPairs))
+            let SCR = numSegmentCrossRightAngle model //number of wire intersections
+            let SCRScore = (float SCR)/(float numSegs)
+            let score = System.Math.Round ((ISPScore*weighting[0] + ISSScore*weighting[1] + SCRScore*weighting[2] + wireScore*weighting[3])/(List.sum weighting),10) 
+            printf $" ===========Sample {sample} scored average {score}/4 with ISP {ISP}, ISS {ISS}, SCR {SCR}, WireWaste {wireScore}============"
+            match failAll with
+            |true -> Some $"=====Failing all, sample {sample}====="
+            |_ ->
+                match score with
+                |0.0 -> None
+                |_ -> Some $"=====Sample {sample} failed with score > 0=====" 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Evaluation------------------------------------------------//
 //---------------------------------------------------------------------------------------//
@@ -502,6 +537,16 @@ module HLPTick3 =
 
     module Evaluations =
         open DrawModelType
+        open BlockHelpers
+        open SheetBeautifyHelpers
+
+        /// Combine two evaluation metrics
+        let combEval evalA weightA evalB weightB (sheet: SheetT.Model) : float =
+            weightA * (evalA sheet) + weightB * (evalB sheet)
+        
+        /// Combine three evaluation metrics
+        let combEval3 evalA weightA evalB weightB evalC weightC (sheet: SheetT.Model) : float =
+            weightA * (evalA sheet) + weightB * (evalB sheet) + weightC * (evalC sheet)
 
         /// Evaluates sheet to 0
         let nullEvaluator : Evaluator<SheetT.Model> =
@@ -510,14 +555,102 @@ module HLPTick3 =
                 Penalty = 1.
             }
 
+        /// Calculates the proportion of wire bends compared to the ideal solution.
+        /// Same as evaluating the number of visual segments
+        let wireBendProp (sheet: SheetT.Model) =
+            let wires = mapValues sheet.Wire.Wires
+            let symMap = sheet.Wire.Symbol
+
+            // Ideal min turn with no position constraints
+            let wireMinTurns (wire: BusWireT.Wire) =
+                let inpEdge = getInputPortOrientation symMap wire.InputPort
+                let outEdge = getOutputPortOrientation symMap wire.OutputPort
+                match inpEdge, outEdge with
+                | edge1, edge2 when edge1 = edge2 -> 2
+                | Left, Right | Right, Left | Top, Bottom | Bottom, Top -> 0
+                | _ -> 1
+
+            let rightAngs = numOfVisRightAngles sheet
+            let idealRightAngs =
+                wires
+                |> Array.map wireMinTurns
+                |> Array.sum
+
+            match rightAngs with
+            | 0 -> 1.
+            | _ -> float idealRightAngs / float rightAngs
+
+        /// Evaluates symbol alignment with all other symbols
+        let symCentreAlignmentProp (sheet: SheetT.Model) : float =
+            let syms = mapValues sheet.Wire.Symbol.Symbols
+            let n = Array.length syms
+            
+            /// Scores how close two points are
+            let calcAlignPoint (pointA: float) (pointB: float) : float =
+                let diff = abs (pointA - pointB)
+                match diff with
+                | diff when diff < 1. -> 1.
+                | _ -> 1. / diff
+
+            /// Scores how aligned two symbols are
+            let calcAlignSym (symA: SymbolT.Symbol) (symB: SymbolT.Symbol) : float = 
+                let ctrA = symA.CentrePos
+                let ctrB = symB.CentrePos
+                calcAlignPoint ctrA.X ctrB.X + calcAlignPoint ctrA.Y ctrB.Y
+
+            Array.allPairs syms syms
+            |> Array.sumBy (function | (symA,symB) when symA.Id <= symB.Id -> calcAlignSym symA symB
+                                     | _ -> 0.)
+            |> (fun x -> x / (float (n * n))) // Scales to lots of symbols
+
+        /// Evaluates number of crosses of wires compared to number of visible segments in sheet
+        /// Returns 1 if no wire crosses
+        /// Calculates the proportion of wire crossings compared to the total number of wires
+        let wireCrossProp (sheet: SheetT.Model) =
+            let numCrossing = numOfWireRightAngleCrossings sheet
+            let numVisSeg = 
+                getVisibleSegOnSheet sheet
+                |> SegmentHelpers.distinctVisSegs
+                |> List.length
+            match numCrossing with
+            | 0 -> 1.
+            | _ -> 1. - (float numCrossing / float numVisSeg)
+        
+        /// Evaluates wire squashing between symbols
+        /// Returns 1 if no wire is squashed
+        /// Calculates the proportion of squashed wires compared to the total number of wires
+        let wireSquashProp (sheet: SheetT.Model) =
+            let numSquash = numOfSquashedWires sheet
+            let numWires = mapValues sheet.Wire.Wires |> Array.length
+            match numSquash with
+            | 0 -> 1.
+            | _ -> 1. - (float numSquash / float numWires)
+
+
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
 //---------------------------------------------------------------------------------------//
 
     module Tests =
-        open SymbolPortHelpers // TODO: move from SymbolPortHelpers here
+        open Fable.React.Props
+        open Fable.React
 
-        /// Allow test errors to be viewed in sequence by recording the current error
+        /// score popup formatting
+        let scoreSheet(score) : ReactElement =
+            let styledSpan styles txt = span [Style styles] [str <| txt]
+            let bSpan txt = styledSpan [FontWeight "bold"] txt
+            let iSpan txt = styledSpan [FontStyle "italic"] txt
+            let tSpan txt = span [] [str txt]
+            div [] [
+            bSpan "Testing Complete!" ; 
+            br []; br [];
+            tSpan " Based on the evaluation functions provided for this test, your sheet received a score of "; bSpan $"{score}."
+            br []; br []; 
+            tSpan "The scoring functions are meant to be absolute, but the score is more useful for relative scoring." 
+                ]
+        
+
+        /// Allow test errors to be viewed in sequence by recording the current error. Also allows toggling target function
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
         let recordPositionInTest (testNumber: int) (targetFuncApplied: bool) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
             dispatch <| UpdateDrawBlockTestState(fun _ ->

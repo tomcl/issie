@@ -269,28 +269,51 @@ let replaceLongWiresWithLabels (model: SheetT.Model) (lengthThreshold: float) : 
 
     findLongWires |> List.fold replaceEachWire model
 
-/// Wire Label Reset
+// Checks if a symbol is a label
+let isLabel (symbolId: ComponentId) (model: SheetT.Model) =
+    match model.Wire.Symbol.Symbols |> Map.tryFind symbolId with
+    | Some symbol -> symbol.Component.Type = IOLabel
+    | None -> false
+
+// Checks if a wire is connected to any label
+let wireConnectedToLabel (wireId: ConnectionId, wire: BusWireT.Wire) (model: SheetT.Model) =
+    let (sourceSymbol, _), (targetSymbol, _) = getWireSymbolsAndPort wireId model
+    isLabel sourceSymbol.Id model
+    || isLabel targetSymbol.Id model
+
+/// Finds wires that are connected at one end to a wire label component
 let findWiresConnectedToLabels (model: SheetT.Model) =
     let wires = model.Wire.Wires |> Map.toList
 
-    // Check if a symbol is a label
-    let isLabel (symbolId: ComponentId) =
-        match model.Wire.Symbol.Symbols |> Map.tryFind symbolId with
-        | Some symbol -> symbol.Component.Type = IOLabel
-        | None -> false
-
-    // Check if a wire is connected to any label
-    let wireConnectedToLabel (wireId: ConnectionId, wire: BusWireT.Wire) =
-        let (sourceSymbol, _), (targetSymbol, _) = getWireSymbolsAndPort wireId model
-        isLabel sourceSymbol.Id || isLabel targetSymbol.Id
-
     wires
     |> List.choose (fun (wireId, wire) ->
-        if wireConnectedToLabel (wireId, wire) then
+        if wireConnectedToLabel (wireId, wire) model then
             Some wireId
         else
             None)
 
+/// Finds port index of a specific component. Used for port record formation.
+let getPortIndex (portId: PortId) (symId: ComponentId) (model: SheetT.Model) =
+    let portIdStr: string = getPortIdStr portId
+
+    let findPortIndexInList (portsList: Port list) =
+        portsList
+        |> List.mapi (fun idx port -> (idx, port.Id))
+        |> List.tryFind (fun (_, pid) -> pid = portIdStr)
+        |> Option.map fst
+
+    match model.Wire.Symbol.Symbols |> Map.tryFind symId with
+    | Some symbol ->
+        let outputPortIndex = findPortIndexInList symbol.Component.OutputPorts
+        match outputPortIndex with
+        | Some idx -> (idx, false)
+        | None ->
+            match findPortIndexInList symbol.Component.InputPorts with
+            | Some idx -> (idx, true)
+            | None -> failwith "Port ID not found in model"
+    | None -> failwith "Symbol ID not found in model"
+
+/// Used to get port record for the non wire label component, wire label name and port type (input or output port)
 let getNonLabelEndDetails (wireId: ConnectionId) (model: SheetT.Model) =
     let ((sourceSymbol, sourcePortId), (targetSymbol, targetPortId)) =
         getWireSymbolsAndPort wireId model
@@ -298,37 +321,33 @@ let getNonLabelEndDetails (wireId: ConnectionId) (model: SheetT.Model) =
     let isTargetLabel = targetSymbol.Component.Type = IOLabel
     printf "%b,%b" isSourceLabel isTargetLabel
 
-    let getPortIndex (portId: PortId) (symId: ComponentId) =
-        let portIdStr: string = getPortIdStr portId
-
-        let findPortIndexInList (portsList: Port list) =
-            portsList
-            |> List.mapi (fun idx port -> (idx, port.Id))
-            |> List.tryFind (fun (_, pid) -> pid = portIdStr)
-            |> Option.map fst
-
-        match model.Wire.Symbol.Symbols |> Map.tryFind symId with
-        | Some symbol ->
-            let outputPortIndex = findPortIndexInList symbol.Component.OutputPorts
-            match outputPortIndex with
-            | Some idx -> (idx, false)
-            | None ->
-                match findPortIndexInList symbol.Component.InputPorts with
-                | Some idx -> (idx, true)
-                | None -> failwith "Port ID not found in model"
-        | None -> failwith "Symbol ID not found in model"
-
     match isSourceLabel, isTargetLabel with
     | true, false ->
         printf "type: %A" targetSymbol.Component.Type
-        let number, isInputPort = getPortIndex targetPortId targetSymbol.Id
+        let number, isInputPort = getPortIndex targetPortId targetSymbol.Id model
         Some({ SymbolId = targetSymbol.Id; PortNumber = number }, sourceSymbol.Component.Label, isInputPort)
     | false, true ->
         printf "type: %A" sourceSymbol.Component.Type
-        let number, isInputPort = getPortIndex sourcePortId sourceSymbol.Id
+        let number, isInputPort = getPortIndex sourcePortId sourceSymbol.Id model
         Some({ SymbolId = sourceSymbol.Id; PortNumber = number }, targetSymbol.Component.Label, isInputPort)
     | _ -> None
 
+/// Helper function to find all possible pairs in a list
+let rec allPairs lst =
+    match lst with
+    | [] -> []
+    | hd :: tl -> List.map (fun x -> (hd, x)) tl @ allPairs tl
+
+/// Helper function for pair processing that checks port type label flags and ensures wire labels are the same
+let processPairs pairs =
+    pairs
+    |> List.choose (fun ((end1, label1, flag1), (end2, label2, flag2)) ->
+        match flag1, flag2 with
+        | false, true when label1 = label2 -> Some((end1, end2), label1)
+        | true, false when label1 = label2 -> Some((end2, end1), label1)
+        | _ -> None)
+
+/// Replaces Wire labels with wires if potential wire between wire labels is below threshold
 let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
     let wireEndsAndLabels =
         model.Wire.Wires
@@ -338,32 +357,19 @@ let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : Shee
             | Some detailsAndLabel -> Some detailsAndLabel
             | None -> None)
 
-    let rec allPairs lst =
-        match lst with
-        | [] -> []
-        | hd :: tl -> List.map (fun x -> (hd, x)) tl @ allPairs tl
-
-    let processPairs pairs =
-        pairs
-        |> List.choose (fun ((end1, label1, flag1), (end2, label2, flag2)) ->
-            match flag1, flag2 with
-            | false, true when label1 = label2 -> Some((end1, end2), label1)
-            | true, false when label1 = label2 -> Some((end2, end1), label1)
-            | _ -> None)
-
     let groupedByLabelAndCombinations =
         wireEndsAndLabels
         |> List.groupBy (fun (_, label, _) -> label)
         |> List.collect (fun (_, group) -> group |> allPairs |> processPairs)
 
-    let componentsWithLabel (label: string) (model: SheetT.Model) =
-        model.Wire.Symbol.Symbols
-        |> Map.toList
-        |> List.choose (fun (id, sym) ->
-            if caseInvariantEqual sym.Component.Label label then
-                Some id
-            else
-                None)
+    // let componentsWithLabel (label: string) (model: SheetT.Model) =
+    //     model.Wire.Symbol.Symbols
+    //     |> Map.toList
+    //     |> List.choose (fun (id, sym) ->
+    //         if caseInvariantEqual sym.Component.Label label then
+    //             Some id
+    //         else
+    //             None)
 
     // let deleteSymbols (model: SheetT.Model) compIds =
     //     let newSymbols =
@@ -371,7 +377,7 @@ let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : Shee
     //         ||> List.fold (fun prevModel sId -> Map.remove sId prevModel)
     //     { model with Wire.Symbol.Symbols = newSymbols }
 
-    // Process each matched pair.
+    /// Checks each matched pair of ports that are connected by wire label and replaces if wire below threshold.
     let processPair (model: SheetT.Model) (((end1, end2), label): (SymbolPortRec * SymbolPortRec) * string) =
         printf "%A,%A" end1 end2
         match placeWireX end1 end2 model with
@@ -384,7 +390,7 @@ let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : Shee
             let wireLength = getWireLength wire
             if wireLength <= lengthThreshold then
                 printf "Label: %A" label
-                ///deleteSymbols updatedModel (componentsWithLabel label updatedModel)
+                //deleteSymbols updatedModel (componentsWithLabel label updatedModel)
                 updatedModel
             else
                 let modelWithWireRemoved = deleteWire wireId updatedModel
@@ -392,22 +398,10 @@ let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : Shee
         | Error errMsg ->
             printfn "Error placing wire: %s" errMsg
             model
-    printf "IMPORTANT: %A" groupedByLabelAndCombinations
 
     List.fold processPair model groupedByLabelAndCombinations
 
+/// Overall function that implements both replacing long wires with labels and replacing wire labels if a wire between them is below threshould
 let d3Function (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
     let removedWiresModel = replaceLongWiresWithLabels model lengthThreshold
     replaceLabelsWithWires removedWiresModel lengthThreshold
-
-// findLongWires
-// |> List.fold (fun model (wireId, wire) ->
-//     let wireLabel = placeWireLabel wire model
-
-//     let modelWithoutWire = DeleteWiresWithPort [Some wire.InputPort; Some wire.OutputPort] model
-
-//     let addLabel = placeWireLabel label modelWithoutWire
-//     )
-
-// Section C ->> Bit legends /  Symbol rendering / Adjustments / repositioning
-// To be implemented when I have a better idea of its current testing performance

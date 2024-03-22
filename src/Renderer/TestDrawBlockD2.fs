@@ -168,7 +168,7 @@ module D2 =
         D2StarterPositions
         |> toList
         |> List.map (getOptionStarterPosition topLeft bottomRight)
-        |> List.filter(fun d -> (numOfIntersectedSymPairs (makeD2OptionCircuit d)) = 0)
+        |> List.filter(fun d -> (numOfIntersectedSymPairs (makeD2OptionCircuit d)) <= 0)
         |> fromList
 
 

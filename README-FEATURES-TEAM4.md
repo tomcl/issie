@@ -1,9 +1,15 @@
 # Implemented Functionality
 
 ## sheetAlignScale (D1)
+- Scaling and alignment of custom components such that ports are aligned and wires between ports are straight. Works both horizontally and vertically (on rotated components). This is done by finding the separation between ports to find a scaling factor by which HScale or VScale must be multiplied to ensure port separation, then aligning the topmost or leftmost components correctly.
 
+- Alignment of all components to reduce the number of turns in the wire. This is done both for singly connected and multiply connected components, where multiply connected components are split into three cases in order to align them more effectively.
 
+- Heuristic alignment of arrays of components. The heuristic used is a case of multiply connected components, where one component that is connected to several components aligns the components that it is connected to. 
 
+- In all cases, symbols are ensured not to overlap by reverting them to previously made sheets.
+
+- Code can be found in SheetBeautifyD1.
 
 
 ## sheetOrderFlip (D2)

@@ -950,7 +950,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
             (fun currentSheetModel (cleanUpRecord: CleanUpRecord) ->
                 printf "doing a pass with symbol id %A" cleanUpRecord.Symbol.Id
                 // create a new straight wire
-                let _, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
+                let testNewStraightWire, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
                 let newSheetModelBeforeReroute =
                     currentSheetModel
                     |> updateSheetSymWithNewSym newMovedSymbol
@@ -958,6 +958,8 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                         updateSheetWireWithNewWire
                             (smartAutoroute modelWithNewSymb.Wire cleanUpRecord.Wire)
                             modelWithNewSymb)
+                // let newSheetModel =
+                //     updateSheetWireWithNewWire testNewStraightWire newSheetModelBeforeReroute
                 let routedWires =
                     newSheetModelBeforeReroute.Wire
                     |> perturbAllSymbols 100.0
@@ -1160,6 +1162,7 @@ let rec findLongestContiguousSequence
 /// Author: tdc21/Tim
 /// </summary>
 let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherSymbol: Symbol) =
+    printf "###################################"
     printf "resizing symbols %A and %A" symbolToSize.Id otherSymbol.Id
 
     // assume symbolToSize is always a custom component
@@ -1219,7 +1222,8 @@ let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherS
 
     let ((longestVertSequenceEdge, longestContiguousVerticalSequence),
          (longestHorizSequenceEdge, longestContiguousHorizontalSequence)) =
-        match
+        // longestContiguousSequencesByEdge[1], longestContiguousSequencesByEdge[2]
+        match //[top, bottom, left, right]. prioritise top and right if possible
             (snd longestContiguousSequencesByEdge[0]).SequenceLength > (snd longestContiguousSequencesByEdge[1])
                 .SequenceLength,
             (snd longestContiguousSequencesByEdge[2]).SequenceLength > (snd longestContiguousSequencesByEdge[3])
@@ -1229,6 +1233,11 @@ let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherS
         | true, false -> longestContiguousSequencesByEdge[0], longestContiguousSequencesByEdge[3] //Top and Right
         | false, true -> longestContiguousSequencesByEdge[1], longestContiguousSequencesByEdge[2] //Bottom and Left
         | false, false -> longestContiguousSequencesByEdge[1], longestContiguousSequencesByEdge[3] //Bottom and Right
+    // printf "symbolId: %A" symbolToSize.Id
+    // printf "longestVertSequenceEdge: %A" longestVertSequenceEdge
+    // printf "longestContiguousVerticalSequence: %A" longestContiguousVerticalSequence
+    // printf "longestHorizSequenceEdge: %A" longestHorizSequenceEdge
+    // printf "longestContiguousHorizontalSequence: %A" longestContiguousHorizontalSequence
 
     //  create a horizontally adjusted symbol with the longest horizontal sequence resized, then run the algorithm again to find the longest vertical sequence
 
@@ -1238,28 +1247,39 @@ let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherS
         match edge with
         | Top
         | Right ->
-            (symbol.PortMaps.Order[edge]).[List.length (symbol.PortMaps.Order[edge])
-                                           - 1
-                                           - index]
+            // (symbol.PortMaps.Order[edge]).[List.length (symbol.PortMaps.Order[edge])
+            //                                - 1
+            //                                - index]
+            (List.rev (symbol.PortMaps.Order[edge])).[index]
         | Bottom
         | Left -> (symbol.PortMaps.Order[edge]).[index]
 
-    // would have been better to check longestContiguousVerticalSequence.sequenceLength
+    let tryLookupPortMapsIndex edge index symbol =
+        match edge with
+        | Top
+        | Right -> List.tryItem index (List.rev (symbol.PortMaps.Order[edge]))
+        | Bottom
+        | Left -> List.tryItem index (symbol.PortMaps.Order[edge])
+
     let horizontallyAdjustedSymbol =
-        match longestContiguousHorizontalSequence.StartPointA, longestContiguousHorizontalSequence.StartPointB with
-        | -1, _
-        | _, -1
-        | _, _ ->
-            let resizePortIdHoriz =
-                lookupPortMapsIndex
-                    longestHorizSequenceEdge
-                    longestContiguousHorizontalSequence.StartPointA
-                    symbolToSize
-            let otherPortIdHoriz =
-                lookupPortMapsIndex
-                    (findOpposite longestHorizSequenceEdge)
-                    longestContiguousHorizontalSequence.StartPointB
-                    otherSymbol
+        match
+            tryLookupPortMapsIndex longestHorizSequenceEdge longestContiguousHorizontalSequence.StartPointA symbolToSize,
+            tryLookupPortMapsIndex
+                (findOpposite longestHorizSequenceEdge)
+                longestContiguousHorizontalSequence.StartPointB
+                otherSymbol
+        with
+        | (Some resizePortIdHoriz), (Some otherPortIdHoriz) when longestContiguousHorizontalSequence.SequenceLength > 0 ->
+            // let resizePortIdHoriz =
+            //     lookupPortMapsIndex
+            //         longestHorizSequenceEdge
+            //         longestContiguousHorizontalSequence.StartPointA
+            //         symbolToSize
+            // let otherPortIdHoriz =
+            //     lookupPortMapsIndex
+            //         (findOpposite longestHorizSequenceEdge)
+            //         longestContiguousHorizontalSequence.StartPointB
+            //         otherSymbol
 
             let resizePortInfoHoriz =
                 match Map.tryFind resizePortIdHoriz wModel.Symbol.Ports with
@@ -1278,28 +1298,74 @@ let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherS
                 let scaledSymbol = setCustomCompHW h w symbolToSize
                 let scaledInfo = makePortInfo scaledSymbol resizePortInfoHoriz.port
                 let offset = alignPortsOffset scaledInfo otherPortInfoHoriz
-                moveSymbol offset scaledSymbol
+                printf "Adjusted horizontally with resizePort %A and otherPort %A" resizePortIdHoriz otherPortIdHoriz
+                printf "Moving offset h %A" offset
+                { moveSymbol offset scaledSymbol with Id = symbolToSize.Id }
+
             | _ -> symbolToSize
+        | _ ->
+            printf "Did not adjust horizontally"
+            symbolToSize
+    // would have been better to check longestContiguousVerticalSequence.sequenceLength
+    // let horizontallyAdjustedSymbol =
+    //     match longestContiguousHorizontalSequence.StartPointA, longestContiguousHorizontalSequence.StartPointB with
+    //     | -1, _
+    //     | _, -1
+    //     | _, _ ->
+    //         let resizePortIdHoriz =
+    //             lookupPortMapsIndex
+    //                 longestHorizSequenceEdge
+    //                 longestContiguousHorizontalSequence.StartPointA
+    //                 symbolToSize
+    //         let otherPortIdHoriz =
+    //             lookupPortMapsIndex
+    //                 (findOpposite longestHorizSequenceEdge)
+    //                 longestContiguousHorizontalSequence.StartPointB
+    //                 otherSymbol
+
+    //         let resizePortInfoHoriz =
+    //             match Map.tryFind resizePortIdHoriz wModel.Symbol.Ports with
+    //             | Some port -> makePortInfo symbolToSize port
+    //             | None -> failwith "Port not found"
+
+    //         let otherPortInfoHoriz =
+    //             match Map.tryFind otherPortIdHoriz wModel.Symbol.Ports with
+    //             | Some port -> makePortInfo otherSymbol port
+    //             | None -> failwith "Port not found"
+
+    //         let h, w = calculateResizedDimensions resizePortInfoHoriz otherPortInfoHoriz
+
+    //         match symbolToSize.Component.Type with
+    //         | Custom _ ->
+    //             let scaledSymbol = setCustomCompHW h w symbolToSize
+    //             let scaledInfo = makePortInfo scaledSymbol resizePortInfoHoriz.port
+    //             let offset = alignPortsOffset scaledInfo otherPortInfoHoriz
+    //             moveSymbol offset scaledSymbol
+    //         | _ -> symbolToSize
 
     let verticallyAndHorizontallyAdjustedSymbol =
-        match longestContiguousVerticalSequence.StartPointA, longestContiguousVerticalSequence.StartPointB with
-        | -1, _
-        | _, -1 -> horizontallyAdjustedSymbol
-        | _, _ ->
-            let resizePortIdVert =
-                lookupPortMapsIndex
-                    longestVertSequenceEdge
-                    longestContiguousVerticalSequence.StartPointA
-                    horizontallyAdjustedSymbol
-            let otherPortIdVert =
-                lookupPortMapsIndex
-                    (findOpposite longestVertSequenceEdge)
-                    longestContiguousVerticalSequence.StartPointB
-                    otherSymbol
+        match
+            tryLookupPortMapsIndex longestVertSequenceEdge longestContiguousVerticalSequence.StartPointA symbolToSize,
+            tryLookupPortMapsIndex
+                (findOpposite longestVertSequenceEdge)
+                longestContiguousVerticalSequence.StartPointB
+                otherSymbol
+        with
+        | (Some resizePortIdVert), (Some otherPortIdVert) when longestContiguousVerticalSequence.SequenceLength > 0 ->
+            // let resizePortIdVert =
+            //     lookupPortMapsIndex
+            //         longestVertSequenceEdge
+            //         longestContiguousVerticalSequence.StartPointA
+            //         horizontallyAdjustedSymbol
+            // let otherPortIdVert =
+            //     lookupPortMapsIndex
+            //         (findOpposite longestVertSequenceEdge)
+            //         longestContiguousVerticalSequence.StartPointB
+            //         otherSymbol
 
             let resizePortInfoVert =
                 match Map.tryFind resizePortIdVert wModel.Symbol.Ports with
-                | Some port -> makePortInfo symbolToSize port
+                | Some port -> makePortInfo horizontallyAdjustedSymbol port
                 | None -> failwith "Port not found"
 
             let otherPortInfoVert =
@@ -1314,11 +1380,17 @@ let reSizeSymbolImproved (wModel: BusWireT.Model) (symbolToSize: Symbol) (otherS
                 let scaledSymbol = setCustomCompHW h w horizontallyAdjustedSymbol
                 let scaledInfo = makePortInfo scaledSymbol resizePortInfoVert.port
                 let offset = alignPortsOffset scaledInfo otherPortInfoVert
-                printf "offset"
+                printf "Adjusted vertically"
                 moveSymbol offset scaledSymbol
             | _ -> symbolToSize
+        | _ ->
+            printf "Did not adjust vertically"
+            horizontallyAdjustedSymbol
+    printf "symbolToSizePos: %A: " symbolToSize.Id
+    // printf "verticallyAndHorizontallyAdjustedSymbolPos: %A: " verticallyAndHorizontallyAdjustedSymbol.Id
 
-    verticallyAndHorizontallyAdjustedSymbol
+    // this is a bug! moveSymbol creates a new id and we lose track of it
+    { verticallyAndHorizontallyAdjustedSymbol with Id = symbolToSize.Id }
 
 let findSymbolsConnectedToSymbol (wModel: BusWireT.Model) (symbol: Symbol) =
     // get a list of ports from Symbol.Portmaps.Orientation
@@ -1432,7 +1504,7 @@ let reSizeSymbolImprovedTopLevel (wModel: BusWireT.Model) (symbolA: Symbol) (sym
     let symbolAWireCount, symbolBWireCount =
         getWiresCountConnectedToSym symbolA wModel, getWiresCountConnectedToSym symbolB wModel
 
-    let syms = findSymbolsConnectedToSymbol wModel symbolA
+    // let syms = findSymbolsConnectedToSymbol wModel symbolA
 
     // we can resize custom symbols only! We choose custom symbols to resize. In the case of both being custom symbols, we choose the one with the least wires connected to it
     let scaledSymbol, symbolToSizeId =
@@ -1441,6 +1513,7 @@ let reSizeSymbolImprovedTopLevel (wModel: BusWireT.Model) (symbolA: Symbol) (sym
         | Custom _, _ -> (reSizeSymbolImproved wModel symbolA symbolB), symbolA.Id
         | _, Custom _ -> (reSizeSymbolImproved wModel symbolB symbolA), symbolB.Id
         | _ -> symbolA, symbolA.Id
+
     // match symbolAWireCount >= symbolBWireCount, symbolA.Component.Type, symbolB.Component.Type with
     // | true, (Custom _), (Custom _) -> (reSizeSymbolImproved wModel symbolB symbolA), symbolB.Id
     // | false, (Custom _), (Custom _) -> (reSizeSymbolImproved wModel symbolA symbolB), symbolA.Id

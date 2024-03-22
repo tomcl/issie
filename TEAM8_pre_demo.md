@@ -1,0 +1,13 @@
+## Things to show at the Demo
+  - ⁠Dev Mode, TestSheetFunctions, small features
+  - ⁠⁠D1B: Auto resizing custom comps, single connected component cleanup, general cleanup
+  - ⁠⁠D1T: Auto generating singly connected components, random generation, custom components
+  - ⁠⁠D1T: Freeze/Forget Current Values
+  - D2T: Generating test circuits where gates and MUXes are randomly flipped, or (2-MUX) inputs swapped.
+  - D2T: Flip MUXes if needed to reduce the number of crossings but not increase the number of bends
+  - D3B: Identify and replace long wires with wire labels
+  - D3B: Unique Wirelabel Identifiers even when doing multiple passes of the test
+  - D3B: Positioning of WireLabels away from the Symbol
+  - D3T: Test circuit for DEMUX4 and MUX4
+ -  D3T: Test circuit for Split3 and Merge3
+ -  D3T: Testing simultaneously for symbol overlaps and wirebends

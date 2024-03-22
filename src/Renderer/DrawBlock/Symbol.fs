@@ -326,7 +326,8 @@ let getPrefix (compType:ComponentType) =
     | MergeN _ -> "MN"
     | SplitWire _ -> "SW"
     | SplitN _ -> "SN"
-    |_  -> ""
+    | IOLabel _ -> "I"
+    | _  -> ""
 
 
 let getGateComponentLegend gType =

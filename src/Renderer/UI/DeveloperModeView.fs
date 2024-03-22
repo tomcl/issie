@@ -34,7 +34,7 @@ open BusWireRoutingHelpers.Constants
 open BusWireRoutingHelpers
 open Sheet
 
-/// function that returns the an string ID with extra formatting of a hovered wire, symbol, or port
+/// function that returns the an string ID with extra formatting of a hovered wire, symbol, or ports
 let findHoveredID (pos: XYPos) (model: SheetT.Model) =
     let dummySymbolId: ComponentId = ComponentId "dummy"
     // we add a 'dummy symbol' to the model to represent the mouse position
@@ -137,7 +137,7 @@ let developerModeView (model: ModelType.Model) dispatch =
           ("Sym-Sym Intersects", (countIntersectingSymbolPairs model.Sheet).ToString())
           ("90º Degree Wire Bends", (countVisibleBends model.Sheet).ToString())
           ("Near-Straight Wires", (countAlmostStraightWiresOnSheet model.Sheet).ToString())
-          ("More Bent Wires", (countBentWiresOnSheet model.Sheet).ToString())
+          ("Not Straight Wires", (countBentWiresOnSheet model.Sheet).ToString())
           ("Singly-Conn Wires", (countSinglyConnectedWires model.Sheet).ToString())
           ("Vis. Seg. Length", (countVisibleSegmentLength model.Sheet).ToString("F1")) ]
     //   ("Free Space!!!", ":)") ]

@@ -473,24 +473,121 @@ module HLPTick3 =
         |> flipSymbol "G1" andFlip
     // |> separateAllWires does not make a difference in testing
 
-    let test3SampleComponents: (ComponentType * float * float) list =
-        [ GateN(And, 2), 45.0, 45.0
-          Not, 30.0, 30.0
-          Mux2, 90.0, 60.0
-          Input1(1, Some 1), 30.0, 60.0
-          Output 1, 30.0, 60.0
-          DFF, 75.0, 75.0 ]
-    // function to sample a random uniform number from -10, 10
-    let perturbationNoise =
+    //--------------------------------D1T Functions for Testing-----------------------------------//
+    // Have to provide XYPos with Component since the unplaced component does not have dimensions
+    let test3SampleComponents: (string * ComponentType * XYPos) list =
+        [ "AND", GateN(And, 2), { X = 45.0; Y = 45.0 }
+          "NOT", Not, { X = 30.0; Y = 30.0 }
+          "MUX2", Mux2, { X = 90.0; Y = 60.0 }
+          "DFF", DFF, { X = 75.0; Y = 75.0 }
+          "ADDER", NbitsAdder(1), { X = 90.0; Y = 120.0 }
+          "REG", Register(1), { X = 60.0; Y = 120.0 } ]
+
+    let test3SampleCustomComponents: (string * ComponentType * XYPos) list =
+        [ "CUSTOM",
+          Custom
+              { Name = "CustomComponentTest"
+                InputLabels = [ ("A", 1); ("A", 1); ("A", 1) ]
+                OutputLabels = [ ("C", 1); ("A", 1); ("A", 1) ]
+                Form = None
+                Description = None },
+          { X = 301.0; Y = 100.0 } ]
+
+    let inputSample = [ "INPUT", Input1(1, Some 1), { X = 30.0; Y = 60.0 } ]
+    let outputSample = [ "OUTPUT", Output 1, { X = 30.0; Y = 60.0 } ]
+
+    let generateCustomComponent (inputLabelsCount: int) (outputLabelsCount: int) =
+        let inputLabels =
+            [ 1..inputLabelsCount ]
+            |> List.map (fun i -> ("A", i))
+        let outputLabels =
+            [ 1..outputLabelsCount ]
+            |> List.map (fun i -> ("B", i))
+        [ "CUSTOM",
+          Custom
+              { Name = "CustomComponentTest"
+                InputLabels = inputLabels
+                OutputLabels = outputLabels
+                Form = None
+                Description = None },
+          //   width = 30 + max(inputLabelsCount, outputLabelsCount) * 20
+          { X =
+              30.0
+              + ((float (max inputLabelsCount outputLabelsCount))
+                 * 20.)
+            Y = 301.0 } ]
+
+    // function to sample a random uniform number from -10, 10. This is to unstraighten wires
+    let perturbationNoiseUnstraighten =
         let rnd = System.Random()
         fun () -> rnd.Next(-10, 10)
+    let generateCircuitSequence
+        (count: int)
+        (startPos: XYPos)
+        (sampleComponentsList: (string * ComponentType * XYPos) list)
+        =
+        // pick a n random components from the list, (repeats allowed) where n = count
+        // for each component, calculate its position by adding the dimensions to the startpos + a perturbation
+
+        let rnd = System.Random()
+        let randomSampleComponents =
+            [ 1..count ]
+            |> List.mapi (fun i _ ->
+                let compName, compType, pos =
+                    sampleComponentsList[rnd.Next(sampleComponentsList.Length)]
+                ((compName + i.ToString()), compType, pos))
+
+        let componentsWithArrangedPos =
+            randomSampleComponents
+            |> List.fold
+                (fun (accList, currentPos) (compLabel, compType, componentDimensions) ->
+                    let offset =
+                        { X = (componentDimensions.X + 70.0)
+                          Y = float (perturbationNoiseUnstraighten ()) }
+                    let newList =
+                        accList
+                        |> List.append [ (compLabel, compType, currentPos) ]
+                    let newPos = currentPos + offset
+
+                    newList, newPos)
+                ([], startPos)
+        componentsWithArrangedPos
 
     let increasingPositions = fromList [ 1..9 ]
+
     let makeTest3Circuit (startPos: XYPos) =
-        initSheetModel
-        |> placeSymbol "G1" (GateN(And, 2)) startPos
-        |> Result.bind (placeSymbol "FF1" DFF startPos)
-        |> getOkOrFail
+        // initSheetModel
+        // |> placeSymbol "G1" (GateN(And, 2)) startPos
+        // |> Result.bind (placeSymbol "FF1" DFF startPos)
+        // |> getOkOrFail
+        let componentsWithArrangedPos =
+            generateCircuitSequence 5 startPos test3SampleComponents
+        let sheetModel =
+            List.fold
+                (fun model (compLabel, comp, pos) ->
+                    match model with
+                    | Ok model -> placeSymbol (string compLabel) comp pos model
+                    | Error e -> Error e)
+                (Ok initSheetModel)
+                (fst componentsWithArrangedPos)
+        getOkOrFail sheetModel
+
+    let makeTest4Circuit (startPos: XYPos) =
+        // initSheetModel
+        // |> placeSymbol "G1" (GateN(And, 2)) startPos
+        // |> Result.bind (placeSymbol "FF1" DFF startPos)
+        // |> getOkOrFail
+        let componentsWithArrangedPos =
+            generateCircuitSequence 5 startPos test3SampleCustomComponents
+        let sheetModel =
+            List.fold
+                (fun model (compLabel, comp, pos) ->
+                    match model with
+                    | Ok model -> placeSymbol (string compLabel) comp pos model
+                    | Error e -> Error e)
+                (Ok initSheetModel)
+                (fst componentsWithArrangedPos)
+        getOkOrFail sheetModel
 
     let vertLinePositions: Gen<XYPos> =
         fromList [ -100..20..100 ]
@@ -605,10 +702,21 @@ module HLPTick3 =
         let test1 testNum firstSample dispatch =
             printf "Test1"
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 0"
+                "Singly Connected Component"
                 firstSample
                 horizLinePositions
                 makeTest3Circuit
+                (Asserts.failOnAllTests)
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let test2 testNum firstSample dispatch =
+            printf "Test1"
+            runTestOnSheets
+                "Custom Component Array"
+                firstSample
+                horizLinePositions
+                makeTest4Circuit
                 (Asserts.failOnAllTests)
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -624,16 +732,16 @@ module HLPTick3 =
         //         dispatch
         //     |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 10
-        let test2 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 10"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 10)
-                dispatch
-            |> recordPositionInTest testNum dispatch
+        // Example test: Horizontally positioned AND + DFF: fail on sample 10
+        // let test2 testNum firstSample dispatch =
+        //     runTestOnSheets
+        //         "Horizontally positioned AND + DFF: fail on sample 10"
+        //         firstSample
+        //         horizLinePositions
+        //         makeTest1Circuit
+        //         (Asserts.failOnSampleNumber 10)
+        //         dispatch
+        //     |> recordPositionInTest testNum dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
         let test3 testNum firstSample dispatch =

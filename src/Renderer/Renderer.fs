@@ -164,7 +164,6 @@ let fileMenu (dispatch) =
         // hn621 - add menu for D2 tests
         makeMenuGen (debugLevel > 0) false "Team 6 Tests" (
             TestDrawBlock.testsToRunFromSheetMenu // make a submenu from this list
-            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
             |> List.mapi (fun n (name, _) -> (makeTestItem name n)))
 
         makeWinDebugItem "Trace all" None (fun _ ->

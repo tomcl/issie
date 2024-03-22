@@ -249,7 +249,7 @@ module Tests =
                 printf $"Sample {numb}"
                 Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
         
-    let test1 testNum firstSample dispatch model =
+    let flipExample testNum firstSample dispatch model =
         let displayOnFail = displayAll
         let generator = gridPosGen 1 2
         runTestOnSheets
@@ -262,7 +262,7 @@ module Tests =
             displayOnFail
         |> recordPositionInTest testNum dispatch
 
-    let test2 testNum firstSample dispatch model =
+    let portOrderExample testNum firstSample dispatch model =
         let sheetMaker = makeTest2Circuit model
         let displayOnFail = displayAll
         let generator = gridPosGen 1 2

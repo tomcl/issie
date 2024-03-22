@@ -7,7 +7,7 @@ open SheetBeautifyFlip
 open SheetBeautifyWireLabel
 
 
-open TestDrawBlockAlign
+open TestDrawBlockAlign.HLPTick3.Tests
 open TestDrawBlockFlip.Tests
 open TestDrawBlockWireLabel
 open TestDrawBlockHelpers.Displays
@@ -43,15 +43,23 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Model ->
         "Apply Beautify D1", (applyBeautify (sheetAlignScale 3)) // TODO: add actual function
         "Apply Beautify D2", (applyBeautify optimizePortOrder) 
         "Apply Beautify D3", (applyBeautify wireLabelBeautify)
-        "Build: Random Components No Rotate", testRandomCompNoRotate 
+        "Apply Beautify D4", (applyBeautify (SheetBeautify))
         "Build: Random Components", testRandomComp
         "Test: Statistics", TestDrawBlockAlign.HLPTick3.Tests.showTestCircuit5
         "Test: Edge Case", TestDrawBlockAlign.HLPTick3.Tests.runAllTests 
         "Test: Beautify Time Complexity", testBeautifyTimePerformance
         "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-        "D3 regular shifts", testD3Regular
-        "Apply D4", (applyBeautify (SheetBeautify))
-        
+        "D1: Optimize current circuit", showOptimizedCircuit
+        "D1: Test Circuit 1", showTestCircuit1
+        "D1: Test Circuit 2", showTestCircuit2
+        "D1: Test Circuit 3", showTestCircuit3
+        "D1: Test Circuit 4", showTestCircuit4
+        "D1: Test Circuit 5", showTestCircuit5
+        "D1: Auto Place Wires", autoPlaceWires
+        "D2: Build Random Components No Rotate", testRandomCompNoRotate 
+        "D2: Test Gate/MUX Flip", flipExample
+        "D2: Test CC Port Order", portOrderExample 
+        "D3: Regular Shifts", testD3Regular
     ]
 
 /// Display the next error in a previously started test

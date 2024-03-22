@@ -1,4 +1,4 @@
-module SheetBeautifyAlign
+module SheetBeautify
 
 open CommonTypes
 open DrawModelType
@@ -65,7 +65,7 @@ let getSndOfSndTuple (tuple : ('a * ('b * 'c))) =
     | (_, snd') -> snd snd'
 
 
-/// Update one symbol with a given offset
+/// Update one symbol with a given offset, if the new symbol intersects with any other symbol, return None
 let updateOneSym (sym: Symbol) (sheetModel: SheetT.Model) ((offset, portType): (XYPos * PortType)) (intersectSymPairCount): Symbol option= 
     printfn "updating one sym with offset %s" (pXY offset)
     let newSym = 
@@ -145,12 +145,11 @@ let getCustomSyms (sheetModel : SheetT.Model) : Symbol list =
 let chooseCSymToMove (sym1 : Symbol) (edge1 : Edge) (sym2 : Symbol) (edge2 : Edge): Symbol =
     let sym1Ports = sym1.PortMaps.Order.[edge1].Length
     let sym2Ports = sym2.PortMaps.Order.[edge2].Length
+    // choose the symbol with less ports to move
     if sym1Ports > sym2Ports 
     then
-        printfn "sym to change dim : %s" sym2.Component.Label
         sym2
     else 
-        printfn "sym to change dim : %s" sym1.Component.Label
         sym1
 
 
@@ -173,12 +172,27 @@ let calculateDimension (sym : Symbol) (edge : Edge) (desiredPortGap : float) : X
         | Left -> desiredPortGap * (portDimension + 2.0 * gap)
         | Right -> desiredPortGap * (portDimension + 2.0 * gap)
         | _ -> 
-            printfn "top or bottom side are not implement yet"
+            printfn "top or bottom side is not implemented yet"
             sym.Component.H
     {X = sym.Component.W; Y = h}
 
-/// Move custom symbols whose dimension was changed, to straighten the wire
-let moveCSym (wires : BusWireT.Wire list) (sheetModel : SheetT.Model): SheetT.Model =
+
+/// Update the sheet model with new symbols and reroute the wires
+let updateSheetModel (sheetModel: SheetT.Model) (newSyms: Symbol list) =
+    let newWireModel =
+        updateModelWires (updateModelSymbols sheetModel.Wire newSyms) []
+        |> BusWireSeparate.updateWireSegmentJumpsAndSeparations []
+
+    let newWireModel' =
+        BusWireRoute.updateWires newWireModel (newSyms |> List.map (fun sym -> sym.Id)) {X = 0.0; Y = 0.0}
+    
+    sheetModel
+    |> Optic.set SheetT.wire_ (newWireModel')
+    |> SheetUpdateHelpers.updateBoundingBoxes
+
+
+/// Straighten certain wires
+let straightenWires (wires : BusWireT.Wire list) (sheetModel : SheetT.Model): SheetT.Model =
     let wiresInfo = 
         wires
         |> List.collect (fun wire -> 
@@ -196,20 +210,8 @@ let moveCSym (wires : BusWireT.Wire list) (sheetModel : SheetT.Model): SheetT.Mo
         |> List.map (fun (sym, offset) -> 
             let newSym = moveSymbol offset sym
             newSym)
-    
-    let newWireModel =
-        updateModelWires (updateModelSymbols sheetModel.Wire newSyms) []
-        |> BusWireSeparate.updateWireSegmentJumpsAndSeparations []
 
-    let newWireModel' =
-        BusWireRoute.updateWires newWireModel (newSyms |> List.map (fun sym -> sym.Id)) {X = 0.0; Y = 0.0}
-    
-    let newSheetModel =
-        sheetModel
-        |> Optic.set SheetT.wire_ (newWireModel')
-        |> SheetUpdateHelpers.updateBoundingBoxes
-    
-    newSheetModel
+    updateSheetModel sheetModel newSyms
 
 /// Modify custom symbols' scale and position to straighten wires
 let alignCSyms (sheetModel : SheetT.Model) : SheetT.Model= 
@@ -251,37 +253,17 @@ let alignCSyms (sheetModel : SheetT.Model) : SheetT.Model=
         cSymPairsToAlignInfo
         |> List.map (fun (sym, dimension, wire) -> wire)
 
-    let newCsymIds = 
-        newCSyms
-        |> List.map (fun sym -> sym.Id)
-
-    let newWireModel = 
-        updateModelWires (updateModelSymbols sheetModel.Wire newCSyms ) []
-        |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [] 
-
-    let newWireModel' = 
-        BusWireRoute.updateWires newWireModel newCsymIds { X = 0.0; Y = 0.0 } 
-
-    let newSheetModel = 
-        sheetModel
-        |> Optic.set SheetT.wire_ (newWireModel')
-        |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
-
-    newSheetModel
-    |> moveCSym wiresToStraighten
+    updateSheetModel sheetModel newCSyms
+    |> straightenWires wiresToStraighten // straighten the wires between the custom symbols
 
 
 /// Straighten parallel wires in the sheetModel, once
-let rec sheetAlignScaleOnce (sheetModel: SheetT.Model) (stubbornWiresLst : ConnectionId list) (intersectSymPairCount : int) (runtime : int)=
-    printfn "%s" "aligning and scaling start!"
-    printfn "stubborn wires: %d" stubbornWiresLst.Length
+let rec starightnParallelWires (sheetModel: SheetT.Model) (stubbornWiresLst : ConnectionId list) (intersectSymPairCount : int) =
     let parallelWiresLst = getParallelWiresLst sheetModel stubbornWiresLst
-    printfn "parallel wires: %d" parallelWiresLst.Length
     // if there is no parallel wire, return the original sheetModel
-    match parallelWiresLst.Length, runtime with
-    | 0, _ | _, 100 -> 
+    match parallelWiresLst.Length with
+    | 0 -> 
         printfn "no parallel wire found, aligning and scaling finished"
-        printfn "intersected symbols found: %d" (numOfIntersectedSymPairs sheetModel)
         sheetModel
     | _ ->
         let parallelWirePortsLst=
@@ -321,7 +303,6 @@ let rec sheetAlignScaleOnce (sheetModel: SheetT.Model) (stubbornWiresLst : Conne
         match wireToStraighten with
         //none happens when all the parallel wires are not movable, thus return the original sheetModel
         | None -> 
-            printfn "%s" "no wire to move, continue to align and scale"
             sheetModel
         // if there is a wire to move, move the symbol and update the sheetModel and call the function recursively
         | Some wireToMove ->
@@ -346,34 +327,24 @@ let rec sheetAlignScaleOnce (sheetModel: SheetT.Model) (stubbornWiresLst : Conne
                     match updateOneSym (fst moveInfo.[0]) sheetModel (getSndOfSndTuple moveInfo.[0], getFstOfSndTuple moveInfo.[0]) intersectSymPairCount with
                     | Some sym -> Some sym
                     | None -> 
-                        printfn "%s" "one end sym failed to move, move the other end sym instead"
+                        // one end of the wire is not movable, try to move the other end
                         updateOneSym (fst moveInfo.[1]) sheetModel (getSndOfSndTuple moveInfo.[1], getFstOfSndTuple moveInfo.[1]) intersectSymPairCount
                 | _ -> failwith "impossible" // this should not happen
             match newSym with
             | None -> 
-                printfn "%s" "intersected symbols found, add new wire to stubbornWiresLst" 
-                sheetAlignScaleOnce sheetModel (wireToMove.WId::newStubbonWiresLst) (numOfIntersectedSymPairs sheetModel) (runtime+1)
+                // symbol overlap, continue to the next wire
+                starightnParallelWires sheetModel (wireToMove.WId::newStubbonWiresLst) (numOfIntersectedSymPairs sheetModel) 
             | Some newSym ->
-                let newWireModel = 
-                    updateModelWires (updateModelSymbols sheetModel.Wire [newSym] ) [parallelWiresLst |> List.head]
-                    |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [(parallelWiresLst |> List.head).WId] 
+                // successfully moved the symbol, update the sheetModel and add this wire to the stubbornWiresLst, assume that one wire can only be moved once
+                let newSheetModel = updateSheetModel sheetModel [newSym]
+                starightnParallelWires newSheetModel (wireToMove.WId::newStubbonWiresLst) (numOfIntersectedSymPairs newSheetModel) 
 
-                let newWireModel' = 
-                    BusWireRoute.updateWires newWireModel [newSym.Id] { X = 0.0; Y = 0.0 } 
-
-                let newSheetModel = 
-                    sheetModel
-                    |> Optic.set SheetT.wire_ (newWireModel')
-                    |> SheetUpdateHelpers.updateBoundingBoxes
-                
-                printfn "%s" "straighten one wire, continue to align and scale"
-                sheetAlignScaleOnce newSheetModel newStubbonWiresLst (numOfIntersectedSymPairs newSheetModel) (runtime+1)
-
-/// Straighten parallel wires in the sheetModel, multiple times
+/// Straighten parallel wires and align custom symbols in the sheetModel, multiple times
 let rec sheetAlignScale (runTimes : int) (sheetModel: SheetT.Model) =
-
-    if runTimes = 0 then  sheetModel
+    // let newSheet = alignCSyms sheetModel
+    let newSheet = sheetModel
+    if runTimes = 0 then newSheet
     else
         printfn "runTimes: %d" runTimes
-        let newSheetModel = sheetAlignScaleOnce sheetModel [] (numOfIntersectedSymPairs sheetModel) 0
-        sheetAlignScale (runTimes - 1) newSheetModel 
+        let newSheetModel = starightnParallelWires newSheet [] (numOfIntersectedSymPairs newSheet)
+        sheetAlignScale  (runTimes - 1) newSheetModel

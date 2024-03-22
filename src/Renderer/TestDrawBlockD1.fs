@@ -540,8 +540,6 @@ module Evaluations =
 
 
 
-
-
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
 //---------------------------------------------------------------------------------------//
@@ -552,7 +550,7 @@ module Tests =
     open Evaluations
 
     let genA1 = randXY {min=(-30); step=3; max=30}
-    let testA1 testNum firstSample showTargetSheet dispatch =
+    let testCascade2Mux testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Figure A1 circuit from hlp2024 brief"
             firstSample
@@ -566,7 +564,7 @@ module Tests =
         |> recordPositionInTest testNum showTargetSheet dispatch
 
     let genA3 = randXY {min=1; step=1; max=2}
-    let testA3 testNum firstSample showTargetSheet dispatch =
+    let testCascade3Mux testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Figure A3 circuit from hlp2024 brief"
             firstSample
@@ -580,7 +578,8 @@ module Tests =
         |> recordPositionInTest testNum showTargetSheet dispatch
 
     let genA4 = randXY {min=(-50); step=40; max=100}
-    let testA4 testNum firstSample showTargetSheet dispatch =
+    /// Two symbols next to eachother with alignment possible.
+    let testHorizAlign testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random offset"
             firstSample
@@ -594,7 +593,8 @@ module Tests =
         |> recordPositionInTest testNum showTargetSheet dispatch
 
     let genA4Flip = randXY {min=(-400); step=20; max=(-300)}
-    let testA4Flip testNum firstSample showTargetSheet dispatch =
+    /// Rotated symbols with alignment possible.
+    let testRotateAlign testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random scaling"
             firstSample
@@ -607,9 +607,9 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-
     let genA5 = randXY {min=(0.5); step=0.5; max=3}
-    let testA5 testNum firstSample showTargetSheet dispatch =
+    /// Scaled symbols with alignment possible.
+    let testScaleAlign testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random scaling"
             firstSample
@@ -623,6 +623,7 @@ module Tests =
         |> recordPositionInTest testNum showTargetSheet dispatch
 
     let genLC = randXY {min=(0.5); step=0.5; max=1}
+    /// Large, complex circuit with alignment possible.
     let testLargeCircuit testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Large circuit"
@@ -637,6 +638,8 @@ module Tests =
         |> recordPositionInTest testNum showTargetSheet dispatch
 
     let genLCComp = randXY {min=(0.5); step=0.5; max=1}
+    /// Large, complex circuit with alignment possible.
+    /// Compares wire bend of sheetAlignScale to base sheet
     let testLargeCompareD1 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Large circuit"
@@ -654,6 +657,7 @@ module Tests =
         |> recordPositionInTest testNum showTargetSheet dispatch
 
     let genMultOut = randXY {min=(0.5); step=0.5; max=1}
+    /// Single input with multiple outputs
     let testMultiOutputs testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Multi outputs"
@@ -671,16 +675,17 @@ module Tests =
 
 
 
+
     /// List of tests available which can be run ftom Issie File Menu.
     /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
     let testsToRunFromSheetMenu : (string * (int -> int -> bool -> Dispatch<Msg> -> Unit)) list =
         // Change names and test functions as required
         // delete unused tests from list
         [
-            "Position", testA4
-            "Scale", testA5
-            "Rotation", testA4Flip
-            "MUX",   testA3
+            "Position", testHorizAlign
+            "Scale", testScaleAlign
+            "Rotation", testRotateAlign
+            "MUX",   testCascade3Mux
             "Large", testLargeCircuit 
             "compareOnLarge", testLargeCompareD1
             "multiOutputs", testMultiOutputs
@@ -688,17 +693,6 @@ module Tests =
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
 
-    /// Display the next error in a previously started test
-    let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
-        let testNum =
-            testsToRunFromSheetMenu
-            |> List.tryFindIndex (fun (name,_) -> name = testName)
-            |> Option.defaultValue 0
-        testFunc testNum firstSampleToTest showTargetSheet dispatch
-
-    open MenuHelpers
-    /// common function to execute any test.
-    /// testIndex: index of test in testsToRunFromSheetMenu
     let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
         let name,func = testsToRunFromSheetMenu[testIndex] 
         printf "%s" name
@@ -707,7 +701,6 @@ module Tests =
             nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) (state.TargetFunctionApplied) dispatch
         | "Next Test Error", None ->
             printf "Test Finished"
-            // scorePopup "TEST" model dispatch
             ()
         | "Toggle Beautify", Some state -> 
             nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex) (not state.TargetFunctionApplied) dispatch

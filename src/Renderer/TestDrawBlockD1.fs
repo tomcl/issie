@@ -95,6 +95,7 @@ module HLPTick3 =
     open GenerateData
     open TestLib
     open SheetUpdateHelpers
+    open SheetBeautifyHelpers
 
     /// create an initial empty Sheet Model
     let initSheetModel = DiagramMainView.init().Sheet
@@ -349,6 +350,24 @@ module HLPTick3 =
             |> Optic.set (wire_ >-> symbol_) flippedSymbol
             |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes flippedSymbol)
 
+
+        let flipSymbolD2 (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : Result<SheetT.Model, string> =
+            let symModel = (fst symbolModel_) model
+            let symId = symModel.Symbols
+                        |> Map.toList
+                        |> List.tryFind (fun (id, sym) -> sym.Component.Label = symLabel)
+                        |> Option.map (fun (id, sym) -> id)
+            match symId with
+            | None -> 
+                Error $"symbol '{symLabel}' could not be found"
+            | Some symId -> 
+                let transform = SymbolResizeHelpers.flipSymbol flip
+                let symModelNew = SymbolUpdate.updateSymbol transform symId symModel
+                model
+                |> Optic.set symbolModel_ symModelNew
+                |> SheetUpdate.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
+                |> Ok       
+
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
         /// The wire created will be smart routed but not separated from other wires: for a nice schematic
@@ -447,6 +466,14 @@ module HLPTick3 =
     let horizLinePositions =
         fromList [ -100..20..100 ]
         |> map (fun n -> middleOfSheet + { X = float n; Y = 0. })
+
+    /// /// Generates a sequence of triplets containing random horizontal or vertical flip positions for three elements, based on random integers.
+    let flipPositions =
+        let toFlip = function
+                     | n when n % 2 = 0 -> SymbolT.FlipHorizontal
+                     | n when n % 2 = 1 -> SymbolT.FlipVertical
+                     | _ -> failwithf "Flip not possible" // Shouldn't be possible
+        map3 (fun f1 f2 f3 -> (toFlip f1, toFlip f2, toFlip f3)) (randomInt 0 1 10) (randomInt 0 1 10) (randomInt 0 1 10)
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos: XYPos) =
@@ -635,6 +662,29 @@ module HLPTick3 =
             flipList
             rotateList
 
+    //--------------------------------------------------------------------------------------------------//
+    //------------------------------------Circuit for D2 deliverable------------------------------------//
+    //--------------------------------------------------------------------------------------------------//
+    /// Creates a digital circuit with gates and Muxes. Muxes (2-Mux) are randomly flipped or swapped input ports.
+    let makeD2Circuit (flip1: SymbolT.FlipType, flip2: SymbolT.FlipType, flip3: SymbolT.FlipType) =
+        let model = initSheetModel
+                    |> placeSymbol "G1" (GateN(And,2)) {X = 1668; Y = 1888}
+                    |> Result.bind (placeSymbol "s1" (Input1(1,None)) {X = 1666.5; Y = 1959.5})
+                    |> Result.bind (placeSymbol "G2" (GateN(And,2)) {X = 1778.5; Y = 1995})
+                    |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet)
+                    |> Result.bind (placeSymbol "MUX2" Mux2 {X = 1630; Y = 1698})
+                    |> Result.bind (placeSymbol "MUX3" Mux2 {X = 1898.5; Y = 1864.5})
+                    |> Result.bind (flipSymbolD2 "MUX1" flip1)
+                    |> Result.bind (flipSymbolD2 "MUX2" flip2)
+                    |> Result.bind (flipSymbolD2 "MUX3" flip3)
+                    |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX1" 0))
+                    |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX3" 0))
+                    |> Result.bind (placeWire (portOf "G1" 0) (portOf "MUX1" 1))
+                    |> Result.bind (placeWire (portOf "s1" 0) (portOf "MUX1" 2))
+                    |> Result.bind (placeWire (portOf "G2" 0) (portOf "MUX3" 1))
+                    |> getOkOrFail
+        printfn "count crossings: %A" (countVisibleSegsPerpendicularCrossings model)
+        model
     //------------------------------------------------------------------------------------------------//
     //-------------------------Example assertions used to test sheets---------------------------------//
     //------------------------------------------------------------------------------------------------//
@@ -759,8 +809,8 @@ module HLPTick3 =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
-                horizLinePositions
-                makeTest1Circuit
+                flipPositions
+                makeD2Circuit
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch

@@ -99,7 +99,7 @@ let isSymbolSinglyConnected (symbol: SymbolT.Symbol) (model: SheetT.Model) : boo
         | _ -> false
     | _ -> false
 
-// TODO: should only return a symbol if labeled to do so
+
 /// Finds the source port of the wire and returns a tuple of the wire, segments and the symbol
 let findOutputSymbolAndCreateTuple (model: SheetT.Model) (wire: BusWireT.Wire, segments:XYPos list) : (BusWireT.Wire * XYPos list * SymbolT.Symbol*SymbolClassification) Option =
     // need to identif the symbol or component and move it by the amount stated by the second segment
@@ -257,7 +257,7 @@ let calcMovementsToStraightenWire (model: SheetT.Model) (wire: BusWireT.Wire, se
         | [] -> None
         | _ -> Some (symbol, wire, simplifyMovements movements)
 
-
+/// Function to check if a symbol is singly connected and if so, straighten the wire
 let singlyConnectedSymbols (model: SheetT.Model) =
     let outputWiresToBeStraightened =
         checkWiresToBeStraightened model
@@ -296,7 +296,7 @@ let singlyConnectedSymbols (model: SheetT.Model) =
 
     processedSymbols
 
-  
+  /// Function to check if a symbol is not singly connected and if so, straighten the wire
 let nonSinglyConnectedSymbols (model: SheetT.Model): moveSymInformation list =
     let outputWiresToBeStraightened =
         checkWiresToBeStraightened model

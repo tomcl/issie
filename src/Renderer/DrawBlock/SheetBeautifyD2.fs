@@ -203,10 +203,12 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
     // First rotationally sort the ports of all the custom components
     let currBends = countVisibleBends model
     let currCross = countVisibleSegsPerpendicularCrossings model
-    let (newBends, newCross, cusRotatedModel) = List.fold rotationallySortCustomSymPorts (currBends, currCross, model) [cusSyms[0]]
+    let (newBends, newCross, cusRotatedModel) = List.fold rotationallySortCustomSymPorts (currBends, currCross, model) cusSyms
 
     // Try different permutations of flips/rotations on Muxes
     let (_, _, optimModel) = List.fold testSymbolFlip (newBends, newCross, cusRotatedModel) muxSyms
+    
+    printfn "count crossings: %A" (countVisibleSegsPerpendicularCrossings optimModel)
 
     // Return the optimal model
     optimModel

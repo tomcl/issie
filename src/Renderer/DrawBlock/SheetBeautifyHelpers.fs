@@ -157,7 +157,7 @@ let getCustomCompDims (sym: Symbol) =
 let putCustomCompDims  (newDims: XYPos) (sym: Symbol) =
     // changing H & W does not work well because these are recalculated by autoScaleHandW
     // symbol is resized by chnaging HScale, VScale
-    let {X=w; Y=h} = getCustomCompDims sym // old dimensions
+    let ({X=w; Y=h}:XYPos) = getCustomCompDims sym // old dimensions
     let ws, hs = Option.defaultValue 1. sym.HScale, Option.defaultValue 1. sym.VScale
     {sym with HScale = Some (ws * newDims.X / w);
               VScale = Some (hs * newDims.Y / h)}

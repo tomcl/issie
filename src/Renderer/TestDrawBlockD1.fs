@@ -82,9 +82,8 @@ module TestD1 =
     open D1TestLib
     open EEExtensions
     open Sheet.SheetInterface
-    open SymbolResizeHelpers
 
-        /// create an initial empty Sheet Model 
+    // create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
 
     /// Optic to access SheetT.Model from Issie Model
@@ -170,7 +169,7 @@ module TestD1 =
             
         
 
-                // Rotate a symbol
+            // Rotate a symbol
             let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
                 let symLabel = String.toUpper symLabel
                 let symbol = model.Wire.Symbol.Symbols
@@ -183,7 +182,7 @@ module TestD1 =
                 | None -> model
 
 
-                // Flip a symbol
+            // Flip a symbol
             let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
                 let symLabel = String.toUpper symLabel
                 let symbol = model.Wire.Symbol.Symbols
@@ -279,23 +278,20 @@ module TestD1 =
         let segments = SegmentHelpers.visibleSegments wire.WId model
         List.length segments = 1
 
-    /// Sample data based on 11 equidistant points on a horizontal line
+
+
+
+ //================================== GENERATE COORDINATES ====================================//
+
+     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
-
-    //==================================GENERATE COORDINATES====================================//
     let generateSampleData =
         product (fun x y -> middleOfSheet + {X = float x; Y = float y})
             (fromList [-100..20..100])
             (fromList [-100..20..100])
-
-    type SymbolDeviations = {
-        Adev: XYPos
-        Bdev: XYPos
-        Cdev: XYPos
-    }
 
     let generateSmallDeviations : Gen<XYPos> =
         let rnd = Random()
@@ -305,8 +301,8 @@ module TestD1 =
                     if x = beginningSeq && y = endSeq then
                         { X = 0.0; Y = 0.0 } // Zero case for first set of values
                     else
-                    let deviationX = rnd.NextDouble() * 15.0 - 10.0 // Random deviation up to 10.0 in X
-                    let deviationY = rnd.NextDouble() * 15.0 - 10.0 // Random deviation up to 10.0 in Y
+                    let deviationX = rnd.NextDouble() * 15.0 - 10.0
+                    let deviationY = rnd.NextDouble() * 15.0 - 10.0 
                     { X = float x + deviationX; Y = float y + deviationY})
                 (fromList [beginningSeq..2..endSeq])
                 (fromList [beginningSeq..2..endSeq])
@@ -334,23 +330,8 @@ module TestD1 =
 
     //==================================GENERATE COORDINATES ==============================//
 
-    //---------------TICK 3 Q10---------------------------------------------
-    let randomSel arr =
-        let shuffledArray = shuffleA arr
-        shuffledArray.[0] //first element from shuffled array
 
-    let Rotations =
-        [|Degree0; Degree90; Degree180; Degree270|]
-
-    let Flips = [|SymbolT.FlipHorizontal|]
-
-    let andRotation = randomSel Rotations
-    let dffRotation = randomSel Rotations
-    let andFlip = randomSel Flips
-    let dffFlip = randomSel Flips
-    //-----------------TICK 3 Q10------------------------------------------
-
-    //-----------------TESTS-----------------------------------------------
+    //----------------------- RANDOM CIRCUITS FOR CHECKING ISSIE FUNCTIONALITY ----------------------------------------- //
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -382,7 +363,12 @@ module TestD1 =
         |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
         |> getOkOrFail
 
-//========================================================PROJECT WORK===========================================================================
+
+
+
+//========================================================PROJECT WORK===========================================================================//
+
+//============================= CIRCUIT HELPERS ==============================//
 
     ///D.U for symbol pos
     type SymbolPositions = {
@@ -418,7 +404,7 @@ module TestD1 =
         LoadedComponents = 
     }  *)
 
-        /// Returns the number of straight wires in a sheet   
+    /// Returns the number of straight wires in a sheet   
     let numOfStraightWires (sheet: SheetT.Model) : int =
             let wModel = sheet.Wire
             let allWires = sheet.Wire.Wires |> Map.values
@@ -432,6 +418,7 @@ module TestD1 =
                 |> Seq.length
             straightWiresCount
 
+    // Referenced from SheetBeutifyHelpers
     let numOfVisRightAngles (model: SheetT.Model) : int =
         let nets = SegmentHelpers.allWireNets model
         let numWires = nets |> List.sumBy (fun (source,wires) -> wires.Length)
@@ -441,41 +428,11 @@ module TestD1 =
         // every visual segment => right-angle bend except for the first (or last) in a wire
         distinctSegs.Length - numWires
 
-    let makeTest4Circuit (andPos: XYPos) =
-        let symbolPositions = setSymbolPositions andPos
-
-        let findNumDiff (sheet1: int) (sheet2: int) : int =
-            sheet2 - sheet1
-
-        let model = 
-            initSheetModel
-            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
-            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
-            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
-            |> Result.bind (placeSymbol "MUX3" Mux2 symbolPositions.M3Pos)
-            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
-            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
-            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
-            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
-            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
-            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
-            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
-            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
-            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX3" 1))
-            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
-            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
-            |> getOkOrFail
-
-
-        let testPreAlign = numOfStraightWires model
-        model
+// ======================================= D1 TEST CIRCUITS ============================================== //
 
     ///Create circuit containing 2 input ports and MUX2
     let makeD1Test1Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
-
-        let findNumDiff (test1: int) (test2: int) : int =
-            test1 - test2
 
         let model = 
             initSheetModel
@@ -488,30 +445,12 @@ module TestD1 =
             |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "C" 0) ) 
             |> getOkOrFail
 
- (*       let testPreAlignMetric1 = numOfStraightWires model
-       // let testPreAlignMetric2 = numOfIntersectedSymPairs model
-
-        let alignedModel = Beautify.sheetAlignScale model
-
-        let testPostAlignMetric1 = numOfStraightWires alignedModel
-        let testPostAlignMetric2 = numOfIntersectedSymPairs alignedModel
-
-        let straightenedWires = findNumDiff testPreAlignMetric1 testPostAlignMetric1
-        let symbolOverlaps = testPostAlignMetric2
-
-        printf "Number of straightened wires: %d" straightenedWires
-        printf "Number of symbol overlaps : %d" symbolOverlaps
-
-        alignedModel *)
         model
 
 
     ///Create circuit containing 4x Input Ports, 3x MUX2
     let makeD1Test2Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
-
-        let findNumDiff (sheet1: int) (sheet2: int) : int =
-            sheet2 - sheet1
 
         let model = 
             initSheetModel
@@ -532,30 +471,11 @@ module TestD1 =
             |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
             |> getOkOrFail
 
-
- (*       let testPreAlignMetric1 = numOfStraightWires model
-       // let testPreAlignMetric2 = numOfIntersectedSymPairs model
-
-        let alignedModel = Beautify.sheetAlignScale model
-
-        let testPostAlignMetric1 = numOfStraightWires alignedModel
-        let testPostAlignMetric2 = numOfIntersectedSymPairs alignedModel
-
-        let straightenedWires = findNumDiff testPreAlignMetric1 testPostAlignMetric1
-        let symbolOverlaps = testPostAlignMetric2
-
-        printf "Number of straightened wires: %d" straightenedWires
-        printf "Number of symbol overlaps : %d" symbolOverlaps
-
-        alignedModel *)
         model
 
-    ///Same as above but with rotated S1
+    //Same as above but with rotated S1
     let makeD1Test3Circuit (andPos: XYPos) =
         let symbolPositions = setSymbolPositions andPos
-
-        let findNumDiff (sheet1: int) (sheet2: int) : int =
-            sheet2 - sheet1
 
         let model = 
             initSheetModel
@@ -576,24 +496,34 @@ module TestD1 =
             |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
             |> getOkOrFail
 
-
-(*        let testPreAlignMetric1 = numOfStraightWires model
-       // let testPreAlignMetric2 = numOfIntersectedSymPairs model
-
-        let alignedModel = Beautify.sheetAlignScale model
-
-        let testPostAlignMetric1 = numOfStraightWires alignedModel
-        let testPostAlignMetric2 = numOfIntersectedSymPairs alignedModel
-
-        let straightenedWires = findNumDiff testPreAlignMetric1 testPostAlignMetric1
-        let symbolOverlaps = testPostAlignMetric2
-
-        printf "Number of straightened wires: %d" straightenedWires
-        printf "Number of symbol overlaps : %d" symbolOverlaps
-
-        alignedModel *)
         model
 
+    // Cannot remember what this is for
+    let makeD1TestMainCircuit (andPos: XYPos) =
+        let symbolPositions = setSymbolPositions andPos
+
+        let model = 
+            initSheetModel
+            |> placeSymbol "A" (Input1(1, None)) symbolPositions.APos
+            |> Result.bind (placeSymbol "B" (Input1(1, None)) symbolPositions.BPos)
+            |> Result.bind (placeSymbol "MUX2" Mux2 symbolPositions.M2Pos)
+            |> Result.bind (placeSymbol "MUX3" Mux2 symbolPositions.M3Pos)
+            |> Result.bind (placeSymbol "S1" (Input1(1, None)) symbolPositions.S1Pos)
+            |> Result.bind (placeSymbol "S2" (Input1(1, None)) symbolPositions.S2Pos)
+            |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet) 
+            |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 0))
+            |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 1))
+            |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
+            |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX3" 1))
+            |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+            |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+            |> getOkOrFail
+
+        model
+
+// ========================================================== ASSERTS ========================================================= //
 
     module Asserts =
 
@@ -658,6 +588,10 @@ module TestD1 =
                 let printSuccess x = printf $"Straight lines increased from {oldStraightLinesCount} to {newStraightLinesCount}" ; x
                 printSuccess None
 
+// ========================================================== ASSERTS ========================================================= //
+
+
+// ========================================================== TESTS ========================================================= //
 
     module Tests =
 
@@ -705,16 +639,7 @@ module TestD1 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail all tests
-        let test4 testNum firstSample dispatch =
-            runD1TestOnSheets
-                "Horizontally positioned AND + DFF: fail all tests"
-                firstSample
-                filteredSampleDataWithDeviation
-                makeTest4Circuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
+// --------------------------- D1 TESTS ------------------------------------ //
 
         let D1Test1 testNum firstSample dispatch =
             runD1TestOnSheets
@@ -722,7 +647,7 @@ module TestD1 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeD1Test1Circuit
-                Asserts.failOnFewerStraightWires
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -742,8 +667,17 @@ module TestD1 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeD1Test3Circuit
-                (Asserts.failOnSampleNumber 0)
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-
+        /// Example test: Horizontally positioned AND + DFF: fail all tests
+        let D1TestMain testNum firstSample dispatch =
+            runD1TestOnSheets
+                "D1 Test with both singly and multiply connected components"
+                firstSample
+                filteredSampleDataWithDeviation
+                makeD1TestMainCircuit
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch

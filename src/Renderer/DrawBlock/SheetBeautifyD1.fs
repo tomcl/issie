@@ -77,28 +77,6 @@ let findSinglyConnectedComponents (model:SheetT.Model) =
     |> Map.toList
     |> List.map fst
 
-// calculate how much to shift the wire to remove the parallel feature
-// let calculateShiftForSimplification (segments: XYPos list) : XYPos =
-//     let inline sign x = if x < 0. then -1. else if x > 0. then 1. else 0.
-
-//     let rec aux (accX, accY) segments =
-//         match segments with
-//         | ({X = x1; Y = 0.} :: {X = 0.; Y = y} :: {X = x2; Y = 0.} :: rest) when sign x1 = sign x2 ->
-//             // Simplify H-V-H to a single vertical shift, continue with the rest
-//             aux (accX, accY + y) rest
-//         | ({X = 0.; Y = y1} :: {X = x; Y = 0.} :: {X = 0.; Y = y2} :: rest) when sign y1 = sign y2 ->
-//             // Simplify V-H-V to a single horizontal shift, continue with the rest
-//             aux (accX + x, accY) rest
-//         | _ :: rest ->
-//             // Non-simplifiable pattern or single segment left, just skip it
-//             aux (accX, accY) rest
-//         | [] ->
-//             // Return total accumulated shifts in x and y as an XYPos
-//             {X = accX; Y = accY}
-
-//     aux (0.0, 0.0) segments
-
-
 
 let calculateShiftForSimplification (segments: XYPos list) : XYPos =
     let inline sign x = if x < 0. then -1. elif x > 0. then 1. else 0.
@@ -132,8 +110,6 @@ let calculateShiftForSimplification (segments: XYPos list) : XYPos =
 
     let (_, totalShift) = processSegments segments {X = 0.0; Y = 0.0}
     totalShift
-
-
 
 
 
@@ -405,13 +381,10 @@ let alignMultipleComponents (model: SheetT.Model) : SheetT.Model =
         |> Map.map (fun key symbol ->
             match shiftPerComponent.TryFind(key) with
             | Some(shift) -> moveSymbol shift symbol
-                // let updatedPos = { X = symbol.Pos.X + shift.X; Y = symbol.Pos.Y + shift.Y }
-                // { symbol with Pos = updatedPos }
             | None -> symbol)
     
     let newWire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } }
     let symList = shiftPerComponent|> Map.keys |> Seq.toList
-    // printfn "symList: %A" symList
     let newModel = updateWires newWire  symList {X=0;Y=0}
 
 

@@ -414,6 +414,42 @@ let numOfIntersectedSymPairs (sheet: SheetT.Model) =
                             | ((_, box1),(_, box2)) when BlockHelpers.overlap2DBox box1 box2 -> 1
                             | _ -> 0)
 
+let getSymbolBB (symbol: Symbol) =
+    getSymbolBoundingBox symbol
+
+
+let segmentIntersectSymbolCount (sheet: SheetT.Model) =
+
+    let getSegmentVertices (wire: BusWireT.Wire) =
+        let (segVecs : XYPos list) = visibleSegments wire.WId sheet
+        (wire.StartPos, segVecs) ||> List.scan (fun (currVec : XYPos) (nextVec : XYPos) -> 
+                                                {currVec with X = currVec.X+nextVec.X; Y = currVec.Y+nextVec.Y})
+    let segmentIntersectsBB (boundingBox : BoundingBox) (startPos: XYPos) (endPos : XYPos) = 
+        match BlockHelpers.segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+            | Some _ -> true // segment intersects bounding box
+            | None -> false // no intersection
+
+    let symbols = 
+        sheet.Wire.Symbol.Symbols
+        |> Map.toList
+        |> List.map snd
+        |> List.map (getSymbolBB)
+
+    let intersectingSegmentCount =
+        sheet.Wire.Wires
+        |> Map.toList
+        |> List.map snd
+        |> List.map (getSegmentVertices) 
+        |> List.map (List.pairwise)
+        |> List.map(List.allPairs symbols)
+        |> List.map(List.filter (fun (bb, (segStart, segEnd)) -> segmentIntersectsBB bb segStart segEnd))
+        |> List.map(List.map snd)
+        |> List.concat
+        |> List.distinct
+        |> List.length
+
+    intersectingSegmentCount
+
 
 //T2 R
 /// The Number of distinct wire visible segments that intersect with one or more symbols in the sheet.
@@ -432,9 +468,64 @@ let numOfIntersectSegSym (model: SheetT.Model) : int =
 // T3R
 /// The number of pairs of distinct visible wire segments that cross each other at right angles in a sheet.
 /// Returns the number right angle intersections between wire segments.
+let rightAngleSegCount (sheet : SheetT.Model) =
+
+    let isPerpendicular (seg1Start: XYPos) (seg1End: XYPos) (seg2Start: XYPos) (seg2End: XYPos) =
+
+        // let isPointEqual (p1: XYPos) (p2: XYPos) =
+        //     p1.X = p2.X && p1.Y = p2.Y
+        
+        let p1 = seg1Start
+        let p2 = seg1End
+        let p3 = seg2Start
+        let p4 = seg2End
+
+        (* Check if the slopes are negative reciprocals of each other (excluding cases where both slopes are 0 or infinite) *)
+        let m1 = p2-p1
+        let m2 = p4-p3
+
+        // printf $"{BlockHelpers.dotProduct m1 m2}"
+
+        (BlockHelpers.dotProduct m1 m2 = 0) && (isProperCrossing (p1,p2)(p3,p4))
+
+    let getSegmentVertices (wire: BusWireT.Wire) =
+        let (segVecs : XYPos list) = visibleSegments wire.WId sheet
+        (wire.StartPos, segVecs) ||> List.scan (fun (currVec : XYPos) (nextVec : XYPos) -> 
+                                                {currVec with X = currVec.X+nextVec.X; Y = currVec.Y+nextVec.Y})
+
+    let wireCombinations = 
+        let wireList = 
+            sheet.Wire.Wires
+            |> Map.toList
+            |> List.map snd
+
+        List.allPairs wireList wireList
+        |> List.filter (fun (w1,w2) ->  w1 <> w2)
+  
+    let segVectorPairs (wire1: BusWireT.Wire) (wire2: BusWireT.Wire) = 
+        
+        let wire1Segments: (XYPos * XYPos) list = 
+            getSegmentVertices wire1 |> List.pairwise
+
+        let wire2Segments = 
+            getSegmentVertices wire2 |> List.pairwise
+
+        List.allPairs wire1Segments wire2Segments
+
+    wireCombinations
+    |> List.map (fun (w1,w2) -> segVectorPairs w1 w2)
+    |> List.concat
+    |> List.filter (fun (s1,s2)-> s1 > s2)
+    |> List.filter (fun ((start1, end1),(start2, end2)) -> isPerpendicular start1 end1 start2 end2)
+    |> List.length
+
+
+// T3R
+/// The number of pairs of distinct visible wire segments that cross each other at right angles in a sheet.
+/// Returns the number right angle intersections between wire segments.
 /// Does not include crossings that are "T junction"
 /// counts segments that overlap only once
-/// ASSUMPTION: overlapping segments are in same Net and have same starting point.
+/// ASSUMPTION: overlapping segments are in same Net and have same starting point
 let numOfWireRightAngleCrossings (model: SheetT.Model)  =
 
     let nets = allWireNets model
@@ -470,6 +561,52 @@ let numOfVisRightAngles (model: SheetT.Model) : int =
         |> List.collect (fun (_, net) -> getVisualSegsFromNetWires true model net)
     // every visual segment => right-angle bend except for the first (or last) in a wire
     distinctSegs.Length - numWires
+
+let visibleWireRightAngles (sheet: SheetT.Model) =
+
+    let getSegmentVertices (wire: BusWireT.Wire) =
+        let (segVecs : XYPos list) = visibleSegments wire.WId sheet
+        (wire.StartPos, segVecs) ||> List.scan (fun (currVec : XYPos) (nextVec : XYPos) -> 
+                                                {currVec with X = currVec.X+nextVec.X; Y = currVec.Y+nextVec.Y})
+
+
+    let isPerpendicular (seg1Start: XYPos) (seg1End: XYPos) (seg2Start: XYPos) (seg2End: XYPos) =
+
+        // let isPointEqual (p1: XYPos) (p2: XYPos) =
+        //     p1.X = p2.X && p1.Y = p2.Y
+        
+        let p1 = seg1Start
+        let p2 = seg1End
+        let p3 = seg2Start
+        let p4 = seg2End
+
+        (* Check if the slopes are negative reciprocals of each other (excluding cases where both slopes are 0 or infinite) *)
+        let m1 = p2-p1
+        let m2 = p4-p3
+
+        // printf $"{BlockHelpers.dotProduct m1 m2}"
+
+        (BlockHelpers.dotProduct m1 m2 = 0) && (isProperCrossing (p1,p2)(p3,p4))
+
+
+    let segmentStartEnd = 
+        sheet.Wire.Wires
+        |> Map.toList
+        |> List.map snd
+        |> List.map getSegmentVertices
+        |> List.map(List.pairwise)
+        |> List.concat
+
+    let uniqueSegmentPairs = 
+        List.allPairs segmentStartEnd segmentStartEnd
+        |> List.map (fun (x, y) -> if (fst x).X <= (fst y).X then (x, y) else (y, x)) 
+        |> List.distinct
+
+    (0, uniqueSegmentPairs) 
+    ||> List.fold(fun s ((seg1Start, seg1End),(seg2Start, seg2End))->
+                    if isPerpendicular seg1Start seg1End seg2Start seg2End then s+1 else s)
+
+    
     
 
 //T6 R

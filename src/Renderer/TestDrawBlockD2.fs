@@ -4,6 +4,7 @@ open Elmish
 open RotateScale
 open CommonTypes
 open SheetBeautifyHelpers
+open SheetBeautifyD2
 
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Test Circuits---------------//
@@ -23,8 +24,6 @@ module D2 =
     open TestDrawBlock.HLPTick3.Builder
     open TestDrawBlock.TestLib
     open TestDrawBlock.HLPTick3
-/// Sample data based on 11 equidistant points on a horizontal line
-/// 
     let random = System.Random()
 
     let reRouteWires (sheet: SheetT.Model) =
@@ -33,7 +32,6 @@ module D2 =
             sheet.Wire.Wires 
             |> Map.toList
             |> List.map snd
-            |> fun x -> x
             |> List.fold 
                 (fun model wire -> 
                     let updatedWire = (BusWireRoute.smartAutoroute model wire)
@@ -56,7 +54,14 @@ module D2 =
         let compId = fst (findSymbolID componentMap).[0]
         let compMap = Map.add compId (Optic.set reversedInputPorts_ (Some swap) (Map.find compId componentMap)) componentMap
         Optic.set SheetT.symbols_ compMap sheet
- 
+
+    let randomComponentPosition (topLeft: XYPos) (bottomRight:XYPos) = 
+        let randomCoordinate max min = 
+            random.NextDouble() * (max-min) + min
+
+        let X = randomCoordinate bottomRight.X topLeft.X
+        let Y = randomCoordinate bottomRight.Y topLeft.Y
+        {X = X; Y = Y}
 
     let D2StarterPositions = 
         let mux1PossibleSwaps = [true; false]
@@ -73,12 +78,16 @@ module D2 =
         |> List.map(fun (f2,(s2,f1,s1)) -> (f2,s2,f1,s1))
         |> List.allPairs gateFlips 
         |> List.map (fun (g,(f2,s2,f1,s1)) -> (g,f2,s2,f1,s1))
-        |> fun x -> 
-            printfn "%A" x[0]
-            printfn "%A" x[1]
-            x
         |> fromList
-    /// demo test circuit consisting of a DFF & And gate
+
+    let getTestMetrics (sheet: SheetT.Model) : SheetT.Model=
+        printf $"Pre correction metrics, wire crossings:{rightAngleSegCount sheet}"
+        let updatedSheet = reRouteWires (sheetOrderFlip sheet)
+        printf $"Post correction metrics, wires straightened:{(visibleWireRightAngles updatedSheet) - (visibleWireRightAngles sheet)},\
+         wire crossings:{rightAngleSegCount updatedSheet}"
+        updatedSheet
+
+    /// demo test circuit consisting of all components neede from D2
     let makeD2StarterCircuit (data :SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool) =
         let gateFlip, mux2Flip, mux2Swap, mux1Flip,mux1Swap = data
         let tmpFlip = flipSymbol 
@@ -86,11 +95,11 @@ module D2 =
         let tmpSwap = swapMuxInput
         let tmpSwapResult symLabel sheet swap = if true then Ok (tmpSwap symLabel sheet swap) else Error "Won't happen"
         initSheetModel
-        |> placeSymbol "MUX1" Mux2 {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y - 100.0} 
-        |> Result.bind (placeSymbol "S1" (Input1((1,Some 1))) {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y + 100.0})
-        |> Result.bind (placeSymbol "S2" (Input1(1,Some 1)) {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y + 200.0})
+        |> placeSymbol "MUX1" Mux2 {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y - 200.0} 
+        |> Result.bind (placeSymbol "S1" (Input1((1,Some 1))) {middleOfSheet with X = middleOfSheet.X - 200.0 ; Y = middleOfSheet.Y - 30.0})
+        |> Result.bind (placeSymbol "S2" (Input1(1,Some 1)) {middleOfSheet with X = middleOfSheet.X - 200.0 ; Y = middleOfSheet.Y + 46.0})
         |> Result.bind (placeSymbol "MUX2" Mux2 middleOfSheet)
-        |> Result.bind (placeSymbol "G1" (GateN(And,2)) {middleOfSheet with X = middleOfSheet.X + 100.0 ; Y = middleOfSheet.Y - 100.0})
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) {middleOfSheet with X = middleOfSheet.X + 200.0 ; Y = middleOfSheet.Y - 200.0})
         |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2) )
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 1) )
@@ -102,7 +111,65 @@ module D2 =
         |> Result.bind(tmpFlipResult "MUX1" mux1Flip)
         |> Result.bind(tmpSwapResult "MUX2" mux2Swap)
         |> Result.map (reRouteWires)
+        |> Result.map(getTestMetrics)
+        |> Result.map (reRouteWires)
         |> getOkOrFail
+
+
+    let getOptionStarterPosition (topLeft: XYPos) (bottomRight: XYPos) (comb: SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool) =
+        let mux1 = randomComponentPosition topLeft bottomRight
+        let mux2 = randomComponentPosition topLeft bottomRight
+        let s1 = randomComponentPosition topLeft bottomRight
+        let s2 = randomComponentPosition topLeft bottomRight
+        let g1 = randomComponentPosition topLeft bottomRight
+
+        // Combine the original comb values with the new values
+        let newComb = 
+            // Extract existing values for readability
+            let (a, b, c, d, e) = comb
+            // Create the new tuple with all values
+            (a, b, c, d, e, mux1, mux2, s1, s2, g1)
+
+        newComb
+        
+
+
+    let makeD2OptionCircuit (data :SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool * XYPos * XYPos * XYPos * XYPos * XYPos) =
+        let gateFlip, mux2Flip, mux2Swap, mux1Flip, mux1Swap, mux1, mux2, s1, s2, g1 = data
+        let tmpFlip = flipSymbol 
+        let tmpFlipResult label  flip sheet = if true then Ok (tmpFlip label flip sheet) else Error "Won't happen"
+        let tmpSwap = swapMuxInput
+        let tmpSwapResult symLabel sheet swap = if true then Ok (tmpSwap symLabel sheet swap) else Error "Won't happen"
+        initSheetModel
+        |> placeSymbol "MUX1" Mux2  mux1 
+        |> Result.bind (placeSymbol "S1" (Input1((1,Some 1))) s1)
+        |> Result.bind (placeSymbol "S2" (Input1(1,Some 1)) s2)
+        |> Result.bind (placeSymbol "MUX2" Mux2 mux2)
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) g1)
+        |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2) )
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 1) )
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 0) )
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0) )
+        |> Result.bind(tmpFlipResult "G1" gateFlip)
+        |> Result.bind(tmpFlipResult "MUX2" mux2Flip)
+        |> Result.bind(tmpSwapResult "MUX2" mux2Swap)
+        |> Result.bind(tmpFlipResult "MUX1" mux1Flip)
+        |> Result.bind(tmpSwapResult "MUX2" mux2Swap)
+        |> Result.map (reRouteWires)
+        |> Result.map(getTestMetrics)
+        |> Result.map (reRouteWires)
+        |> getOkOrFail
+
+    
+    let D2OptionStarterPositions = 
+        let topLeft = {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y - 200.0}
+        let bottomRight = {middleOfSheet with X = middleOfSheet.X + 100.0 ; Y = middleOfSheet.Y + 200.0}
+        D2StarterPositions
+        |> toList
+        |> List.map (getOptionStarterPosition topLeft bottomRight)
+        |> List.filter(fun d -> (numOfIntersectedSymPairs (makeD2OptionCircuit d)) <= 0)
+        |> fromList
 
 
 
@@ -172,8 +239,8 @@ module D2 =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
-                D2StarterPositions
-                makeD2StarterCircuit
+                D2OptionStarterPositions
+                makeD2OptionCircuit
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -182,15 +249,15 @@ module D2 =
 
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
-        let testsToRun : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
+        let testDropdown : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "TestD2Starter", testD2Starter // example
-                "Test2", testD2Starter // example
-                "Test3", testD2Starter // example
-                "Test4", testD2Starter 
-                "Test5", fun _ _ _ -> printf "Test5"// dummy test - delete line or replace by real test as needed
+                "Test1", test1 // example
+                "Test2", test2
+                "Test3", test3
+                "Test4", test4
+                "Test5", testD2Starter// dummy test - delete line or replace by real test as needed
                 "Test6", fun _ _ _ -> printf "Test6" 
                 "Test7", fun _ _ _ -> printf "Test7"
                 "Test8", fun _ _ _ -> printf "Test8"
@@ -201,19 +268,19 @@ module D2 =
         /// Display the next error in a previously started test
         let nextError (testName, testFunc) firstSampleToTest dispatch =
             let testNum =
-                testsToRun
+                testDropdown
                 |> List.tryFindIndex (fun (name,_) -> name = testName)
                 |> Option.defaultValue 0
             testFunc testNum firstSampleToTest dispatch
 
         /// common function to execute any test.
-        /// testIndex: index of test in testsToRunFromSheetMenu
+        /// testIndex: index of test in testDropdown
         let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name,func = testsToRun[testIndex] 
+            let name,func = testDropdown[testIndex] 
             printf "%s" name
             match name, model.DrawBlockTestState with
             | "Next Test Error", Some state ->
-                nextError testsToRun[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
+                nextError testDropdown[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
             | "Next Test Error", None ->
                 printf "Test Finished"
                 ()

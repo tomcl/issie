@@ -211,10 +211,6 @@ let checkInOutPortOpp (model: SheetT.Model) (wire: BusWireT.Wire) =
     | _, _ ->   false 
 
 
-
-
-
-
 /// calculates the movements required to straighten the wire
 /// returns the steps required to straighten the wire in a list of tuples of direction and distance as well as the symbol and wire
 /// Returns an option type
@@ -263,35 +259,6 @@ let calcMovementsToStraightenWire (model: SheetT.Model) (wire: BusWireT.Wire, se
         | [] -> None
         | _ -> Some (symbol, wire, simplifyMovements movements)
 
-/// Checks if the symbol is singly connected 
-//let singlyConnectedSymbols (model: SheetT.Model) =
-//    let outputWiresToBeStraightened =
-//        checkWiresToBeStraightened model
-//        |> List.choose (fun wireAndSegments -> 
-//            match findOutputSymbol model wireAndSegments with
-//            | Some (wire, segments, symbol, symbolType) when isSymbolSinglyConnected symbol model -> 
-//                Some (wire, segments, symbol, symbolType)
-//            | _ -> None
-//        )
-//    let inputWiresToBeStraightened =
-//        checkWiresToBeStraightened model
-//        |> List.choose (fun wireAndSegments -> 
-//            match findInputSymbol model wireAndSegments with
-//            | Some (wire, segments, symbol, symbolType) when isSymbolSinglyConnected symbol model -> 
-//                Some (wire, segments, symbol, symbolType)
-//            | _ -> None
-//        )
-
-//    let wiresToBeStraightened = outputWiresToBeStraightened @ inputWiresToBeStraightened
-
-//    let temp = wiresToBeStraightened |> List.map (fun (wire, segments, symbol, symbolType) -> calcMovementsToStraightenWire model (wire, segments, symbol, symbolType))
-//    temp |> List.choose (fun ans ->
-//        match ans with
-//        | Some (symbol, wire, movements) ->
-//            printfn "Symbol: %A, Movements: %A, Length of movements: %A" symbol.Component.Label  movements (List.length movements)
-//            Some (symbol, movements)
-//        | None -> None
-//    )
 
 let singlyConnectedSymbols (model: SheetT.Model) =
     let outputWiresToBeStraightened =
@@ -333,119 +300,66 @@ let singlyConnectedSymbols (model: SheetT.Model) =
 
 
 
-
 /// required function for straighening non singly connected symbols
 /// Checks other wires from that originate from the same port, if they are straight then the wires movements are restricted to the same direction
 /// If the other wires are not straight then the wire can be straightened in any direction
 /// returns true if the wire can be straightened
-let decideOnStraightening (symbol: SymbolT.Symbol, wireRef:BusWireT.Wire, movementList: (Directions*float) list) (model: SheetT.Model) : bool =
-    // check that the wire to be straightened is not connected to a port with an already straight wire
-    let wires = model.Wire.Wires
-    // Find wires that are connected to the same port as the wire to be straightened
-    let connectedWires =
-            wires
-            |> Map.filter (fun _ wire -> wire.OutputPort = wireRef.OutputPort && wire.WId <> wireRef.WId)  // Exclude the wire to be straightened
+//let decideOnStraightening (symbol: SymbolT.Symbol, wireRef:BusWireT.Wire, movementList: (Directions*float) list) (model: SheetT.Model) : bool =
+//    // check that the wire to be straightened is not connected to a port with an already straight wire
+//    let wires = model.Wire.Wires
+//    // Find wires that are connected to the same port as the wire to be straightened
+//    let connectedWires =
+//            wires
+//            |> Map.filter (fun _ wire -> wire.OutputPort = wireRef.OutputPort && wire.WId <> wireRef.WId)  // Exclude the wire to be straightened
 
-    // Collect directions for all wires in connectedWires
-    let allDirections = 
-        connectedWires
-        |> Map.fold (fun acc _ wire ->
-            let absSegments =
-                visibleSegments wire.WId model
-                |> List.filter (fun segs -> not (segs =~ XYPos.zero))
-                |> List.scan (fun acc relativePos -> acc + relativePos) wire.StartPos
-            let directions =
-                absSegments
-                |> List.pairwise // Get pairs of consecutive segment ends to determine direction
-                |> List.map (fun (prevPos, currPos) ->
-                    if prevPos.X = currPos.X then Vertical
-                    else if prevPos.Y = currPos.Y then Horizontal
-                    else Unknown)
-            acc @ [directions]) []  // Accumulate directions from all wires
+//    // Collect directions for all wires in connectedWires
+//    let allDirections = 
+//        connectedWires
+//        |> Map.fold (fun acc _ wire ->
+//            let absSegments =
+//                visibleSegments wire.WId model
+//                |> List.filter (fun segs -> not (segs =~ XYPos.zero))
+//                |> List.scan (fun acc relativePos -> acc + relativePos) wire.StartPos
+//            let directions =
+//                absSegments
+//                |> List.pairwise // Get pairs of consecutive segment ends to determine direction
+//                |> List.map (fun (prevPos, currPos) ->
+//                    if prevPos.X = currPos.X then Vertical
+//                    else if prevPos.Y = currPos.Y then Horizontal
+//                    else Unknown)
+//            acc @ [directions]) []  // Accumulate directions from all wires
 
-    let checkForStraightLines allDirections:StraightWireDirection list =
-        allDirections
-        |> List.map (fun directions ->
-            match directions with
-            | [Vertical] -> Vertical
-            | [Horizontal] -> Horizontal
-            | _ ->
-                let isStraightLine = 
-                    List.forall (fun direction -> direction = List.head directions) directions
-                if isStraightLine then List.head directions
-                else NotStraight)
+//    let checkForStraightLines allDirections:StraightWireDirection list =
+//        allDirections
+//        |> List.map (fun directions ->
+//            match directions with
+//            | [Vertical] -> Vertical
+//            | [Horizontal] -> Horizontal
+//            | _ ->
+//                let isStraightLine = 
+//                    List.forall (fun direction -> direction = List.head directions) directions
+//                if isStraightLine then List.head directions
+//                else NotStraight)
 
-    let straightDirectionList = checkForStraightLines allDirections
+//    let straightDirectionList = checkForStraightLines allDirections
 
-    match List.exists (fun dir -> dir = Horizontal) straightDirectionList, List.exists (fun dir -> dir = Vertical) straightDirectionList with
-    | true , true ->
-        printfn "Symbol: %A, Wire: %A, Movements: %A, Wire cannot be straightened" symbol.Component.Label wireRef.WId movementList
-        false
-    | true, false ->
-        let ans = movementList |> List.forall (fun (dir, _) -> dir = DIR_Left || dir = DIR_Right)
-        printfn "Symbol: %A, Wire: %A, Movements: %A, Wire can be straightened" symbol.Component.Label wireRef.WId ans
-        ans
-    | false, true ->
-        let ans = movementList |> List.forall (fun (dir, _) -> dir = DIR_Up || dir = DIR_Down)
-        printfn "Symbol: %A, Wire: %A, Movements: %A, Wire can be straightened" symbol.Component.Label wireRef.WId ans
-        ans
-    | false, false ->
-        printfn "Symbol: %A, Wire: %A, Movements: %A, Wire can be straightened" symbol.Component.Label wireRef.WId movementList
+//    match List.exists (fun dir -> dir = Horizontal) straightDirectionList, List.exists (fun dir -> dir = Vertical) straightDirectionList with
+//    | true , true ->
+//        printfn "Symbol: %A, Wire: %A, Movements: %A, Wire cannot be straightened" symbol.Component.Label wireRef.WId movementList
+//        false
+//    | true, false ->
+//        let ans = movementList |> List.forall (fun (dir, _) -> dir = DIR_Left || dir = DIR_Right)
+//        printfn "Symbol: %A, Wire: %A, Movements: %A, Wire can be straightened" symbol.Component.Label wireRef.WId ans
+//        ans
+//    | false, true ->
+//        let ans = movementList |> List.forall (fun (dir, _) -> dir = DIR_Up || dir = DIR_Down)
+//        printfn "Symbol: %A, Wire: %A, Movements: %A, Wire can be straightened" symbol.Component.Label wireRef.WId ans
+//        ans
+//    | false, false ->
+//        printfn "Symbol: %A, Wire: %A, Movements: %A, Wire can be straightened" symbol.Component.Label wireRef.WId movementList
         true
 
   
-
-
-// TODO commented code 
-/// Function to find and process to straighten non singly connected symbols
-/// returns a list of symbols and the movements required to straighten the wire that will not unstraighten other wires
-//let nonSinglyConnectedSymbols (model: SheetT.Model) =
-//    let outputWiresToBeStraightened =
-//        checkWiresToBeStraightened model
-//        |> List.choose (fun wireAndSegments -> 
-//            match findOutputSymbol model wireAndSegments with
-//            | Some (wire, segments, symbol, symbolType) when not (isSymbolSinglyConnected symbol model) -> 
-//                Some (wire, segments, symbol, symbolType)
-//            | _ -> None
-//        )
-
-//    // removed from code for now as it is untested
-//    //let inputWiresToBeStraightenedUnchecked =
-//    //    checkWiresToBeStraightened model
-//    //    |> List.choose (fun wireAndSegments -> 
-//    //        match findInputSymbol model wireAndSegments with
-//    //        | Some (wire, segments, symbol, symbolType) when not (isSymbolSinglyConnected symbol model) -> 
-//    //            Some (wire, segments, symbol, symbolType)
-//    //        | _ -> None
-//    //    )
-//    //// Extract Wire IDs from outputWiresToBeStraightened
-//    //let outputWireIDs = outputWiresToBeStraightened |> List.map (fun (wire, _, _, _) -> wire.WId)
-
-//    //// Filter inputWiresToBeStraightened to exclude wires present in outputWiresToBeStraightened
-//    //let inputWiresToBeStraightened =
-//    //    inputWiresToBeStraightenedUnchecked
-//    //    |> List.filter (fun (wire, _, _, _) -> not (List.contains wire.WId outputWireIDs))
-
-
-
-//    let wiresToBeStraightened = outputWiresToBeStraightened// @ inputWiresToBeStraightened
-
-
-//    let filteredWires = 
-//        wiresToBeStraightened
-//        |> List.choose (fun (wire, segments, symbol, symbolType) ->
-//            let movements = calcMovementsToStraightenWire model (wire, segments, symbol, symbolType) // Adjusted based on expected output
-//            match movements with
-//            | Some (_, _, movementsList) when decideOnStraightening (symbol, wire, movementsList) model
-//                 -> Some (symbol, movementsList)
-//            | _  -> None
-//            //match movements with
-//            //| Some (symbol, wire, movementsList)  -> Some (symbol, movementsList)
-//            //| _  -> None
-//        )
-
-//    filteredWires
-
 let nonSinglyConnectedSymbols (model: SheetT.Model): movementSymbolWire list =
     let outputWiresToBeStraightened =
         checkWiresToBeStraightened model
@@ -459,7 +373,7 @@ let nonSinglyConnectedSymbols (model: SheetT.Model): movementSymbolWire list =
             | _ -> None
         )
 
-//    // removed from code for now as it is untested
+    // removed from code for now as it is untested
     let inputWiresToBeStraightenedUnchecked =
         checkWiresToBeStraightened model
         |> List.choose (fun wireAndSegments -> 
@@ -523,45 +437,7 @@ let calculateNewCoordinatesTest (symbol: SymbolT.Symbol, movementList: (Directio
         | _ -> acc
     ) symOriginalPos
 
-// TODO Adjust to allow maximum number of movements to be applied to the symbol
-/// Function to apply the movements to the model and check for intersections for non singly connected symbols
-/// Completes extra processing as there maybe mulitple suggested movements for a symbol. Selects the first one that does not intersect with any other symbol
-let updateModelWithNonSinglyConnected2 (model: SheetT.Model) (symbolMovements: (SymbolT.Symbol * (Directions * float) list) list) : SheetT.Model =
-    printfn "Updating model with non singly connected symbols!!!!!"
-    // Step 1: Group movements by symbol
-    let movementsBySymbol =
-        let test1 =
-            symbolMovements
-            |> List.groupBy fst
-        let test2 =
-            test1
-            |> List.map (fun (symbol, groupedMovements) -> 
-                symbol, List.collect snd groupedMovements)
-        test2
 
-    // Function to attempt applying movements and check intersections
-    let tryMovementsForSymbol (symbol, movements) =
-        movements
-        |> List.map (fun movement -> 
-            let trialModel = 
-                let newCoordinates = calculateNewCoordinatesTest (symbol, [movement])
-                let updatedModel = Optic.set (SheetT.symbolOf_ symbol.Id) { symbol with Pos = newCoordinates } model
-                let updatedModelWires = BusWireSeparate.routeAndSeparateSymbolWires updatedModel.Wire symbol.Id
-                let symbolModel = { updatedModel with Wire = updatedModelWires }
-                symbolModel
-            let intersections = numOfIntersectedSymPairs trialModel
-            (trialModel, intersections))
-        |> List.sortBy snd // Sort by number of intersections
-        |> List.tryFind (fun (_, intersections) -> intersections = 0) // Find the first movement set with 0 intersections
-    // Step 2: Attempt movements for each symbol and record intersections
-    let modelsWithMovements = 
-        movementsBySymbol
-        |> List.choose tryMovementsForSymbol // Only keep successful movement attempts
-    printfn "Movements by symbol: %A" (modelsWithMovements)
-
-    // Step 3: Select best movement set and update model accordingly
-    modelsWithMovements
-    |> List.fold (fun accModel (newModel, _) -> newModel) model // Apply successful movements to the model
 
 /// Function that checks the number of right angles and symbol intersecions
 let evaluateSchematic (model: SheetT.Model): (int*int) =
@@ -596,48 +472,6 @@ let findWireConnectedToInputPort (model: SheetT.Model) (portId: InputPortId) =
     connectedWires
 
 
-
-//let updateModelWithNonSinglyConnected (initialModel: SheetT.Model) (symbolMovements: movementSymbolWire list): SheetT.Model =
-//    printfn "Updating model with non singly connected symbols!!!!!"
-
-
-
-    //// Evaluate initial model
-    //let (initialRightAngles, initialSymOverlap) = evaluateSchematic initialModel
-
-    //// Process each movementSymbolWire and update model if it improves right angles without causing overlaps
-    //let processMovement (currentModel: SheetT.Model) (movementSymbolWire: movementSymbolWire) =
-    //    // Calculate new coordinates for the symbol using the entire list of movements
-    //    let symTomove = movementSymbolWire.SymbolToMove
-    //    let symRef = movementSymbolWire.SymbolRef
-    //    let symbolMovements = movementSymbolWire.Movements
-    //    //let newCoordinates = calculateNewCoordinates (symTomove, symbolMovements)
-    //    //let updatedSymbol = { movementSymbolWire.SymbolToMove with Pos = newCoordinates }
-    //    //let trialModel = Optic.set (SheetT.symbolOf_ movementSymbolWire.SymbolToMove.Id) updatedSymbol currentModel
-
-    //    let trialModel = 
-    //        let newCoordinates = calculateNewCoordinatesTest (symTomove, symbolMovements)
-    //        let updatedModel = Optic.set (SheetT.symbolOf_ symTomove.Id) { symTomove with Pos = newCoordinates } currentModel
-    //        let updatedModelWires = BusWireSeparate.routeAndSeparateSymbolWires updatedModel.Wire symTomove.Id
-    //        let symbolModel = { updatedModel with Wire = updatedModelWires }
-    //        symbolModel
-
-    //    // Evaluate the trial model
-    //    let (trialRightAngles, trialSymOverlap) = evaluateSchematic trialModel
-    //    printfn "Right Angles: %A, Symbol Overlap: %A" trialRightAngles trialSymOverlap
-
-    //    // Check the conditions for accepting the movements
-    //    //if trialRightAngles < initialRightAngles && trialSymOverlap = 0 then
-    //    //    printfn "Movement applied successfully to symbol: %A" symTomove.Component.Label 
-    //    //    trialModel // Accept the updated model
-    //    //else
-    //    //    printfn "Movement resulted in intersections, not applied to symbol: %A" symTomove.Component.Label
-    //    //    currentModel // Reject the update and return the original model
-    //    trialModel
-
-    //// Iterate over all symbol movements and update the model
-    //symbolMovements
-    //|> List.fold processMovement initialModel
 // iterate through each movementInfo entry check the number of ports of each symbol at this together and 
 let setMovementPriority (movementInfo: movementSymbolWire list): movementSymbolWire list =
     let numberOfPorts (symbol: SymbolT.Symbol) =
@@ -699,37 +533,6 @@ let switchMoveRefSymbolsAndMergeMovements (movementSymbolWireList: movementSymbo
         move
 
 
-//let updateModelWithNonSinglyConnected (initialModel: SheetT.Model) (symbolMovements: movementSymbolWire list): SheetT.Model =
-//    printfn "Updating model with non singly connected symbols!!!!!"
-
-//    symbolMovements |> List.fold (fun currentModel msw ->
-//        let symbol = msw.SymbolToMove
-//        let symbolRef = msw.SymbolRef
-//        let movementList = msw.Movements
-//        let newCoordinates = calculateNewCoordinates (symbol, movementList)
-        
-//        // Print out the symbol and movements being applied.
-//        printfn "Applying movements to symbol: %A " symbol.Component.Label
-//        movementList |> List.iter (fun (direction, distance) ->
-//            printfn "  Movement: %A, Distance: %f" direction distance)
-//        let updatedSymbol = updateSymPos newCoordinates symbol
-//        // use this function!!!!
-//        let updatedModel = updateSymPosInSheet symbol.Id newCoordinates currentModel
-//        //let updatedModel = Optic.set (SheetT.symbolOf_ symbol.Id) updatedSymbol currentModel
-//        let updatedModelWires = BusWireSeparate.routeAndSeparateSymbolWires updatedModel.Wire symbol.Id
-//        let trialModel = { updatedModel with Wire = updatedModelWires }
-
-//        match numOfIntersectedSymPairs trialModel with
-//        | 0 -> 
-//            printfn "Movement applied successfully to symbol: %A" symbol.Component.Label
-//            printfn "Number of intersections %A" (numOfIntersectedSymPairs trialModel)
-
-//            trialModel
-//        | _ -> 
-//            printfn "Movement resulted in intersections, not applied to symbol: %A" symbol.Component.Label
-//            currentModel
-//        //symbolModel
-//    ) initialModel
 
 let updateModelWithNonSinglyConnected (initialModel: SheetT.Model) (symbolMovements: movementSymbolWire list): SheetT.Model =
     printfn "Updating model with non singly connected symbols!!!!!"
@@ -858,11 +661,7 @@ let alignSymbols (model: SheetT.Model) : SheetT.Model =
     //printfn "nonSinglyConnected: %A" nonSinglyConnected
     //let firstNonSinglyConnected = nonSinglyConnected
 
-
-
     printMovementSymbolWireDetails nonSinglyConnected
-
-
 
     //let modelWithAlignedSinglyConnected = updateModelWithSinglyConnected model singlyConnected
     //modelWithAlignedSinglyConnected

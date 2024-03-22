@@ -175,7 +175,7 @@ module TestData =
     //                         }
     //     toList posGen
     let getTestRand n =
-        (nRandComps n, randomPos)
+        (nRandComps n, fromList randomPos)
         ||> product (fun compL posL -> (compL, posL))
         |> toArray
         |> shuffleA

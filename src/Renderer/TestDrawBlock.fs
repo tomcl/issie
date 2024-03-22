@@ -609,7 +609,7 @@ module HLPTick3 =
 
 
         initSheetModel
-        |> placeSymbol "MUX1" Mux2 ({X = 1482.91; Y = 1681.89}+(fst posRots)[0])
+        |> placeSymbol "MUX1" Mux2 ({X = 1482.91; Y = 1711.89}+(fst posRots)[0])
         |> Result.bind (placeSymbol "S2" (Input1(1, None)) ({X = 1650.06; Y = 1906.01}+(fst posRots)[1]))
         |> Result.bind (placeSymbol "S1" (Input1(1, None)) ({X = 1474.5; Y = 1595.86}+(fst posRots)[2]))
         |> Result.bind (placeSymbol "MUX2" Mux2 ({X = 1717.43; Y = 1593.99}+(fst posRots)[3]))
@@ -629,7 +629,7 @@ module HLPTick3 =
 
 
         initSheetModel
-        |> placeSymbol "MUX1" Mux2 ({X = 1482.91; Y = 1681.89}+(fst posRots)[0])
+        |> placeSymbol "MUX1" Mux2 ({X = 1482.91; Y = 1711.89}+(fst posRots)[0])
         |> Result.bind (placeSymbol "S2" (Input1(1, None)) ({X = 1650.06; Y = 1906.01}+(fst posRots)[1]))
         |> Result.bind (placeSymbol "S1" (Input1(1, None)) ({X = 1474.5; Y = 1595.86}+(fst posRots)[2]))
         |> Result.bind (placeSymbol "MUX2" Mux2 ({X = 1717.43; Y = 1593.99}+(fst posRots)[3]))
@@ -832,7 +832,7 @@ module HLPTick3 =
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             let randomized = (randomCompPosVal 5 10 (-200,200) (0,200))
-            let minorDiviationRandomized = (minorRandomCompPosVal 5 10 (-50,50) (0,200))
+            let minorDiviationRandomized = (minorRandomCompPosVal 5 40 (-20,20) (0,200))
             // Change names and test functions as required
             // delete unused tests from list
             [

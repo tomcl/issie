@@ -586,24 +586,53 @@ module HLPTick3 =
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
 
-    let makeTest5Circuit (posRots:XYPos list * int list) =
-        (*initSheetModel
-        |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
-        |> Result.bind (placeSymbol "S2" (Input1(1,None)) ((fst posRots)[1]))
-        |> Result.bind (placeSymbol "MUX1" Mux2 ((fst posRots)[2]))
-        |> Result.bind (placeSymbol "MUX2" Mux2 ((fst posRots)[3]))
-        |> Result.bind (placeSymbol "G1" (GateN(And,2)) ((fst posRots)[4]))
-        |> Result.bind (flipRot ((snd posRots)[0]) "S1" )
-        |> Result.bind (flipRot ((snd posRots)[1]) "S2")
-        |> Result.bind (flipRot ((snd posRots)[2]) "MUX1")
-        |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
-        |> Result.bind (flipRot ((snd posRots)[4]) "G1")
+    let makeTest3Circuit (posRots:XYPos list * int list) =
+        let MUX2Connection1, MUX2Connection2 = swap (0) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = swap (0) "G1" "MUX2" "MUX1"
+
+
+        initSheetModel
+        |> placeSymbol "MUX1" Mux2 ({X = 1482.91; Y = 1711.89}+(fst posRots)[0])
+        |> Result.bind (placeSymbol "S2" (Input1(1, None)) ({X = 1650.06; Y = 1906.01}+(fst posRots)[1]))
+        |> Result.bind (placeSymbol "S1" (Input1(1, None)) ({X = 1474.5; Y = 1595.86}+(fst posRots)[2]))
+        |> Result.bind (placeSymbol "MUX2" Mux2 ({X = 1717.43; Y = 1593.99}+(fst posRots)[3]))
+        |> Result.bind (placeSymbol "G1" (GateN(And, 2)) ({X = 1973.56; Y = 1630.55}+(fst posRots)[4]))
         |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
         |> Result.bind (MUX2Connection1)
         |> Result.bind (MUX2Connection2)
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
-        |> getOkOrFail*)
+        |> getOkOrFail
+                
+
+
+    let makeTest4Circuit (posRots:XYPos list * int list) =
+
+        initSheetModel
+        |> placeSymbol "S1" (Input1(1, None)) ({X = 1511.38; Y = 1760.53}+(fst posRots)[0])
+        |> Result.bind (placeSymbol "IN3" (Input1(1, None)) ({X = 1386.75; Y = 1605.23}+(fst posRots)[1]))
+        |> Result.bind (placeSymbol "IN4" (Input1(1, None)) ({X = 1386.75; Y = 1661.48}+(fst posRots)[2]))
+        |> Result.bind (placeSymbol "MUX1" Mux2 ({X = 1496.38; Y = 1633.36}+(fst posRots)[3]))
+        |> Result.bind (placeSymbol "MUX3" Mux2 ({X = 1860.15; Y = 1577.11}+(fst posRots)[4]))
+        |> Result.bind (placeSymbol "IN1" (Input1(1, None)) ({X = 1590.37; Y = 1577.11}+(fst posRots)[5]))
+        |> Result.bind (placeSymbol "S3" (Input1(1, None)) ({X = 1775.15; Y = 1679.97}+(fst posRots)[6]))
+        |> Result.bind (placeSymbol "MUX2" Mux2 ({X = 1702.15; Y = 1605.23}+(fst posRots)[7]))
+        |> Result.bind (placeSymbol "IN2" (Input1(1, None)) ({X = 1772.09; Y = 1548.98}+(fst posRots)[8]))
+        |> Result.bind (placeSymbol "OUT1" (Output(1)) ({X = 1950.15; Y = 1577.11}+(fst posRots)[9]))
+        |> Result.bind (placeWire (portOf "IN3" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "IN4" 0) (portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "IN1" 0) (portOf "MUX2" 0))
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 2))
+        |> Result.bind (placeWire (portOf "IN2" 0) (portOf "MUX3" 0))
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "MUX3" 1))
+        |> Result.bind (placeWire (portOf "S3" 0) (portOf "MUX3" 2))
+        |> Result.bind (placeWire (portOf "MUX3" 0) (portOf "OUT1" 0))
+        |> getOkOrFail
+        //|> alignSymbols
+
+    let makeTest5Circuit (posRots:XYPos list * int list) =
         let MUX2Connection1, MUX2Connection2 = swap (0) "MUX2" "S1" "MUX1"
         let ANDConnection1, ANDConnection2 = swap (0) "G1" "MUX2" "MUX1"
 
@@ -641,6 +670,7 @@ module HLPTick3 =
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
         |> alignSymbols
+
 
     let makeTest8Circuit (posRots:XYPos list * int list) =
         let MUX2Connection1, MUX2Connection2 = swap ((snd posRots)[3]) "MUX2" "S1" "MUX1"
@@ -769,22 +799,22 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test3 testNum firstSample dispatch =
+        let test3 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
                 firstSample
-                (randomCompPosVal 5 200 (-200,200) (0,200))
-                makeTest2Circuit
-                Asserts.failOnAllTests
+                random
+                makeTest5Circuit
+                Asserts.countWireCrossingAndSegs
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test4 testNum firstSample dispatch =
+        let test4 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
                 firstSample
-                (randomCompPosVal 5 200 (-200,200) (0,200))
-                makeTest2Circuit
+                random
+                makeTest4Circuit
                 Asserts.countWireCrossingAndSegs
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -833,13 +863,14 @@ module HLPTick3 =
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             let randomized = (randomCompPosVal 5 10 (-200,200) (0,200))
             let minorDiviationRandomized = (minorRandomCompPosVal 5 40 (-20,20) (0,200))
+            let minorDiviationRandomizedTen = (minorRandomCompPosVal 10 40 (-20,20) (0,200))
             // Change names and test functions as required
             // delete unused tests from list
             [
                 "Test1", test1
                 "Test2", test2
-                "Test3", test3
-                "Test4", test4
+                "Test3", (fun a b c -> test3 minorDiviationRandomizedTen a b c)
+                "Test4", (fun a b c -> test4 minorDiviationRandomizedTen a b c)
                 "Test5", (fun a b c -> test5 minorDiviationRandomized a b c)
                 "Test6", (fun a b c -> test6 minorDiviationRandomized a b c)
                 "Test7", (fun a b c -> test7 randomized a b c)

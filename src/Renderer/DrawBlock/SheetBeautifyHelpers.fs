@@ -594,3 +594,16 @@ let numSegmentCrossRightAngle (sheet: SheetT.Model) =
                                 |true -> num+1
                                 |_ -> num ) 0
     |> (fun num -> num/2)  //remove repeated pairs with self
+
+//T5R
+///Number of visible wire right-angles. Count over whole sheet.
+let numVisibleWireRightAngle (sheet: SheetT.Model) = 
+    let numWires = 
+        mapKeys sheet.Wire.Wires
+        |> Array.toList
+        |> List.length
+    //wire right angle = total number of vertical segments + horizontal segments - 1
+    //count over all sheet -> total number of visible segments - number of wires
+    getVisibleSegOnSheet sheet
+    |> List.length
+    |> (+) (-numWires)

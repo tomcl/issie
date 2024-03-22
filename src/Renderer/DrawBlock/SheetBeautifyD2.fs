@@ -135,6 +135,10 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         //numOfWireRightAngleCrossings sheet
     printf "inital cross number: %A" (numWireCrossing sheet)
     
+    let numWireBend (sheet: SheetT.Model) = 
+        numVisibleWireRightAngle sheet
+    printf "inital wire bends: %A" (numWireBend sheet)
+
     /// 12 possible combinations for a MUX being flipped, having inputs swapped, rotate 90, rotate270. 12 States: 
     /// flip, swap, rotate 90, rotate-90, flip and swap, flip and rotat90, flip and rotat-90, swap 90, swap -90, flipand swap 
     /// and rotate90, flip and swap and rotate-90

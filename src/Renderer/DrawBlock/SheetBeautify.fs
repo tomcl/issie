@@ -168,6 +168,8 @@ let getSheetScore (model:SheetT.Model) original : float =
     // Symbol overlaps
     let numOverlaps = numOfIntersectedSymPairs model |> float
 
+    let numWireBends = numOfVisRightAngles model |> float
+
     // Wire overlap symobols
     let wireOverlaps = numOfIntersectSegSym model |> float
 
@@ -187,14 +189,16 @@ let getSheetScore (model:SheetT.Model) original : float =
     else
         printfn "New Metrics: "
 
-    printfn "Number of intersecting pairs: %f" (4.0 * numOverlaps)
-    printfn "Number of wire overlaps: %f" (10.0 * wireOverlaps)
-    printfn "Size: %f" (0.005 * size)
-    printfn "Wire length: %f" (1.0 * wireLength)
+    printfn "Number of intersecting pairs: %f" (numOverlaps)
+    printfn "Number of wire overlaps: %f" (wireOverlaps)
+    printfn "Number of wire right bends: %f" (numWireBends)
+    printfn "Size: %f" (size)
+    printfn "Wire length: %f" (wireLength)
+    
 
 
     // Score equation with weights
-    (4.0 * numOverlaps) + (10.0 * wireOverlaps) + (0.0001 * size) + (1.0 * wireLength)
+    (2.0 * numOverlaps) + (10.0 * wireOverlaps) + (0.0001 * size) + (2.0 * wireLength) + (100.0 * numWireBends)
 
 /// <summary>
 /// Aligns all singly connected symbols by their target port.

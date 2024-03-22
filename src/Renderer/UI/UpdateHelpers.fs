@@ -505,7 +505,7 @@ let processContextMenuClick
     
     | DBWire (wire, aSeg), "Convert to Wire Label" ->
         model 
-        |> map (sheet_ ) (SheetBeautifyD3.generateWireLabel wire) 
+        |> map (sheet_ ) (SheetBeautifyD3.generateWireLabel true wire) 
         |> withNoCmd
 
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->

@@ -125,15 +125,19 @@ let resolveOverlaps (overlaps: (Symbol * Symbol) list) : Symbol list -> Symbol l
         // Determine the overlap along X and Y
         let overlapX = max 0.0 (bb1.TopLeft.X + bb1.W - bb2.TopLeft.X)
         let overlapY = max 0.0 (bb1.TopLeft.Y + bb1.H - bb2.TopLeft.Y)
+        let overlapX2 = max 0.0 (bb2.TopLeft.X + bb2.W - bb1.TopLeft.X)
+        let overlapY2 = max 0.0 (bb2.TopLeft.Y + bb2.H - bb1.TopLeft.Y)
 
         // Determine how much to move the symbols to no longer overlap
-        let moveDistanceX = if overlapX > 0.0 then overlapX + 1.0 else 0.0
-        let moveDistanceY = if overlapY > 0.0 then overlapY + 1.0 else 0.0
+        let moveDistanceX = if overlapX > 0.0 && bb1.TopLeft.X < bb2.TopLeft.X then overlapX + 1.0 else 0.0
+        let moveDistanceY = if overlapY > 0.0 && bb1.TopLeft.Y < bb2.TopLeft.Y then overlapY + 1.0 else 0.0
+        let moveDistanceX2 = if overlapX2 > 0.0 && bb1.TopLeft.X >= bb2.TopLeft.X then - (overlapX2 + 1.0) else 0.0
+        let moveDistanceY2 = if overlapY2 > 0.0 && bb1.TopLeft.Y >= bb2.TopLeft.Y then - (overlapY2 + 1.0) else 0.0
 
         // Check the direction of movement needed based on your layout preference
         // This example assumes moving sym2 to the right and/or down
-        let newPosX = sym2.Pos.X + moveDistanceX
-        let newPosY = sym2.Pos.Y + moveDistanceY
+        let newPosX = sym2.Pos.X + moveDistanceX + moveDistanceX2
+        let newPosY = sym2.Pos.Y + moveDistanceY + moveDistanceY2
 
         // Move sym2 by updating its position
         let sym2Moved = { sym2 with Pos = { X = newPosX; Y = newPosY } }

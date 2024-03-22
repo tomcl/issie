@@ -49,6 +49,8 @@ open RotateScale
 open BusWireSeparate
 
 
+/////////////////////////////////////////////////////////////// D1 Implementation ///////////////////////////////////////////////////////////////
+
 type Directions = DIR_Left | DIR_Right | DIR_Up | DIR_Down
 type SymbolClassification = ClassInput | ClassOutput
 type StraightWireDirection = Horizontal | Vertical | Unknown | NotStraight
@@ -510,7 +512,7 @@ let printMovementSymbolWireDetails (movementsList: moveSymInformation list) =
     )
 
 /// Top-level function to straightenWires on the sheet
-let straightenWiresByMovingSyms (model: SheetT.Model) : SheetT.Model =
+let sheetAlignScale (model: SheetT.Model) : SheetT.Model =
     let nonSinglyConnected = setMovementPriority (nonSinglyConnectedSymbols model)
 
     //printMovementSymbolWireDetails nonSinglyConnected
@@ -526,7 +528,7 @@ let straightenWiresByMovingSyms (model: SheetT.Model) : SheetT.Model =
         updateModelWithSinglyConnected nonSinglyCnnectedModel newSinglyConnected
 
 
-
+/////////////////////////////////////////////////////////////// D3 Implementation ///////////////////////////////////////////////////////////////
 let sheetWireLabelSymbol (sheet: SheetT.Model) = 
     // Note for confused readers: in Issie, a 'wire label' is a flying wire 'virtually' connecting two points on the sheet
 
@@ -721,6 +723,7 @@ let sheetWireLabelSymbol (sheet: SheetT.Model) =
     // todo use lenses
     {newSymbolsModel with Wire = {sheet.Wire with Wires = updatedWires; Symbol = {newSymbolsModel.Wire.Symbol with Symbols = remainingSymbols}}}
 
+/////////////////////////////////////////////////////////////// D2 Implementation ///////////////////////////////////////////////////////////////
 let getCustomConfigs (sym:Symbol): Symbol list =
     
     let currPortOrder = sym.PortMaps.Order
@@ -937,13 +940,18 @@ let dummyFunc (model: SheetT.Model):Result<SheetT.Model, string> =
 
     Ok finalModel
 
+/////////////////////////////////////////////////////////////// D4 Implementation ///////////////////////////////////////////////////////////////
+
 /// Top level function to beautify the sheet
 /// Aims to straighten wires, reduce right angles in wire, reduce the number of wire intersections and Converts IOlabels to wires based on heuristics
 let beautifySheet (model: SheetT.Model) =
     
     let beautifiedModel =
         sheetWireLabelSymbol model
-        |> straightenWiresByMovingSyms 
-        |> sheetWireLabelSymbol 
+        |> sheetAlignScale
 
-    beautifiedModel
+    let applySheetOrderFlip = sheetOrderFlip beautifiedModel
+ 
+    match applySheetOrderFlip with
+    | Ok fullyBeautifiedModel -> fullyBeautifiedModel |> sheetWireLabelSymbol 
+    | Error e -> beautifiedModel |> sheetWireLabelSymbol

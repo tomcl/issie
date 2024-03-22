@@ -1,9 +1,12 @@
 # Beautifying functions by Team 4
 
-### Wiki Page: (insert link)
+### Wiki Page: [Click](https://github.com/AdvikChitre/issie/wiki)
 
+
+
+<!-- 
 (README has statement of how beautify function is invoked and any other user info about how to run it.)
-add below
+add below -->
 
 ### D1 beautifying function (sheet->sheet)
 
@@ -30,15 +33,23 @@ used in edit menu, to bulk convert selected wire labels back to wires, ignore no
 
 
 ### Module list
+- SheetBeautifyD1
+- SheetBeautifyD2
+- SheetBeautifyD3
+- SheetBeautifyHelpers
+- GenerateData
+- TestDrawBlock
+- TestDrawBlock1
+- TestDrawBlock2
+- TestDrawBlock3
+- TestDrawBlock4
 
 ### Existing source files changed:
 - BlockHelpers -> getSymbolPos: changed sym.pos to sym.centre to do what XML comment said
 - Add manhattan distance to XYPos inline
 - Renderer.fs: added edit menu items for convert selected wires into wire labels and vice versa.
 - ContextMenu.fs and UpdateHelper.fs: added right-hand click menu for convert a wire into a wire label and vice versa
-
+<!-- 
 (if needed) README has statement of anything that has changed in repo since demo and why.
 
-(if needed) README has statement of anything important to be considered about functionality not shown in demo.
-
-(If needed). README has rationale for any existing source files in Issie that your code changes other than the expected ones: TestDrawBlock, SheetBeautify, SheetBeautifyHelpers, any module you add.
+(if needed) README has statement of anything important to be considered about functionality not shown in demo. -->

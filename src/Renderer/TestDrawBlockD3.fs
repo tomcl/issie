@@ -380,39 +380,55 @@ module HLPTick3 =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X = 0. ; Y = float n})
 
+  
     type XYPosRFlip = {X: float; Y: float; Rotation: Rotation; Flip: SymbolT.FlipType}
-
-    let bounds = 660
+    let bounds1 = 120
+    let bounds2 = 660
     let step = 30
     let horizVertLinePositions1: Gen<XYPos> =
         let horizLinePositionsSparse =
-            fromList [ -bounds .. step .. bounds ]
+            fromList [ -bounds1 .. step .. bounds1 ]
             |> map (fun n -> { X = float n; Y = 0. })
         let vertLinePositionsSparse =
-            fromList [ -bounds .. step .. bounds ]
+            fromList [ -bounds1 .. step .. bounds1 ]
             |> map (fun n -> { X = 0.; Y = float n })
         product (fun x y -> x + y) horizLinePositionsSparse vertLinePositionsSparse
-        |> filter (fun pos -> not (abs pos.X <= 300 && abs pos.Y <= 300))
+        |> filter (fun pos -> not (abs pos.X <= 60 && abs pos.Y <= 60))
+        // after measuring, keep the absolute distances less than 360 together
+        |> map (fun pos -> middleOfSheet + pos)
+
+    
+    let horizVertLinePositions2: Gen<XYPos> =
+        let horizLinePositionsSparse =
+            fromList [ -bounds2 .. step .. bounds2 ]
+            |> map (fun n -> { X = float n; Y = 0. })
+        let vertLinePositionsSparse =
+            fromList [ -bounds2 .. step .. bounds2 ]
+            |> map (fun n -> { X = 0.; Y = float n })
+        product (fun x y -> x + y) horizLinePositionsSparse vertLinePositionsSparse
+        |> filter (fun pos -> not (abs pos.X <= 300 && abs pos.Y <= 360))
         // after measuring, keep the absolute distances less than 60 together
         |> map (fun pos -> middleOfSheet + pos)
+
 
     let hVLinePosFlipRotate1: Gen<XYPosRFlip> =
         let rotateList = fromList [ Degree0; Degree90; Degree180; Degree270 ]
         let flipList = fromList [ SymbolT.FlipHorizontal; SymbolT.FlipVertical ]
 
         let horizLinePositionsSparse =
-            fromList [ -bounds .. step .. bounds ]
+            fromList [ -bounds2 .. step .. bounds2 ]
             |> map (fun n -> { X = float n; Y = 0. })
         let vertLinePositionsSparse =
-            fromList [ -bounds .. step .. bounds ]
+            fromList [ -bounds2 .. step .. bounds2 ]
             |> map (fun n -> { X = 0.; Y = float n })
 
         let hVData =
             product (fun x y -> x + y) horizLinePositionsSparse vertLinePositionsSparse
-            |> filter (fun pos -> not (abs pos.X <= 300 && abs pos.Y <= 300))
+            |> filter (fun pos -> not (abs pos.X <= 255 && abs pos.Y <= 255))
             // after measuring, keep the absolute distances less than 60 together
             |> map (fun pos -> middleOfSheet + pos)
 
+        // let shuffledHVData = shuffleA hVData
         map3
             (fun (pos: XYPos) flip rot -> { X = pos.X; Y = pos.Y; Rotation = rot; Flip = flip })
             hVData
@@ -525,6 +541,7 @@ module HLPTick3 =
 
 
         //---------------------------D3T Deliverable--------------------------//
+        // Helper function for counting total wire bends
         let totalWireBends (sample: int) (sheet: SheetT.Model) =
             let totalWireBendNum = countVisibleRAngles sheet
             totalWireBendNum

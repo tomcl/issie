@@ -73,8 +73,12 @@ let getLabelNumber (str : string) =
 
 /// Generates the label number for compType (i.e. the number 1 in IN1 or ADDER16.1) in a string format
 let generateLabelNumber listSymbols compType =
+
+    printfn "%A" listSymbols
+
     let samePrefix (target: ComponentType) (symbol: Symbol) : bool =
         let compType = symbol.Component.Type
+        printfn "%A %A" compType target
         (getPrefix target) = (getPrefix compType)
 
     let samePrefixLst = 
@@ -92,6 +96,7 @@ let generateLabelNumber listSymbols compType =
 let generateLabel (model: Model) (compType: ComponentType) : string =
     let listSymbols = List.map snd (Map.toList model.Symbols) 
     let prefix = getPrefix compType
+    //printfn "%A %A" prefix compType 
     match compType with
     | IOLabel | BusSelection _ | NotConnected -> prefix
     | _ -> prefix + (generateLabelNumber listSymbols compType)

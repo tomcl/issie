@@ -198,7 +198,7 @@ let getSheetScore (model:SheetT.Model) original : float =
 
 
     // Score equation with weights
-    (2.0 * numOverlaps) + (10.0 * wireOverlaps) + (0.0001 * size) + (2.0 * wireLength) + (100.0 * numWireBends)
+    (2.0 * numOverlaps) + (10.0 * wireOverlaps) + (0.0001 * size) + (0.5 * wireLength) + (100.0 * numWireBends)
 
 /// <summary>
 /// Aligns all singly connected symbols by their target port.

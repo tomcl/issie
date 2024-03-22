@@ -67,7 +67,7 @@
     /// return some shuffled integer lists
     let randomIntList (min:int) (max:int) (testLen:int) (variableLen:int): Gen<int list>  =
             [1..testLen]
-            |> List.map (fun _ -> [|min..10..max|]
+            |> List.map (fun _ -> [|min..1..max|]
                                   |> shuffleA
                                   |> Array.take variableLen
                                   |> Array.toList)

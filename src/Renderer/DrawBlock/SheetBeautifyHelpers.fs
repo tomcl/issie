@@ -310,6 +310,11 @@ module SegmentHelpers =
         |> List.mapi getSegmentVector
         |> coalesce
 
+    /// Get all visible segments for all wires in the model as a list of tuples (wireId, segments) where segments are relative position vectors
+    let allVisibleSegments (model: SheetT.Model) = 
+        model.Wire.Wires
+        |> Map.toList
+        |> List.map (fun (wId, _) -> (wId, visibleSegments wId model))
 
     (* These functions make ASSUMPTIONS about the wires they are used on:
        - Distinct net segments never overlap

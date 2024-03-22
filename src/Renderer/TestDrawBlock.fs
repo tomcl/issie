@@ -406,7 +406,6 @@ module HLPTick3 =
                 printf $" SCORE: {score'}"
                 printf "----------"
                 {result with score = score'}
-                // evaluationPopup
             | Some (n,first) -> // display in Issie editor and print out first error
                 match showTargetSheet with
                 | true ->
@@ -627,9 +626,25 @@ module HLPTick3 =
 //---------------------------------------------------------------------------------------//
 
     module Tests =
-        open SymbolPortHelpers // TODO: move from SymbolPortHelpers here
+        open Fable.React.Props
+        open Fable.React
 
-        /// Allow test errors to be viewed in sequence by recording the current error
+        /// score popup formatting
+        let scoreSheet(score) : ReactElement =
+            let styledSpan styles txt = span [Style styles] [str <| txt]
+            let bSpan txt = styledSpan [FontWeight "bold"] txt
+            let iSpan txt = styledSpan [FontStyle "italic"] txt
+            let tSpan txt = span [] [str txt]
+            div [] [
+            bSpan "Testing Complete!" ; 
+            br []; br [];
+            tSpan " Based on the evaluation functions provided for this test, your sheet received a score of "; bSpan $"{score}."
+            br []; br []; 
+            tSpan "The scoring functions are meant to be absolute, but the score is more useful for relative scoring." 
+                ]
+        
+
+        /// Allow test errors to be viewed in sequence by recording the current error. Also allows toggling target function
         /// in the Issie Model (field DrawblockTestState). This contains all Issie persistent state.
         let recordPositionInTest (testNumber: int) (targetFuncApplied: bool) (dispatch: Dispatch<Msg>) (result: TestResult<'a>) =
             dispatch <| UpdateDrawBlockTestState(fun _ ->

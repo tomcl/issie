@@ -799,7 +799,6 @@ module HLPTick3 =
         |> Result.bind placeRandomWiresOnModel
         |> getOkOrFail
         |> straightenWiresByMovingSyms
-        |> SheetBeautifyD3.sheetWireLabelSymbol
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -976,9 +975,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
         
-        /// Create a random deviated circuit based off make (see makeD4TestCircuitRandom)
-        /// that the D4 beautify function is called on
-        /// Fail on all tests to show the beautified circuits 
+        /// Create a random deviated circuit based off makeTest2Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test2 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -989,6 +987,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest3Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test3 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -999,6 +999,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest4Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test4 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1009,6 +1011,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest5Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test5 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1019,6 +1023,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest6Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test6 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1029,6 +1035,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest7Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test7 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1039,6 +1047,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest8Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test8 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"

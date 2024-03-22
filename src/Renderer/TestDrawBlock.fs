@@ -171,7 +171,6 @@ module HLPTick3 =
                 (segVecs,[1..segVecs.Length-2])
                 ||> List.fold tryCoalesceAboutIndex)
 
-    // New for D1 testing
     /// Helper function to count the number of right angles in a wire's visible segments
     let countNonStraightenedWires (model: SheetT.Model) : int =
         let numWireRightAngles (_, segs: XYPos list) =
@@ -187,7 +186,7 @@ module HLPTick3 =
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
-        open SheetBeautifyD3
+
 
                 
 
@@ -215,7 +214,6 @@ module HLPTick3 =
                 |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
                 |> Ok
         
-        // New for D1 testing
         /// Place a new symbol with label symLabel onto the Sheet with given position and rotation.
         let placeRotatedSymbol
             (symLabel: string)
@@ -243,8 +241,6 @@ module HLPTick3 =
                 |> Ok
 
 
-
-    
         /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
         /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
         /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
@@ -276,8 +272,7 @@ module HLPTick3 =
                 placeSymbol symLabel (Custom ccType) position model
             
         
-
-        // Rotate a symbol
+        /// Rotate a symbol by a rotation amount, given its label. Returns the rotated model
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : Result<SheetT.Model,string> =
             let componentList =
                 mapValues model.Wire.Symbol.Symbols
@@ -297,7 +292,7 @@ module HLPTick3 =
 
             {newModel with ErrorComponents = errorComponents; Action = SheetT.CurrentAction.DragAndDrop}|> Ok
 
-        // Flip a symbol
+        /// Flip a symbol along the axis 'flip' given its symbol label. Returns the flipped model.
         let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : Result<SheetT.Model,string> =
             let componentList =
                 mapValues model.Wire.Symbol.Symbols
@@ -402,40 +397,15 @@ module HLPTick3 =
                 | Error mess -> ()
             result
 
-
-        let runTestOnSheets2
-            (name: string)
-            (sampleToStartFrom: int)
-            (samples : Gen<'a>)
-            (sheetMaker: 'a -> SheetT.Model)
-            (sheetChecker: int -> SheetT.Model -> string option)
-            (dispatch: Dispatch<Msg>)
-                : TestResult<'a> =
-            let generateAndCheckSheet n = sheetMaker >> sheetChecker n
-            let result =
-                {
-                    Name=name;
-                    Samples=samples;
-                    StartFrom = sampleToStartFrom
-                    Assertion = generateAndCheckSheet
-                }
-                |> runTests
-            match result.TestErrors with
-            | [] -> // no errors
-                printf $"Test {result.TestName} has PASSED."
-            | (n,first):: _ -> // display in Issie editor and print out first error
-                printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
-            result
-        
 //--------------------------------------------------------------------------------------------------//
 //---------------------------Example Test Circuits using Gen<'a> samples----------------------------//
 //--------------------------------------------------------------------------------------------------//
 
     open Builder
-    //helper functions
-    ///return flipped or rotated model or a model with no change (rotate 0 degree) for a symbol based on a random number
-    ///for rotating only , provide value between 0 - 100, for flipping only, provide value between 100-200,
-    ///for flipping and rotating, provide value betwenn 0 - 200.
+
+    /// return flipped or rotated model or a model with no change (rotate 0 degree) for a symbol based on a random number
+    /// for rotating only , provide value between 0 - 100, for flipping only, provide value between 100-200,
+    /// for flipping and rotating, provide value betwenn 0 - 200.
     let flipRot (randomization:int) (symbolName:string) =
             if randomization >= 100 then
                 if randomization >=133 then
@@ -452,21 +422,21 @@ module HLPTick3 =
                     else rotateSymbol symbolName Rotation.Degree0
             else rotateSymbol symbolName Rotation.Degree0
 
-    ///Return swapped or not swapped MUX wiring models based on a random number
-    let swap (randomization:int) (muxName:string) (input1:string) (input2:string) =
+    /// Places wires from two input components to random ports of muxName. 
+    let connectRandomMuxPorts (randomization:int) (muxName:string) (source1CompLabel:string) (source2CompLabel:string) =
             if randomization > 100 then
-                (placeWire (portOf input2 0) (portOf muxName 0), placeWire (portOf input1 0) (portOf muxName 1))
+                (placeWire (portOf source2CompLabel 0) (portOf muxName 0), placeWire (portOf source1CompLabel 0) (portOf muxName 1))
             else
-                (placeWire (portOf input2 0) (portOf muxName 1), placeWire (portOf input1 0) (portOf muxName 0))
+                (placeWire (portOf source2CompLabel 0) (portOf muxName 1), placeWire (portOf source1CompLabel 0) (portOf muxName 0))
 
-    let swap2 (randomization:int) (input1:string) (input2:string) =
+    /// Places wires from sourceComp to a random port of targetComp. 
+    let connectRandomCompPort (randomization:int) (targetCompLabel:string) (sourceCompLabel:string) =
         if randomization > 100 then
-            placeWire (portOf input2 0) (portOf input1 0)
+            placeWire (portOf sourceCompLabel 0) (portOf targetCompLabel 0)
         else
-            placeWire (portOf input2 0) (portOf input1 1)        
+            placeWire (portOf sourceCompLabel 0) (portOf targetCompLabel 1)        
     
-    ///Make a circuit for overlap testing.
-    //TODO: it is such a horrible way of doing this. improve
+    /// Make a circuit for overlap testing.
     let makeOverlapTestingCircuit (posRots:XYPos list * int list) =
         initSheetModel
         |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
@@ -480,8 +450,8 @@ module HLPTick3 =
         |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
         |> Result.bind (flipRot ((snd posRots)[4]) "G1")
         |> getOkOrFail
-    ///Returns true if symbol intersects symbol on sheet.
-    //TODO: again it is such a horrible way of doing this. improve
+
+    /// Returns true if symbol intersects symbol on sheet.
     let symbolIntersectsSymbol (sheet: SheetT.Model) =
             let boxes =
                 mapValues sheet.BoundingBoxes
@@ -489,28 +459,17 @@ module HLPTick3 =
                 |> List.mapi (fun n box -> n,box)
             List.allPairs boxes boxes 
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
-    ///Returns true if the given set of positions contains overlapping symbols
+
+    /// Returns true if the given set of positions contains overlapping symbols
     let overlapAnySymbol (posRots:XYPos list * int list) =
             makeOverlapTestingCircuit posRots
             |>symbolIntersectsSymbol
-    //position functions
-    /// Sample data based on 11 equidistant points on a horizontal line
-    let horizLinePositions =
-        fromList [1]
-        |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
 
-    let rectangularPositions =
-        let andNotOverlap (andPos:XYPos) =
-            let marginDFF = {X=30.; Y=30.}
-            let marginAND = {X=25.; Y=25.}
-            not (BlockHelpers.overlap2D (middleOfSheet+marginDFF,middleOfSheet-marginDFF) (andPos + marginAND,andPos - marginAND))
-
-        product (fun a b -> middleOfSheet + {X=float a; Y=float b}) (fromList [-70..5..70]) (fromList [-70..5..70])
-        |> filter andNotOverlap
 
     /// Get a Gen of random positions (in list of pos on one axis for different components)
     /// and randomizer values (in list of int for different components).
     let randomCompPosVal (componentCount: int) (testCount: int) (posRange:int*int) (randomizerRange: int*int)=
+        /// Converts random x and y values to an XYPos type
         let coordinateBatch (initialPos: XYPos) (xCoords: int list) (yCoords: int list): XYPos list =
             (xCoords,yCoords)
             ||> List.map2 (fun x y -> initialPos + {X= float x; Y= float y})
@@ -522,9 +481,10 @@ module HLPTick3 =
                             (randomIntList (fst randomizerRange) (snd randomizerRange) testCount componentCount)
         |> filter (fun s -> not (overlapAnySymbol s))
 
-    /// Get a Gen of random deviations (in list of pos on one axis for different components)
+    /// Get a Gen of small random deviations (in list of pos on one axis for different components)
     /// and randomizer values (in list of int for different components).
     let minorRandomCompPosVal (componentCount: int) (testCount: int) (posRange:int*int) (randomizerRange: int*int)=
+        /// Converts random x and y values to an XYPos type
         let coordinateBatch (initialPos: XYPos) (xCoords: int list) (yCoords: int list): XYPos list =
             (xCoords,yCoords)
             ||> List.map2 (fun x y -> {X= float x; Y= float y})
@@ -534,33 +494,10 @@ module HLPTick3 =
                             (randomIntList (fst posRange) (snd posRange) testCount componentCount)
                             (randomIntList (fst posRange) (snd posRange) testCount componentCount)
                             (randomIntList (fst randomizerRange) (snd randomizerRange) testCount componentCount)
-        
-    /// Get a Gen of manual positions (in list for different components)
-    /// and randomizer values (in list for different components).
-    let randomCompVal (componentCount: int) (testCount: int) (posRange:int*int) (randomizerRange: int*int)=
-        
-        map3 (fun n m k -> ([middleOfSheet + {X= float n; Y= float m};
-                             middleOfSheet + {X= float n; Y= float m - 80.0};
-                             middleOfSheet + {X= float n + 160.0; Y= float m};
-                             middleOfSheet + {X= float n + 80.0; Y= float m - 160.0};
-                             middleOfSheet + {X= float n + 200.0; Y= float m - 160.0}
-                            ],
-                            k))
-                            (fromList (List.init testCount (fun _ -> 0)))
-                            (fromList (List.init testCount (fun _ -> 0)))// fixed position
-                            (randomIntList (fst randomizerRange) (snd randomizerRange) testCount componentCount)
-        |> filter (fun s -> not (overlapAnySymbol s))
 
-
-    // New for D1 testing
     /// Make test circuit for D1. Places 2 Muxes, 4 inputs, and 1 output. Along with wires in between.
+    /// Small random deviations from a perfectly straightened circuit, such that the D1 algorithm only has to make small corrections.
     let makeD1CircuitA2 (posRots:XYPos list * int list)  =
-        // TODO: use parameter offsetGens so that random generators are passed as samples to this function, so that this is more paramaterized
-        // Note: issue is that the randomInt generator needs to be regenerated each time the circuit is built
-        
-        // TODO: use pos from posRots to generate offsets
-        let offset n =
-            float <| (randomInt (-7) 2 7).Data n
         
         initSheetModel
         |> placeSymbol "MUX1" Mux2 middleOfSheet
@@ -569,11 +506,11 @@ module HLPTick3 =
                 "A"
                 (Input1(1, None))
                 (middleOfSheet
-                 - { X = (150.); Y = (-28. + offset 0) })
+                 - { X = (150.); Y = (-28. +  ((fst posRots)[0]).X) })
         )
-        |> Result.bind (placeSymbol "B" (Input1(1, None)) (middleOfSheet - { X = 150.; Y = 28. - offset 1 }))
+        |> Result.bind (placeSymbol "B" (Input1(1, None)) (middleOfSheet - { X = 150.; Y = 28. - ((fst posRots)[1]).Y}))
         |> Result.bind (
-            placeRotatedSymbol "S1" (Input1(1, None)) (middleOfSheet - { X = 0. + offset 2; Y = (-200.) }) Degree90
+            placeRotatedSymbol "S1" (Input1(1, None)) (middleOfSheet - { X = 0. + ((fst posRots)[2]).X; Y = (-200.) }) Degree90
         )
         |> Result.bind (placeSymbol "MUX2" Mux2 (middleOfSheet - { X = (-100.); Y = (-50.) }))
         |> Result.bind (
@@ -581,14 +518,14 @@ module HLPTick3 =
                 "S2"
                 (Input1(1, None))
                 (middleOfSheet
-                 - { X = (100. + offset 3); Y = (-150.) })
+                 - { X = (100. + ((fst posRots)[2]).X); Y = (-150.) })
         )
         |> Result.bind (
             placeSymbol
                 "C"
                 (Output 1)
                 (middleOfSheet
-                 - { X = (-250.); Y = (-100. + offset 4) })
+                 - { X = (-250.); Y = (-100. + ((fst posRots)[1]).Y) })
         )
         |> Result.bind (placeWire (portOf "A" 0) (portOf "MUX1" 1))
         |> Result.bind (placeWire (portOf "B" 0) (portOf "MUX1" 0))
@@ -598,35 +535,11 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
         |> getOkOrFail
-        |> alignSymbols
+        |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
 
-    //TODO: make automatic circuit creation
-    ///Suggested circuit in appendix b (test starter 1.)
-    ///Components include 2 inputs, 2 muxes, and 1 and gate (see FigureB1).
-    ///Swap and flip is done randomly.
-    let makeTest1Circuit (posRots:XYPos list * int list) =
-        let MUX2Connection1, MUX2Connection2 = swap ((snd posRots)[3]) "MUX2" "S1" "MUX1"
-        let ANDConnection1, ANDConnection2 = swap ((snd posRots)[4]) "G1" "MUX2" "MUX1"
 
-        initSheetModel
-        |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
-        |> Result.bind (placeSymbol "S2" (Input1(1,None)) ((fst posRots)[1]))
-        |> Result.bind (placeSymbol "MUX1" Mux2 ((fst posRots)[2]))
-        |> Result.bind (placeSymbol "MUX2" Mux2 ((fst posRots)[3]))
-        |> Result.bind (placeSymbol "G1" (GateN(And,2)) ((fst posRots)[4]))
-        |> Result.bind (flipRot ((snd posRots)[0]) "S1")
-        |> Result.bind (flipRot ((snd posRots)[1]) "S2")
-        |> Result.bind (flipRot ((snd posRots)[2]) "MUX1")
-        |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
-        |> Result.bind (flipRot ((snd posRots)[4]) "G1")
-        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
-        |> Result.bind (MUX2Connection1)
-        |> Result.bind (MUX2Connection2)
-        |> Result.bind (ANDConnection1)
-        |> Result.bind (ANDConnection2)
-        |> getOkOrFail
-    ///Chaotic circuit of 2 inputs, 2 muxes, and 1 and gate (see FigureB1).
-    ///Rotation, flip, swap is done randomly.
+    /// Makes a non-beautified circuit with 3 muxes, 6 inputs, 1 output and a set of IO labels. All with random minor deviations from straight wires
+    /// for comparison to Test4 which is a beautified version
     let makeTest2Circuit (posRots:XYPos list * int list) =
 
         initSheetModel
@@ -655,39 +568,11 @@ module HLPTick3 =
         |> Result.bind (placeSymbol "IO1" (IOLabel) ({X = 2150.15; Y = 1677.11}+(fst posRots)[9]))
         |> Result.bind (placeWire (portOf "IO1" 0) (portOf "OUT1" 0))
         |> getOkOrFail
-        |> alignSymbols
+        |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
 
-    let makeCircuit =
-         initSheetModel
-          |> placeSymbol "S1" (Input1(1, None)) {X = 1862.66; Y = 1841.49}
-          |> Result.bind (placeSymbol "MUX1" Mux2 {X = 1572.66; Y = 1671.49})
-          |> Result.bind (placeSymbol "S2" (Input1(1, None)) {X = 1752.66; Y = 1651.49})
-          |> Result.bind (placeSymbol "MUX2" Mux2 {X = 1627.66; Y = 1776.49})
-          |> Result.bind (placeSymbol "G1" (GateN(And, 2)) {X = 1735.16; Y = 1708.99})
-          |> getOkOrFail
 
-    let makeTest7Circuit (posRots:XYPos list * int list) =
-        let MUX2Connection1, MUX2Connection2 = swap ((snd posRots)[3]) "MUX2" "S1" "MUX1"
-        let ANDConnection1, ANDConnection2 = swap ((snd posRots)[4]) "G1" "MUX2" "MUX1"
-
-        initSheetModel
-        |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
-        |> Result.bind (placeSymbol "S2" (Input1(1,None)) ((fst posRots)[1]))
-        |> Result.bind (placeSymbol "MUX1" Mux2 ((fst posRots)[2]))
-        |> Result.bind (placeSymbol "MUX2" Mux2 ((fst posRots)[3]))
-        |> Result.bind (placeSymbol "G1" (GateN(And,2)) ((fst posRots)[4]))
-        |> Result.bind (flipRot ((snd posRots)[0]) "S1")
-        |> Result.bind (flipRot ((snd posRots)[1]) "S2")
-        |> Result.bind (flipRot ((snd posRots)[2]) "MUX1")
-        |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
-        |> Result.bind (flipRot ((snd posRots)[4]) "G1")
-        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
-        |> Result.bind (MUX2Connection1)
-        |> Result.bind (MUX2Connection2)
-        |> Result.bind (ANDConnection1)
-        |> Result.bind (ANDConnection2)
-        |> getOkOrFail
-
+    /// Makes a non-beautified circuit with 3 muxes, 6 inputs and 1 output all with random minor deviations from straight wires
+    /// for comparison to Test4 which is a beautified version
     let makeTest3Circuit (posRots:XYPos list * int list) =
 
         initSheetModel
@@ -713,7 +598,8 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "MUX3" 0) (portOf "OUT1" 0))
         |> getOkOrFail
 
-
+    /// Makes a beautified circuit with 3 muxes, 6 inputs and 1 output all with random minor deviations from straight wires
+    /// in order to test sheetAlignScale on a crowded circuit, with restrictive possible target positions for the Muxes.
     let makeTest4Circuit (posRots:XYPos list * int list) =
 
         initSheetModel
@@ -738,28 +624,15 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "S3" 0) (portOf "MUX3" 2))
         |> Result.bind (placeWire (portOf "MUX3" 0) (portOf "OUT1" 0))
         |> getOkOrFail
-        |> alignSymbols
+        |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
 
+    /// Makes a circuit with 2 inputs, 2 muxes and an AND gate where positions have small random deviations
+    /// For testing both D1 and D2
     let makeTest5Circuit (posRots:XYPos list * int list) =
-        (*initSheetModel
-        |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
-        |> Result.bind (placeSymbol "S2" (Input1(1,None)) ((fst posRots)[1]))
-        |> Result.bind (placeSymbol "MUX1" Mux2 ((fst posRots)[2]))
-        |> Result.bind (placeSymbol "MUX2" Mux2 ((fst posRots)[3]))
-        |> Result.bind (placeSymbol "G1" (GateN(And,2)) ((fst posRots)[4]))
-        |> Result.bind (flipRot ((snd posRots)[0]) "S1" )
-        |> Result.bind (flipRot ((snd posRots)[1]) "S2")
-        |> Result.bind (flipRot ((snd posRots)[2]) "MUX1")
-        |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
-        |> Result.bind (flipRot ((snd posRots)[4]) "G1")
-        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
-        |> Result.bind (MUX2Connection1)
-        |> Result.bind (MUX2Connection2)
-        |> Result.bind (ANDConnection1)
-        |> Result.bind (ANDConnection2)
-        |> getOkOrFail*)
-        let MUX2Connection1, MUX2Connection2 = swap (0) "MUX2" "S1" "MUX1"
-        let ANDConnection1, ANDConnection2 = swap (0) "G1" "MUX2" "MUX1"
+
+        // Placing wires between components with no randomisation
+        let MUX2Connection1, MUX2Connection2 = connectRandomMuxPorts (0) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = connectRandomMuxPorts (0) "G1" "MUX2" "MUX1"
 
 
         initSheetModel
@@ -776,10 +649,13 @@ module HLPTick3 =
         |> getOkOrFail
                 
 
-
+    /// Makes a beautified circuit with 2 inputs, 2 muxes and an AND gate where positions originally had small random deviations
+    /// For testing both D1 and D2
     let makeTest6Circuit (posRots:XYPos list * int list) =
-        let MUX2Connection1, MUX2Connection2 = swap (0) "MUX2" "S1" "MUX1"
-        let ANDConnection1, ANDConnection2 = swap (0) "G1" "MUX2" "MUX1"
+
+        // Placing wires between components with no randomisation
+        let MUX2Connection1, MUX2Connection2 = connectRandomMuxPorts (0) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = connectRandomMuxPorts (0) "G1" "MUX2" "MUX1"
 
 
         initSheetModel
@@ -794,13 +670,14 @@ module HLPTick3 =
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
-        |> alignSymbols
+        |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
 
 
-
-    let makeTest8Circuit (posRots:XYPos list * int list) =
-        let MUX2Connection1, MUX2Connection2 = swap ((snd posRots)[3]) "MUX2" "S1" "MUX1"
-        let ANDConnection1, ANDConnection2 = swap ((snd posRots)[4]) "G1" "MUX2" "MUX1"
+    /// Creates a non-beautified circuit of two inputs, two muxes and an AND gate with random positions, random flip state, random rotations and random inversion of MUX input ports
+    /// Compare to test 8 which is the beautified version
+    let makeTest7Circuit (posRots:XYPos list * int list) =
+        let MUX2Connection1, MUX2Connection2 = connectRandomMuxPorts ((snd posRots)[3]) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = connectRandomMuxPorts ((snd posRots)[4]) "G1" "MUX2" "MUX1"
 
         initSheetModel
         |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
@@ -818,11 +695,44 @@ module HLPTick3 =
         |> Result.bind (MUX2Connection2)
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
-        //|> Result.bind (optimalEdgeOrder)
         |> getOkOrFail
-        |> alignSymbols
 
-    let makeD4TestCircuitRandomAlignedNOT (posRots:XYPos list * int list) = // (possibleComps: ComponentType list) (maxNumSymbols: int) =
+    /// Creates a beautified circuit of two inputs, two muxes and an AND gate with random positions, random flip state, random rotations and random inversion of MUX input ports
+    /// Compare to test 8 which is the beautified version
+    /// Used to test the D2 algorithm
+    let makeTest8Circuit (posRots:XYPos list * int list) =
+        let MUX2Connection1, MUX2Connection2 = connectRandomMuxPorts ((snd posRots)[3]) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = connectRandomMuxPorts ((snd posRots)[4]) "G1" "MUX2" "MUX1"
+
+        initSheetModel
+        |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
+        |> Result.bind (placeSymbol "S2" (Input1(1,None)) ((fst posRots)[1]))
+        |> Result.bind (placeSymbol "MUX1" Mux2 ((fst posRots)[2]))
+        |> Result.bind (placeSymbol "MUX2" Mux2 ((fst posRots)[3]))
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) ((fst posRots)[4]))
+        |> Result.bind (flipRot ((snd posRots)[0]) "S1")
+        |> Result.bind (flipRot ((snd posRots)[1]) "S2")
+        |> Result.bind (flipRot ((snd posRots)[2]) "MUX1")
+        |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
+        |> Result.bind (flipRot ((snd posRots)[4]) "G1")
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+        |> Result.bind (MUX2Connection1)
+        |> Result.bind (MUX2Connection2)
+        |> Result.bind (ANDConnection1)
+        |> Result.bind (ANDConnection2)
+        |> Result.bind (optimalEdgeOrder) // Call D2 algorithm to beautify model
+        |> getOkOrFail
+        // |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
+
+    /// <summary>HLP 24: AUTHOR kv221 - Circuit maker that outputs a model containing a random number of 
+    /// randomly chosen ISSIE components from a provided list. Components have random positions, rotations and flip state.<para></para> 
+    /// Places wires between each component <para></para>
+    /// Random circuit each time <para></para>
+    /// Helpful for comparison to makeD4TestCircuitRandomAligned which is a beautified version.</summary>
+    /// <param name="posRots"> Tuple of: a list of random positions (XYPos), and a list of random rotation states (int)</param>
+    /// <param name="possibleComps"> List of component types (ComponentType list) that can be randomly selected for placement</param>
+    /// <returns>SheetT.model containing the randomly generated circuit</returns>
+    let makeD4TestCircuitRandom (posRots:XYPos list * int list) = // (possibleComps: ComponentType list) (maxNumSymbols: int) =
         // Parameters. TODO: Make these provided as arguments to the function, and passed as Gens to the testrunner
         let maxNumSymbols = 5
         // let possibleComps = [Mux2; Mux4; Demux2; GateN(And,2); GateN(Or,2); GateN(Xor,2); GateN(Nand,2); GateN(Nor,2); GateN(Xnor,2); Input1(1,None); Output 1;]
@@ -845,7 +755,7 @@ module HLPTick3 =
         // Randomly place wires between random components
         let placeRandomWiresOnModel (model: SheetT.Model) =
             List.init (maxNumSymbols - 1) (fun i -> (i, i + 1)) // component pairs [(0,1); (1,2); ...]
-            |> List.mapi (fun index pair  -> swap2 ((snd posRots)[index]) ((snd pair).ToString()) ((fst pair).ToString()))
+            |> List.mapi (fun index pair  -> connectRandomCompPort ((snd posRots)[index]) ((snd pair).ToString()) ((fst pair).ToString()))
             |> List.fold (fun (acc: (Result<SheetT.Model,string>)) (wirePlacer: (SheetT.Model -> Result<SheetT.Model,string>)) -> 
                 Result.bind wirePlacer acc) (Ok model)
 
@@ -853,20 +763,18 @@ module HLPTick3 =
         |> Result.bind placeRandomWiresOnModel
         |> getOkOrFail
     
-    /// <summary>HLP 24: AUTHOR kv221 - Circuit maker that outputs a model containing a random number of 
-    /// randomly chosen ISSIE components from a provided list. <para></para> 
+    /// <summary>HLP 24: AUTHOR kv221 - Outputs a beautified version of a model containing a random number of 
+    /// randomly chosen ISSIE components from a provided list. Components have random positions, rotations and flip state.<para></para> 
+    /// Places wires between each component <para></para>
     /// Helpful for generating testcases for D4 (SheetBeautify) verification and demonstration.</summary>
+    /// Random circuit each time <para></para>
     /// <param name="posRots"> Tuple of: a list of random positions (XYPos), and a list of random rotation states (int)</param>
     /// <param name="possibleComps"> List of component types (ComponentType list) that can be randomly selected for placement</param>
     /// <returns>SheetT.model containing the randomly generated circuit</returns>
     let makeD4TestCircuitRandomAligned (posRots:XYPos list * int list) = // (possibleComps: ComponentType list) (maxNumSymbols: int) =
         // Parameters. TODO: Make these provided as arguments to the function, and passed as Gens to the testrunner
         let maxNumSymbols = 5
-        // let possibleComps = [Mux2; Mux4; Demux2; GateN(And,2); GateN(Or,2); GateN(Xor,2); GateN(Nand,2); GateN(Nor,2); GateN(Xnor,2); Input1(1,None); Output 1;]
         let possibleComps = [Mux2; Mux4; Demux2; GateN(And,2); GateN(Or,2); GateN(Xor,2); GateN(Nand,2); GateN(Nor,2); GateN(Xnor,2);]
-        
-        // Random number of components
-        let numComps = fromList (List.init maxNumSymbols (fun _ -> 0))
 
         // Generate a list of random symbols of length maxNumSymbols
         let random = System.Random()
@@ -882,7 +790,7 @@ module HLPTick3 =
         // Randomly place wires between random components
         let placeRandomWiresOnModel (model: SheetT.Model) =
             List.init (maxNumSymbols - 1) (fun i -> (i, i + 1)) // component pairs [(0,1); (1,2); ...]
-            |> List.mapi (fun index pair  -> swap2 ((snd posRots)[index]) ((snd pair).ToString()) ((fst pair).ToString()))
+            |> List.mapi (fun index pair  -> connectRandomCompPort ((snd posRots)[index]) ((snd pair).ToString()) ((fst pair).ToString()))
             |> List.fold (fun (acc: (Result<SheetT.Model,string>)) (wirePlacer: (SheetT.Model -> Result<SheetT.Model,string>)) -> 
                 Result.bind wirePlacer acc) (Ok model)
 
@@ -890,7 +798,7 @@ module HLPTick3 =
         |> Result.bind placeRandomWiresOnModel
         |> getOkOrFail
         |> alignSymbols
-        //|> SheetBeautifyD3.sheetWireLabelSymbol
+        //|> sheetWireLabelSymbol
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -933,6 +841,7 @@ module HLPTick3 =
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
+
         /// Fail on all tests, return the average segents a wire has in the sheet to evaluate 
         /// the effect of straightening up wires.
         let countWireSegs (sample: int) (sheet: SheetT.Model) =
@@ -941,6 +850,7 @@ module HLPTick3 =
             let rightAngs = countWireRightAngles sheet
             let avgSegsPerWire = float rightAngs/float wireCount
             Some <| $"There are {rightAngles} right angles,\n A wire consists of average {avgSegsPerWire} segments \n"
+
         /// Fail on all tests, return the number of crossing wires (with each other) in the sheet.
         let countWireCrossing (sample: int) (sheet: SheetT.Model) =
             let crossingCount = numOfWireRightAngleCrossings sheet
@@ -955,13 +865,11 @@ module HLPTick3 =
             let segCrossingCount = numOfWireRightAngleCrossings sheet
             Some <| $"The sheet contains:\n    {segCrossingCount} wire-wire crossings,\n    {compCrossingCount} wire-component crossings,\n    A wire contains:\n    average {avgSegsPerWire} segments\n    Total {rightAngles} right angles"
 
-        // New for D1 testing
         /// Fail on all tests to show the number of right angles in the wires
         let showNumRightAngles (sample: int) (sheet: SheetT.Model)=
             let cnt = numOfVisRightAngles sheet
             Some <| $"Total number of right angles in sheet wires: {cnt} in Sample {sample}"
         
-        // New for D1 testing
         /// Fail if there is a non-straightened wire, and show the number of non-straightened wires
         let showNumNonStraightenedWires (sample: int) (sheet: SheetT.Model) =
             let cnt = countNonStraightenedWires sheet
@@ -969,7 +877,6 @@ module HLPTick3 =
             | n when n > 0 -> Some <| $"Total number of non-straightened wires in sheet: {cnt} in Sample {sample}"
             | _ -> None
 
-        // New for D1 testing
         /// Fail on component overlapping another component, and show the number of overlaps
         let showNumComponentOverlaps (sample: int) (sheet: SheetT.Model) =
             let wireModel = sheet.Wire
@@ -1004,47 +911,60 @@ module HLPTick3 =
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
                     // New for D1 testing
 
-        // Run a test to show the number of right angles in the wires.
+        /// Create the Figure A2 reference circuit for testing the D1 algorithm
+        /// Assert that prints the number of right angles in the circuit, for every sample
+        /// Not currently enabled as a test circuit 
         let D1Test1 testNum firstSample dispatch =
             runTestOnSheets
                 "D1 Test 1. Show number of right angles in wires." 
                 firstSample
-                (randomCompVal 5 20 (-200,200) (100,200))
+                (randomCompPosVal 5 20 (-200,200) (100,200))
                 makeD1CircuitA2
                 Asserts.showNumRightAngles 
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create the Figure A2 reference circuit for testing the D1 algorithm
+        /// Assert that prints the number of component overlaps in the circuit, for every sample
+        /// Not currently enabled as a test circuit 
         let D1Test2 testNum firstSample dispatch =
             runTestOnSheets
                 "D1 Test 3. Show number of non-straightened wires." 
                 firstSample
-                (randomCompVal 5 20 (-200,200) (100,200))
+                (randomCompPosVal 5 20 (-200,200) (100,200))
                 makeD1CircuitA2
                 Asserts.showNumComponentOverlaps 
                 dispatch
             |> recordPositionInTest testNum dispatch
-            
+        
+        /// Create the Figure A2 reference circuit for testing the D1 algorithm
+        /// Assert that prints the number of non-straightened wires in the circuit, for every sample
+        /// Not currently enabled as a test circuit 
         let D1Test3 testNum firstSample dispatch =
             runTestOnSheets
                 "D1 Test 3. Show number of non-straightened wires." 
                 firstSample
-                (randomCompVal 5 20 (-200,200) (100,200))
+                (randomCompPosVal 5 20 (-200,200) (100,200))
                 makeD1CircuitA2
                 Asserts.showNumNonStraightenedWires 
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a completely random circuit (see makeD4TestCircuitRandom)
+        /// Fail on all tests to show the unaligned circuit
         let D4Test1 testNum firstSample dispatch =
             runTestOnSheets
                 "D4 Test 1. Fail on all tests." 
                 firstSample
                 (randomCompPosVal 5 20 (-300,300) (100,200))
-                makeD4TestCircuitRandomAlignedNOT
+                makeD4TestCircuitRandom
                 Asserts.failOnAllTests 
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a completely random circuit (see makeD4TestCircuitRandom)
+        /// that the D4 beautify function is called on
+        /// Fail on all tests to show the beautified circuits    
         let D4Test2 testNum firstSample dispatch =
             runTestOnSheets
                 "D4 Test 1. Fail on all tests." 
@@ -1054,17 +974,10 @@ module HLPTick3 =
                 Asserts.failOnAllTests 
                 dispatch
             |> recordPositionInTest testNum dispatch
-
-        let test1 testNum firstSample dispatch =
-            runTestOnSheets
-                "Figure B2: fail on all, random swap flip"
-                firstSample
-                (randomCompVal 5 20 (-200,200) (100,200))
-                makeTest1Circuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
+        
+        /// Create a random deviated circuit based off make (see makeD4TestCircuitRandom)
+        /// that the D4 beautify function is called on
+        /// Fail on all tests to show the beautified circuits 
         let test2 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1144,7 +1057,7 @@ module HLPTick3 =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1", D4Test1
+                // "Test1", 
                 "Test2", D4Test2
                 "Test3", (fun a b c -> test3 minorDiviationRandomizedTen a b c)
                 "Test4", (fun a b c -> test4 minorDiviationRandomizedTen a b c)

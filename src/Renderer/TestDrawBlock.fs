@@ -389,7 +389,7 @@ module HLPTick3 =
         /// has improved or not
         ///
         /// model - The sheet to be beautified and checked.
-        let evaluateBeautification (model: SheetT.Model) =
+        let evaluateBeautificationD1 (model: SheetT.Model) =
             let straightWires (model: SheetT.Model) =
                 model.Wire.Wires
                 |> Map.toList
@@ -709,8 +709,8 @@ module HLPTick3 =
     let beautifyIncrementally (increments: int) (sheet: SheetT.Model) =
         match increments with
         | 1 -> SheetBeautifyD2.autoRouteAllWires sheet
-        | 2 -> sheet |> SheetBeautifyD2.autoRouteAllWires |> SheetBeautifyD1.sheetAlignScale
-        | 3 -> sheet |>  SheetBeautifyD2.autoRouteAllWires |> SheetBeautifyD1.sheetAlignScale |> SheetBeautifyD3.sheetWireLabelSymbol
+        | 2 -> sheet |> SheetBeautifyD2.autoRouteAllWires |> evaluateBeautificationD1
+        | 3 -> sheet |>  SheetBeautifyD2.autoRouteAllWires |> evaluateBeautificationD1 |> SheetBeautifyD3.sheetWireLabelSymbol
         | _ -> sheet
 
     module D3Tests =

@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ff449b2e-eea3-41ac-bd3d-b67808a6bb34" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/Renderer/TestDrawBlock.fs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Renderer/TestDrawBlock.fs" afterDir="false" />
-    </list>
+    <list default="true" id="ff449b2e-eea3-41ac-bd3d-b67808a6bb34" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -15,6 +13,9 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="KubernetesApiProvider"><![CDATA[{
+  "isMigrated": true
+}]]></component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -55,7 +56,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1711124441626</updated>
-      <workItem from="1711124447724" duration="3222000" />
+      <workItem from="1711124447724" duration="3624000" />
     </task>
     <servers />
   </component>

@@ -157,7 +157,7 @@ let simplifyMovements (movements: (Directions * float) list) =
     let (countLeft, countRight, countUp, countDown) = counts
 
     // Check for equal counts in opposing directions
-    if countLeft = countRight || countUp = countDown then
+    if countLeft = countRight || countUp = countDown then // anedge case that can result in error if simplified 
         movements
     else
         let summedMovements = 
@@ -379,10 +379,11 @@ let calculateNewCoordinatesTest (symbol: SymbolT.Symbol, movementList: (Directio
 
 
 /// Function that checks the number of right angles and symbol intersecions
-let evaluateSchematic (model: SheetT.Model): (int*int) =
+let evaluateSchematic (model: SheetT.Model): (int*int*int) =
     let rightAngles = countWireRightAngles model
     let symOverlap = numOfIntersectedSymPairs model
-    (rightAngles, symOverlap)
+    let wireIntersections = numOfWireRightAngleCrossings model
+    (rightAngles, symOverlap, wireIntersections)
 
 /// Find the output symbols in the model
 let findOutputSymbols (model: SheetT.Model) =
@@ -485,7 +486,7 @@ let updateModelWithNonSinglyConnected (initialModel: SheetT.Model) (symbolMoveme
             let symbolRef = verifiedMovements.SymbolRef
             
             let newCoordinatesSymbol = calculateNewCoordinates (symbol, verifiedMovements.Movements)
-            let (numRightAngles, numIntersections) = evaluateSchematic currentModel
+            let (numRightAngles, numIntersections, numWireIntersections) = evaluateSchematic currentModel
 
             //match symbolRef.Component.Type with
             //| Output _ -> 
@@ -512,7 +513,7 @@ let updateModelWithNonSinglyConnected (initialModel: SheetT.Model) (symbolMoveme
 
 
             match evaluateSchematic symbolModel with
-            | newRightAngles ,0 when newRightAngles < numRightAngles ->
+            | newRightAngles ,0, newWireIntersections when (newRightAngles < numRightAngles) && (newWireIntersections <= numWireIntersections) ->
                 printfn "Movement applied successfully to symbol: %A" symbol.Component.Label
                 printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A " symbolRef.Component.Label newRightAngles 0 numRightAngles
                 
@@ -533,11 +534,11 @@ let updateModelWithNonSinglyConnected (initialModel: SheetT.Model) (symbolMoveme
                 let symbolRefModel = { trialModelSymbolRefMove with Wire = updatedRefWireModel }
 
                 match evaluateSchematic symbolRefModel with
-                | newRefRightAngles, 0  when newRefRightAngles < numRightAngles-> 
+                | newRefRightAngles, 0, newRefWireIntersections  when (newRefRightAngles < numRightAngles) && (newRefWireIntersections <= numWireIntersections)-> 
                     printfn "Movement applied successfully to reference symbol: %A" symbolRef.Component.Label
                     printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A " symbolRef.Component.Label newRefRightAngles 0 numRightAngles
                     symbolRefModel, listOfMovedSyms @ [createMovementSymbolWire symbolRef symbol invertedMovements]
-                |newRefRightAngles, intersections -> 
+                |newRefRightAngles, intersections, newRefWireIntersections -> 
                     printfn "Movement resulted in intersections, not applied to reference symbol: %A" symbolRef.Component.Label
                     printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A " symbol.Component.Label newRefRightAngles intersections numRightAngles
                     currentModel, listOfMovedSyms // Return the original model if both attempts fail

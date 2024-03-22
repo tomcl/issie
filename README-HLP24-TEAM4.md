@@ -13,8 +13,9 @@ add below -->
 This aligns all components on a sheet and scales custom components to reduce wire bends. Invoked automatically on D1 test cases (Alt1-7) and toggled with Alt-8.
 
 ### D2 beautifying function 
-- `sheetOrderFlip` _`[SheetT.Model -> SheetT.Model]`_  
-This reorders ports on a sheet to reduce wire crosses. Invoked automatically on D1 test cases (Alt1-Shft-7) and toggled with Alt-Shft-8.
+- `sheetOrderFlip` _`[SheetT.Model -> SheetT.Model]`_
+
+    This reduces number of wire crossings by trying every combination of swap MUX inputs, flip MUX and gates, change orientation of MUX and gates, re-oder custom component ports then apply the one which gives minimum wire crossings. Invoked on D2 test cases (Ctrl+ shift+ (2~7)), toggle with Ctrl+shift+8 to see original circuits/ beuatified circuits.
 
 ### D3 beautifying function 
 - `sheetWireLabelSymbol` _`[SheetT.Model -> SheetT.Model]`_  

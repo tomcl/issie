@@ -7,7 +7,9 @@
 
 
 ## sheetOrderFlip
+- Exhuastive serach algorithm to reduce number of wire crossings by first trying every combination of swapping MUXes inputs, flipping MUXes and Gates, changing orientation of MUXes and gates, finding the combination which makes the wire crossings to be minimum. Then, update the sheet by applying the combination to symbols and re route the wires, on top of the updated sheet, further reduce wires by reverse port order of left edge or right edge or both edges of custom components. Note that it will not consider a combination which increases number of wire bends even if it reduces number of wire crossings.
 
+    - Limitations: custom components re-order currently only works for left and right edges. 
 
 
 

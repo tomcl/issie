@@ -34,7 +34,7 @@ open BusWireRoutingHelpers.Constants
 open BusWireRoutingHelpers
 open Sheet
 
-/// function that returns the an string ID with extra formatting of a hovered wire, symbol, or port
+/// function that returns the an string ID with extra formatting of a hovered wire, symbol, or ports
 let findHoveredID (pos: XYPos) (model: SheetT.Model) =
     let dummySymbolId: ComponentId = ComponentId "dummy"
     // we add a 'dummy symbol' to the model to represent the mouse position

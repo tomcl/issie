@@ -1,7 +1,7 @@
 # Beautifying functions by Team 4
 
-### Wiki Page: [Click](https://github.com/AdvikChitre/issie/wiki)
-
+### Wiki Page: 
+Analysis of beautify function through testing is shown [here](https://github.com/AdvikChitre/issie/wiki/Beautify-Analysis)
 
 
 <!-- 

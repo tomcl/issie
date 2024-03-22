@@ -61,6 +61,7 @@
 	<!-- Elmish Model -->
     <Compile Include="Model\DrawModelType.fs" />
     <Compile Include="Model\ModelType.fs" />
+    <Compile Include="DrawBlock\sheetBeautifyD3.fs" />
 	  
 	<!-- Draw Block -->
 	<Compile Include="DrawBlock\BlockHelpers.fs" />

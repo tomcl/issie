@@ -603,7 +603,7 @@ let replaceWireWithLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
         Map.add toInputLabelWire.WId toInputLabelWire) // delete selected wire
     |> Optic.map (SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.ports_) (Map.change portIdStr (fun portOpt -> 
                     Option.map (fun port -> {port with WireToLabel = match toOutputLabelWireOpt with | Some wire -> Some (match wire.WId with | ConnectionId cid -> cid) | None -> port.WireToLabel}) portOpt))
-
+    |> SheetUpdateHelpers.updateBoundingBoxes
 let restoreWire (wireFromInputLabel: BusWireT.Wire) (sheet: SheetT.Model) =
     let wireLabel, inputLabelSymbol =
         sheet.Wire.Symbol.Ports
@@ -635,8 +635,8 @@ let restoreWire (wireFromInputLabel: BusWireT.Wire) (sheet: SheetT.Model) =
                 |> Helpers.mapValues
                 |> Seq.toList
                 |> List.filter (fun w -> w.InputPort = InputPortId inputPortId)
-                |> List.head
-                |> fun w -> w.OutputPort
+                |> List.tryHead
+                |> function | Some w -> w.OutputPort | None -> failwith "what? could not find wire attached to output wire label"
             ) // look through the map, find the wire which connects the input port, then get the other end of that wire
             |> function
             | Some res -> res
@@ -667,22 +667,30 @@ let restoreWire (wireFromInputLabel: BusWireT.Wire) (sheet: SheetT.Model) =
         sheet
         |> Optic.map (SheetT.wires_) wireRemovals
         |> Optic.map (SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_) symbolRemovals
-        |> Optic.map (SheetT.wires_) (Map.add replacementWire.WId replacementWire)
+        |> SheetUpdateHelpers.updateBoundingBoxes
+        |> fun model ->
+            let autorouted = replacementWire |> BusWireUpdateHelpers.autoroute model.Wire
+            model
+            |> Optic.map (SheetT.wires_) (fun wireMap -> Map.add autorouted.WId autorouted wireMap)
+
     else
         // delete only InputLabel as OutputLabel still used by others
-        let outputPort = 
+        let labelInputPorts = 
             matchingWireLabelSymbols
-            // will be one of two in list
-            |> List.tryFind (fun symb -> symb.Component.InputPorts.Length <> 0)
-            |> Option.map (fun symb -> symb.Component.InputPorts.Head.Id)
+            |> List.map (fun s -> s.Component.InputPorts)
+            |> List.concat
+
+        let outputPort =
+            sheet.Wire.Wires
+            |> Map.tryPick (fun _ w -> List.tryFind (fun (port: Port) -> w.InputPort = (InputPortId port.Id)) labelInputPorts)
+            |> Option.map (fun port -> port.Id)
             |> Option.map (fun inputPortId ->
                 sheet.Wire.Wires
                 |> Helpers.mapValues
                 |> Seq.toList
                 |> List.filter (fun w -> w.InputPort = InputPortId inputPortId)
-                |> List.head
-                |> fun w -> w.OutputPort
-            ) // look through the map, find the wire which connects the input port, then get the other end of that wire
+                |> List.tryHead
+                |> function | Some w -> w.OutputPort | None -> failwith "what? could not find wire attached to output wire label") // look through the map, find the wire which connects the input port, then get the other end of that wire
             |> function
             | Some res -> res
             | _ -> failwith "what?"
@@ -692,12 +700,11 @@ let restoreWire (wireFromInputLabel: BusWireT.Wire) (sheet: SheetT.Model) =
         sheet
         |> Optic.map (SheetT.wires_) (Map.remove wireFromInputLabel.WId)
         |> Optic.map (SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_) (Map.remove inputLabelSymbol.Id)
-        |> Optic.map (SheetT.wires_) (Map.add replacementWire.WId replacementWire)
-
-
-
-        
-
+        |> SheetUpdateHelpers.updateBoundingBoxes
+        |> fun model ->
+            let autorouted = replacementWire |> BusWireUpdateHelpers.autoroute model.Wire
+            model
+            |> Optic.map (SheetT.wires_) (fun wireMap -> Map.add autorouted.WId autorouted wireMap)
 
 //----------------------------------------------------------------------------------------------//
 //------------------------------------Ezra's Helpers Module-------------------------------------//

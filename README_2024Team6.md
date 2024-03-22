@@ -6,7 +6,7 @@ Members: Han Jiao (02030048), Yiming Chen (), Edward Chen (), Harry Ni (02024219
 [link](https://github.com/rl3721/IssieProject-2024/wiki)
 
 ## Using The function
-
+The instructions of how to run the beautify functions and the tests are in the Wiki.
 
 ## Modules
 ### Beautify

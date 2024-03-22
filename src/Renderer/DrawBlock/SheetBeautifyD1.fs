@@ -18,26 +18,35 @@ open RotateScale
 open BusWire
     module D1Helpers =
         // D1 HELPER FUNCTIONS ----------------------------------------------------------------------
-        (*type PortInfo =
-            { port: Port
-              sym: Symbol
-              side: Edge
-              ports: string list
-              gap: float
-              topBottomGap: float
-              portDimension: float
-              h: float
-              w: float
-              portGap: float }*)
+        
+
+        /// Attempts to create degrees of freedom for any symbols overlapping
+        /// Will translate the symbol by half the width/height of the the host symbol based on port Orientation
+        let handleSymOverlap (sModel:SymbolT.Model) (sym: Symbol) (side: Edge): Symbol =
+            let h,w = getRotatedHAndW sym
+            let symId = sym.Component.Id
+            let symBox = getSymbolBoundingBox sym
+            let otherSyms = sModel.Symbols |> Map.filter (fun id _ -> not(string id = symId))
+            let otherSymBoxes = otherSyms |> Map.values |> Seq.map (fun sym -> getSymbolBoundingBox sym) |> Seq.toList
+            let otherSym =
+                otherSymBoxes
+                |>
+                List.filter (fun otherSymBox -> overlap2DBox symBox otherSymBox )
+            if not(List.isEmpty otherSym) then
+                let sym' =
+                    match side with
+                    | Top -> moveSymbol {X=0.0;Y = - h/2.0} sym
+                    | Bottom -> moveSymbol {X=0.0;Y =  h/2.0} sym
+                    | Left -> moveSymbol {X= w/2.0 ;Y = 0.0} sym
+                    | Right -> moveSymbol {X= - w/2.0 ;Y = 0.0} sym
+                sym'
+            else
+                sym
 
         /// assuming movePortInfo and otherPortInfo are on opposite edges
         /// returns true if the wire connecting the ports is a loop shape
         let handleWireLoop (movePortInfo: PortInfo) (otherPortInfo: PortInfo): bool =
             let portPos,otherPortPos = calculatePortRealPos movePortInfo, calculatePortRealPos otherPortInfo
-            printfn $"movePort host: {movePortInfo.sym.Component.Label}"
-            printfn $"movePort pos, orien: {portPos}, {movePortInfo.side}"
-            printfn $"otherPort host: {otherPortInfo.sym.Component.Label}"
-            printfn $"movePort pos, orien: {otherPortPos}, {otherPortInfo.side}"
             let isLoop =
                 match otherPortInfo.side with
                 | Left ->
@@ -81,7 +90,8 @@ open BusWire
                           else
                             offset            
             let symbol' = moveSymbol offset' symA
-            let model' = Optic.set (symbolOf_ symA.Id) symbol' wModel
+            let symbol'' = handleSymOverlap wModel.Symbol symbol' movePortInfo.side
+            let model' = Optic.set (symbolOf_ symA.Id) symbol'' wModel
             BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id
 
         let alignSinglyComponents 
@@ -101,7 +111,8 @@ open BusWire
                           else
                             offset 
             let symbol' = moveSymbol offset' symA
-            let model' = Optic.set (symbolOf_ symA.Id) symbol' wModel
+            let symbol'' = handleSymOverlap wModel.Symbol symbol' movePortInfo.side
+            let model' = Optic.set (symbolOf_ symA.Id) symbol'' wModel
             BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id
 
 

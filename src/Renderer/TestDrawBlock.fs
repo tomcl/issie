@@ -43,7 +43,7 @@ module TestLib =
         with
             | e ->
                 Error ($"Exception when running {name}\n" + e.StackTrace)
-            
+
     /// Run the Test samples from 0 up to test.Size - 1.
     /// The return list contains all failures or exceptions: empty list => everything has passed.
     /// This will always run to completion: use truncate if text.Samples.Size is too large.
@@ -52,7 +52,7 @@ module TestLib =
         |> List.map (fun n ->
                 catchException $"generating test {n} from {test.Name}" test.Samples.Data n
                 |> (fun res -> n,res)
-           )           
+           )
         |> List.collect (function
                             | n, Error mess -> [n, Exception mess]
                             | n, Ok sample ->
@@ -60,16 +60,16 @@ module TestLib =
                                 | Ok None -> []
                                 | Ok (Some failure) -> [n,Fail failure]
                                 | Error (mess) -> [n,Exception mess])
-        |> (fun resL ->                
+        |> (fun resL ->
                 {
                     TestName = test.Name
                     FirstSampleTested = test.StartFrom
                     TestData = test.Samples
                     TestErrors =  resL
                 })
- 
- 
-            
+
+
+
 (******************************************************************************************
    This submodule contains a set of functions that enable random data generation
    for property-based testing of Draw Block wire routing functions.
@@ -92,7 +92,7 @@ module HLPTick3 =
     open GenerateData
     open TestLib
 
-    /// create an initial empty Sheet Model 
+    /// create an initial empty Sheet Model
     let initSheetModel = DiagramMainView.init().Sheet
 
     /// Optic to access SheetT.Model from Issie Model
@@ -111,7 +111,7 @@ module HLPTick3 =
     /// Used throughout to compare labels since these are case invariant "g1" = "G1"
     let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
- 
+
 
     /// Identify a port from its component label and number.
     /// Usually both an input and output port will mathc this, so
@@ -130,7 +130,7 @@ module HLPTick3 =
     //-----------------------------------------------------------------------------------------------
 
     /// The visible segments of a wire, as a list of vectors, from source end to target end.
-    /// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
+    /// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed
     /// which if present causes the two segments on either side of it to coalesce into a single visible segment.
     /// A wire can have any number of visible segments - even 1.
     let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
@@ -143,7 +143,7 @@ module HLPTick3 =
         /// Convert seg into its XY Vector (from start to end of segment).
         /// index must be the index of seg in its containing wire.
         let getSegmentVector (index:int) (seg: BusWireT.Segment) =
-            // The implicit horizontal or vertical direction  of a segment is determined by 
+            // The implicit horizontal or vertical direction  of a segment is determined by
             // its index in the list of wire segments and the wire initial direction
             match index, wire.InitialOrientation with
             | IsEven, BusWireT.Vertical | IsOdd, BusWireT.Horizontal -> {X=0.; Y=seg.Length}
@@ -152,7 +152,7 @@ module HLPTick3 =
         /// Return the list of segment vectors with 3 vectors coalesced into one visible equivalent
         /// wherever this is possible
         let rec coalesce (segVecs: XYPos list)  =
-            match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with          
+            match List.tryFindIndex (fun segVec -> segVec =~ XYPos.zero) segVecs[1..segVecs.Length-2] with
             | Some zeroVecIndex ->
                 let index = zeroVecIndex + 1 // base index as it should be on full segVecs
                 segVecs[0..index-2] @
@@ -160,11 +160,11 @@ module HLPTick3 =
                 segVecs[index+2..segVecs.Length - 1]
                 |> coalesce
             | None -> segVecs
-     
+
         wire.Segments
         |> List.mapi getSegmentVector
         |> coalesce
-                
+
 
 
 //------------------------------------------------------------------------------------------------------------------------//
@@ -173,9 +173,9 @@ module HLPTick3 =
     module Builder =
 
 
-                
 
-            
+
+
 
 
 
@@ -214,10 +214,10 @@ module HLPTick3 =
                 |> Optic.set symbolModel_ symModel
                 |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
                 |> Ok
-        
 
 
-    
+
+
         /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
         /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
         /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
@@ -231,7 +231,7 @@ module HLPTick3 =
                     : Result<SheetT.Model, string> =
            let symbolMap = model.Wire.Symbol.Symbols
            if caseInvariantEqual ccSheetName project.OpenFileName then
-                Error "Can't create custom component with name same as current opened sheet"        
+                Error "Can't create custom component with name same as current opened sheet"
             elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
                 Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
             elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
@@ -247,15 +247,15 @@ module HLPTick3 =
                         Description = None
                     }
                 placeSymbol symLabel (Custom ccType) position model
-            
-        
+
+
         /// Rotate the symbol given by symLabel by an amount rotate.
         /// Takes in a symbol label, a rotate fixed amount, and a sheet containing the symbol.
         /// Return the sheet with the rotated symbol.
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
 
             let symbolsMap = model.Wire.Symbol.Symbols
-            let getSymbol = 
+            let getSymbol =
                 mapValues symbolsMap
                 |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
                 |> function | Some x -> Ok x | None -> Error "Can't find symbol with label '{symPort.Label}'"
@@ -325,7 +325,7 @@ module HLPTick3 =
                     | PortType.Output -> List.tryItem symPort.PortNumber sym.Component.OutputPorts
                     |> function | Some port -> Ok port.Id
                                 | None -> Error $"Can't find {portType} port {symPort.PortNumber} on component {symPort.Label}")
-            
+
             match getPortId PortType.Input target, getPortId PortType.Output source with
             | Error e, _ | _, Error e -> Error e
             | Ok inPort, Ok outPort ->
@@ -337,7 +337,7 @@ module HLPTick3 =
                      model
                      |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
                      |> Ok
-            
+
 
         /// Run the global wire separation algorithm (should be after all wires have been placed and routed)
         let separateAllWires (model: SheetT.Model) : SheetT.Model =
@@ -405,21 +405,12 @@ module HLPTick3 =
             let symbolIntersectionCount = SheetBeautifyHelpers.numOfIntersectedSymPairs beautifiedModel
             let wireSymbolIntersectionCount = SheetBeautifyHelpers.numOfIntersectSegSym beautifiedModel
 
-            match (percentWiresStraightened, symbolIntersectionCount, wireSymbolIntersectionCount) with
-            | (wires, _, _) when wires < 0 ->
-                $">> sheetAlignScale failed - Initial Straight Wires: {initialStraightWires} | Final Straight Wires: {finalStraightWires}"
-                |> WiresNotStraightened
-                |> Failure
-            | (_, count, _) when count > 0 ->
-                $">> sheetAlignScale failed - Pairs of intersecting symbols: {count}"
-                |> SymbolIntersections
-                |> Failure
-            | (_, _, count) when count > 0 ->
-                $">> sheetAlignScale failed - Wires intersecting symbols: {count}"
-                |> WireSymbolIntersections
-                |> Failure
-            | _ -> Success ($">> {percentWiresStraightened}" + "% wires straightened")
-    
+            printfn $"sheetAlignScale metrics: Initial Straight Wires: {initialStraightWires} | Final Straight Wires: {finalStraightWires}
+            | {percentWiresStraightened} percent wires straightened \n Pairs of intersecting symbols: {symbolIntersectionCount} \n
+            Wire symbols intersections: {wireSymbolIntersectionCount}"
+
+            beautifiedModel
+
         /// Given a sheet, deconstructs all the information present in the circuit.
         ///
         /// model - Sheet to be replicated.
@@ -604,7 +595,7 @@ module HLPTick3 =
         let placeComponentsOnModel (components: componentInfo list) (threshold: float) (genSamples: XYPos) : SheetT.Model =
             components
             |> List.fold (fun currModel comp ->
-                let compPosition = generatePosition currModel threshold 
+                let compPosition = generatePosition currModel threshold
                 placeSymbol comp.Label comp.CompType (compPosition + genSamples) currModel
                 |> getOkOrFail) initSheetModel
 
@@ -650,13 +641,13 @@ module HLPTick3 =
 
             //Metric 2: count number of wires intersecting symbols
             let wireModel = model.Wire
-        
+
             let allWires = wireModel.Wires
                             |> Map.toList
 
             let numOfWireIntersectSym =
                 allWires
-                |> List.fold (fun totalCount (_, wire) -> 
+                |> List.fold (fun totalCount (_, wire) ->
                     totalCount + (BusWireRoute.findWireSymbolIntersections wireModel wire |> List.length)
                 ) 0
 
@@ -671,7 +662,7 @@ module HLPTick3 =
                 allWires
                 |> List.fold (fun totalCount (_, wire) ->
                     totalCount + (SheetBeautifyD3.countCrossingsOnWire model wire)) 0
-   
+
             {|SymbolOverlaps = numOfSymbolOverlaps; WireIntersectSym = numOfWireIntersectSym; TotalWireBends = totalWireBends; TotalWireCrossings = totalWireCrossings|}
 
         ///Prints metrics for each test.
@@ -679,7 +670,7 @@ module HLPTick3 =
         ///Prints the number of overlapping symbols, wires intersecting symbols, total wire bends, total wire crossings, test fail/pass status.
         let collectMetricsOfTests (samples: Gen<'a>) (sheetMaker: 'a -> SheetT.Model)=
             [0..samples.Size-1]
-            |> List.map (fun n -> 
+            |> List.map (fun n ->
                 let sample = samples.Data n
                 let sheetModel = sheetMaker sample
                 let metrics = countMetrics sheetModel
@@ -715,8 +706,15 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
 
+    let beautifyIncrementally (increments: int) (sheet: SheetT.Model) =
+        match increments with
+        | 1 -> SheetBeautifyD2.autoRouteAllWires sheet
+        | 2 -> sheet |> SheetBeautifyD2.autoRouteAllWires |> SheetBeautifyD1.sheetAlignScale
+        | 3 -> sheet |>  SheetBeautifyD2.autoRouteAllWires |> SheetBeautifyD1.sheetAlignScale |> SheetBeautifyD3.sheetWireLabelSymbol
+        | _ -> sheet
+
     module D3Tests =
-    
+
         ///-------SINGLE FUNCTIONALITY TESTS------///
 
         ///Generate a single unchanged test to test D3 handling of bit legends overlapping with wires.
@@ -750,11 +748,11 @@ module HLPTick3 =
             |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G2" 1))
             //|> (fun res -> if beautify then Result.map SheetBeautifyD1.sheetAlignScale res else res)
             |> (fun res -> match increments with
-                            | 2 -> Result.map SheetBeautifyD2.sheetOrderFlip res 
-                                   |> Result.map SheetBeautifyD1.sheetAlignScale 
+                            | 2 -> Result.map SheetBeautifyD2.sheetOrderFlip res
+                                   |> Result.map SheetBeautifyD1.sheetAlignScale
                             | 3 -> Result.map SheetBeautifyD2.sheetOrderFlip res
                                     |> Result.map SheetBeautifyD3.sheetWireLabelSymbol
-                            | 1 -> Result.map SheetBeautifyD2.sheetOrderFlip res 
+                            | 1 -> Result.map SheetBeautifyD2.sheetOrderFlip res
                             | _ -> res)
             // |> (fun res -> if beautify then Result.map SheetBeautifyD3.sheetWireLabelSymbol res else res)
             |> Result.map SheetBeautifyD2.autoRouteAllWires
@@ -768,7 +766,7 @@ module HLPTick3 =
         ///Generate easy/likely-to-pass tests for SheetBeautifyD3.sheetWireLabelSymbol (D3) with all components being threshold distance apart.
         ///Takes in a threshold distance between components. A sample test value for compoent positions, rotations, flips.
         ///Returns a sheet with the circuit placed on it.
-        let makeTestD3Easy (threshold: float) (sample: {|ApplyBeautify: bool; FlipMux: SymbolT.FlipType option; RotMux: Rotation; DemuxPos: XYPos; Mux1Pos: XYPos; Mux2Pos: XYPos|}) : SheetT.Model = 
+        let makeTestD3Easy (threshold: float) (sample: {|ApplyBeautify: bool; FlipMux: SymbolT.FlipType option; RotMux: Rotation; DemuxPos: XYPos; Mux1Pos: XYPos; Mux2Pos: XYPos|}) : SheetT.Model =
             let s = sample
             initSheetModel
             |> placeSymbol "DM1" (Demux4) (middleOfSheet - {X=threshold; Y=0.} + s.DemuxPos)
@@ -794,7 +792,7 @@ module HLPTick3 =
         ///Generate a spaced out circuit set of easy/likely-to-pass tests for SheetBeautifyD3.sheetWireLabelSymbol (D3) with all components being threshold distance apart.
         ///Takes in a threshold distance between components. A sample test value for compoent positions, rotations, flips.
         ///Returns a sheet with the circuit placed on it.
-        let makeTestD3SpacedOut (threshold: float) (sample: {|ApplyBeautify: bool; FlipMux: SymbolT.FlipType option; RotMux: Rotation; DemuxPos: XYPos; Mux1Pos: XYPos; Mux2Pos: XYPos|}) : SheetT.Model = 
+        let makeTestD3SpacedOut (threshold: float) (sample: {|ApplyBeautify: bool; FlipMux: SymbolT.FlipType option; RotMux: Rotation; DemuxPos: XYPos; Mux1Pos: XYPos; Mux2Pos: XYPos|}) : SheetT.Model =
             let s = sample
             initSheetModel
             |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -700; Y = -300 } + s.Mux1Pos)
@@ -820,7 +818,7 @@ module HLPTick3 =
         ///Generate a compressed circuit for SheetBeautifyD3.sheetWireLabelSymbol (D3) with all components being threshold distance apart.
         ///Takes in a threshold distance between components. A sample test value for compoent positions, rotations, flips.
         ///Returns a sheet with the circuit placed on it.
-        let makeTestD3Compressed (threshold: float) (sample: {|ApplyBeautify: bool; FlipMux: SymbolT.FlipType option; RotMux: Rotation; DemuxPos: XYPos; Mux1Pos: XYPos; Mux2Pos: XYPos|}) : SheetT.Model = 
+        let makeTestD3Compressed (threshold: float) (sample: {|ApplyBeautify: bool; FlipMux: SymbolT.FlipType option; RotMux: Rotation; DemuxPos: XYPos; Mux1Pos: XYPos; Mux2Pos: XYPos|}) : SheetT.Model =
             let s = sample
             initSheetModel
             |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = 170; Y = -100 } + s.Mux1Pos)
@@ -846,7 +844,7 @@ module HLPTick3 =
         ///Generate hard/likely-to-fail tests for SheetBeautifyD3.sheetWireLabelSymbol (D3) with all components being threshold distance apart.
         ///Takes in a threshold distance between components
         ///Returns a sheet with the circuit placed on it.
-        let makeTestD3Hard (threshold: float) (sample: {|ApplyBeautify: bool; FlipMux: SymbolT.FlipType option; RotMux: Rotation; AndPos: XYPos; OrPos: XYPos; XorPos: XYPos; MuxPos: XYPos|}) : SheetT.Model =    
+        let makeTestD3Hard (threshold: float) (sample: {|ApplyBeautify: bool; FlipMux: SymbolT.FlipType option; RotMux: Rotation; AndPos: XYPos; OrPos: XYPos; XorPos: XYPos; MuxPos: XYPos|}) : SheetT.Model =
             let s = sample
             initSheetModel
             |> placeSymbol "MUX1" (Mux2) (middleOfSheet - {X=threshold; Y=0.} + s.MuxPos)
@@ -913,8 +911,8 @@ module HLPTick3 =
 
             randomConnectCircuitGen components threshold genSamples
 
-    module sheetAlignScaleTests = 
-        let twoMuxTest (_: XYPos) = 
+    module sheetAlignScaleTests =
+        let twoMuxTest (_: XYPos) =
             initSheetModel
             |> Builder.placeSymbol "AND" (GateN(And, 2)) middleOfSheet
             |> Result.bind(Builder.placeSymbol "I1" (Mux2) {X = middleOfSheet.X - 150.0; Y = middleOfSheet.Y - 75.0})
@@ -924,7 +922,7 @@ module HLPTick3 =
             |> getOkOrFail
             |> SheetBeautifyD1.sheetAlignScale
 
-        let andGateTest (_: XYPos) = 
+        let andGateTest (_: XYPos) =
             initSheetModel
             |> Builder.placeSymbol "AND" Mux2 middleOfSheet
             |> Result.bind(Builder.placeSymbol "I1" (Input1(1, None)) {X = middleOfSheet.X - 150.0; Y = middleOfSheet.Y - 75.0})
@@ -976,28 +974,8 @@ module HLPTick3 =
             |> Result.bind (Builder.placeWire (portOf "MAIN1" 2) (portOf "MAIN2" 2))
             |> TestLib.getOkOrFail
             |> SheetBeautifyD1.scaleSymbolAlignPhase
-    
-        let testTripleMUXBefore (_: XYPos) = 
-            initSheetModel
-            |> Builder.placeSymbol "MUX2" Mux2 middleOfSheet
-            |> Result.bind (Builder.placeSymbol "MUX1" Mux2 {X = middleOfSheet.X - 175.0; Y = middleOfSheet.Y - 40.0})
-            |> Result.bind (Builder.placeSymbol "A" (Input1(1, None)) {X = middleOfSheet.X - 300.0; Y = middleOfSheet.Y - 68.4})
-            |> Result.bind (Builder.placeSymbol "B" (Input1 (1, None)) {X = middleOfSheet.X - 300.0; Y = middleOfSheet.Y})
-            |> Result.bind (Builder.placeSymbol "S2" (Input1 (1, None)) {X = middleOfSheet.X - 300.0; Y = middleOfSheet.Y + 100.0})
-            |> Result.bind (Builder.placeSymbol "MUX3" Mux2 {X = middleOfSheet.X + 150.0; Y = middleOfSheet.Y + 125.0})
-            |> Result.bind(Builder.placeSymbol "S1" (Input1(1, None)) {X = middleOfSheet.X - 250.0; Y = middleOfSheet.Y + 200.0})
-            |> Result.bind (Builder.placeWire (portOf "A" 0) (portOf "MUX1" 0))
-            |> Result.bind (Builder.placeWire (portOf "B" 0) (portOf "MUX1" 1))
-            |> Result.bind (Builder.placeWire (portOf "S2" 0) (portOf "MUX2" 2))
-            |> Result.bind (Builder.placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
-            |> Result.bind (Builder.placeWire (portOf "MUX2" 0) (portOf "MUX3" 0))
-            |> Result.bind (Builder.placeWire (portOf "S1" 0) (portOf "MUX1" 2))
-            |> Result.bind (Builder.placeWire (portOf "S1" 0) (portOf "MUX2" 1))
-            |> Result.bind (Builder.placeWire (portOf "S1" 0) (portOf "MUX3" 1))
-            |> TestLib.getOkOrFail
-            // |> SheetBeautifyD1.sheetAlignScale
 
-        let testTripleMUXAfter (_: XYPos) = 
+        let testTripleMUX (increments: int) =
             initSheetModel
             |> Builder.placeSymbol "MUX2" Mux2 middleOfSheet
             |> Result.bind (Builder.placeSymbol "MUX1" Mux2 {X = middleOfSheet.X - 175.0; Y = middleOfSheet.Y - 40.0})
@@ -1015,7 +993,7 @@ module HLPTick3 =
             |> Result.bind (Builder.placeWire (portOf "S1" 0) (portOf "MUX2" 1))
             |> Result.bind (Builder.placeWire (portOf "S1" 0) (portOf "MUX3" 1))
             |> TestLib.getOkOrFail
-            |> SheetBeautifyD1.sheetAlignScale
+            |> beautifyIncrementally increments
 
 
         // Circuit emulating results from orderFlip, for compatibility with the other beautify algorithms.
@@ -1035,16 +1013,7 @@ module HLPTick3 =
             |> SheetBeautifyD1.sheetAlignScale
 
         // Circuit with multiple connections between the same two components
-        let scalingMultipleConnectionsBefore (_: XYPos) =
-            initSheetModel
-            |> Builder.placeSymbol "DEMUX" Demux4 middleOfSheet
-            |> Result.bind (Builder.placeSymbol "AND" (GateN(And, 3)) {middleOfSheet with X = middleOfSheet.X + 200.0})
-            |> Result.bind (Builder.placeWire (portOf "DEMUX" 0) (portOf "AND" 0))
-            |> Result.bind (Builder.placeWire (portOf "DEMUX" 1) (portOf "AND" 1))
-            |> TestLib.getOkOrFail
-            // |> SheetBeautifyD1.sheetAlignScale
-
-        let scalingMultipleConnectionsAfter (_: XYPos) =
+        let scalingMultipleConnections (_: XYPos) =
             initSheetModel
             |> Builder.placeSymbol "DEMUX" Demux4 middleOfSheet
             |> Result.bind (Builder.placeSymbol "AND" (GateN(And, 3)) {middleOfSheet with X = middleOfSheet.X + 200.0})
@@ -1053,7 +1022,7 @@ module HLPTick3 =
             |> TestLib.getOkOrFail
             |> SheetBeautifyD1.sheetAlignScale
 
-    
+
 
 
 
@@ -1079,7 +1048,7 @@ module HLPTick3 =
         let failOnAllTests (sample: int) _ =
             Some <| $"Sample {sample}"
 
-        /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
+        /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline
         let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
             let wireModel = sheet.Wire
             wireModel.Wires
@@ -1094,7 +1063,7 @@ module HLPTick3 =
                 mapValues sheet.BoundingBoxes
                 |> Array.toList
                 |> List.mapi (fun n box -> n,box)
-            List.allPairs boxes boxes 
+            List.allPairs boxes boxes
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
@@ -1128,7 +1097,7 @@ module HLPTick3 =
                 | (numb, _) :: _ ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
-            
+
         /// singleTestForWireOverlaps test: A single test sheet to specifically test D3 function handling of wire overlapping.
         let singleTestForWireOverlaps testNum firstSample dispatch =
             runTestOnSheets
@@ -1161,7 +1130,7 @@ module HLPTick3 =
             runTestOnSheets
                 "2 Mux4 and 1 DeMux threshold distance apart: fail on overlapping symbols or symbol wire intersect"
                 firstSample
-                makeSamplesD3Easy                  
+                makeSamplesD3Easy
                 (D3Tests.makeTestD3Easy threshold)
                 Asserts.failD3
                 //Asserts.failOnAllTests
@@ -1170,7 +1139,7 @@ module HLPTick3 =
             (collectMetricsOfTests makeSamplesD3Easy (D3Tests.makeTestD3Easy threshold))
 
         /// testD3Hard test: Checks if D3 works for sets of hard test cases with multiple wire overlaps, components.
-        /// Test user can modify threshold variable to change the threshold distance between all components in the circuit. 
+        /// Test user can modify threshold variable to change the threshold distance between all components in the circuit.
         /// Runs count metrics on each test.
         let testD3Hard testNum firstSample dispatch =
             let threshold = 400.0
@@ -1193,7 +1162,7 @@ module HLPTick3 =
             runTestOnSheets
                 "2 Mux4 and 1 DeMux threshold distance apart: fail on overlapping symbols or symbol wire intersect - 2nd Easy Case"
                 firstSample
-                makeSamplesD3Easy              
+                makeSamplesD3Easy
                 (D3Tests.makeTestD3SpacedOut threshold)
                 Asserts.failD3
                 //Asserts.failOnAllTests
@@ -1209,10 +1178,10 @@ module HLPTick3 =
             runTestOnSheets
                 "2 Mux4 and 1 DeMux threshold distance apart: fail on overlapping symbols or symbol wire intersect"
                 firstSample
-                makeSamplesD3Easy                  
+                makeSamplesD3Easy
                 (D3Tests.makeTestD3Compressed threshold)
                 //Asserts.failD3
-                Asserts.failOnAllTests 
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
             (collectMetricsOfTests makeSamplesD3Easy (D3Tests.makeTestD3Compressed threshold))
@@ -1254,7 +1223,7 @@ module HLPTick3 =
             runTestOnSheets
                 "2 Mux4 and 1 DeMux threshold distance apart: fail on overlapping symbols or symbol wire intersect"
                 firstSample
-                makeSamplesD3Easy                  
+                makeSamplesD3Easy
                 (D3Tests.makeTestD3Easy threshold)
                 //Asserts.failD3
                 Asserts.failOnAllTests
@@ -1263,12 +1232,12 @@ module HLPTick3 =
             (collectMetricsOfTests makeSamplesD3Easy (D3Tests.makeTestD3Easy threshold))
 
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
-        let beforeMultiConnecct testNum firstSample dispatch =
+        let beforeMultiConnect testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on symbols intersect"
                 firstSample
                 horizLinePositions
-                sheetAlignScaleTests.scalingMultipleConnectionsBefore
+                sheetAlignScaleTests.scalingMultipleConnections
                 (Asserts.failOnSampleNumber 0)
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -1278,32 +1247,32 @@ module HLPTick3 =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
-                horizLinePositions
-                sheetAlignScaleTests.testTripleMUXBefore
-                (Asserts.failOnSampleNumber 0)
-                dispatch
-            |> recordPositionInTest testNum dispatch
-        
-        let afterTripleMUX testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail all tests"
-                firstSample
-                horizLinePositions
-                sheetAlignScaleTests.testTripleMUXAfter
-                (Asserts.failOnSampleNumber 0)
+                (fromList [0;1;2;3])
+                sheetAlignScaleTests.testTripleMUX
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let afterMultiConnect testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on symbols intersect"
-                firstSample
-                horizLinePositions
-                sheetAlignScaleTests.scalingMultipleConnectionsAfter
-                (Asserts.failOnSampleNumber 0)
-                dispatch
-            |> recordPositionInTest testNum dispatch
-        
+        // let afterTripleMUX testNum firstSample dispatch =
+        //     runTestOnSheets
+        //         "Horizontally positioned AND + DFF: fail all tests"
+        //         firstSample
+        //         horizLinePositions
+        //         sheetAlignScaleTests.testTripleMUXAfter
+        //         (Asserts.failOnSampleNumber 0)
+        //         dispatch
+        //     |> recordPositionInTest testNum dispatch
+        //
+        // let afterMultiConnect testNum firstSample dispatch =
+        //     runTestOnSheets
+        //         "Horizontally positioned AND + DFF: fail on symbols intersect"
+        //         firstSample
+        //         horizLinePositions
+        //         sheetAlignScaleTests.scalingMultipleConnectionsAfter
+        //         (Asserts.failOnSampleNumber 0)
+        //         dispatch
+        //     |> recordPositionInTest testNum dispatch
+
 
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
@@ -1313,10 +1282,10 @@ module HLPTick3 =
                 "Test2", testD3EasyIndiv // set of tests to evaluate D3 designed using DSL with given components and connections list
                 "Test3", testD3Easy // set of easy tests to evaluate D3
                 "Test4", testD3Hard // set of hard tests to evaluate D3
-                "Test5", beforeMultiConnecct // set of test with more spaced out components to evaluate D3
-                "Test6", afterMultiConnect // set of test with more compressed components to evaluate D3
-                "Test7", beforeTripleMUX
-                "Test8", afterTripleMUX  // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
+                "Test5", beforeMultiConnect // set of test with more spaced out components to evaluate D3
+                "Test6", beforeTripleMUX // set of test with more compressed components to evaluate D3
+                "Test7", beforeMultiConnect
+                "Test8", beforeMultiConnect  // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
                 "Next Test Error", fun _ _ _ -> printf "Next Error:"
             ]
             // Easy, EasyIndiv, testD3Hard
@@ -1332,7 +1301,7 @@ module HLPTick3 =
         /// common function to execute any test.
         /// testIndex: index of test in testsToRunFromSheetMenu
         let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name,func = testsToRunFromSheetMenu[testIndex] 
+            let name,func = testsToRunFromSheetMenu[testIndex]
             printf "%s" name
             match name, model.DrawBlockTestState with
             | "Next Test Error", Some state ->
@@ -1342,9 +1311,9 @@ module HLPTick3 =
                 ()
             | _ ->
                 func testIndex 0 dispatch
-        
 
 
-    
+
+
 
 

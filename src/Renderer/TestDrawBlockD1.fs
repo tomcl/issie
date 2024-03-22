@@ -693,17 +693,6 @@ module Tests =
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
 
-    /// Display the next error in a previously started test
-    let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
-        let testNum =
-            testsToRunFromSheetMenu
-            |> List.tryFindIndex (fun (name,_) -> name = testName)
-            |> Option.defaultValue 0
-        testFunc testNum firstSampleToTest showTargetSheet dispatch
-
-    open MenuHelpers
-    /// common function to execute any test.
-    /// testIndex: index of test in testsToRunFromSheetMenu
     let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
         let name,func = testsToRunFromSheetMenu[testIndex] 
         printf "%s" name
@@ -712,7 +701,6 @@ module Tests =
             nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) (state.TargetFunctionApplied) dispatch
         | "Next Test Error", None ->
             printf "Test Finished"
-            // scorePopup "TEST" model dispatch
             ()
         | "Toggle Beautify", Some state -> 
             nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex) (not state.TargetFunctionApplied) dispatch

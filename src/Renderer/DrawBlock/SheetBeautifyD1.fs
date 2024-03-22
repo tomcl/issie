@@ -20,14 +20,6 @@ open BusWire
     module D1Helpers =
         // D1 HELPER FUNCTIONS ----------------------------------------------------------------------
 
-        /// Almost the same as numOfIntersectSegSym from SheetBeautifyHelpers but takes in wModel as an argument
-        let numOfIntersectWireSym (wModel: BusWireT.Model) : int =
-            let allWires = wModel.Wires
-                           |> Map.values
-            allWires
-            |> Array.map (findWireSymbolIntersections wModel)
-            |> Array.sumBy (function [] -> 0 | _ -> 1)
-
         /// Attempts to create degrees of freedom for any symbols overlapping
         /// Will translate the symbol by half the width/height of the the host symbol based on port Orientation
         let handleSymOverlap (wModel:BusWireT.Model) (sym: Symbol) (side: Edge): Symbol =
@@ -40,7 +32,7 @@ open BusWire
                 otherSymBoxes
                 |>
                 List.filter (fun otherSymBox -> overlap2DBox symBox otherSymBox )
-            if not(List.isEmpty otherSym) || (numOfIntersectWireSym wModel > 1) then
+            if not(List.isEmpty otherSym)  then
                 let sym' =
                     match side with
                     | Top -> moveSymbol {X=0.0;Y = - h/2.0} sym
@@ -55,10 +47,6 @@ open BusWire
         /// returns true if the wire connecting the ports is a loop shape
         let handleWireLoop (movePortInfo: PortInfo) (otherPortInfo: PortInfo): bool =
             let portPos,otherPortPos = calculatePortRealPos movePortInfo, calculatePortRealPos otherPortInfo
-            printfn $"PortPos: {portPos}, {movePortInfo.sym.Component.Label}"
-            printfn $"PortPos Side: {movePortInfo.side}"
-            printfn $"OtherPortPos: {otherPortPos}, {otherPortInfo.sym.Component.Label}"
-            printfn $"OtherPortPos Side: {otherPortInfo.side}"
             let isLoop =
                 match otherPortInfo.side with
                 | Left ->
@@ -81,10 +69,9 @@ open BusWire
                         true
                     else
                         false
-            printfn $"isLoop: {isLoop}"
             isLoop
 
-
+        /// Align all Components with multiple ports
         let alignMultiplyComponents 
             (wModel: BusWireT.Model)
             (symA: Symbol)
@@ -97,18 +84,15 @@ open BusWire
             let (movePortInfo, otherPortInfo) = (makePortInfo symA portA,makePortInfo symB portB) 
             
             let offset = alignPortsOffset movePortInfo otherPortInfo
-            let offset' = if ((offset.X > (symA.Component.W/2.0)) || (offset.Y > (symA.Component.H/2.0)) || not(movePortInfo.side = otherPortInfo.side.Opposite) || (handleWireLoop movePortInfo otherPortInfo)) then
-                            printfn $"SKIP"
+            let offset' = if ((offset.X > (3.0 * symA.Component.W/4.0)) || (offset.Y > (3.0 * symA.Component.H/4.0)) || not(movePortInfo.side = otherPortInfo.side.Opposite) || (handleWireLoop movePortInfo otherPortInfo)) then
                             {X=0.0;Y=0.0}
                           else
-                            offset
-            printfn $"OFFSET {offset'}"
+                            offset            
             let symbol' = moveSymbol offset' symA
             let symbol'' = handleSymOverlap wModel symbol' movePortInfo.side
             symbol''
-            (*let model' = Optic.set (symbolOf_ symA.Id) symbol'' wModel
-            BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id*)
-
+            
+        /// Align all components that have eiter one input or output port
         let alignSinglyComponents 
             (wModel: BusWireT.Model)
             (symA: Symbol)
@@ -262,10 +246,6 @@ open BusWire
                     |> List.choose (fun (_, otherPort) ->
                         let otherPortOrientation = (makePortInfo (getSym wModel otherPort) otherPort).side
                         if portOrientation = otherPortOrientation.Opposite then //check if the other component port are on opposite edges
-                            printfn $"PORT HOST: {(makePortInfo (getSym wModel port) port).sym.Component.Label}"
-                            printfn $"PORT Orien: {portOrientation}"
-                            printfn $"otherPORT HOST: {(makePortInfo (getSym wModel otherPort) otherPort).sym.Component.Label}"
-                            printfn $"otherPORT Orien: {otherPortOrientation}"
                             let (portInfo,otherPortInfo) = (makePortInfo (getSym wModel port) port, makePortInfo (getSym wModel otherPort) otherPort)
                             let offset = alignPortsOffset portInfo otherPortInfo
                             Some (offset, otherPort)
@@ -305,7 +285,6 @@ open BusWire
                                      |> Map.filter (fun _ port -> port.PortType = PortType.Output)
                                      |> Map.values
                                      |> Seq.toList
-                    printfn $"Output Ports {outputPorts}, {List.length outputPorts}"
                     match outputPorts with
                     | [] -> (sym,sym) // If there are no output ports, return the sheet as is
                     | _ -> 
@@ -319,21 +298,18 @@ open BusWire
             let wModel' =
                 adjustments
                 |> List.fold (fun model (sym, sym') ->
-                    printfn $"HMMMMMMMMMMMMMMMMMMMM"
                     // Update the model for each sym to sym' adjustment.
                     // This assumes 'Optic.set' can update the model based on sym.Id, and 'symbolOf_' gets the appropriate lens/path.
                     let model' = Optic.set (symbolOf_ sym.Id) sym' model
                     BusWireSeparate.routeAndSeparateSymbolWires model' sym.Id
                 ) wModel
-            printfn $"FINI"
             wModel'
-            (*let model' = Optic.set (symbolOf_ sym.Id) sym' wModel
-            BusWireSeparate.routeAndSeparateSymbolWires model' sym.Id*)
                
                
     module Beautify =
         open D1Helpers
 
+        /// Align all Singly Components in a sheet
         let alignSinglyComp (wModel: BusWireT.Model): BusWireT.Model =
             let singlyComp = getSinglyComp wModel
             
@@ -366,7 +342,7 @@ open BusWire
 
 
     
-
+        /// Align all components with multiple ports and scale custom components to reduce wire crossings
         let alignScaleComp (wModel: BusWireT.Model): BusWireT.Model =
             let multiplySyms = getMultiplyComp wModel
             let connPairs = getConnSyms wModel
@@ -396,25 +372,23 @@ open BusWire
                 match alignSyms with
                 | [] -> wModel' // If no symbols to align, skip this step
                 | _ -> alignMultiplyComp wModel' alignSyms // Proceed with alignment if there are symbols to align
-            printfn $"READY"
             // Return the final model after adjustments
             wModel''
-
+        /// Top-Level function to align all Singly Components in a sheet
         let sheetSingly (sheet: SheetT.Model): SheetT.Model =
             let singlyModel = alignSinglyComp sheet.Wire
             let sheet' = Optic.set SheetT.wire_ singlyModel sheet
             sheet'
-
+        /// Top-Level function to align all components with multiple ports and scale custom components to reduce wire crossings
         let sheetMultiply (sheet: SheetT.Model): SheetT.Model =
             let multiplyModel = alignScaleComp sheet.Wire
             let multiplySheet = Optic.set SheetT.wire_ multiplyModel sheet
             multiplySheet
 
+        /// Top-Level function to scale Custom Components and aligns components in a sheet to reduce wire segments without increasing wire crossings.
         let sheetAlignScale (sheet: SheetT.Model): SheetT.Model =
            let multiplyModel = alignScaleComp sheet.Wire
            let multiplySheet = Optic.set SheetT.wire_ multiplyModel sheet
-           printfn $"SETTING MULTIPLY"
            let singlyModel = alignSinglyComp multiplySheet.Wire
            let sheet' = Optic.set SheetT.wire_ singlyModel multiplySheet
-           printfn $"SETTING SINGLY"
            sheet'  

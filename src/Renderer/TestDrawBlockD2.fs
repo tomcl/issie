@@ -485,14 +485,9 @@ module TestD2 =
         | _ -> filteredPos
 
     module Asserts =
-        let randomFail (sample: int) (sheet: SheetT.Model) = 
-            let rnd = random.Next(0,1)
-            match rnd with
-            | 0 -> 
-                Some $"Random Fail (test for testing) in Sample {sample}"
-            | _ -> 
-                let printSuccess x = printf $"Random fail test success in Sample {sample}" ; x
-                printSuccess None
+        let autoFail (sample: int) (sheet: SheetT.Model) = 
+            Some <| $"Sample {sample}: D2 Playground"
+
         /// The following should not fail if sheetOrderFlip works properly (unless edge cases).
         let failOnMoreWireCrossings (sample: int) (sheet: SheetT.Model) = 
             let crossingsBefore = numOfWireRightAngleCrossings sheet
@@ -550,13 +545,13 @@ module TestD2 =
                 | (numb, _) :: _ ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
-        let D2Test0 testNum firstSample dispatch =
+        let D2TestPlayground testNum firstSample dispatch =
             runD2TestOnSheets
-                "Random Fail/Success Test"
+                "D2 sheetOrderFlip Playground"
                 firstSample
                 arbitrarySamples
                 makeRandomFlipCircuit
-                Asserts.randomFail
+                Asserts.autoFail
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -610,64 +605,3 @@ module TestD2 =
                 Asserts.failOnComponentOverlap
                 dispatch
             |> recordPositionInTest testNum dispatch
-        
-        // let D2TestMain testNum firstSample dispatch =
-        //     runD2TestOnSheets
-        //         "D1 Test with both singly and multiply connected components"
-        //         firstSample
-        //         arbitrarySamples
-        //         makeRandomFlipCircuit
-        //         Asserts.failOnAllTests
-        //         dispatch
-        //     |> recordPositionInTest testNum dispatch
-        let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
-            // Change names and test functions as required
-            // delete unused tests from list
-            [
-                "D2Test1: Wire crossings", D2Test1 
-                "D2Test2: Wire straightened", D2Test2
-                "D2Test3: Component overlap", D2Test3
-                "D2Test4: Wire routing length", D2Test4 10.0
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-                "DemoTest: sheetOrderFlip", fun _ _ _ -> printf "DemoTest: sheetOrderFlip"
-                "D2Test0: Random Fail Test", D2Test0
-            ]
-
-        /// Display the next error in a previously started test
-        let nextError (testName, testFunc) firstSampleToTest dispatch =
-            let testNum =
-                testsToRunFromSheetMenu
-                |> List.tryFindIndex (fun (name,_) -> name = testName)
-                |> Option.defaultValue 0
-            testFunc testNum firstSampleToTest dispatch
-
-        /// common function to execute any test.
-        /// testIndex: index of test in testsToRunFromSheetMenu
-        let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
-            let name,func = testsToRunFromSheetMenu[testIndex] 
-            printf "%s" name
-            match name, model.DrawBlockTestState with
-            | "Next Test Error", Some state ->
-                nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
-            | "Next Test Error", None ->
-                printf "Test Finished"
-                ()
-            | "DemoTest: sheetOrderFlip", Some state ->
-                // let printPipe (msg:string) x = printf $"{msg} {x}" ; x
-                printf "Starting DemoTest: sheetOrderFlip"
-                printf $"DemoTest: Wire Crossings before: {numOfWireRightAngleCrossings model.Sheet}"
-                // printf $"Right Angles before: {numOfVisRightAngles model.Sheet}"
-                printf $"DemoTest: # of straight lines before: {numOfStraightWires model.Sheet}"
-                printf $"DemoTest: Length of Wire Routing before: {calcVisWireLength model.Sheet}"
-                printf $"DemoTest: # of overlapping components before: {numOfIntersectedSymPairs model.Sheet}"
-
-                printf "DemoTest: Implement sheetOrderFlip"
-                let flippedSheet = SheetBeautify.sheetOrderFlip model.Sheet
-                printf $"DemoTest: Wire Crossings after: {numOfWireRightAngleCrossings flippedSheet}"
-                // printf $"Right Angles after: {numOfVisRightAngles flippedSheet}"
-                printf $"DemoTest: # of straight lines after: {numOfStraightWires flippedSheet}"
-                printf $"DemoTest: Length of Wire Routing after: {calcVisWireLength flippedSheet}"
-                printf $"DemoTest: # of overlapping components after: {numOfIntersectedSymPairs flippedSheet}"
-                showSheetInIssieSchematic (flippedSheet) dispatch
-            | _ ->
-                func testIndex 0 dispatch

@@ -412,6 +412,9 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "Component2" 0) (portOf "Component1" 0))
         |> getOkOrFail
 
+    let makeBlankPlayground (andPos: XYPos) = 
+        initSheetModel
+
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
 //------------------------------------------------------------------------------------------------//
@@ -468,62 +471,16 @@ module HLPTick3 =
                 | (numb, _) :: _ ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
-            
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 0
-        let test1 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 0"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
-                dispatch
-            |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 10
-        let test2 testNum firstSample dispatch =
+        let beautifySheetPlayground testNum firstSample dispatch =
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 10"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 10)
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
-        let test3 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on symbols intersect"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnSymbolIntersectsSymbol
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        /// Example test: Horizontally positioned AND + DFF: fail all tests
-        let test4 testNum firstSample dispatch =
-            runTestOnSheets
-                "Horizontally positioned AND + DFF: fail all tests"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
-
-        let test5 testNum firstSample dispatch =
-            runTestOnSheets
-                "Test wire routing between two components"
+                "Playground for beautifySheet"
                 firstSample
                 filteredSampleData
-                makeTest5Circuit
+                makeBlankPlayground
                 Asserts.failOnWireIntersectsSymbol
                 dispatch
             |> recordPositionInTest testNum dispatch
-
-            
 
         open TestDrawBlockD1
 
@@ -533,11 +490,29 @@ module HLPTick3 =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "D1 Test", TestDrawBlockD1.TestD1.Tests.D1TestMain
-                "D2 Test: sheetOrderFlip", fun _ _ _ -> printf "D2 Test: sheetOrderFlip"
-                "D2 Template", TestDrawBlockD2.TestD2.Tests.D2Test0
-                "D3 Replace Test", TestDrawBlockD3.D3Tests.test1
+                // Hotkey test playgrounds
+                "D1 sheetAlignScale: Playground", TestDrawBlockD1.TestD1.Tests.D1TestMain
+                "D2 sheetOrderFlip: Playground", TestDrawBlockD2.TestD2.Tests.D2TestPlayground
+                "D3 sheetWireLabelSymbol: Playground", TestDrawBlockD3.D3Tests.test1
+                "D4 beautifySheet: Playground", beautifySheetPlayground
+                "Apply sheetAlignScale", fun _ _ _ -> printf "Applying sheetAlignScale"
+                "Apply sheetOrderFlip", fun _ _ _ -> printf "Applying sheetOrderFlip"
+                "Apply sheetWireLabelSymbol", fun _ _ _ -> printf "Applying sheetWireLabelSymbol"
+                "Apply beautifySheet", fun _ _ _ -> printf "Applying sheetWireLabelSymbol"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+
+                // specific test cases
+                "D1Test1: Singly", TestDrawBlockD1.TestD1.Tests.D1Test1
+                "D1Test2: Multiply", TestDrawBlockD1.TestD1.Tests.D1Test2
+                "D1Test3: S1 rotate", TestDrawBlockD1.TestD1.Tests.D1Test3
+
+                "D2Test1: Wire crossings", TestDrawBlockD2.TestD2.Tests.D2Test1 
+                "D2Test2: Wire straightened", TestDrawBlockD2.TestD2.Tests.D2Test2
+                "D2Test3: Component overlap", TestDrawBlockD2.TestD2.Tests.D2Test3
+                "D2Test4: Wire routing length", TestDrawBlockD2.TestD2.Tests.D2Test4 10.0
+                "D2Test5: Comp overlap with random pos", TestDrawBlockD2.TestD2.Tests.D2Test5 
+
+                "D3 sheetWireLabelSymbol: Playground", TestDrawBlockD3.D3Tests.test1
             ]
 
         /// Display the next error in a previously started test
@@ -559,37 +534,36 @@ module HLPTick3 =
             | "Next Test Error", None ->
                 printf "Test Finished"
                 ()
-
-            |"D1 Test", Some state ->
+            |"Apply sheetAlignScale", Some state ->
                 printf "Starting DemoTest: sheetAlignScale"
-                printf $"DemoTest: # of straight lines before: {TestDrawBlockD1.TestD1.numOfStraightWires model.Sheet}"
-                printf $"DemoTest: Length of Wire Routing before: {calcVisWireLength model.Sheet}"
-                printf $"DemoTest: # of overlapping components before: {numOfIntersectedSymPairs model.Sheet}"
+                printf $"sheetAlignScale: # of straight lines before: {TestDrawBlockD1.TestD1.numOfStraightWires model.Sheet}"
+                printf $"sheetAlignScale: Length of Wire Routing before: {calcVisWireLength model.Sheet}"
+                printf $"sheetAlignScale: # of overlapping components before: {numOfIntersectedSymPairs model.Sheet}"
 
                 printf "DemoTest: Implement sheetAlignScale"
-                let alignScaleSheet = SheetBeautify.sheetAlignScale model.Sheet
+                let alignScaleSheet = SheetBeautifyD1.Beautify.sheetAlignScale model.Sheet
                 
-                printf $"DemoTest: # of straight lines after: {TestDrawBlockD1.TestD1.numOfStraightWires alignScaleSheet}"
-                printf $"DemoTest: Length of Wire Routing after: {calcVisWireLength alignScaleSheet}"
-                printf $"DemoTest: # of overlapping components after: {numOfIntersectedSymPairs alignScaleSheet}"
+                printf $"sheetAlignScale: # of straight lines after: {TestDrawBlockD1.TestD1.numOfStraightWires alignScaleSheet}"
+                printf $"sheetAlignScale: Length of Wire Routing after: {calcVisWireLength alignScaleSheet}"
+                printf $"sheetAlignScale: # of overlapping components after: {numOfIntersectedSymPairs alignScaleSheet}"
                 showSheetInIssieSchematic (alignScaleSheet) dispatch
-            |"D3 Replace Test", Some state ->
-                showSheetInIssieSchematic (removeComplexWires model.Sheet) dispatch
-            | "D2 Test: sheetOrderFlip", Some state ->
-                // let printPipe (msg:string) x = printf $"{msg} {x}" ; x
+            | "Apply sheetOrderFlip", Some state ->
                 printf "Starting DemoTest: sheetOrderFlip"
-                printf $"DemoTest: Wire Crossings before: {SheetBeautifyHelpers.numOfWireRightAngleCrossings model.Sheet}"
-                // printf $"Right Angles before: {numOfVisRightAngles model.Sheet}"
-                printf $"DemoTest: # of straight lines before: {TestDrawBlockD1.TestD1.numOfStraightWires model.Sheet}"
-                printf $"DemoTest: Length of Wire Routing before: {SheetBeautifyHelpers.calcVisWireLength model.Sheet}"
-                printf $"DemoTest: # of overlapping components before: {SheetBeautifyHelpers.numOfIntersectedSymPairs model.Sheet}"
+                printf $"sheetOrderFlip: Wire Crossings before: {SheetBeautifyHelpers.numOfWireRightAngleCrossings model.Sheet}"
+                printf $"sheetOrderFlip: # of straight lines before: {TestDrawBlockD1.TestD1.numOfStraightWires model.Sheet}"
+                printf $"sheetOrderFlip: Length of Wire Routing before: {SheetBeautifyHelpers.calcVisWireLength model.Sheet}"
+                printf $"sheetOrderFlip: # of overlapping components before: {SheetBeautifyHelpers.numOfIntersectedSymPairs model.Sheet}"
 
                 printf "DemoTest: Implement sheetOrderFlip"
                 let flippedSheet = SheetBeautify.sheetOrderFlip model.Sheet
-                printf $"DemoTest: Wire Crossings after: {SheetBeautifyHelpers.numOfWireRightAngleCrossings flippedSheet}"
-                printf $"DemoTest: # of straight lines after: {TestDrawBlockD1.TestD1.numOfStraightWires flippedSheet}"
-                printf $"DemoTest: Length of Wire Routing after: {SheetBeautifyHelpers.calcVisWireLength flippedSheet}"
-                printf $"DemoTest: # of overlapping components after: {SheetBeautifyHelpers.numOfIntersectedSymPairs flippedSheet}"
+                printf $"sheetOrderFlip: Wire Crossings after: {SheetBeautifyHelpers.numOfWireRightAngleCrossings flippedSheet}"
+                printf $"sheetOrderFlip: # of straight lines after: {TestDrawBlockD1.TestD1.numOfStraightWires flippedSheet}"
+                printf $"sheetOrderFlip: Length of Wire Routing after: {SheetBeautifyHelpers.calcVisWireLength flippedSheet}"
+                printf $"sheetOrderFlip: # of overlapping components after: {SheetBeautifyHelpers.numOfIntersectedSymPairs flippedSheet}"
                 showSheetInIssieSchematic (flippedSheet) dispatch
+            | "Apply sheetWireLabelSymbol", Some state ->
+                showSheetInIssieSchematic (SheetBeautify.sheetWireLabelSymbol model.Sheet) dispatch
+            | "Apply beautifySheet", Some state -> 
+                showSheetInIssieSchematic (SheetBeautify.beautifySheet model.Sheet) dispatch
             | _ ->
                 func testIndex 0 dispatch

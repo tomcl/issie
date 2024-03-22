@@ -9,7 +9,7 @@ Whole sheet functions are normally applied to whole sheet. In many cases a featu
 apply them to currently selected wires or components. That provides users control over what gets beautified.
 Ideal beautify code will never make things worse so can be applied to whole sheet always.
 
-Otehr relevant modules:
+Other relevant modules:
 SheetBeautifyHelpers (helpers)
 Generatedata (used to make randomized tests)
 TestDrawBlock (used to test the code written here).

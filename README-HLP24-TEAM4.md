@@ -9,9 +9,12 @@ Analysis of beautify function through testing is shown [here](https://github.com
 add below -->
 
 ### D1 beautifying function 
-- `sheetAlignScale` _ `[SheetT.Model -> SheetT.Model]`
-This aligns all components on a sheet and scales custom components to reduce wire bends. Invoked automatically on D1 test cases (Alt1-7) and toggled with Alt-8. 
+- `sheetAlignScale` _`[SheetT.Model -> SheetT.Model]`_  
+This aligns all components on a sheet and scales custom components to reduce wire bends. Invoked automatically on D1 test cases (Alt1-7) and toggled with Alt-8.
+
 ### D2 beautifying function 
+- `sheetOrderFlip` _`[SheetT.Model -> SheetT.Model]`_  
+This reorders ports on a sheet to reduce wire crosses. Invoked automatically on D1 test cases (Alt1-Shft-7) and toggled with Alt-Shft-8.
 
 ### D3 beautifying function 
 - `sheetWireLabelSymbol` _`[SheetT.Model -> SheetT.Model]`_  

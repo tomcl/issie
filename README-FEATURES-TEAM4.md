@@ -21,6 +21,9 @@
 
 - Provide Electron edit menu options for conversion of selected wire nets to wire labels, and vice versa.
 
+## D3 Testing
+
+- Implemented multiple specific and general tests  
 
 ## Combination (D4)
 - <u>Basic</u> - applies D2 then D1 then D3 (order chosen for better solution)

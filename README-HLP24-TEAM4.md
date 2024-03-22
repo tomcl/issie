@@ -13,22 +13,22 @@ add below -->
 ### D2 beautifying function (sheet->sheet)
 
 ### D3 beautifying function 
-`sheetWireLabelSymbol` (sheet: SheetT.Model) : SheetT.Model:  
+- `sheetWireLabelSymbol` _`[SheetT.Model -> SheetT.Model]`_  
 this outputs a beautified sheet that automatically replace wires by wire labels where appropriate, user can change heuristic of what consider to be wire label worthy wires. 
 
-`autoConvertWireLabelsToWires` (sheet: SheetT.Model) : SheetT.Model:  
+- `autoConvertWireLabelsToWires` _`[SheetT.Model -> SheetT.Model]`_  
 this outputs a sheet after automatically converting all Wire Labels on the sheet to wires between corresponding inputs and outputs
 
-`generateWireLabel` (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: SheetT.Model) : (sheet: SheetT.Model):  
+- `generateWireLabel` _`[bool -> BusWireT.Wire -> SheetT.Model -> SheetT.Model]`_  
 used in right-hand click menu. Convert a wire on a sheet to a wire label. isForIndivWire = true when user want to use this to convert selected single wire; isForIndivWire = false when user wants to use this to convert a selected bunch of wires. User can change choose wire condition for both inside the function. 
 
-`turnWireLabelsToWires` (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) :(sheet: SheetT.Model):  
+- `turnWireLabelsToWires` _`[SymbolT.Symbol -> sheet: SheetT.Model -> SheetT.Model]`_  
 used in right-hand click menu. Convert a selected wire component on a sheet to wire, ignore if not a wire label.
 
-`convertSelectedWiresIntoWireLabels` (comps: ComponentId list) (model: Model) (sheet: SheetT.Model): (sheet: SheetT.Model):  
+- `convertSelectedWiresIntoWireLabels` _`[ComponentId list -> model: Model -> SheetT.Model -> SheetT.Model]`_  
 used in edit menu, to bulk convert selected wires into labels.
 
-`convertSelectedWiresLabelsIntoWires` (comps: ComponentId list) (model: Model) (sheet: SheetT.Model) : (sheet: SheetT.Model):  
+- `convertSelectedWiresLabelsIntoWires` _`[ComponentId list -> Model -> SheetT.Model -> SheetT.Model]`_  
 used in edit menu, to bulk convert selected wire labels back to wires, ignore non-wire-labels components.
 
 

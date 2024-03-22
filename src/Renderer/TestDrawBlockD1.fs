@@ -649,7 +649,7 @@ module Tests =
             firstSample
             genA4Flip
             showTargetSheet
-            (Some sheetAlignScale)
+            (Some otherSheetAlignScale)
             makeFlippedA4Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator

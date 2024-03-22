@@ -56,14 +56,28 @@ module Circuit =
         
 
         /// Adds random wires input symbols to sheet
+        /// whilst still being reproducable
         let placeWires (sheet : SheetT.Model) : Result<SheetT.Model, string> =
+            let sortedSyms = 
+                sheet.Wire.Symbol.Symbols 
+                |> mapValues 
+                |> Array.sortBy (fun sym -> sym.Pos.X + sym.Pos.Y)
+                |> printId
             let portIdByType (portType: PortType) (sheet: SheetT.Model) : string array =
-                sheet.Wire.Symbol.Ports
-                |> Map.filter (fun _ port -> port.PortType = portType)
-                |> mapKeys
+                let portMap = sheet.Wire.Symbol.Ports
+                sortedSyms
+                |> Array.map (fun sym -> 
+                                    let order = sym.PortMaps.Order
+                                    order[Left]
+                                    @ order[Bottom]
+                                    @ order[Right]
+                                    @ order[Top]
+                                    |> List.toArray)
+                |> Array.concat
+                |> Array.filter (fun string -> portMap[string].PortType = portType)
             
             let inPorts = portIdByType PortType.Input sheet
-            let outPorts = portIdByType PortType.Output sheet |> shuffleA
+            let outPorts = portIdByType PortType.Output sheet
             let minLen = min (Array.length inPorts) (Array.length outPorts)
             
             

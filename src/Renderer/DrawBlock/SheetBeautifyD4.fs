@@ -15,9 +15,8 @@ let rerouteAllWires (sheet: SheetT.Model) : SheetT.Model=
 
 /// Basic combination of beautify functions
 let beautifySheetBasic : SheetT.Model -> SheetT.Model =
-    // sheetOrderFlip
-    sheetAlignScale
-    >> rerouteAllWires
+    sheetOrderFlip
+    >> sheetAlignScale >> rerouteAllWires
     >> sheetWireLabelSymbol
 
 // Applies each beautify function to the sheet.

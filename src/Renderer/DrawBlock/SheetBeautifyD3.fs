@@ -255,7 +255,7 @@ let generateWireLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
 
 /// Automatically generate Wire Labels for all wires on a sheet/// Automatically generate Wire Labels for all wires on a sheet
 let sheetWireLabelSymbol (sheet: SheetT.Model) =
-    let wireLengthlimit = 120. // User can decide what is considered long wire
+    let wireLengthlimit = 220. // User can decide what is considered long wire
     let wireList = getWireListFromSheet sheet
     let wiresNeedLabels = getWiresNeedLabels wireList sheet wireLengthlimit
     (sheet, wiresNeedLabels)

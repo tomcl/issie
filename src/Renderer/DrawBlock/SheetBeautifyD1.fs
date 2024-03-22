@@ -1,4 +1,4 @@
-module Renderer.DrawBlock.SheetBeautifyD1
+module SheetBeautifyD1
 
 open CommonTypes
 open DrawModelType

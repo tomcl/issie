@@ -57,6 +57,12 @@ let checkTwoSegments (s1: Segment) (s2: Segment) : bool =
 let getAllWires (model: SheetT.Model) : Wire list =
     model.Wire.Wires |> Map.toList |> List.map snd
 
+// Take a sheet and return all Symbols on it in a list
+let getAllSymbols (model: SheetT.Model) =
+    model.Wire.Symbol.Symbols 
+    |> Map.toList
+    |> List.map snd
+
 // lens to set the symbolMap in the model
 let symbolMap_: Lens<SheetT.Model, Map<ComponentId, Symbol>> =
     Lens.create (fun m -> m.Wire.Symbol.Symbols) (fun v m ->

@@ -312,10 +312,10 @@ module Tests =
         runTestOnSheets
             "Test for label placement"
             firstSample
-            test2Builder
+            test3Builder
             showTargetSheet
             (Some beautifySheetBasic)
-            makeTest2Circuit
+            makeTest4Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch

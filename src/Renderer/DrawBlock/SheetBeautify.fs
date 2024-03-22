@@ -30,14 +30,18 @@ open SheetBeautifyD2
 open SheetBeautifyD3
 open Optics
 
-/// constants used by SheetBeautify
-// module Constants =
-//     () // dummy to make skeleton type check - remove when other content exists
-
+/// For best performance
+/// each elementary beautifier is called 3 times
 let sheetBeautify (model: SheetT.Model) = 
+    let elementaryBeautify (model: SheetT.Model) = 
+        model
+        |> optimizeModelILS    // D2
+        |> sheetWireLabelSymbol     // D3
+        |> alignSinglyConnectedComponents   // D1
     model
-    |> optimizeModelILS    // D2
-    |> sheetWireLabelSymbol     // D3
-    |> alignSinglyConnectedComponents   // D1
+    |> elementaryBeautify
+    |> elementaryBeautify
+    |> elementaryBeautify
+
 
     

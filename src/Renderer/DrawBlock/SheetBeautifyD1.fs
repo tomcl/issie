@@ -18,7 +18,7 @@ module Constants =
 // D1. sheetAlignScale implementation part - Custom component scaling. Positioning of all components to reduce segments without increasing wire crossings.
 
 ///---------------------------------------------------------------------------------------------------------------///
-///----------------------------------------processing-only-one-connection----------------------------------------///
+///----------------------------------------processing-only-one-parallel----------------------------------------///
 ///---------------------------------------------------------------------------------------------------------------///
 // determine if a wire is parallel
 let isParallel (model: SheetT.Model) (wId: ConnectionId) =
@@ -41,7 +41,7 @@ let isParallel (model: SheetT.Model) (wId: ConnectionId) =
 
 // find the singly connected Components on the sheet
 let findSinglyConnectedComponents (model:SheetT.Model) =
-    // Get all the connected wires of the model
+    // Get all the parallel wires of the model
     let singlyConnectedWires = 
         model.Wire.Wires
         |> Map.toList
@@ -78,28 +78,6 @@ let findSinglyConnectedComponents (model:SheetT.Model) =
     |> Map.toList
     |> List.map fst
 
-// calculate how much to shift the wire to remove the parallel feature
-// let calculateShiftForSimplification (segments: XYPos list) : XYPos =
-//     let inline sign x = if x < 0. then -1. else if x > 0. then 1. else 0.
-
-//     let rec aux (accX, accY) segments =
-//         match segments with
-//         | ({X = x1; Y = 0.} :: {X = 0.; Y = y} :: {X = x2; Y = 0.} :: rest) when sign x1 = sign x2 ->
-//             // Simplify H-V-H to a single vertical shift, continue with the rest
-//             aux (accX, accY + y) rest
-//         | ({X = 0.; Y = y1} :: {X = x; Y = 0.} :: {X = 0.; Y = y2} :: rest) when sign y1 = sign y2 ->
-//             // Simplify V-H-V to a single horizontal shift, continue with the rest
-//             aux (accX + x, accY) rest
-//         | _ :: rest ->
-//             // Non-simplifiable pattern or single segment left, just skip it
-//             aux (accX, accY) rest
-//         | [] ->
-//             // Return total accumulated shifts in x and y as an XYPos
-//             {X = accX; Y = accY}
-
-//     aux (0.0, 0.0) segments
-
-
 
 let calculateShiftForSimplification (segments: XYPos list) : XYPos =
     let inline sign x = if x < 0. then -1. elif x > 0. then 1. else 0.
@@ -133,8 +111,6 @@ let calculateShiftForSimplification (segments: XYPos list) : XYPos =
 
     let (_, totalShift) = processSegments segments {X = 0.0; Y = 0.0}
     totalShift
-
-
 
 
 
@@ -277,10 +253,8 @@ let findAlignment (model: SheetT.Model) =
 
     updatedAlignmentMap
     
-
-// Function to adjust the position of singly-connected components
-let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
-    let moveSymbol (move: XYPos) (sym: Symbol) : Symbol =
+// Function to move a symbol by a given shift
+let moveSymbol (move: XYPos) (sym: Symbol) : Symbol =
         {sym with
             Moving = true
             Pos = sym.Pos + move
@@ -291,6 +265,10 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
             LabelBoundingBox = {sym.LabelBoundingBox with
                                     TopLeft =  sym.LabelBoundingBox.TopLeft + move}
         }
+
+// Function to adjust the position of singly-connected components
+let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
+
     
     let alignmentString = findAlignment model
 
@@ -305,7 +283,9 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
     let adjustSymbolPosition (symbol: Symbol) (shift: XYPos) : Symbol =
         // let newPos = { X = symbol.Pos.X + shift.X; Y = symbol.Pos.Y + shift.Y }
         moveSymbol shift symbol
-        
+    
+    
+
     // Convert ComponentId to string for matching
     let componentIdToString (ComponentId s) = s
 
@@ -318,6 +298,13 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
             | Some shift -> adjustSymbolPosition sym shift
             | None -> sym)
 
+    let allPorts = 
+        model.Wire.Symbol.Ports
+        |> Map.toList
+        |> List.map snd
+        |> List.filter (fun port -> port.PortType = PortType.Input || port.PortType = PortType.Output)
+        |> List.map (fun port -> ComponentId(port.Id))
+
     // Return a new model with the adjusted symbols
     let newWire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = adjustedSymbols } }
     let symList = alignment|> Map.keys |> Seq.toList
@@ -325,104 +312,231 @@ let alignSinglyConnectedComponents (model: SheetT.Model) : SheetT.Model =
 
 
     { model with Wire = newModel }
+
+
+
     
-///----------------------------------------processing-more-than-one-connections----------------------------------------///
+///----------------------------------------processing-more-than-one-parallel----------------------------------------///
 /// ---------------------------------------------------------------------------------------------------------------///
 /// ---------------------------------------------------------------------------------------------------------------///
 
-// determine if two ports are on the opposite sides of a symbol
-let isOppositeSide (sym1: Symbol) (p1:Port) (sym2: Symbol) (p2:Port) =
-    let side1 = Map.tryFind p1.Id sym1.PortMaps.Orientation
-    let side2 = Map.tryFind p2.Id sym2.PortMaps.Orientation
-    match (side1, side2) with
-    | (Some side1, Some side2) -> side1.Opposite = side2
-    | _ -> false
+// find the rest parallel wires and its shifts of the model
+let findParallelWiresAndShifts (model:SheetT.Model) =
+    // Get all the connected wires of the model
+    let wires = 
+        model.Wire.Wires
+        |> Map.toList
+        |> List.map snd
 
-// generate lists of all the ports that are connected to a given port(one of them is empty so only output one list)
-let connectedPorts (model: SheetT.Model) (port: Port) =
-    let inputPorts, outputPorts = 
-        model.Wire.Wires 
-        |> Map.values
-        |> Seq.toList
-        |> List.fold (fun (accInput, accOutput) wire ->
-            match port.PortType, wire.InputPort, wire.OutputPort with
-            | PortType.Input, InputPortId id, outputPort when id = port.Id -> (accInput, outputPort :: accOutput)
-            | PortType.Output, inputPort, OutputPortId id when id = port.Id -> (inputPort :: accInput, accOutput)
-            | _ -> (accInput, accOutput)
-        ) ([], [])
-    // return the list of connected ports as string list
-    match port.PortType with
-    | PortType.Input -> outputPorts |> List.map (fun (OutputPortId id) -> id)
-    | PortType.Output -> inputPorts |> List.map (fun (InputPortId id) -> id)
+    // Filter wires to find those that are parallel
+    let parallelWires = 
+        wires
+        |> List.filter (fun wire -> 
+            // Assuming isParallel checks if a wire is parallel
+            // You might need to implement this check based on your model's specifics.
+            isParallel model wire.WId)
 
-// // Enlarge the space between two ports such that two symbols have same port space alignment, make sure it is opposite side already
-// let alignScale (model: SymbolT.Model) 
-//     (sym1: Symbol) (sym1Port1:Port) (sym1Port2:Port) 
-//     (sym2: Symbol) (sym2Port1:Port) (sym2Port2:Port) =
-//     let xy1= readPortPosition sym1 sym1Port1
-//     let xy2= readPortPosition sym2 sym1Port2
-//     let xy3= readPortPosition sym2 sym2Port1
-//     let xy4= readPortPosition sym2 sym2Port2
-//     // Determine alignment axis
-//     let axis =
-//         match Map.tryFind sym1Port1.Id sym1.PortMaps.Orientation, Map.tryFind sym2Port1.Id sym2.PortMaps.Orientation with
-//         | Some(Top), Some(Bottom) | Some(Bottom), Some(Top) -> "Horizontal"
-//         | Some(Left), Some(Right) | Some(Right), Some(Left) -> "Vertical"
-//         | _ -> failwith "Invalid or unsupported port orientation combination"
+    // For each parallel wire, calculate the required shift to remove the parallel feature
+    parallelWires
+    |> List.map (fun wire ->
+        let segments = visibleSegments wire.WId model // Assuming this retrieves the segments of the wire
+        let shiftRequired = calculateShiftForSimplification segments
+        (wire.WId, shiftRequired))
+    |> Map.ofList
+    // filter out the values that are too small, to reduce the complexity for re-routing
+    |> Map.filter (fun _ xyPos -> (xyPos.X >= 0.0 && xyPos.Y >= 0.2) || (xyPos.X >= 0.2 && xyPos.Y >= 0.0))
+
+
+// Function to adjust the position of multiple-connected components
+let alignMultipleComponents (model: SheetT.Model) : SheetT.Model =
+    let parallelWires = findParallelWiresAndShifts model
+
+    let InputPortMap = 
+        parallelWires
+        |> Map.fold (fun acc connectionId xyPos ->
+            match model.Wire.Wires.TryFind(connectionId) with
+            | Some(wire) ->
+                let (OutputPortId inputPortIdStr) = wire.OutputPort // Extracting the string from InputPortId
+                Map.add inputPortIdStr xyPos acc
+            | None -> acc
+        ) Map.empty
+    let symbolIdMap = 
+        InputPortMap
+        |> Map.fold (fun acc inputPortId xyPos ->
+            match model.Wire.Symbol.Ports.TryFind(inputPortId) with
+            | Some(port) ->
+                let hostId = port.HostId
+                Map.add hostId xyPos acc
+            | None -> acc
+        ) Map.empty
+
+    let shiftPerComponent = 
+        symbolIdMap
+        |> Map.toList
+        |> List.map (fun (keyStr, shift) -> (ComponentId keyStr, shift))
+        |> Map.ofList
+        // |> Map.filter (fun _ xyPos -> xyPos.X >= 0.5 && xyPos.Y >= 0.5)
     
-//     // Calculate new dimensions
-//     let newSym1Dims, newSym2Dims =
-//         match axis with
-//         | "Horizontal" ->
-//             // Calculate new dimensions/positions for horizontal alignment
-//             let width1 = abs(xy2.X - xy1.X)
-//             let width2 = abs(xy4.X - xy3.X)
-//             match width1 < width2 with
-//             | true -> 
-//                 let newWidthsym1 = (width2-width1)/width1 * sym1.Component.W + sym1.Component.W
-//                 let newHeightsym1 = sym1.Component.H
-//                 let newWidthsym2 = sym2.Component.W
-//                 let newHeightsym2 = sym2.Component.H
-//                 ((newWidthsym1,newHeightsym1), (newWidthsym2,newHeightsym2))
-//             | false ->
-//                 let newWidthsym1 = sym1.Component.W
-//                 let newHeightsym1 = sym1.Component.H
-//                 let newWidthsym2 = (width1-width2)/width2 * sym2.Component.W + sym2.Component.W
-//                 let newHeightsym2 = sym2.Component.H
-//                 ((newWidthsym1,newHeightsym1), (newWidthsym2,newHeightsym2))
-
-//         | "Vertical" ->
-//             // Calculate new dimensions/positions for vertical alignment
-//             let height1 = abs(xy2.Y - xy1.Y)
-//             let height2 = abs(xy4.Y - xy3.Y)
-//             match height1 < height2 with
-//             | true -> 
-//                 let newWidthsym1 = sym1.Component.W
-//                 let newHeightsym1 = (height2-height1)/height1 * sym1.Component.H + sym1.Component.H
-//                 let newWidthsym2 = sym2.Component.W
-//                 let newHeightsym2 = sym2.Component.H
-//                 ((newWidthsym1,newHeightsym1), (newWidthsym2,newHeightsym2))
-//             | false ->
-//                 let newWidthsym1 = sym1.Component.W
-//                 let newHeightsym1 = sym1.Component.H
-//                 let newWidthsym2 = sym2.Component.W
-//                 let newHeightsym2 = (height1-height2)/height2 * sym2.Component.H + sym2.Component.H
-//                 ((newWidthsym1,newHeightsym1), (newWidthsym2,newHeightsym2))
-        
-//         | _ -> failwith "Invalid or unsupported axis"
-
-//     // Apply changes using lenses
-//     let sym1Option = Map.tryFind sym1.Id model.Symbols
-//     let sym2Option = Map.tryFind sym2.Id model.Symbols
-
-//     // Update dimensions if symbols are found
-//     let updatedSymbols = model.Symbols
-//                           |> Map.change sym1.Id (Option.map (fun sym -> snd customComponentDimensionsLens newSym1Dims sym))
-//                           |> Map.change sym2.Id (Option.map (fun sym -> snd customComponentDimensionsLens newSym2Dims sym))
-
-//     // Return updated model
-//     { model with Symbols = updatedSymbols }
+    let updatedSymbols = 
+        model.Wire.Symbol.Symbols
+        |> Map.map (fun key symbol ->
+            match shiftPerComponent.TryFind(key) with
+            | Some(shift) -> moveSymbol shift symbol
+            | None -> symbol)
+    
+    let newWire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } }
+    let symList = shiftPerComponent|> Map.keys |> Seq.toList
+    let newModel = updateWires newWire  symList {X=0;Y=0}
 
 
-// change the position of the symbol to align with two ports
+    { model with Wire = newModel }
 
+
+///----------------------------------------------ensure-no-overlapping---------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+
+// funtions to find overlapping symbols
+let overlap2DBox (box1: BoundingBox) (box2: BoundingBox) : bool =
+    let rightOfBox1 = box1.TopLeft.X + box1.W
+    let bottomOfBox1 = box1.TopLeft.Y + box1.H
+    let rightOfBox2 = box2.TopLeft.X + box2.W
+    let bottomOfBox2 = box2.TopLeft.Y + box2.H
+
+    if rightOfBox1 < box2.TopLeft.X then false // Box1 is to the left of Box2
+    elif box1.TopLeft.X > rightOfBox2 then false // Box1 is to the right of Box2
+    elif bottomOfBox1 < box2.TopLeft.Y then false // Box1 is above Box2
+    elif box1.TopLeft.Y > bottomOfBox2 then false // Box1 is below Box2
+    else true // Boxes overlap
+
+let findIntersectingSymbols (model: Model) : (Symbol * Symbol) list =
+    let boxes =  model.BoundingBoxes
+    let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map snd |> List.indexed
+    let checkIntersects (acc: (Symbol * Symbol) list) ((i, symbol1): int * Symbol) =
+        symbols
+        |> List.filter (fun (j, _) -> j > i)
+        |> List.fold (fun innerAcc (_, symbol2) ->
+            let box1 = boxes.[symbol1.Id]
+            let box2 = boxes.[symbol2.Id]
+            if overlap2DBox box1 box2 then (symbol1, symbol2) :: innerAcc else innerAcc
+        ) acc
+    symbols |> List.fold checkIntersects []
+
+let getSymbolBoundingBox (symbol: Symbol) : BoundingBox =  
+    let topLeft = symbol.Pos
+    let w = symbol.Component.W
+    let h = symbol.Component.H
+    { TopLeft = topLeft; W = w; H = h }
+
+let doesSymbolIntersect (symbol: Symbol) (otherSymbols: Symbol list) : bool =
+    let symbolBox = getSymbolBoundingBox(symbol)
+    otherSymbols
+    |> List.exists (fun otherSymbol ->
+        let otherSymbolBox = getSymbolBoundingBox(otherSymbol)
+        overlap2DBox symbolBox otherSymbolBox)
+
+let findNonIntersectingTranslation (symbol: Symbol) (otherSymbols: Symbol list) initialTranslations =
+    // let initialTranslations = [(10., 0.); (-10., 0.); (0., 10.); (0., -10.)]
+    let rec tryTranslations translations =
+        match translations with
+        | [] -> None // If all translations result in intersection, return None.
+        | (dx, dy) :: rest ->
+            let newPos = { X = symbol.Pos.X + dx; Y = symbol.Pos.Y + dy }
+            let updatedSymbol = { symbol with Pos = newPos }
+            if not (doesSymbolIntersect updatedSymbol otherSymbols) then Some(newPos)
+            else tryTranslations rest
+
+    let result = tryTranslations initialTranslations
+    match result with
+    | Some(_) -> result
+    | None -> 
+        // Double the translations and try again if all initial attempts fail
+        let doubledTranslations = List.map (fun (dx, dy) -> (dx * 2.0, dy * 2.0)) initialTranslations
+        tryTranslations doubledTranslations
+
+// move symbols to avoid overlapping
+let updateModelPositions (model: Model) (symPair: (Symbol * Symbol) list) : Model =
+    let initialTranslations = [(50., 0.); (-50., 0.); (0., 50.); (0., -50.)]
+    let symbolIdMap=
+        symPair
+        |> List.fold (fun accMap (sym1, _) ->
+            // Assuming 'otherSymbols' contains all symbols in the model except 'sym1'
+            let otherSymbols =
+                symPair
+                |> List.filter (fun (otherSym1, otherSym2) -> otherSym1.Id <> sym1.Id && otherSym2.Id <> sym1.Id)
+                |> List.collect (fun (s1, s2) -> [s1; s2])
+                |> List.filter (fun sym -> sym.Id <> sym1.Id)
+            
+            // Attempt to find a new position for sym1 that doesn't result in an intersection
+            match findNonIntersectingTranslation sym1 otherSymbols initialTranslations with
+            | Some(newPos) -> accMap |> Map.add sym1.Id newPos
+            | None -> accMap // If no non-intersecting position is found, do not update the position in the map
+        ) Map.empty
+    
+    let updatedSymbols = 
+        model.Wire.Symbol.Symbols
+        |> Map.map (fun key symbol ->
+            match symbolIdMap.TryFind(key) with
+            | Some(shift) -> moveSymbol shift symbol
+            | None -> symbol)
+    
+    let newWire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } }
+    
+    let symList = symbolIdMap |> Map.keys |> Seq.toList
+    let newModel = updateWires newWire symList {X=0;Y=0} // Assuming {X=0;Y=0} is the default or reset shift
+
+    { model with Wire = newModel }
+
+
+let resolveIntersectingSymbols (model: Model) : Model =
+    // Step 1: Find intersecting symbols
+    let intersectingSymbols = findIntersectingSymbols model
+
+    // Step 2: Update model positions based on intersecting pairs
+    let updatedModel = updateModelPositions model intersectingSymbols
+
+    updatedModel
+
+
+///--------------------------------------------aligning-custom-component-------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+
+
+// Function to find all custom components in the model
+let findCustomComponents (model: SheetT.Model) =
+    model.Wire.Symbol.Symbols
+    |> Map.toList
+    |> List.filter (fun (_, sym) ->
+        match sym.Component.Type with
+        | Custom _ -> true
+        | _ -> false)
+    |> List.map fst
+
+let findConnectionIdsForPort (model: Model) (portId: string) : ConnectionId list =
+
+    []
+
+
+// Function to find the port map of a symbol
+let findPortMap (model: Model) (symbolId: ComponentId) =
+    match model.Wire.Symbol.Symbols.TryFind(symbolId) with
+    | Some(symbol) -> 
+        symbol.PortMaps.Order
+        |> Map.map (fun edge portIds ->
+            portIds
+            |> List.collect (findConnectionIdsForPort model) // Collects all connection IDs for the port IDs on this edge
+        )
+    | None -> Map.empty
+    
+
+///--------------------------------------------intergrating-translation--------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+/// ---------------------------------------------------------------------------------------------------------------///
+
+let alignComponents (model: SheetT.Model) =
+    let model1 = alignSinglyConnectedComponents model
+    let model2 = alignSinglyConnectedComponents model1
+    let model3 = alignMultipleComponents model2
+    let model4 = alignSinglyConnectedComponents model3
+    model4

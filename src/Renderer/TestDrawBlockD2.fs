@@ -26,6 +26,133 @@ module D2 =
     open TestDrawBlock.HLPTick3
     let random = System.Random()
 
+    //T5R
+    //Returns visible wire right-angles
+
+
+    let visibleWireRightAngles (sheet: SheetT.Model) =
+
+        let getSegmentVertices (wire: BusWireT.Wire) =
+            let (segVecs : XYPos list) = visibleSegments wire.WId sheet
+            (wire.StartPos, segVecs) ||> List.scan (fun (currVec : XYPos) (nextVec : XYPos) -> 
+                                                    {currVec with X = currVec.X+nextVec.X; Y = currVec.Y+nextVec.Y})
+
+
+        let isPerpendicular (seg1Start: XYPos) (seg1End: XYPos) (seg2Start: XYPos) (seg2End: XYPos) =
+
+            let isPointEqual (p1: XYPos) (p2: XYPos) =
+                p1.X = p2.X && p1.Y = p2.Y
+            
+            let p1 = seg1Start
+            let p2 = seg1End
+            let p3 = seg2Start
+            let p4 = seg2End
+
+            //Check if the slopes are negative reciprocals of each other (excluding cases where both slopes are 0 or infinite)
+            let m1 = 
+                try 
+                    (p2.Y - p1.Y) / (p2.X - p1.X) 
+                with 
+                    | :? System.DivideByZeroException -> 0.0
+            let m2 = 
+                try 
+                    (p4.Y - p3.Y) / (p4.X - p3.X) 
+                with 
+                    | :? System.DivideByZeroException -> 0.0
+            let isPerpendicularSlope = (m1 * m2) = -1.0
+
+            (* Additional check to handle cases where one line is horizontal and the other is vertical *)
+            let isHorizontalLine1 = isPointEqual p1 p2 && p1.Y <> p2.Y
+            let isVerticalLine1 = isPointEqual p1 p2 && p1.X <> p2.X
+            let isHorizontalLine2 = isPointEqual p3 p4 && p3.Y <> p4.Y
+            let isVerticalLine2 = isPointEqual p3 p4 && p3.X <> p4.X
+
+            isPerpendicularSlope && (isHorizontalLine1 || isVerticalLine1) && (isHorizontalLine2 || isVerticalLine2)
+
+        let segmentStartEnd = 
+            sheet.Wire.Wires
+            |> Map.toList
+            |> List.map snd
+            |> List.map getSegmentVertices
+            |> List.map(List.pairwise)
+            |> List.concat
+
+        let uniqueSegmentPairs = 
+            List.allPairs segmentStartEnd segmentStartEnd
+            |> List.map (fun (x, y) -> if (fst x).X <= (fst y).X then (x, y) else (y, x)) 
+            |> List.distinct
+
+        (0, uniqueSegmentPairs) 
+        ||> List.fold(fun s ((seg1Start, seg1End),(seg2Start, seg2End))->
+                        if isPerpendicular seg1Start seg1End seg2Start seg2End then s+1 else s)
+
+    /// Return the number of distinct pairs of segments that cross each other at right angles
+    /// but are not from the same net
+    /// T3R
+
+    let rightAngleSegCount (sheet : SheetT.Model) =
+
+        let isPerpendicular (seg1Start: XYPos) (seg1End: XYPos) (seg2Start: XYPos) (seg2End: XYPos) =
+
+            let isPointEqual (p1: XYPos) (p2: XYPos) =
+                p1.X = p2.X && p1.Y = p2.Y
+            
+            let p1 = seg1Start
+            let p2 = seg1End
+            let p3 = seg2Start
+            let p4 = seg2End
+
+            (* Check if the slopes are negative reciprocals of each other (excluding cases where both slopes are 0 or infinite) *)
+            let m1 = 
+                try 
+                    (p2.Y - p1.Y) / (p2.X - p1.X) 
+                with 
+                    | :? System.DivideByZeroException -> 0.0
+            let m2 = 
+                try 
+                    (p4.Y - p3.Y) / (p4.X - p3.X) 
+                with 
+                    | :? System.DivideByZeroException -> 0.0
+            let isPerpendicularSlope = (m1 * m2) = -1.0
+
+            (* Additional check to handle cases where one line is horizontal and the other is vertical *)
+            let isHorizontalLine1 = isPointEqual p1 p2 && p1.Y <> p2.Y
+            let isVerticalLine1 = isPointEqual p1 p2 && p1.X <> p2.X
+            let isHorizontalLine2 = isPointEqual p3 p4 && p3.Y <> p4.Y
+            let isVerticalLine2 = isPointEqual p3 p4 && p3.X <> p4.X
+
+            isPerpendicularSlope && (isHorizontalLine1 || isVerticalLine1) && (isHorizontalLine2 || isVerticalLine2)
+
+        let getSegmentVertices (wire: BusWireT.Wire) =
+            let (segVecs : XYPos list) = visibleSegments wire.WId sheet
+            (wire.StartPos, segVecs) ||> List.scan (fun (currVec : XYPos) (nextVec : XYPos) -> 
+                                                    {currVec with X = currVec.X+nextVec.X; Y = currVec.Y+nextVec.Y})
+
+        let wireCombinations = 
+            let wireList = 
+                sheet.Wire.Wires
+                |> Map.toList
+                |> List.map snd
+
+            List.allPairs wireList wireList
+            |> List.filter (fun (w1,w2) ->  w1.OutputPort <> w2.OutputPort)
+    
+        let segVectorPairs (wire1: BusWireT.Wire) (wire2: BusWireT.Wire) = 
+            
+            let wire1Segments: (XYPos * XYPos) list = 
+                getSegmentVertices wire1 |> List.pairwise
+
+            let wire2Segments = 
+                getSegmentVertices wire2 |> List.pairwise
+
+            List.allPairs wire1Segments wire2Segments
+
+        wireCombinations
+        |> List.map (fun (w1,w2) -> segVectorPairs w1 w2)
+        |> List.concat
+        |> List.filter (fun ((start1, end1),(start2, end2)) -> isPerpendicular start1 end1 start2 end2)
+        |> List.length
+
     let reRouteWires (sheet: SheetT.Model) =
         let wireModel = sheet.Wire
         let updatedWireModel = 

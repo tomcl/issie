@@ -160,43 +160,20 @@ open Builder
 let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=(-50.)})
-    
+
+// used for manual test circuits
 let offset = 
     Array.init 1 (fun x y -> {X=x; Y=y})
     |> Array.map (fun pos -> {X=middleOfSheet.X; Y=middleOfSheet.Y})
     |> fromArray
 
-    // let positionsOverlap (sheet: SheetT.Model) :bool = 
-    //     // let sheet = makeTest1Circuit andPos
-    //     // let wireModel = sheet.Wire
-    //     let boxes =
-    //         mapValues sheet.BoundingBoxes
-    //         |> Array.toList
-    //         |> List.mapi (fun n box -> n,box)
-    //     List.allPairs boxes boxes 
-    //     |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
-    //     |> (function | true -> true
-    //                  | false -> false)
-    // let generateGridAroundMiddle : Gen<XYPos> =
-    //     let sampleRange = [-150..40..150] |> List.map float
-    //     // Generate the Cartesian product of sampleRange for both X and Y coordinates
-    //     let gridGenerator = 
-    //         product (fun x y -> { X = middleOfSheet.X + x; Y = middleOfSheet.Y + y })
-    //                 (fromList sampleRange)
-    //                 (fromList sampleRange)
-    //     filter (fun pos -> not (positionsOverlap pos))
-    //        gridGenerator
 
-    // type testComponent = {
-    //     label: string
-    //     compType: ComponentType
-    //     position: XYPos   
-    // }
+/// list of all the beautifiable components, custom components and other muxes to be added later
+let d2ComponentTypes: ComponentType list = 
+        [Mux2; GateN(And,2); GateN(Or,2); GateN(Xor,3); GateN(Nand,4); GateN(Nor,3); GateN(Xnor,3); Mux2; Mux2; testingCC; aludeCC]
 
-
-
-/// random XYPos sample data within a grid
-let randomPos: Gen<XYPos List> = 
+/// random XYPos data within a grid
+let randomPos: XYPos list list = 
         let range = [-250..100..250] |> List.map float
         let x1Array = range |> Array.ofList |> shuffleA
         let y1Array = range |> Array.ofList |> shuffleA
@@ -214,123 +191,82 @@ let randomPos: Gen<XYPos List> =
                 if (p1.X = p2.X) && (p1.Y = p2.Y) then [dummyPos; dummyPos] else [p1 ; p2]
             ) xyPos1 xyPos2 
             //|> Array.choose id
-        // let gen123Array = 
-        //     Array.map2 (fun (p1:XYPos list) (p2:XYPos) -> 
-        //     if ((p1[0].X = p2.X) && (p1[0].Y = p2.Y)) || ((p1[1].X = p2.X) && (p1[1].Y = p2.Y)) 
-        //         then (p1 @ [dummyPos]) else (p1 @ [p2])
-        //     ) gen12Array xyPos3
+        let gen123Array = 
+            Array.map2 (fun (p1:XYPos list) (p2:XYPos) -> 
+            if ((p1[0].X = p2.X) && (p1[0].Y = p2.Y)) || ((p1[1].X = p2.X) && (p1[1].Y = p2.Y)) 
+                then (p1 @ [dummyPos]) else (p1 @ [p2])
+            ) gen12Array xyPos3
             |> Array.filter (fun pos -> not (pos |> List.exists (fun p -> p.X = 0. && p.Y = 0.)))
-            //|> Array.choose id
-        fromArray gen12Array
+            |> Array.toList
+        gen123Array
 
-// Todo: generate random test elements: Gen<ComponentType list * XYPos list * operationChoice>
-// let testRandElements = 
-//     getTestRand 3
+// Generate random test elements
+// for each list in randomPos, get a list of component type from d2ComponentTypes, in order, store in an array
+// use shuffleA to shuffle the array
+// for each component type, get a list of random operation choice using getRandCompType
+// store the component type, position and operation choice in a tuple list
+let testRandElements: Gen<ComponentType list * XYPos list* operationChoice list>= 
+    let compList =
+        randomPos
+        |> List.mapi (fun index1 posList -> 
+                posList
+                |> List.mapi (fun index2 _ ->
+                    let comIndex = ((index2 + 1)* (index1+1)) % d2ComponentTypes.Length
+                    List.item comIndex d2ComponentTypes
+                )
+                |> List.toArray
+                |> shuffleA
+                |> Array.toList
+        )
+    let opList =
+        compList
+        |> List.mapi (fun index1 comList -> 
+            let possibleOperation = [RotateSymbol90; RotateSymbol270; FlipSymbol; SwapMuxInputs]
+            comList
+            |> List.mapi (fun index2 _ -> 
+                let opIndex = ((index2+1) * (index1+1)) % 4
+                List.item opIndex possibleOperation
+            )
+            |> List.toArray
+            |> shuffleA
+            |> Array.toList
+        )
+    // combine the component type, position and operation choice into a tuple list
+    randomPos
+    |> List.mapi (fun index pos -> 
+        (compList.[index], pos, opList.[index])
+    )
+    |> fromList
 
-// Generate a seed from current time
-// Seed generated & displayed to allow repeatable random testing
-//let seed = int (System.DateTime.Now.Ticks % int64 System.Int32.MaxValue)
-let randomD2 = 
-    //printfn "Random seed: %d" seed
-    System.Random(seed)
-
-/// list of all the beautifiable components, custom components and other muxes to be added later
-let d2ComponentTypes: ComponentType list = 
-        [Mux2; GateN(And,2); GateN(Or,2); GateN(Xor,3); GateN(Nand,4); GateN(Nor,3); GateN(Xnor,3); Mux2; Mux2; testingCC; aludeCC]
-let getRandCompType((rand: Random))(possibleTypes: ComponentType list) = 
-        let randomIndex = rand.Next (List.length possibleTypes)
-        List.item randomIndex possibleTypes
-
-// let randomCompTypeArray = 
-//         Array.init 3 (fun _ -> getRandCompType d2ComponentTypes)
-    
-let applyRandomOperation (rand: Random) (compType: ComponentType) (label: String) = 
-        let possibleOperation = [RotateSymbol90; RotateSymbol270; FlipSymbol; SwapMuxInputs]
-        match compType with
-        | Mux2 ->
-            let randomIndex = rand.Next (4)
-            List.item randomIndex possibleOperation
-                |> applyOperation label
-        | _ -> 
-            let randomIndex = rand.Next (3)
-            List.item randomIndex possibleOperation
-                |> applyOperation label
-
-// let randomOperationArray (label: String) = 
-//         randomCompTypeArray
-//         |> Array.map (fun compType -> 
-//             let possibleOperation = [RotateSymbol90; RotateSymbol270; FlipSymbol; SwapMuxInputs]
-//             match compType with
-//             | Mux2 ->
-//                 let randomIndex = randomD2.Next (4)
-//                 List.item randomIndex possibleOperation
-//                     |> applyOperation label
-//             | _ -> 
-//                 let randomIndex = randomD2.Next (3)
-//                 List.item randomIndex possibleOperation
-//                     |> applyOperation label
-//         )
-
-let getRandPort (rand: Random) (symType: ComponentType) = 
-        match symType with
-        | Mux2 -> 
-            rand.Next (3)
-        | GateN(_,n) -> 
-            rand.Next (n)
-        | _ -> 
-            0
-
-let makeRandomTestCircuit (posList: XYPos List) = 
-    //let rand = Random(seed)
-    let rand = randomD2
-
-    let comp1 = getRandCompType rand d2ComponentTypes
-    let comp2 = getRandCompType rand d2ComponentTypes
-    let comp3 = getRandCompType rand d2ComponentTypes
+// randomly generate a test circuit with 4 components and 2 inputs, tests can be repeated
+let makeRandomTestCircuitTest (ranEle: ComponentType list * XYPos list* operationChoice list) = 
+    let oprationList = 
+        match ranEle with
+        | (_, _, third) -> third
+    let compList = 
+        match ranEle with
+        | (first, _, _) -> first
+    let posList = 
+        match ranEle with
+        | (_, second, _) -> second
 
     initSheetModel
-    |> placeSymbol "C2" comp2 {X= middleOfSheet.X + 300.; Y= middleOfSheet.Y}
-    |> addSym "C1" comp1 posList.[0].X posList.[0].Y
-    |> addSym "C3" comp3 posList.[1].X posList.[1].Y
-    |> addSym "S1" (Input1(1,None)) (-350.) (-25.)
-    |> addSym "S2" (Input1(1,None)) (-350.) (-100.)
+    |> placeSymbol "C2" compList.[1] {X= middleOfSheet.X + 300.; Y= middleOfSheet.Y}
+    |> addSym "C1" compList.[0] posList.[0].X posList.[0].Y
+    |> addSym "C3" compList.[2] posList.[2].X posList.[2].Y
+    |> addSym "C4" Mux2 posList.[1].X posList.[1].Y
+    |> addSym "S1" (Input1(1,None)) (-400.) (-25.)
+    |> addSym "S2" (Input1(1,None)) (-400.) (100.)
     |> getOkOrFail
-    |> applyRandomOperation rand comp1 "C1"
-    |> applyRandomOperation rand comp2 "C2"
-    |> applyRandomOperation rand comp3 "C3"
-    |> placeWire (portOf "C1" 0) (portOf "C2" (getRandPort rand comp2))
+    |> applyOperation "C1" oprationList.[0]
+    |> applyOperation "C2" oprationList.[1]
+    |> applyOperation "C3" oprationList.[2]
+    |> placeWire (portOf "C1" 0) (portOf "C4" 0)
     |> addWire ("C2", 0) ("C3", 0)
-    |> addWire ("C3", 0) ("C1", (getRandPort rand comp1))
-    |> addWire ("S1", 0) ("C2", 1)  //确保两个c2 portid不是同一个
+    |> addWire ("C3", 0) ("C4", 1)
+    |> addWire ("S1", 0) ("C2", 0)
     |> addWire ("S2", 0) ("C3", 1)
     |> getOkOrFail
-
-
-// /// random sample test circuit that has 2 inputs
-// let makeRandomTestCircuit (posList:XYPos List) = 
-//         let comp1 = getRandCompType d2ComponentTypes
-//         let comp2 = getRandCompType d2ComponentTypes
-//         let comp3 = getRandCompType d2ComponentTypes
-//         // let comp4 = getRandCompType d2ComponentTypes
-//         //let compList = [comp1; comp2; comp3; comp4]
-//         initSheetModel
-//             |> placeSymbol "C2" comp2 {X= middleOfSheet.X + 300.; Y= middleOfSheet.Y}
-//             |> addSym "C1" comp1 posList.[0].X posList.[0].Y
-//             |> addSym "C3" comp3 posList.[1].X posList.[1].Y
-//             //|> addSym "C4" comp4 posList.[2].X posList.[2].Y
-//             |> addSym "S1" (Input1(1,None)) (-350.) (-25.)
-//             |> addSym "S2" (Input1(1,None)) (-350.) (-100.)
-//             |> getOkOrFail
-//             |> applyRandomOperation comp1 "C1"
-//             |> applyRandomOperation comp2 "C2"
-//             |> applyRandomOperation comp3 "C3"
-//             |> placeWire (portOf "C1" 0) (portOf "C2" (getRandPort comp2))
-//             |> addWire ("C2", 0) ("C3", 0)
-//             //|> addWire ("C3", 0) ("C4", 0)
-//             |> addWire ("C3", 0) ("C1", (getRandPort comp1))
-//             |> addWire ("S1", 0) ("C2", 1)
-//             |> addWire ("S2", 0) ("C3", 1)
-//             |> getOkOrFail
 
 /// manually generated test circuits where gates and MUXes are randomly flipped, or (2-MUX) inputs swapped.
 /// random sample test circuit that has 3 MUX2 gates and 2 inputs. Two gates are flipped to create two crossing wires.
@@ -382,17 +318,33 @@ let makeTestCircuit3 (andPos:XYPos) =
         |> addWire ("MUX2", 0) ("G1", 0)
         |> getOkOrFail
 
-let makeCCTestingCircuit (andXY: XYPos) = 
+let makeTestCCCircuit (andXY: XYPos) = 
     initSheetModel
     |> placeSymbol "AludeCode" aludeCC andXY
     |> addSym "S1" (Input1(1,None)) -200. -50.
     |> addSym "S2" (Input1(1,None)) -200. 50.
-    |> addSym "O1" (Output(1)) 100. 100. 
-    |> addSym "MUX4" Mux4 200. 0.
+    |> addSym "O1" (Output(1)) 200. 200. 
+    |> addSym "MUX4" Mux4 300. 0.
     |> addWire ("S1", 0) ("AludeCode", 1)
     |> addWire ("S2", 0) ("AludeCode", 0)
     |> addWire ("AludeCode", 0) ("O1", 0)
     |> addWire ("AludeCode", 1) ("MUX4", 3)
+    |> getOkOrFail
+
+let makeTestAllCircuit (andXY: XYPos) = 
+    initSheetModel
+    |> placeSymbol "CC" testingCC andXY
+    |> addSym "S1" (Input1(1,None)) -400. -50.
+    |> addSym "S2" (Input1(1,None)) -400. 50.
+    |> addSym "MUX21" Mux2 200. -50. 
+    |> addSym "MUX22" Mux2 -200. -50.
+    |> addSym "XOr" (GateN(Xor,2)) 400. 100.
+    |> addWire ("S1", 0) ("MUX22", 1)
+    |> addWire ("S2", 0) ("CC", 0)
+    |> addWire ("MUX22", 0) ("CC", 2)
+    |> addWire ("CC", 1) ("XOr", 0)
+    |> addWire ("CC", 2) ("MUX21", 1)
+    |> addWire ("MUX21", 0) ("XOr", 1)
     |> getOkOrFail
 
 
@@ -450,6 +402,7 @@ let targetSheetD2 (sheet: SheetT.Model) =
 // relative to ideal beautification.
 
 module Evaluations =
+
 
     /// Calculates the proportion of wire bends compared to the ideal solution.
     /// Same as evaluating the number of visual segments
@@ -541,6 +494,11 @@ module Evaluations =
         |> (+) (c.wireCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
         |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
         |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
+    let D2Evaluator : Evaluator<SheetT.Model> =
+        {
+            EvalFunc = wireCrossProp
+            Penalty = -1
+        }
 
 
 //---------------------------------------------------------------------------------------//
@@ -591,13 +549,14 @@ module Tests =
             |> recordPositionInTest testNum showTargetSheet dispatch
         
         let testRandom testNum firstSample showTargetSheet dispatch =
+            printfn "Running random test"
             runTestOnSheets
                 "D4 Test Random Circuit"
                 firstSample
-                randomPos
+                testRandElements
                 showTargetSheet
                 (Some targetSheetD2)
-                makeRandomTestCircuit
+                makeRandomTestCircuitTest
                 (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator
                 dispatch
@@ -613,10 +572,23 @@ module Tests =
             runTestOnSheets
                 "D5 Test Custom Component"
                 firstSample
+                offset
+                showTargetSheet
+                (Some targetSheetD2)
+                makeTestCCCircuit
+                (AssertFunc failOnAllTests)
+                Evaluations.nullEvaluator
+                dispatch
+            |> recordPositionInTest testNum showTargetSheet dispatch
+        
+        let testAll testNum firstSample showTargetSheet dispatch =
+            runTestOnSheets
+                "D5 Test All D2 functions"
+                firstSample
                 horizLinePositions
                 showTargetSheet
                 (Some targetSheetD2)
-                makeCCTestingCircuit
+                makeTestAllCircuit
                 (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator
                 dispatch
@@ -633,7 +605,7 @@ module Tests =
                 "Mux2 & And", test3 
                 "Random", testRandom 
                 "Custom Component", testCC
-                "Test6", fun _ _ _ _ -> printf "Test6"
+                "Test All Funcs", testAll
                 "Test7", fun _ _ _ _ -> printf "Test7"
                 "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
@@ -665,9 +637,6 @@ module Tests =
                 ()
             | _ ->
                 func testIndex 0 true dispatch
-        
-
-
     
 
 

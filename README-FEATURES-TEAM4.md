@@ -23,7 +23,19 @@
 
 ## D3 Testing
 
-- Implemented multiple specific and general tests  
+- Implemented multiple specific and general tests:
+  - Test 1: simple test for wire label replacement
+  - Test 2: general test with cramped components, lots of wires and rotations/flips
+  - Test 3: general test with a realistic circuit and overlapping wires
+  - Test 4: test for label placement adjustment when there is not enough space
+- Each test has randomised and shuffled parameters to make it easier to identify edge cases. These are initialised by seed so consistency can be achieved between tests
+- Tests can be run from the D3 Tests submenu in the File menu
+- Created a metric for marking each test based on:
+  - ISP: number of intersecting symbol pairs
+  - ISS: number of wire segment intersections
+  - ISR: number of wire intersections
+  - wireWaste: actual wire length divided my minimum possible wire length
+- Added option to fail a test if the marking metric detects a problem, allows for semi-automated identification of edge cases    
 
 ## Combination (D4)
 - <u>Basic</u> - applies D2 then D1 then D3 (order chosen for better solution)

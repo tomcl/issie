@@ -16,7 +16,7 @@ open BusWireRoute
 
 
 // ------------------------helpers---------------------------
-
+let printPipe x = printfn "%A" x; x
 ///generate all list of elements with possible states
 let generateAllStates (symbolCount: int) (stateNum: int): int list list =
     let rec generateStatesForSym (remainingSym: int) : int list list =
@@ -210,16 +210,23 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         
         |> List.map (fun (combMux, combGate) -> 
             let updatedSheet = reRoutedSheet combMux combGate
-            numWireCrossing updatedSheet
+            (numWireCrossing updatedSheet, numVisibleWireRightAngle updatedSheet)
             )
     /// get the transform list which number of wire crossing on sheet is minimum
     let getOptimalCombination = 
-
+        print (getNumWireCrossingForAllCombination)
         let optimalIndex = 
 
             getNumWireCrossingForAllCombination
-            |> List.mapi (fun i x -> (i, x))
-            |> List.minBy snd
+            
+            // |> List.mapi (fun i x -> (i, x))
+            // |> List.minBy snd
+            // |> fst
+             // Filter tuples by threshold
+            |> List.mapi (fun i (wireCross, wireBend) -> (i, (wireCross, wireBend)))
+            |> List.filter (fun (_, (c,b)) -> b <= (numWireBend sheet))
+            |> List.minBy (fun (i,(c,b)) -> c)
+            //|> printPipe
             |> fst
         List.item optimalIndex allCombinationList
     //printf "%A" getOptimalCombination
@@ -278,7 +285,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         
         |> List.map (fun (combCC) -> 
             let reRoutedSheet = reRouteSheetForCC combCC firstOptimalSheet
-            numWireCrossing reRoutedSheet 
+            (numWireCrossing reRoutedSheet, numVisibleWireRightAngle reRoutedSheet)
             )
 
     /// get the transform list which number of wire crossing on sheet is minimum
@@ -287,8 +294,9 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         let optimalIndex = 
             //printf "%A" getNumWireCrossingForAllCombination
             getNumWireCrossingForCC
-            |> List.mapi (fun i x -> (i, x))
-            |> List.minBy snd
+            |> List.mapi (fun i (wireCross, wireBend) -> (i, (wireCross, wireBend)))
+            |> List.filter (fun (_, (c,b)) -> b <= (numWireBend sheet))
+            |> List.minBy (fun (i,(c,b)) -> c)
             |> fst
         List.item optimalIndex ccTransformStates
     

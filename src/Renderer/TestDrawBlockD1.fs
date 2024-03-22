@@ -357,8 +357,8 @@ module Circuit =
         initSheetModel
         |> placeSymbol "MAIN1" mainCC middleOfSheet
         |> addSym "MAIN2" mainCC (160.+offsetXY.X) (0.+offsetXY.Y)
-        |> Result.bind (Ok << rotateSymbol "MAIN1" Rotation.Degree270)
-        |> Result.bind (Ok << rotateSymbol "MAIN2" Rotation.Degree270)
+        |> Result.bind (Ok << rotateSymbol "MAIN1" Rotation.Degree90)
+        |> Result.bind (Ok << rotateSymbol "MAIN2" Rotation.Degree90)
         |> printId
         |> addWire ("MAIN1", 0) ("MAIN2", 0)
         |> addWire ("MAIN1", 1) ("MAIN2", 1)

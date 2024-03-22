@@ -158,7 +158,7 @@ let test2Builder =
     |> GenerateData.fromArray
 
 let test3Builder = 
-    randomFloat 100 20 200
+    randomFloat 50 20 300  
 
     
 
@@ -336,7 +336,7 @@ let makeTest3Circuit (gap:float)=
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
 
 let makeTest4Circuit (data:float)=
-    let gap = (data)/2.
+    let gap = (data)/1.
     printf "Test 4 gap: %A" gap
     let Pos1 = middleOfSheet + {X=100 ; Y=150.}
     let noWireModel =
@@ -388,13 +388,13 @@ module Asserts =
             let SCR = numSegmentCrossRightAngle model //number of wire intersections
             let SCRScore = (float SCR)/(float numSegs)
             let score = System.Math.Round ((ISPScore + ISSScore + SCRScore),10) 
-            printf $" Sample {sample} scored average {score}/3 with ISP {ISP}, ISS {ISS}, SCR {SCR}"
+            printf $" ===========Sample {sample} scored average {score}/3 with ISP {ISP}, ISS {ISS}, SCR {SCR}============"
             match failAll with
-            |true -> Some $"Failing all, sample {sample}"
+            |true -> Some $"=====Failing all, sample {sample}====="
             |_ ->
                 match score with
                 |0.0 -> None
-                |_ -> Some $"Sample {sample} failed with score > 0" 
+                |_ -> Some $"=====Sample {sample} failed with score > 0=====" 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
 //---------------------------------------------------------------------------------------//
@@ -403,7 +403,7 @@ module Tests =
     open Asserts
     let D3Test1 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
-            "Mux conected to 2 demux"
+            "Mux conected to 2 demux, fail on all"
             firstSample
             test1Builder
             showTargetSheet
@@ -413,10 +413,36 @@ module Tests =
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
-    
+
     let D3Test2 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
-            "Test for label placement"
+            "Mux conected to 2 demux, fail on metric"
+            firstSample
+            test1Builder
+            showTargetSheet
+            (Some sheetWireLabelSymbol)
+            makeTest1Circuit
+            (AssertFunc (failOnMetric false))
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
+    
+    let D3Test3 testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "Test for label placement, fail on all"
+            firstSample
+            test2Builder
+            showTargetSheet
+            (Some sheetWireLabelSymbol)
+            makeTest2Circuit
+            (AssertFunc (failOnMetric true))
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
+
+    let D3Test4 testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "Test for label placement, fail on metric"
             firstSample
             test2Builder
             showTargetSheet
@@ -427,7 +453,7 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let D3Test3 testNum firstSample showTargetSheet dispatch =
+    let D3Test5 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "General Test on complex circuit"
             firstSample
@@ -440,9 +466,22 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
     
-    let D3Test4 testNum firstSample showTargetSheet dispatch =
+    let D3Test6 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
-            "Test for label placement "
+            "Test for label placement, fail on all "
+            firstSample
+            test3Builder
+            showTargetSheet
+            (Some sheetWireLabelSymbol)
+            makeTest4Circuit
+            (AssertFunc (failOnMetric true))
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
+
+    let D3Test7 testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "Test for label placement, fail on metric "
             firstSample
             test3Builder
             showTargetSheet
@@ -473,6 +512,9 @@ module Tests =
             "Test2", D3Test2 // example
             "Test3", D3Test3
             "Test4", D3Test4
+            "Test5", D3Test5 
+            "Test6", D3Test6 
+            "Test7", D3Test7
             "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]

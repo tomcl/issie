@@ -109,7 +109,6 @@ let findWireLabelRoomAtTarget (wire: BusWireT.Wire) (distance: float) =
             let pos = {lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y + distance}
             pos, Degree90
         else 
-            printf "portpos %.2f, %.2f " lastSeg.Start.X (lastSeg.Start.Y - distance)
             let pos = { lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y - distance}
             pos, Degree270
 
@@ -168,13 +167,13 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
         else 
             match gridPos |> List.tryFind (tryMoveWireLabel) with
             | Some offset -> 
-                printfn "%.2f: , %.2f:" offset.X offset.Y
+                //printfn "%.2f: , %.2f:" offset.X offset.Y
                 Some offset
             | None -> 
                 let furtherGridPositions = 
                     gridPositions
                     |> List.map (scalePosition (attemptCounter+1.) )
-                printfn "%.2f: " attemptCounter
+                //printfn "%.2f: " attemptCounter
                 tryAdjust furtherGridPositions (attemptCounter+1.)
 
     let newPos (moveAmount: XYPos) =
@@ -186,7 +185,6 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
         | Some moveAmount -> 
             printfn "Moved"
             Some (newPos moveAmount)
-            //Some originalPos
         | None -> None
     else 
         printfn "Original position"
@@ -197,7 +195,7 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
 /// or keep the wire if not enough room for label at either source or target symbol
 let generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: SheetT.Model) =
     if isForIndivWire && not (isLongWire 50. sheet wire) then sheet
-    else if (getWireLength wire > 50.) then
+    else if (getWireLength wire > 70.) then
         let connectionID = wire.WId
         let startSym = getSourceSymbol sheet.Wire wire
         let sourceSymPort = getSourcePort sheet.Wire wire

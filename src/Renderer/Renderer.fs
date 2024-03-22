@@ -147,7 +147,7 @@ let fileMenu (dispatch) =
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
     let makeD2TestItem (name:string) (accelNumber:int)  =
         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
-        makeDebugItem name (Some $"Ctrl+{accelNumber+1}") (fun _ ->
+        makeDebugItem name (Some $"Shift+{accelNumber+1}") (fun _ ->
             dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.D2.Tests.testMenuFunc, accelNumber), dispatch)))
             
     makeMenu false "File" [

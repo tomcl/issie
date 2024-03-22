@@ -65,8 +65,8 @@ module Builder =
         let testingCC: ComponentType =
             Custom {
                         Name = "TestingCC";
-                        InputLabels = [("A", 1); ("B", 1)];
-                        OutputLabels = [("E", 1); ("F", 1)];
+                        InputLabels = [("A", 1); ("B", 1); ("C", 1)];
+                        OutputLabels = [("E", 1); ("F", 1); ("G", 1)];
                         Form = Some ProtectedTopLevel
                         Description = None
                 }
@@ -235,7 +235,7 @@ let randomD2 =
 
 /// list of all the beautifiable components, custom components and other muxes to be added later
 let d2ComponentTypes: ComponentType list = 
-        [Mux2; GateN(And,2); GateN(Or,2); GateN(Xor,3); GateN(Nand,4); GateN(Nor,3); GateN(Xnor,3); Mux2; Mux2]
+        [Mux2; GateN(And,2); GateN(Or,2); GateN(Xor,3); GateN(Nand,4); GateN(Nor,3); GateN(Xnor,3); Mux2; Mux2; testingCC; aludeCC]
 let getRandCompType((rand: Random))(possibleTypes: ComponentType list) = 
         let randomIndex = rand.Next (List.length possibleTypes)
         List.item randomIndex possibleTypes
@@ -280,7 +280,8 @@ let getRandPort (rand: Random) (symType: ComponentType) =
             0
 
 let makeRandomTestCircuit (posList: XYPos List) = 
-    let rand = Random(seed)
+    //let rand = Random(seed)
+    let rand = randomD2
 
     let comp1 = getRandCompType rand d2ComponentTypes
     let comp2 = getRandCompType rand d2ComponentTypes
@@ -607,7 +608,7 @@ module Tests =
                 firstSample
                 horizLinePositions
                 showTargetSheet
-                None
+                (Some targetSheetD2)
                 makeCCTestingCircuit
                 (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator

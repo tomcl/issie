@@ -289,23 +289,23 @@ module HLPTick3 =
 
         /// Implements an arbitrary flip or rotate on both components in the sheet
         /// and gets a random flip and rotate value.
-        let arbitraryFlipRotate =
-            let rSeed = randomInt 0 1 3
-            let fSeed = randomInt 0 1 2
-            let rotate =
-                match rSeed.Data 0 with
-                | 0 -> None // According to https://edstem.org/us/courses/51379/discussion/4281774: Rotation needs to be patched. Please patch before testing!!
-                | 1 -> Some Rotation.Degree90
-                | 2 -> Some Rotation.Degree180 // Patch of using pos in adjustPosForRotation did not seem to work.
-                | 3 -> Some Rotation.Degree270
-                | errVal -> failwithf $"Seed ranges from 0-3, no value outside this range should be generated: {errVal}"
-            let flip =
-                match fSeed.Data 0 with
-                | 0 -> None
-                | 1 -> Some SymbolT.FlipHorizontal
-                | errVal -> failwithf $"Seed ranges from 0-3, no value outside this range should be generated: {errVal}"
-            printfn $"Rotation: {rotate}, Flip: {flip}"
-            {|rotateSeed = rotate; flipSeed = flip|}
+        //let arbitraryFlipRotate =
+        //    let rSeed = randomInt 0 1 3
+        //    let fSeed = randomInt 0 1 2
+        //    let rotate =
+        //        match rSeed.Data 0 with
+        //        | 0 -> None // According to https://edstem.org/us/courses/51379/discussion/4281774: Rotation needs to be patched. Please patch before testing!!
+        //        | 1 -> Some Rotation.Degree90
+        //        | 2 -> Some Rotation.Degree180 // Patch of using pos in adjustPosForRotation did not seem to work.
+        //        | 3 -> Some Rotation.Degree270
+        //        | errVal -> failwithf $"Seed ranges from 0-3, no value outside this range should be generated: {errVal}"
+        //    let flip =
+        //        match fSeed.Data 0 with
+        //        | 0 -> None
+        //        | 1 -> Some SymbolT.FlipHorizontal
+        //        | errVal -> failwithf $"Seed ranges from 0-3, no value outside this range should be generated: {errVal}"
+        //    printfn $"Rotation: {rotate}, Flip: {flip}"
+        //    {|rotateSeed = rotate; flipSeed = flip|}
 
 
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
@@ -734,7 +734,7 @@ module HLPTick3 =
 
         ///Generate a single unchanged test to test D3 handling of wire overlapping.
         ///Returns a sheet with the circuit placed on it.
-        let makeTestForWireOverlaps (beautify: bool) =
+        let makeTestForWireOverlaps (increments: int) =
             initSheetModel
             |> placeSymbol "MUX1" (Mux2) (middleOfSheet + { X = -700; Y = -300 })
             |> Result.bind (placeSymbol "MUX2" (Mux2) (middleOfSheet))
@@ -748,7 +748,11 @@ module HLPTick3 =
             |> Result.bind (placeWire (portOf "DEMUX2" 1) (portOf "MUX2" 0))
             |> Result.bind (placeWire (portOf "DEMUX2" 0) (portOf "G2" 0))
             |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G2" 1))
-            |> (fun res -> if beautify then Result.map SheetBeautifyD1.sheetAlignScale res else res)
+            //|> (fun res -> if beautify then Result.map SheetBeautifyD1.sheetAlignScale res else res)
+            |> (fun res -> match increments with
+                            | 1 -> Result.map SheetBeautifyD1.sheetAlignScale res
+                            | 2 -> Result.map SheetBeautifyD3.sheetWireLabelSymbol res
+                            | _ -> res)
             // |> (fun res -> if beautify then Result.map SheetBeautifyD3.sheetWireLabelSymbol res else res)
             |> Result.map SheetBeautifyD2.autoRouteAllWires
             |> getOkOrFail
@@ -1127,7 +1131,7 @@ module HLPTick3 =
             runTestOnSheets
                 "Multiple muxes and gates circuit: fail on wire overlapping "
                 firstSample
-                (fromList [ false; true ])
+                (fromList [ 0;1;2 ])
                 D3Tests.makeTestForWireOverlaps
                 // Asserts.failD3
                 Asserts.failOnAllTests
@@ -1256,7 +1260,7 @@ module HLPTick3 =
             (collectMetricsOfTests makeSamplesD3Easy (D3Tests.makeTestD3Easy threshold))
 
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
-        let test3 testNum firstSample dispatch =
+        let beforeMultiConnecct testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on symbols intersect"
                 firstSample
@@ -1267,7 +1271,7 @@ module HLPTick3 =
             |> recordPositionInTest testNum dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail all tests
-        let test4 testNum firstSample dispatch =
+        let beforeTripleMUX testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
@@ -1277,7 +1281,7 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
         
-        let test5 testNum firstSample dispatch =
+        let afterTripleMUX testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
@@ -1287,7 +1291,7 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test6 testNum firstSample dispatch =
+        let afterMultiConnect testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on symbols intersect"
                 firstSample
@@ -1303,13 +1307,13 @@ module HLPTick3 =
             // delete unused tests from list
             [
                 "Test1", singleTestForWireOverlaps // single test to evaluate D3 handling wire overlaps
-                "Test2", singleTestForBitsOverlap // single test to evaluate D3 handling bit and wire overlaps
+                "Test2", testD3EasyIndiv // set of tests to evaluate D3 designed using DSL with given components and connections list
                 "Test3", testD3Easy // set of easy tests to evaluate D3
                 "Test4", testD3Hard // set of hard tests to evaluate D3
-                "Test5", test5 // set of test with more spaced out components to evaluate D3
-                "Test6", test6 // set of test with more compressed components to evaluate D3
-                "Test7", testD3EasyIndiv // set of tests to evaluate D3 designed using DSL with given components and connections list
-                "Test8", test4  // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
+                "Test5", beforeMultiConnecct // set of test with more spaced out components to evaluate D3
+                "Test6", afterMultiConnect // set of test with more compressed components to evaluate D3
+                "Test7", beforeTripleMUX
+                "Test8", afterMultiConnect  // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
                 "Next Test Error", fun _ _ _ -> printf "Next Error:"
             ]
             // Easy, EasyIndiv, testD3Hard

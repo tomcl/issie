@@ -98,7 +98,6 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
             let posList = wireLabelPositions outputPort wires currentModel.Wire
             let label = "I" + count.ToString()
             count <- count + 1
-            // find the symbol the port is connected to
             // add the IOLabel for the output symbol to the SymbolT.Model
             let (outputSymModel: SymbolT.Model), outputSymId =
                 SymbolUpdate.addSymbol [] (currentModel.Wire.Symbol) (posList.Head + gap) IOLabel label
@@ -136,6 +135,7 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
             posList.Tail
             // Accumulator is currentModelWithOutputSym. Smaller inside loop, we repeat this List.fold for each inputPort pos
             |> List.fold (fun currentModelAddingInputSyms pos ->
+
                 let inputSymModel, inputSymId =
                     SymbolUpdate.addSymbol 
                         [] 

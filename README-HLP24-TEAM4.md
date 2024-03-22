@@ -8,10 +8,10 @@ Analysis of beautify function through testing is shown [here](https://github.com
 (README has statement of how beautify function is invoked and any other user info about how to run it.)
 add below -->
 
-### D1 beautifying function (sheet->sheet)
+### D1 beautifying function 
 - `sheetAlignScale` _ `[SheetT.Model -> SheetT.Model]`
 This aligns all components on a sheet and scales custom components to reduce wire bends. Invoked automatically on D1 test cases (Alt1-7) and toggled with Alt-8. 
-### D2 beautifying function (sheet->sheet)
+### D2 beautifying function 
 
 ### D3 beautifying function 
 - `sheetWireLabelSymbol` _`[SheetT.Model -> SheetT.Model]`_  

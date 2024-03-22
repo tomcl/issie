@@ -432,7 +432,7 @@ let autoConvertWireLabelsToWires (sheet: SheetT.Model) =
 
 let convertSelectedWiresIntoWireLabels (comps: ComponentId list) (model: Model) (sheet: SheetT.Model) =
     let wireList = getConnectedWires model comps
-    let wireLengthlimit = 120.
+    let wireLengthlimit = 220.
     let wiresNeedLabels = getWiresNeedLabels wireList sheet wireLengthlimit
     (sheet, wiresNeedLabels)
     ||> List.fold (fun sheet wire -> generateWireLabel false wire sheet)

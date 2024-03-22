@@ -1005,7 +1005,7 @@ let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : Shee
     List.fold processPair model groupedByLabelAndCombinations
 
 /// Overall function that implements both replacing long wires with labels and replacing wire labels if a wire between them is below threshould
-let d3Function (lengthThreshold: float) (model: SheetT.Model) : SheetT.Model =
+let d3Function (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
     let removedWiresModel = replaceLongWiresWithLabels model lengthThreshold
     replaceLabelsWithWires removedWiresModel lengthThreshold
 
@@ -1013,7 +1013,7 @@ let d3Function (lengthThreshold: float) (model: SheetT.Model) : SheetT.Model =
 //------------------------------------------ Top level Beautify Function ---------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 let integratedBeautify (model: SheetT.Model) (userThreshold: float) : SheetT.Model =
-    model
+    userThreshold
+    |> d3Function model
     |> d2iteratedLocalSearchSingleComponent
-    |> d3Function userThreshold
-    |> sheetAlignScale
+    // |> sheetAlignScale

@@ -703,7 +703,7 @@ let integratedTestCircuit (symInfo : posFlipComponentConnections * posFlipCompon
 //---------------------------------------------- Demo tests on Draw Block code ---------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 
-let test0 testNum firstSample dispatch =
+let test1 testNum firstSample dispatch =
     runTestOnSheets
         "1 muxes single connected with And and then Not gate, 2 gates single connected, and 1 DMUX4 and MUX4"
         firstSample
@@ -713,7 +713,7 @@ let test0 testNum firstSample dispatch =
         dispatch
     |> recordPositionInTest testNum dispatch
 
-let test1 testNum firstSample dispatch =
+let test2 testNum firstSample dispatch =
     runTestOnSheets
         "2 muxes single connected and 2 gates connected"
         firstSample
@@ -723,7 +723,7 @@ let test1 testNum firstSample dispatch =
         dispatch
     |> recordPositionInTest testNum dispatch
     
-let test2 testNum firstSample dispatch =
+let test3 testNum firstSample dispatch =
     runTestOnSheets
         "2 muxes and Viewers connected as per example Fig A1"
         firstSample
@@ -733,7 +733,7 @@ let test2 testNum firstSample dispatch =
         dispatch
     |> recordPositionInTest testNum dispatch
 
-let test3 testNum firstSample dispatch =
+let test4 testNum firstSample dispatch =
     runTestOnSheets
         "Manually Generated: 2 MUXes and 1 Gate With Random Flips"
         firstSample
@@ -743,15 +743,15 @@ let test3 testNum firstSample dispatch =
         dispatch
     |> recordPositionInTest testNum dispatch
 
-let test4 testNum firstSample dispatch =
-    runTestOnSheets
-        "Manually Generated: 2 MUXes and 2 Gates With Random Flips"
-        firstSample
-        flipTypeQuadruples
-        makeCircuit4
-        failOnAllTests
-        dispatch
-    |> recordPositionInTest testNum dispatch
+// let test4 testNum firstSample dispatch =
+//     runTestOnSheets
+//         "Manually Generated: 2 MUXes and 2 Gates With Random Flips"
+//         firstSample
+//         flipTypeQuadruples
+//         makeCircuit4
+//         failOnAllTests
+//         dispatch
+//     |> recordPositionInTest testNum dispatch
 
 let test5 testNum firstSample dispatch =
     runTestOnSheets
@@ -799,12 +799,11 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
     // delete unused tests from list
     [
         // D1
-        "Test0", test0
         "Test1", test1
         "Test2", test2
+        "Test3", test3
         
         // D2
-        "Test3", test3
         "Test4", test4
         "Test5", test5
         "Test6", test6
@@ -813,7 +812,7 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
         "Test7", test7
 
         // Integrated Test
-        "Test8", test8
+        "Test7", test8
         "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the next error in a test
 
     ]
@@ -854,7 +853,7 @@ let beautifyMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
     | "D2 Exhaustive Beautify Function", _ -> 
         beautifySheet model findBestModel dispatch
     | "D3 Beautify Function", _ -> 
-        userThresholdPopUp model replaceLongWiresWithLabels dispatch
+        userThresholdPopUp model d3Function dispatch
     | "Integrated Beautify Function", _ ->
         userThresholdPopUp model integratedBeautify dispatch
     | _ -> failwithf "Shouldn't happen buddy"

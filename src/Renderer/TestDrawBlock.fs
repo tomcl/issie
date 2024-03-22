@@ -434,25 +434,8 @@ module HLPTick3 =
             Some <| $"Sample {sample}"
 
         /// Fail when sheet contains a wire segment that overlaps (or goes too close to) a symbol outline  
-        let failOnWireIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let wireModel = sheet.Wire
-            wireModel.Wires
-            |> Map.exists (fun _ wire -> BusWireRoute.findWireSymbolIntersections wireModel wire <> [])
-            |> (function | true -> Some $"Wire intersects a symbol outline in Sample {sample}"
-                         | false -> None)
-
-        /// Fail when sheet contains two symbols which overlap
-        let failOnSymbolIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let wireModel = sheet.Wire
-            let boxes =
-                mapValues sheet.BoundingBoxes
-                |> Array.toList
-                |> List.mapi (fun n box -> n,box)
-            List.allPairs boxes boxes 
-            |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
-            |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
-                         | false -> None)
-
+        let autoFail (sample: int) (sheet: SheetT.Model) = 
+            Some <| $"Sample {sample}"
 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
@@ -478,7 +461,7 @@ module HLPTick3 =
                 firstSample
                 filteredSampleData
                 makeBlankPlayground
-                Asserts.failOnWireIntersectsSymbol
+                Asserts.autoFail
                 dispatch
             |> recordPositionInTest testNum dispatch
 

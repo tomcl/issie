@@ -1,6 +1,8 @@
 ﻿module TestDrawBlock
 open GenerateData
 open Elmish
+open SheetBeautifyHelpers
+
 
 
 //-------------------------------------------------------------------------------------------//
@@ -491,6 +493,39 @@ module HLPTick3 =
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
+        
+        /// Fail if the evaluation metric is greater than 0 (not perfect) 
+        let failOnMetric (failAll:bool) (sample: int) (model: SheetT.Model) =
+            let weighting = [1.;1.;1.;1.]
+            let wireLengthMetric (model:SheetT.Model) = 
+                let totalLength = calcVisWireLength model
+                let minLength =
+                    mapValues model.Wire.Wires
+                    |> Array.map (fun w -> Symbol.getTwoPortLocations model.Wire.Symbol w.InputPort w.OutputPort)
+                    |> Array.map (fun w -> manhattanDistance (fst w) (snd w))
+                    |> Array.sum
+                totalLength/minLength - 1.
+            let wireScore = wireLengthMetric model
+            let ISP =  numOfIntersectedSymPairs model //number of intersecting symbol pairs
+            let numSymPairs = 
+                (float (mapKeys model.Wire.Symbol.Symbols |> Array.toList).Length)/2.
+                |> (System.Math.Round)
+                |> int 
+            let ISPScore = (float ISP)/(float numSymPairs)
+            let numSegs = 
+                (getVisibleSegOnSheet model).Length
+            let ISS = float (numOfIntersectSegSym model) //number of segments intersecting segments
+            let ISSScore = (float ISS)/(float (numSegs+numSymPairs))
+            let SCR = numSegmentCrossRightAngle model //number of wire intersections
+            let SCRScore = (float SCR)/(float numSegs)
+            let score = System.Math.Round ((ISPScore*weighting[0] + ISSScore*weighting[1] + SCRScore*weighting[2] + wireScore*weighting[3])/(List.sum weighting),10) 
+            printf $" ===========Sample {sample} scored average {score}/4 with ISP {ISP}, ISS {ISS}, SCR {SCR}, WireWaste {wireScore}============"
+            match failAll with
+            |true -> Some $"=====Failing all, sample {sample}====="
+            |_ ->
+                match score with
+                |0.0 -> None
+                |_ -> Some $"=====Sample {sample} failed with score > 0=====" 
 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Evaluation------------------------------------------------//

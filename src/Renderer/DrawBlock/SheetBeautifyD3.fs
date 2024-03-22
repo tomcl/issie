@@ -22,31 +22,31 @@ let busWireModel_ = SheetT.wire_
 /// Optic to access SymbolT.Model from SheetT.Model
 let symbolModel_ = SheetT.symbol_
 
-/// Run the global wire separation algorithm (should be after all wires have been placed and routed)
-let separateAllWires (model: SheetT.Model) : SheetT.Model =
-    model
-    |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
 
 let rerouteAllWires (sheet: SheetT.Model) : SheetT.Model=
     let comps = mapKeys sheet.Wire.Symbol.Symbols |> Array.toList
     let newWModel = List.fold (BusWireSeparate.routeAndSeparateSymbolWires) sheet.Wire comps
     Optic.set (SheetT.wire_) newWModel sheet
+
 let getWireListFromSheet (sheet: SheetT.Model) = sheet.Wire.Wires |> Map.toList |> List.map snd
-/// Returns true if wire is long and has more than 1 segment
-let isLongWire (wireLengthlimit: float) (sheet: SheetT.Model) (wire: BusWireT.Wire)  =
+
+/// Returns true if wire exceed length and number of segments limit
+let isLongAndComplexWire (visibleSegmentLimit: int) (wireLengthlimit: float) (wire: BusWireT.Wire) (sheet: SheetT.Model) =
     if getWireLength wire > wireLengthlimit then 
-        ((SegmentHelpers.visibleSegsWithVertices wire sheet).Length >1)
+        ((SegmentHelpers.visibleSegsWithVertices wire sheet).Length > visibleSegmentLimit)
     else false
 
 /// Return a list of wires that are long and are not straight which can potentially be replaced with wire labels
-let getLongWires (wireLengthlimit: float) (sheet: SheetT.Model) (wireList: List<BusWireT.Wire>)  =
+let getLongWires (visibleSegmentLimit: int) (wireLengthlimit: float) (sheet: SheetT.Model) (wireList: List<BusWireT.Wire>)  =
     wireList
-    |> List.filter (fun wire -> isLongWire wireLengthlimit sheet wire)
+    |> List.filter (fun wire -> isLongAndComplexWire visibleSegmentLimit wireLengthlimit wire sheet)
 
-/// Return a map of wires grouped by net (multiple wires with same source port).
-/// And a list of single wires that are too long and complex.
+/// Return a list of wires with the same output port (same net)
+/// and single wires that are too long and complex.
 /// Both need wire labels generated.
-let getWiresNeedLabels (wireList: list<Wire>) (sheet: SheetT.Model) (wireLengthlimit: float) =
+let getLongOrSameNetWires (wireList: list<Wire>) (sheet: SheetT.Model)  =
+    let wireLengthLimit = 220.
+    let numberOfSegmentsLimit = 1
     let flattenList = List.collect id >> List.distinct
     let wireInNet, singleWires =
         wireList
@@ -56,11 +56,15 @@ let getWiresNeedLabels (wireList: list<Wire>) (sheet: SheetT.Model) (wireLengthl
     let longWires =
         singleWires
         |> flattenList
-        |> getLongWires wireLengthlimit sheet
+        |> getLongWires numberOfSegmentsLimit wireLengthLimit sheet
     
     wireInNet 
     |> flattenList
     |> List.append longWires
+
+/// For choosing wire-label-worthy wires from a list of wires using a given function
+let getWiresNeedLabels (chooseWiresFunction: list<Wire> -> SheetT.Model -> list<Wire>)  (wireList: list<Wire>) (sheet: SheetT.Model)  =
+    chooseWiresFunction wireList sheet
 
 let deleteWire (wireCID: ConnectionId) (sheet: SheetT.Model) =
     let newWires =
@@ -69,6 +73,7 @@ let deleteWire (wireCID: ConnectionId) (sheet: SheetT.Model) =
     { sheet with Wire = { sheet.Wire with Wires = newWires } }
 
 /// Returns appropriate position and rotation of the Wire Label placed at the source symbol
+/// so wire label is connected to its symbol port as straight as possible
 let findWireLabelRoomAtSource (wire: BusWireT.Wire ) (distance: float) = 
     let asegList =  wire |> getAbsSegments 
     let firstSeg = asegList |> List.head
@@ -91,6 +96,7 @@ let findWireLabelRoomAtSource (wire: BusWireT.Wire ) (distance: float) =
             pos, Degree270
 
 /// Returns appropriate position and rotation of the Wire Label placed at the target symbol
+/// so wire label is connected to its symbol port as straight as possible
 let findWireLabelRoomAtTarget (wire: BusWireT.Wire) (distance: float) = 
     let asegList =  wire |> getAbsSegments 
     let lastSeg = asegList |> List.last
@@ -111,14 +117,6 @@ let findWireLabelRoomAtTarget (wire: BusWireT.Wire) (distance: float) =
         else 
             let pos = { lastSeg.Start with X = lastSeg.Start.X; Y = lastSeg.Start.Y - distance}
             pos, Degree270
-
-let getMovedSymbolBB (move: XYPos) (sym: SymbolT.Symbol) : BoundingBox =
-    {sym.LabelBoundingBox with
-        TopLeft =  sym.LabelBoundingBox.TopLeft + move}
-
-let isPosInBoundingBox  (pos: XYPos) (boundingBox: BoundingBox) =
-        (pos.X > boundingBox.TopLeft.X && pos.X < boundingBox.TopLeft.X + boundingBox.W &&
-        pos.Y > boundingBox.TopLeft.Y && pos.Y < boundingBox.TopLeft.Y + boundingBox.H)
     
 /// Check if the default position of a Wire Label is good, else
 /// adjust the position so it's placed at a location
@@ -192,9 +190,13 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
         
 
 /// Generate Wire Label for a wire connected between source symbol and target symbol
-/// or keep the wire if not enough room for label at either source or target symbol
+/// or keep the wire if not enough room for label at either source or target symbol.
+/// Can be used in bulk converting and individual converting 
 let generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: SheetT.Model) =
-    if isForIndivWire && not (isLongWire 50. sheet wire) then sheet
+    ///User can change
+    let chooseCondition = isLongAndComplexWire 1 50. wire sheet
+
+    if isForIndivWire && not (chooseCondition) then sheet
     else if (getWireLength wire > 120.) then
         let connectionID = wire.WId
         let startSym = getSourceSymbol sheet.Wire wire
@@ -238,8 +240,6 @@ let generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: Sheet
             let adjustLabelOnSheet = 
                 match adjustWireLabelPos labelSym sheetWithWireLabelAdded with
                 | Some newPos -> 
-                    // printf "newpos %.2f, %.2f " newPos.X newPos.Y
-                    //printf "labelpos %s, %.2f, %.2f" labelName labelSym.Component.X labelSym.Component.Y
                     let adjustedSheet = updateSymPosInSheet labelID newPos sheetWithWireLabelAdded
                     let newWire = 
                         BusWireUpdate.makeNewWire (inputPortIDstr) (outputPortIdstr) adjustedSheet.Wire
@@ -248,7 +248,6 @@ let generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: Sheet
                         |> Optic.set (busWireModel_ >-> wireOf_ newWire.WId) newWire
                     Some newSheet
                 | None -> 
-                    printf "no room"
                     None
             adjustLabelOnSheet
         
@@ -272,11 +271,11 @@ let generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: Sheet
             |   None -> sheet
         | None -> sheet
     else sheet
+
 /// Automatically generate Wire Labels for all wires on a sheet/// Automatically generate Wire Labels for all wires on a sheet
 let sheetWireLabelSymbol (sheet: SheetT.Model) =
-    let wireLengthlimit = 220. // User can decide what is considered long wire
     let wireList = getWireListFromSheet sheet
-    let wiresNeedLabels = getWiresNeedLabels wireList sheet wireLengthlimit
+    let wiresNeedLabels = getWiresNeedLabels getLongOrSameNetWires wireList sheet
     (sheet, wiresNeedLabels)
     ||> List.fold (fun sheet wire -> generateWireLabel false wire sheet)
     |> rerouteAllWires
@@ -427,11 +426,9 @@ let autoConvertWireLabelsToWires (sheet: SheetT.Model) =
     (sheet, symbolMap)
     ||> Array.fold (fun sheet sym -> turnWireLabelsToWires sym sheet)       
 
-
 let convertSelectedWiresIntoWireLabels (comps: ComponentId list) (model: Model) (sheet: SheetT.Model) =
     let wireList = getConnectedWires model comps
-    let wireLengthlimit = 220.
-    let wiresNeedLabels = getWiresNeedLabels wireList sheet wireLengthlimit
+    let wiresNeedLabels = getWiresNeedLabels getLongOrSameNetWires wireList sheet 
     (sheet, wiresNeedLabels)
     ||> List.fold (fun sheet wire -> generateWireLabel false wire sheet)
     |> rerouteAllWires

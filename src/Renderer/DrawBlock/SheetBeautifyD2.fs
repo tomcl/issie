@@ -133,11 +133,11 @@ let sheetOrderFlip (sheet: SheetT.Model) =
     let numWireCrossing (sheet: SheetT.Model) = 
         numOfWireRightAngleCrossings sheet
         //numOfWireRightAngleCrossings sheet
-    printf "inital cross number: %A" (numWireCrossing sheet)
+    //printf "inital cross number: %A" (numWireCrossing sheet)
     
     let numWireBend (sheet: SheetT.Model) = 
         numVisibleWireRightAngle sheet
-    printf "inital wire bends: %A" (numWireBend sheet)
+    //printf "inital wire bends: %A" (numWireBend sheet)
 
     /// 12 possible combinations for a MUX being flipped, having inputs swapped, rotate 90, rotate270. 12 States: 
     /// flip, swap, rotate 90, rotate-90, flip and swap, flip and rotat90, flip and rotat-90, swap 90, swap -90, flipand swap 
@@ -297,7 +297,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             |> List.mapi (fun i (wireCross, wireBend) -> (i, (wireCross, wireBend)))
             |> List.filter (fun (_, (c,b)) -> b <= (numWireBend sheet))
             |> List.minBy (fun (i,(c,b)) -> c)
-            |> printPipe
+            //|> printPipe
             |> fst
         List.item optimalIndex ccTransformStates
     

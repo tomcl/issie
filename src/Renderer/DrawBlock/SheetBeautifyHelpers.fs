@@ -617,7 +617,7 @@ let numVisibleWireRightAngle (sheet: SheetT.Model) =
 let numOfSquashedWires (sheet: SheetT.Model) : int =
     let shortVisSegments = 
         getVisibleSegOnSheet sheet
-        |> List.filter (fun (start, endComp) -> euclideanDistance start endComp < 40.0)
+        |> List.filter (fun (start, endComp) -> euclideanDistance start endComp < 30.0)
     
     /// list of all the symbol bounding boxes from sheet model, for each bounding box, generate position vector for its edges
     let symbolBoundingBoxesVectors =

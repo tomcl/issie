@@ -215,6 +215,44 @@ module TestData =
 
     //     product (fun comp xy -> (comp, xy)) compGen posGen
 
+module Evaluations =
+    open TestDrawBlockD1.Evaluations
+    open TestDrawBlockD2.Evaluations
+
+    type ConfigD4 =
+        {
+            wBendWeight: float
+            wCrossWeight: float // numOfWireRightAngleCrossings
+            wSquashWeight: float
+            wLenWeight: float // calcVisWireLength
+            failPenalty: float // -1
+        }
+
+    let combEval evalA weightA evalB weightB (sheet: SheetT.Model) =
+        weightA * (evalA sheet) + weightB * (evalB sheet)
+
+    /// Combines all evaluations into one score
+    let evalBeauty (c: ConfigD4) (sheet: SheetT.Model) : float =
+        c.wBendWeight * (wireBendProp sheet)
+        |> (+) (c.wCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
+        |> (+) (c.wSquashWeight * (float (wireSquashProp sheet)))
+        // |> (+) (c.wLenWeight * (float (wireSquashProp sheet)))
+
+    let evalD4 =
+        evalBeauty  {
+                        wBendWeight = 1
+                        wCrossWeight = 1
+                        wSquashWeight = 1
+                        wLenWeight = 0
+                        failPenalty = -10
+                    }
+
+    let d4Evaluator = 
+        {
+            EvalFunc = evalD4
+            Penalty = -20
+        }
+
 
 
 
@@ -222,6 +260,9 @@ module Tests =
     open Circuit
     open TestData
     open TestDrawBlockD3
+    open SheetBeautifyD1
+    open SheetBeautifyD2
+    open SheetBeautifyD3
 
     let genLC = randXY {min=(0.5); step=0.5; max=1}
     let testD1Circuit testNum firstSample showTargetSheet dispatch =
@@ -233,18 +274,48 @@ module Tests =
             (Some beautifySheetBasic)
             makeLargeCircuit
             (AssertFunc failOnAllTests)
-            Evaluations.nullEvaluator
+            { EvalFunc = Evaluations.wireBendProp; Penalty = -1}
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
     
-    let testD3circuit testNum firstSample showTargetSheet dispatch =
+    let testD2CircuitOptimal testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
-            "General Test on complex circuit"
+            "Large circuit"
+            firstSample
+            offset
+            showTargetSheet
+            (Some (beautifySheetOptimal 
+                        [sheetAlignScale; sheetOrderFlip; sheetWireLabelSymbol] 
+                        3 
+                        (Evaluations.evalD4)
+                    ))
+            makeTestCCCircuit
+            (AssertFunc failOnAllTests)
+            { EvalFunc = Evaluations.evalD4; Penalty = -1}
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
+    
+    let testD2Circuit testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "basicD4 on D2's test"
+            firstSample
+            offset
+            showTargetSheet
+            (Some beautifySheetBasic)
+            makeTestCCCircuit
+            (AssertFunc failOnAllTests)
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
+
+    let testD3Circuit testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "Test for label placement"
             firstSample
             test3Builder
             showTargetSheet
             (Some beautifySheetBasic)
-            makeTest3Circuit
+            makeTest2Circuit
             (AssertFunc failOnAllTests)
             Evaluations.nullEvaluator
             dispatch
@@ -271,17 +342,28 @@ module Tests =
         // Change names and test functions as required
         // delete unused tests from list
         [
-            "D1 - Random", testRand // RANDOM TEST (D1 beautify)
-            "D2 - Random", Tests.testRandomD2 // RANDOM TEST (D2 beautify)
-            //"D2 - Random Eval Score", Tests.testRandomD2Eval // RANDOM TEST, show evaluation score (D2 beautify)
-            "D3 - Random", fun _ _ _ _ -> printf "Test3" // RANDOM TEST (D3 beautify)
-            "All - D1's test", testD1Circuit // Standard D1 TEST (all beautifies)
-            "All - D2's test", Tests.testAll // Standard D2 TEST (all beautifies)
-            "All - D3's test", testD3circuit // Standard D3 TEST (all beautifies)
-            "All - Random", fun _ _ _ _ -> printf "Test5" // RANDOM TEST (all beautifies)
-            "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
+            "Basic - D1's test", testD1Circuit // Standard D1 TEST (all beautifies)
+            "Basic - D2's test", testD2Circuit // Standard D2 TEST (all beautifies)
+            "Basic - D3's test", testD3Circuit // Standard D3 TEST (all beautifies)
+            "Optimal - D1's test", testD2CircuitOptimal // RANDOM TEST (D2 beautify)
+            "Optimal - D2's test", fun _ _ _ _ -> printf "Test5" // RANDOM TEST (D3 beautify)
+            "Optimal - D3's test", fun _ _ _ _ -> printf "Test6" // RANDOM TEST (all beautifies)
+            "Basic - Random", testRand // RANDOM TEST (D1 beautify)
+            "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled" // Toggle beautify function
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
+        //         [
+        //     "D1 - Random", testRand // RANDOM TEST (D1 beautify)
+        //     "D2 - Random", Tests.testRandomD2 // RANDOM TEST (D2 beautify)
+        //     //"D2 - Random Eval Score", Tests.testRandomD2Eval // RANDOM TEST, show evaluation score (D2 beautify)
+        //     "D3 - Random", fun _ _ _ _ -> printf "Test3" // RANDOM TEST (D3 beautify)
+        //     "All - D1's test", testD1Circuit // Standard D1 TEST (all beautifies)
+        //     "All - D2's test", Tests.testAll // Standard D2 TEST (all beautifies)
+        //     "All - D3's test", testD3circuit // Standard D3 TEST (all beautifies)
+        //     "All - Random", fun _ _ _ _ -> printf "Test5" // RANDOM TEST (all beautifies)
+        //     "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
+        //     "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
+        // ]
 
     /// Display the next error in a previously started test
     let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =

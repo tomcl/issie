@@ -781,6 +781,82 @@ let cleanUpAlmostStraightSinglyConnWires (model: ModelType.Model) =
                         IsPortInput = symbolsToMove[0] |> snd
                         MajorityDisplacementOffset = 0.0 } ])
 
+    // let updatedSheetModel: SheetT.Model =
+    //     symbolsWireOffsetUpdates
+    //     |> List.fold // better way to do this?
+    //         (fun currentSheetModel (cleanUpRecord: CleanUpRecord) ->
+    //             // create a new straight wire
+    //             let newStraightWire, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
+    //             let newSheetModel =
+    //                 currentSheetModel
+    //                 |> updateSheetSymWithNewSym newMovedSymbol
+    //                 // |> (fun modelWithNewSymb ->
+    //                 //     updateSheetWireWithNewWire
+    //                 //         (smartAutoroute modelWithNewSymb.Wire cleanUpRecord.Wire)
+    //                 //         modelWithNewSymb)
+    //                 |> updateSheetWireWithNewWire newStraightWire
+
+    //             // check for intersections. If there are none, then return the new model else return the old model
+    //             if (checkIfGainedOrMaintainedIntersections currentSheetModel newSheetModel) then
+    //                 newSheetModel
+    //             else
+    //                 printf "another pass with symbol id %A" cleanUpRecord.Symbol.Id
+    //                 // we do another pass.
+    //                 let intersectingBBoxes =
+    //                     findAllBoundingBoxesOfSymIntersections newMovedSymbol newSheetModel
+    //                 let newOffset, majorityDisplacementOffset =
+    //                     match
+    //                         ((List.length intersectingBBoxes) > 0),
+    //                         cleanUpRecord.IsPortInput,
+    //                         cleanUpRecord.Wire.InitialOrientation
+    //                     with
+    //                     | true, true, Horizontal ->
+    //                         let addedXOffset =
+    //                             intersectingBBoxes
+    //                             |> List.minBy (fun box -> box.TopLeft.X)
+    //                             |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X)
+    //                         // can add another condition to set to zero, cancelling the operatio if we have to move the symbol
+    //                         // too far back
+    //                         // { X = 10.0; Y = 0.0 }, -10.0
+    //                         { X = addedXOffset; Y = 0.0 }, -addedXOffset
+    //                     | true, false, Horizontal ->
+    //                         let addedXOffset =
+    //                             intersectingBBoxes
+    //                             |> List.maxBy (fun box -> box.TopLeft.X + box.W)
+    //                             |> (fun box -> box.TopLeft.X - newMovedSymbol.Pos.X)
+    //                         { X = -addedXOffset; Y = 0.0 }, addedXOffset
+
+    //                     | true, true, Vertical ->
+    //                         let addedYOffset =
+    //                             intersectingBBoxes
+    //                             |> List.minBy (fun box -> box.TopLeft.Y)
+    //                             |> (fun box -> newMovedSymbol.Pos.Y - box.TopLeft.Y)
+    //                         { X = 0.0; Y = addedYOffset }, -addedYOffset
+    //                     | true, false, Vertical ->
+    //                         let addedYOffset =
+    //                             intersectingBBoxes
+    //                             |> List.maxBy (fun box -> box.TopLeft.Y)
+    //                             |> (fun box -> box.TopLeft.Y - newMovedSymbol.Pos.Y)
+    //                         { X = 0.0; Y = -addedYOffset }, addedYOffset
+    //                     | _ -> { X = 0; Y = 0 }, 0.0
+    //                 let newCleanUpRecord =
+    //                     { cleanUpRecord with
+    //                         Offset = newOffset
+    //                         Symbol = newMovedSymbol
+    //                         Wire = newStraightWire
+    //                         MajorityDisplacementOffset = majorityDisplacementOffset }
+    //                 let newNewStraightWire, newNewMovedSymbol =
+    //                     moveSymbolWireCleanUpRecord newCleanUpRecord
+    //                 let newNewSheetModel =
+    //                     newSheetModel
+    //                     |> updateSheetSymWithNewSym newNewMovedSymbol
+    //                     |> updateSheetWireWithNewWire newNewStraightWire
+    //                 if (checkIfGainedOrMaintainedIntersections currentSheetModel newSheetModel) then
+    //                     newNewSheetModel
+    //                 else
+    //                     printf "second pass unsuccessful"
+    //                     currentSheetModel
+
     let updatedSheetModel: SheetT.Model =
         symbolsWireOffsetUpdates
         |> List.fold // better way to do this?
@@ -994,7 +1070,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                             let addedXOffset = // get the x coordinate of the x bounding box furthest away from the symbol and adjust symbol to avoid it
                                 intersectingBBoxes
                                 |> List.minBy (fun box -> box.TopLeft.X)
-                                |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X - 10.0)
+                                |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X - 30.0)
                             // can add another condition to set to zero, cancelling the operation if we have to move the symbol
                             // too far back
                             // { X = 10.0; Y = 0.0 }, -10.0
@@ -1003,7 +1079,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                             let addedXOffset = // get the x coordinate of the x bounding box furthest away from the symbol and adjust symbol to avoid it
                                 intersectingBBoxes
                                 |> List.maxBy (fun box -> box.TopLeft.X)
-                                |> (fun box -> box.TopLeft.X - newMovedSymbol.Pos.X + 10.0)
+                                |> (fun box -> box.TopLeft.X - newMovedSymbol.Pos.X + 30.0)
                             { X = -addedXOffset; Y = 0.0 }, addedXOffset
 
                         | true, Vertical, true ->

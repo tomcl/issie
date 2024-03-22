@@ -750,8 +750,11 @@ module HLPTick3 =
             |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G2" 1))
             //|> (fun res -> if beautify then Result.map SheetBeautifyD1.sheetAlignScale res else res)
             |> (fun res -> match increments with
-                            | 1 -> Result.map SheetBeautifyD1.sheetAlignScale res
-                            | 2 -> Result.map SheetBeautifyD3.sheetWireLabelSymbol res
+                            | 2 -> Result.map SheetBeautifyD2.sheetOrderFlip res 
+                                   |> Result.map SheetBeautifyD1.sheetAlignScale 
+                            | 3 -> Result.map SheetBeautifyD2.sheetOrderFlip res
+                                    |> Result.map SheetBeautifyD3.sheetWireLabelSymbol
+                            | 1 -> Result.map SheetBeautifyD2.sheetOrderFlip res 
                             | _ -> res)
             // |> (fun res -> if beautify then Result.map SheetBeautifyD3.sheetWireLabelSymbol res else res)
             |> Result.map SheetBeautifyD2.autoRouteAllWires
@@ -1131,7 +1134,7 @@ module HLPTick3 =
             runTestOnSheets
                 "Multiple muxes and gates circuit: fail on wire overlapping "
                 firstSample
-                (fromList [ 0;1;2 ])
+                (fromList [0;1;2;3])
                 D3Tests.makeTestForWireOverlaps
                 // Asserts.failD3
                 Asserts.failOnAllTests

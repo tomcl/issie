@@ -33,13 +33,14 @@ open EEExtensions
 open Optics.Operators
 open Symbol
 open SheetBeautifyHelpers.SegmentHelpers
+open BusWireUpdateHelpers
 
 module Constants = 
 
-    let lengthThreshold = 500.0
+    let lengthThreshold = 300.0
     let rightAngleThreshold = 3 
     let rightAngleCrossingsThreshold = 1
-    let overloadedPortThreshold = 3
+    let overloadedPortThreshold = 2
 
 open Constants
 /// allowed max X or y coord of svg canvas
@@ -47,7 +48,11 @@ let maxSheetCoord = Sheet.Constants.defaultCanvasSize
 
 /// Optic to access SymbolT.Model from SheetT.Model
 let symbolModel_: Lens<SheetT.Model,SymbolT.Model> = SheetT.symbol_
- 
+
+/// Optic to access BusWireT.Model from SheetT.Model
+let busWireModel_ = SheetT.wire_
+
+
 /// Add a newly routed wire
 /// Source and target specify a string of InputPortId and OutputPortId
 /// Return an error if the wire duplicates an existing one
@@ -57,7 +62,7 @@ let placeWire (source: string) (target: string) (model: SheetT.Model) : Result<S
         Error "Can't create wire from {source} to {target} because a wire already exists between those ports"
     else
         model
-        |> Optic.set (wire_ >-> BusWireT.wireOf_ newWire.WId) newWire
+        |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
         |> Ok
 
 
@@ -66,12 +71,6 @@ let getConnectionIdList (model: SheetT.Model) =
     Optic.get BusWireT.wires_ model.Wire
     |> Map.keys
     |> Array.toList
-
-
-let getWireList (model: SheetT.Model) =
-    Optic.get BusWireT.wires_ model.Wire
-    |> Map.values
-    |> Seq.toList
 
 
 /// length of a wire
@@ -111,7 +110,7 @@ let numOfWireRightAngleCrossings (wId: ConnectionId) (model: SheetT.Model)  =
     let wire = model.Wire.Wires[wId]
     let wireSegs = SegmentHelpers.visibleSegsWithVertices wire model
     let otherSegs = 
-        getWireList model
+        getWireList model.Wire
         |> List.map (fun (wire) ->
         SegmentHelpers.visibleSegsWithVertices wire model
     )
@@ -140,8 +139,6 @@ let overloadedSourcePorts (model: SheetT.Model) =
     getConnectionIdList model
     |> groupWirePortIdsByOutputPortId model
     |> List.filter (fun (_, wires) -> List.length wires > Constants.overloadedPortThreshold)
-
-
 
 let countRightAnglesWire (wId: ConnectionId) (model: SheetT.Model): int =
     let visibleSegmentVectors = visibleSegments wId model
@@ -184,18 +181,36 @@ let getComplexWirePorts (model: SheetT.Model)  =
         printfn "Wire ID: %s, Length: %f" (string wId) length
     )
 
-    getWireLengths model
-        |> Map.filter (fun wId length ->
-            length > lengthThreshold ||
-            countRightAnglesWire wId model > rightAngleThreshold ||
-            wireIntersectSymbol wId model ||
-            numOfWireRightAngleCrossings wId model> rightAngleCrossingsThreshold
-        )
-    |> Map.keys
-    |> List.ofSeq
-    |> groupWirePortIdsByOutputPortId model
-    |> List.append (overloadedSourcePorts model)
-    |> List.distinctBy fst
+
+    /// Find out Port Source Ids that are considered complex
+    let filteredWireSources = 
+        getWireLengths model
+            |> Map.filter (fun wId length ->
+                length > lengthThreshold ||
+                countRightAnglesWire wId model > rightAngleThreshold ||
+                wireIntersectSymbol wId model ||
+                numOfWireRightAngleCrossings wId model> rightAngleCrossingsThreshold
+            )
+        |> Map.keys
+        |> List.ofSeq
+        |> groupWirePortIdsByOutputPortId model
+        |> List.append (overloadedSourcePorts model)
+        |> List.map fst
+        |> List.distinct
+            
+    let wIdsList = 
+        getWireLengths model
+        |> Map.keys
+        |> List.ofSeq
+
+
+    /// Filters the list so that if any ports have wires
+    /// that are considered complex, all wires from that 
+    /// port are considered complex.
+    
+    groupWirePortIdsByOutputPortId model wIdsList
+    |> List.filter (fun (outputPortId, _) ->
+        List.exists (fun outputPortId' -> outputPortId = outputPortId') filteredWireSources) 
 
 
  
@@ -219,7 +234,7 @@ let removeWires (model: SheetT.Model) (wIds: ConnectionId list) : SheetT.Model =
         |> List.fold (fun acc wId -> Map.remove wId acc) wires
 
     let composedLens =
-        wire_ >-> BusWireT.wires_
+        busWireModel_ >-> BusWireT.wires_
 
     model
     |> Optic.set composedLens (updateFunction wires)
@@ -240,7 +255,7 @@ let symbolIntersects (sId: ComponentId) (model: SheetT.Model) : bool =
 
 
     let symbolIntersectsWire =
-        getWireList model
+        getWireList model.Wire
         |> List.exists (fun (wire) ->
             wire
             |> getAbsSegments
@@ -322,7 +337,7 @@ let wireToLabel (portIds: OutputPortId * InputPortId list) (model: SheetT.Model)
     
     /// Get a list of Wire Ids 
     let findWIds (inputPortIdToFind: InputPortId) =
-        getWireList model
+        getWireList model.Wire
         |> List.filter (fun wire -> wire.InputPort = inputPortIdToFind)
         |> List.map (fun wire -> wire.WId)
 
@@ -396,7 +411,8 @@ let removeComplexWires (model: SheetT.Model): SheetT.Model =
     
     |> List.fold (fun acc portIds ->
         match wireToLabel portIds acc (getNextLabel ()) with
-        | Ok labeledModel -> labeledModel  
+        | Ok labeledModel -> labeledModel
         | Error _ -> acc) model
+    
 
 

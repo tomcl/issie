@@ -87,16 +87,6 @@ let sheetScore
 
 let inline (%!) a b = (a % b + b) % b
 
-/// Returns true if the given symbol does not intersect any other symbol in the sheet.
-let noSymbolIntersections
-        (sheet: SheetT.Model)
-        (symbol: SymbolT.Symbol)
-        : bool =
-    let symbolBox = Symbol.getSymbolBoundingBox symbol
-    sheet.BoundingBoxes
-    |> Map.exists (fun compId box -> compId <> symbol.Id && BlockHelpers.overlap2DBox box symbolBox)
-    |> not
-
 type CircuitBoxT = {
     TopLeft: XYPos;
     BottomRight: XYPos
@@ -308,7 +298,7 @@ let rec bruteForceOptimise
     | sym::remSyms ->
 
         getSymbolChoices sym
-        |> List.filter (fun (sym, _) -> noSymbolIntersections sheet sym)
+        |> List.filter (fun (sym, _) -> SheetBeautifyHelpers2.noSymbolIntersections sheet sym)
            // Immediately reject solutions with overlapping symbols.
         |> List.map (fun (sym, penalty) -> replaceSymbolAndBB sheet sym, penalty)
         |> List.map (fun (sheet, penalty) ->

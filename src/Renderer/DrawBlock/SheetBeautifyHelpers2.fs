@@ -520,3 +520,13 @@ let getRetraced
     // but it is the easiest to understand.
     {|AllRetracedSegs = getAllRetracedSegs sheet;
       SymbolRetraceSegs = getSymbolRetraceSegs sheet|}
+
+/// Returns true if the given symbol does not intersect any other symbol in the sheet.
+let noSymbolIntersections
+        (sheet: SheetT.Model)
+        (symbol: SymbolT.Symbol)
+        : bool =
+    let symbolBox = Symbol.getSymbolBoundingBox symbol
+    sheet.BoundingBoxes
+    |> Map.exists (fun compId box -> compId <> symbol.Id && BlockHelpers.overlap2DBox box symbolBox)
+    |> not

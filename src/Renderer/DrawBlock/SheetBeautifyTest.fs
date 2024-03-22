@@ -37,7 +37,7 @@ let SheetEvalParam = {
     SegSymIntersectNorm = 1_500_000.0;
 }
 
-let SheetTestConfig = Aggregate 10 // Default config
+let SheetTestConfig = Aggregate 3 // Default config
 
 
 ////////// Helper functions

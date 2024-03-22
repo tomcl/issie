@@ -883,4 +883,3 @@ let getPortLocations (model: Model) (symbolIds: ComponentId list) =
     let getOutputPortMap = getOutputPortsLocationMap model symbols
        
     getInputPortMap , getOutputPortMap 
- 

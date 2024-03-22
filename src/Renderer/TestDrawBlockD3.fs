@@ -36,6 +36,7 @@ open SheetBeautifyD3
 open BusWireUpdate
 open RotateScale
 
+
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
@@ -387,6 +388,7 @@ let makeTest4Circuit (data: float) =
 //---------------------------------------------------------------------------------------//
 
 module Tests =
+    open Asserts
     let D3Test1 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Mux conected to 2 demux, fail on all"

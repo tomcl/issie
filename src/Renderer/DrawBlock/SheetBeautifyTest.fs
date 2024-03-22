@@ -37,7 +37,7 @@ let SheetEvalParam = {
     SegSymIntersectNorm = 1_500_000.0;
 }
 
-let SheetTestConfig = Aggregate 3 // Default config
+let SheetTestConfig = Single // Default config
 
 
 ////////// Helper functions
@@ -96,7 +96,7 @@ let randomTransformSymbol
     | Custom _ -> [shuffleCustomCompPorts sheet symbol, 0.0]
                 // Custom component has different behaviour here than in brute-force algorithm.
     | _ -> getSymbolChoices symbol
-    |> List.filter (fun (sym, _) -> noSymbolIntersections sheet sym)
+    |> List.filter (fun (sym, _) -> SheetBeautifyHelpers2.noSymbolIntersections sheet sym)
        // Immediately reject solutions with overlapping symbols.
     |> List.toArray
     |> shuffleA

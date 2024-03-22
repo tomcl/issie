@@ -1015,6 +1015,7 @@ module T123 =
                 "D3 show test 4", showCircuit4
                 "D3 test 4 beautify : Overlap check", testOverlap
                 "(Dummy Test : FailAllTests)", testSheetWireLabelSymbol
+                // ----------------------- whole sheet ------------------
                 "A3 test original", test3 
                 "A3 whole sheet beautify", test4 
             ]

@@ -30,6 +30,13 @@ let isCustomType (componentType: ComponentType) : bool =
     | _ -> false
 
 
+/// Objective function used to evaluate the quality of a sheet
+/// Lower is better
+let calculateSheetObjective (model: SheetT.Model) : int =
+    // objective function: E.g. #wire crossings, #right angles
+    numOfWireRightAngleCrossings model
+
+
 /// Returns symbols that are of given component type.
 /// where isSymbolType is a function that returns a bool for a given component type.
 let getCompTypeSymbols (isSymbolType) (model: SheetT.Model) : Symbol list =
@@ -41,6 +48,43 @@ let getCompTypeSymbols (isSymbolType) (model: SheetT.Model) : Symbol list =
 let areSymbolsConnected (wModel: BusWireT.Model) symA symB =
     wModel.Wires
     |> Map.exists (fun _ wire -> isConnBtwnSyms wire symA symB)
+
+
+/// Calculates the angle for an edge based on the centre and destination port positions.
+let calculateAngleForEdge (centre: XYPos) (destPort: XYPos) (edge: Edge) =
+    let deltaX = destPort.X - centre.X
+    let deltaY = 
+        match edge with
+        | Top | Bottom -> centre.Y - destPort.Y 
+        | Left | Right -> destPort.Y - centre.Y 
+
+    let angleRadians = atan2 deltaX deltaY
+    angleRadians
+
+
+/// Gets the centre XYPos of a custom component symbol.
+let getCustomCompCentre (sym: Symbol) : XYPos =
+    let dims = getCustomCompDims sym
+    // calculate centre of custom component symbol
+    { X = sym.Pos.X + dims.X / 2.0; Y = sym.Pos.Y + dims.Y / 2.0 }
+
+
+/// Gets a connected port ID for a given port ID.
+// Simplified to only return a single connected port if any
+let getConnectedPort (model: SheetT.Model) (portID: string) =
+    let wires = 
+        model.Wire.Wires
+        |> Map.filter (fun _ wire -> 
+            wire.InputPort = InputPortId portID || wire.OutputPort = OutputPortId portID)
+        |> Map.toList
+
+    wires
+    |> List.tryPick (fun (_, wire) ->
+        match wire.InputPort, wire.OutputPort with
+        | InputPortId pid, _ when pid <> portID -> Some pid
+        | _, OutputPortId pid when pid <> portID -> Some pid
+        | _ -> None
+    )
 
 
 /// Generates all permutations for given number of MUX and Gate components.
@@ -64,24 +108,11 @@ let generateMuxGatePermutations  (muxCount: int, gateCount: int) =
 
     List.allPairs muxPermutations gatePermutations
 
-//let printMixedPermutations (muxCount: int, gateCount: int) =
-//    let mixedPermutations = makeMixedPermutations (muxCount, gateCount)
-//    let stateToString (state: bool) = if state then "1" else "0"
-//    let muxStateToString (state: (bool * bool)) =
-//        let (rev, flip) = state
-//        sprintf "[%s,%s]" (stateToString rev) (stateToString flip)
-//    mixedPermutations |> List.iter (fun (muxPerm, gatePerm) ->
-//        let muxStatesStr = muxPerm |> List.map muxStateToString 
-//        let gateStatesStr = gatePerm |> List.map stateToString 
-
-//        printf $"MUX: {muxStatesStr} | Gates: {gateStatesStr}"
-//    )
-
 
 /// Applies permutation of MUX and Gate states to a sheet
 let genSheetFromMuxGatePermutation (model: SheetT.Model)
-                                   (muxSymbols: Symbol list, gateSymbols: Symbol list)
-                                   (muxPermutation: (bool * bool) list, gatePermutation: bool list) =
+                                    (muxSymbols: Symbol list, gateSymbols: Symbol list)
+                                    (muxPermutation: (bool * bool) list, gatePermutation: bool list) =
     let allComponents =
         (muxSymbols @ gateSymbols)
         |> List.map (fun sym -> sym.Id)
@@ -107,13 +138,6 @@ let genSheetFromMuxGatePermutation (model: SheetT.Model)
     { updatedModel with Wire = reroutedModel }
 
 
-/// Objective function used to evaluate the quality of a sheet
-/// Lower is better
-let calculateSheetObjective (model: SheetT.Model) : int =
-    // TODO: objective function : #wire crossings, #right angles ?
-    numOfWireRightAngleCrossings model
-
-
 /// Exhaustive search through all permutations of MUX and Gate flips to find the sheet with the lowest objective.
 let permuteMuxGateState (model: SheetT.Model) (muxSymbols: Symbol list, gateSymbols: Symbol list) : SheetT.Model =
     let muxCount = List.length muxSymbols
@@ -121,7 +145,6 @@ let permuteMuxGateState (model: SheetT.Model) (muxSymbols: Symbol list, gateSymb
 
     let permutations = generateMuxGatePermutations (muxCount, gateCount)
     let originalObjective = calculateSheetObjective model
-    printf $"Permutation length: {permutations.Length}\n"
 
     // Generate all permuted sheets
     // filtering out the ones that have worse objective than original
@@ -139,7 +162,7 @@ let permuteMuxGateState (model: SheetT.Model) (muxSymbols: Symbol list, gateSymb
 
 
 /// Groups directly connected gates and muxes for localised permuting.
-/// Doesn't produce isolated, distinct groups
+/// Groups are unique but do overlap
 let groupConnectedSymbols (model: SheetT.Model) (symbols: Symbol list) : Symbol list list =
     let wModel = model.Wire
 
@@ -159,18 +182,13 @@ let groupConnectedSymbols (model: SheetT.Model) (symbols: Symbol list) : Symbol 
     |> List.map (List.map getSymbolById)
 
 
-// Group by splitting into Symbol Lists of connected gates + muxes (only directly connected)
-// Generate all the permutations for group
-// Apply permutations to sheet + autoroute + filter to find best group sheet
-// Use that local best going forwards for next group - until all groups done
+/// Optimises sheet by permuting MUX and Gate states of grouped symbols.
 let optimiseGroupedMuxGate (model: SheetT.Model) : SheetT.Model =
     let muxSymbols = getCompTypeSymbols isMuxType model
     let gateSymbols = getCompTypeSymbols isGateType model
     let allSymbols = muxSymbols @ gateSymbols
 
     let groupedSymbols = groupConnectedSymbols model allSymbols
-    //groupedSymbols |> List.iteri (fun i group ->
-    //    printfn "Group %d size: %d" (i + 1) (List.length group))
 
     // Iterate over each group, updating sheet iteratively with the best permutation found for each group
     let finalSheet = 
@@ -185,57 +203,21 @@ let optimiseGroupedMuxGate (model: SheetT.Model) : SheetT.Model =
 
     finalSheet
 
-
-/// Calculates the angle for an edge based on the centre and destination port positions.
-let calculateAngleForEdge (centre: XYPos) (destPort: XYPos) (edge: Edge) =
-    let deltaX = destPort.X - centre.X
-    // Invert deltaY for top and bottom edges
-    let deltaY = 
-        match edge with
-        | Top | Bottom -> centre.Y - destPort.Y  // Invert deltaY for top and bottom edges
-        | Left | Right -> destPort.Y - centre.Y 
-    
-    let angleRadians = atan2 deltaY deltaX
-    // printf $"Edge: {edge}, destPort: {destPort}, angle: {angleRadians}"
-    angleRadians
-
-
-/// Gets the centre position of a custom component symbol.
-let getCustomCompCentre (sym: Symbol) : XYPos =
-    let dims = getCustomCompDims sym
-    // calculate centre of custom component symbol
-    { X = sym.Pos.X + dims.X / 2.0; Y = sym.Pos.Y + dims.Y / 2.0 }
-
-
-/// Gets the connected port ID for a given port ID.
-let getConnectedPort (model: SheetT.Model) (portID: string) =
-    let wires = 
-        model.Wire.Wires
-        |> Map.filter (fun _ wire -> 
-            wire.InputPort = InputPortId portID || wire.OutputPort = OutputPortId portID)
-        |> Map.toList
-
-    wires
-    |> List.tryPick (fun (_, wire) ->
-        match wire.InputPort, wire.OutputPort with
-        | InputPortId pid, _ when pid <> portID -> Some pid
-        | _, OutputPortId pid when pid <> portID -> Some pid
-        | _ -> None
-    )
-    
-
-/// Reorders the ports of a custom component symbol by angle.
+/// Reorders the ports of a custom component symbol by angle
+/// Based on clockface algorithm
+// Does not properly handle side connections - where it fails
 let reorderPortsByAngle (sym: Symbol) (model: SheetT.Model) : Symbol =
     let centre = getCustomCompCentre sym
 
-    // Function to process and reorder ports for a given edge
+    // Process and reorder ports for a given edge
     let processEdge sym edge =
         let portIds = getPortOrder edge sym
 
         // Separate connected and unconnected ports
         let connectedPorts, unconnectedPorts =
             portIds
-            |> List.partition (fun portId -> getConnectedPort model portId |> Option.isSome)
+            |> List.partition (fun portId -> 
+                getConnectedPort model portId |> Option.isSome)
 
         let connectedPortAngles =
             connectedPorts
@@ -246,16 +228,15 @@ let reorderPortsByAngle (sym: Symbol) (model: SheetT.Model) : Symbol =
                 (portId, angle))
             |> List.sortBy snd
             |> List.map fst
-        
+    
         let sortedPortIds = connectedPortAngles @ unconnectedPorts
-
         putPortOrder edge sortedPortIds sym
 
     [Edge.Top; Edge.Bottom; Edge.Left; Edge.Right]
     |> List.fold processEdge sym
 
 
-/// Applies custom component port reordering to a sheet.
+/// Applies custom component port reordering to a sheet and reroutes wires.
 let applyCustomCompReorder (model: SheetT.Model) (customCompSym: Symbol) : SheetT.Model =
     let reorderedCustomComp = reorderPortsByAngle customCompSym model
     let updatedModel = 
@@ -266,34 +247,19 @@ let applyCustomCompReorder (model: SheetT.Model) (customCompSym: Symbol) : Sheet
     { updatedModel with Wire = reroutedModel }
 
 
-/// Iteratively optimise custom component ports by reordering them per edge
+/// Iteratively optimise ports of custom components
 let optimiseCustomCompPorts (sheet: SheetT.Model) : SheetT.Model =
     let customCompSymbols = getCompTypeSymbols isCustomType sheet
-    let originalObjective = calculateSheetObjective sheet
 
-    let optimisedSheet =
-        customCompSymbols
-        |> List.fold (fun currentSheet customCompSym ->
-            let reorderedSheet = applyCustomCompReorder currentSheet customCompSym
-            let reorderedObjective = calculateSheetObjective reorderedSheet
-            if reorderedObjective < calculateSheetObjective currentSheet then
-                reorderedSheet
-            else
-                currentSheet
-        ) sheet
+    (sheet, customCompSymbols) ||> List.fold (fun currentSheet customCompSym ->
+        let reorderedSheet = applyCustomCompReorder currentSheet customCompSym
 
-    if calculateSheetObjective optimisedSheet < originalObjective then
-        optimisedSheet
-    else
-        sheet
+        let currentObjective = calculateSheetObjective currentSheet
+        let reorderedObjective = calculateSheetObjective reorderedSheet
 
+        if reorderedObjective < currentObjective then
+            reorderedSheet
+        else
+            currentSheet
+    )
 
-/// For testing: Reorder all custom component ports on sheet
-/// TODO: Consider custom connected to custom 
-let reorderAllCustomCompPorts (sheet: SheetT.Model) : SheetT.Model =
-    let customCompSymbols = getCompTypeSymbols isCustomType sheet
-    printfn $"Custom Comp Count {List.length customCompSymbols}"
-    customCompSymbols
-    |> List.fold (fun currentSheet customCompSym ->
-        applyCustomCompReorder currentSheet customCompSym
-    ) sheet

@@ -3,12 +3,12 @@
 open SheetBeautify
 open SheetBeautifyHelpers
 open SheetBeautifyAlign
-open SheetBeautifyRotate
+open SheetBeautifyFlip
 open SheetBeautifyWireLabel
 
 
 open TestDrawBlockAlign
-open TestDrawBlockRotate.Tests
+open TestDrawBlockFlip.Tests
 open TestDrawBlockWireLabel
 open TestDrawBlockHelpers.Displays
 open TestDrawBlockHelpers.Builder

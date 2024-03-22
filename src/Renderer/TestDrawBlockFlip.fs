@@ -1,4 +1,4 @@
-module TestDrawBlockRotate
+module TestDrawBlockFlip
 
 open Elmish
 open TimeHelpers
@@ -11,7 +11,7 @@ open TestDrawBlockHelpers.Asserts
 open TestDrawBlockHelpers.Builder
 open SheetBeautifyHelpers
 open SheetBeautifyAlign
-open SheetBeautifyRotate
+open SheetBeautifyFlip
 open SheetBeautifyWireLabel
 open SheetBeautify
 
@@ -34,16 +34,6 @@ module Builder =
     open Displays
 
     // ----------------------Circuit Builders DSL----------------------
-    type TestCompType = 
-    | TAnd
-    | TOr
-    | TNot
-    | TMux2
-    | TMux4
-    | TInput
-    | TOutput
-    | TCustomComp
-
     /// adapted from EdStem: minimal DSL for placing symbols on the sheet
     let minimalDSL (initSheetModel: SheetT.Model) (placers: (SheetT.Model -> Result<SheetT.Model,'a>) list) : Result<SheetT.Model,'a> = 
         (Ok initSheetModel, placers)
@@ -71,12 +61,11 @@ module Builder =
         // TODO: input and output symbols have only one of input/output port
         // need an algorithm to conenct them
 
+    /// DSL for wire placer
     let wirePlacerDSL (sourceSymLabel: string) (targetSymLabel: string) (sourceIdx) (targetIdx) (sheetModel: SheetT.Model) : Result<SheetT.Model, string> =
         sheetModel
         |> placeWire (portOf sourceSymLabel sourceIdx) (portOf targetSymLabel targetIdx) 
 
-    
-        
 //--------------------------------------------------------------------------------------------------//
 //---------------------------------------- Predefined Gen<'a> and Helpers---------------------------//
 //--------------------------------------------------------------------------------------------------//

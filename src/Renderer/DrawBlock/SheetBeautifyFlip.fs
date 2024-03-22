@@ -1,4 +1,4 @@
-﻿module SheetBeautifyRotate
+﻿module SheetBeautifyFlip
 // open modules likely to be used
 open CommonTypes
 open DrawHelpers

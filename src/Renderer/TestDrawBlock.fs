@@ -1245,23 +1245,21 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        /// List of tests available which can be run ftom Issie File Menu.
-        /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1", test3 // example
-                "Test2", test4 // example
-                "Test3", test3 // example
-                "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
-                "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
-
+                "Test1", singleTestForWireOverlaps // single test to evaluate D3 handling wire overlaps
+                "Test2", singleTestForBitsOverlap // single test to evaluate D3 handling bit and wire overlaps
+                "Test3", testD3Easy // set of easy tests to evaluate D3
+                "Test4", testD3Hard // set of hard tests to evaluate D3
+                "Test5", testD3SpacedOut // set of test with more spaced out components to evaluate D3
+                "Test6", testD3Compressed // set of test with more compressed components to evaluate D3
+                "Test7", testD3EasyIndiv // set of tests to evaluate D3 designed using DSL with given components and connections list
+                "Test8", testRandomConnectCircuitGen // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
+                "Next Test Error", fun _ _ _ -> printf "Next Error:"
             ]
+            // Easy, EasyIndiv, testD3Hard
 
         /// Display the next error in a previously started test
         let nextError (testName, testFunc) firstSampleToTest dispatch =

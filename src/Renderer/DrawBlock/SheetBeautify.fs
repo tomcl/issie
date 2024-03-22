@@ -505,21 +505,22 @@ let updateModelWithNonSinglyConnected (initialModel: SheetT.Model) (symbolMoveme
             // Try moving SymbolToMove
             let trialModelSymbolMove =  updateSymPosInSheet symbol.Id newCoordinatesSymbol currentModel
             let updatedWireModel =  BusWireSeparate.routeAndSeparateSymbolWires trialModelSymbolMove.Wire symbol.Id
-            let symbolModel = { trialModelSymbolMove with Wire = updatedWireModel }
+            let updateOtherSymm =  BusWireSeparate.routeAndSeparateSymbolWires updatedWireModel symbolRef.Id
+            let symbolModel = { trialModelSymbolMove with Wire = updateOtherSymm }
 
             //let (newRightAngles, newIntersections) =
 
                 
 
-
+            // TODO: create a function for this instead this is bad :(
             match evaluateSchematic symbolModel with
-            | newRightAngles ,0, newWireIntersections when (newRightAngles < numRightAngles) && (newWireIntersections <= numWireIntersections) ->
+            | newRightAngles ,0, newWireIntersections when (((newRightAngles < numRightAngles) && (newWireIntersections <= numWireIntersections)) || ((newWireIntersections < numWireIntersections) && (newRightAngles <= numRightAngles)))->
                 printfn "Movement applied successfully to symbol: %A" symbol.Component.Label
-                printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A " symbolRef.Component.Label newRightAngles 0 numRightAngles
+                printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A, wireIntersctionNew: %A, wireIntersectionsOld: %A " symbolRef.Component.Label newRightAngles 0 numRightAngles newWireIntersections numWireIntersections
                 
                 symbolModel, listOfMovedSyms @ [verifiedMovements]
             | _ ->
-                printfn "Movement resulted in intersections, not applied to symbol: %A" symbol.Component.Label
+                printfn "Movement errors in intersections, not applied to symbol: %A" symbol.Component.Label
                 // Try moving SymbolRef in the opposite direction if SymbolToMove fails
                 let invertedMovements = invertDirections movementList
 
@@ -531,16 +532,18 @@ let updateModelWithNonSinglyConnected (initialModel: SheetT.Model) (symbolMoveme
 
                 let trialModelSymbolRefMove =  updateSymPosInSheet symbolRef.Id newCoordinatesSymbolRef currentModel
                 let updatedRefWireModel =  BusWireSeparate.routeAndSeparateSymbolWires trialModelSymbolRefMove.Wire symbolRef.Id
-                let symbolRefModel = { trialModelSymbolRefMove with Wire = updatedRefWireModel }
+                let updateOtherSymm =  BusWireSeparate.routeAndSeparateSymbolWires updatedRefWireModel symbol.Id
+
+                let symbolRefModel = { trialModelSymbolRefMove with Wire = updateOtherSymm }
 
                 match evaluateSchematic symbolRefModel with
-                | newRefRightAngles, 0, newRefWireIntersections  when (newRefRightAngles < numRightAngles) && (newRefWireIntersections <= numWireIntersections)-> 
+                | newRefRightAngles, 0, newRefWireIntersections  when (((newRefRightAngles < numRightAngles) && (newRefWireIntersections <= numWireIntersections)) || ((newRefRightAngles <= numRightAngles) && (newRefWireIntersections < numWireIntersections)) )-> 
                     printfn "Movement applied successfully to reference symbol: %A" symbolRef.Component.Label
-                    printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A " symbolRef.Component.Label newRefRightAngles 0 numRightAngles
+                    printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A, wireIntersectionNew: %A, wireIntersectionsOld: %A " symbolRef.Component.Label newRefRightAngles 0 numRightAngles newRefWireIntersections numWireIntersections
                     symbolRefModel, listOfMovedSyms @ [createMovementSymbolWire symbolRef symbol invertedMovements]
                 |newRefRightAngles, intersections, newRefWireIntersections -> 
-                    printfn "Movement resulted in intersections, not applied to reference symbol: %A" symbolRef.Component.Label
-                    printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A " symbol.Component.Label newRefRightAngles intersections numRightAngles
+                    printfn "Movement resulted in errors, not applied to reference symbol: %A" symbolRef.Component.Label
+                    printfn "Symbol: %A, Right Angles: %A, Intersections: %A, Original Right anges: %A , WireIntersenctionNew: %A, wireIntersectionOLD: %A" symbol.Component.Label newRefRightAngles intersections numRightAngles newRefWireIntersections numWireIntersections
                     currentModel, listOfMovedSyms // Return the original model if both attempts fail
         ) (model, ([]: movementSymbolWire list))
 
@@ -560,7 +563,7 @@ let updateModelWithSinglyConnected (model: SheetT.Model) (symbolMovements: (Symb
         movementList |> List.iter (fun (direction, distance) ->
             printfn "  Movement: %A, Distance: %f" direction distance)
 
-        let updatedModel = Optic.set (SheetT.symbolOf_ symbol.Id) { symbol with Pos = newCoordinates } currentModel
+        let updatedModel = updateSymPosInSheet symbol.Id newCoordinates currentModel
         let updatedModelWires = BusWireSeparate.routeAndSeparateSymbolWires updatedModel.Wire symbol.Id
         let symbolModel = { updatedModel with Wire = updatedModelWires }
 
@@ -590,7 +593,7 @@ let printMovementSymbolWireDetails (movementsList: movementSymbolWire list) =
 /// Returns the updated model
 let alignSymbols (model: SheetT.Model) : SheetT.Model =
     printfn "Here we go again -> ALIGN SYMBOLS!!!!!!!!!!!!!!!!!!"
-    let singlyConnected = singlyConnectedSymbols model
+    //let singlyConnected = singlyConnectedSymbols model
     let nonSinglyConnected = setMovementPriority (nonSinglyConnectedSymbols model)
     //printfn "singlyConnected: %A" singlyConnected
     //printfn "nonSinglyConnected: %A" nonSinglyConnected

@@ -1238,7 +1238,7 @@ module HLPTick3 =
                 firstSample
                 (fromList [0;1;2;3])
                 sheetAlignScaleTests.scalingMultipleConnections
-                (Asserts.failOnSampleNumber 0)
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 

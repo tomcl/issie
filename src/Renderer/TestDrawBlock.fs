@@ -476,6 +476,20 @@ module HLPTick3 =
                             (randomIntList (fst posRange) (snd posRange) testCount componentCount)
                             (randomIntList (fst randomizerRange) (snd randomizerRange) testCount componentCount)
         |> filter (fun s -> not (overlapAnySymbol s))
+
+    /// Get a Gen of random deviations (in list of pos on one axis for different components)
+    /// and randomizer values (in list of int for different components).
+    let minorRandomCompPosVal (componentCount: int) (testCount: int) (posRange:int*int) (randomizerRange: int*int)=
+        let coordinateBatch (initialPos: XYPos) (xCoords: int list) (yCoords: int list): XYPos list =
+            (xCoords,yCoords)
+            ||> List.map2 (fun x y -> {X= float x; Y= float y})
+        
+        map3 (fun n m k -> (coordinateBatch middleOfSheet n m,
+                            k))
+                            (randomIntList (fst posRange) (snd posRange) testCount componentCount)
+                            (randomIntList (fst posRange) (snd posRange) testCount componentCount)
+                            (randomIntList (fst randomizerRange) (snd randomizerRange) testCount componentCount)
+        
     /// Get a Gen of manual positions (in list for different components)
     /// and randomizer values (in list for different components).
     let randomCompVal (componentCount: int) (testCount: int) (posRange:int*int) (randomizerRange: int*int)=
@@ -572,28 +586,61 @@ module HLPTick3 =
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
 
-    let makeTest5Circuit (posRots:XYPos) =
-        let MUX2Connection1, MUX2Connection2 = swap 50 "MUX1" "S2" "S1"
-
-        initSheetModel
-        |> placeSymbol "MUX1" Mux2 {X = 1962.66; Y = 1941.49}
-        |> Result.bind (placeSymbol "S2" (Input1(1,None)) {X = 1662.66; Y = 2041.49})
-        |> Result.bind (placeSymbol "S1" (Input1(1,None)) {X = 1662.66; Y = 1841.49})
+    let makeTest5Circuit (posRots:XYPos list * int list) =
+        (*initSheetModel
+        |> placeSymbol "S1" (Input1(1,None)) ((fst posRots)[0])
+        |> Result.bind (placeSymbol "S2" (Input1(1,None)) ((fst posRots)[1]))
+        |> Result.bind (placeSymbol "MUX1" Mux2 ((fst posRots)[2]))
+        |> Result.bind (placeSymbol "MUX2" Mux2 ((fst posRots)[3]))
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) ((fst posRots)[4]))
+        |> Result.bind (flipRot ((snd posRots)[0]) "S1" )
+        |> Result.bind (flipRot ((snd posRots)[1]) "S2")
+        |> Result.bind (flipRot ((snd posRots)[2]) "MUX1")
+        |> Result.bind (flipRot ((snd posRots)[3]) "MUX2")
+        |> Result.bind (flipRot ((snd posRots)[4]) "G1")
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
         |> Result.bind (MUX2Connection1)
         |> Result.bind (MUX2Connection2)
-        //|> Result.bind (optimalEdgeOrder)
+        |> Result.bind (ANDConnection1)
+        |> Result.bind (ANDConnection2)
+        |> getOkOrFail*)
+        let MUX2Connection1, MUX2Connection2 = swap (0) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = swap (0) "G1" "MUX2" "MUX1"
+
+
+        initSheetModel
+        |> placeSymbol "MUX1" Mux2 ({X = 1482.91; Y = 1681.89}+(fst posRots)[0])
+        |> Result.bind (placeSymbol "S2" (Input1(1, None)) ({X = 1650.06; Y = 1906.01}+(fst posRots)[1]))
+        |> Result.bind (placeSymbol "S1" (Input1(1, None)) ({X = 1474.5; Y = 1595.86}+(fst posRots)[2]))
+        |> Result.bind (placeSymbol "MUX2" Mux2 ({X = 1717.43; Y = 1593.99}+(fst posRots)[3]))
+        |> Result.bind (placeSymbol "G1" (GateN(And, 2)) ({X = 1973.56; Y = 1630.55}+(fst posRots)[4]))
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
+        |> Result.bind (MUX2Connection1)
+        |> Result.bind (MUX2Connection2)
+        |> Result.bind (ANDConnection1)
+        |> Result.bind (ANDConnection2)
         |> getOkOrFail
+                
+
 
     let makeTest6Circuit (posRots:XYPos list * int list) =
-        let MUX2Connection1, MUX2Connection2 = swap 50 "MUX1" "S2" "S1"
+        let MUX2Connection1, MUX2Connection2 = swap (0) "MUX2" "S1" "MUX1"
+        let ANDConnection1, ANDConnection2 = swap (0) "G1" "MUX2" "MUX1"
+
 
         initSheetModel
-        |> placeSymbol "S1" (Input1(1,None)) {X = 1662.66; Y = 1841.49}
-        |> Result.bind (placeSymbol "S2" (Input1(1,None)) {X = 1662.66; Y = 2041.49})
-        |> Result.bind (placeSymbol "MUX1" Mux2 {X = 1962.66; Y = 1941.49})
+        |> placeSymbol "MUX1" Mux2 ({X = 1482.91; Y = 1681.89}+(fst posRots)[0])
+        |> Result.bind (placeSymbol "S2" (Input1(1, None)) ({X = 1650.06; Y = 1906.01}+(fst posRots)[1]))
+        |> Result.bind (placeSymbol "S1" (Input1(1, None)) ({X = 1474.5; Y = 1595.86}+(fst posRots)[2]))
+        |> Result.bind (placeSymbol "MUX2" Mux2 ({X = 1717.43; Y = 1593.99}+(fst posRots)[3]))
+        |> Result.bind (placeSymbol "G1" (GateN(And, 2)) ({X = 1973.56; Y = 1630.55}+(fst posRots)[4]))
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2))
         |> Result.bind (MUX2Connection1)
         |> Result.bind (MUX2Connection2)
+        |> Result.bind (ANDConnection1)
+        |> Result.bind (ANDConnection2)
         |> getOkOrFail
+        |> alignSymbols
 
     let makeTest8Circuit (posRots:XYPos list * int list) =
         let MUX2Connection1, MUX2Connection2 = swap ((snd posRots)[3]) "MUX2" "S1" "MUX1"
@@ -742,21 +789,21 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test5 testNum firstSample dispatch =
-            runTestOnSheets2
+        let test5 random testNum firstSample dispatch =
+            runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
                 firstSample
-                horizLinePositions
+                random
                 makeTest5Circuit
                 Asserts.countWireCrossingAndSegs
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        let test6 testNum firstSample dispatch =
+        let test6 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
                 firstSample
-                (randomCompPosVal 5 200 (-200,200) (0,200))
+                random
                 makeTest6Circuit
                 Asserts.countWireCrossingAndSegs
                 dispatch
@@ -785,6 +832,7 @@ module HLPTick3 =
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
             let randomized = (randomCompPosVal 5 10 (-200,200) (0,200))
+            let minorDiviationRandomized = (minorRandomCompPosVal 5 10 (-50,50) (0,200))
             // Change names and test functions as required
             // delete unused tests from list
             [
@@ -792,8 +840,8 @@ module HLPTick3 =
                 "Test2", test2
                 "Test3", test3
                 "Test4", test4
-                "Test5", test5
-                "Test6", test6
+                "Test5", (fun a b c -> test5 minorDiviationRandomized a b c)
+                "Test6", (fun a b c -> test6 minorDiviationRandomized a b c)
                 "Test7", (fun a b c -> test7 randomized a b c)
                 "Test8", (fun a b c -> test8 randomized a b c)
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test

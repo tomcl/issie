@@ -164,6 +164,7 @@ let offset =
     Array.init 1 (fun x y -> {X=x; Y=y})
     |> Array.map (fun pos -> {X=middleOfSheet.X; Y=middleOfSheet.Y})
     |> fromArray
+
     // let positionsOverlap (sheet: SheetT.Model) :bool = 
     //     // let sheet = makeTest1Circuit andPos
     //     // let wireModel = sheet.Wire
@@ -221,6 +222,7 @@ let randomPos: Gen<XYPos List> =
             //|> Array.choose id
         fromArray gen12Array
 
+// Todo: generate random test elements: Gen<ComponentType list * XYPos list * operationChoice>
 // let testRandElements = 
 //     getTestRand 3
 
@@ -422,12 +424,18 @@ let targetSheetD2 (sheet: SheetT.Model) =
     let crossings = 
         sheet
         |> numSegmentCrossRightAngle
-    printfn "Crossings before beautify: %d" crossings
     let beautifiedSheet = sheetOrderFlip sheet
     let crossingsAfter = 
         beautifiedSheet
         |> numSegmentCrossRightAngle
-    printfn "Crossings after beautify: %d" crossingsAfter
+    let wireBendBefore = 
+        sheet
+        |> numVisibleWireRightAngle
+    let wireBendAfter =     
+        beautifiedSheet
+        |> numVisibleWireRightAngle
+    printfn "Crossings before: %d , Crossings after: %d , Crossings reduced: %d" crossings crossingsAfter (crossings - crossingsAfter)
+    printfn "Bends before: %d , Bends after: %d , Bends reduced: %d" wireBendBefore wireBendAfter (wireBendBefore - wireBendAfter)
     beautifiedSheet
 
 //---------------------------------------------------------------------------------------//
@@ -554,9 +562,9 @@ module Tests =
                 firstSample
                 horizLinePositions
                 showTargetSheet
-                (Some sheetOrderFlip)
+                (Some targetSheetD2)
                 makeTestCircuit2
-                (AssertFunc indevTestWiresCrossing)
+                (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator
                 dispatch
             |> recordPositionInTest testNum showTargetSheet dispatch
@@ -580,9 +588,9 @@ module Tests =
                 firstSample
                 randomPos
                 showTargetSheet
-                (Some sheetOrderFlip)
+                (Some targetSheetD2)
                 makeRandomTestCircuit
-                (AssertFunc indevTestWiresCrossing)
+                (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator
                 dispatch
             |> recordPositionInTest testNum showTargetSheet dispatch

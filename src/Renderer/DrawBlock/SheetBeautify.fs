@@ -33,7 +33,7 @@ open SheetBeautifyD3
 
 let beautifySheet (initialModel : SheetT.Model) : SheetT.Model =
 
-    // Adding current model to the undo/redo list
+    // Adding current model to the undo list
     let newUndoList, newRedoList = SheetUpdateHelpers.appendUndoList initialModel.UndoList initialModel, initialModel.RedoList
 
     let modelToUpdate = {initialModel with UndoList = newUndoList; RedoList = newRedoList}

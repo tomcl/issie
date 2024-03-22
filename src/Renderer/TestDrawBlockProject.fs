@@ -281,6 +281,29 @@ let beautifySheet (model : ModelType.Model) (func: SheetT.Model -> SheetT.Model)
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 
+//------------------------------------------------------- Circuit 0 --------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------------------------//
+
+
+let makeCircuit0 (symPosInfo : XYPos * XYPos) =
+    let (mux1Pos, mux2Pos) = symPosInfo
+    initSheetModel
+    |> placeSymbol "DMUX1" (Demux4) (middleOfSheet)
+    |> Result.bind (placeSymbol "MUX1" Mux4 (middleOfSheet+{X=200.0;Y=100.0}))
+    |> Result.bind (placeSymbol "AND1" (GateN (And,2)) (middleOfSheet + { X = -150; Y = 276 }))
+    |> Result.bind (placeSymbol "OR1" (GateN (Or,2)) (middleOfSheet + { X = -150; Y = 271.5 }))
+    |> Result.bind (placeSymbol "MUX2" Mux2 (middleOfSheet + { X = -250; Y = -241.5 }))
+    |> Result.bind (placeSymbol "AND2" (GateN (And,2)) (middleOfSheet + { X = -190; Y = -240.5 }))
+    |> Result.bind (placeSymbol "NOT1" Not (middleOfSheet + { X = -140; Y = -211.5 }))
+    |> Result.bind (placeWire (portOf "DMUX1" 0) (portOf "MUX1" 0))
+    |> Result.bind (placeWire (portOf "DMUX1" 1) (portOf "MUX1" 1))
+    |> Result.bind (placeWire (portOf "DMUX1" 2) (portOf "MUX1" 2))
+    |> Result.bind (placeWire (portOf "DMUX1" 3) (portOf "MUX1" 3))
+    |> Result.bind (placeWire (portOf "AND1" 0) (portOf "OR1" 0))
+    |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "AND2"1))
+    |> Result.bind (placeWire (portOf "AND2" 0) (portOf "NOT1" 0))
+    |> getOkOrFail
+
 
 //------------------------------------------------------- Circuit 1 --------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
@@ -679,6 +702,17 @@ let integratedTestCircuit (symInfo : posFlipComponentConnections * posFlipCompon
 //--------------------------------------------------------------------------------------------------------------------------//
 //---------------------------------------------- Demo tests on Draw Block code ---------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
+
+let test0 testNum firstSample dispatch =
+    runTestOnSheets
+        "1 muxes single connected with And and then Not gate, 2 gates single connected, and 1 DMUX4 and MUX4"
+        firstSample
+        verticalLinePairs
+        makeCircuit0
+        failOnAllTests
+        dispatch
+    |> recordPositionInTest testNum dispatch
+
 let test1 testNum firstSample dispatch =
     runTestOnSheets
         "2 muxes single connected and 2 gates connected"
@@ -765,6 +799,7 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
     // delete unused tests from list
     [
         // D1
+        "Test0", test0
         "Test1", test1
         "Test2", test2
         

@@ -290,7 +290,7 @@ module HLPTick3 =
         let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
             let symbolMap, componentID = getSymMapCompId symLabel model
             let sym' = 
-                SymbolResizeHelpers.rotateAntiClockByAng rotate symbolMap[componentID]
+                SymbolResizeHelpers.rotateSymbol rotate symbolMap[componentID]
                 |> Optic.set SheetBeautifyHelpers.symbol_rotation_ rotate 
             updatedModel componentID sym' model
 

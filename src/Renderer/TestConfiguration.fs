@@ -16,6 +16,7 @@ let randomTestAsserts : list<(SheetT.Model -> SheetT.Model -> option<string>)> =
 let beautifyFunction (sheetModel: SheetT.Model) : SheetT.Model =
     // Placeholder beautify logic
     sheetModel
+    |> SheetBeautify.beautifyD3
 
 let modelsToTest: TestModel list =
     [ 

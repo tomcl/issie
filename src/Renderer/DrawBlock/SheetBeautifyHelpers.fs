@@ -21,13 +21,17 @@ let printInline print = printf $"{print}"; print
 /// <summary> Print each element of the list as "${param}"</summary>
 /// <param name="print">The list of values to print and pass</param>
 /// <returns>The unchanged list</returns>
-let printListInline print = List.map (fun elem -> printf $"{elem}") print |> ignore; print
+let printListInline list = List.map (fun elem -> printf $"{elem}") list |> ignore; list
 
 /// <summary> Print an argument as "${param}"</summary>
 /// <param name="print">The value to print</param>
 /// <param name="pass">The value to return</param>
 /// <returns>The unchanged argument</returns>
 let printAndPass print pass = printf $"{print}"; pass
+
+let printAndPass2 func print = printf $"{func print}"; print
+let printListInline2 func list = List.map (fun print -> printf $"{func print}") list |> ignore; list
+let doListInline func list = List.map (fun print -> func print) list |> ignore; list
 
 //----------------------------------------------------------------------------------------------------//
 //----------------------------------------RotateScale-------------------------------------------------//
@@ -474,6 +478,44 @@ let calcVisWireLength (model:SheetT.Model) : float =
     allWireNets model
     |> List.collect (fun (_, net) -> getVisualSegsFromNetWires true model net)
     |> List.sumBy( fun (startP,endP) -> euclideanDistance startP endP)
+
+let totalVisibleWireLength (wModel: BusWireT.Model) =
+  let netlist = 
+    wModel.Wires
+    |> Helpers.mapValues
+    |> Seq.toList
+    |> List.groupBy (fun wire -> wire.OutputPort)
+
+  netlist
+  |> List.map (fun net ->
+    snd net
+    |> fun lst -> 
+      if lst.Length = 1
+      then // no overlaps possible
+        lst.Head.Segments
+        |> List.map (fun seg -> seg.Length |> abs)
+        |> List.fold (+) 0.0
+      else
+        lst
+        |> List.map BlockHelpers.getNonZeroAbsSegments
+        |> List.concat
+        |> List.distinctBy (fun seg -> seg.Start, seg.End) // remove obvious overlaps
+        |> (fun segs -> 
+          List.fold (fun length (seg: BusWireT.ASegment) -> 
+            segs
+            |> List.tryFind (fun seg' ->
+              // do not double count near T junction
+              seg'.Segment.GetId <> seg.Segment.GetId 
+              && seg'.Segment.Length < seg.Segment.Length
+              && (seg'.Start = seg.Start
+                || seg'.End = seg.End))
+            |> function
+            | Some dupl -> length + (abs seg.Segment.Length) - (abs dupl.Segment.Length)
+            | None -> length + (abs seg.Segment.Length)
+          ) 0.0 segs
+        )
+  ) 
+  |> List.fold (+) 0.0
 
 // T5 R
 /// Counts the visible wire right-angles (bends) over the entire sheet.

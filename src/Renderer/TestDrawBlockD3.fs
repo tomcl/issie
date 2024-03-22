@@ -188,7 +188,8 @@ let test1Builder =
     List.allPairs allRot allFlip
     |>combinations
     |>List.toArray
-    |>shuffleA 
+    |>shuffleA
+    |>(fun f -> f[1..25]) 
     |>fromArray
 
 

@@ -60,11 +60,12 @@ The testing code is contained within the following module:
 
 ## Changes Since Demo
 (If applicable) Since the demonstration, the following changes have been made to the repository:
-
+- Improved D1 sheetAlign function to include a threshold to decide whether to beautify or not beautify current model to remove wire overlaps with symbols.
+- Added an exhaustive component tester in `test 3` for D1 sheetAlign to check if it works on multiple different components with little space.
+- The integrated beautify function includes sheetAlign at the end to remove any wire bends.
 
 ## Additional Functionality Considerations
 (If applicable) It is important to consider the following aspects of functionality that were not shown during the demo:
-
 
 ## Rationale for Source File Modifications
 One source file was changed: [SymbolResizeHelpers.fs](./src/Renderer/DrawBlock/SymbolResizeHelpers.fs). This was to fix an issue with the rendering of the bounding box when flipping Muxes. [Click Here](https://github.com/ben-marconi/HLP-project/commit/3f85db48355a4a710e57f126877db89d8a50a223) to see the changes.

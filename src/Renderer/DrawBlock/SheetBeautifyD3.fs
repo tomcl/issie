@@ -194,10 +194,11 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
 /// Can be used in bulk converting and individual converting 
 let generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: SheetT.Model) =
     ///User can change
-    let chooseCondition = isLongAndComplexWire 1 50. wire sheet
+    let chooseConditionForIndividual = isLongAndComplexWire 1 50. wire sheet
+    let chooseConditionForBulk = getWireLength wire > 120.
 
-    if isForIndivWire && not (chooseCondition) then sheet
-    else if (getWireLength wire > 120.) then
+    if isForIndivWire && not (chooseConditionForIndividual) then sheet
+    else if (chooseConditionForBulk) then
         let connectionID = wire.WId
         let startSym = getSourceSymbol sheet.Wire wire
         let sourceSymPort = getSourcePort sheet.Wire wire
@@ -272,7 +273,7 @@ let generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: Sheet
         | None -> sheet
     else sheet
 
-/// Automatically generate Wire Labels for all wires on a sheet/// Automatically generate Wire Labels for all wires on a sheet
+/// Automatically generate Wire Labels for all wires on a sheet
 let sheetWireLabelSymbol (sheet: SheetT.Model) =
     let wireList = getWireListFromSheet sheet
     let wiresNeedLabels = getWiresNeedLabels getLongOrSameNetWires wireList sheet

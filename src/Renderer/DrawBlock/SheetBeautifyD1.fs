@@ -17,7 +17,7 @@ let getParallelWires (sheet: SheetT.Model) =
     sheet.Wire.Wires
     |> Map.values
     |> Seq.toList
-    |> List.filter (fun wire -> (List.length (visibleSegments wire.WId sheet false)) >= 3)
+    |> List.filter (fun wire -> (List.length (visibleSegments wire.WId sheet false)) = 3)
 
 /// Retrieves a list of symbols from the provided sheet model.
 ///
@@ -40,9 +40,9 @@ let noSymbolSymbolListIntersection (symbol: SymbolT.Symbol) (symbolList: List<Sy
         symbolList
     |> not
 
-/// Straightens wires once in the provided sheet model.
+/// runs one iteration of wire straightening algorithm in the provided sheet model.
 /// <param name="sheet">The sheet model.</param>
-/// <returns>The updated sheet model with straightened wires.</returns>
+/// <returns>The updated sheet model after one pass of the straighting algorithm.</returns>
 let straightenWiresOnce (sheet: SheetT.Model) =
     let symbolsList = getSymbolsList sheet
     let parallelWires = getParallelWires sheet

@@ -5,6 +5,7 @@ open RotateScale
 open CommonTypes
 open SheetBeautifyHelpers
 open SheetBeautifyD2
+open SheetBeautifyD1
 
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Test Circuits---------------//
@@ -192,10 +193,10 @@ module D2 =
 
     let D2StarterPositions = 
         let mux1PossibleSwaps = [true; false]
-        let mux1PossibleFlips: SymbolT.FlipType list = [SymbolT.FlipType.FlipHorizontal; SymbolT.FlipType.FlipVertical]
+        let mux1PossibleFlips: SymbolT.FlipType list = [SymbolT.FlipType.FlipHorizontal]
         let mux2PossibleSwaps = [true; false]
-        let mux2PossibleFlips = [SymbolT.FlipType.FlipHorizontal; SymbolT.FlipType.FlipVertical]
-        let gateFlips = [SymbolT.FlipType.FlipHorizontal; SymbolT.FlipType.FlipVertical]
+        let mux2PossibleFlips = [SymbolT.FlipType.FlipHorizontal]
+        let gateFlips = [SymbolT.FlipType.FlipHorizontal]
 
         mux1PossibleSwaps
         |> List.allPairs mux1PossibleFlips

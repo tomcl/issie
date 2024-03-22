@@ -30,6 +30,7 @@ open BlockHelpers
 
 module Circuit =
     
+    // TODO: instead of passing in unique data, pass in random seed for reproducable but fast to execute random tests.
     /// generates random circuit without overlap
     let randCircuit ((comps: ComponentType list), (posGen: XYPos list)) =
         // let genRand = System.Random(seed)
@@ -162,18 +163,19 @@ module TestData =
             let withoutX = combinations k xs
             withX @ withoutX
 
-    ///
+    /// produces generator of n random components
     let nRandComps n =  
         combinations n (Array.toList allComps)
         |> fromList
 
-    // let nRandPos n = 
-    //     let posGen = randXY {
-    //                             min = -400
-    //                             step = 100
-    //                             max = 400
-    //                         }
-    //     toList posGen
+    /// Produces n random positions
+    let nRandPos n = 
+        let posGen = randXY {
+                                min = -400
+                                step = 100
+                                max = 400
+                            }
+        toList posGen
     let getTestRand n =
         (nRandComps n, fromList TestData.randomPos)
         ||> product (fun compL posL -> (compL, posL))
@@ -187,21 +189,20 @@ module TestData =
     // /// Generates a list of n random components
     // let nRandComps (n:int) : ComponentType list =
     //     let getRandComp _ = randElem allComps
-
     //     [1..n]
     //     |> List.map getRandComp
 
-    // let nRandXY (n:int) (xyMin, xyStep, xyMax) =
-    //     let getRandXY _ = randXY {  
-    //                                 min  = xyMin
-    //                                 step = xyStep
-    //                                 max  = xyMax
-    //                              }   
+    let nRandXY (n:int) (xyMin, xyStep, xyMax) =
+        let getRandXY _ = randXY {  
+                                    min  = xyMin
+                                    step = xyStep
+                                    max  = xyMax
+                                 }   
+        [1..n]
+        |> List.map getRandXY
 
-    //     [1..n]
-    //     |> List.map getRandXY
 
-
+    // TODO: Produce position generator
     // /// Generator of random number of random components.
     // /// `@param` minimum & maximum number of comps (inclusive)
     // let randCircuitData (cMin, cMax) (xyMin, xyStep, xyMax) =
@@ -211,9 +212,8 @@ module TestData =
     //         |> fromList
     //     let posGen =
     //         nRandXY n (xyMin, xyStep, xyMax)
-
-
     //     product (fun comp xy -> (comp, xy)) compGen posGen
+ 
 
 module Evaluations =
     open TestDrawBlockD1.Evaluations

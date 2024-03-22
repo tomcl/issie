@@ -84,7 +84,7 @@ let updateSymbols updatedSymbols priorSheet =
     <| priorSheet
 
 /// Updates all components by aligning top ports of the source and target symbols
-/// Takes in a list of target port and source symbol paits, a list of edges that the source port is on, and the prior sheet
+/// Takes in a list of target port and source symbol pairs, a list of edges that the source port is on, and the prior sheet
 /// Returns updated sheet
 let updateAllComponents targetPorts (sourceEdges: Edge list) priorSheet=   
     let updatedSymbols = 
@@ -309,8 +309,8 @@ let findEdgemost edge symList =
             match edge with 
             | Right -> if (sym.Component.X > furthest) then sym.Component.X else furthest
             | Left -> if (sym.Component.X < furthest) then sym.Component.X else furthest
-            | Top ->  if (sym.Component.Y > furthest) then sym.Component.Y else furthest // TODO: check logic
-            | Bottom -> if (sym.Component.Y < furthest) then sym.Component.Y else furthest
+            | Top ->  if (sym.Component.Y < furthest) then sym.Component.Y else furthest 
+            | Bottom -> if (sym.Component.Y > furthest) then sym.Component.Y else furthest
     )
 
 // Returns component ids of overlapping components

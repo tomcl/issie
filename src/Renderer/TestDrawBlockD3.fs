@@ -380,23 +380,8 @@ module HLPTick3 =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X = 0. ; Y = float n})
 
-
-    /// demo test circuit consisting of a DFF & And gate
-    let makeTest1Circuit (andPos:XYPos) =
-        initSheetModel
-        |> placeSymbol "G1" (GateN(And,2)) andPos
-        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-        |> getOkOrFail
-    
-
-
-
-
-    
-  
     type XYPosRFlip = {X: float; Y: float; Rotation: Rotation; Flip: SymbolT.FlipType}
+
     let bounds = 120
     let step = 30
     let horizVertLinePositions: Gen<XYPos> =
@@ -434,57 +419,49 @@ module HLPTick3 =
             flipList
             rotateList
 
-    let makeD3Test1Circuit (andParameters: XYPosRFlip) =
-        let andPos = { X = andParameters.X; Y = andParameters.Y }
-        let andRotate = andParameters.Rotation
+    /// demo test circuit consisting of a DFF & And gate
+    let makeTest1Circuit (andPos:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) andPos
+        |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
+        |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
+        |> getOkOrFail
+    
+
+    // Demux4 and Mux4 test circuit configuration
+    let makeD3Test1Circuit (andParameters: XYPos) =
+        let andPos = {X = andParameters.X; Y = andParameters.Y}
+        
+        initSheetModel
+        |> placeSymbol "DM1" Demux4 andPos
+        |> Result.bind (placeSymbol "MUX1" Mux4 middleOfSheet)
+        |> Result.bind (placeWire (portOf "DM1" 0)(portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "DM1" 1)(portOf "MUX1" 1))
+        |> Result.bind (placeWire (portOf "DM1" 2)(portOf "MUX1" 2))
+        |> Result.bind (placeWire (portOf "DM1" 3)(portOf "MUX1" 3))
+
+        |> getOkOrFail
+    
+    // flips and rotations of the MUX4, + DEMUX4
+    let makeD3Test2Circuit (andParameters: XYPosRFlip) =
+        let andPos = {X = andParameters.X; Y = andParameters.Y}
+        let andRotation = andParameters.Rotation
         let andFlip = andParameters.Flip
 
         initSheetModel
         |> placeSymbol "DM1" Demux4 andPos
         |> Result.bind (placeSymbol "MUX1" Mux4 middleOfSheet)
-        |> Result.bind (placeSymbol "MUX2" Mux4 middleOfSheet)
         |> Result.bind (placeWire (portOf "DM1" 0)(portOf "MUX1" 0))
-        |> Result.bind (placeWire (portOf "DM1" 0)(portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "DM1" 1)(portOf "MUX1" 1))
-        |> Result.bind (placeWire (portOf "DM1" 1)(portOf "MUX2" 1))
         |> Result.bind (placeWire (portOf "DM1" 2)(portOf "MUX1" 2))
-        |> Result.bind (placeWire (portOf "DM1" 2)(portOf "MUX2" 2))
         |> Result.bind (placeWire (portOf "DM1" 3)(portOf "MUX1" 3))
-        |> Result.bind (placeWire (portOf "DM1" 3)(portOf "MUX2" 3))
 
         |> getOkOrFail
-        // |> rotateSymbol "MUX1" andRotate
-        // |> flipSymbol "DM1" andFlip
 
-    // Mux4 connected to Demux4 test circuit as seen in Figure C1 
-    let makeD3Test2Circuit (andParameters: XYPosRFlip) = 
-        let andPos = { X = andParameters.X; Y = andParameters.Y }
-        let andRotate = andParameters.Rotation
-        let andFlip = andParameters.Flip
+        |> rotateSymbol "MUX1" andRotation
+        |> flipSymbol "MUX1" andFlip
 
-
-        initSheetModel
-        |> placeSymbol "DM1" Demux4 andPos
-        |> Result.bind (placeSymbol "MUX1" Demux2 middleOfSheet)
-        |> Result.bind (rotateSymbol "MUX2" andRotate)
-        |> Result.bind (placeSymbol "MUX2" Demux2 middleOfSheet)
-        |> Result.bind (flipSymbol "DM2" andFlip)
-        |> Result.bind (placeWire (portOf "DM1" 0)(portOf "MUX1" 0))
-        |> Result.bind (placeWire (portOf "DM1" 0) (portOf "MUX2" 0))
-        |> Result.bind (placeWire (portOf "DM1" 1)(portOf "MUX1" 1))
-        |> Result.bind (placeWire (portOf "DM1" 1) (portOf "MUX2" 1))
-        |> Result.bind (placeWire (portOf "DM1" 2)(portOf "MUX1" 2))
-        |> Result.bind (placeWire (portOf "DM1" 2) (portOf "MUX2" 2))
-        |> Result.bind (placeWire (portOf "DM1" 3)(portOf "MUX1" 3))
-        |> Result.bind (placeWire (portOf "DM1" 3) (portOf "MUX2" 3))
-        |> getOkOrFail
-
-    
-    let vertLinePositions: Gen<XYPos> = 
-        fromList [ -100..20..100 ]
-        |> map (fun n -> middleOfSheet + {X = 0.; Y = float n})
-
-    
 
 
 
@@ -532,16 +509,15 @@ module HLPTick3 =
         //                  | false -> None)
 
 
-
-        let totalGayWireNum (sample: int) (sheet: SheetT.Model) =
+        //---------------------------D3T Deliverable--------------------------//
+        let totalWireBends (sample: int) (sheet: SheetT.Model) =
             let totalWireBendNum = countVisibleRAngles sheet
-
             totalWireBendNum
 
-
-
+        //---------------------------D3T Deliverable--------------------------//
+        // Also counts the number of wire bends in a sheet
         let failOnSymbolIntersectsSymbol (sample: int) (sheet: SheetT.Model) =
-            let totalWireBendNum = totalGayWireNum sample sheet
+            let sumWireBends = totalWireBends sample sheet
             
             let boundingBoxes = sheet.BoundingBoxes
             let boxes =
@@ -551,16 +527,8 @@ module HLPTick3 =
             List.allPairs boxes boxes 
             |> List.exists (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function
-            | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}. Total instances of gayness are {totalWireBendNum}."
-            | false -> Some $"No symbol overlaps. Total instances of gayness are {totalWireBendNum}.")
-
-
-            // let totalWireBendNum = totalGayWireNum sample sheet
-            
-            // match pairsCount with
-            // | 0 -> None
-            // | _ -> Some $"Symbol outlines intersect in {pairsCount} pairs starting with sample: {sample}. Total instances of gayness are {totalWireBendNum}."
-            
+            | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}. Total instances of bends in the current sheet are {totalWireBendNum}."
+            | false -> Some $"No symbol overlaps. Total instances of bends in the current sheet are {totalWireBendNum}.")
 
 
 
@@ -627,23 +595,25 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        // Test 5: Vertically positioned AND + DFF
-        let test5 testNum firstSample dispatch =
-            runTestOnSheets
-                "Vertically positioned AND + DFF: fail all tests"
-                firstSample
-                horizLinePositions
-                makeTest1Circuit
-                Asserts.failOnAllTests
-                dispatch
-            |> recordPositionInTest testNum dispatch
 
+        // D3Test1 - Randomly positioned DEMUX4 + MUX4 tests
         let D3Test1 testNum firstSample dispatch =
             runTestOnSheets
-                "Vertically positioned AND + DFF: fail all tests"
+                "Randomly positioned MUX4 + DEMUX4"
                 firstSample
                 hVLinePosFlipRotate
                 makeD3Test1Circuit
+                Asserts.failOnSymbolIntersectsSymbol
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        // D3Test2 - Random positioned DEMUX4 and MUX4 tests
+        let D3Test2 testNum firstSample dispatch =
+            runTestOnSheets
+                "Randomly positioned, rotated and flipped MUX4, + DEMUX4"
+                firstSample
+                hVLinePosFlipRotate
+                makeD3Test2Circuit
                 Asserts.failOnSymbolIntersectsSymbol
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -658,8 +628,8 @@ module HLPTick3 =
                 "Test2", test2 // example
                 "Test3", test3 // example
                 "Test4", test4 
-                "Test5", test5 // vertical line
-                "Test7", D3Test1
+                "Test5", D3Test1
+                "Test6", D3Test2
                 "Test8", fun _ _ _ -> printf "Test8"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 

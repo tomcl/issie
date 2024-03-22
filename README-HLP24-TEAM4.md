@@ -13,22 +13,22 @@ add below -->
 ### D2 beautifying function (sheet->sheet)
 
 ### D3 beautifying function 
-`sheetWireLabelSymbol (sheet: SheetT.Model) : SheetT.Model`: 
+`sheetWireLabelSymbol` (sheet: SheetT.Model) : SheetT.Model:  
 this outputs a beautified sheet that automatically replace wires by wire labels where appropriate, user can change heuristic of what consider to be wire label worthy wires. 
 
-`autoConvertWireLabelsToWires (sheet: SheetT.Model) : SheetT.Model`: 
+`autoConvertWireLabelsToWires` (sheet: SheetT.Model) : SheetT.Model:  
 this outputs a sheet after automatically converting all Wire Labels on the sheet to wires between corresponding inputs and outputs
 
-`generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: SheetT.Model) : (sheet: SheetT.Model)`: 
+`generateWireLabel` (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: SheetT.Model) : (sheet: SheetT.Model):  
 used in right-hand click menu. Convert a wire on a sheet to a wire label. isForIndivWire = true when user want to use this to convert selected single wire; isForIndivWire = false when user wants to use this to convert a selected bunch of wires. User can change choose wire condition for both inside the function. 
 
-`turnWireLabelsToWires (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) :(sheet: SheetT.Model)`: 
+`turnWireLabelsToWires` (wireLabel: SymbolT.Symbol) (sheet: SheetT.Model) :(sheet: SheetT.Model):  
 used in right-hand click menu. Convert a selected wire component on a sheet to wire, ignore if not a wire label.
 
-`convertSelectedWiresIntoWireLabels (comps: ComponentId list) (model: Model) (sheet: SheetT.Model): (sheet: SheetT.Model)`: 
+`convertSelectedWiresIntoWireLabels` (comps: ComponentId list) (model: Model) (sheet: SheetT.Model): (sheet: SheetT.Model):  
 used in edit menu, to bulk convert selected wires into labels.
 
-`convertSelectedWiresLabelsIntoWires (comps: ComponentId list) (model: Model) (sheet: SheetT.Model) : (sheet: SheetT.Model)`:
+`convertSelectedWiresLabelsIntoWires` (comps: ComponentId list) (model: Model) (sheet: SheetT.Model) : (sheet: SheetT.Model):  
 used in edit menu, to bulk convert selected wire labels back to wires, ignore non-wire-labels components.
 
 

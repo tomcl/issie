@@ -156,6 +156,10 @@ let test2Builder =
     |> List.toArray
     |> GenerateData.shuffleA
     |> GenerateData.fromArray
+
+let test3Builder = 
+    randomFloat 100 20 200
+
     
 
 let test1Builder = 
@@ -265,24 +269,22 @@ let makeTest2Circuit (data: float*Rotation)=
     |>dSelect
 
 
-let makeTest3Circuit (data: float*Rotation)=
-    let rotation = snd data
-    let gap = fst data
-    printf "Test 3 rotation: %A" rotation
+let makeTest3Circuit (gap:float)=
+    let coeff = gap/200.
     printf "Test 3 gap: %A" gap
-    let Pos1 = middleOfSheet + {X=0. ; Y=200.}
-    let Pos2 = middleOfSheet + {X=200. ; Y=(-60.)}
-    let Pos3 = Pos1 + {X=200. ; Y=(-60.)}
-    let Pos4 = Pos2 + {X=200. ; Y=(-50.)}
-    let Pos5 = Pos4 + {X=0.   ; Y=100.}
-    let Pos6 = Pos5 + {X=0.   ; Y=100.}
-    let Pos7 = Pos6 + {X=0.   ; Y=100.}
-    let Pos8 = Pos6 + {X=150.   ; Y=0.}
-    let Pos9 = Pos7 + {X=250.   ; Y=(-14.)}
-    let Pos10 = Pos8 + {X=80.   ; Y=(-100.)}
-    let Pos11 = Pos8 + {X=180.   ; Y=(-35.)}
-    let Pos12 = Pos11 + {X=180.   ; Y=(-100.)}
-    let Pos13 = Pos12 + {X=180.   ; Y=200.}
+    let Pos1 = middleOfSheet + {X=0. ; Y=200.*coeff}
+    let Pos2 = middleOfSheet + {X=200.*coeff ; Y=(-60.)*coeff}
+    let Pos3 = Pos1 + {X=200.*coeff ; Y=(-60.)*coeff}
+    let Pos4 = Pos2 + {X=200.*coeff ; Y=(-50.)*coeff}
+    let Pos5 = Pos4 + {X=0.   ; Y=100.*coeff}
+    let Pos6 = Pos5 + {X=0.   ; Y=100.*coeff}
+    let Pos7 = Pos6 + {X=0.   ; Y=100.*coeff}
+    let Pos8 = Pos6 + {X=150.*coeff   ; Y=0.}
+    let Pos9 = Pos7 + {X=250.*coeff   ; Y=(-14.)*coeff}
+    let Pos10 = Pos8 + {X=80.*coeff   ; Y=(-100.)*coeff}
+    let Pos11 = Pos8 + {X=180.*coeff   ; Y=(-35.)*coeff}
+    let Pos12 = Pos11 + {X=180.*coeff   ; Y=(-100.)*coeff}
+    let Pos13 = Pos12 + {X=180.*coeff   ; Y=200.*coeff}
 
 
 
@@ -332,8 +334,8 @@ let makeTest3Circuit (data: float*Rotation)=
 
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
 
-let makeTest4Circuit (data: float*Rotation)=
-    let gap = (fst data)/2.
+let makeTest4Circuit (data:float)=
+    let gap = (data)/2.
     printf "Test 4 gap: %A" gap
     let Pos1 = middleOfSheet + {X=100 ; Y=150.}
     let noWireModel =
@@ -372,7 +374,7 @@ module Asserts =
             
 
     let failOnMetric (failAll:bool) (sample: int) (model: SheetT.Model) =
-            let ISP =  numOfIntersectedSymPairs model
+            let ISP =  numOfIntersectedSymPairs model //number of intersecting symbol pairs
             let numSymPairs = 
                 (float (mapKeys model.Wire.Symbol.Symbols |> Array.toList).Length)/2.
                 |> (System.Math.Round)
@@ -380,9 +382,9 @@ module Asserts =
             let ISPScore = (float ISP)/(float numSymPairs)
             let numSegs = 
                 (getVisibleSegOnSheet model).Length
-            let ISS = float (numOfIntersectSegSym model)
+            let ISS = float (numOfIntersectSegSym model) //number of segments intersecting segments
             let ISSScore = (float ISS)/(float (numSegs+numSymPairs))
-            let SCR = numSegmentCrossRightAngle model
+            let SCR = numSegmentCrossRightAngle model //number of wire intersections
             let SCRScore = (float SCR)/(float numSegs)
             let score = System.Math.Round ((ISPScore + ISSScore + SCRScore),10) 
             printf $" Sample {sample} scored average {score}/3 with ISP {ISP}, ISS {ISS}, SCR {SCR}"
@@ -428,7 +430,7 @@ module Tests =
         runTestOnSheets
             "General Test on complex circuit"
             firstSample
-            test2Builder
+            test3Builder
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest3Circuit
@@ -441,7 +443,7 @@ module Tests =
         runTestOnSheets
             "Test for label placement "
             firstSample
-            test2Builder
+            test3Builder
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest4Circuit

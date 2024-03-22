@@ -502,6 +502,12 @@ module HLPTick3 =
 
     module Evaluations =
         open DrawModelType
+        open BlockHelpers
+        open SheetBeautifyHelpers
+
+        /// Combine two evaluation metrics
+        let combEval evalA weightA evalB weightB (sheet: SheetT.Model) : float =
+            weightA * (evalA sheet) + weightB * (evalB sheet)
 
         /// Evaluates sheet to 0
         let nullEvaluator : Evaluator<SheetT.Model> =
@@ -509,6 +515,55 @@ module HLPTick3 =
                 EvalFunc = (fun _ -> 0.)
                 Penalty = 1.
             }
+
+        /// Calculates the proportion of wire bends compared to the ideal solution.
+        /// Same as evaluating the number of visual segments
+        let wireBendProp (sheet: SheetT.Model) =
+            let wires = mapValues sheet.Wire.Wires
+            let symMap = sheet.Wire.Symbol
+
+            // Ideal min turn with no position constraints
+            let wireMinTurns (wire: BusWireT.Wire) =
+                let inpEdge = getInputPortOrientation symMap wire.InputPort
+                let outEdge = getOutputPortOrientation symMap wire.OutputPort
+                match inpEdge, outEdge with
+                | edge1, edge2 when edge1 = edge2 -> 2
+                | Left, Right | Right, Left | Top, Bottom | Bottom, Top -> 0
+                | _ -> 1
+
+            let rightAngs = numOfVisRightAngles sheet
+            let idealRightAngs =
+                wires
+                |> Array.map wireMinTurns
+                |> Array.sum
+
+            match rightAngs with
+            | 0 -> 1.
+            | _ -> float idealRightAngs / float rightAngs
+
+        /// Evaluates symbol alignment with all other symbols
+        let symCentreAlignmentProp (sheet: SheetT.Model) : float =
+            let syms = mapValues sheet.Wire.Symbol.Symbols
+            let n = Array.length syms
+            
+            /// Scores how close two points are
+            let calcAlignPoint (pointA: float) (pointB: float) : float =
+                let diff = abs (pointA - pointB)
+                match diff with
+                | diff when diff < 1. -> 1.
+                | _ -> 1. / diff
+
+            /// Scores how aligned two symbols are
+            let calcAlignSym (symA: SymbolT.Symbol) (symB: SymbolT.Symbol) : float = 
+                let ctrA = symA.CentrePos
+                let ctrB = symB.CentrePos
+                calcAlignPoint ctrA.X ctrB.X + calcAlignPoint ctrA.Y ctrB.Y
+
+            Array.allPairs syms syms
+            |> Array.sumBy (function | (symA,symB) when symA.Id <= symB.Id -> calcAlignSym symA symB
+                                     | _ -> 0.)
+            |> (fun x -> x / (float (n * n))) // Scales to lots of symbols
+
 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//

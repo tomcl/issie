@@ -433,36 +433,35 @@ let flipSymbolInBlock
     let portOrientation = 
         sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
 
-    let flipPortList currPortOrder side =
-        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
-
     let portOrder = 
-        (Map.empty, [Edge.Top; Edge.Left; Edge.Bottom; Edge.Right]) ||> List.fold flipPortList
-        |> Map.map (fun edge order -> List.rev order)       
+        [Edge.Top; Edge.Left; Edge.Bottom; Edge.Right]
+        |> List.map (fun side -> flipSideHorizontal side, sym.PortMaps.Order[side] |> List.rev)
+        |> Map.ofList
 
     let newSTransform = 
         {Flipped= not sym.STransform.Flipped;
         Rotation= sym.STransform.Rotation} 
 
     let newcomponent = {sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
+    
+    let updatedSymbol = 
+        { sym with
+            Pos = newTopLeft;
+            Component = newcomponent
+            STransform = newSTransform;
+            PortMaps = { Order = portOrder; Orientation = portOrientation };
+            LabelHasDefaultPos = true }
+        |> calcLabelBoundingBox
 
-    { sym with
-        Component = newcomponent
-        PortMaps = {Order=portOrder;Orientation=portOrientation}
-        STransform = newSTransform
-        LabelHasDefaultPos = true
-        Pos = newTopLeft
-    }
-    |> calcLabelBoundingBox
-    |> (fun sym -> 
-        match flip with
-        | FlipHorizontal -> sym
-        | FlipVertical -> 
-            let newblock = getBlock [sym]
-            let newblockCenter = newblock.Centre()
-            sym
-            |> rotateSymbolInBlock Degree180 newblockCenter 
-            )
+    // Apply additional rotation if flipping vertically
+    match flip with
+    | FlipHorizontal -> updatedSymbol
+    | FlipVertical -> 
+        let newBlock = getBlock [updatedSymbol]
+        let newBlockCenter = newBlock.Centre()
+        updatedSymbol
+        |> rotateSymbolInBlock Degree270 newBlockCenter
+        |> rotateSymbolInBlock Degree270 newBlockCenter
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Scales selected symbol up or down.</summary>
 /// <param name="scaleType"> Scale up or down. Scaling distance is constant</param>

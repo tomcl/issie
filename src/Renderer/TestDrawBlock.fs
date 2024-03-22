@@ -307,7 +307,7 @@ module TestingFramwork =
             |> List.map (fun curAssert ->
                 testRandom
                     randomModel
-                    beautifyFunction
+                    id
                     curAssert
                     dispatch )
             |> ignore
@@ -319,7 +319,7 @@ module TestingFramwork =
                 |> List.map (fun curAssert ->
                     testRandom
                         randomModel
-                        beautifyFunction
+                        id
                         curAssert
                         dispatch )
                 |> ignore

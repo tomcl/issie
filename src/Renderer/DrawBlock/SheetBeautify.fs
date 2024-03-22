@@ -64,14 +64,16 @@ let getLongWires (sheet: SheetT.Model) threshold =
   |> Helpers.mapValues
   |> Seq.toList
   |> List.filter (fun w -> 
-    printfn $"this ratio {(BlockHelpers.getWireLength w) / totalWireLength}"
-    // (BlockHelpers.getWireLength w) / (totalVisibleWireLength sheet.Wire) |> (<) threshold // criterion: relative length
-    visibleWireNetLength sheet.Wire w > threshold // criterion: absolute length
+    let score = (BlockHelpers.getWireLength w) / (totalVisibleWireLength sheet.Wire * (float)(Map.count sheet.Wire.Wires))
+    printfn $"this ratio {score}"
+     
+    score > threshold // criterion: relative length
+    // visibleWireNetLength sheet.Wire w > threshold // criterion: absolute length
   )
 
   // visibleWireNetsLength sheet.Wire (sheet.Wire.Wires |> Helpers.mapValues |> Seq.head)
 let beautifyD3 (sheet: SheetT.Model) =
 //   getLongWires sheet 0.5
-  getLongWires sheet 1000
+  getLongWires sheet 0.005
   |> List.fold (fun previousSheet wire -> replaceWireWithLabel wire previousSheet) sheet
     

@@ -91,6 +91,10 @@ module Constants =
     /// Two very close segments will sometimes map to different buckets if on a bucket boundary
     /// for the use here this potential error is likley very unusual and deemed OK
     let bucketSpacing = 0.1
+    let wireLabelPrefix = "I"
+
+    let magicWireThresholdCalibrationNumber = 20
+
 
 
 /// Compare two strings ignoring case
@@ -583,7 +587,7 @@ let replaceWireWithLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
     let portIdStr = getOutputPortIdStr wire.OutputPort
 
     // first we try to see if this net has already got a WireLabel on it somewhere
-    let wireLabel = 
+    let wireLabel prefix = 
         Map.tryFind portIdStr sheet.Wire.Symbol.Ports
         |> Option.bind (fun port -> port.WireToLabel)
         |> function
@@ -594,14 +598,14 @@ let replaceWireWithLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
                 |> Option.bind (fun p ->
                     Map.tryFind (ComponentId p.HostId) sheet.Wire.Symbol.Symbols
                     |> Option.map (fun s -> ExistingLabel s.Component.Label)))
-                    |> Option.defaultValue (NewLabel <| SymbolUpdate.generateWireLabel sheet.Wire.Symbol "I")
-        | _ -> NewLabel <| SymbolUpdate.generateWireLabel sheet.Wire.Symbol "I"
+                    |> Option.defaultValue (NewLabel <| SymbolUpdate.generateWireLabel sheet.Wire.Symbol prefix)
+        | _ -> NewLabel <| SymbolUpdate.generateWireLabel sheet.Wire.Symbol prefix
 
     let addInputLabelSymbol label = 
         SymbolUpdate.addSymbol [] sheet.Wire.Symbol (getInputPortLocation None sheet.Wire.Symbol wire.InputPort |> fun origPos -> {origPos with X=(origPos.X - 50.0)}) IOLabel label
 
     let modelWithNewLabels, outputLabelComponentIdOpt, inputLabelComponentId =
-        wireLabel
+        wireLabel Constants.wireLabelPrefix
         |> function
             | NewLabel label ->
                 addInputLabelSymbol label

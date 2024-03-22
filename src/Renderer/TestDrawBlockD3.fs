@@ -52,21 +52,3 @@ let makeReplaceWireLabelTestCircuit(pos: wireLabelReplaceXYPos): SheetT.Model =
     unoptimizedSheet
         |> SheetBeautifyD3.wireLabelBeautify 
         
-let makeReplaceWireLabelTest2Circuit(pos: wireLabelReplaceXYPos): SheetT.Model =
-    let unoptimizedSheet =
-        initSheetModel
-        |> placeSymbol "DM" ComponentType.Demux4 pos.Demux4Pos
-        |> Result.bind (fun sheet -> placeSymbol "M21" ComponentType.Mux2 pos.Mux21Pos sheet)
-        |> Result.bind (fun sheet -> placeSymbol "M4" ComponentType.Mux4 pos.Mux4Pos sheet)
-        |> Result.bind (fun sheet -> placeSymbol "M22" ComponentType.Mux2 pos.Mux22Pos sheet)
-        |> Result.bind (placeWire (portOf "DM" 0) (portOf "M21" 0))
-        |> Result.bind (placeWire (portOf "DM" 1) (portOf "M21" 1))
-        |> Result.bind (placeWire (portOf "DM" 1) (portOf "M22" 0))
-        |> Result.bind (placeWire (portOf "DM" 2) (portOf "M22" 1))
-        |> Result.bind (placeWire (portOf "DM" 0) (portOf "M4" 0))
-        |> Result.bind (placeWire (portOf "DM" 1) (portOf "M4" 1))
-        |> Result.bind (placeWire (portOf "DM" 2) (portOf "M4" 2))
-        |> Result.bind (placeWire (portOf "DM" 3) (portOf "M4" 3))
-        |> getOkOrFail
-    unoptimizedSheet
-        //|> SheetBeautifyD3.wireLabelBeautify 

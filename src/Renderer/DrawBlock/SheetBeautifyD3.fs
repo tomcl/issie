@@ -1,8 +1,5 @@
 ﻿module SheetBeautifyD3
-//work from ll3621 to make a start on team deliverable D3
-//the functions are not funished, they are a build up to the final D3 deliverable
-//current completed functionalbilities:
-// find long wires, replace them with wire label symbols, adjust the symbols(size, orientation) according to which port they connect to, connect wire labels to port 
+
 open CommonTypes
 open DrawHelpers
 open DrawModelType
@@ -26,6 +23,7 @@ open DrawHelpers
 
 ///constants used in DEBUG mode
 module DEBUG_CONSTANTS =
+    // set this to true to only select wires that are greater than DEBUG_MAX_LENGTH
     let DEBUG:bool = false
     let DEBUG_MAX_LENGTH:float = 1.
 
@@ -201,6 +199,7 @@ module findIllegalWiresHelpers =
         |> List.map snd
         |> List.filter (fun wire -> not (List.contains (string wire.InputPort) IOLabelsPortIDs) && not (List.contains (string wire.OutputPort) IOLabelsPortIDs))
         |> List.map (fun wire -> getWireLength wire)
+        |> List.filter(fun x -> x > 5.) // Artifacts: to not consider wires generated in previous optimation
         |> median
     
     /// Get the median number of intersections of all wires

@@ -594,3 +594,74 @@ let numSegmentCrossRightAngle (sheet: SheetT.Model) =
                                 |true -> num+1
                                 |_ -> num ) 0
     |> (fun num -> num/2)  //remove repeated pairs with self
+
+//T5R
+///Number of visible wire right-angles. Count over whole sheet.
+let numVisibleWireRightAngle (sheet: SheetT.Model) = 
+    let numWires = 
+        mapKeys sheet.Wire.Wires
+        |> Array.toList
+        |> List.length
+    //wire right angle = total number of vertical segments + horizontal segments - 1
+    //count over all sheet -> total number of visible segments - number of wires
+    getVisibleSegOnSheet sheet
+    |> List.length
+    |> (+) (-numWires)
+
+// find the number of squashed wires in the sheet
+let numOfSquashedWires (sheet: SheetT.Model) : int =
+    let allVisSegments = getVisibleSegOnSheet sheet
+    /// list of all the symbol bounding boxes from sheet model, for each bounding box, generate position vector for its edges
+    let symbolBoundingBoxesVectors =
+        sheet.BoundingBoxes
+        |> Map.toList
+        |> List.map (fun (_, box) -> box)
+        |> List.map (fun box -> 
+            let {TopLeft = tl; W = w; H = h} = box
+            let tr = {X = tl.X + w; Y = tl.Y}
+            let bl = {X = tl.X; Y = tl.Y + h}
+            let br = {X = tl.X + w; Y = tl.Y + h}
+            [(tl, tr) ; (bl, br)])
+        |> List.concat
+    let horizontalBBVectors = symbolBoundingBoxesVectors |> List.filter (fun (start, endComp) -> abs(start.Y - endComp.Y) < 1e-9)
+    let verticalBBVectors = symbolBoundingBoxesVectors |> List.filter (fun (start, endComp) -> abs(start.X - endComp.X) < 1e-9)
+    let isCloseToSymbolHor (seg: XYPos*XYPos) (bbVector: XYPos*XYPos) = 
+        // if any off the segment's start or end points are within bbVector, return true
+        let (startPos, endPos) = seg
+        let (startBB, endBB) = bbVector
+        let isInBetween = ((startBB.X < startPos.X) && (startPos.X < endBB.X)) || ((startBB.X < endPos.X) && (endPos.X < endBB.X))
+        let isYClose = (startPos.Y - startBB.Y) <= 5 
+        match isInBetween with
+        | true -> 
+            match isYClose with
+            | true -> 1
+            | _ -> 0
+        | _ -> 0
+
+    let isCloseToSymbolVer (seg: XYPos*XYPos) (bbVector: XYPos*XYPos) =
+        let (startPos, endPos) = seg
+        let (startBB, endBB) = bbVector
+        let isInBetween = ((startBB.Y < startPos.Y) && (startPos.Y < endBB.Y)) || ((startBB.Y < endPos.Y) && (endPos.Y < endBB.Y))
+        let isXClose = (startPos.X - startBB.X) <= 5
+        match isInBetween with
+        | true -> 
+            match isXClose with
+            | true -> 1
+            | _ -> 0
+        | _ -> 0
+
+    let checkIfHor (seg: XYPos*XYPos) = 
+        let (startPos, endPos) = seg
+        abs(startPos.Y - endPos.Y) < 1e-9
+    
+    // for each segment, check if it is squashed by any symbol, return the number of squashed segments
+    List.map (fun seg -> 
+        match checkIfHor seg with
+        | true -> 
+            horizontalBBVectors
+            |> List.sumBy (fun bbVector -> isCloseToSymbolHor seg bbVector)
+        | _ ->
+            verticalBBVectors
+            |> List.sumBy (fun bbVector -> isCloseToSymbolVer seg bbVector)
+    ) allVisSegments
+    |> List.sum

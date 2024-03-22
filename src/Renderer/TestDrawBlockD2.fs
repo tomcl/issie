@@ -65,8 +65,8 @@ module Builder =
         let testingCC: ComponentType =
             Custom {
                         Name = "TestingCC";
-                        InputLabels = [("A", 1); ("B", 1)];
-                        OutputLabels = [("E", 1); ("F", 1)];
+                        InputLabels = [("A", 1); ("B", 1); ("C", 1)];
+                        OutputLabels = [("E", 1); ("F", 1); ("G", 1)];
                         Form = Some ProtectedTopLevel
                         Description = None
                 }
@@ -156,6 +156,7 @@ module Builder =
 
 open Builder
     /// Sample data based on 11 equidistant points on a horizontal line
+    
 let horizLinePositions =
         fromList [-100..20..100]
         |> map (fun n -> middleOfSheet + {X=float n; Y=(-50.)})
@@ -164,6 +165,7 @@ let offset =
     Array.init 1 (fun x y -> {X=x; Y=y})
     |> Array.map (fun pos -> {X=middleOfSheet.X; Y=middleOfSheet.Y})
     |> fromArray
+
     // let positionsOverlap (sheet: SheetT.Model) :bool = 
     //     // let sheet = makeTest1Circuit andPos
     //     // let wireModel = sheet.Wire
@@ -221,6 +223,7 @@ let randomPos: Gen<XYPos List> =
             //|> Array.choose id
         fromArray gen12Array
 
+// Todo: generate random test elements: Gen<ComponentType list * XYPos list * operationChoice>
 // let testRandElements = 
 //     getTestRand 3
 
@@ -233,7 +236,7 @@ let randomD2 =
 
 /// list of all the beautifiable components, custom components and other muxes to be added later
 let d2ComponentTypes: ComponentType list = 
-        [Mux2; GateN(And,2); GateN(Or,2); GateN(Xor,3); GateN(Nand,4); GateN(Nor,3); GateN(Xnor,3); Mux2; Mux2]
+        [Mux2; GateN(And,2); GateN(Or,2); GateN(Xor,3); GateN(Nand,4); GateN(Nor,3); GateN(Xnor,3); Mux2; Mux2; testingCC; aludeCC]
 let getRandCompType((rand: Random))(possibleTypes: ComponentType list) = 
         let randomIndex = rand.Next (List.length possibleTypes)
         List.item randomIndex possibleTypes
@@ -278,7 +281,8 @@ let getRandPort (rand: Random) (symType: ComponentType) =
             0
 
 let makeRandomTestCircuit (posList: XYPos List) = 
-    let rand = Random(seed)
+    //let rand = Random(seed)
+    let rand = randomD2
 
     let comp1 = getRandCompType rand d2ComponentTypes
     let comp2 = getRandCompType rand d2ComponentTypes
@@ -297,7 +301,7 @@ let makeRandomTestCircuit (posList: XYPos List) =
     |> placeWire (portOf "C1" 0) (portOf "C2" (getRandPort rand comp2))
     |> addWire ("C2", 0) ("C3", 0)
     |> addWire ("C3", 0) ("C1", (getRandPort rand comp1))
-    |> addWire ("S1", 0) ("C2", 1)
+    |> addWire ("S1", 0) ("C2", 1)  //确保两个c2 portid不是同一个
     |> addWire ("S2", 0) ("C3", 1)
     |> getOkOrFail
 
@@ -353,7 +357,7 @@ let makeTestCircuit2 (andPos:XYPos) =
         |> addSym "MUX2" Mux2 200. 50.
         |> addSym "S1" (Input1(1,None)) -100. -150.
         |> getOkOrFail
-        |> flipSymbol "MUX1" SymbolT.FlipType.FlipVertical
+        //|> flipSymbol "MUX1" SymbolT.FlipType.FlipVertical
         |> placeWire (portOf "S2" 0) (portOf "G1" 0)
         |> addWire ("G1", 0) ("MUX1", 1)
         |> addWire ("MUX1", 0) ("G1", 1)
@@ -417,17 +421,24 @@ module Asserts =
                 |> numSegmentCrossRightAngle
             Some $"Sample {sample}: {crossingsBeforeD2 - crossingsAfterD2} crossings is reduced, {crossingsAfterD2} crossings after beautify"
 
-
+// See discussion of wire separation between two symbols. 
+// Squashed wire = too small separation between wire segment and symbol edges
 let targetSheetD2 (sheet: SheetT.Model) = 
     let crossings = 
         sheet
         |> numSegmentCrossRightAngle
-    printfn "Crossings before beautify: %d" crossings
     let beautifiedSheet = sheetOrderFlip sheet
     let crossingsAfter = 
         beautifiedSheet
         |> numSegmentCrossRightAngle
-    printfn "Crossings after beautify: %d" crossingsAfter
+    let wireBendBefore = 
+        sheet
+        |> numVisibleWireRightAngle
+    let wireBendAfter =     
+        beautifiedSheet
+        |> numVisibleWireRightAngle
+    printfn "Crossings before: %d , Crossings after: %d , Crossings reduced: %d" crossings crossingsAfter (crossings - crossingsAfter)
+    printfn "Bends before: %d , Bends after: %d , Bends reduced: %d" wireBendBefore wireBendAfter (wireBendBefore - wireBendAfter)
     beautifiedSheet
 
 //---------------------------------------------------------------------------------------//
@@ -480,9 +491,14 @@ module Evaluations =
         | _ -> 1. - (float numCrossing / float numWires)
 
     /// Evaluates wire squashing between symbols
+    /// Returns 1 if no wire is squashed
+    /// Calculates the proportion of squashed wires compared to the total number of wires
     let wireSquashProp (sheet: SheetT.Model) =
-        failwithf "Not implemented"
-        // getWiresInBox
+        let numSquash = numOfSquashedWires sheet
+        let numWires = mapValues sheet.Wire.Wires |> Array.length
+        match numSquash with
+        | 0 -> 1.
+        | _ -> 1. - (float numSquash / float numWires)
 
     /// Evaluates length of wires compared to ideal minimum
     let wireLengthProp (sheet: SheetT.Model) =    
@@ -554,9 +570,9 @@ module Tests =
                 firstSample
                 horizLinePositions
                 showTargetSheet
-                (Some sheetOrderFlip)
+                (Some targetSheetD2)
                 makeTestCircuit2
-                (AssertFunc indevTestWiresCrossing)
+                (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator
                 dispatch
             |> recordPositionInTest testNum showTargetSheet dispatch
@@ -580,9 +596,9 @@ module Tests =
                 firstSample
                 randomPos
                 showTargetSheet
-                (Some sheetOrderFlip)
+                (Some targetSheetD2)
                 makeRandomTestCircuit
-                (AssertFunc indevTestWiresCrossing)
+                (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator
                 dispatch
             |> recordPositionInTest testNum showTargetSheet dispatch
@@ -599,7 +615,7 @@ module Tests =
                 firstSample
                 horizLinePositions
                 showTargetSheet
-                None
+                (Some targetSheetD2)
                 makeCCTestingCircuit
                 (AssertFunc failOnAllTests)
                 Evaluations.nullEvaluator

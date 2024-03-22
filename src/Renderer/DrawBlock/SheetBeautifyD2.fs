@@ -31,6 +31,8 @@ open Operators
 
 /// constants used by SheetBeautify
 module Parameters =
+    let wireBendInfluence = 0.2
+
     type PermutePenalty = {
         VerticalFlip : float;
         HorizontalFlip: float;
@@ -769,7 +771,7 @@ module D2Helpers =
             let diff = 
                 if (numSymIntersect - prevNumSymIntersect) > 0 then
                     100000.0 // very large number to prevent extra symbol intersects from being added
-                else float (newCrossings - prevCrossings) + float (numWireBends - prevWireBends) * 0.2
+                else float (newCrossings - prevCrossings) + float (numWireBends - prevWireBends) * wireBendInfluence
 
             (diff, scale, newSheet))
         |> (fun lst -> 

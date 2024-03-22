@@ -344,7 +344,7 @@ let flipAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Mode
 
     // printfn "Flipping component: %A" compId
 
-    flipSymbol compLabel FlipVertical model
+    flipSymbol compLabel FlipHorizontal model
     |> rerouteWire compId
 
 /// Rotates the specified component before rerouting connected wires

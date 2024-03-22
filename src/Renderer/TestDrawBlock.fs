@@ -86,7 +86,7 @@ module TestLib =
     /// The return list contains all failures or exceptions: empty list => everything has passed.
     /// This will always run to completion: use truncate if text.Samples.Size is too large.
     let calcEval (test: Test<'a>) : float =
-        [0..test.Samples.Size - 1]
+        [0..test.Samples.Size-1]
         |> List.map (fun n ->
                 catchException $"generating test {n} from {test.Name}" test.Samples.Data n
                 |> (fun res -> n,res)
@@ -109,12 +109,14 @@ module TestLib =
     /// Run the Test samples from the test's start up to test.Size - 1.
     /// The return list contains the first failures or exceptions: empty list => everything has passed.
     /// This will run till the first failure
+    // TODO: currently stops when assertion fail found, then has to redo assertion to get error message.
+    // Could be made recursive to prevent
     let runTestsTillFail (test: Test<'a>) : TestResult<'a> =
         printfn $"[{test.StartFrom}/{test.Samples.Size}]"
         let getTestFail (n, res) : option<int * TestStatus> =
             match n, res with
                 | n, Error mess -> Some (n, Exception mess)
-                | n, Ok sample -> // TODO: Add targetFunc worse stuff
+                | n, Ok sample ->
                     match test.Assertion with
                     | TargetFuncWorse ->
                         if (calcEvalDiff sample test.Evaluation > 0) then

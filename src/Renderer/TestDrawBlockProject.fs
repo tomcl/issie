@@ -429,7 +429,7 @@ let mux1PosCircuit4 : XYPos = middleOfSheet - { X = 100.0; Y = 100.0 }
 let mux2PosCircuit4 : XYPos = middleOfSheet + { X = -100.0; Y = 100.0 }
 let orGatePosCircuit4 : XYPos = middleOfSheet + { X = 0.0; Y = 0.0 }
 let inputPosCircuit4 : XYPos = middleOfSheet - { X = 300.0; Y = 0.0 }
-let outputPosCircuit4 : XYPos = middleOfSheet + { X = 150.0; Y = 0.0 }
+let outputPosCircuit4 : XYPos = middleOfSheet + { X = 230.0; Y = 0.0 }
 
 // Generate a circuit with an input, two Mux2s, a Not gate, an Or gate, and an output with random flips
 let makeCircuit4 (symFlips : Option<FlipType> * Option<FlipType> * Option<FlipType> * Option<FlipType>) =
@@ -515,8 +515,8 @@ let randomComponents1 = fromList [Mux2; GateN(And, 3)]
 let randomComponents2 = fromList [Not; DFF]
 let randomComponents3 = fromList [Mux2; NbitsAdder(2)]
 
-let posGen4 = fromList [middleOfSheet - { X = 10.0; Y = 150.0 }; middleOfSheet + { X = 40.0; Y = 150.0 } ]
-let posGen5 = fromList [middleOfSheet - { X = 130.0; Y = -130.0 }; middleOfSheet + { X = -70.0; Y = 10.0 } ]
+let posGen4 = fromList [middleOfSheet - { X = 50.0; Y = 150.0 }; middleOfSheet - { X = 100.0; Y = -50.0 } ]
+let posGen5 = fromList [middleOfSheet - { X = 130.0; Y = -130.0 };]
 let posGen6 = fromList [middleOfSheet + { X = 50.0; Y = 15.0 }; middleOfSheet + { X = 50.0; Y = -50.0 } ]
 
 let posAndFlipGen4 = product (fun position flip -> { Position = position; Flip = flip }) posGen4 flipTypeGen

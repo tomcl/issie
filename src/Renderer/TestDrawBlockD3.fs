@@ -435,7 +435,7 @@ module Tests =
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest3Circuit
-            (AssertFunc (failOnMetric false))
+            (AssertFunc (failOnMetric true))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch

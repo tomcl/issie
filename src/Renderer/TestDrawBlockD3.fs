@@ -263,6 +263,8 @@ let makeTest2Circuit (data: float*Rotation)=
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
     |>rerouteAllWires
     |>dSelect
+
+
 let makeTest3Circuit (data: float*Rotation)=
     let rotation = snd data
     let gap = fst data
@@ -330,7 +332,32 @@ let makeTest3Circuit (data: float*Rotation)=
 
     {model with Wire = model.Wire |>calculateBusWidths |>fst}
 
+let makeTest4Circuit (data: float*Rotation)=
+    let gap = (fst data)/2.
+    printf "Test 4 gap: %A" gap
+    let Pos1 = middleOfSheet + {X=100 ; Y=150.}
+    let noWireModel =
+        initSheetModel
+        |> placeSymbol "IN" (Constant1( Width=4 , ConstValue=0 , DialogTextValue="0" )) middleOfSheet Degree0 None
+        |> Result.bind(placeSymbol "SN1" (SplitN(4,[1;1;1;1],[0;1;2;3])) Pos1 Degree0 None)
+        |> Result.bind(placeSymbol "MN1" (MergeN(NumInputs=4)) (Pos1 + {X=50.+gap;Y=0.}) Degree0 None)
+        |> Result.bind(placeSymbol "OUT" (Output(BusWidth=4)) (Pos1 + {X=200.+gap;Y=0.}) Degree0 None)
+        |> Result.bind(placeSymbol "SEL" (BusSelection(OutputWidth=1,OutputLSBit=3)) (middleOfSheet + {X=100;Y=0.}) Degree0 None)
+        |> getOkOrFail
+    let model =
+        noWireModel
+        |> placeWire (portOf "IN" 0) (portOf "SN1" 0)
+        |> Result.bind (placeWire (portOf "SN1" 1) (portOf "MN1" 1))
+        |> Result.bind (placeWire (portOf "SN1" 2) (portOf "MN1" 2))
+        |> Result.bind (placeWire (portOf "SN1" 3) (portOf "MN1" 3))
+        |> Result.bind (placeWire (portOf "SEL" 0) (portOf "MN1" 0))
+        |> Result.bind (placeWire (portOf "IN" 0) (portOf "SEL" 0))
+        |> Result.bind (placeWire (portOf "MN1" 0) (portOf "OUT" 0))
+        |> getOkOrFail
 
+    {model with Wire = model.Wire |>calculateBusWidths |>fst}
+    |>rerouteAllWires
+    |>dSelect
     
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -384,6 +411,19 @@ module Tests =
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
+    
+    let D3Test4 testNum firstSample showTargetSheet dispatch =
+        runTestOnSheets
+            "Test for label placement "
+            firstSample
+            test2Builder
+            showTargetSheet
+            (Some sheetWireLabelSymbol)
+            makeTest4Circuit
+            (AssertFunc failOnAllTests)
+            Evaluations.nullEvaluator
+            dispatch
+        |> recordPositionInTest testNum showTargetSheet dispatch
 
     // ac2021: CAUSED COMPILE ERRORS SO COMMENTED
     // ac2021: I think it was caused by Alina's pr?
@@ -404,6 +444,7 @@ module Tests =
             "Test1", D3Test1 // example
             "Test2", D3Test2 // example
             "Test3", D3Test3
+            "Test4", D3Test4
             "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]

@@ -26,10 +26,24 @@ open DrawModelType.SheetT
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open Optics
-
+open SheetBeautifyD1
 /// constants used by SheetBeautify
 module Constants =
     () // dummy to make skeleton type check - remove when other content exists
+
+let sheetAlignScale (sheet:SheetT.Model) = SheetBeautifyD1.Beautify.sheetAlignScale sheet
+    
+(*let sheetOrderFlip (sheet:SheetT.Model) = 
+    permuteMuxState sheet*)
+
+let sheetWireLabelSymbol (sheet:SheetT.Model) = 
+    sheet
+
+let beautifySheet (sheet:SheetT.Model) = 
+    sheet
+    |> sheetAlignScale
+    |> sheetOrderFlip
+    |> sheetWireLabelSymbol
 
 
 

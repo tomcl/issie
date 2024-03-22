@@ -217,7 +217,7 @@ let symbol_flipped_ =
 
 
 //----------------------------------------------------------------------------------------------//
-//-----------------------------------SegmentHelpers Submodel------------------------------------//
+//-----------------------------------SegmentHelpers Submodule-----------------------------------//
 //----------------------------------------------------------------------------------------------//
 
 /// Helpers to work with visual segments and nets
@@ -261,21 +261,6 @@ module SegmentHelpers =
         |> List.mapi getSegmentVector
         |> coalesce
 
-    let getVisibleSegOnSheet (sheet: SheetT.Model) = 
-        let getSegments (wireModel: ConnectionId * BusWireT.Wire) = 
-                let cId = fst wireModel
-                let wire = snd wireModel
-                visibleSegments cId sheet
-                |> List.scan (+) (wire.StartPos)
-                |> List.pairwise
-
-        //get visible segments from all wires on sheet with actual position
-        
-        sheet.Wire.Wires
-        |> Map.toList
-        |> List.map getSegments
-        |> List.concat
-
 
     (* These functions make ASSUMPTIONS about the wires they are used on:
        - Distinct net segments never overlap
@@ -287,12 +272,6 @@ module SegmentHelpers =
 
     open BusWireT // so that Orientation D.U. members do not need qualification
 
-    /// visible segments in a wire as a pair (start,end) of vertices.
-    /// start is the segment end nearest the wire Source.
-    let visibleSegsWithVertices (wire:BusWireT.Wire) (model: SheetT.Model) =
-        visibleSegments wire.WId model
-        |> List.map (fun segV -> wire.StartPos, wire.StartPos + segV)
-
     /// Input must be a pair of visula segment vertices (start, end).
     /// Returns segment orientation
     let visSegOrientation ((vSegStart, vSegEnd): XYPos * XYPos) =
@@ -301,11 +280,34 @@ module SegmentHelpers =
         | false -> Vertical
 
 
+    /// print a visual segment in an easy-toread form
+    let pvs (seg: XYPos * XYPos) =
+        let ori = visSegOrientation seg
+        let startS = fst seg
+        let endS = snd seg
+        let c1,cs1,c2,cs2,c3,cs3 =
+            match ori with
+            | Vertical -> startS.X,"X", startS.Y,"Y", endS.Y,"Y"
+            | Horizontal -> startS.Y,"Y",  startS.X,"X",endS.X ,"X"
+        $"{ori}:{int c1}{cs1}:({int c2}{cs2}-{int c3}{cs3}) {int <| euclideanDistance startS endS}-"
+
+
+    /// visible segments in a wire as a pair (start,end) of vertices.
+    /// start is the segment end nearest the wire Source.
+    let visibleSegsWithVertices (wire:BusWireT.Wire) (model: SheetT.Model) =
+        (wire.StartPos, visibleSegments wire.WId model)
+        ||> List.scan (fun startP segV -> startP + segV)
+        |> List.pairwise
+
+
+
+
+
     /// Filter visSegs so that if they overlap with common start only the longest is kept.
     /// ASSUMPTION: in a connected Net this will remove all overlaps
     let distinctVisSegs (visSegs: (XYPos * XYPos) list) =
         /// convert float to integer buckt number
-        let pixBucket (pixel:float) = int(pixel / Constants.bucketSpacing)
+        let pixBucket (pixel:float) = int (pixel / Constants.bucketSpacing)
 
         /// convert XYPos to pair of bucket numbers
         let posBucket (pos:XYPos) = pixBucket pos.X, pixBucket pos.Y
@@ -316,7 +318,9 @@ module SegmentHelpers =
         // then discard duplicates (the later = shorter ones will be discarded)
         // Two segments are judged the same if X & y starting coordinates map to the same "buckets"
         // This will very rarely mean that very close but not identical position segments are viewed as different
-        |> List.distinctBy (fun ((startOfSeg, _) as vSeg) -> posBucket startOfSeg, visSegOrientation vSeg)
+        |> List.distinctBy (fun ((startOfSeg, _) as vSeg) ->
+                    let bucket = posBucket startOfSeg, visSegOrientation vSeg
+                    bucket)
 
     /// Filter visSegs so that if they overlap with common start only the longest is kept.
     /// More accurate version of distinctVisSegs.
@@ -534,6 +538,7 @@ let findRetracingSegments (model : SheetT.Model) =
 
     {| RetraceSegs =retracingSegs;
        RetraceSegsInSymbol = retracingSegsInsideSymbol|}
+    
     
 
 // ----------------az1221 T3 WORKING CODE --------------------------

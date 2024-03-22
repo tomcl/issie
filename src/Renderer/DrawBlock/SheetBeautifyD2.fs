@@ -131,7 +131,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         
     //measure wire crossings number on sheet
     let numWireCrossing (sheet: SheetT.Model) = 
-        numSegmentCrossRightAngle sheet
+        numOfWireRightAngleCrossings sheet
         //numOfWireRightAngleCrossings sheet
     printf "inital cross number: %A" (numWireCrossing sheet)
     
@@ -214,7 +214,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             )
     /// get the transform list which number of wire crossing on sheet is minimum
     let getOptimalCombination = 
-        print (getNumWireCrossingForAllCombination)
+        //print (getNumWireCrossingForAllCombination)
         let optimalIndex = 
 
             getNumWireCrossingForAllCombination
@@ -290,13 +290,14 @@ let sheetOrderFlip (sheet: SheetT.Model) =
 
     /// get the transform list which number of wire crossing on sheet is minimum
     let getOptimalPortOrder = 
-        //printf "%A" (List.length getNumWireCrossingForAllCombination)
+
         let optimalIndex = 
-            //printf "%A" getNumWireCrossingForAllCombination
+
             getNumWireCrossingForCC
             |> List.mapi (fun i (wireCross, wireBend) -> (i, (wireCross, wireBend)))
             |> List.filter (fun (_, (c,b)) -> b <= (numWireBend sheet))
             |> List.minBy (fun (i,(c,b)) -> c)
+            |> printPipe
             |> fst
         List.item optimalIndex ccTransformStates
     

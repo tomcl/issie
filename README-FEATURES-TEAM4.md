@@ -13,10 +13,10 @@
 
 
 ## sheetOrderFlip (D2)
+- Exhuastive serach algorithm to reduce number of wire crossings. Start by grouping components into 2 sets: MUXes + gates, and custom components. Firstly, try every combination of swapping MUXes inputs, flipping MUXes and Gates, changing orientation of MUXes and gates, finding the combination which makes the wire crossings to be minimum. Then, update the sheet by applying the combination to symbols and re route the wires, on top of the updated sheet, further reduce wires by reverse port order of left edge or right edge or both edges of custom components. Note that it will not prefer a combination which increases number of wire bends even if it reduces number of wire crossings.
 
-- Exhuastive serach algorithm to reduce number of wire crossings by first trying every combination of swapping MUXes inputs, flipping MUXes and Gates, changing orientation of MUXes and gates, finding the combination which makes the wire crossings to be minimum. Then, update the sheet by applying the combination to symbols and re route the wires, on top of the updated sheet, further reduce wires by reverse port order of left edge or right edge or both edges of custom components. Note that it will not consider a combination which increases number of wire bends even if it reduces number of wire crossings.
-
-    - Limitations: custom components re-order currently only works for left and right edges. 
+    - Limitation: custom components re-order currently only works for left and right edges. 
+    - Limitation: beutify function not scalable for large circuits and execution time will be long, so if total components number exceeds a threshold, beautify function will not be applied and return original sheet instead, to avoid screen freeze.
 
 
 

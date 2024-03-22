@@ -56,7 +56,8 @@ let print a = printf "%A" a
 
 
 ///Team deliverable D2 implementation <az1221>
-///Port order on custom components, flip components, flip MUX input order
+///Re order custom components ports, flip components, flip MUX input order, change orientation of MUX and gates
+/// to reduce number of wire crossings
 let sheetOrderFlip (sheet: SheetT.Model) = 
 
     // get symbols on sheet
@@ -95,7 +96,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             | _ -> failwithf "not supported yet"
             )
 
-    // swap MUX input, return flipped MUX
+    /// swap MUX input, return flipped MUX
     let swapMuxInputOrder (mux: SymbolT.Symbol)=
         let edge: Edge option = 
             match mux.Component.Type with
@@ -129,12 +130,12 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         |> swapMuxInputOrder
         |> flipVertical
         
-    //measure wire crossings number on sheet
+    ///measure wire crossings number on sheet
     let numWireCrossing (sheet: SheetT.Model) = 
         numOfWireRightAngleCrossings sheet
-        //numOfWireRightAngleCrossings sheet
-    //printf "inital cross number: %A" (numWireCrossing sheet)
+
     
+    ///measure wire bend number on sheet
     let numWireBend (sheet: SheetT.Model) = 
         numVisibleWireRightAngle sheet
     //printf "inital wire bends: %A" (numWireBend sheet)
@@ -212,17 +213,14 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             let updatedSheet = reRoutedSheet combMux combGate
             (numWireCrossing updatedSheet, numVisibleWireRightAngle updatedSheet)
             )
+
     /// get the transform list which number of wire crossing on sheet is minimum
     let getOptimalCombination = 
         //print (getNumWireCrossingForAllCombination)
         let optimalIndex = 
 
             getNumWireCrossingForAllCombination
-            
-            // |> List.mapi (fun i x -> (i, x))
-            // |> List.minBy snd
-            // |> fst
-             // Filter tuples by threshold
+            // choose the combination which gives minimum wire crossings without increasing the number of wire bend
             |> List.mapi (fun i (wireCross, wireBend) -> (i, (wireCross, wireBend)))
             |> List.filter (fun (_, (c,b)) -> b <= (numWireBend sheet))
             |> List.minBy (fun (i,(c,b)) -> c)
@@ -231,7 +229,7 @@ let sheetOrderFlip (sheet: SheetT.Model) =
         List.item optimalIndex allCombinationList
     //printf "%A" getOptimalCombination
 
-    //apply the optimal transform to correspond symbols on sheet
+    //apply the optimal transform to correspond MUXes and gates on sheet
     let firstOptimalSheet = 
         getOptimalCombination
         |> fun (combMux, combGate) -> reRoutedSheet combMux combGate
@@ -301,9 +299,19 @@ let sheetOrderFlip (sheet: SheetT.Model) =
             |> fst
         List.item optimalIndex ccTransformStates
     
-
-    // //apply the optimal transform to correspond symbols on sheet
-    getOptimalPortOrder
-    |> fun (combCC) -> reRouteSheetForCC combCC firstOptimalSheet
+    //not scalable for large circuits and slow
+    //so only apply beutify for small circuits
+    let numComponents = 
+        List.length (muxList)
+        |> (+) (List.length gateList)
+        |> (+) (List.length customCompList)
+        
+    if numComponents >= 7 then
+        printf "Circuits too large for D2 beutify function"
+        sheet 
+    else 
+        // //apply the optimal transform to correspond symbols on sheet
+        getOptimalPortOrder
+        |> fun (combCC) -> reRouteSheetForCC combCC firstOptimalSheet
 
    

@@ -122,6 +122,7 @@ module Builder =
         let componentID = Map.findKey (fun _ (sym: SymbolT.Symbol) -> sym.Component.Label = symLabel) symbolMap
         symbolMap[componentID]
 
+    /// Scale a custom component in sheet based on its label
     let scaleSym (lbl: string) (scale: XYPos) (sheet: SheetT.Model) : Result<SheetT.Model, string> =
         let sym = getSymFromLbl lbl sheet
         let dims = getCustomCompDims sym
@@ -357,8 +358,8 @@ module Circuit =
         initSheetModel
         |> placeSymbol "MAIN1" mainCC middleOfSheet
         |> addSym "MAIN2" mainCC (160.+offsetXY.X) (0.+offsetXY.Y)
-        |> Result.bind (Ok << rotateSymbol "MAIN1" Rotation.Degree270)
-        |> Result.bind (Ok << rotateSymbol "MAIN2" Rotation.Degree270)
+        |> Result.bind (Ok << rotateSymbol "MAIN1" Rotation.Degree90)
+        |> Result.bind (Ok << rotateSymbol "MAIN2" Rotation.Degree90)
         |> printId
         |> addWire ("MAIN1", 0) ("MAIN2", 0)
         |> addWire ("MAIN1", 1) ("MAIN2", 1)
@@ -508,77 +509,27 @@ module Asserts =
 // relative to ideal beautification.
 
 module Evaluations =
+    open TestDrawBlock.HLPTick3.Evaluations
 
-    /// Calculates the proportion of wire bends compared to the ideal solution.
-    /// Same as evaluating the number of visual segments
-    let wireBendProp (sheet: SheetT.Model) =
-        let wires = mapValues sheet.Wire.Wires
-        let symMap = sheet.Wire.Symbol
-
-        // Ideal min turn with no position constraints
-        let wireMinTurns (wire: BusWireT.Wire) =
-            let inpEdge = getInputPortOrientation symMap wire.InputPort
-            let outEdge = getOutputPortOrientation symMap wire.OutputPort
-            match inpEdge, outEdge with
-            | edge1, edge2 when edge1 = edge2 -> 2
-            | Left, Right | Right, Left | Top, Bottom | Bottom, Top -> 0
-            | _ -> 1
-
-        let rightAngs = numOfVisRightAngles sheet
-        let idealRightAngs =
-            wires
-            |> Array.map wireMinTurns
-            |> Array.sum
-
-        match rightAngs with
-        | 0 -> 1.
-        | _ -> float idealRightAngs / float rightAngs
-
-    /// Evaluates symbol alignment with all other symbols
-    let symCentreAlignmentProp (sheet: SheetT.Model) : float =
-        let syms = mapValues sheet.Wire.Symbol.Symbols
-        let n = Array.length syms
-        
-        /// Scores how close two points are
-        let calcAlignPoint (pointA: float) (pointB: float) : float =
-            let diff = abs (pointA - pointB)
-            match diff with
-            | diff when diff < 1. -> 1.
-            | _ -> 1. / diff
-
-        /// Scores how aligned two symbols are
-        let calcAlignSym (symA: SymbolT.Symbol) (symB: SymbolT.Symbol) : float = 
-            let ctrA = symA.CentrePos
-            let ctrB = symB.CentrePos
-            calcAlignPoint ctrA.X ctrB.X + calcAlignPoint ctrA.Y ctrB.Y
-
-        Array.allPairs syms syms
-        |> Array.sumBy (function | (symA,symB) when symA.Id <= symB.Id -> calcAlignSym symA symB
-                                 | _ -> 0.)
-        |> (fun x -> x / (float (n * n))) // Scales to lots of symbols
-
-
+    /// Weights to choose metrics' imprortance.
+    /// D1-specific metrics only
     type ConfigD1 =
         {
-            wireBendWeight: float
-            wireCrossWeight: float // numOfWireRightAngleCrossings
+            wBendWeight: float
+            wCrossWeight: float
             // wireSquashWeight: float
-            failPenalty: float // -1
         }
 
-    let combEval evalA weightA evalB weightB (sheet: SheetT.Model) =
-        weightA * (evalA sheet) + weightB * (evalB sheet)
-
-    /// Combines all evaluations into one score
-    let evaluateD1 (c: ConfigD1) (sheet: SheetT.Model) : float =
-        c.wireBendWeight * (wireBendProp sheet)
-        |> (+) (c.wireCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
+    /// combined evaluation function for D1
+    let evaluateD1 (c: ConfigD1) =
+        combEval 
+            wireBendProp c.wBendWeight 
+            (float << numOfWireRightAngleCrossings) c.wCrossWeight
     
     let d1Conf = 
         {
-            wireBendWeight = 1
-            wireCrossWeight = 1
-            failPenalty = -1
+            wBendWeight = 1
+            wCrossWeight = 1
         }
 
     let d1Evaluator = 

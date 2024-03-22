@@ -13,6 +13,7 @@ The function `sheetBeautify`, which unifies D1, D2, D3, can be invoked by users 
 ### D2: sheetOrderFlip
 
 To minimise wire crossing by changing port order on custom components, flip components, flip MUX input order.
+
 Two optimize algorithm are implemented:
 **Exhaustive Search Algorithm**: function `optimizeModelExhaustive`
 **Iterated local search**: function `optimizeModelILS`

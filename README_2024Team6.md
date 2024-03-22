@@ -1,22 +1,24 @@
 # Team 6 HLP Coursework
 
-Members: Han Jiao (), Yiming Chen (), Edward Chen (), Harry Ni (), Linmo Lin (), Runshen Lu (02033159)
+Members: Han Jiao (), Yiming Chen (), Edward Chen (), Harry Ni (02024219), Linmo Lin (), Runshen Lu (02033159)
 
 ## Wiki
 [link](https://github.com/rl3721/IssieProject-2024/wiki)
 
 ## Using The function
 
+
 ## Modules
-[SheetBeautify.fs](src/Renderer/DrawBlock/SheetBeautify.fs)
-[SheetBeautifyD1.fs](src/Renderer/DrawBlock/SheetBeautifyD1.fs)
-[SheetBeautifyD2.fs](src/Renderer/DrawBlock/SheetBeautifyD2.fs)
-[SheetBeautifyD3.fs](src/Renderer/DrawBlock/SheetBeautifyD3.fs)
-
-[TestDrawBlockD1.fs](src/Renderer/TestDrawBlockD1.fs)
-[TestDrawBlockD2.fs](src/Renderer/TestDrawBlockD2.fs)
-[TestDrawBlockD3.fs](src/Renderer/TestDrawBlockD3.fs)
-
+### Beautify
+Top-level: [SheetBeautify.fs](src/Renderer/DrawBlock/SheetBeautify.fs)  
+D1: [SheetBeautifyAlign.fs](src/Renderer/DrawBlock/SheetBeautifyAlign.fs)  
+D2: [SheetBeautifyFlip.fs](src/Renderer/DrawBlock/SheetBeautifyFlip.fs)  
+D3: [SheetBeautifyWireLabel.fs](src/Renderer/DrawBlock/SheetBeautifyWireLabel.fs)  
+### Test
+Top-level: [TestDrawBlock.fs](src/Renderer/TestDrawBlock.fs)  
+D1: [TestDrawBlockAlign.fs](src/Renderer/TestDrawBlockAlign.fs)  
+D2: [TestDrawBlockFlip.fs](src/Renderer/TestDrawBlockFlip.fs)  
+D3: [TestDrawBlockWireLabel.fs](src/Renderer/TestDrawBlockWireLabel.fs)  
 
 ## Additional Notes
 

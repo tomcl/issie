@@ -1,7 +1,9 @@
 ﻿module SheetBeautify
 open DrawModelType
-let beatifySheet (sheet: SheetT.Model) =
-    sheet
-    |> SheetBeautifyRotate.optimizePortOrder
-    |> SheetBeautifyAlign.sheetAlignScale 3
-    |> SheetBeautifyWireLabel.wireLabelBeautify
+let SheetBeautify (sheet: SheetT.Model) =
+    let optimizedSheet =
+        sheet
+        |> SheetBeautifyRotate.optimizePortOrder
+        |> SheetBeautifyAlign.sheetAlignScale 3
+        |> SheetBeautifyWireLabel.wireLabelBeautify
+    {optimizedSheet with UndoList = sheet::sheet.UndoList}

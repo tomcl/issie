@@ -2,11 +2,10 @@ module TestDrawBlockWireLabel
 
 open GenerateData
 open Elmish
-open TestDrawBlockHelpers.HLPTick3
+open TestDrawBlockHelpers
 open TestDrawBlockHelpers.TestLib
-open TestDrawBlockHelpers.HLPTick3.Builder
-open TestDrawBlockHelpers.HLPTick3.Asserts
-open TestDrawBlockHelpers.HLPTick3.Tests
+open TestDrawBlockHelpers.Builder
+open TestDrawBlockHelpers.Asserts
 open CommonTypes
 open DrawModelType
 

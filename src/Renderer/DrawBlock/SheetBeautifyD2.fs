@@ -62,10 +62,10 @@ let distFromSymCentreToPort (portID: string) (model: SheetT.Model) (sym: Symbol)
 (* Converts a given XYPos distance to a bearing in radians, from Top-Left:
 
 Bearing from North   
-  0rad     
- ___||___         
-|   ||   |         
-|   ||   |                
+   0rad  (x, y)  
+ ___||___ *         
+|   ||  *|         
+|   ||*  |                
 |        |              
 |________|                
 
@@ -74,7 +74,7 @@ let XYPosToRadians (xyPos: XYPos) : double =
     let Pi = System.Math.PI
     let angleFromHorizontal = atan2 (abs xyPos.Y) (abs xyPos.X)
     let angleFromVertical = (Pi/2.0 - angleFromHorizontal)
-    
+
     match xyPos.X, xyPos.Y with
     | x, y when x >= 0.0 && y <= 0.0 -> angleFromVertical // Quadrant 1
     | x, y when x >= 0.0 && y >= 0.0 -> angleFromHorizontal + Pi/2.0 // Quadrant 2
@@ -122,7 +122,8 @@ let flipPerpindicular (sym: Symbol) : Symbol =
     | Degree0 | Degree180 -> SymbolResizeHelpers.flipSymbol FlipVertical sym // Facing horizontally
     | Degree90 | Degree270 -> SymbolResizeHelpers.flipSymbol FlipHorizontal sym // Facing vertically
 
-let test (topAmount: int) (lst: string list) : string list =
+// Puts the first half of the top ports to the end of the list of sorted ports
+let reorderForTop (topAmount: int) (lst: string list) : string list =
     let head, tail = List.splitAt (lst.Length - topAmount/2) lst
     tail @ head
 
@@ -130,6 +131,8 @@ let test (topAmount: int) (lst: string list) : string list =
 //                                     D2 Function                                      //
 //--------------------------------------------------------------------------------------//
 
+// Test a new flipped or rotationally sorted custom symbol and compare it to the old model. Only take new model if it reduces
+// wire crossings and bends.
 let testNewSym (newSym: Symbol) (currSym: Symbol) (currModel: SheetT.Model) (currBends: int) (currCross: int) = 
     // Replace Symbol Model/sheet with the flipped symbol (flippedSym)
     let newSymModel = SymbolUpdate.replaceSymbol currModel.Wire.Symbol newSym currSym.Id 
@@ -145,7 +148,7 @@ let testNewSym (newSym: Symbol) (currSym: Symbol) (currModel: SheetT.Model) (cur
     | _, _ -> (currBends, currCross, currModel)
 
 
-
+// Rotationally sorts all the ports of a custom symbol in order of the angles made from the symbol center to a port
 let rotationallySortCustomSymPorts ((currBends, currCross, currModel): int * int * SheetT.Model) (sym: Symbol) : int * int * SheetT.Model =
 
     let allPorts = allPorts sym
@@ -166,7 +169,7 @@ let rotationallySortCustomSymPorts ((currBends, currCross, currModel): int * int
                       |> List.map (fun (portId, xyPos) -> portId, XYPosToRadians xyPos) // Convert XY distance to radians from north
                       |> List.sortBy (fun (_, angle) -> angle) // Sort by Angle
                       |> List.map fst // List of sorted ports from Top, Right, Bottom, Left
-                      |> test sym.PortMaps.Order[Top].Length
+                      |> reorderForTop sym.PortMaps.Order[Top].Length
 
     let portAmount = getSymEdgePortAmount sym // Amount of ports on edges Top, Right, Bottom, Left of a symbol, in order
     let newOrder, newOrient, _ = List.fold applyPorts (Map.empty, Map.empty, sortedPorts) portAmount // Create new PortMap with new sortedPorts

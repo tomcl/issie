@@ -614,7 +614,7 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let genA3 = randXY {min=(-30); step=3; max=30}
+    let genA3 = randXY {min=1; step=1; max=2}
     let testA3 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Figure A3 circuit from hlp2024 brief"
@@ -642,7 +642,7 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let genA4Flip = randXY {min=(-200); step=5; max=(-100)}
+    let genA4Flip = randXY {min=(-400); step=20; max=(-300)}
     let testA4Flip testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random scaling"

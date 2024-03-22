@@ -193,8 +193,10 @@ let shortDisplayMsg (msg: Msg) =
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
     | UpdateDrawBlockTestState _ -> None
-    | SelectBeautifyLevel _ -> None
+    | ToggleSettingsMenu -> None
+    | SelectTracking _ -> None
     | ToggleBeautifyMenu -> None
+    | SelectBeautifyLevel _ -> None
     | ToggleSymbolInfoTable -> None
     | ToggleSymbolPortsTable -> None
     | ToggleSymbolPortMapsTable -> None

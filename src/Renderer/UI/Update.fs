@@ -621,6 +621,12 @@ let update (msg: Msg) oldModel =
         | Level2 -> printfn "Set Beautify Level to 2"
         | Level3 -> printfn "Set Beautify Level to 3"
         { oldModel with BeautifyLevel = level }, Cmd.none
+    | ToggleSettingsMenu -> { oldModel with SettingsMenuExpanded = not oldModel.SettingsMenuExpanded }, Cmd.none
+    | SelectTracking(h: bool, cachedStringData) ->
+        match h with
+        | true -> printfn "Set Tracking to true"
+        | false -> printfn "Set Tracking to false"
+        { oldModel with Tracking = h; CachedSheetStats = cachedStringData }, Cmd.none
     | ToggleBeautifyMenu -> { oldModel with BeautifyMenuExpanded = not oldModel.BeautifyMenuExpanded }, Cmd.none
     | ToggleSheetStats -> { model with SheetStatsExpanded = not model.SheetStatsExpanded }, Cmd.none
     | ToggleSymbolInfoTable -> { model with SymbolInfoTableExpanded = not model.SymbolInfoTableExpanded }, Cmd.none

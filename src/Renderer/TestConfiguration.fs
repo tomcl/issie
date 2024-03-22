@@ -6,7 +6,7 @@ open CommonTypes
 open DrawModelType
 
 let unitTestMetrics: list<(SheetT.Model -> int)> =
-    [ countBendsInSheet; countWiresCrossingInSheet ]
+    [ countBendsInSheet; countWiresCrossingInSheet; countWireIntersectsSymbolInSheet ]
 
 let randomTestAsserts : list<(SheetT.Model -> SheetT.Model -> option<string>)> =
     [ failOnBeautifyCausesSymbolOverlap;

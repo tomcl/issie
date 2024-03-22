@@ -148,7 +148,7 @@ let countWiresCrossingInSheet  (sheet: SheetT.Model) : int  =
 
 let countWireIntersectsSymbolInSheet (sheet: SheetT.Model) : int =
     printfn "Testing countWireIntersectsSymbolInSheet"
-    let count = SheetBeautifyHelpers.numOfIntersectSegSym sheet
+    let count = SheetBeautifyD2.mySheetBeautifyHelpers.countDistinctWireSegmentIntersectSymbol sheet
     count
 
 //----------------------------------------------------------------------------------------------//
